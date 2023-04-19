@@ -3,12 +3,16 @@ import { THEME } from "../../theme";
 
 export const styles = StyleSheet.create({
     track: {
+        flexDirection: "row",
+        height: 92,
+        width: Dimensions.get("window").width,
+        backgroundColor: "#270052",
+    },
+    info: {
         flexDirection: "column",
         justifyContent: "center",
-        padding: 10,
-        backgroundColor: "#270052",
         overflow: "hidden",
-        minWidth: Dimensions.get("window").width,
+        paddingLeft: 4,
     },
     title: {
         color: THEME.COLORS.SHAPE,
@@ -17,7 +21,7 @@ export const styles = StyleSheet.create({
         textAlign: "left",
         height: THEME.FONT_SIZE.LG * 1.5,
     },
-    album: {
+    song: {
         color: THEME.COLORS.WHITE_TEXT,
         fontSize: THEME.FONT_SIZE.MD,
         fontFamily: THEME.FONT_FAMILY.BOLD,

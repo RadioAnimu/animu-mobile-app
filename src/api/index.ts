@@ -10,10 +10,10 @@ export interface AnimuInfoProps {
 }
 
 export interface TrackProps {
-    artist: string,
-    title: string,
     rawtitle: string,
-    album: string,
+    anime: string,
+    song: string,
+    artist: string,
     artworks: {
         tiny?: string,
         medium?: string,
