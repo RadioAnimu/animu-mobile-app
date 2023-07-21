@@ -7,11 +7,12 @@ interface Props {
     selected: boolean;
     category: string;
     kbps: number;
+    handleChangeBitrate: () => void;
 }
 
-export function ButtonKBPS({ selected, category, kbps }: Props) {
+export function ButtonKBPS({ selected, category, kbps, handleChangeBitrate }: Props) {
   return (
-    <TouchableOpacity style={[styles.container, 
+    <TouchableOpacity onPress={handleChangeBitrate} style={[styles.container, 
         {
             backgroundColor: selected ? THEME.COLORS.SHAPE : THEME.COLORS.PRIMARY, 
         }]
