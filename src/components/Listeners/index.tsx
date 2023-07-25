@@ -1,7 +1,6 @@
-import { View, Text } from "react-native";
+import { View, Text, Image } from "react-native";
 import { styles } from "./styles";
-
-import { Headphones } from "phosphor-react-native";
+import foninho from "../../assets/icons/foninho.png";
 import { THEME } from "../../theme";
 
 interface Props {
@@ -12,7 +11,7 @@ export function Listeners({ listeners }: Props) {
   return (
     <View style={styles.container}>
         <Text style={styles.text}>{listeners}</Text>
-        <Headphones size={THEME.FONT_SIZE.LG} color={THEME.COLORS.PRIMARY} weight="fill" />
+        <Image style={styles.foninho} source={foninho} />
         <Text style={styles.text}>HARU-CHAN</Text>
     </View>
   );

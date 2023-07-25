@@ -15,8 +15,13 @@ export const styles = StyleSheet.create({
         width: 186
     },
     text: {
-        color: THEME.COLORS.PRIMARY,
+        color: THEME.COLORS.LISTENERS,
         fontSize: THEME.FONT_SIZE.MD,
         fontFamily: THEME.FONT_FAMILY.BOLD,
-    }
+    },
+    foninho: {
+        width: 18,
+        height: 18,
+        objectFit: "contain",
+    },
 });

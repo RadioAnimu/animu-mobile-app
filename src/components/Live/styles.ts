@@ -12,7 +12,7 @@ export const styles = StyleSheet.create({
         flexDirection: "column",
         justifyContent: "center",
         overflow: "hidden",
-        paddingLeft: 4,
+        paddingLeft: 14,
     },
     title: {
         color: THEME.COLORS.SHAPE,

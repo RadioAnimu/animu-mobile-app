@@ -14,6 +14,8 @@ export const THEME = {
     COVER: "#42008C",
     SUCCESS: "#34D399",
     ALERT: "#F87171",
+    LISTENERS: "#42008C",
+    BITRATEBTNS: "#420080",
   },
 
   FONT_FAMILY: {

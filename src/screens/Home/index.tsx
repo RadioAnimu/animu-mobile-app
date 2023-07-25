@@ -1,11 +1,10 @@
 import React, { useEffect, useRef, useState } from "react";
-import { Image, Text, View } from "react-native";
+import { Text, View } from "react-native";
 
 import { styles } from "./styles";
 import { Background } from "../../components/Background";
-import { API, AnimuInfoProps } from "../../api";
+import { AnimuInfoProps } from "../../api";
 
-import { useNavigation } from "@react-navigation/native";
 import { HeaderBar } from "../../components/HeaderBar";
 import { Loading } from "../Loading";
 import { Logo } from "../../components/Logo";
@@ -20,32 +19,35 @@ import { myPlayer } from "../../utils";
 const default_cover = "https://cdn.discordapp.com/attachments/634406949198364702/1093233650025377892/Animu-3-anos-nova-logo.png";
 
 export function Home() {
-  const navigation = useNavigation();
   const [animuInfo, setAnimuInfo] = useState<AnimuInfoProps | null>(null);
   const [cover, setCover] = useState<string>(default_cover);
   const isFirstRun = useRef(true);
   const player = useRef(myPlayer()); 
+  
+
 
   useEffect(() => {
-        function fetchCurrentData() {
-              fetch(API.BASE_URL)
-              .then((response) => response.json())
-              .then((data: AnimuInfoProps) => {
-                      data.track.rawtitle = data.rawtitle;
-                      data.track.song = data.rawtitle.split(" | ")[0].trim() || data.rawtitle;
-                      data.track.anime = data.rawtitle.split(" | ")[1].trim() || "Tocando Agora";
-                      data.track.artist = data.track.song.split(" - ")[0].trim() || data.track.artist;
-                      data.track.song = data.track.song.split(" - ")[1].trim() || data.track.song;
-                      setAnimuInfo(data);
-                      setCover(data.track.artworks.large || data.track.artworks.medium || data.track.artworks.tiny || default_cover);
-                      });
-          }
-
-        setInterval(() => {
-            fetchCurrentData();
-        }, 1000);
+            setInterval(() => {
+                function isUrlAnImage(url: string) {
+                    return(url.match(/\.(jpeg|jpg|gif|png)$/) != null);
+                }
+                async function getAnimuInfo() {
+                    const data = await player.current.getCurrentMusic(); 
+                    if (data.track != animuInfo?.track) {
+                        setAnimuInfo(data);
+                    }
+                    const cover = (data.track.artworks.large || data.track.artworks.medium || data.track.artworks.tiny || default_cover);
+                    if (isUrlAnImage(cover)) {
+                        setCover(cover);
+                    } else {
+                        setCover(default_cover);
+                    }
+                }
+                getAnimuInfo();
+          }, 1000);
 
         if (isFirstRun.current) {
+
           player.current.play();
           isFirstRun.current = false;
         }
@@ -56,7 +58,7 @@ export function Home() {
     <Background>
       {animuInfo ? (
           <View style={styles.container}>
-            <HeaderBar />
+            <HeaderBar player={player.current} />
             <Logo size={127} />
             <View style={styles.information}>
                 <Listeners listeners={animuInfo.listeners} />

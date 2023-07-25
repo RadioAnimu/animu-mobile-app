@@ -1,8 +1,0 @@
-#EXTM3U
-
-#EXTINF:-1, Animu.com.br 320 KBPS MP3
-https://cast.animu.com.br:9079/stream
-#EXTINF:-1, Animu.com.br 192 kbps MP3
-https://cast.animu.com.br:9089/stream
-#EXTINF:-1, Animu.com.br 64 kbps AAC+
-https://cast.animu.com.br:9069/stream

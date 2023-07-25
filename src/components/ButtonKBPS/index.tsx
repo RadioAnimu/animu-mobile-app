@@ -14,17 +14,17 @@ export function ButtonKBPS({ selected, category, kbps, handleChangeBitrate }: Pr
   return (
     <TouchableOpacity onPress={handleChangeBitrate} style={[styles.container, 
         {
-            backgroundColor: selected ? THEME.COLORS.SHAPE : THEME.COLORS.PRIMARY, 
+            backgroundColor: !selected ? THEME.COLORS.SHAPE : THEME.COLORS.BITRATEBTNS, 
         }]
     }>
         <Text style={[styles.category, 
         {
-            color: selected ? THEME.COLORS.WHITE_TEXT : THEME.COLORS.SHAPE, 
+            color: selected ? THEME.COLORS.WHITE_TEXT : THEME.COLORS.PRIMARY, 
         }]
         }>{category}</Text>
         <Text style={[styles.kbps,
         {
-            color: selected ? THEME.COLORS.WHITE_TEXT : THEME.COLORS.SHAPE, 
+            color: selected ? THEME.COLORS.WHITE_TEXT : THEME.COLORS.PRIMARY, 
         }]}>{kbps} kbps</Text>
     </TouchableOpacity>
   );

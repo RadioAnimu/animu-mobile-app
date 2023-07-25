@@ -9,6 +9,9 @@ export function CountdownTimerText({ startTime }: Props) {
     console.log(startTime);
 
     const fomartTime = (timeStamp: number): string => {
+        if (timeStamp <= 0) {
+            timeStamp = 0;
+        }
         timeStamp = Math.floor(timeStamp / 1000);
         let minutes: number = Math.floor(timeStamp / 60);
         let seconds: number = Math.floor(timeStamp % 60);

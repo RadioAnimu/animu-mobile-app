@@ -7,8 +7,8 @@ export const styles = StyleSheet.create({
         resizeMode: "cover",
         width: 240,
         height: 240,
-        borderRadius: 10,
+        borderRadius: 12,
         borderColor: THEME.COLORS.COVER,
-        borderWidth: 8,
+        borderWidth: 5,
     }
 });

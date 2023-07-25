@@ -15,5 +15,15 @@ export const styles = StyleSheet.create({
     playBtn: {
         width: 55,
         objectFit: "contain",
-    }
+    },
+    menuBtn: {
+        width: 27,
+        height: 27,
+        objectFit: "contain",
+    },
+    noteIcon: {
+        width: 27,
+        height: 27,
+        objectFit: "contain",
+    },
 });
