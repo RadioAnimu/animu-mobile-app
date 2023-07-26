@@ -7,7 +7,7 @@ export const styles = StyleSheet.create({
     alignItems: "center",
   },
   timeLeft: {
-    fontSize: THEME.FONT_SIZE.MD,
+    fontSize: THEME.FONT_SIZE.SM,
     fontFamily: THEME.FONT_FAMILY.REGULAR,
     color: "white",
   },

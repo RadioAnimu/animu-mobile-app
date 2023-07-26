@@ -24,11 +24,11 @@ export const styles = StyleSheet.create({
     song: {
         color: THEME.COLORS.WHITE_TEXT,
         fontSize: THEME.FONT_SIZE.MD,
-        fontFamily: THEME.FONT_FAMILY.BOLD,
+        fontFamily: THEME.FONT_FAMILY.REGULAR,
     },
     artist: {
         color: THEME.COLORS.WHITE_TEXT,
         fontSize: THEME.FONT_SIZE.MD,
-        fontFamily: THEME.FONT_FAMILY.REGULAR,
+        fontFamily: THEME.FONT_FAMILY.BOLD,
     },
 });

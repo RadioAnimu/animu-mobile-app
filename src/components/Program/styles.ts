@@ -8,12 +8,12 @@ export const styles = StyleSheet.create({
         alignItems: "center",
     },
     title: {
-        fontSize: THEME.FONT_SIZE.LG,
+        fontSize: THEME.FONT_SIZE.PROGRAM_LABELS,
         fontFamily: THEME.FONT_FAMILY.BOLD,
     },
     label: {
         color: THEME.COLORS.WHITE_TEXT,
-        fontSize: THEME.FONT_SIZE.LG,
+        fontSize: THEME.FONT_SIZE.PROGRAM_LABELS,
         fontFamily: THEME.FONT_FAMILY.BOLD,
     },
     green: {

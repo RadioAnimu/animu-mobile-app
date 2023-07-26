@@ -19,15 +19,18 @@ export const THEME = {
   },
 
   FONT_FAMILY: {
-    REGULAR: "Inter_400Regular",
-    SEMI_BOLD: "Inter_600SemiBold",
-    BOLD: "Inter_700Bold",
-    BLACK: "Inter_900Black",
+    REGULAR: "ProximaNova-Regular",
+    LIGHT: "ProximaNova-Light",
+    BOLD: "ProximaNova-Bold",
+    BLACK: "ProximaNova-Black",
   },
 
   FONT_SIZE: {
+    BITRATE_BTNS: 13,
+    BITRATE_LABEL: 16,
     SM: 14,
-    MD: 16,
-    LG: 24,
+    MD: 20,
+    LG: 22,
+    PROGRAM_LABELS: 19,
   },
 };
