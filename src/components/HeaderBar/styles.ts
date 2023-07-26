@@ -21,6 +21,7 @@ export const styles = StyleSheet.create({
         width: 48,
         height: 48,
         objectFit: "contain",
+        marginHorizontal: 47,
     },
     menuBtn: {
         width: 27,

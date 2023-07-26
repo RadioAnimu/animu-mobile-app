@@ -12,7 +12,8 @@ export const styles = StyleSheet.create({
         paddingVertical: 3,
         gap: 4,
         height: 27,
-        width: 186
+        width: 186,
+        marginBottom: 10,
     },
     text: {
         color: THEME.COLORS.LISTENERS,

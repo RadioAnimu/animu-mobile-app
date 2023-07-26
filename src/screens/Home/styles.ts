@@ -10,10 +10,10 @@ export const styles = StyleSheet.create({
     fontSize: THEME.FONT_SIZE.SM,
     fontFamily: THEME.FONT_FAMILY.REGULAR,
     color: "white",
+    marginBottom: 8,
   },
   information: {
     flexDirection: "column",
-    gap: 10,
     justifyContent: "center",
     alignItems: "center",
   },

@@ -13,6 +13,8 @@ interface Props {
 }
 
 export function HeaderBar({ player }: Props) {
+  const currentTime = player.curretnMusic?.track.timestart ? ((Date.now() - player.curretnMusic?.track.timestart) > 0 ? (Date.now() - player.curretnMusic?.track.timestart) / player.curretnMusic?.track.duration : 0) : 0;
+  console.log({ currentTime });
   return (
     <View style={styles.view}>
         <View style={styles.container}>
@@ -29,7 +31,7 @@ export function HeaderBar({ player }: Props) {
         </View>
         <View style={styles.progressBarView}>
             <Slider
-              value={player.curretnMusic?.track.timestart ? ((Date.now() - player.curretnMusic?.track.timestart) > 0 ? (Date.now() - player.curretnMusic?.track.timestart) / player.curretnMusic?.track.duration : 0) : 0}
+              value={currentTime}
               style={styles.progressBar}
               tapToSeek={false}
               minimumValue={0}
