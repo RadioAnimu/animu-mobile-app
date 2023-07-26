@@ -34,6 +34,7 @@ export interface MyPlayerProps {
     curretnBitrate: keyof typeof BITRATES | null;
     _loaded: boolean;
     _paused: boolean;
+    curretnMusic: AnimuInfoProps | null;
     getCurrentMusic: () => Promise<AnimuInfoProps>;
     loadStream: (streamUrl: string, shouldPlay: boolean) => Promise<void>;
     play: () => Promise<void>;
@@ -48,6 +49,7 @@ export const myPlayer = (): MyPlayerProps => ({
     curretnBitrate: null,
     _loaded: false,
     _paused: true,
+    curretnMusic: null,
     async getCurrentMusic(): Promise<AnimuInfoProps> {
          const data: any = await fetch(API.BASE_URL);
          const json: AnimuInfoProps = await data.json();
@@ -56,6 +58,7 @@ export const myPlayer = (): MyPlayerProps => ({
          json.track.anime = json.rawtitle.split(" | ")[1].trim() || "Tocando Agora";
          json.track.artist = json.track.song.split(" - ")[0].trim() || json.track.artist;
          json.track.song = json.track.song.split(" - ")[1].trim() || json.track.song;
+         this.curretnMusic = json;
         return json;
     },
     async loadStream(streamUrl: string, shouldPlay: boolean) {

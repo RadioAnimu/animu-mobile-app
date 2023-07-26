@@ -15,6 +15,7 @@ import { Program } from "../../components/Program";
 import { CountdownTimerText } from "../../components/CountdownTimerText";
 import { ChooseBitrateSection } from "../../components/ChooseBitrateSection";
 import { myPlayer } from "../../utils";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 const default_cover = "https://cdn.discordapp.com/attachments/634406949198364702/1093233650025377892/Animu-3-anos-nova-logo.png";
 
@@ -23,6 +24,7 @@ export function Home() {
   const [cover, setCover] = useState<string>(default_cover);
   const isFirstRun = useRef(true);
   const player = useRef(myPlayer()); 
+  let auxData;
   
 
 
@@ -32,11 +34,11 @@ export function Home() {
                     return(url.match(/\.(jpeg|jpg|gif|png)$/) != null);
                 }
                 async function getAnimuInfo() {
-                    const data = await player.current.getCurrentMusic(); 
-                    if (data.track != animuInfo?.track) {
-                        setAnimuInfo(data);
+                    auxData = await player.current.getCurrentMusic(); 
+                    if (auxData.track != animuInfo?.track) {
+                        setAnimuInfo(auxData);
                     }
-                    const cover = (data.track.artworks.large || data.track.artworks.medium || data.track.artworks.tiny || default_cover);
+                    const cover = (auxData.track.artworks.large || auxData.track.artworks.medium || auxData.track.artworks.tiny || default_cover);
                     if (isUrlAnImage(cover)) {
                         setCover(cover);
                     } else {
@@ -57,7 +59,7 @@ export function Home() {
   return (
     <Background>
       {animuInfo ? (
-          <View style={styles.container}>
+          <SafeAreaView style={styles.container}>
             <HeaderBar player={player.current} />
             <Logo size={127} />
             <View style={styles.information}>
@@ -70,7 +72,7 @@ export function Home() {
                 <Program info={animuInfo} />
                 <ChooseBitrateSection  player={player.current} />
             </View>
-          </View>
+          </SafeAreaView>
       ) : (
         <Loading />
       )}
