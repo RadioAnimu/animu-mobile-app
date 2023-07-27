@@ -10,7 +10,7 @@ export function Program({ info }: Props) {
   return (
     <View style={styles.container}>
         <Text style={[styles.title, styles.green]}>{info.program.programa}</Text>
-        <Text style={styles.label}>COM: <Text style={styles.green}>{info.track.isRequest ? "AO VIVO" : info.program.locutor}</Text></Text>
+        <Text style={styles.label}>COM: <Text style={styles.green}>{info.program.locutor}</Text></Text>
     </View>
   );
 }
