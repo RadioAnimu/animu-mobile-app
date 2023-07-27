@@ -62,8 +62,8 @@ export function Home() {
       {animuInfo ? (
         <SafeAreaView style={styles.container}>
           <HeaderBar player={player.current} />
-          <Logo size={127} />
-          <View style={styles.information}>
+          <View style={styles.containerApp}>
+            <Logo size={127} />
             <Listeners info={animuInfo} />
             <Cover cover={cover} />
             {!animuInfo.track.isLiveProgram && (

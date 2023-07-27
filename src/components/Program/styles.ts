@@ -6,7 +6,6 @@ export const styles = StyleSheet.create({
         flexDirection: "column",
         justifyContent: "center",
         alignItems: "center",
-        marginBottom: 9,
     },
     title: {
         fontSize: THEME.FONT_SIZE.PROGRAM_LABELS,
