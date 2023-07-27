@@ -16,6 +16,8 @@ export const THEME = {
     ALERT: "#F87171",
     LISTENERS: "#42008C",
     BITRATEBTNS: "#420080",
+    REQUEST: "#42008c",
+    LIVE_PROGRAM: "red",
   },
 
   FONT_FAMILY: {

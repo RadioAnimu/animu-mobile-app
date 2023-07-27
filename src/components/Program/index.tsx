@@ -9,8 +9,8 @@ interface Props {
 export function Program({ info }: Props) {
   return (
     <View style={styles.container}>
-        <Text style={[styles.title, styles.green]}>Animu Ohayo</Text>
-        <Text style={styles.label}>COM: <Text style={styles.green}>Haruka Yuki</Text></Text>
+        <Text style={[styles.title, styles.green]}>{info.program.programa}</Text>
+        <Text style={styles.label}>COM: <Text style={styles.green}>{info.track.isRequest ? "AO VIVO" : info.program.locutor}</Text></Text>
     </View>
   );
 }

@@ -6,10 +6,9 @@ export const styles = StyleSheet.create({
         flexDirection: "column",
         justifyContent: "center",
         alignItems: "center",
-        height: 45,
-        width: 95,
-        borderRadius: 4,
-        padding: 2,
+        height: 40,
+        width: 91,
+        borderRadius: 6,
     },
     kbps: {
         fontSize: THEME.FONT_SIZE.BITRATE_LABEL,

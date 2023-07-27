@@ -1,6 +1,6 @@
 import { Audio, InterruptionModeAndroid, InterruptionModeIOS } from "expo-av";
 import { Sound } from "expo-av/build/Audio";
-import { AnimuInfoProps } from "../api";
+import { AnimuInfoProps, ProgramProps } from "../api";
 import { API } from "../api";
 
 const BITRATES = {
@@ -35,12 +35,14 @@ export interface MyPlayerProps {
     _loaded: boolean;
     _paused: boolean;
     curretnMusic: AnimuInfoProps | null;
+    currentProgram: ProgramProps | null;
     getCurrentMusic: () => Promise<AnimuInfoProps>;
     loadStream: (streamUrl: string, shouldPlay: boolean) => Promise<void>;
     play: () => Promise<void>;
     pause: () => Promise<void>;
     unloadStream: () => Promise<void>;
     changeBitrate: (bitrate: keyof typeof BITRATES) => Promise<void>;
+    getProgram: () => Promise<ProgramProps>;
 }
 
 export const myPlayer = (): MyPlayerProps => ({
@@ -50,15 +52,23 @@ export const myPlayer = (): MyPlayerProps => ({
     _loaded: false,
     _paused: true,
     curretnMusic: null,
+    currentProgram: null,
     async getCurrentMusic(): Promise<AnimuInfoProps> {
          const data: any = await fetch(API.BASE_URL);
          const json: AnimuInfoProps = await data.json();
+         json.listeners += 1;
          json.track.rawtitle = json.rawtitle;
-         json.track.song = json.rawtitle.split(" | ")[0].trim() || json.rawtitle;
-         json.track.anime = json.rawtitle.split(" | ")[1].trim() || "Tocando Agora";
-         json.track.artist = json.track.song.split(" - ")[0].trim() || json.track.artist;
-         json.track.song = json.track.song.split(" - ")[1].trim() || json.track.song;
+         json.track.song = json.rawtitle.split(" | ")[0]?.trim() || json.rawtitle;
+         json.track.anime = json.rawtitle.split(" | ")[1]?.trim() || "Tocando Agora";
+         json.track.artist = json.track.song.split(" - ")[0]?.trim() || json.track.artist;
+         json.track.song = json.track.song.split(" - ")[1]?.trim() || json.track.song;
+         json.track.isRequest = json.track.rawtitle.toLowerCase().includes("pedido");
          this.curretnMusic = json;
+         await this.getProgram();
+         if (this.currentProgram) {
+             json.program = this.currentProgram;
+             json.track.isLiveProgram = json.program.locutor.toLowerCase() !== "haruka yuki";
+        }
         return json;
     },
     async loadStream(streamUrl: string, shouldPlay: boolean) {
@@ -81,6 +91,12 @@ export const myPlayer = (): MyPlayerProps => ({
         this.player = sound;
         this._loaded = true;
     },
+    async getProgram(): Promise<ProgramProps> {
+        const data: any = await fetch(API.PROGRAM_URL);
+        const json: ProgramProps = await data.json();
+        this.currentProgram = json;
+        return json;
+    }, 
     async play() {
         console.log("Play");
         if (this.player && (this._loaded || this._paused)) {

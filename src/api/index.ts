@@ -1,12 +1,21 @@
 const BASE_URL = "https://api.animu.com.br/";
-    export const API = {
+const PROGRAM_URL = "https://www.animu.com.br/teste/locutor.php";
+
+export const API = {
     BASE_URL,
+    PROGRAM_URL
 };
 
 export interface AnimuInfoProps {
     listeners: number,
     rawtitle: string,
     track: TrackProps,
+    program: ProgramProps,
+}
+
+export interface ProgramProps {
+    locutor: string,
+    programa: string,
 }
 
 export interface TrackProps {
@@ -21,4 +30,6 @@ export interface TrackProps {
     },
     timestart: number,
     duration: number,
+    isRequest: boolean,
+    isLiveProgram: boolean,
 }

@@ -1,18 +1,26 @@
 import { View, Text, Image } from "react-native";
 import { styles } from "./styles";
 import foninho from "../../assets/icons/foninho.png";
+import foninho_branco from "../../assets/icons/foninho_branco.png";
+import { AnimuInfoProps } from "../../api";
 import { THEME } from "../../theme";
 
 interface Props {
-  listeners: number;
+  info: AnimuInfoProps;
 }
 
-export function Listeners({ listeners }: Props) {
+export function Listeners({ info }: Props) {
   return (
-    <View style={styles.container}>
-        <Text style={styles.text}>{listeners}</Text>
-        <Image style={styles.foninho} source={foninho} />
-        <Text style={styles.text}>HARU-CHAN</Text>
+    <View style={[styles.container, {
+            backgroundColor: info.track.isRequest ? THEME.COLORS.REQUEST : info.track.isLiveProgram ? THEME.COLORS.LIVE_PROGRAM : THEME.COLORS.SHAPE,
+        }]}>
+        <Text style={[styles.text, {
+                color: info.track.isRequest || info.track.isLiveProgram ? THEME.COLORS.WHITE_TEXT : THEME.COLORS.LISTENERS,
+            }]}>{info.listeners}</Text>
+        <Image style={styles.foninho} source={info.track.isRequest || info.track.isLiveProgram ? foninho_branco : foninho} />
+        <Text style={[styles.text, {
+                color: info.track.isRequest || info.track.isLiveProgram ? THEME.COLORS.WHITE_TEXT : THEME.COLORS.LISTENERS,
+            }]}>{info.track.isLiveProgram ? info.program.locutor.toUpperCase() : info.track.isRequest ? "MÚSICA PEDIDA" : "HARU-CHAN"}</Text>
     </View>
   );
 }

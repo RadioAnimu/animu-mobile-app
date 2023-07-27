@@ -63,7 +63,7 @@ export function Home() {
             <HeaderBar player={player.current} />
             <Logo size={127} />
             <View style={styles.information}>
-                <Listeners listeners={animuInfo.listeners} />
+                <Listeners info={animuInfo} />
                 <Cover cover={cover} />
                 <Text style={styles.timeLeft}>Tempo restante: <CountdownTimerText 
                     startTime={animuInfo.track.duration - (Date.now() - animuInfo.track.timestart)}
