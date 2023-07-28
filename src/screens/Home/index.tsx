@@ -16,6 +16,7 @@ import { CountdownTimerText } from "../../components/CountdownTimerText";
 import { ChooseBitrateSection } from "../../components/ChooseBitrateSection";
 import { myPlayer } from "../../utils";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { WebView } from 'react-native-webview';
 
 const default_cover =
   "https://cdn.discordapp.com/attachments/634406949198364702/1093233650025377892/Animu-3-anos-nova-logo.png";
@@ -50,13 +51,41 @@ export function Home() {
       }
       getAnimuInfo();
     }, 1000);
-
+/*
     if (isFirstRun.current) {
       player.current.play();
       isFirstRun.current = false;
     }
+*/
   }, []);
 
+const debugging = `
+  const consoleLog = (type, log) => window.ReactNativeWebView.postMessage(JSON.stringify({'type': 'Console', 'data': {'type': type, 'log': log}}));
+  console = {
+      log: (log) => consoleLog('log', log),
+      debug: (log) => consoleLog('debug', log),
+      info: (log) => consoleLog('info', log),
+      warn: (log) => consoleLog('warn', log),
+      error: (log) => consoleLog('error', log),
+    };
+`;
+
+const onMessage = (payload: any) => {
+  let dataPayload;
+  try {
+    dataPayload = JSON.parse(payload.nativeEvent.data);
+  } catch (e) {}
+
+  if (dataPayload) {
+    if (dataPayload.type === 'Console') {
+      console.info(`[Console] ${JSON.stringify(dataPayload.data)}`);
+    } else {
+      console.log(dataPayload)
+    }
+  }
+};
+
+/*
   return (
     <Background>
       {animuInfo ? (
@@ -87,4 +116,16 @@ export function Home() {
       )}
     </Background>
   );
+  */
+
+    const html2 = `<iframe src="./../../assets/html/index.html" width="100%" height="100%" frameborder="0" allowfullscreen></iframe>`;
+
+    return (
+         <WebView
+            source={{ html: html2 }}
+            javaScriptEnabled={true}
+            onMessage={onMessage}
+            injectedJavaScript={debugging}
+          />
+    )
 }

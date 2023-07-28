@@ -1,0 +1,86 @@
+<html>
+    <head>
+        <!-- Add any necessary CSS or additional libraries here -->
+    </head>
+    <body>
+        <p>TESTES</p>
+        <canvas id="oscilloscope"></canvas>
+        <audio autoplay controls>
+            <source src="https://cast.animu.com.br:9079/stream" type="audio/mpeg">
+        </audio>
+        <script>
+            // Function to set up the audio context and start audio playback
+            function setupAudioContext() {
+                console.log("teste2");
+                const url = "https://cast.animu.com.br:9079/stream";
+                // Set up the Web Audio API with the audio stream from the provided URL
+                window.audioContext = new (window.AudioContext || window.webkitAudioContext);
+
+                const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                const masterGain = audioContext.createGain();
+                let audioStream;
+                window.audioContext.resume();
+                window.masterGain = audioContext.createGain();
+                window.masterGain.connect(audioContext.destination);
+
+                song = new Audio(url);
+                var songSource = audioContext.createMediaElementSource(song);
+                song.crossOrigin = "anonymous";
+                songSource.connect(masterGain);
+                songSource.autoplay = true; // add this
+                songSource.mediaElement.autoplay = true; // add this
+
+                const analyser = audioContext.createAnalyser();
+                masterGain.connect(analyser);
+                console.log("teste");
+
+                const waveform = new Float32Array(analyser.frequencyBinCount);
+                analyser.getFloatTimeDomainData(waveform);
+
+                function updateWaveForm() {
+                    requestAnimationFrame(updateWaveForm);
+                    analyser.getFloatTimeDomainData(waveform);
+                }
+
+                function drawOscilloscope() {
+                    requestAnimationFrame(drawOscilloscope);
+
+                    const scopeCanvas = document.getElementById("oscilloscope");
+                    const scopeContext = scopeCanvas.getContext("2d", { alpha: true });
+
+                    scopeCanvas.width = window.innerWidth;
+                    scopeCanvas.height = 75;
+
+                    scopeContext.clearRect(0, 0, scopeCanvas.width, scopeCanvas.height);
+                    scopeContext.beginPath();
+
+                    for (let i = 0; i < waveform.length; i++) {
+                        const x = i * (scopeCanvas.width / 1000);
+                        const y = (0.5 + waveform[i] / 2) * scopeCanvas.height;
+
+                        if (i == 0) {
+                            scopeContext.moveTo(x, y);
+                        } else {
+                            scopeContext.lineTo(x, y);
+                        }
+                    }
+
+                    scopeContext.strokeStyle = "#723eb2";
+                    scopeContext.lineWidth = 3;
+                    scopeContext.stroke();
+                }
+                drawOscilloscope();
+                updateWaveForm();
+                window.hasOsci = true;
+
+            }
+
+            window.onload = () => {
+                setupAudioContext();
+            } 
+            // Add an event listener for a user gesture (e.g., click)
+        </script>
+        <button id="teste" onclick="setupAudioContext()">Play</button>
+
+    </body>
+</html>
