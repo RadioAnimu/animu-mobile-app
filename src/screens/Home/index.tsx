@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { Text, View } from "react-native";
+import { Dimensions, Platform, Text, View } from "react-native";
 
 import { styles } from "./styles";
 import { Background } from "../../components/Background";
@@ -59,39 +59,111 @@ export function Home() {
 */
   }, []);
 
-const debugging = `
-  const consoleLog = (type, log) => window.ReactNativeWebView.postMessage(JSON.stringify({'type': 'Console', 'data': {'type': type, 'log': log}}));
-  console = {
-      log: (log) => consoleLog('log', log),
-      debug: (log) => consoleLog('debug', log),
-      info: (log) => consoleLog('info', log),
-      warn: (log) => consoleLog('warn', log),
-      error: (log) => consoleLog('error', log),
-    };
+  const htmlContent = `
+        <canvas id="oscilloscope"></canvas>
+        <script>
+            function setupVisualfluff(x) {
+                const analyser = audioContext.createAnalyser();
+                masterGain.connect(analyser);
+
+                const waveform = new Float32Array(analyser.frequencyBinCount);
+                analyser.getFloatTimeDomainData(waveform);
+
+                function updateWaveForm() {
+                    requestAnimationFrame(updateWaveForm);
+                    analyser.getFloatTimeDomainData(waveform);
+                }
+
+                function drawOscilloscope() {
+                    requestAnimationFrame(drawOscilloscope);
+
+                    const scopeCanvas = document.getElementById("oscilloscope");
+                    const scopeContext = scopeCanvas.getContext("2d", { alpha: true });
+
+                    scopeCanvas.width = ${Dimensions.get("window").width};
+                    scopeCanvas.height = 75;
+
+                    scopeContext.clearRect(0, 0, scopeCanvas.width, scopeCanvas.height);
+                    scopeContext.beginPath();
+
+                    for (let i = 0; i < waveform.length; i++) {
+                        const x = i * (scopeCanvas.width / 1000);
+                        const y = (0.5 + waveform[i] / 2) * scopeCanvas.height;
+
+                        if (i == 0) {
+                            scopeContext.moveTo(x, y);
+                        } else {
+                            scopeContext.lineTo(x, y);
+                        }
+                    }
+
+                    scopeContext.strokeStyle = "#723eb2";
+                    scopeContext.lineWidth = 3;
+                    scopeContext.stroke();
+                }
+
+                if (x == "hide") {
+                    console.log("hidden");
+                    const scopeCanvas = document.getElementById("oscilloscope");
+                    scopeCanvas.width = 0;
+                    scopeCanvas.height = 0;
+                    return;
+                } else {
+                    drawOscilloscope();
+                    updateWaveForm();
+                    window.hasOsci = true;
+                }
+            }
+
+            function startplayer() {
+                window.audioContext = new (window.AudioContext || window.webkitAudioContext);
+                document.addEventListener('touchend', ()=>window.audioContext.resume());
+                window.audioContext.resume();
+                window.masterGain = audioContext.createGain();
+                window.masterGain.connect(audioContext.destination);
+                if(!window.hasOsci){
+                    setupVisualfluff();
+                } else {
+                    console.log("wario land 4, play it.");
+                }
+                const url = "https://cast.animu.com.br:9079/stream";
+                song = new Audio(url);
+                var songSource = audioContext.createMediaElementSource(song);
+                song.crossOrigin = "anonymous";
+                songSource.connect(masterGain);
+                song.preload = "none";
+                var gainfrac = 0.5;
+                if (window.masterGain) window.masterGain.gain.value = gainfrac * gainfrac;
+                window.song_result = song.play();
+                window.songPlaying = true;
+            }
+        </script>
+        <button id="teste" onclick="startplayer()">Play</button>
 `;
 
-const onMessage = (payload: any) => {
-  let dataPayload;
-  try {
-    dataPayload = JSON.parse(payload.nativeEvent.data);
-  } catch (e) {}
-
-  if (dataPayload) {
-    if (dataPayload.type === 'Console') {
-      console.info(`[Console] ${JSON.stringify(dataPayload.data)}`);
-    } else {
-      console.log(dataPayload)
-    }
-  }
-};
-
-/*
   return (
     <Background>
       {animuInfo ? (
         <SafeAreaView style={styles.container}>
           <HeaderBar player={player.current} />
           <View style={styles.containerApp}>
+                <View
+                style={{
+                    flex: 1,
+                    height: 400,
+                    position: 'absolute',
+                    top: 0,
+                    width: '100%',
+                }}
+                >
+         <WebView
+            source={{ html: htmlContent }}
+            javaScriptEnabled={true}
+            style={{ resizeMode: 'cover', flex: 1, backgroundColor: 'transparent' }}
+            injectedJavaScript={`const meta = document.createElement('meta'); meta.setAttribute('content', 'width=width, initial-scale=0.5, maximum-scale=0.5, user-scalable=2.0'); meta.setAttribute('name', 'viewport'); document.getElementsByTagName('head')[0].appendChild(meta); `}
+            scalesPageToFit={Platform.OS === 'ios'}
+          />
+                </View>
             <Logo size={127} />
             <Listeners info={animuInfo} />
             <Cover cover={cover} />
@@ -116,16 +188,4 @@ const onMessage = (payload: any) => {
       )}
     </Background>
   );
-  */
-
-    const html2 = `<iframe src="./../../assets/html/index.html" width="100%" height="100%" frameborder="0" allowfullscreen></iframe>`;
-
-    return (
-         <WebView
-            source={{ html: html2 }}
-            javaScriptEnabled={true}
-            onMessage={onMessage}
-            injectedJavaScript={debugging}
-          />
-    )
 }
