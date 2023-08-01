@@ -6,6 +6,7 @@ export const styles = StyleSheet.create({
         flexDirection: "row",
         width: Dimensions.get("window").width,
         backgroundColor: "#270052",
+        marginBottom: 9,
     },
     info: {
         flexDirection: "column",

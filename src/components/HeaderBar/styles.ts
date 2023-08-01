@@ -6,7 +6,6 @@ import { Platform } from "expo-modules-core";
 export const styles = StyleSheet.create({
     view: {
         flexDirection: "column",
-        alignItems: "center",
         minHeight: 72,
     },
     container: {
@@ -34,17 +33,9 @@ export const styles = StyleSheet.create({
         objectFit: "contain",
     },
     progressBarView: {
-        width: Dimensions.get("window").width,
+        height: 5,
         margin: 0,
         padding: 0,
-    },
-    progressBar: {
-        margin: 0,
-        padding: 0,
-        height: 0,
-        fontSize: 0,
-        transform: [{ scaleX: 1.0 }, { scaleY: 2.0 }],
-        width: Dimensions.get("window").width,
-        marginHorizontal: Platform.select({ ios: 0, android: -15 }),
+        backgroundColor: THEME.COLORS.SHAPE,
     },
 });

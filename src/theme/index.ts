@@ -15,7 +15,7 @@ export const THEME = {
     SUCCESS: "#34D399",
     ALERT: "#F87171",
     LISTENERS: "#42008C",
-    BITRATEBTNS: "#420080",
+    BITRATEBTNS: "#42008C",
     REQUEST: "#42008c",
     LIVE_PROGRAM: "red",
   },

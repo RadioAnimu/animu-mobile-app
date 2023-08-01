@@ -16,7 +16,9 @@ import { CountdownTimerText } from "../../components/CountdownTimerText";
 import { ChooseBitrateSection } from "../../components/ChooseBitrateSection";
 import { myPlayer } from "../../utils";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { WebView } from 'react-native-webview';
+import { Oscilloscope } from "../../components/Oscilloscope";
+
+import notifee from '@notifee/react-native';
 
 const default_cover =
   "https://cdn.discordapp.com/attachments/634406949198364702/1093233650025377892/Animu-3-anos-nova-logo.png";
@@ -28,118 +30,62 @@ export function Home() {
   const player = useRef(myPlayer());
   let auxData;
 
+   async function onDisplayNotification() {
+    // Request permissions (required for iOS)
+    await notifee.requestPermission()
+
+    // Create a channel (required for Android)
+    const channelId = await notifee.createChannel({
+      id: 'default',
+      name: 'Default Channel',
+    });
+
+    // Display a notification
+    await notifee.displayNotification({
+      title: 'Notification Title',
+      body: 'Main body content of the notification',
+      android: {
+        channelId,
+        smallIcon: 'name-of-a-small-icon', // optional, defaults to 'ic_launcher'.
+        // pressAction is needed if you want the notification to open the app when pressed
+        pressAction: {
+          id: 'default',
+        },
+      },
+    });
+  }
+
   useEffect(() => {
-    setInterval(() => {
-      function isUrlAnImage(url: string) {
-        return url.match(/\.(jpeg|jpg|gif|png)$/) != null;
-      }
-      async function getAnimuInfo() {
-        auxData = await player.current.getCurrentMusic();
-        if (auxData.track != animuInfo?.track) {
-          setAnimuInfo(auxData);
-        }
-        const cover =
-          auxData.track.artworks.large ||
-          auxData.track.artworks.medium ||
-          auxData.track.artworks.tiny ||
-          default_cover;
-        if (isUrlAnImage(cover)) {
-          setCover(cover);
-        } else {
-          setCover(default_cover);
-        }
-      }
-      getAnimuInfo();
-    }, 1000);
-/*
     if (isFirstRun.current) {
-      player.current.play();
+        setInterval(() => {
+          function isUrlAnImage(url: string) {
+            return url.match(/\.(jpeg|jpg|gif|png)$/) != null;
+          }
+          async function getAnimuInfo() {
+            auxData = await player.current.getCurrentMusic();
+            if (auxData.track != animuInfo?.track) {
+              setAnimuInfo(auxData);
+            }
+            const cover =
+              auxData.track.artworks.large ||
+              auxData.track.artworks.medium ||
+              auxData.track.artworks.tiny ||
+              default_cover;
+            if (isUrlAnImage(cover)) {
+              setCover(cover);
+            } else {
+              setCover(default_cover);
+            }
+          }
+          getAnimuInfo();
+        }, 1000);
+        onDisplayNotification();
+     // player.current.play();
       isFirstRun.current = false;
     }
-*/
   }, []);
 
-  const htmlContent = `
-        <canvas id="oscilloscope"></canvas>
-        <script>
-            function setupVisualfluff(x) {
-                const analyser = audioContext.createAnalyser();
-                masterGain.connect(analyser);
-
-                const waveform = new Float32Array(analyser.frequencyBinCount);
-                analyser.getFloatTimeDomainData(waveform);
-
-                function updateWaveForm() {
-                    requestAnimationFrame(updateWaveForm);
-                    analyser.getFloatTimeDomainData(waveform);
-                }
-
-                function drawOscilloscope() {
-                    requestAnimationFrame(drawOscilloscope);
-
-                    const scopeCanvas = document.getElementById("oscilloscope");
-                    const scopeContext = scopeCanvas.getContext("2d", { alpha: true });
-
-                    scopeCanvas.width = ${Dimensions.get("window").width};
-                    scopeCanvas.height = 75;
-
-                    scopeContext.clearRect(0, 0, scopeCanvas.width, scopeCanvas.height);
-                    scopeContext.beginPath();
-
-                    for (let i = 0; i < waveform.length; i++) {
-                        const x = i * (scopeCanvas.width / 1000);
-                        const y = (0.5 + waveform[i] / 2) * scopeCanvas.height;
-
-                        if (i == 0) {
-                            scopeContext.moveTo(x, y);
-                        } else {
-                            scopeContext.lineTo(x, y);
-                        }
-                    }
-
-                    scopeContext.strokeStyle = "#723eb2";
-                    scopeContext.lineWidth = 3;
-                    scopeContext.stroke();
-                }
-
-                if (x == "hide") {
-                    console.log("hidden");
-                    const scopeCanvas = document.getElementById("oscilloscope");
-                    scopeCanvas.width = 0;
-                    scopeCanvas.height = 0;
-                    return;
-                } else {
-                    drawOscilloscope();
-                    updateWaveForm();
-                    window.hasOsci = true;
-                }
-            }
-
-            function startplayer() {
-                window.audioContext = new (window.AudioContext || window.webkitAudioContext);
-                document.addEventListener('touchend', ()=>window.audioContext.resume());
-                window.audioContext.resume();
-                window.masterGain = audioContext.createGain();
-                window.masterGain.connect(audioContext.destination);
-                if(!window.hasOsci){
-                    setupVisualfluff();
-                } else {
-                    console.log("wario land 4, play it.");
-                }
-                const url = "https://cast.animu.com.br:9079/stream";
-                song = new Audio(url);
-                var songSource = audioContext.createMediaElementSource(song);
-                song.crossOrigin = "anonymous";
-                songSource.connect(masterGain);
-                song.preload = "none";
-                var gainfrac = 0.5;
-                if (window.masterGain) window.masterGain.gain.value = gainfrac * gainfrac;
-                window.song_result = song.play();
-                window.songPlaying = true;
-            }
-        </script>
-        <button id="teste" onclick="startplayer()">Play</button>
-`;
+  const webViewRef = useRef(null);
 
   return (
     <Background>
@@ -147,24 +93,10 @@ export function Home() {
         <SafeAreaView style={styles.container}>
           <HeaderBar player={player.current} />
           <View style={styles.containerApp}>
-                <View
-                style={{
-                    flex: 1,
-                    height: 400,
-                    position: 'absolute',
-                    top: 0,
-                    width: '100%',
-                }}
-                >
-         <WebView
-            source={{ html: htmlContent }}
-            javaScriptEnabled={true}
-            style={{ resizeMode: 'cover', flex: 1, backgroundColor: 'transparent' }}
-            injectedJavaScript={`const meta = document.createElement('meta'); meta.setAttribute('content', 'width=width, initial-scale=0.5, maximum-scale=0.5, user-scalable=2.0'); meta.setAttribute('name', 'viewport'); document.getElementsByTagName('head')[0].appendChild(meta); `}
-            scalesPageToFit={Platform.OS === 'ios'}
-          />
-                </View>
-            <Logo size={127} />
+            <View style={styles.oscilloscopeAndLogo}>
+                <Oscilloscope player={player.current} webViewRef={webViewRef} />
+                <Logo size={127} />
+            </View>
             <Listeners info={animuInfo} />
             <Cover cover={cover} />
             {!animuInfo.track.isLiveProgram && (

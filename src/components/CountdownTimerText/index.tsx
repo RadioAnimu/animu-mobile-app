@@ -6,8 +6,6 @@ startTime: number;
 }
 
 export function CountdownTimerText({ startTime }: Props) {
-    console.log(startTime);
-
     const fomartTime = (timeStamp: number): string => {
         if (timeStamp <= 0) {
             timeStamp = 0;

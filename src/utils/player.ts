@@ -2,6 +2,7 @@ import { Audio, InterruptionModeAndroid, InterruptionModeIOS } from "expo-av";
 import { Sound } from "expo-av/build/Audio";
 import { AnimuInfoProps, ProgramProps } from "../api";
 import { API } from "../api";
+import TrackPlayer from 'react-native-track-player';
 
 const BITRATES = {
   320: {
@@ -25,7 +26,9 @@ const DEFAULT_BITRATE: keyof typeof BITRATES = 320;
 
 const CONFIG = {
   BITRATES,
+  DEFAULT_BITRATE,
 };
+
 
 export interface MyPlayerProps {
   CONFIG: typeof CONFIG;
@@ -55,7 +58,6 @@ export const myPlayer = (): MyPlayerProps => ({
   async getCurrentMusic(): Promise<AnimuInfoProps> {
     const data: any = await fetch(API.BASE_URL);
     const json: AnimuInfoProps = await data.json();
-    json.listeners += 1;
     json.track.rawtitle = json.rawtitle;
     json.track.song = json.rawtitle.split(" | ")[0]?.trim() || json.rawtitle;
     json.track.anime = json.rawtitle.split(" | ")[1]?.trim() || "Tocando Agora";
@@ -69,7 +71,7 @@ export const myPlayer = (): MyPlayerProps => ({
     if (this.currentProgram) {
       json.program = this.currentProgram;
       json.track.isLiveProgram =
-        json.program.locutor.toLowerCase() !== "haruka yuki";
+      json.program.locutor.toLowerCase() !== "haruka yuki";
     }
     return json;
   },
