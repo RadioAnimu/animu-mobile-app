@@ -66,7 +66,7 @@ export function HeaderBar({ player, info }: Props) {
           <Image style={styles.noteIcon} source={noteIcon} />
         </TouchableOpacity>
       </View>
-      {!player?.currentMusic?.program?.isLiveProgram && (
+      {!info?.program?.isLiveProgram && (
         <Animated.View
           style={[
             styles.progressBarView,

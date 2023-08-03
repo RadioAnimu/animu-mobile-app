@@ -40,14 +40,14 @@ export function Home({ route, navigation }: Props) {
         );
       }, 5000);
       setInterval(() => {
-        player.currentProgress = player.currentMusic?.track.timestart
-          ? Date.now() - player.currentMusic?.track.timestart
+        player.currentProgress = player.currentInformation?.track.timestart
+          ? Date.now() - player.currentInformation?.track.timestart
           : 0;
-        if (player.currentMusic) {
+        if (player.currentInformation) {
           setAnimuInfo({
-            ...player.currentMusic,
+            ...player.currentInformation,
             track: {
-              ...player.currentMusic.track,
+              ...player.currentInformation.track,
               progress: player.currentProgress,
             },
           });

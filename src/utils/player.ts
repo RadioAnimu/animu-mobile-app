@@ -1,4 +1,4 @@
-import { AnimuInfoProps, ProgramProps } from "../api";
+import { AnimuInfoProps, ProgramProps, TrackProps } from "../api";
 import { API } from "../api";
 import TrackPlayer, {
   Capability,
@@ -71,8 +71,7 @@ export interface MyPlayerProps {
   currentProgress: number;
   _loaded: boolean;
   _paused: boolean;
-  currentMusic: AnimuInfoProps | null;
-  currentProgram: ProgramProps | null;
+  currentInformation: AnimuInfoProps | null;
   getCurrentMusic: () => Promise<AnimuInfoProps>;
   getCurrentMusicInNowPlayingMetadataFormat: () => Promise<NowPlayingMetadata>;
   play: () => Promise<void>;
@@ -90,8 +89,7 @@ export const myPlayer = (): MyPlayerProps => ({
   _currentBitrate: CONFIG.DEFAULT_BITRATE,
   _loaded: false,
   _paused: true,
-  currentMusic: null,
-  currentProgram: null,
+  currentInformation: null,
   currentProgress: 0,
   // _oscilloscopeEnabled: false,
   async getCurrentMusic(): Promise<AnimuInfoProps> {
@@ -113,29 +111,29 @@ export const myPlayer = (): MyPlayerProps => ({
     json.track.artworks.cover = isUrlAnImage(json.track.artworks.cover)
       ? json.track.artworks.cover
       : CONFIG.DEFAULT_COVER;
-    this.currentMusic = json;
+    this.currentInformation = json;
     await this.getProgram();
-    if (this.currentProgram) {
-      json.program = this.currentProgram;
-      json.program.isLiveProgram =
-        json?.program.locutor.toLowerCase() !== "haruka yuki";
-    } else {
+    if (!this.currentInformation.program?.isLiveProgram) {
       json.track.progress = Date.now() - json.track.timestart;
     }
     return json;
   },
   async getCurrentMusicInNowPlayingMetadataFormat(): Promise<NowPlayingMetadata> {
     return {
-      artist: this.currentMusic?.track.anime,
-      title: this.currentMusic?.track.artist,
-      artwork: this.currentMusic?.track.artworks.cover,
-      duration: this.currentMusic?.track.duration,
+      artist: this.currentInformation?.track.anime,
+      title: this.currentInformation?.track.artist,
+      artwork: this.currentInformation?.track.artworks.cover,
+      duration: this.currentInformation?.track.duration,
     };
   },
   async getProgram(): Promise<ProgramProps> {
     const data: any = await fetch(API.PROGRAM_URL);
     const json: ProgramProps = await data.json();
-    this.currentProgram = json;
+    json.isLiveProgram = json.locutor.toLowerCase() !== "haruka yuki";
+    if (this.currentInformation) {
+      this.currentInformation.program = json;
+    }
+    console.log(this.currentInformation?.program);
     return json;
   },
   async play() {
