@@ -3,7 +3,8 @@ import { styles } from "./styles";
 import WebView from "react-native-webview";
 import { LegacyRef, useEffect, useState } from "react";
 import { MyPlayerProps } from "../../utils";
-import { AppState } from 'react-native';
+import { AppState } from "react-native";
+import { VolumeManager } from "react-native-volume-manager";
 
 interface Props {
   webViewRef: any;
@@ -17,11 +18,13 @@ export function Oscilloscope({ webViewRef, player }: Props) {
   useEffect(() => {
     const handleAppStateChange = (nextAppState: any) => {
       setAppState(nextAppState);
+      VolumeManager.getVolume().then((volume) => {
+        player._volume = volume.volume;
+      });
     };
 
-    AppState.addEventListener('change', handleAppStateChange);
+    AppState.addEventListener("change", handleAppStateChange);
   }, []);
-
 
   const htmlContent = `
          <style>
@@ -128,15 +131,19 @@ export function Oscilloscope({ webViewRef, player }: Props) {
                 } else {
                     console.log("wario land 4, play it.");
                 }
-                url = '${player.CONFIG.BITRATES[player.curretnBitrate || player.CONFIG.DEFAULT_BITRATE].url}';
+                url = '${
+                  player.CONFIG.BITRATES[
+                    player.currentBitrate || player.CONFIG.DEFAULT_BITRATE
+                  ].url
+                }';
                 song = document.createElement('audio');
                 songSource = audioContext.createMediaElementSource(song);
                 song.crossOrigin = "anonymous";
                 song.src = url;
                 songSource.connect(masterGain);
                 song.preload = "none";
-                var gainfrac = 1;
-                if (window.masterGain) window.masterGain.gain.value = gainfrac * gainfrac;
+                var gainfrac = ${player._volume};
+                if (window.masterGain) window.masterGain.gain.value = gainfrac;
                 window.song_result = song.play();
                 window.songPlaying = true;
             }
@@ -169,38 +176,39 @@ export function Oscilloscope({ webViewRef, player }: Props) {
     }
   };
 
-  return (appState != 'background' ?
-    (
+  return appState != "background" ? (
     <View style={styles.container}>
-        <View style={styles.webViewContainer}>
-          <WebView
-            ref={webViewRef}
-            source={{ html: htmlContent }}
-            javaScriptEnabled={true}
-            style={{ backgroundColor: "transparent" }}
-            injectedJavaScript={`${debugging} const meta = document.createElement('meta'); meta.setAttribute('content', 'width=width, initial-scale=0.5, maximum-scale=0.5, user-scalable=2.0'); meta.setAttribute('name', 'viewport'); document.getElementsByTagName('head')[0].appendChild(meta); `}
-            scalesPageToFit={Platform.OS === "ios"}
-            mediaCapturePermissionGrantType={"grant"}
-            useWebView2
-            javaScriptCanOpenWindowsAutomatically
-            mediaPlaybackRequiresUserAction={false}
-            domStorageEnabled
-            allowsInlineMediaPlayback
-            allowFileAccessFromFileURLs
-            allowUniversalAccessFromFileURLs
-            sharedCookiesEnabled
-            thirdPartyCookiesEnabled
-            onMessage={onMessage}
-            onLoad={() => {
-              if (!loaded) {
-                setLoaded(true);
-              } else {
-                webViewRef.current.injectJavaScript(`stfuplayer()`);
-              }
-              webViewRef.current.injectJavaScript(`startplayer()`);
-            }}
-          />
-        </View>
+      <View style={styles.webViewContainer}>
+        <WebView
+          ref={webViewRef}
+          source={{ html: htmlContent }}
+          javaScriptEnabled={true}
+          style={{ backgroundColor: "transparent" }}
+          injectedJavaScript={`${debugging} const meta = document.createElement('meta'); meta.setAttribute('content', 'width=width, initial-scale=0.5, maximum-scale=0.5, user-scalable=2.0'); meta.setAttribute('name', 'viewport'); document.getElementsByTagName('head')[0].appendChild(meta); `}
+          scalesPageToFit={Platform.OS === "ios"}
+          mediaCapturePermissionGrantType={"grant"}
+          useWebView2
+          javaScriptCanOpenWindowsAutomatically
+          mediaPlaybackRequiresUserAction={false}
+          domStorageEnabled
+          allowsInlineMediaPlayback
+          allowFileAccessFromFileURLs
+          allowUniversalAccessFromFileURLs
+          sharedCookiesEnabled
+          thirdPartyCookiesEnabled
+          onMessage={onMessage}
+          onLoad={() => {
+            if (!loaded) {
+              setLoaded(true);
+            } else {
+              webViewRef.current.injectJavaScript(`stfuplayer()`);
+            }
+            webViewRef.current.injectJavaScript(`startplayer()`);
+          }}
+        />
+      </View>
     </View>
-    ) : <></>);
+  ) : (
+    <></>
+  );
 }

@@ -37,11 +37,15 @@ export function HeaderBar({ player }: Props) {
         </TouchableOpacity>
         <Image style={styles.noteIcon} source={noteIcon} />
       </View>
-      {!player.currentMusic?.track.isLiveProgram && (
-        <View style={[styles.progressBarView, {
-                width: Dimensions.get("window").width * currentTime,
-            }]}>
-        </View>
+      {!player.currentMusic?.program.isLiveProgram && (
+        <View
+          style={[
+            styles.progressBarView,
+            {
+              width: Dimensions.get("window").width * currentTime,
+            },
+          ]}
+        ></View>
       )}
     </View>
   );

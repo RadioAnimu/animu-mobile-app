@@ -1,8 +1,15 @@
-import { Audio, InterruptionModeAndroid, InterruptionModeIOS } from "expo-av";
-import { Sound } from "expo-av/build/Audio";
 import { AnimuInfoProps, ProgramProps } from "../api";
 import { API } from "../api";
-import TrackPlayer from 'react-native-track-player';
+import TrackPlayer, {
+  Capability,
+  Event,
+  NowPlayingMetadata,
+} from "react-native-track-player";
+import { THEME } from "../theme";
+import { VolumeManager } from "react-native-volume-manager";
+
+const DEFAULT_COVER =
+  "https://cdn.discordapp.com/attachments/634406949198364702/1093233650025377892/Animu-3-anos-nova-logo.png";
 
 const BITRATES = {
   320: {
@@ -27,34 +34,80 @@ const DEFAULT_BITRATE: keyof typeof BITRATES = 320;
 const CONFIG = {
   BITRATES,
   DEFAULT_BITRATE,
+  DEFAULT_COVER,
 };
 
+const initialObject = {
+  title: "",
+  artist: "",
+  artwork: DEFAULT_COVER,
+  url: BITRATES[DEFAULT_BITRATE].url,
+  duration: 0,
+  id: "1",
+};
+
+function isUrlAnImage(url: string) {
+  return url.match(/\.(jpeg|jpg|gif|png)$/) != null;
+}
+
+// Config TrackPlayer Settings Function
+const configPlayer = async () => {
+  TrackPlayer.addEventListener(Event.RemotePlay, () => {
+    TrackPlayer.reset();
+    TrackPlayer.add(initialObject).then(() => {
+      TrackPlayer.play();
+    });
+  });
+
+  TrackPlayer.addEventListener(Event.RemotePause, () => {
+    TrackPlayer.pause();
+  });
+
+  TrackPlayer.addEventListener(Event.RemoteStop, () => {
+    TrackPlayer.reset();
+  });
+
+  // Set up the player
+  await TrackPlayer.setupPlayer();
+
+  // Add a track to the queue
+  await TrackPlayer.add(initialObject);
+
+  await TrackPlayer.updateOptions({
+    capabilities: [Capability.Play, Capability.Pause, Capability.Stop],
+    compactCapabilities: [Capability.Play, Capability.Pause],
+    notificationCapabilities: [Capability.Play, Capability.Pause],
+    // Obviously, color property would not work if artwork is specified. It can be used as a fallback.
+    color: +THEME.COLORS.BACKGROUND_800.replace("#", ""),
+  });
+};
 
 export interface MyPlayerProps {
   CONFIG: typeof CONFIG;
-  player: Sound | null;
-  curretnBitrate: keyof typeof BITRATES | null;
+  player: typeof TrackPlayer;
+  currentBitrate: keyof typeof BITRATES | null;
   _loaded: boolean;
   _paused: boolean;
+  _volume: number;
   currentMusic: AnimuInfoProps | null;
   currentProgram: ProgramProps | null;
   getCurrentMusic: () => Promise<AnimuInfoProps>;
-  loadStream: (streamUrl: string, shouldPlay: boolean) => Promise<void>;
+  getCurrentMusicInNowPlayingMetadataFormat: () => Promise<NowPlayingMetadata>;
   play: () => Promise<void>;
   pause: () => Promise<void>;
-  unloadStream: () => Promise<void>;
   changeBitrate: (bitrate: keyof typeof BITRATES) => Promise<void>;
   getProgram: () => Promise<ProgramProps>;
 }
 
 export const myPlayer = (): MyPlayerProps => ({
   CONFIG,
-  player: null,
-  curretnBitrate: null,
+  player: TrackPlayer,
+  currentBitrate: null,
   _loaded: false,
   _paused: true,
   currentMusic: null,
   currentProgram: null,
+  _volume: 0,
   async getCurrentMusic(): Promise<AnimuInfoProps> {
     const data: any = await fetch(API.BASE_URL);
     const json: AnimuInfoProps = await data.json();
@@ -66,34 +119,31 @@ export const myPlayer = (): MyPlayerProps => ({
     json.track.song =
       json.track.song.split(" - ")[1]?.trim() || json.track.song;
     json.track.isRequest = json.track.rawtitle.toLowerCase().includes("pedido");
+    json.track.artworks.cover =
+      json.track.artworks.large ||
+      json.track.artworks.medium ||
+      json.track.artworks.tiny ||
+      DEFAULT_COVER;
+    json.track.artworks.cover = isUrlAnImage(json.track.artworks.cover)
+      ? json.track.artworks.cover
+      : DEFAULT_COVER;
     this.currentMusic = json;
     await this.getProgram();
     if (this.currentProgram) {
       json.program = this.currentProgram;
-      json.track.isLiveProgram =
-      json.program.locutor.toLowerCase() !== "haruka yuki";
+      json.program.isLiveProgram =
+        json.program.locutor.toLowerCase() !== "haruka yuki";
     }
     return json;
   },
-  async loadStream(streamUrl: string, shouldPlay: boolean) {
-    if (this._loaded && this.player) {
-      this.player.unloadAsync();
-    }
-    await Audio.setAudioModeAsync({
-      allowsRecordingIOS: false,
-      staysActiveInBackground: true,
-      interruptionModeIOS: InterruptionModeIOS.DuckOthers,
-      playsInSilentModeIOS: true,
-      shouldDuckAndroid: true,
-      interruptionModeAndroid: InterruptionModeAndroid.DuckOthers,
-      playThroughEarpieceAndroid: false,
-    });
-    const { sound } = await Audio.Sound.createAsync(
-      { uri: streamUrl },
-      { shouldPlay }
-    );
-    this.player = sound;
-    this._loaded = true;
+  async getCurrentMusicInNowPlayingMetadataFormat(): Promise<NowPlayingMetadata> {
+    const currentMusic = await this.getCurrentMusic();
+    return {
+      title: currentMusic.track.anime,
+      artist: currentMusic.track.artist,
+      artwork: currentMusic.track.artworks.cover,
+      duration: currentMusic.track.duration,
+    };
   },
   async getProgram(): Promise<ProgramProps> {
     const data: any = await fetch(API.PROGRAM_URL);
@@ -102,54 +152,32 @@ export const myPlayer = (): MyPlayerProps => ({
     return json;
   },
   async play() {
-    console.log("Play");
-    if (this.player && (this._loaded || this._paused)) {
-      if (this._paused) {
-        await this.loadStream(
-          BITRATES[this.curretnBitrate || DEFAULT_BITRATE].url,
-          true
-        );
-        this._paused = false;
-      } else {
-        console.log("Playing");
-        this._paused = false;
-        await this.player.playAsync();
-      }
+    if (!this._loaded) {
+      await configPlayer();
+      await TrackPlayer.play();
+      this._loaded = true;
     } else {
-      console.log("1st Loading and playing");
-      await this.changeBitrate(this.curretnBitrate || DEFAULT_BITRATE);
-      this._paused = false;
+      await TrackPlayer.reset();
+      await TrackPlayer.add({
+        ...((await this.getCurrentMusicInNowPlayingMetadataFormat()) as typeof initialObject),
+        id: "1",
+        url: BITRATES[this.currentBitrate || DEFAULT_BITRATE].url,
+      });
+      await TrackPlayer.play();
     }
+    this._paused = false;
+    this._volume = (await VolumeManager.getVolume()).volume;
   },
   async pause() {
-    if (this.player && !this._paused) {
-      await this.player.unloadAsync();
+    if (this._loaded && !this._paused) {
+      await TrackPlayer.pause();
       this._paused = true;
     }
   },
-  async unloadStream() {
-    if (this.player && this._loaded) {
-      this._loaded = false;
-      await this.player.stopAsync();
-      await this.player.unloadAsync();
-      this.player = null;
-    }
-  },
   async changeBitrate(bitrate: keyof typeof BITRATES = DEFAULT_BITRATE) {
-    if (!this._loaded) {
-      this.curretnBitrate = bitrate;
-      await this.loadStream(BITRATES[this.curretnBitrate].url, false);
+    if (this.currentBitrate !== bitrate) {
+      this.currentBitrate = bitrate;
       await this.play();
-    } else if (this.curretnBitrate !== bitrate) {
-      this.curretnBitrate = bitrate;
-      await this.unloadStream();
-      console.log("Changing bitrate");
-      await this.loadStream(BITRATES[this.curretnBitrate].url, false);
-      console.log(this._paused);
-      if (!this._paused) {
-        console.log("Playing after bitrate change");
-        await this.play();
-      }
     }
   },
 });

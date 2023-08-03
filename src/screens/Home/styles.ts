@@ -4,7 +4,6 @@ import { THEME } from "../../theme";
 export const styles = StyleSheet.create({
   container: {
     flex: 1,
-    alignItems: "center",
   },
   timeLeft: {
     fontSize: THEME.FONT_SIZE.SM,
