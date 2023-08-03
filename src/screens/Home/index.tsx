@@ -16,7 +16,6 @@ import { CountdownTimerText } from "../../components/CountdownTimerText";
 import { ChooseBitrateSection } from "../../components/ChooseBitrateSection";
 import { myPlayer } from "../../utils";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { Oscilloscope } from "../../components/Oscilloscope";
 
 import BackgroundTimer from "react-native-background-timer";
 
@@ -74,7 +73,7 @@ export function Home() {
             <HeaderBar info={animuInfo} player={player.current} />
             <View style={styles.containerApp}>
               <View style={styles.oscilloscopeAndLogo}>
-                <Oscilloscope player={player.current} webViewRef={webViewRef} />
+                {/* <Oscilloscope player={player.current} webViewRef={webViewRef} /> */}
                 <Logo size={127} />
               </View>
               <Listeners info={animuInfo} />

@@ -84,7 +84,7 @@ export const myPlayer = (): MyPlayerProps => ({
   currentMusic: null,
   currentProgram: null,
   currentProgress: 0,
-  _oscilloscopeEnabled: true,
+  _oscilloscopeEnabled: false,
   async getCurrentMusic(): Promise<AnimuInfoProps> {
     const data: any = await fetch(API.BASE_URL);
     const json: AnimuInfoProps = await data.json();
