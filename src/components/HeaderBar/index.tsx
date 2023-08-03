@@ -20,27 +20,38 @@ interface Props {
 }
 
 export function HeaderBar({ player, info }: Props) {
-  const currentTime = player.currentMusic?.track.timestart
-    ? Date.now() - player.currentMusic?.track.timestart > 0
-      ? (Date.now() - player.currentMusic?.track.timestart) /
-        player.currentMusic?.track.duration
-      : 0
-    : 0;
-
   const progressAnim = useRef(new Animated.Value(0)).current; // Initial value for opacity: 0
 
   useEffect(() => {
-    Animated.timing(progressAnim, {
-      toValue: Dimensions.get("window").width * currentTime,
-      duration: 10000,
-      useNativeDriver: false,
-    }).start();
+    if (
+      info?.track?.progress &&
+      info?.track?.duration &&
+      !isNaN(info?.track?.progress) &&
+      !isNaN(info?.track?.duration) &&
+      info?.track?.duration > 0 &&
+      info?.track?.progress > 0 &&
+      !isNaN(info?.track?.progress / info?.track?.duration)
+    ) {
+      Animated.timing(progressAnim, {
+        toValue:
+          Dimensions.get("window").width *
+          (info?.track?.progress / info?.track?.duration),
+        duration: 1000,
+        useNativeDriver: false,
+      }).start();
+    }
   }, [progressAnim, info]);
 
   return (
     <View style={styles.view}>
       <View style={styles.container}>
-        <Image style={styles.menuBtn} source={menuIcon} />
+        <TouchableOpacity
+          onPress={() => {
+            player._oscilloscopeEnabled = !player._oscilloscopeEnabled;
+          }}
+        >
+          <Image style={styles.menuBtn} source={menuIcon} />
+        </TouchableOpacity>
         <TouchableOpacity
           onPress={() => {
             if (player._paused) {

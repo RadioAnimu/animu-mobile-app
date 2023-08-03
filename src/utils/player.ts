@@ -74,6 +74,7 @@ export interface MyPlayerProps {
   changeBitrate: (bitrate: keyof typeof CONFIG.BITRATES) => Promise<void>;
   getProgram: () => Promise<ProgramProps>;
   openPedidosURL: () => Promise<void>;
+  _oscilloscopeEnabled: boolean;
 }
 
 export const myPlayer = (): MyPlayerProps => ({
@@ -86,6 +87,7 @@ export const myPlayer = (): MyPlayerProps => ({
   currentProgram: null,
   _volume: 0,
   currentProgress: 0,
+  _oscilloscopeEnabled: true,
   async getCurrentMusic(): Promise<AnimuInfoProps> {
     const data: any = await fetch(API.BASE_URL);
     const json: AnimuInfoProps = await data.json();
@@ -110,7 +112,7 @@ export const myPlayer = (): MyPlayerProps => ({
     if (this.currentProgram) {
       json.program = this.currentProgram;
       json.program.isLiveProgram =
-        json.program.locutor.toLowerCase() !== "haruka yuki";
+        json?.program.locutor.toLowerCase() !== "haruka yuki";
     } else {
       json.track.progress = Date.now() - json.track.timestart;
     }
