@@ -1,13 +1,14 @@
 {
   "expo": {
-    "name": "animu",
-    "slug": "animu",
+    "name": "Rádio Animu",
+    "slug": "Rádio Animu",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon_top.png",
     "userInterfaceStyle": "light",
     "splash": {
-      "image": "./assets/splash_original.png"
+      "image": "./assets/splash_top.png",
+      "backgroundColor": "#270051"
     },
     "assetBundlePatterns": ["**/*"],
     "ios": {

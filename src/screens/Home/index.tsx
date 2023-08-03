@@ -41,7 +41,9 @@ export function Home() {
               await player.current.getCurrentMusicInNowPlayingMetadataFormat()
             );
           }
-          getAnimuInfo();
+          if (player.current._loaded) {
+            getAnimuInfo();
+          }
         }, 3000);
       });
       VolumeManager.addVolumeListener((result) => {

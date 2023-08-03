@@ -176,7 +176,7 @@ export function Oscilloscope({ webViewRef, player }: Props) {
     }
   };
 
-  return appState != "background" ? (
+  return player._loaded && !player._paused && appState != "background" ? (
     <View style={styles.container}>
       <View style={styles.webViewContainer}>
         <WebView

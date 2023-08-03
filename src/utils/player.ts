@@ -154,6 +154,7 @@ export const myPlayer = (): MyPlayerProps => ({
   async play() {
     if (!this._loaded) {
       await configPlayer();
+      this.currentBitrate = DEFAULT_BITRATE;
       await TrackPlayer.play();
       this._loaded = true;
     } else {
@@ -177,7 +178,9 @@ export const myPlayer = (): MyPlayerProps => ({
   async changeBitrate(bitrate: keyof typeof BITRATES = DEFAULT_BITRATE) {
     if (this.currentBitrate !== bitrate) {
       this.currentBitrate = bitrate;
-      await this.play();
+      if (!this._paused) {
+        await this.play();
+      }
     }
   },
 });
