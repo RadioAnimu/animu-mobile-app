@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useState, useContext } from "react";
 import { Text, View, ScrollView } from "react-native";
 
 import { styles } from "./styles";
@@ -14,86 +14,77 @@ import { Live } from "../../components/Live";
 import { Program } from "../../components/Program";
 import { CountdownTimerText } from "../../components/CountdownTimerText";
 import { ChooseBitrateSection } from "../../components/ChooseBitrateSection";
-import { myPlayer } from "../../utils";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import BackgroundTimer from "react-native-background-timer";
+import { NativeStackScreenProps } from "@react-navigation/native-stack";
+import { RootStackParamList } from "../../routes/app.routes";
+import { PlayerContext } from "../../contexts/player.context";
 
-export function Home() {
-  const [animuInfo, setAnimuInfo] = useState<AnimuInfoProps | null>(null);
-  const isFirstRun = useRef(true);
-  const player = useRef(myPlayer());
-  let auxData: AnimuInfoProps | null = null;
+type Props = NativeStackScreenProps<RootStackParamList, "Home">;
 
-  useEffect(() => {
-    if (isFirstRun.current) {
-      player.current.play().then(() => {
-        BackgroundTimer.runBackgroundTimer(() => {
-          async function getAnimuInfo() {
-            auxData = await player.current.getCurrentMusic();
-            setAnimuInfo(auxData);
-            player.current.player.updateNowPlayingMetadata(
-              await player.current.getCurrentMusicInNowPlayingMetadataFormat()
-            );
-          }
-          if (player.current._loaded) {
-            getAnimuInfo();
-          }
-        }, 5000);
-      });
+export function Home({ route, navigation }: Props) {
+  const playerProvider = useContext(PlayerContext);
+  if (playerProvider?.player) {
+    const player = playerProvider.player;
+
+    const [animuInfo, setAnimuInfo] = useState<AnimuInfoProps | null>(null);
+    let auxData: AnimuInfoProps | null = null;
+
+    useEffect(() => {
+      BackgroundTimer.runBackgroundTimer(async () => {
+        auxData = await player.getCurrentMusic();
+        setAnimuInfo(auxData);
+        player.player.updateNowPlayingMetadata(
+          await player.getCurrentMusicInNowPlayingMetadataFormat()
+        );
+      }, 5000);
       setInterval(() => {
-        if (player.current._loaded) {
-          console.log("Updating current progress");
-          player.current.currentProgress = player.current.currentMusic?.track
-            .timestart
-            ? Date.now() - player.current.currentMusic?.track.timestart
-            : 0;
-          if (player.current.currentMusic) {
-            setAnimuInfo({
-              ...player.current.currentMusic,
-              track: {
-                ...player.current.currentMusic.track,
-                progress: player.current.currentProgress,
-              },
-            });
-          }
+        player.currentProgress = player.currentMusic?.track.timestart
+          ? Date.now() - player.currentMusic?.track.timestart
+          : 0;
+        if (player.currentMusic) {
+          setAnimuInfo({
+            ...player.currentMusic,
+            track: {
+              ...player.currentMusic.track,
+              progress: player.currentProgress,
+            },
+          });
         }
       }, 1000);
-      isFirstRun.current = false;
-    }
-  }, []);
+    }, []);
 
-  const webViewRef = useRef(null);
-
-  return (
-    <Background>
-      {animuInfo ? (
-        <SafeAreaView style={styles.container}>
-          <ScrollView>
-            <HeaderBar info={animuInfo} player={player.current} />
-            <View style={styles.containerApp}>
-              <Logo size={127} />
-              <Listeners info={animuInfo} />
-              <Cover cover={animuInfo.track.artworks.cover} />
-              {!animuInfo?.program?.isLiveProgram && (
-                <Text style={styles.timeLeft}>
-                  Tempo restante:{" "}
-                  <CountdownTimerText
-                    startTime={
-                      animuInfo.track.duration - player.current.currentProgress
-                    }
-                  />
-                </Text>
-              )}
-              <Live track={animuInfo.track} />
-              <Program info={animuInfo} />
-              <ChooseBitrateSection player={player.current} />
-            </View>
-          </ScrollView>
-        </SafeAreaView>
-      ) : (
-        <Loading />
-      )}
-    </Background>
-  );
+    return (
+      <Background>
+        {animuInfo ? (
+          <SafeAreaView style={styles.container}>
+            <ScrollView>
+              <HeaderBar info={animuInfo} player={player} />
+              <View style={styles.containerApp}>
+                <Logo size={127} />
+                <Listeners info={animuInfo} />
+                <Cover cover={animuInfo.track.artworks.cover} />
+                {!animuInfo?.program?.isLiveProgram && (
+                  <Text style={styles.timeLeft}>
+                    Tempo restante:{" "}
+                    <CountdownTimerText
+                      startTime={
+                        animuInfo.track.duration - player.currentProgress
+                      }
+                    />
+                  </Text>
+                )}
+                <Live track={animuInfo.track} />
+                <Program info={animuInfo} />
+                <ChooseBitrateSection player={player} />
+              </View>
+            </ScrollView>
+          </SafeAreaView>
+        ) : (
+          <Loading />
+        )}
+      </Background>
+    );
+  }
 }

@@ -45,11 +45,7 @@ export function HeaderBar({ player, info }: Props) {
   return (
     <View style={styles.view}>
       <View style={styles.container}>
-        <TouchableOpacity
-          onPress={() => {
-            player._oscilloscopeEnabled = !player._oscilloscopeEnabled;
-          }}
-        >
+        <TouchableOpacity onPress={() => {}}>
           <Image style={styles.menuBtn} source={menuIcon} />
         </TouchableOpacity>
         <TouchableOpacity

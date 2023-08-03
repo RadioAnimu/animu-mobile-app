@@ -11,26 +11,34 @@ import { CONFIG } from "./player.config";
 
 import { openBrowserAsync } from "expo-web-browser";
 
-const initialObject = {
-  title: "",
-  artist: "",
-  artwork: CONFIG.DEFAULT_COVER,
-  url: CONFIG.BITRATES[CONFIG.DEFAULT_BITRATE].url,
-  duration: 0,
-  id: "1",
-};
-
 function isUrlAnImage(url: string) {
   return url.match(/\.(jpeg|jpg|gif|png)$/) != null;
 }
 
 // Config TrackPlayer Settings Function
-const configPlayer = async () => {
+const configPlayer = async (player: MyPlayerProps) => {
+  console.log("Setting up player");
+
+  await player.getCurrentMusic();
+  const initialObject = {
+    id: "1",
+    url: player.CONFIG.BITRATES[player._currentBitrate].url,
+    ...(await player.getCurrentMusicInNowPlayingMetadataFormat()),
+  };
+
   TrackPlayer.addEventListener(Event.RemotePlay, () => {
     TrackPlayer.reset();
-    TrackPlayer.add(initialObject).then(() => {
-      TrackPlayer.play();
-    });
+    player
+      .getCurrentMusicInNowPlayingMetadataFormat()
+      .then((metadata: NowPlayingMetadata) => {
+        TrackPlayer.add({
+          id: "1",
+          url: player.CONFIG.BITRATES[player._currentBitrate].url,
+          ...metadata,
+        }).then(() => {
+          TrackPlayer.play();
+        });
+      });
   });
 
   TrackPlayer.addEventListener(Event.RemotePause, () => {
@@ -59,7 +67,7 @@ const configPlayer = async () => {
 export interface MyPlayerProps {
   CONFIG: typeof CONFIG;
   player: typeof TrackPlayer;
-  _currentBitrate: keyof typeof CONFIG.BITRATES | null;
+  _currentBitrate: keyof typeof CONFIG.BITRATES;
   currentProgress: number;
   _loaded: boolean;
   _paused: boolean;
@@ -72,19 +80,20 @@ export interface MyPlayerProps {
   changeBitrate: (bitrate: keyof typeof CONFIG.BITRATES) => Promise<void>;
   getProgram: () => Promise<ProgramProps>;
   openPedidosURL: () => Promise<void>;
-  _oscilloscopeEnabled: boolean;
+  destroy: () => Promise<void>;
+  // _oscilloscopeEnabled: boolean;
 }
 
 export const myPlayer = (): MyPlayerProps => ({
   CONFIG,
   player: TrackPlayer,
-  _currentBitrate: null,
+  _currentBitrate: CONFIG.DEFAULT_BITRATE,
   _loaded: false,
   _paused: true,
   currentMusic: null,
   currentProgram: null,
   currentProgress: 0,
-  _oscilloscopeEnabled: false,
+  // _oscilloscopeEnabled: false,
   async getCurrentMusic(): Promise<AnimuInfoProps> {
     const data: any = await fetch(API.BASE_URL);
     const json: AnimuInfoProps = await data.json();
@@ -131,23 +140,26 @@ export const myPlayer = (): MyPlayerProps => ({
   },
   async play() {
     if (!this._loaded) {
-      await configPlayer();
-      this._currentBitrate = CONFIG.DEFAULT_BITRATE;
-    } else {
-      await TrackPlayer.reset();
-      await TrackPlayer.add({
-        ...((await this.getCurrentMusicInNowPlayingMetadataFormat()) as typeof initialObject),
-        id: "1",
-        url: CONFIG.BITRATES[this._currentBitrate || CONFIG.DEFAULT_BITRATE]
-          .url,
-      });
+      try {
+        await configPlayer(this);
+      } catch (error) {
+        console.log(error);
+      }
     }
-    await TrackPlayer.play();
+    this._loaded = true;
+    await TrackPlayer.reset();
+    await TrackPlayer.add({
+      ...(await this.getCurrentMusicInNowPlayingMetadataFormat()),
+      id: "1",
+      url: CONFIG.BITRATES[this._currentBitrate].url,
+    });
+    if (this._paused) {
+      await TrackPlayer.play();
+      this._paused = false;
+    }
     await TrackPlayer.updateNowPlayingMetadata(
       await this.getCurrentMusicInNowPlayingMetadataFormat()
     );
-    this._loaded = true;
-    this._paused = false;
   },
   async pause() {
     if (this._loaded && !this._paused) {
@@ -161,11 +173,16 @@ export const myPlayer = (): MyPlayerProps => ({
     if (this._currentBitrate !== bitrate) {
       this._currentBitrate = bitrate;
       if (!this._paused) {
+        this._paused = true;
         await this.play();
       }
     }
   },
   async openPedidosURL(): Promise<void> {
     await openBrowserAsync(API.PEDIDOS_URL);
+  },
+  async destroy() {
+    await this.player.reset();
+    this._loaded = false;
   },
 });

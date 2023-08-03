@@ -1,7 +1,14 @@
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { Home } from "../screens/Home";
+import { MyPlayerProps } from "../utils";
 
-const { Navigator, Screen } = createNativeStackNavigator();
+interface HomeProps {}
+
+export type RootStackParamList = {
+  Home: HomeProps;
+};
+
+const { Navigator, Screen } = createNativeStackNavigator<RootStackParamList>();
 
 export function AppRoutes() {
   return (
@@ -10,7 +17,7 @@ export function AppRoutes() {
         headerShown: false,
       }}
     >
-      <Screen name="home" component={Home} />
+      <Screen name="Home" component={Home} />
     </Navigator>
   );
 }
