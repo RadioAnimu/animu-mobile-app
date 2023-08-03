@@ -72,10 +72,7 @@ export function Home() {
           <ScrollView>
             <HeaderBar info={animuInfo} player={player.current} />
             <View style={styles.containerApp}>
-              <View style={styles.oscilloscopeAndLogo}>
-                {/* <Oscilloscope player={player.current} webViewRef={webViewRef} /> */}
-                <Logo size={127} />
-              </View>
+              <Logo size={127} />
               <Listeners info={animuInfo} />
               <Cover cover={animuInfo.track.artworks.cover} />
               {!animuInfo?.program?.isLiveProgram && (

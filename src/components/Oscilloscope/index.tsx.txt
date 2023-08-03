@@ -129,7 +129,7 @@ export function Oscilloscope({ webViewRef, player }: Props) {
                 }
                 url = '${
                   player.CONFIG.BITRATES[
-                    player.currentBitrate || player.CONFIG.DEFAULT_BITRATE
+                    player._currentBitrate || player.CONFIG.DEFAULT_BITRATE
                   ].url
                 }';
                 song = document.createElement('audio');

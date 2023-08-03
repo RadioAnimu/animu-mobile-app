@@ -59,7 +59,7 @@ const configPlayer = async () => {
 export interface MyPlayerProps {
   CONFIG: typeof CONFIG;
   player: typeof TrackPlayer;
-  currentBitrate: keyof typeof CONFIG.BITRATES | null;
+  _currentBitrate: keyof typeof CONFIG.BITRATES | null;
   currentProgress: number;
   _loaded: boolean;
   _paused: boolean;
@@ -78,7 +78,7 @@ export interface MyPlayerProps {
 export const myPlayer = (): MyPlayerProps => ({
   CONFIG,
   player: TrackPlayer,
-  currentBitrate: null,
+  _currentBitrate: null,
   _loaded: false,
   _paused: true,
   currentMusic: null,
@@ -132,13 +132,14 @@ export const myPlayer = (): MyPlayerProps => ({
   async play() {
     if (!this._loaded) {
       await configPlayer();
-      this.currentBitrate = CONFIG.DEFAULT_BITRATE;
+      this._currentBitrate = CONFIG.DEFAULT_BITRATE;
     } else {
       await TrackPlayer.reset();
       await TrackPlayer.add({
         ...((await this.getCurrentMusicInNowPlayingMetadataFormat()) as typeof initialObject),
         id: "1",
-        url: CONFIG.BITRATES[this.currentBitrate || CONFIG.DEFAULT_BITRATE].url,
+        url: CONFIG.BITRATES[this._currentBitrate || CONFIG.DEFAULT_BITRATE]
+          .url,
       });
     }
     await TrackPlayer.play();
@@ -157,8 +158,8 @@ export const myPlayer = (): MyPlayerProps => ({
   async changeBitrate(
     bitrate: keyof typeof CONFIG.BITRATES = CONFIG.DEFAULT_BITRATE
   ) {
-    if (this.currentBitrate !== bitrate) {
-      this.currentBitrate = bitrate;
+    if (this._currentBitrate !== bitrate) {
+      this._currentBitrate = bitrate;
       if (!this._paused) {
         await this.play();
       }

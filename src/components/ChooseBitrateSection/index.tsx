@@ -17,7 +17,7 @@ export function ChooseBitrateSection({ player }: Props) {
             player.changeBitrate(+key as keyof typeof player.CONFIG.BITRATES);
           }}
           key={key}
-          selected={+key === player.currentBitrate || false}
+          selected={+key === player._currentBitrate || false}
           category={value.category}
           kbps={value.kbps}
         />
