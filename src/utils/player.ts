@@ -8,40 +8,15 @@ import TrackPlayer, {
 import { THEME } from "../theme";
 import { VolumeManager } from "react-native-volume-manager";
 
-const DEFAULT_COVER =
-  "https://cdn.discordapp.com/attachments/634406949198364702/1093233650025377892/Animu-3-anos-nova-logo.png";
+import { CONFIG } from "./player.config";
 
-const BITRATES = {
-  320: {
-    category: "MP3",
-    kbps: 320,
-    url: "https://cast.animu.com.br:9079/stream",
-  },
-  192: {
-    category: "MP3",
-    kbps: 192,
-    url: "https://cast.animu.com.br:9089/stream",
-  },
-  64: {
-    category: "AAC+",
-    kbps: 64,
-    url: "https://cast.animu.com.br:9069/stream",
-  },
-};
-
-const DEFAULT_BITRATE: keyof typeof BITRATES = 320;
-
-const CONFIG = {
-  BITRATES,
-  DEFAULT_BITRATE,
-  DEFAULT_COVER,
-};
+import { openBrowserAsync } from "expo-web-browser";
 
 const initialObject = {
   title: "",
   artist: "",
-  artwork: DEFAULT_COVER,
-  url: BITRATES[DEFAULT_BITRATE].url,
+  artwork: CONFIG.DEFAULT_COVER,
+  url: CONFIG.BITRATES[CONFIG.DEFAULT_BITRATE].url,
   duration: 0,
   id: "1",
 };
@@ -85,7 +60,8 @@ const configPlayer = async () => {
 export interface MyPlayerProps {
   CONFIG: typeof CONFIG;
   player: typeof TrackPlayer;
-  currentBitrate: keyof typeof BITRATES | null;
+  currentBitrate: keyof typeof CONFIG.BITRATES | null;
+  currentProgress: number;
   _loaded: boolean;
   _paused: boolean;
   _volume: number;
@@ -95,8 +71,9 @@ export interface MyPlayerProps {
   getCurrentMusicInNowPlayingMetadataFormat: () => Promise<NowPlayingMetadata>;
   play: () => Promise<void>;
   pause: () => Promise<void>;
-  changeBitrate: (bitrate: keyof typeof BITRATES) => Promise<void>;
+  changeBitrate: (bitrate: keyof typeof CONFIG.BITRATES) => Promise<void>;
   getProgram: () => Promise<ProgramProps>;
+  openPedidosURL: () => Promise<void>;
 }
 
 export const myPlayer = (): MyPlayerProps => ({
@@ -108,6 +85,7 @@ export const myPlayer = (): MyPlayerProps => ({
   currentMusic: null,
   currentProgram: null,
   _volume: 0,
+  currentProgress: 0,
   async getCurrentMusic(): Promise<AnimuInfoProps> {
     const data: any = await fetch(API.BASE_URL);
     const json: AnimuInfoProps = await data.json();
@@ -123,26 +101,27 @@ export const myPlayer = (): MyPlayerProps => ({
       json.track.artworks.large ||
       json.track.artworks.medium ||
       json.track.artworks.tiny ||
-      DEFAULT_COVER;
+      CONFIG.DEFAULT_COVER;
     json.track.artworks.cover = isUrlAnImage(json.track.artworks.cover)
       ? json.track.artworks.cover
-      : DEFAULT_COVER;
+      : CONFIG.DEFAULT_COVER;
     this.currentMusic = json;
     await this.getProgram();
     if (this.currentProgram) {
       json.program = this.currentProgram;
       json.program.isLiveProgram =
         json.program.locutor.toLowerCase() !== "haruka yuki";
+    } else {
+      json.track.progress = Date.now() - json.track.timestart;
     }
     return json;
   },
   async getCurrentMusicInNowPlayingMetadataFormat(): Promise<NowPlayingMetadata> {
-    const currentMusic = await this.getCurrentMusic();
     return {
-      title: currentMusic.track.anime,
-      artist: currentMusic.track.artist,
-      artwork: currentMusic.track.artworks.cover,
-      duration: currentMusic.track.duration,
+      title: this.currentMusic?.track.anime,
+      artist: this.currentMusic?.track.artist,
+      artwork: this.currentMusic?.track.artworks.cover,
+      duration: this.currentMusic?.track.duration,
     };
   },
   async getProgram(): Promise<ProgramProps> {
@@ -154,7 +133,7 @@ export const myPlayer = (): MyPlayerProps => ({
   async play() {
     if (!this._loaded) {
       await configPlayer();
-      this.currentBitrate = DEFAULT_BITRATE;
+      this.currentBitrate = CONFIG.DEFAULT_BITRATE;
       await TrackPlayer.play();
       this._loaded = true;
     } else {
@@ -162,7 +141,7 @@ export const myPlayer = (): MyPlayerProps => ({
       await TrackPlayer.add({
         ...((await this.getCurrentMusicInNowPlayingMetadataFormat()) as typeof initialObject),
         id: "1",
-        url: BITRATES[this.currentBitrate || DEFAULT_BITRATE].url,
+        url: CONFIG.BITRATES[this.currentBitrate || CONFIG.DEFAULT_BITRATE].url,
       });
       await TrackPlayer.play();
     }
@@ -175,12 +154,17 @@ export const myPlayer = (): MyPlayerProps => ({
       this._paused = true;
     }
   },
-  async changeBitrate(bitrate: keyof typeof BITRATES = DEFAULT_BITRATE) {
+  async changeBitrate(
+    bitrate: keyof typeof CONFIG.BITRATES = CONFIG.DEFAULT_BITRATE
+  ) {
     if (this.currentBitrate !== bitrate) {
       this.currentBitrate = bitrate;
       if (!this._paused) {
         await this.play();
       }
     }
+  },
+  async openPedidosURL(): Promise<void> {
+    await openBrowserAsync(API.PEDIDOS_URL);
   },
 });

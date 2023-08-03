@@ -17,7 +17,7 @@ export function Listeners({ info }: Props) {
         {
           backgroundColor: info.track.isRequest
             ? THEME.COLORS.REQUEST
-            : info.program.isLiveProgram
+            : info?.program?.isLiveProgram
             ? THEME.COLORS.LIVE_PROGRAM
             : THEME.COLORS.SHAPE,
         },
@@ -28,7 +28,7 @@ export function Listeners({ info }: Props) {
           styles.text,
           {
             color:
-              info.track.isRequest || info.program.isLiveProgram
+              info.track.isRequest || info?.program?.isLiveProgram
                 ? THEME.COLORS.WHITE_TEXT
                 : THEME.COLORS.LISTENERS,
           },
@@ -39,7 +39,7 @@ export function Listeners({ info }: Props) {
       <Image
         style={styles.foninho}
         source={
-          info.track.isRequest || info.program.isLiveProgram
+          info.track.isRequest || info?.program?.isLiveProgram
             ? foninho_branco
             : foninho
         }
@@ -49,14 +49,14 @@ export function Listeners({ info }: Props) {
           styles.text,
           {
             color:
-              info.track.isRequest || info.program.isLiveProgram
+              info.track.isRequest || info?.program?.isLiveProgram
                 ? THEME.COLORS.WHITE_TEXT
                 : THEME.COLORS.LISTENERS,
           },
         ]}
       >
-        {info.program.isLiveProgram
-          ? info.program.locutor.toUpperCase()
+        {info?.program?.isLiveProgram
+          ? info?.program.locutor.toUpperCase()
           : info.track.isRequest
           ? "MÚSICA PEDIDA"
           : "HARU-CHAN"}

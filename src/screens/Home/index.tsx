@@ -44,8 +44,26 @@ export function Home() {
           if (player.current._loaded) {
             getAnimuInfo();
           }
-        }, 3000);
+        }, 5000);
       });
+      setInterval(() => {
+        if (player.current._loaded) {
+          console.log("Updating current progress");
+          player.current.currentProgress = player.current.currentMusic?.track
+            .timestart
+            ? Date.now() - player.current.currentMusic?.track.timestart
+            : 0;
+          if (player.current.currentMusic) {
+            setAnimuInfo({
+              ...player.current.currentMusic,
+              track: {
+                ...player.current.currentMusic.track,
+                progress: player.current.currentProgress,
+              },
+            });
+          }
+        }
+      }, 1000);
       VolumeManager.addVolumeListener((result) => {
         console.log(result.volume);
         player.current._volume = result.volume;
@@ -61,7 +79,7 @@ export function Home() {
       {animuInfo ? (
         <SafeAreaView style={styles.container}>
           <ScrollView>
-            <HeaderBar player={player.current} />
+            <HeaderBar info={animuInfo} player={player.current} />
             <View style={styles.containerApp}>
               <View style={styles.oscilloscopeAndLogo}>
                 <Oscilloscope player={player.current} webViewRef={webViewRef} />
@@ -69,13 +87,12 @@ export function Home() {
               </View>
               <Listeners info={animuInfo} />
               <Cover cover={animuInfo.track.artworks.cover} />
-              {!animuInfo.program.isLiveProgram && (
+              {!animuInfo?.program?.isLiveProgram && (
                 <Text style={styles.timeLeft}>
                   Tempo restante:{" "}
                   <CountdownTimerText
                     startTime={
-                      animuInfo.track.duration -
-                      (Date.now() - animuInfo.track.timestart)
+                      animuInfo.track.duration - player.current.currentProgress
                     }
                   />
                 </Text>
