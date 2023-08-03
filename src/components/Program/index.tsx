@@ -1,19 +1,17 @@
 import { Text, View } from "react-native";
-import { AnimuInfoProps } from "../../api";
+import { ProgramProps } from "../../api";
 import { styles } from "./styles";
 
 interface Props {
-  info: AnimuInfoProps;
+  program: ProgramProps;
 }
 
-export function Program({ info }: Props) {
+export function Program({ program }: Props) {
   return (
     <View style={styles.container}>
-      <Text style={[styles.title, styles.green]}>
-        {info?.program?.programa}
-      </Text>
+      <Text style={[styles.title, styles.green]}>{program?.programa}</Text>
       <Text style={styles.label}>
-        COM: <Text style={styles.green}>{info?.program?.locutor}</Text>
+        COM: <Text style={styles.green}>{program?.locutor}</Text>
       </Text>
     </View>
   );

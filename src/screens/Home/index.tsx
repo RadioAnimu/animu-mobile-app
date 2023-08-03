@@ -76,7 +76,7 @@ export function Home({ route, navigation }: Props) {
                   </Text>
                 )}
                 <Live track={animuInfo.track} />
-                <Program info={animuInfo} />
+                <Program program={animuInfo.program} />
                 <ChooseBitrateSection player={player} />
               </View>
             </ScrollView>
