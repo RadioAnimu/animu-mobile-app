@@ -20,11 +20,7 @@ import { Oscilloscope } from "../../components/Oscilloscope";
 
 import BackgroundTimer from "react-native-background-timer";
 
-import { VolumeManager } from "react-native-volume-manager";
-
 export function Home() {
-  VolumeManager.showNativeVolumeUI({ enabled: true });
-
   const [animuInfo, setAnimuInfo] = useState<AnimuInfoProps | null>(null);
   const isFirstRun = useRef(true);
   const player = useRef(myPlayer());
@@ -64,10 +60,6 @@ export function Home() {
           }
         }
       }, 1000);
-      VolumeManager.addVolumeListener((result) => {
-        console.log(result.volume);
-        player.current._volume = result.volume;
-      });
       isFirstRun.current = false;
     }
   }, []);

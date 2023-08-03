@@ -17,7 +17,7 @@ export interface AnimuInfoProps {
 
 export interface ProgramProps {
   locutor: string;
-  program: string;
+  programa: string;
   isLiveProgram: boolean;
 }
 

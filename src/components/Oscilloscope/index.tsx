@@ -4,7 +4,6 @@ import WebView from "react-native-webview";
 import { LegacyRef, useEffect, useState } from "react";
 import { MyPlayerProps } from "../../utils";
 import { AppState } from "react-native";
-import { VolumeManager } from "react-native-volume-manager";
 
 interface Props {
   webViewRef: any;
@@ -18,9 +17,6 @@ export function Oscilloscope({ webViewRef, player }: Props) {
   useEffect(() => {
     const handleAppStateChange = (nextAppState: any) => {
       setAppState(nextAppState);
-      VolumeManager.getVolume().then((volume) => {
-        player._volume = volume.volume;
-      });
     };
 
     AppState.addEventListener("change", handleAppStateChange);
@@ -142,7 +138,7 @@ export function Oscilloscope({ webViewRef, player }: Props) {
                 song.src = url;
                 songSource.connect(masterGain);
                 song.preload = "none";
-                var gainfrac = ${player._volume};
+                var gainfrac = 1;
                 if (window.masterGain) window.masterGain.gain.value = gainfrac;
                 window.song_result = song.play();
                 window.songPlaying = true;

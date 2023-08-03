@@ -6,7 +6,6 @@ import TrackPlayer, {
   NowPlayingMetadata,
 } from "react-native-track-player";
 import { THEME } from "../theme";
-import { VolumeManager } from "react-native-volume-manager";
 
 import { CONFIG } from "./player.config";
 
@@ -64,7 +63,6 @@ export interface MyPlayerProps {
   currentProgress: number;
   _loaded: boolean;
   _paused: boolean;
-  _volume: number;
   currentMusic: AnimuInfoProps | null;
   currentProgram: ProgramProps | null;
   getCurrentMusic: () => Promise<AnimuInfoProps>;
@@ -85,7 +83,6 @@ export const myPlayer = (): MyPlayerProps => ({
   _paused: true,
   currentMusic: null,
   currentProgram: null,
-  _volume: 0,
   currentProgress: 0,
   _oscilloscopeEnabled: true,
   async getCurrentMusic(): Promise<AnimuInfoProps> {
@@ -120,8 +117,8 @@ export const myPlayer = (): MyPlayerProps => ({
   },
   async getCurrentMusicInNowPlayingMetadataFormat(): Promise<NowPlayingMetadata> {
     return {
-      title: this.currentMusic?.track.anime,
-      artist: this.currentMusic?.track.artist,
+      artist: this.currentMusic?.track.anime,
+      title: this.currentMusic?.track.artist,
       artwork: this.currentMusic?.track.artworks.cover,
       duration: this.currentMusic?.track.duration,
     };
@@ -136,8 +133,6 @@ export const myPlayer = (): MyPlayerProps => ({
     if (!this._loaded) {
       await configPlayer();
       this.currentBitrate = CONFIG.DEFAULT_BITRATE;
-      await TrackPlayer.play();
-      this._loaded = true;
     } else {
       await TrackPlayer.reset();
       await TrackPlayer.add({
@@ -145,10 +140,13 @@ export const myPlayer = (): MyPlayerProps => ({
         id: "1",
         url: CONFIG.BITRATES[this.currentBitrate || CONFIG.DEFAULT_BITRATE].url,
       });
-      await TrackPlayer.play();
     }
+    await TrackPlayer.play();
+    await TrackPlayer.updateNowPlayingMetadata(
+      await this.getCurrentMusicInNowPlayingMetadataFormat()
+    );
+    this._loaded = true;
     this._paused = false;
-    this._volume = (await VolumeManager.getVolume()).volume;
   },
   async pause() {
     if (this._loaded && !this._paused) {
