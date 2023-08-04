@@ -21,8 +21,11 @@ const BITRATES = {
 
 const DEFAULT_BITRATE: keyof typeof BITRATES = 320;
 
+const USER_AGENT = "Animu Mobile App";
+
 export const CONFIG = {
   BITRATES,
   DEFAULT_BITRATE,
   DEFAULT_COVER,
+  USER_AGENT,
 };

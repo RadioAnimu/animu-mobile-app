@@ -11,6 +11,7 @@ import {
   PlayerContext,
   PlayerProviderType,
 } from "./src/contexts/player.context";
+import { THEME } from "./src/theme";
 
 export default function App() {
   const [isLoading, setIsLoading] = useState(true);
@@ -33,10 +34,7 @@ export default function App() {
       console.log("App unmounted");
       try {
         // Sequence of events to destroy the player and turn off the app
-        player.destroy().then(() => {
-          setPlayer(myPlayer());
-          setIsLoading(true);
-        });
+        player.destroy();
       } catch (err) {
         console.log(err);
       }
@@ -52,7 +50,11 @@ export default function App() {
 
   return (
     <Background>
-      <StatusBar backgroundColor="black" barStyle="light-content" translucent />
+      <StatusBar
+        backgroundColor={THEME.COLORS.PRIMARY}
+        barStyle="light-content"
+        translucent
+      />
       <PlayerContext.Provider value={playerProvider}>
         {fontsLoaded && !isLoading ? <Routes /> : <Loading />}
       </PlayerContext.Provider>

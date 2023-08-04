@@ -24,6 +24,7 @@ const configPlayer = async (player: MyPlayerProps) => {
     id: "1",
     url: player.CONFIG.BITRATES[player._currentBitrate].url,
     ...(await player.getCurrentMusicInNowPlayingMetadataFormat()),
+    userAgent: player.CONFIG.USER_AGENT,
   };
 
   TrackPlayer.addEventListener(Event.RemotePlay, () => {
@@ -35,14 +36,19 @@ const configPlayer = async (player: MyPlayerProps) => {
           id: "1",
           url: player.CONFIG.BITRATES[player._currentBitrate].url,
           ...metadata,
+          userAgent: player.CONFIG.USER_AGENT,
         }).then(() => {
-          TrackPlayer.play();
+          TrackPlayer.play().then(() => {
+            player._paused = false;
+          });
         });
       });
   });
 
   TrackPlayer.addEventListener(Event.RemotePause, () => {
-    TrackPlayer.pause();
+    TrackPlayer.pause().then(() => {
+      player._paused = true;
+    });
   });
 
   TrackPlayer.addEventListener(Event.RemoteStop, () => {
@@ -129,11 +135,10 @@ export const myPlayer = (): MyPlayerProps => ({
   async getProgram(): Promise<ProgramProps> {
     const data: any = await fetch(API.PROGRAM_URL);
     const json: ProgramProps = await data.json();
-    json.isLiveProgram = json.locutor.toLowerCase() !== "haruka yuki";
+    json.isLiveProgram = json.locutor.toLowerCase().trim() !== "haruka yuki";
     if (this.currentInformation) {
       this.currentInformation.program = json;
     }
-    console.log(this.currentInformation?.program);
     return json;
   },
   async play() {
@@ -150,6 +155,7 @@ export const myPlayer = (): MyPlayerProps => ({
       ...(await this.getCurrentMusicInNowPlayingMetadataFormat()),
       id: "1",
       url: CONFIG.BITRATES[this._currentBitrate].url,
+      userAgent: CONFIG.USER_AGENT,
     });
     if (this._paused) {
       await TrackPlayer.play();
