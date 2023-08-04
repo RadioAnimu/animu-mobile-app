@@ -117,8 +117,8 @@ export const myPlayer = (): MyPlayerProps => ({
     json.track.artworks.cover = isUrlAnImage(json.track.artworks.cover)
       ? json.track.artworks.cover
       : CONFIG.DEFAULT_COVER;
+    json.program = await this.getProgram();
     this.currentInformation = json;
-    await this.getProgram();
     if (!this.currentInformation.program?.isLiveProgram) {
       json.track.progress = Date.now() - json.track.timestart;
     }
