@@ -143,3 +143,6 @@ yarn-error.*
 *.tsbuildinfo
 
 # @end expo-cli
+target/
+android/
+```
