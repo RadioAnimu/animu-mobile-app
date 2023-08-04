@@ -25,7 +25,12 @@ const configPlayer = async (player: MyPlayerProps) => {
     url: player.CONFIG.BITRATES[player._currentBitrate].url,
     ...(await player.getCurrentMusicInNowPlayingMetadataFormat()),
     userAgent: player.CONFIG.USER_AGENT,
+    elapsedTime: player.currentInformation?.track.progress
+      ? ~~(player.currentInformation.track.progress / 1000)
+      : 0,
   };
+
+  console.log(initialObject);
 
   TrackPlayer.addEventListener(Event.RemotePlay, () => {
     TrackPlayer.reset();
@@ -55,6 +60,8 @@ const configPlayer = async (player: MyPlayerProps) => {
     TrackPlayer.reset();
   });
 
+  TrackPlayer.addEventListener(Event.RemoteSeek, () => {});
+
   // Set up the player
   await TrackPlayer.setupPlayer();
 
@@ -63,10 +70,15 @@ const configPlayer = async (player: MyPlayerProps) => {
 
   await TrackPlayer.updateOptions({
     capabilities: [Capability.Play, Capability.Pause, Capability.Stop],
-    compactCapabilities: [Capability.Play, Capability.Pause],
-    notificationCapabilities: [Capability.Play, Capability.Pause],
+    compactCapabilities: [Capability.Play, Capability.Pause, Capability.SeekTo],
+    notificationCapabilities: [
+      Capability.Play,
+      Capability.Pause,
+      Capability.SeekTo,
+    ],
     // Obviously, color property would not work if artwork is specified. It can be used as a fallback.
     color: +THEME.COLORS.BACKGROUND_800.replace("#", ""),
+    progressUpdateEventInterval: 1,
   });
 };
 
@@ -129,7 +141,12 @@ export const myPlayer = (): MyPlayerProps => ({
       artist: this.currentInformation?.track.anime,
       title: this.currentInformation?.track.artist,
       artwork: this.currentInformation?.track.artworks.cover,
-      duration: this.currentInformation?.track.duration,
+      duration: this.currentInformation?.track.duration
+        ? ~~(this.currentInformation.track.duration / 1000)
+        : 0,
+      elapsedTime: this.currentInformation?.track.progress
+        ? ~~(this.currentInformation.track.progress / 1000)
+        : 0,
     };
   },
   async getProgram(): Promise<ProgramProps> {
