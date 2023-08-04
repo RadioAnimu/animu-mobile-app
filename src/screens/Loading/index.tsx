@@ -7,20 +7,18 @@ import splashScreenImage from "../../../assets/splash_top.png";
 
 export function Loading() {
   return (
-    <Background>
-      <SafeAreaView style={styles.container}>
-        <ImageBackground
-          defaultSource={splashScreenImage}
-          source={splashScreenImage}
-          style={{
-            flex: 1,
-            flexDirection: "column-reverse",
-            paddingBottom: "40%",
-          }}
-        >
-          <ActivityIndicator color={THEME.COLORS.WHITE_TEXT} />
-        </ImageBackground>
-      </SafeAreaView>
-    </Background>
+    <SafeAreaView style={styles.container}>
+      <ImageBackground
+        defaultSource={splashScreenImage}
+        source={splashScreenImage}
+        style={{
+          flex: 1,
+          flexDirection: "column-reverse",
+          paddingBottom: "40%",
+        }}
+      >
+        <ActivityIndicator color={THEME.COLORS.WHITE_TEXT} />
+      </ImageBackground>
+    </SafeAreaView>
   );
 }

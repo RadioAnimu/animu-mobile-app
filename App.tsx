@@ -49,15 +49,21 @@ export default function App() {
   });
 
   return (
-    <Background>
+    <>
       <StatusBar
         backgroundColor={THEME.COLORS.PRIMARY}
         barStyle="light-content"
         translucent
       />
-      <PlayerContext.Provider value={playerProvider}>
-        {fontsLoaded && !isLoading ? <Routes /> : <Loading />}
-      </PlayerContext.Provider>
-    </Background>
+      {fontsLoaded && !isLoading ? (
+        <Background>
+          <PlayerContext.Provider value={playerProvider}>
+            <Routes />
+          </PlayerContext.Provider>
+        </Background>
+      ) : (
+        <Loading />
+      )}
+    </>
   );
 }
