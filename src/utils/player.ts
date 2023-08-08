@@ -66,29 +66,18 @@ export const myPlayer = (): MyPlayerProps => ({
     return json;
   },
   getCurrentMusicInNowPlayingMetadataFormat(): NowPlayingMetadata {
-    console.log("Executing getCurrentMusicInNowPlayingMetadataFormat");
-    console.log({
-      artist: this.currentInformation?.track.anime,
-      title: this.currentInformation?.track.artist,
-      artwork: this.currentInformation?.track.artworks.cover,
-      duration: this.currentInformation?.track.duration
-        ? ~~(this.currentInformation?.track.duration / 1000)
-        : 0,
-      elapsedTime: this.currentInformation?.track.progress
-        ? ~~(this.currentInformation?.track.progress / 1000)
-        : 0,
-    });
     return {
       artist: this.currentInformation?.track.anime,
       title: this.currentInformation?.track.artist,
       artwork: this.currentInformation?.track.artworks.cover,
+      /*
       duration: this.currentInformation?.track.duration
         ? ~~(this.currentInformation?.track.duration / 1000)
         : 0,
       elapsedTime: this.currentInformation?.track.progress
         ? ~~(this.currentInformation?.track.progress / 1000)
         : 0,
-      isLiveStream: false,
+      isLiveStream: false, */
     };
   },
   async getProgram(): Promise<ProgramProps> {
