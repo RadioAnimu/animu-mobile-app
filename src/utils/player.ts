@@ -1,86 +1,14 @@
-import { AnimuInfoProps, ProgramProps, TrackProps } from "../api";
+import { AnimuInfoProps, ProgramProps } from "../api";
 import { API } from "../api";
-import TrackPlayer, {
-  Capability,
-  Event,
-  NowPlayingMetadata,
-} from "react-native-track-player";
-import { THEME } from "../theme";
-
+import TrackPlayer, { NowPlayingMetadata } from "react-native-track-player";
 import { CONFIG } from "./player.config";
 
 import { openBrowserAsync } from "expo-web-browser";
+import { SetupService } from "../services";
 
 function isUrlAnImage(url: string) {
   return url.match(/\.(jpeg|jpg|gif|png)$/) != null;
 }
-
-// Config TrackPlayer Settings Function
-const configPlayer = async (player: MyPlayerProps) => {
-  console.log("Setting up player");
-
-  await player.getCurrentMusic();
-  const initialObject = {
-    id: "1",
-    url: player.CONFIG.BITRATES[player._currentBitrate].url,
-    ...(await player.getCurrentMusicInNowPlayingMetadataFormat()),
-    userAgent: player.CONFIG.USER_AGENT,
-    elapsedTime: player.currentInformation?.track.progress
-      ? ~~(player.currentInformation.track.progress / 1000)
-      : 0,
-  };
-
-  console.log(initialObject);
-
-  TrackPlayer.addEventListener(Event.RemotePlay, () => {
-    TrackPlayer.reset();
-    player
-      .getCurrentMusicInNowPlayingMetadataFormat()
-      .then((metadata: NowPlayingMetadata) => {
-        TrackPlayer.add({
-          id: "1",
-          url: player.CONFIG.BITRATES[player._currentBitrate].url,
-          ...metadata,
-          userAgent: player.CONFIG.USER_AGENT,
-        }).then(() => {
-          TrackPlayer.play().then(() => {
-            player._paused = false;
-          });
-        });
-      });
-  });
-
-  TrackPlayer.addEventListener(Event.RemotePause, () => {
-    TrackPlayer.pause().then(() => {
-      player._paused = true;
-    });
-  });
-
-  TrackPlayer.addEventListener(Event.RemoteStop, () => {
-    TrackPlayer.reset();
-  });
-
-  TrackPlayer.addEventListener(Event.RemoteSeek, () => {});
-
-  // Set up the player
-  await TrackPlayer.setupPlayer();
-
-  // Add a track to the queue
-  await TrackPlayer.add(initialObject);
-
-  await TrackPlayer.updateOptions({
-    capabilities: [Capability.Play, Capability.Pause, Capability.Stop],
-    compactCapabilities: [Capability.Play, Capability.Pause, Capability.SeekTo],
-    notificationCapabilities: [
-      Capability.Play,
-      Capability.Pause,
-      Capability.SeekTo,
-    ],
-    // Obviously, color property would not work if artwork is specified. It can be used as a fallback.
-    color: +THEME.COLORS.BACKGROUND_800.replace("#", ""),
-    progressUpdateEventInterval: 1,
-  });
-};
 
 export interface MyPlayerProps {
   CONFIG: typeof CONFIG;
@@ -91,13 +19,14 @@ export interface MyPlayerProps {
   _paused: boolean;
   currentInformation: AnimuInfoProps | null;
   getCurrentMusic: () => Promise<AnimuInfoProps>;
-  getCurrentMusicInNowPlayingMetadataFormat: () => Promise<NowPlayingMetadata>;
+  getCurrentMusicInNowPlayingMetadataFormat: () => NowPlayingMetadata;
   play: () => Promise<void>;
   pause: () => Promise<void>;
   changeBitrate: (bitrate: keyof typeof CONFIG.BITRATES) => Promise<void>;
   getProgram: () => Promise<ProgramProps>;
   openPedidosURL: () => Promise<void>;
   destroy: () => Promise<void>;
+  updateMetadata: () => Promise<void>;
   // _oscilloscopeEnabled: boolean;
 }
 
@@ -136,17 +65,11 @@ export const myPlayer = (): MyPlayerProps => ({
     }
     return json;
   },
-  async getCurrentMusicInNowPlayingMetadataFormat(): Promise<NowPlayingMetadata> {
+  getCurrentMusicInNowPlayingMetadataFormat(): NowPlayingMetadata {
     return {
       artist: this.currentInformation?.track.anime,
       title: this.currentInformation?.track.artist,
       artwork: this.currentInformation?.track.artworks.cover,
-      duration: this.currentInformation?.track.duration
-        ? ~~(this.currentInformation.track.duration / 1000)
-        : 0,
-      elapsedTime: this.currentInformation?.track.progress
-        ? ~~(this.currentInformation.track.progress / 1000)
-        : 0,
     };
   },
   async getProgram(): Promise<ProgramProps> {
@@ -159,17 +82,19 @@ export const myPlayer = (): MyPlayerProps => ({
     return json;
   },
   async play() {
+    console.log("Executing play");
     if (!this._loaded) {
       try {
-        await configPlayer(this);
+        await SetupService(this);
       } catch (error) {
         console.log(error);
       }
     }
     this._loaded = true;
+    await this.getCurrentMusic();
     await TrackPlayer.reset();
     await TrackPlayer.add({
-      ...(await this.getCurrentMusicInNowPlayingMetadataFormat()),
+      ...this.getCurrentMusicInNowPlayingMetadataFormat(),
       id: "1",
       url: CONFIG.BITRATES[this._currentBitrate].url,
       userAgent: CONFIG.USER_AGENT,
@@ -179,7 +104,7 @@ export const myPlayer = (): MyPlayerProps => ({
       this._paused = false;
     }
     await TrackPlayer.updateNowPlayingMetadata(
-      await this.getCurrentMusicInNowPlayingMetadataFormat()
+      this.getCurrentMusicInNowPlayingMetadataFormat()
     );
   },
   async pause() {
@@ -201,6 +126,11 @@ export const myPlayer = (): MyPlayerProps => ({
   },
   async openPedidosURL(): Promise<void> {
     await openBrowserAsync(API.PEDIDOS_URL);
+  },
+  async updateMetadata() {
+    await this.player.updateNowPlayingMetadata(
+      this.getCurrentMusicInNowPlayingMetadataFormat()
+    );
   },
   async destroy() {
     await this.player.reset();

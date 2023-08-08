@@ -35,9 +35,7 @@ export function Home({ route, navigation }: Props) {
       BackgroundTimer.runBackgroundTimer(async () => {
         auxData = await player.getCurrentMusic();
         setAnimuInfo(auxData);
-        player.player.updateNowPlayingMetadata(
-          await player.getCurrentMusicInNowPlayingMetadataFormat()
-        );
+        await player.updateMetadata();
       }, 5000);
       setInterval(() => {
         player.currentProgress = player.currentInformation?.track.timestart
