@@ -28,7 +28,7 @@
     "react-native-screens": "~3.22.0",
     "react-native-svg": "13.9.0",
     "react-native-text-ticker": "^1.14.0",
-    "react-native-track-player": "4.0.0-rc05",
+    "react-native-track-player": "3.2.0-6d22c10da7fb04d6b30cc9628c4acabe388d7f92",
     "react-native-volume-manager": "^1.10.0"
   },
   "resolutions": {

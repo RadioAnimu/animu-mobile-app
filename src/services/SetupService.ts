@@ -48,7 +48,5 @@ export const SetupService = async (player: MyPlayerProps) => {
     color: +THEME.COLORS.BACKGROUND_800.replace("#", ""),
     progressUpdateEventInterval: 1,
   });
-  await TrackPlayer.setRepeatMode(DefaultRepeatMode);
-
   await PlaybackService(player);
 };

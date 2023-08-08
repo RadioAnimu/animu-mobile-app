@@ -13,7 +13,7 @@ export const styles = StyleSheet.create({
     flexDirection: "column",
     justifyContent: "center",
     overflow: "hidden",
-    marginLeft: 14,
+    marginHorizontal: 14,
     gap: -3.823,
   },
   title: {

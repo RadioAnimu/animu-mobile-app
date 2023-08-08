@@ -5533,10 +5533,10 @@ react-native-text-ticker@^1.14.0:
   resolved "https://registry.yarnpkg.com/react-native-text-ticker/-/react-native-text-ticker-1.14.0.tgz#dc537d2c587efc18ef19db9a85dc678a28aa8c57"
   integrity sha512-8TNGTcW43dfnCqIuXVA7F1Ny8SKGrw0pIrNS5nM7eda+6AsuPTZh3JQ2CwmSRYfsrlnS4QFrpyo5ykpI8nvtCw==
 
-react-native-track-player@4.0.0-rc05:
-  version "4.0.0-rc05"
-  resolved "https://registry.yarnpkg.com/react-native-track-player/-/react-native-track-player-4.0.0-rc05.tgz#d2b46f2b5077d412a2aee5494ef9d34e4dfebdfb"
-  integrity sha512-FoVw1LGP4sXnDPLmB5y4L+uXS0/5fXR54CM+64RfQXAtK2S7/hAAXbpqJRhLxa+eVAulzlgPoEV+H9Pvwp/1Wg==
+react-native-track-player@3.2.0-6d22c10da7fb04d6b30cc9628c4acabe388d7f92:
+  version "3.2.0-6d22c10da7fb04d6b30cc9628c4acabe388d7f92"
+  resolved "https://registry.yarnpkg.com/react-native-track-player/-/react-native-track-player-3.2.0-6d22c10da7fb04d6b30cc9628c4acabe388d7f92.tgz#54063677870b0302969979d05e0347659b634e98"
+  integrity sha512-AA9dc/D9ROjXY5vteiCOC8rTYfCqIW8DQf5SsvKR3oiWpQeslruKMF9BDUKmn/hQEMRfrpjO0DhEkAOBRfRtuA==
 
 react-native-volume-manager@^1.10.0:
   version "1.10.0"
