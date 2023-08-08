@@ -37,11 +37,10 @@ export async function PlaybackService(player: MyPlayerProps): Promise<void> {
         title,
         artist,
       });
-      const activeTrack = await TrackPlayer.getCurrentTrack();
-      if (activeTrack && title && artist) {
-        TrackPlayer.updateMetadataForTrack(activeTrack, {
-          artist: artist,
-          title: title,
+      if (title && artist) {
+        TrackPlayer.updateNowPlayingMetadata({
+          title,
+          artist,
         });
       }
     }
