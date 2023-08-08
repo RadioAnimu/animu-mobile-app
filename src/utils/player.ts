@@ -70,6 +70,12 @@ export const myPlayer = (): MyPlayerProps => ({
       artist: this.currentInformation?.track.anime,
       title: this.currentInformation?.track.artist,
       artwork: this.currentInformation?.track.artworks.cover,
+      duration: this.currentInformation?.track.duration
+        ? ~~(this.currentInformation?.track.duration / 1000)
+        : 0,
+      elapsedTime: this.currentInformation?.track.progress
+        ? ~~(this.currentInformation?.track.progress / 1000)
+        : 0,
     };
   },
   async getProgram(): Promise<ProgramProps> {

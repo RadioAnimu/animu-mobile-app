@@ -37,12 +37,16 @@ export const SetupService = async (player: MyPlayerProps) => {
     },
     // This flag is now deprecated. Please use the above to define playback mode.
     // stoppingAppPausesPlayback: true,
-    capabilities: [Capability.Play, Capability.Pause, Capability.Stop],
-    compactCapabilities: [Capability.Play, Capability.Pause],
-    notificationCapabilities: [Capability.Play, Capability.Pause],
+    capabilities: [Capability.Play, Capability.Pause, Capability.SeekTo],
+    compactCapabilities: [Capability.Play, Capability.Pause, Capability.SeekTo],
+    notificationCapabilities: [
+      Capability.Play,
+      Capability.Pause,
+      Capability.SeekTo,
+    ],
     // Obviously, color property would not work if artwork is specified. It can be used as a fallback.
     color: +THEME.COLORS.BACKGROUND_800.replace("#", ""),
-    progressUpdateEventInterval: 2,
+    progressUpdateEventInterval: 1,
   });
   await TrackPlayer.setRepeatMode(DefaultRepeatMode);
 

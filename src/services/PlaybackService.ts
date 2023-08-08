@@ -28,21 +28,4 @@ export async function PlaybackService(player: MyPlayerProps): Promise<void> {
   });
 
   TrackPlayer.addEventListener(Event.RemoteSeek, () => {});
-
-  TrackPlayer.addEventListener(
-    Event.PlaybackMetadataReceived,
-    async ({ title, artist }) => {
-      console.log("é para atualizar caralho");
-      console.log({
-        title,
-        artist,
-      });
-      if (title && artist) {
-        TrackPlayer.updateNowPlayingMetadata({
-          title,
-          artist,
-        });
-      }
-    }
-  );
 }
