@@ -26,6 +26,7 @@ export interface MyPlayerProps {
   openPedidosURL: () => Promise<void>;
   destroy: () => Promise<void>;
   updateMetadata: () => Promise<void>;
+  getListeners: () => Promise<number>;
   // _oscilloscopeEnabled: boolean;
 }
 
@@ -98,6 +99,7 @@ export const myPlayer = (): MyPlayerProps => ({
       this.currentInformation.program.isSaijikkou =
         this._currentStream.category === "REPRISES";
       this.currentInformation.program.locutor = "Haruka Yuki";
+      this.currentInformation.listeners = await this.getListeners();
     }
     return json;
   },
@@ -155,5 +157,10 @@ export const myPlayer = (): MyPlayerProps => ({
   async destroy() {
     await this.player.reset();
     this._loaded = false;
+  },
+  async getListeners() {
+    const data: any = await fetch(API.SAIJIKKOU_URL);
+    const json: any = await data.json();
+    return json.listeners + 1; // +1 to count the current listener
   },
 });

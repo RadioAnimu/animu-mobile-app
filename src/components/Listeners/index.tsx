@@ -34,7 +34,7 @@ export function Listeners({ info }: Props) {
           },
         ]}
       >
-        {info.listeners + 1}
+        {info.listeners}
       </Text>
       <Image
         style={styles.foninho}
