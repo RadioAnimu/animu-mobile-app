@@ -1,5 +1,4 @@
-import { Text, TouchableOpacity, View } from "react-native";
-import { AnimuInfoProps } from "../../api";
+import { Text, TouchableOpacity } from "react-native";
 import { THEME } from "../../theme";
 import { styles } from "./styles";
 
