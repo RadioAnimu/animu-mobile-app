@@ -31,11 +31,11 @@ export function HeaderBar({ player, info, navigation }: Props) {
     if (
       info?.track?.progress &&
       info?.track?.duration &&
-      !isNaN(info?.track?.progress) &&
-      !isNaN(info?.track?.duration) &&
+      !Number.isNaN(info?.track?.progress) &&
+      !Number.isNaN(info?.track?.duration) &&
       info?.track?.duration > 0 &&
       info?.track?.progress > 0 &&
-      !isNaN(info?.track?.progress / info?.track?.duration)
+      !Number.isNaN(info?.track?.progress / info?.track?.duration)
     ) {
       Animated.timing(progressAnim, {
         toValue:
