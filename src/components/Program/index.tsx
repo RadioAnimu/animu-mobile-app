@@ -7,7 +7,6 @@ interface Props {
 }
 
 export function Program({ program }: Props) {
-  console.log("Program", program);
   return (
     <View style={styles.container}>
       <Text style={[styles.title, styles.green]}>

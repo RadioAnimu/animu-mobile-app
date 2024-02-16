@@ -33,6 +33,8 @@ export const THEME = {
     SM: 14,
     MD: 20,
     LG: 22,
+    MENU_ITEM: 19,
     PROGRAM_LABELS: 19,
+    FOOTER: 12,
   },
 };

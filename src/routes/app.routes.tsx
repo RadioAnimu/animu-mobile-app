@@ -1,8 +1,13 @@
-import { createDrawerNavigator } from "@react-navigation/drawer";
-import { Dimensions } from "react-native";
+import {
+  DrawerContentComponentProps,
+  DrawerContentScrollView,
+  DrawerItemList,
+  createDrawerNavigator,
+} from "@react-navigation/drawer";
+import { Dimensions, Image, Text, TouchableOpacity, View } from "react-native";
 import { Home } from "../screens/Home";
 import { THEME } from "../theme";
-import { Image } from "react-native";
+import { version } from "../../package.json";
 
 interface HomeProps {}
 
@@ -13,6 +18,58 @@ export type RootStackParamList = {
 };
 
 const { Navigator, Screen } = createDrawerNavigator<RootStackParamList>();
+
+function CustomDrawerContent(props: DrawerContentComponentProps) {
+  const { navigation } = props;
+  return (
+    <DrawerContentScrollView
+      {...props}
+      contentContainerStyle={{
+        justifyContent: "space-between",
+        alignContent: "center",
+        flexDirection: "column",
+        height: "100%",
+      }}
+    >
+      <View>
+        <TouchableOpacity
+          onPress={() => {
+            navigation.navigate("Home");
+          }}
+        >
+          <Image
+            source={require("../assets/logo.png")}
+            style={{
+              height: 100,
+              alignSelf: "center",
+              resizeMode: "contain",
+            }}
+          />
+        </TouchableOpacity>
+        <DrawerItemList {...props} />
+      </View>
+      <View
+        style={{
+          marginBottom: 10,
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
+        <Text
+          style={{
+            color: THEME.COLORS.WHITE_TEXT,
+            textAlign: "center",
+            padding: 5,
+            fontFamily: THEME.FONT_FAMILY.BOLD,
+            fontSize: THEME.FONT_SIZE.FOOTER,
+          }}
+        >
+          Versão v{version} - Desenvolvido com muito ❤️ por Ness.js
+        </Text>
+      </View>
+    </DrawerContentScrollView>
+  );
+}
 
 export function AppRoutes() {
   return (
@@ -25,28 +82,21 @@ export function AppRoutes() {
         },
         drawerActiveTintColor: THEME.COLORS.WHITE_TEXT,
         drawerInactiveTintColor: THEME.COLORS.SHAPE,
+        drawerLabelStyle: {
+          fontFamily: THEME.FONT_FAMILY.BOLD,
+          fontSize: THEME.FONT_SIZE.MENU_ITEM,
+        },
       }}
+      drawerContent={(props) => <CustomDrawerContent {...props} />}
     >
       <Screen
         options={{
-          drawerLabel: "Rádio Animu",
-          drawerIcon: ({ focused, color, size }) => {
-            return (
-              <Image
-                style={{ width: 24, height: 24 }}
-                source={require("../assets/logo.png")}
-              />
-            );
+          drawerLabel: "Player",
+          drawerItemStyle: {
+            display: "none",
           },
         }}
         name="Home"
-        component={Home}
-      />
-      <Screen
-        options={{
-          drawerLabel: "Sai Jikkou!",
-        }}
-        name="SaiJikkou"
         component={Home}
       />
       <Screen
