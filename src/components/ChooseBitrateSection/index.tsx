@@ -1,5 +1,4 @@
-import { Text, TouchableOpacity, View } from "react-native";
-import { THEME } from "../../theme";
+import { View } from "react-native";
 import { styles } from "./styles";
 import { MyPlayerProps } from "../../utils";
 import { ButtonKBPS } from "../ButtonKBPS";
@@ -19,7 +18,7 @@ export function ChooseBitrateSection({ player }: Props) {
           key={key}
           selected={+key === player._currentBitrate || false}
           category={value.category}
-          kbps={value.kbps}
+          kbps={+key}
         />
       ))}
     </View>

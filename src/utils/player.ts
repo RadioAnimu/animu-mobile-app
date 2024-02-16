@@ -67,8 +67,8 @@ export const myPlayer = (): MyPlayerProps => ({
   },
   getCurrentMusicInNowPlayingMetadataFormat(): NowPlayingMetadata {
     return {
-      artist: this.currentInformation?.track.anime,
-      title: this.currentInformation?.track.artist,
+      artist: this.currentInformation?.track.artist,
+      title: this.currentInformation?.track.anime,
       artwork: this.currentInformation?.track.artworks.cover,
       /*
       duration: this.currentInformation?.track.duration
@@ -94,11 +94,12 @@ export const myPlayer = (): MyPlayerProps => ({
     if (!this._loaded) {
       try {
         await SetupService(this);
-      } catch (error) {
-        console.log(error);
+      } catch (err) {
+        console.error(err);
+      } finally {
+        this._loaded = true;
       }
     }
-    this._loaded = true;
     await this.getCurrentMusic();
     await TrackPlayer.reset();
     await TrackPlayer.add({
@@ -111,9 +112,7 @@ export const myPlayer = (): MyPlayerProps => ({
       await TrackPlayer.play();
       this._paused = false;
     }
-    await TrackPlayer.updateNowPlayingMetadata(
-      this.getCurrentMusicInNowPlayingMetadataFormat()
-    );
+    await this.updateMetadata();
   },
   async pause() {
     if (this._loaded && !this._paused) {

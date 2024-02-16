@@ -4,17 +4,14 @@ const DEFAULT_COVER =
 const BITRATES = {
   320: {
     category: "MP3",
-    kbps: 320,
     url: "https://cast.animu.com.br:9079/stream",
   },
   192: {
     category: "MP3",
-    kbps: 192,
     url: "https://cast.animu.com.br:9089/stream",
   },
   64: {
     category: "AAC+",
-    kbps: 64,
     url: "https://cast.animu.com.br:9069/stream",
   },
 };
