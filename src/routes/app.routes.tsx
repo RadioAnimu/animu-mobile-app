@@ -46,6 +46,17 @@ function CustomDrawerContent(props: DrawerContentComponentProps) {
             }}
           />
         </TouchableOpacity>
+        <Text
+          style={{
+            color: THEME.COLORS.WHITE_TEXT,
+            textAlign: "center",
+            padding: 5,
+            fontFamily: THEME.FONT_FAMILY.BOLD,
+            fontSize: THEME.FONT_SIZE.MENU_ITEM,
+          }}
+        >
+          Em construção
+        </Text>
         <DrawerItemList {...props} />
       </View>
       <View
@@ -97,13 +108,6 @@ export function AppRoutes() {
           },
         }}
         name="Home"
-        component={Home}
-      />
-      <Screen
-        options={{
-          drawerLabel: "Programação",
-        }}
-        name="Programacao"
         component={Home}
       />
     </Navigator>
