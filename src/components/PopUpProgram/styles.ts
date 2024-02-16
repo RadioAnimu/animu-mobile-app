@@ -12,18 +12,29 @@ export const styles = StyleSheet.create({
     width: 311,
     backgroundColor: THEME.COLORS.PRIMARY,
     alignItems: "center",
-    justifyContent: "center",
     borderRadius: 8,
+    padding: 8,
   },
   closeIcon: {
     alignSelf: "flex-end",
-    margin: 16,
+    margin: 8,
   },
-  label: {
-    color: THEME.COLORS.TEXT,
-    fontSize: THEME.FONT_SIZE.MD,
-    fontFamily: THEME.FONT_FAMILY.BOLD,
+  img: {
+    height: 127,
+    width: "100%",
+    borderRadius: 8,
+    resizeMode: "contain",
+  },
+  informationBlock: {
+    flexDirection: "column",
+    justifyContent: "center",
+    gap: 8,
     marginTop: 24,
     marginBottom: 8,
+  },
+  label: {
+    color: THEME.COLORS.WHITE_TEXT,
+    fontSize: THEME.FONT_SIZE.MD,
+    fontFamily: THEME.FONT_FAMILY.BOLD,
   },
 });

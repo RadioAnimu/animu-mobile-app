@@ -63,6 +63,12 @@ export const myPlayer = (): MyPlayerProps => ({
       ? json.track.artworks.cover
       : CONFIG.DEFAULT_COVER;
     json.program = await this.getProgram();
+    json.program.raw = CONFIG.PROGRAMAS.find(
+      (program) =>
+        program.name.toLocaleLowerCase() ===
+        json.program.programa.toLocaleLowerCase()
+    );
+    json.listeners = await this.getListeners();
     this.currentInformation = json;
     if (!this.currentInformation.program?.isLiveProgram) {
       json.track.progress = Date.now() - json.track.timestart;
@@ -99,7 +105,6 @@ export const myPlayer = (): MyPlayerProps => ({
       this.currentInformation.program.isSaijikkou =
         this._currentStream.category === "REPRISES";
       this.currentInformation.program.locutor = "Haruka Yuki";
-      this.currentInformation.listeners = await this.getListeners();
     }
     return json;
   },

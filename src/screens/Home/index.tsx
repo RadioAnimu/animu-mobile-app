@@ -92,6 +92,7 @@ export function Home({ route, navigation }: Props) {
             </ScrollView>
             <PopUpProgram
               visible={isModalVisible}
+              program={animuInfo.program}
               handleClose={() => {
                 setIsModalVisible(false);
               }}

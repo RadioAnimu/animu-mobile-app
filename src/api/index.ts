@@ -1,3 +1,5 @@
+import { Program } from "../utils/player.config";
+
 const BASE_URL = "https://api.animu.com.br/";
 const PROGRAM_URL = "https://www.animu.com.br/teste/locutor.php";
 const PEDIDOS_URL = "https://www.animu.com.br/pedidos/";
@@ -22,6 +24,10 @@ export interface ProgramProps {
   programa: string;
   isLiveProgram: boolean;
   isSaijikkou: boolean;
+  infoPrograma: string;
+  imagem: string;
+  raw: Program | undefined;
+  temaPrograma: string;
 }
 
 export interface TrackProps {
