@@ -18,6 +18,7 @@ export const THEME = {
     BITRATEBTNS: "#42008C",
     REQUEST: "#42008c",
     LIVE_PROGRAM: "red",
+    OVERLAY: "rgba(0,0,0,0.6)",
   },
 
   FONT_FAMILY: {

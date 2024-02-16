@@ -20,11 +20,14 @@ import BackgroundTimer from "react-native-background-timer";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../../routes/app.routes";
 import { PlayerContext } from "../../contexts/player.context";
+import { PopUpProgram } from "../../components/PopUpProgram";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Home">;
 
 export function Home({ route, navigation }: Props) {
   const playerProvider = useContext(PlayerContext);
+  const [isModalVisible, setIsModalVisible] = useState(false);
+
   if (playerProvider?.player) {
     const player = playerProvider.player;
 
@@ -78,10 +81,21 @@ export function Home({ route, navigation }: Props) {
                   </Text>
                 )}
                 <Live track={animuInfo.track} />
-                <Program program={animuInfo.program} />
+                <Program
+                  program={animuInfo.program}
+                  handleClick={() => {
+                    setIsModalVisible(true);
+                  }}
+                />
                 <ChooseBitrateSection player={player} />
               </View>
             </ScrollView>
+            <PopUpProgram
+              visible={isModalVisible}
+              handleClose={() => {
+                setIsModalVisible(false);
+              }}
+            />
           </SafeAreaView>
         ) : (
           <Loading />
