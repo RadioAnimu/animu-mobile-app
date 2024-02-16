@@ -4,28 +4,52 @@ import { THEME } from "../../theme";
 import { styles } from "./styles";
 
 interface Props {
-    selected: boolean;
-    category: string;
-    kbps: number;
-    handleChangeBitrate: () => void;
+  selected: boolean;
+  category: string;
+  kbps: number;
+  handleChangeStream: () => void;
+  isSaijikkou: boolean;
 }
 
-export function ButtonKBPS({ selected, category, kbps, handleChangeBitrate }: Props) {
+export function ButtonKBPS({
+  selected,
+  category,
+  kbps,
+  handleChangeStream,
+  isSaijikkou,
+}: Props) {
   return (
-    <TouchableOpacity onPress={handleChangeBitrate} style={[styles.container, 
+    <TouchableOpacity
+      onPress={handleChangeStream}
+      style={[
+        styles.container,
         {
-            backgroundColor: !selected ? THEME.COLORS.SHAPE : THEME.COLORS.BITRATEBTNS, 
-        }]
-    }>
-        <Text style={[styles.category, 
-        {
-            color: selected ? THEME.COLORS.WHITE_TEXT : THEME.COLORS.PRIMARY, 
-        }]
-        }>{category}</Text>
-        <Text style={[styles.kbps,
-        {
-            color: selected ? THEME.COLORS.WHITE_TEXT : THEME.COLORS.PRIMARY, 
-        }]}>{kbps} kbps</Text>
+          backgroundColor: !selected
+            ? THEME.COLORS.SHAPE
+            : THEME.COLORS.BITRATEBTNS,
+        },
+      ]}
+    >
+      <Text
+        style={[
+          styles.category,
+          {
+            color: selected ? THEME.COLORS.WHITE_TEXT : THEME.COLORS.PRIMARY,
+          },
+        ]}
+      >
+        {category}
+      </Text>
+      <Text
+        style={[
+          styles.kbps,
+          {
+            color: selected ? THEME.COLORS.WHITE_TEXT : THEME.COLORS.PRIMARY,
+          },
+        ]}
+      >
+        {kbps} kbps
+      </Text>
     </TouchableOpacity>
   );
 }

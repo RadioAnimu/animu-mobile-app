@@ -1,7 +1,7 @@
-import { View } from "react-native";
-import { styles } from "./styles";
+import { FlatList } from "react-native";
 import { MyPlayerProps } from "../../utils";
 import { ButtonKBPS } from "../ButtonKBPS";
+import { styles } from "./styles";
 
 interface Props {
   player: MyPlayerProps;
@@ -9,18 +9,26 @@ interface Props {
 
 export function ChooseBitrateSection({ player }: Props) {
   return (
-    <View style={styles.container}>
-      {Object.entries(player.CONFIG.BITRATES).map(([key, value]) => (
-        <ButtonKBPS
-          handleChangeBitrate={() => {
-            player.changeBitrate(+key as keyof typeof player.CONFIG.BITRATES);
-          }}
-          key={key}
-          selected={+key === player._currentBitrate || false}
-          category={value.category}
-          kbps={+key}
-        />
-      ))}
-    </View>
+    <FlatList
+      style={styles.container}
+      contentContainerStyle={styles.contentContainer}
+      horizontal
+      showsHorizontalScrollIndicator={false}
+      data={player.CONFIG.STREAM_OPTIONS}
+      keyExtractor={(item) => item.url}
+      renderItem={({ item }) => {
+        return (
+          <ButtonKBPS
+            handleChangeStream={() => {
+              player.changeStream(item);
+            }}
+            selected={item === player._currentStream || false}
+            category={item.category}
+            kbps={item.bitrate}
+            isSaijikkou={item.category === "REPRISES" ? true : false}
+          />
+        );
+      }}
+    ></FlatList>
   );
 }

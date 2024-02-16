@@ -1,7 +1,6 @@
-import { AnimuInfoProps, ProgramProps } from "../api";
-import { API } from "../api";
 import TrackPlayer, { NowPlayingMetadata } from "react-native-track-player";
-import { CONFIG } from "./player.config";
+import { API, AnimuInfoProps, ProgramProps } from "../api";
+import { CONFIG, StreamOption } from "./player.config";
 
 import { openBrowserAsync } from "expo-web-browser";
 import { SetupService } from "../services";
@@ -13,7 +12,7 @@ function isUrlAnImage(url: string) {
 export interface MyPlayerProps {
   CONFIG: typeof CONFIG;
   player: typeof TrackPlayer;
-  _currentBitrate: keyof typeof CONFIG.BITRATES;
+  _currentStream: StreamOption;
   currentProgress: number;
   _loaded: boolean;
   _paused: boolean;
@@ -22,7 +21,7 @@ export interface MyPlayerProps {
   getCurrentMusicInNowPlayingMetadataFormat: () => NowPlayingMetadata;
   play: () => Promise<void>;
   pause: () => Promise<void>;
-  changeBitrate: (bitrate: keyof typeof CONFIG.BITRATES) => Promise<void>;
+  changeStream: (stream: StreamOption) => Promise<void>;
   getProgram: () => Promise<ProgramProps>;
   openPedidosURL: () => Promise<void>;
   destroy: () => Promise<void>;
@@ -33,14 +32,18 @@ export interface MyPlayerProps {
 export const myPlayer = (): MyPlayerProps => ({
   CONFIG,
   player: TrackPlayer,
-  _currentBitrate: CONFIG.DEFAULT_BITRATE,
+  _currentStream: CONFIG.DEFAULT_STREAM_OPTION,
   _loaded: false,
   _paused: true,
   currentInformation: null,
   currentProgress: 0,
   // _oscilloscopeEnabled: false,
   async getCurrentMusic(): Promise<AnimuInfoProps> {
-    const data: any = await fetch(API.BASE_URL);
+    const data: any = await fetch(
+      this._currentStream.category === "REPRISES"
+        ? API.SAIJIKKOU_URL
+        : API.BASE_URL
+    );
     const json: AnimuInfoProps = await data.json();
     json.track.rawtitle = json.rawtitle;
     json.track.song = json.rawtitle.split(" | ")[0]?.trim() || json.rawtitle;
@@ -81,11 +84,20 @@ export const myPlayer = (): MyPlayerProps => ({
     };
   },
   async getProgram(): Promise<ProgramProps> {
-    const data: any = await fetch(API.PROGRAM_URL);
+    const data: any = await fetch(
+      this._currentStream.category === "REPRISES"
+        ? API.SAIJIKKOU_URL
+        : API.PROGRAM_URL
+    );
     const json: ProgramProps = await data.json();
-    json.isLiveProgram = json.locutor.toLowerCase().trim() !== "haruka yuki";
+    json.isLiveProgram =
+      this._currentStream.category !== "REPRISES" &&
+      json.locutor.toLowerCase().trim() !== "haruka yuki";
     if (this.currentInformation) {
       this.currentInformation.program = json;
+      this.currentInformation.program.isSaijikkou =
+        this._currentStream.category === "REPRISES";
+      this.currentInformation.program.locutor = "Haruka Yuki";
     }
     return json;
   },
@@ -105,7 +117,7 @@ export const myPlayer = (): MyPlayerProps => ({
     await TrackPlayer.add({
       ...this.getCurrentMusicInNowPlayingMetadataFormat(),
       id: "1",
-      url: CONFIG.BITRATES[this._currentBitrate].url,
+      url: this._currentStream.url,
       userAgent: CONFIG.USER_AGENT,
     });
     if (this._paused) {
@@ -120,11 +132,12 @@ export const myPlayer = (): MyPlayerProps => ({
       this._paused = true;
     }
   },
-  async changeBitrate(
-    bitrate: keyof typeof CONFIG.BITRATES = CONFIG.DEFAULT_BITRATE
-  ) {
-    if (this._currentBitrate !== bitrate) {
-      this._currentBitrate = bitrate;
+  async changeStream(stream: StreamOption) {
+    console.log("Changing stream to", {
+      stream,
+    });
+    if (this._currentStream !== stream) {
+      this._currentStream = stream;
       if (!this._paused) {
         this._paused = true;
         await this.play();

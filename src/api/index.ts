@@ -1,11 +1,13 @@
 const BASE_URL = "https://api.animu.com.br/";
 const PROGRAM_URL = "https://www.animu.com.br/teste/locutor.php";
 const PEDIDOS_URL = "https://www.animu.com.br/pedidos/";
+const SAIJIKKOU_URL = "https://api.animu.com.br/?r=sj";
 
 export const API = {
   BASE_URL,
   PROGRAM_URL,
   PEDIDOS_URL,
+  SAIJIKKOU_URL,
 };
 
 export interface AnimuInfoProps {
@@ -19,6 +21,7 @@ export interface ProgramProps {
   locutor: string;
   programa: string;
   isLiveProgram: boolean;
+  isSaijikkou: boolean;
 }
 
 export interface TrackProps {

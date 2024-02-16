@@ -1,25 +1,27 @@
+import { useEffect, useRef } from "react";
 import {
+  Animated,
+  Dimensions,
+  Image,
   TouchableOpacity,
   View,
-  Image,
-  Dimensions,
-  Animated,
 } from "react-native";
+import { AnimuInfoProps } from "../../api";
+import menuIcon from "../../assets/icons/menu.png";
+import noteIcon from "../../assets/icons/note.png";
 import playButtonImage from "../../assets/play_square_btn.png";
 import pauseButtonImage from "../../assets/play_triangle_btn.png";
 import { MyPlayerProps } from "../../utils";
 import { styles } from "./styles";
-import menuIcon from "../../assets/icons/menu.png";
-import noteIcon from "../../assets/icons/note.png";
-import { useEffect, useRef } from "react";
-import { AnimuInfoProps } from "../../api";
+import { useNavigation } from "@react-navigation/native";
 
 interface Props {
   player: MyPlayerProps;
+  navigation: ReturnType<typeof useNavigation>;
   info: AnimuInfoProps | null;
 }
 
-export function HeaderBar({ player, info }: Props) {
+export function HeaderBar({ player, info, navigation }: Props) {
   const progressAnim = useRef(new Animated.Value(0)).current; // Initial value for opacity: 0
 
   useEffect(() => {
@@ -45,7 +47,12 @@ export function HeaderBar({ player, info }: Props) {
   return (
     <View style={styles.view}>
       <View style={styles.container}>
-        <TouchableOpacity onPress={() => {}}>
+        <TouchableOpacity
+          onPress={() => {
+            // @ts-ignore
+            navigation.openDrawer();
+          }}
+        >
           <Image style={styles.menuBtn} source={menuIcon} />
         </TouchableOpacity>
         <TouchableOpacity

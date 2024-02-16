@@ -7,9 +7,12 @@ interface Props {
 }
 
 export function Program({ program }: Props) {
+  console.log("Program", program);
   return (
     <View style={styles.container}>
-      <Text style={[styles.title, styles.green]}>{program?.programa}</Text>
+      <Text style={[styles.title, styles.green]}>
+        {program?.isSaijikkou ? "Animu Sai Jikkou" : program?.programa}
+      </Text>
       <Text style={styles.label}>
         COM: <Text style={styles.green}>{program?.locutor}</Text>
       </Text>
