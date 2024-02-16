@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Animated,
   Dimensions,
@@ -21,8 +21,11 @@ interface Props {
   info: AnimuInfoProps | null;
 }
 
+type Status = "playing" | "paused" | "changing";
+
 export function HeaderBar({ player, info, navigation }: Props) {
   const progressAnim = useRef(new Animated.Value(0)).current; // Initial value for opacity: 0
+  const [status, setStatus] = useState<Status>("playing");
 
   useEffect(() => {
     if (
@@ -56,16 +59,25 @@ export function HeaderBar({ player, info, navigation }: Props) {
           <Image style={styles.menuBtn} source={menuIcon} />
         </TouchableOpacity>
         <TouchableOpacity
-          onPress={() => {
+          onPress={async () => {
+            if (status === "changing") return;
+            setStatus("changing");
             if (player._paused) {
-              player.play();
+              await player.play();
+              setStatus("playing");
             } else {
-              player.pause();
+              await player.pause();
+              setStatus("paused");
             }
           }}
         >
           <Image
-            style={styles.playBtn}
+            style={[
+              styles.playBtn,
+              {
+                opacity: status === "changing" ? 0.5 : 1,
+              },
+            ]}
             source={player._paused ? pauseButtonImage : playButtonImage}
           />
         </TouchableOpacity>
