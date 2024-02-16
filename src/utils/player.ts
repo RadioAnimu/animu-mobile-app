@@ -98,7 +98,6 @@ export const myPlayer = (): MyPlayerProps => ({
       this.currentInformation.program.isSaijikkou =
         this._currentStream.category === "REPRISES";
       this.currentInformation.program.locutor = "Haruka Yuki";
-      this.currentInformation.listeners = this.currentInformation.listeners + 1;
     }
     return json;
   },
