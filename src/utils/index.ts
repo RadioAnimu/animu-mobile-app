@@ -1,6 +1,3 @@
 import { myPlayer, MyPlayerProps } from "./player";
 
-export {
-    myPlayer,
-    MyPlayerProps,
-};
+export { myPlayer, MyPlayerProps };

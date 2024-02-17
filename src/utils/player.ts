@@ -1,4 +1,3 @@
-import { isUrlAnImageFormat } from "./utils";
 import TrackPlayer, { NowPlayingMetadata } from "react-native-track-player";
 import { API, AnimuInfoProps, ProgramProps, TrackProps } from "../api";
 import { CONFIG, StreamOption } from "./player.config";
@@ -7,7 +6,7 @@ import { openBrowserAsync } from "expo-web-browser";
 import { SetupService } from "../services";
 
 function isUrlAnImage(url: string) {
-  return url.match(/\.(jpeg|jpg|gif|png)$/) != null;
+  return url.match(/\.(jpeg|jpg|gif|png|webp)$/) != null;
 }
 
 export interface MyPlayerProps {
