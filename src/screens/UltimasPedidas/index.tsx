@@ -5,6 +5,8 @@ import { AnimuInfoProps } from "../../api";
 import { Background } from "../../components/Background";
 import { styles } from "./styles";
 
+import { CONFIG } from "../../utils/player.config";
+
 import { SafeAreaView } from "react-native-safe-area-context";
 import { HeaderBar } from "../../components/HeaderBar";
 import { Loading } from "../Loading";
@@ -80,6 +82,9 @@ export function UltimasPedidas({ route, navigation }: Props) {
                         uri: item.artworks.cover,
                       }}
                       style={styles.image}
+                      defaultSource={{
+                        uri: CONFIG.DEFAULT_COVER,
+                      }}
                     />
                     <Text style={styles.musicapedidaname}>{item.rawtitle}</Text>
                     <Text style={styles.musicapedidatime}>

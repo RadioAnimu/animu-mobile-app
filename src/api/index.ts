@@ -4,8 +4,10 @@ const BASE_URL = "https://api.animu.com.br/";
 const PROGRAM_URL = "https://www.animu.com.br/teste/locutor.php";
 const PEDIDOS_URL = "https://www.animu.com.br/pedidos/";
 const SAIJIKKOU_URL = "https://api.animu.com.br/?r=sj";
-const ULTIMAS_PEDIDAS_URL = "https://www.animu.com.br/teste/pedidos.php";
-const ULTIMAS_TOCADAS_URL = "https://www.animu.com.br/teste/muzicas.php";
+const ULTIMAS_PEDIDAS_URL =
+  "https://www.animu.com.br/teste/ultimospedidos_json.php";
+const ULTIMAS_TOCADAS_URL =
+  "https://www.animu.com.br/teste/ultimasmusicas_json.php";
 
 export const API = {
   BASE_URL,

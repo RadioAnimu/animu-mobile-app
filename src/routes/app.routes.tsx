@@ -10,6 +10,7 @@ import { THEME } from "../theme";
 import { version } from "../../package.json";
 import { UltimasPedidas } from "../screens/UltimasPedidas";
 import { UltimasTocadas } from "../screens/UltimasTocadas";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
 
 interface HomeProps {}
 interface UltimasPedidasProps {}
@@ -61,6 +62,33 @@ function CustomDrawerContent(props: DrawerContentComponentProps) {
         >
           Em construção
         </Text>
+        {/*
+        <View
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            justifyContent: "flex-start",
+            paddingHorizontal: 20,
+            gap: 5,
+          }}
+        >
+          <MaterialCommunityIcons
+            name="discord"
+            size={20}
+            color={THEME.COLORS.SHAPE}
+          />
+          <Text
+            style={{
+              color: THEME.COLORS.SHAPE,
+              textAlign: "center",
+              fontFamily: THEME.FONT_FAMILY.BOLD,
+              fontSize: THEME.FONT_SIZE.MENU_ITEM,
+            }}
+          >
+            Login Discord
+          </Text>
+        </View>
+        */}
         <DrawerItemList {...props} />
       </View>
       <View
@@ -100,6 +128,10 @@ export function AppRoutes() {
         drawerLabelStyle: {
           fontFamily: THEME.FONT_FAMILY.BOLD,
           fontSize: THEME.FONT_SIZE.MENU_ITEM,
+        },
+        drawerItemStyle: {
+          marginHorizontal: 10,
+          borderRadius: 10,
         },
       }}
       drawerContent={(props) => <CustomDrawerContent {...props} />}

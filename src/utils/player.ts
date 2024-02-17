@@ -1,3 +1,4 @@
+import { isUrlAnImageFormat } from "./utils";
 import TrackPlayer, { NowPlayingMetadata } from "react-native-track-player";
 import { API, AnimuInfoProps, ProgramProps, TrackProps } from "../api";
 import { CONFIG, StreamOption } from "./player.config";
@@ -171,48 +172,45 @@ export const myPlayer = (): MyPlayerProps => ({
     return json.listeners + 1; // +1 to count the current listener
   },
   async getUltimas(typeHistory: "pedidas" | "tocadas") {
+    const res: TrackProps[] = [];
     if (
       this.currentInformation &&
       this.currentInformation.ultimasPedidas === undefined
     ) {
-      this.currentInformation.ultimasPedidas = [];
+      this.currentInformation.ultimasPedidas = res;
     }
     if (
       this.currentInformation &&
       this.currentInformation.ultimasTocadas === undefined
     ) {
-      this.currentInformation.ultimasTocadas = [];
+      this.currentInformation.ultimasTocadas = res;
     }
 
-    let data: any = await fetch(
+    const data: any = await fetch(
       typeHistory === "pedidas"
         ? API.ULTIMAS_PEDIDAS_URL
         : API.ULTIMAS_TOCADAS_URL
     );
-    let text: any = await data.text();
-    let json: TrackProps[] = [];
+    const json: any = await data.json();
 
-    const regex =
-      typeHistory === "pedidas"
-        ? /<td class='musica'>(.*?)<\/td>\s*<td class='hora'>(.*?)<\/td>/g
-        : /<td class='mensagem'>(.*?)<\/td>\s*<td class='nick'>(.*?)<\/td>/g;
-    let match;
-    while ((match = regex.exec(text)) !== null) {
-      const [_, rawtitle, timestart] = match;
+    json.forEach((item: any) => {
+      const rawtitle = item[0];
       const [song, anime] = rawtitle.split(" | ");
-      if (rawtitle.length) {
-        json.push({
+      const isTypePedidas = typeHistory === "pedidas";
+      const cover = isTypePedidas ? item[3] : item[1];
+      if (rawtitle.length && !rawtitle.toLowerCase().includes("animu")) {
+        res.push({
           rawtitle,
           song,
           anime,
           artist: "",
           artworks: {
-            cover: CONFIG.DEFAULT_COVER,
+            cover,
           },
           timestart:
             typeHistory === "pedidas"
               ? new Date(
-                  new Date().toDateString() + " " + timestart + ":00"
+                  new Date().toDateString() + " " + item[1] + ":00"
                 ).getTime()
               : new Date().getTime(),
           duration: 0,
@@ -220,7 +218,7 @@ export const myPlayer = (): MyPlayerProps => ({
           progress: 0,
         });
       }
-    }
+    });
 
     switch (typeHistory) {
       case "pedidas":
@@ -229,9 +227,9 @@ export const myPlayer = (): MyPlayerProps => ({
           (this.currentInformation.ultimasPedidas === undefined ||
             this.currentInformation.ultimasPedidas.length === 0)
         ) {
-          this.currentInformation.ultimasPedidas = json;
+          this.currentInformation.ultimasPedidas = res;
         } else {
-          for (const track of json) {
+          for (const track of res) {
             if (
               !this.currentInformation?.ultimasPedidas.find(
                 (t) => t.rawtitle === track.rawtitle
@@ -250,9 +248,9 @@ export const myPlayer = (): MyPlayerProps => ({
           (this.currentInformation.ultimasTocadas === undefined ||
             this.currentInformation.ultimasTocadas.length === 0)
         ) {
-          this.currentInformation.ultimasTocadas = json;
+          this.currentInformation.ultimasTocadas = res;
         } else {
-          for (const track of json) {
+          for (const track of res) {
             if (
               !this.currentInformation?.ultimasTocadas.find(
                 (t) => t.rawtitle === track.rawtitle

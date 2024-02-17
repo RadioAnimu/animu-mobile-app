@@ -14,6 +14,7 @@ import { PlayerContext } from "../../contexts/player.context";
 import { RootStackParamList } from "../../routes/app.routes";
 
 import UltimasTocadasImage from "../../assets/ultimas_tocadas-haru.png";
+import { CONFIG } from "../../utils/player.config";
 
 type Props = NativeStackScreenProps<RootStackParamList, "UltimasTocadas">;
 
@@ -78,6 +79,9 @@ export function UltimasTocadas({ route, navigation }: Props) {
                     <Image
                       source={{
                         uri: item.artworks.cover,
+                      }}
+                      defaultSource={{
+                        uri: CONFIG.DEFAULT_COVER,
                       }}
                       style={styles.image}
                     />
