@@ -5,19 +5,21 @@ import logo from "../../assets/logo.png";
 
 interface Props {
   size?: number;
+  img?: string;
 }
 
-export function Logo({ size }: Props) {
+export function Logo({ size, img }: Props) {
   const defaultSize = 100;
+  const defaultImg = logo;
   return (
     <Image
-        source={logo}
-        style={[
-            styles.image,
-            {
-                height: size ? size : defaultSize,
-            }
-        ]}
+      source={img ? img : defaultImg}
+      style={[
+        styles.image,
+        {
+          height: size ? size : defaultSize,
+        },
+      ]}
     />
   );
 }

@@ -11,15 +11,18 @@ import { version } from "../../package.json";
 import { UltimasPedidas } from "../screens/UltimasPedidas";
 import { UltimasTocadas } from "../screens/UltimasTocadas";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { FazerPedido } from "../screens/FazerPedido";
 
 interface HomeProps {}
 interface UltimasPedidasProps {}
 interface UltimasTocadasProps {}
+interface FazerPedidoProps {}
 
 export type RootStackParamList = {
   Home: HomeProps;
   UltimasPedidas: UltimasPedidasProps;
   UltimasTocadas: UltimasTocadasProps;
+  FazerPedido: FazerPedidoProps;
 };
 
 const { Navigator, Screen } = createDrawerNavigator<RootStackParamList>();
@@ -159,6 +162,16 @@ export function AppRoutes() {
         }}
         name="UltimasTocadas"
         component={UltimasTocadas}
+      />
+      <Screen
+        options={{
+          drawerLabel: "Fazer Pedido",
+          drawerItemStyle: {
+            display: "none",
+          },
+        }}
+        name="FazerPedido"
+        component={FazerPedido}
       />
     </Navigator>
   );

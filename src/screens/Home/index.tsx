@@ -61,11 +61,7 @@ export function Home({ route, navigation }: Props) {
         {animuInfo ? (
           <SafeAreaView style={styles.container}>
             <ScrollView>
-              <HeaderBar
-                info={animuInfo}
-                player={player}
-                navigation={navigation}
-              />
+              <HeaderBar player={player} navigation={navigation} />
               <View style={styles.containerApp}>
                 <Logo size={127} />
                 <Listeners info={animuInfo} />

@@ -18,14 +18,31 @@ import { useNavigation } from "@react-navigation/native";
 interface Props {
   player: MyPlayerProps;
   navigation: ReturnType<typeof useNavigation>;
-  info: AnimuInfoProps | null;
 }
 
 type Status = "playing" | "paused" | "changing";
 
-export function HeaderBar({ player, info, navigation }: Props) {
+export function HeaderBar({ player, navigation }: Props) {
   const progressAnim = useRef(new Animated.Value(0)).current; // Initial value for opacity: 0
   const [status, setStatus] = useState<Status>("playing");
+
+  const [info, setAnimuInfo] = useState<AnimuInfoProps | null>(null);
+  useEffect(() => {
+    setInterval(() => {
+      player.currentProgress = player.currentInformation?.track.timestart
+        ? Date.now() - player.currentInformation?.track.timestart
+        : 0;
+      if (player.currentInformation) {
+        setAnimuInfo({
+          ...player.currentInformation,
+          track: {
+            ...player.currentInformation.track,
+            progress: player.currentProgress,
+          },
+        });
+      }
+    }, 1000);
+  }, []);
 
   useEffect(() => {
     if (
@@ -81,7 +98,12 @@ export function HeaderBar({ player, info, navigation }: Props) {
             source={player._paused ? pauseButtonImage : playButtonImage}
           />
         </TouchableOpacity>
-        <TouchableOpacity onPress={player.openPedidosURL}>
+        <TouchableOpacity
+          onPress={() => {
+            // @ts-ignore
+            navigation.navigate("FazerPedido");
+          }}
+        >
           <Image style={styles.noteIcon} source={noteIcon} />
         </TouchableOpacity>
       </View>

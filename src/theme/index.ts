@@ -19,6 +19,10 @@ export const THEME = {
     REQUEST: "#42008c",
     LIVE_PROGRAM: "red",
     OVERLAY: "rgba(0,0,0,0.6)",
+    FAZER_PEDIDO: "#5100A3",
+    FAZER_PEDIDO_BORDER: "#220056",
+    PEDIDO_POSSIVEL: "#5700B8",
+    PEDIDO_IMPOSSIVEL: "#24004D",
   },
 
   FONT_FAMILY: {
