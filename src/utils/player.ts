@@ -1,5 +1,5 @@
 import TrackPlayer, { NowPlayingMetadata } from "react-native-track-player";
-import { API, AnimuInfoProps, ProgramProps } from "../api";
+import { API, AnimuInfoProps, ProgramProps, TrackProps } from "../api";
 import { CONFIG, StreamOption } from "./player.config";
 
 import { openBrowserAsync } from "expo-web-browser";
@@ -27,7 +27,7 @@ export interface MyPlayerProps {
   destroy: () => Promise<void>;
   updateMetadata: () => Promise<void>;
   getListeners: () => Promise<number>;
-  // _oscilloscopeEnabled: boolean;
+  getUltimas: (typeHistory: "pedidas" | "tocadas") => Promise<void>;
 }
 
 export const myPlayer = (): MyPlayerProps => ({
@@ -38,7 +38,6 @@ export const myPlayer = (): MyPlayerProps => ({
   _paused: true,
   currentInformation: null,
   currentProgress: 0,
-  // _oscilloscopeEnabled: false,
   async getCurrentMusic(): Promise<AnimuInfoProps> {
     const data: any = await fetch(
       this._currentStream.category === "REPRISES"
@@ -63,12 +62,18 @@ export const myPlayer = (): MyPlayerProps => ({
       ? json.track.artworks.cover
       : CONFIG.DEFAULT_COVER;
     json.program = await this.getProgram();
-    json.program.raw = CONFIG.PROGRAMAS.find(
-      (program) =>
-        program.name.toLocaleLowerCase() ===
-        json.program.programa.toLocaleLowerCase()
-    );
+    if (this._currentStream.category !== "REPRISES") {
+      json.program.raw = CONFIG.PROGRAMAS.find(
+        (program) =>
+          program.name.toLocaleLowerCase() ===
+          json.program.programa.toLocaleLowerCase()
+      );
+    }
     json.listeners = await this.getListeners();
+    await this.getUltimas("pedidas");
+    json.ultimasPedidas = this.currentInformation?.ultimasPedidas || [];
+    await this.getUltimas("tocadas");
+    json.ultimasTocadas = this.currentInformation?.ultimasTocadas || [];
     this.currentInformation = json;
     if (!this.currentInformation.program?.isLiveProgram) {
       json.track.progress = Date.now() - json.track.timestart;
@@ -140,9 +145,6 @@ export const myPlayer = (): MyPlayerProps => ({
     }
   },
   async changeStream(stream: StreamOption) {
-    console.log("Changing stream to", {
-      stream,
-    });
     if (this._currentStream !== stream) {
       this._currentStream = stream;
       if (!this._paused) {
@@ -167,5 +169,102 @@ export const myPlayer = (): MyPlayerProps => ({
     const data: any = await fetch(API.SAIJIKKOU_URL);
     const json: any = await data.json();
     return json.listeners + 1; // +1 to count the current listener
+  },
+  async getUltimas(typeHistory: "pedidas" | "tocadas") {
+    if (
+      this.currentInformation &&
+      this.currentInformation.ultimasPedidas === undefined
+    ) {
+      this.currentInformation.ultimasPedidas = [];
+    }
+    if (
+      this.currentInformation &&
+      this.currentInformation.ultimasTocadas === undefined
+    ) {
+      this.currentInformation.ultimasTocadas = [];
+    }
+
+    let data: any = await fetch(
+      typeHistory === "pedidas"
+        ? API.ULTIMAS_PEDIDAS_URL
+        : API.ULTIMAS_TOCADAS_URL
+    );
+    let text: any = await data.text();
+    let json: TrackProps[] = [];
+
+    const regex =
+      typeHistory === "pedidas"
+        ? /<td class='musica'>(.*?)<\/td>\s*<td class='hora'>(.*?)<\/td>/g
+        : /<td class='mensagem'>(.*?)<\/td>\s*<td class='nick'>(.*?)<\/td>/g;
+    let match;
+    while ((match = regex.exec(text)) !== null) {
+      const [_, rawtitle, timestart] = match;
+      const [song, anime] = rawtitle.split(" | ");
+      if (rawtitle.length) {
+        json.push({
+          rawtitle,
+          song,
+          anime,
+          artist: "",
+          artworks: {
+            cover: CONFIG.DEFAULT_COVER,
+          },
+          timestart:
+            typeHistory === "pedidas"
+              ? new Date(
+                  new Date().toDateString() + " " + timestart + ":00"
+                ).getTime()
+              : new Date().getTime(),
+          duration: 0,
+          isRequest: true,
+          progress: 0,
+        });
+      }
+    }
+
+    switch (typeHistory) {
+      case "pedidas":
+        if (
+          this.currentInformation &&
+          (this.currentInformation.ultimasPedidas === undefined ||
+            this.currentInformation.ultimasPedidas.length === 0)
+        ) {
+          this.currentInformation.ultimasPedidas = json;
+        } else {
+          for (const track of json) {
+            if (
+              !this.currentInformation?.ultimasPedidas.find(
+                (t) => t.rawtitle === track.rawtitle
+              )
+            ) {
+              this.currentInformation?.ultimasPedidas.unshift(track);
+            } else if (Date.now() - track.timestart > 24 * 60 * 60 * 1000) {
+              break;
+            }
+          }
+        }
+        break;
+      case "tocadas":
+        if (
+          this.currentInformation &&
+          (this.currentInformation.ultimasTocadas === undefined ||
+            this.currentInformation.ultimasTocadas.length === 0)
+        ) {
+          this.currentInformation.ultimasTocadas = json;
+        } else {
+          for (const track of json) {
+            if (
+              !this.currentInformation?.ultimasTocadas.find(
+                (t) => t.rawtitle === track.rawtitle
+              )
+            ) {
+              this.currentInformation?.ultimasTocadas.unshift(track);
+            } else if (Date.now() - track.timestart > 24 * 60 * 60 * 1000) {
+              break;
+            }
+          }
+        }
+        break;
+    }
   },
 });

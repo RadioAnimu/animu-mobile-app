@@ -4,12 +4,16 @@ const BASE_URL = "https://api.animu.com.br/";
 const PROGRAM_URL = "https://www.animu.com.br/teste/locutor.php";
 const PEDIDOS_URL = "https://www.animu.com.br/pedidos/";
 const SAIJIKKOU_URL = "https://api.animu.com.br/?r=sj";
+const ULTIMAS_PEDIDAS_URL = "https://www.animu.com.br/teste/pedidos.php";
+const ULTIMAS_TOCADAS_URL = "https://www.animu.com.br/teste/muzicas.php";
 
 export const API = {
   BASE_URL,
   PROGRAM_URL,
   PEDIDOS_URL,
   SAIJIKKOU_URL,
+  ULTIMAS_PEDIDAS_URL,
+  ULTIMAS_TOCADAS_URL,
 };
 
 export interface AnimuInfoProps {
@@ -17,6 +21,8 @@ export interface AnimuInfoProps {
   rawtitle: string;
   track: TrackProps;
   program: ProgramProps;
+  ultimasPedidas: TrackProps[];
+  ultimasTocadas: TrackProps[];
 }
 
 export interface ProgramProps {

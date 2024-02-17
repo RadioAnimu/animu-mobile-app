@@ -17,19 +17,18 @@ export const styles = StyleSheet.create({
   },
   closeIcon: {
     alignSelf: "flex-end",
-    margin: 8,
   },
   img: {
     height: 127,
     width: "100%",
     borderRadius: 8,
     resizeMode: "contain",
+    marginBottom: 20,
   },
   informationBlock: {
     flexDirection: "column",
     justifyContent: "center",
     gap: 8,
-    marginTop: 24,
     marginBottom: 8,
   },
   label: {

@@ -90,13 +90,15 @@ export function Home({ route, navigation }: Props) {
                 <ChooseBitrateSection player={player} />
               </View>
             </ScrollView>
-            <PopUpProgram
-              visible={isModalVisible}
-              program={animuInfo.program}
-              handleClose={() => {
-                setIsModalVisible(false);
-              }}
-            />
+            {player._currentStream.category !== "REPRISES" && (
+              <PopUpProgram
+                visible={isModalVisible}
+                program={animuInfo.program}
+                handleClose={() => {
+                  setIsModalVisible(false);
+                }}
+              />
+            )}
           </SafeAreaView>
         ) : (
           <Loading />

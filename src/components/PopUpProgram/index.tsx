@@ -42,12 +42,6 @@ export function PopUpProgram({ program, handleClose, ...rest }: Props) {
             >
               {program.programa}
             </Text>
-            {program.raw && (
-              <>
-                <Text style={styles.label}>{program.raw?.theme}</Text>
-                <Text style={styles.label}>{program.raw?.dayAndTime}</Text>
-              </>
-            )}
             <Text
               style={[
                 styles.label,
@@ -69,6 +63,21 @@ export function PopUpProgram({ program, handleClose, ...rest }: Props) {
             >
               Tema: {program.temaPrograma}
             </Text>
+            {program.raw && (
+              <>
+                <Text
+                  style={[
+                    styles.label,
+                    {
+                      textAlign: "left",
+                      fontSize: THEME.FONT_SIZE.INFO_PROGRAM,
+                    },
+                  ]}
+                >
+                  {program.raw?.dayAndTime}
+                </Text>
+              </>
+            )}
           </View>
         </View>
       </View>

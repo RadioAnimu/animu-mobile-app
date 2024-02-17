@@ -8,13 +8,17 @@ import { Dimensions, Image, Text, TouchableOpacity, View } from "react-native";
 import { Home } from "../screens/Home";
 import { THEME } from "../theme";
 import { version } from "../../package.json";
+import { UltimasPedidas } from "../screens/UltimasPedidas";
+import { UltimasTocadas } from "../screens/UltimasTocadas";
 
 interface HomeProps {}
+interface UltimasPedidasProps {}
+interface UltimasTocadasProps {}
 
 export type RootStackParamList = {
   Home: HomeProps;
-  SaiJikkou: HomeProps;
-  Programacao: HomeProps;
+  UltimasPedidas: UltimasPedidasProps;
+  UltimasTocadas: UltimasTocadasProps;
 };
 
 const { Navigator, Screen } = createDrawerNavigator<RootStackParamList>();
@@ -109,6 +113,20 @@ export function AppRoutes() {
         }}
         name="Home"
         component={Home}
+      />
+      <Screen
+        options={{
+          drawerLabel: "Últimas Pedidas",
+        }}
+        name="UltimasPedidas"
+        component={UltimasPedidas}
+      />
+      <Screen
+        options={{
+          drawerLabel: "Últimas Tocadas",
+        }}
+        name="UltimasTocadas"
+        component={UltimasTocadas}
       />
     </Navigator>
   );

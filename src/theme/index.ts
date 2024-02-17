@@ -37,6 +37,7 @@ export const THEME = {
     MENU_ITEM: 19,
     PROGRAM_LABELS: 19,
     FOOTER: 12,
+    ULTIMAS_PEDIDAS: 16,
     INFO_PROGRAM: 16,
   },
 };
