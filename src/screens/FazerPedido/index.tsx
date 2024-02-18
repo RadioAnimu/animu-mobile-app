@@ -18,6 +18,7 @@ import { RootStackParamList } from "../../routes/app.routes";
 import { THEME } from "../../theme";
 import { CONFIG } from "../../utils/player.config";
 import { PopUpRecado } from "../../components/PopUpRecado";
+import { Text } from "react-native";
 
 type Props = NativeStackScreenProps<RootStackParamList, "FazerPedido">;
 
@@ -71,6 +72,37 @@ export function FazerPedido({ route, navigation }: Props) {
       }
     };
 
+    const handleLoadMore = async (next: string) => {
+      const queryURL: string = `${API.FAZER_PEDIDO_URL.split("?")[0]}?${
+        next.split("?")[1]
+      }`;
+      console.log(queryURL);
+      const res = await fetch(queryURL);
+      const { meta, objects }: any = await res.json();
+      let cover: string = "";
+      const aux: MusicRequestProps[] = objects.map((obj: any) => {
+        cover = obj.image_large || obj.image_medium || obj.image_tiny || "";
+        return {
+          track: {
+            rawtitle: obj.title,
+            song: obj.title.split("|")[0],
+            anime: obj.title.split("|")[1],
+            artist: obj.author,
+            artworks: {
+              cover:
+                cover === "" ? CONFIG.DEFAULT_COVER : `${API.WEB_URL}${cover}`,
+            },
+            id: obj.id,
+          },
+          requestable: obj.timestrike === undefined,
+        };
+      });
+      setResults([...results, ...aux]);
+      meta.total_pages = Math.ceil(meta.total_count / meta.limit);
+      setMeta(meta);
+      console.log("new length", [...results, ...aux].length);
+    };
+
     const [selected, setSelected] = useState<MusicRequestProps | null>(null);
 
     return (
@@ -112,20 +144,37 @@ export function FazerPedido({ route, navigation }: Props) {
               <FlatList
                 data={results}
                 keyExtractor={(item) => item.track.id.toString()}
-                initialNumToRender={25}
+                initialNumToRender={results.length}
+                extraData={results}
                 contentContainerStyle={{
                   gap: 10,
                 }}
                 renderItem={({ item }) => {
                   return (
-                    <RequestTrack
-                      onTrackRequest={() => {
-                        if (item.requestable) {
-                          setSelected(item);
-                        }
-                      }}
-                      musicToBeRequested={item}
-                    />
+                    <>
+                      {item.track.id === results[results.length - 1].track.id &&
+                      meta.next !== null ? (
+                        <TouchableOpacity
+                          onPress={() => {
+                            console.log("load more");
+                            console.log(meta);
+                            handleLoadMore(meta.next);
+                          }}
+                          style={styles.loadMoreBtn}
+                        >
+                          <Text style={styles.loadMoreText}>Carregar mais</Text>
+                        </TouchableOpacity>
+                      ) : (
+                        <RequestTrack
+                          onTrackRequest={() => {
+                            if (item.requestable) {
+                              setSelected(item);
+                            }
+                          }}
+                          musicToBeRequested={item}
+                        />
+                      )}
+                    </>
                   );
                 }}
               />

@@ -41,4 +41,16 @@ export const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
+  loadMoreBtn: {
+    backgroundColor: THEME.COLORS.FAZER_PEDIDO,
+    padding: 10,
+    borderRadius: 10,
+    margin: 10,
+  },
+  loadMoreText: {
+    color: THEME.COLORS.WHITE_TEXT,
+    textAlign: "center",
+    fontFamily: THEME.FONT_FAMILY.BOLD,
+    fontSize: THEME.FONT_SIZE.SM,
+  },
 });
