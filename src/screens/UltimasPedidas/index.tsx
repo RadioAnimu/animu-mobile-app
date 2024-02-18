@@ -31,7 +31,9 @@ export function UltimasPedidas({ route, navigation }: Props) {
     useEffect(() => {
       setUltimasPedidas(player.currentInformation?.ultimasPedidas || []);
       setInterval(() => {
-        setUltimasPedidas(player.currentInformation?.ultimasPedidas || []);
+        if (player.currentInformation?.ultimasPedidas !== ultimasPedidas) {
+          setUltimasPedidas(player.currentInformation?.ultimasPedidas || []);
+        }
       }, 1000);
     }, []);
 

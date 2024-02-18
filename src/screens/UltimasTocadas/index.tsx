@@ -30,7 +30,9 @@ export function UltimasTocadas({ route, navigation }: Props) {
     useEffect(() => {
       setUltimasTocadas(player.currentInformation?.ultimasTocadas || []);
       setInterval(() => {
-        setUltimasTocadas(player.currentInformation?.ultimasTocadas || []);
+        if (player.currentInformation?.ultimasTocadas !== ultimasTocadas) {
+          setUltimasTocadas(player.currentInformation?.ultimasTocadas || []);
+        }
       }, 1000);
     }, []);
 

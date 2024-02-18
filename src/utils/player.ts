@@ -114,7 +114,6 @@ export const myPlayer = (): MyPlayerProps => ({
     return json;
   },
   async play() {
-    console.log("Executing play");
     if (!this._loaded) {
       try {
         await SetupService(this);
@@ -215,6 +214,7 @@ export const myPlayer = (): MyPlayerProps => ({
           duration: 0,
           isRequest: true,
           progress: 0,
+          id: isTypePedidas ? item[2] : -1,
         });
       }
     });

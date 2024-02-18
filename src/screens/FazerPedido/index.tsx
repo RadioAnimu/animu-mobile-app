@@ -36,11 +36,11 @@ export function FazerPedido({ route, navigation }: Props) {
         offset: number;
         previous: string;
         total_count: number;
+        total_pages: number;
       }
     );
 
     const handleSearch = async () => {
-      console.log("searching");
       if (searchText) {
         const queryURL: string = `${API.FAZER_PEDIDO_URL}${searchText}`;
         const res = await fetch(queryURL);
@@ -65,8 +65,8 @@ export function FazerPedido({ route, navigation }: Props) {
             requestable: obj.timestrike === undefined,
           };
         });
-        console.log(aux.length);
         setResults(aux);
+        meta.total_pages = Math.ceil(meta.total_count / meta.limit);
         setMeta(meta);
       }
     };
