@@ -55,8 +55,9 @@ export function UltimasPedidas({ route, navigation }: Props) {
             </View>
             <FlatList
               data={ultimasPedidas}
-              keyExtractor={(item, index) => item.rawtitle}
+              keyExtractor={(item, index) => item.rawtitle + index}
               contentContainerStyle={styles.containerList}
+              extraData={ultimasPedidas}
               renderItem={({ item }) => (
                 <View style={styles.metadata}>
                   <Image

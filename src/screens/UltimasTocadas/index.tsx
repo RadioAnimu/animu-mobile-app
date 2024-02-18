@@ -54,8 +54,9 @@ export function UltimasTocadas({ route, navigation }: Props) {
             </View>
             <FlatList
               data={ultimasTocadas}
-              keyExtractor={(item, index) => item.rawtitle}
+              keyExtractor={(item, index) => item.rawtitle + index}
               contentContainerStyle={styles.containerList}
+              extraData={ultimasTocadas}
               renderItem={({ item }) => (
                 <View style={styles.metadata}>
                   <Image
