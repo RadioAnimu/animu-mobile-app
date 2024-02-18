@@ -1,7 +1,6 @@
-import React, { useContext, useEffect, useState } from "react";
+import React, { useContext } from "react";
 import { FlatList, Image, Text, View } from "react-native";
 
-import { AnimuInfoProps } from "../../api";
 import { Background } from "../../components/Background";
 import { styles } from "./styles";
 
@@ -15,6 +14,8 @@ import { PlayerContext } from "../../contexts/player.context";
 import { RootStackParamList } from "../../routes/app.routes";
 
 import UltimasPedidasImage from "../../assets/ultimos_pedidas-haru.png";
+import { AnimuInfoContext } from "../../contexts/animuinfo.context";
+import { Loading } from "../Loading";
 
 type Props = NativeStackScreenProps<RootStackParamList, "UltimasPedidas">;
 
@@ -24,64 +25,61 @@ export function UltimasPedidas({ route, navigation }: Props) {
   if (playerProvider?.player) {
     const player = playerProvider.player;
 
-    const [ultimasPedidas, setUltimasPedidas] = useState<
-      AnimuInfoProps["ultimasPedidas"]
-    >([]);
-
-    useEffect(() => {
-      setUltimasPedidas(player.currentInformation?.ultimasPedidas || []);
-      setInterval(() => {
-        if (player.currentInformation?.ultimasPedidas !== ultimasPedidas) {
-          setUltimasPedidas(player.currentInformation?.ultimasPedidas || []);
-        }
-      }, 1000);
-    }, []);
+    const animuInfoContext = useContext(AnimuInfoContext);
+    if (!animuInfoContext) {
+      throw new Error("AnimuInfoContext is null");
+    }
+    const { animuInfo } = animuInfoContext;
 
     return (
       <Background>
-        <SafeAreaView style={styles.container}>
-          <View
-            style={{
-              height: "100%",
-              paddingBottom: 15,
-            }}
-          >
-            <HeaderBar player={player} navigation={navigation} />
-            <View style={styles.containerApp}>
-              <Image
-                source={UltimasPedidasImage}
-                style={styles.ultimasPedidasImage}
+        {animuInfo ? (
+          <SafeAreaView style={styles.container}>
+            <View
+              style={{
+                height: "100%",
+                paddingBottom: 15,
+              }}
+            >
+              <HeaderBar player={player} navigation={navigation} />
+              <View style={styles.containerApp}>
+                <Image
+                  source={UltimasPedidasImage}
+                  style={styles.ultimasPedidasImage}
+                />
+              </View>
+              <FlatList
+                data={animuInfo.ultimasPedidas}
+                keyExtractor={(item, index) => item.rawtitle + index}
+                contentContainerStyle={styles.containerList}
+                extraData={animuInfo.ultimasPedidas}
+                renderItem={({ item }) => (
+                  <View style={styles.metadata}>
+                    <Image
+                      source={{
+                        uri: item.artworks.cover,
+                      }}
+                      style={styles.image}
+                      defaultSource={{
+                        uri: CONFIG.DEFAULT_COVER,
+                      }}
+                    />
+                    <Text style={styles.musicapedidaname}>{item.rawtitle}</Text>
+                    <Text style={styles.musicapedidatime}>
+                      {new Date(item.timestart).toLocaleTimeString([], {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                        hour12: false,
+                      })}
+                    </Text>
+                  </View>
+                )}
               />
             </View>
-            <FlatList
-              data={ultimasPedidas}
-              keyExtractor={(item, index) => item.rawtitle + index}
-              contentContainerStyle={styles.containerList}
-              extraData={ultimasPedidas}
-              renderItem={({ item }) => (
-                <View style={styles.metadata}>
-                  <Image
-                    source={{
-                      uri: item.artworks.cover,
-                    }}
-                    style={styles.image}
-                    defaultSource={{
-                      uri: CONFIG.DEFAULT_COVER,
-                    }}
-                  />
-                  <Text style={styles.musicapedidaname}>{item.rawtitle}</Text>
-                  <Text style={styles.musicapedidatime}>
-                    {new Date(item.timestart).toLocaleTimeString([], {
-                      hour: "2-digit",
-                      minute: "2-digit",
-                      hour12: false,
-                    })}
-                  </Text>
-                </View>
-              )}
-            />
-          </View>
-        </SafeAreaView>
+          </SafeAreaView>
+        ) : (
+          <Loading />
+        )}
       </Background>
     );
   }

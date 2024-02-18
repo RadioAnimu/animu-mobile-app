@@ -5,7 +5,7 @@ import {
   DrawerItemList,
 } from "@react-navigation/drawer";
 import * as WebBrowser from "expo-web-browser";
-import { version } from "react";
+import { version } from "../../../package.json";
 import { Image, Text, TouchableOpacity, View } from "react-native";
 import { THEME } from "../../theme";
 WebBrowser.maybeCompleteAuthSession();

@@ -11,12 +11,16 @@ import {
   PlayerContext,
   PlayerProviderType,
 } from "./src/contexts/player.context";
+import { AnimuInfoContext } from "./src/contexts/animuinfo.context";
 import { THEME } from "./src/theme";
+import { AnimuInfoProps } from "./src/api";
 
 export default function App() {
   const [isLoading, setIsLoading] = useState(true);
 
   const [player, setPlayer] = useState<MyPlayerProps>(myPlayer());
+
+  const [animuInfo, setAnimuInfo] = useState<AnimuInfoProps | null>(null);
 
   const playerProvider: PlayerProviderType = useMemo(
     () => ({ player, setPlayer }),
@@ -58,7 +62,9 @@ export default function App() {
       {fontsLoaded && !isLoading ? (
         <Background>
           <PlayerContext.Provider value={playerProvider}>
-            <Routes />
+            <AnimuInfoContext.Provider value={{ animuInfo, setAnimuInfo }}>
+              <Routes />
+            </AnimuInfoContext.Provider>
           </PlayerContext.Provider>
         </Background>
       ) : (

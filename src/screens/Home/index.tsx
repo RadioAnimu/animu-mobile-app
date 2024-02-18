@@ -21,6 +21,7 @@ import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../../routes/app.routes";
 import { PlayerContext } from "../../contexts/player.context";
 import { PopUpProgram } from "../../components/PopUpProgram";
+import { AnimuInfoContext } from "../../contexts/animuinfo.context";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Home">;
 
@@ -31,8 +32,13 @@ export function Home({ route, navigation }: Props) {
   if (playerProvider?.player) {
     const player = playerProvider.player;
 
-    const [animuInfo, setAnimuInfo] = useState<AnimuInfoProps | null>(null);
     let auxData: AnimuInfoProps | null = null;
+
+    const animuInfoContext = useContext(AnimuInfoContext);
+    if (!animuInfoContext) {
+      throw new Error("AnimuInfoContext is null");
+    }
+    const { animuInfo, setAnimuInfo } = animuInfoContext;
 
     useEffect(() => {
       BackgroundTimer.runBackgroundTimer(async () => {
