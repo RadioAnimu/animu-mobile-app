@@ -143,6 +143,15 @@ const PROGRAMAS: Program[] = [
     information:
       "Sua tarde mais doce e divertida na mais moe do Brasil! 🍰 A hora do seu lanchinho onde você faz a sequência nas tardes com a nossa Haru-chan",
   },
+  {
+    img: "https://www.animu.com.br/wp-content/uploads/2024/02/Nemukunai-logo.webp",
+    name: "Nemukunai",
+    dj: "Haruka Yuki",
+    theme: "Bloco Musical ",
+    dayAndTime: "Todos os dias das 00:00 às 05:00 horas",
+    information:
+      "Nossa madrugada que não dorme! 🌙 O Nemukunai é o bloco da Animu perfeito para ouvintes que estão sem sono e querem ouvir suas músicas favoritas junto com a Haru-chan ao vivo na mais moe do Brasil 💜",
+  },
 ];
 
 export const CONFIG = {
