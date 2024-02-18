@@ -2,7 +2,7 @@
   "expo": {
     "name": "Rádio Animu",
     "slug": "animu",
-    "version": "1.0.0",
+    "version": "1.2.0",
     "orientation": "portrait",
     "icon": "./assets/icon_top.png",
     "userInterfaceStyle": "light",
@@ -10,6 +10,7 @@
       "image": "./assets/splash_top.png",
       "backgroundColor": "#270051"
     },
+    "scheme": "myapp",
     "assetBundlePatterns": ["**/*"],
     "ios": {
       "supportsTablet": true
