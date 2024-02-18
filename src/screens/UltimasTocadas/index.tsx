@@ -24,13 +24,25 @@ export function UltimasTocadas({ route, navigation }: Props) {
     const player = playerProvider.player;
 
     const [ultimasTocadas, setUltimasTocadas] = useState<
-      AnimuInfoProps["ultimasPedidas"]
+      AnimuInfoProps["ultimasTocadas"]
     >([]);
+
+    const ultimasTocadasRef: React.MutableRefObject<
+      AnimuInfoProps["ultimasTocadas"]
+    > = React.useRef(ultimasTocadas);
 
     useEffect(() => {
       setUltimasTocadas(player.currentInformation?.ultimasTocadas || []);
       setInterval(() => {
-        if (player.currentInformation?.ultimasTocadas !== ultimasTocadas) {
+        if (
+          ultimasTocadasRef.current.length !==
+          player.currentInformation?.ultimasTocadas.length
+        ) {
+          console.log("Atualizando ultimas tocadas");
+          ultimasTocadasRef.current = JSON.parse(
+            JSON.stringify(player.currentInformation?.ultimasTocadas)
+          );
+          console.log(player.currentInformation?.ultimasTocadas);
           setUltimasTocadas(player.currentInformation?.ultimasTocadas || []);
         }
       }, 1000);
