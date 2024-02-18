@@ -152,12 +152,7 @@ export function FazerPedido({ route, navigation }: Props) {
               }}
             >
               {status === "loading" && results.length === 0 && (
-                <ActivityIndicator
-                  style={{
-                    alignSelf: "center",
-                  }}
-                  color={THEME.COLORS.WHITE_TEXT}
-                />
+                <ActivityIndicator color={THEME.COLORS.WHITE_TEXT} />
               )}
               <FlatList
                 data={results}

@@ -2,7 +2,6 @@ import { ActivityIndicator, ImageBackground } from "react-native";
 import { THEME } from "../../theme";
 import { styles } from "./styles";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { Background } from "../../components/Background";
 import splashScreenImage from "../../../assets/splash_top.png";
 
 export function Loading() {
