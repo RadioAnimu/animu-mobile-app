@@ -1,5 +1,11 @@
 import React, { useContext, useState } from "react";
-import { FlatList, TextInput, TouchableOpacity, View } from "react-native";
+import {
+  ActivityIndicator,
+  FlatList,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from "react-native";
 
 import { API, MusicRequestProps } from "../../api";
 import { Background } from "../../components/Background";
@@ -12,15 +18,16 @@ import { Logo } from "../../components/Logo";
 
 import { Ionicons } from "@expo/vector-icons";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
+import { Text } from "react-native";
+import { PopUpRecado } from "../../components/PopUpRecado";
 import { RequestTrack } from "../../components/RequestTrack";
 import { PlayerContext } from "../../contexts/player.context";
 import { RootStackParamList } from "../../routes/app.routes";
 import { THEME } from "../../theme";
 import { CONFIG } from "../../utils/player.config";
-import { PopUpRecado } from "../../components/PopUpRecado";
-import { Text } from "react-native";
 
 type Props = NativeStackScreenProps<RootStackParamList, "FazerPedido">;
+type Status = "idle" | "loading";
 
 export function FazerPedido({ route, navigation }: Props) {
   const playerProvider = useContext(PlayerContext);
@@ -40,9 +47,11 @@ export function FazerPedido({ route, navigation }: Props) {
         total_pages: number;
       }
     );
+    const [status, setStatus] = useState<Status>("idle");
 
     const handleSearch = async () => {
       if (searchText) {
+        setStatus("loading");
         const queryURL: string = `${API.FAZER_PEDIDO_URL}${searchText}`;
         const res = await fetch(queryURL);
         const { meta, objects }: any = await res.json();
@@ -69,14 +78,15 @@ export function FazerPedido({ route, navigation }: Props) {
         setResults(aux);
         meta.total_pages = Math.ceil(meta.total_count / meta.limit);
         setMeta(meta);
+        setStatus("idle");
       }
     };
 
     const handleLoadMore = async (next: string) => {
+      setStatus("loading");
       const queryURL: string = `${API.FAZER_PEDIDO_URL.split("?")[0]}?${
         next.split("?")[1]
       }`;
-      console.log(queryURL);
       const res = await fetch(queryURL);
       const { meta, objects }: any = await res.json();
       let cover: string = "";
@@ -100,7 +110,7 @@ export function FazerPedido({ route, navigation }: Props) {
       setResults([...results, ...aux]);
       meta.total_pages = Math.ceil(meta.total_count / meta.limit);
       setMeta(meta);
-      console.log("new length", [...results, ...aux].length);
+      setStatus("idle");
     };
 
     const [selected, setSelected] = useState<MusicRequestProps | null>(null);
@@ -141,6 +151,14 @@ export function FazerPedido({ route, navigation }: Props) {
                 flex: 1,
               }}
             >
+              {status === "loading" && results.length === 0 && (
+                <ActivityIndicator
+                  style={{
+                    alignSelf: "center",
+                  }}
+                  color={THEME.COLORS.WHITE_TEXT}
+                />
+              )}
               <FlatList
                 data={results}
                 keyExtractor={(item) => item.track.id.toString()}
@@ -154,16 +172,20 @@ export function FazerPedido({ route, navigation }: Props) {
                     <>
                       {item.track.id === results[results.length - 1].track.id &&
                       meta.next !== null ? (
-                        <TouchableOpacity
-                          onPress={() => {
-                            console.log("load more");
-                            console.log(meta);
-                            handleLoadMore(meta.next);
-                          }}
-                          style={styles.loadMoreBtn}
-                        >
-                          <Text style={styles.loadMoreText}>Carregar mais</Text>
-                        </TouchableOpacity>
+                        status === "loading" ? (
+                          <ActivityIndicator color={THEME.COLORS.WHITE_TEXT} />
+                        ) : (
+                          <TouchableOpacity
+                            onPress={() => {
+                              handleLoadMore(meta.next);
+                            }}
+                            style={styles.loadMoreBtn}
+                          >
+                            <Text style={styles.loadMoreText}>
+                              Carregar mais
+                            </Text>
+                          </TouchableOpacity>
+                        )
                       ) : (
                         <RequestTrack
                           onTrackRequest={() => {
