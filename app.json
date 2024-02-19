@@ -10,7 +10,7 @@
       "image": "./assets/splash_top.png",
       "backgroundColor": "#270051"
     },
-    "scheme": "myapp",
+    "scheme": "animuapp",
     "assetBundlePatterns": ["**/*"],
     "ios": {
       "supportsTablet": true

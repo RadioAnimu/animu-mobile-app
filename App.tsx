@@ -27,6 +27,11 @@ export default function App() {
     [player, setPlayer]
   );
 
+  const animuInfoProvider = useMemo(
+    () => ({ animuInfo, setAnimuInfo }),
+    [animuInfo, setAnimuInfo]
+  );
+
   useEffect(() => {
     (async () => {
       console.log("App mounted");
@@ -62,7 +67,7 @@ export default function App() {
       {fontsLoaded && !isLoading ? (
         <Background>
           <PlayerContext.Provider value={playerProvider}>
-            <AnimuInfoContext.Provider value={{ animuInfo, setAnimuInfo }}>
+            <AnimuInfoContext.Provider value={animuInfoProvider}>
               <Routes />
             </AnimuInfoContext.Provider>
           </PlayerContext.Provider>

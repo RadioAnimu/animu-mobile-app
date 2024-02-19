@@ -1,7 +1,6 @@
-import React, { useContext, useEffect, useState } from "react";
+import React, { useContext } from "react";
 import { FlatList, Image, Text, View } from "react-native";
 
-import { AnimuInfoProps } from "../../api";
 import { Background } from "../../components/Background";
 import { styles } from "./styles";
 

@@ -8,13 +8,18 @@ import * as WebBrowser from "expo-web-browser";
 import { version } from "../../../package.json";
 import { Image, Text, TouchableOpacity, View } from "react-native";
 import { THEME } from "../../theme";
+import * as Linking from "expo-linking";
 WebBrowser.maybeCompleteAuthSession();
 
 export function CustomDrawerContent(props: DrawerContentComponentProps) {
   const onLogin = async () => {
-    await WebBrowser.openAuthSessionAsync(
-      "https://discord.com/oauth2/authorize?client_id=1159273876732256266&redirect_uri=myapp://&response_type=code&scope=identify"
+    const redirect = Linking.createURL("redirect");
+    console.log({ redirect });
+    const result = await WebBrowser.openAuthSessionAsync(
+      "https://discord.com/api/oauth2/authorize?client_id=1159273876732256266&response_type=code&redirect_uri=https%3A%2F%2Fwww.animu.com.br%2Fteste%2Fprocess-oauth-mobile.php&scope=identify",
+      redirect
     );
+    console.log(result);
   };
 
   const { navigation } = props;
