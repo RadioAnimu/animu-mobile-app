@@ -1,4 +1,5 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
   DrawerContentComponentProps,
   DrawerContentScrollView,
@@ -6,12 +7,11 @@ import {
 } from "@react-navigation/drawer";
 import * as Linking from "expo-linking";
 import * as WebBrowser from "expo-web-browser";
+import { useContext } from "react";
 import { Image, Text, TouchableOpacity, View } from "react-native";
 import { version } from "../../../package.json";
-import { THEME } from "../../theme";
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import { useContext, useEffect } from "react";
 import { DiscordUser, UserContext } from "../../contexts/user.context";
+import { THEME } from "../../theme";
 
 export function CustomDrawerContent(props: DrawerContentComponentProps) {
   const userContext = useContext(UserContext);
