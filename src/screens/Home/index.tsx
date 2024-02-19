@@ -60,6 +60,9 @@ export function Home({ route, navigation }: Props) {
           });
         }
       }, 1000);
+      return () => {
+        BackgroundTimer.stopBackgroundTimer();
+      };
     }, []);
 
     return (
