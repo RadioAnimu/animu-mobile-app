@@ -4,22 +4,38 @@ import {
   DrawerContentScrollView,
   DrawerItemList,
 } from "@react-navigation/drawer";
-import * as WebBrowser from "expo-web-browser";
-import { version } from "../../../package.json";
-import { Image, Text, TouchableOpacity, View } from "react-native";
-import { THEME } from "../../theme";
 import * as Linking from "expo-linking";
-WebBrowser.maybeCompleteAuthSession();
+import * as WebBrowser from "expo-web-browser";
+import { Image, Text, TouchableOpacity, View } from "react-native";
+import { version } from "../../../package.json";
+import { THEME } from "../../theme";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useContext, useEffect } from "react";
+import { DiscordUser, UserContext } from "../../contexts/user.context";
 
 export function CustomDrawerContent(props: DrawerContentComponentProps) {
+  const userContext = useContext(UserContext);
+
   const onLogin = async () => {
-    const redirect = Linking.createURL("redirect");
-    console.log({ redirect });
+    const callbackUrl = Linking.createURL("redirect", { scheme: "animuapp" });
+
     const result = await WebBrowser.openAuthSessionAsync(
       "https://discord.com/api/oauth2/authorize?client_id=1159273876732256266&response_type=code&redirect_uri=https%3A%2F%2Fwww.animu.com.br%2Fteste%2Fprocess-oauth-mobile.php&scope=identify",
-      redirect
+      callbackUrl
     );
-    console.log(result);
+
+    if (result.type === "success") {
+      const data = Linking.parse(result.url);
+      console.log({ data });
+      if (data.queryParams?.user) {
+        const userString = decodeURIComponent(data.queryParams.user.toString());
+        const user: DiscordUser = JSON.parse(userString);
+        if (userContext) {
+          userContext.setUser(user);
+          await AsyncStorage.setItem("user", userString);
+        }
+      }
+    }
   };
 
   const { navigation } = props;
@@ -59,32 +75,65 @@ export function CustomDrawerContent(props: DrawerContentComponentProps) {
         >
           Em construção
         </Text>
-        <TouchableOpacity
-          onPress={onLogin}
-          style={{
-            flexDirection: "row",
-            alignItems: "center",
-            justifyContent: "flex-start",
-            paddingHorizontal: 20,
-            gap: 5,
-          }}
-        >
-          <MaterialCommunityIcons
-            name="discord"
-            size={20}
-            color={THEME.COLORS.SHAPE}
-          />
-          <Text
+        {userContext?.user ? (
+          <View
             style={{
-              color: THEME.COLORS.SHAPE,
-              textAlign: "center",
-              fontFamily: THEME.FONT_FAMILY.BOLD,
-              fontSize: THEME.FONT_SIZE.MENU_ITEM,
+              flexDirection: "row",
+              alignItems: "center",
+              justifyContent: "center",
+              padding: 10,
             }}
           >
-            Login Discord
-          </Text>
-        </TouchableOpacity>
+            <Image
+              source={{
+                uri: userContext.user.avatar_url,
+              }}
+              style={{
+                width: 50,
+                height: 50,
+                borderRadius: 25,
+              }}
+            />
+            <Text
+              style={{
+                color: THEME.COLORS.WHITE_TEXT,
+                textAlign: "center",
+                padding: 5,
+                fontFamily: THEME.FONT_FAMILY.BOLD,
+                fontSize: THEME.FONT_SIZE.MENU_ITEM,
+              }}
+            >
+              {userContext.user.nickname || userContext.user.username}
+            </Text>
+          </View>
+        ) : (
+          <TouchableOpacity
+            onPress={onLogin}
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              justifyContent: "flex-start",
+              paddingHorizontal: 20,
+              gap: 5,
+            }}
+          >
+            <MaterialCommunityIcons
+              name="discord"
+              size={20}
+              color={THEME.COLORS.SHAPE}
+            />
+            <Text
+              style={{
+                color: THEME.COLORS.SHAPE,
+                textAlign: "center",
+                fontFamily: THEME.FONT_FAMILY.BOLD,
+                fontSize: THEME.FONT_SIZE.MENU_ITEM,
+              }}
+            >
+              Login Discord
+            </Text>
+          </TouchableOpacity>
+        )}
         <DrawerItemList {...props} />
       </View>
       <View

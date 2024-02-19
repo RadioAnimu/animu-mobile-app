@@ -3,17 +3,19 @@ import { Background } from "./src/components/Background";
 
 import { useFonts } from "expo-font";
 
-import { Loading } from "./src/screens/Loading";
-import { Routes } from "./src/routes";
-import { useRef, useEffect, useState, useMemo, useContext } from "react";
-import { MyPlayerProps, myPlayer } from "./src/utils";
+import { useContext, useEffect, useMemo, useState } from "react";
+import { AnimuInfoProps } from "./src/api";
+import { AnimuInfoContext } from "./src/contexts/animuinfo.context";
 import {
   PlayerContext,
   PlayerProviderType,
 } from "./src/contexts/player.context";
-import { AnimuInfoContext } from "./src/contexts/animuinfo.context";
+import { DiscordUser, UserContext } from "./src/contexts/user.context";
+import { Routes } from "./src/routes";
+import { Loading } from "./src/screens/Loading";
 import { THEME } from "./src/theme";
-import { AnimuInfoProps } from "./src/api";
+import { MyPlayerProps, myPlayer } from "./src/utils";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 export default function App() {
   const [isLoading, setIsLoading] = useState(true);
@@ -21,6 +23,8 @@ export default function App() {
   const [player, setPlayer] = useState<MyPlayerProps>(myPlayer());
 
   const [animuInfo, setAnimuInfo] = useState<AnimuInfoProps | null>(null);
+
+  const [user, setUser] = useState<DiscordUser | null>(null);
 
   const playerProvider: PlayerProviderType = useMemo(
     () => ({ player, setPlayer }),
@@ -31,6 +35,8 @@ export default function App() {
     () => ({ animuInfo, setAnimuInfo }),
     [animuInfo, setAnimuInfo]
   );
+
+  const userProvider = useMemo(() => ({ user, setUser }), [user, setUser]);
 
   useEffect(() => {
     (async () => {
@@ -48,6 +54,31 @@ export default function App() {
         console.log(err);
       }
     };
+  }, []);
+
+  const userContext = useContext(UserContext);
+
+  const getUserSavedDataOrNull = async () => {
+    try {
+      const user = await AsyncStorage.getItem("user");
+      return user ? JSON.parse(user) : null;
+    } catch (e) {
+      return null;
+    }
+  };
+
+  useEffect(() => {
+    if (userContext && !userContext.user) {
+      getUserSavedDataOrNull()
+        .then((user) => {
+          if (user) {
+            userContext.setUser(user);
+          }
+        })
+        .catch((e) => {
+          console.error(e);
+        });
+    }
   }, []);
 
   const [fontsLoaded] = useFonts({
@@ -68,7 +99,9 @@ export default function App() {
         <Background>
           <PlayerContext.Provider value={playerProvider}>
             <AnimuInfoContext.Provider value={animuInfoProvider}>
-              <Routes />
+              <UserContext.Provider value={userProvider}>
+                <Routes />
+              </UserContext.Provider>
             </AnimuInfoContext.Provider>
           </PlayerContext.Provider>
         </Background>
