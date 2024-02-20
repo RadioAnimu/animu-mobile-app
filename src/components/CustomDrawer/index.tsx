@@ -38,6 +38,10 @@ export const logoutUserFromTheServer: (
 export function CustomDrawerContent(props: DrawerContentComponentProps) {
   const userContext = useContext(UserContext);
 
+  const goToNessSocial = () => {
+    Linking.openURL("https://x.com/rmotafreitas");
+  };
+
   const onLogin = async () => {
     const callbackUrl = Linking.createURL("redirect", { scheme: "animuapp" });
 
@@ -163,7 +167,8 @@ export function CustomDrawerContent(props: DrawerContentComponentProps) {
         )}
         <DrawerItemList {...props} />
       </View>
-      <View
+      <TouchableOpacity
+        onPress={goToNessSocial}
         style={{
           marginBottom: 10,
           alignItems: "center",
@@ -174,14 +179,16 @@ export function CustomDrawerContent(props: DrawerContentComponentProps) {
           style={{
             color: THEME.COLORS.WHITE_TEXT,
             textAlign: "center",
-            padding: 5,
+            padding: 10,
             fontFamily: THEME.FONT_FAMILY.BOLD,
             fontSize: THEME.FONT_SIZE.FOOTER,
+            justifyContent: "center",
+            alignItems: "center",
           }}
         >
-          Versão v{version} - Desenvolvido com muito ❤️ por Ness.js
+          Versão v{version} - Desenvolvido com muito ❤️ por @Ness.js
         </Text>
-      </View>
+      </TouchableOpacity>
     </DrawerContentScrollView>
   );
 }
