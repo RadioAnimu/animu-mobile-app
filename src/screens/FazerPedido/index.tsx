@@ -122,8 +122,7 @@ export function FazerPedido({ route, navigation }: Props) {
     };
 
     const handleOk = async () => {
-      console.log("Pedido feito pelo app");
-      console.log(userContext?.user);
+      setResults([]);
       const formData = new FormData();
       if (!userContext?.user) {
         setErrorMessage("Você precisa estar logado para fazer um pedido");
