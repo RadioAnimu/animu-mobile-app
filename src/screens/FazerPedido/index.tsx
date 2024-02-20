@@ -154,6 +154,7 @@ export function FazerPedido({ route, navigation }: Props) {
       }
       setSelected(null);
       setSuccessMessage("Pedido feito com sucesso!");
+      setRecado("");
     };
 
     const [selected, setSelected] = useState<MusicRequestProps | null>(null);
