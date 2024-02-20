@@ -2,6 +2,7 @@ import { MaterialIcons } from "@expo/vector-icons";
 import React, { useContext } from "react";
 import {
   Image,
+  ImageSourcePropType,
   KeyboardAvoidingView,
   Modal,
   ModalProps,
@@ -9,24 +10,35 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import HarukaError from "../../assets/erro_haruka.png";
 import HarukaSuccess from "../../assets/success_haruka.png";
+import { ErrorContext } from "../../contexts/error.context";
 import { SuccessContext } from "../../contexts/success.context";
 import { THEME } from "../../theme";
 import { styles } from "./styles";
 
 interface Props extends ModalProps {}
 
-export function PopUpSuccess({ ...rest }: Props) {
+export function PopUpStatus({ ...rest }: Props) {
   const { successMessage, setSuccessMessage } = useContext(SuccessContext);
+  const { errorMessage, setErrorMessage } = useContext(ErrorContext);
 
-  const close = () => {
+  const haruka: ImageSourcePropType =
+    successMessage !== "" ? HarukaSuccess : HarukaError;
+
+  const message: string = successMessage !== "" ? successMessage : errorMessage;
+
+  const visible: boolean = successMessage !== "" || errorMessage !== "";
+
+  const handleClose = () => {
     setSuccessMessage("");
+    setErrorMessage("");
   };
 
   return (
     <Modal
       animationType="fade"
-      visible={successMessage !== ""}
+      visible={visible}
       statusBarTranslucent
       transparent
       {...rest}
@@ -40,9 +52,9 @@ export function PopUpSuccess({ ...rest }: Props) {
               color={THEME.COLORS.WHITE_TEXT}
             />
           </TouchableOpacity>
-          <Image source={HarukaSuccess} style={styles.img} />
-          <Text style={styles.text}>{successMessage}</Text>
-          <TouchableOpacity onPress={close} style={styles.okButton}>
+          <Image source={haruka} style={styles.img} />
+          <Text style={styles.text}>{message}</Text>
+          <TouchableOpacity onPress={handleClose} style={styles.okButton}>
             <Text style={styles.okText}>Ok</Text>
           </TouchableOpacity>
         </View>

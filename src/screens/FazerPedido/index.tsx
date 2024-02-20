@@ -19,17 +19,16 @@ import { Logo } from "../../components/Logo";
 import { Ionicons } from "@expo/vector-icons";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { Text } from "react-native";
-import { PopUpErro } from "../../components/PopUpErro";
 import { PopUpRecado } from "../../components/PopUpRecado";
+import { PopUpStatus } from "../../components/PopUpStatus";
 import { RequestTrack } from "../../components/RequestTrack";
 import { ErrorContext } from "../../contexts/error.context";
 import { PlayerContext } from "../../contexts/player.context";
+import { SuccessContext } from "../../contexts/success.context";
 import { UserContext } from "../../contexts/user.context";
 import { RootStackParamList } from "../../routes/app.routes";
 import { THEME } from "../../theme";
 import { CONFIG } from "../../utils/player.config";
-import { PopUpSuccess } from "../../components/PopUpSuccess";
-import { SuccessContext } from "../../contexts/success.context";
 
 type Props = NativeStackScreenProps<RootStackParamList, "FazerPedido">;
 type Status = "idle" | "loading";
@@ -241,8 +240,7 @@ export function FazerPedido({ route, navigation }: Props) {
               />
             </View>
           </View>
-          <PopUpErro />
-          <PopUpSuccess />
+          <PopUpStatus />
           <PopUpRecado
             visible={selected !== null}
             handleClose={() => setSelected(null)}

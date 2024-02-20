@@ -1,6 +1,7 @@
 import { MaterialIcons } from "@expo/vector-icons";
-import React from "react";
+import React, { useState } from "react";
 import {
+  ActivityIndicator,
   Image,
   KeyboardAvoidingView,
   Modal,
@@ -16,9 +17,11 @@ import { styles } from "./styles";
 
 interface Props extends ModalProps {
   handleClose: () => void;
-  handleOk: () => void;
+  handleOk: () => Promise<void>;
   handleChangeText: (text: string) => void;
 }
+
+type Status = "idle" | "requesting";
 
 export function PopUpRecado({
   handleOk,
@@ -26,6 +29,14 @@ export function PopUpRecado({
   handleChangeText,
   ...rest
 }: Props) {
+  const [status, setStatus] = useState<Status>("idle");
+
+  const _handleOk = async () => {
+    setStatus("requesting");
+    await handleOk();
+    setStatus("idle");
+  };
+
   return (
     <Modal animationType="fade" statusBarTranslucent transparent {...rest}>
       <KeyboardAvoidingView behavior="padding" style={styles.container}>
@@ -46,14 +57,23 @@ export function PopUpRecado({
             deixar recado se não quiser.
           </Text>
           <TextInput
-            style={styles.input}
+            style={[
+              styles.input,
+              status === "requesting" && styles.inputDisabled,
+            ]}
             placeholder="Deixe seu recado aqui"
             placeholderTextColor="#fff"
             onChange={(e) => handleChangeText(e.nativeEvent.text)}
+            editable={status === "idle"}
+            onSubmitEditing={_handleOk}
           />
-          <TouchableOpacity onPress={handleOk} style={styles.okButton}>
-            <Text style={styles.okText}>Enviar</Text>
-          </TouchableOpacity>
+          {status === "requesting" ? (
+            <ActivityIndicator color={THEME.COLORS.WHITE_TEXT} />
+          ) : (
+            <TouchableOpacity onPress={_handleOk} style={styles.okButton}>
+              <Text style={styles.okText}>Enviar</Text>
+            </TouchableOpacity>
+          )}
         </View>
       </KeyboardAvoidingView>
     </Modal>

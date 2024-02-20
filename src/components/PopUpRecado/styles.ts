@@ -43,6 +43,9 @@ export const styles = StyleSheet.create({
     borderRadius: 8,
     marginBottom: 20,
   },
+  inputDisabled: {
+    opacity: 0.5,
+  },
   okButton: {
     backgroundColor: THEME.COLORS.SHAPE,
     padding: 10,
