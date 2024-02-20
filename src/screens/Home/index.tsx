@@ -22,12 +22,25 @@ import { RootStackParamList } from "../../routes/app.routes";
 import { PlayerContext } from "../../contexts/player.context";
 import { PopUpProgram } from "../../components/PopUpProgram";
 import { AnimuInfoContext } from "../../contexts/animuinfo.context";
+import { checkIfUserIsStillInTheServerAndIfYesExtendSession } from "../../components/CustomDrawer";
+import { UserContext } from "../../contexts/user.context";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+
+export const getUserSavedDataOrNull = async () => {
+  try {
+    const user = await AsyncStorage.getItem("user");
+    return user ? JSON.parse(user) : null;
+  } catch (e) {
+    return null;
+  }
+};
 
 type Props = NativeStackScreenProps<RootStackParamList, "Home">;
 
 export function Home({ route, navigation }: Props) {
   const playerProvider = useContext(PlayerContext);
   const [isModalVisible, setIsModalVisible] = useState(false);
+  const userContext = useContext(UserContext);
 
   if (playerProvider?.player) {
     const player = playerProvider.player;
@@ -45,6 +58,14 @@ export function Home({ route, navigation }: Props) {
         auxData = await player.getCurrentMusic();
         setAnimuInfo(auxData);
         await player.updateMetadata();
+        // if (userContext?.user) {
+        //   const user = userContext.user;
+        //   const isUserStillInServer =
+        //     await checkIfUserIsStillInTheServerAndIfYesExtendSession(user);
+        //   if (!isUserStillInServer) {
+        //     userContext.setUser(null);
+        //   }
+        // }
       }, 5000);
       setInterval(() => {
         player.currentProgress = player.currentInformation?.track.timestart
@@ -63,6 +84,21 @@ export function Home({ route, navigation }: Props) {
       return () => {
         BackgroundTimer.stopBackgroundTimer();
       };
+    }, []);
+
+    useEffect(() => {
+      // clear all local storage
+      // AsyncStorage.clear();
+
+      getUserSavedDataOrNull()
+        .then((user) => {
+          if (userContext && user) {
+            userContext.setUser(user);
+          }
+        })
+        .catch((e) => {
+          console.error(e);
+        });
     }, []);
 
     return (

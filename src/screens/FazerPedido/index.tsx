@@ -19,18 +19,27 @@ import { Logo } from "../../components/Logo";
 import { Ionicons } from "@expo/vector-icons";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { Text } from "react-native";
+import { PopUpErro } from "../../components/PopUpErro";
 import { PopUpRecado } from "../../components/PopUpRecado";
 import { RequestTrack } from "../../components/RequestTrack";
+import { ErrorContext } from "../../contexts/error.context";
 import { PlayerContext } from "../../contexts/player.context";
+import { UserContext } from "../../contexts/user.context";
 import { RootStackParamList } from "../../routes/app.routes";
 import { THEME } from "../../theme";
 import { CONFIG } from "../../utils/player.config";
+import { PopUpSuccess } from "../../components/PopUpSuccess";
+import { SuccessContext } from "../../contexts/success.context";
 
 type Props = NativeStackScreenProps<RootStackParamList, "FazerPedido">;
 type Status = "idle" | "loading";
 
 export function FazerPedido({ route, navigation }: Props) {
   const playerProvider = useContext(PlayerContext);
+  const userContext = useContext(UserContext);
+  const { setErrorMessage } = useContext(ErrorContext);
+  const { setSuccessMessage } = useContext(SuccessContext);
+  const [recado, setRecado] = useState("");
 
   if (playerProvider?.player) {
     const player = playerProvider.player;
@@ -111,6 +120,40 @@ export function FazerPedido({ route, navigation }: Props) {
       meta.total_pages = Math.ceil(meta.total_count / meta.limit);
       setMeta(meta);
       setStatus("idle");
+    };
+
+    const handleOk = async () => {
+      console.log("Pedido feito pelo app");
+      console.log(userContext?.user);
+      const formData = new FormData();
+      if (!userContext?.user) {
+        setErrorMessage("Você precisa estar logado para fazer um pedido");
+        return;
+      }
+      if (selected === null) {
+        setErrorMessage("Erro ao selecionar a música");
+        return;
+      }
+      const allmusic: string = selected.track.id.toString();
+      const message: string = recado;
+      const { PHPSESSID } = userContext.user;
+      formData.append("allmusic", allmusic);
+      formData.append("message", message);
+      formData.append("PHPSESSID", PHPSESSID);
+
+      const url = "https://www.animu.com.br/teste/pedirquatroMobile.php";
+      const response = await fetch(url, {
+        method: "POST",
+        credentials: "same-origin",
+        body: formData,
+      });
+      const data = await response.text();
+      if (data !== "") {
+        setErrorMessage(`Erro ao fazer pedido: ${data}`);
+        return;
+      }
+      setSelected(null);
+      setSuccessMessage("Pedido feito com sucesso!");
     };
 
     const [selected, setSelected] = useState<MusicRequestProps | null>(null);
@@ -197,10 +240,13 @@ export function FazerPedido({ route, navigation }: Props) {
               />
             </View>
           </View>
+          <PopUpErro />
+          <PopUpSuccess />
           <PopUpRecado
             visible={selected !== null}
             handleClose={() => setSelected(null)}
-            handleOk={() => {}}
+            handleOk={handleOk}
+            handleChangeText={(text) => setRecado(text)}
           />
         </SafeAreaView>
       </Background>

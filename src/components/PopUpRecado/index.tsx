@@ -17,9 +17,15 @@ import { styles } from "./styles";
 interface Props extends ModalProps {
   handleClose: () => void;
   handleOk: () => void;
+  handleChangeText: (text: string) => void;
 }
 
-export function PopUpRecado({ handleOk, handleClose, ...rest }: Props) {
+export function PopUpRecado({
+  handleOk,
+  handleClose,
+  handleChangeText,
+  ...rest
+}: Props) {
   return (
     <Modal animationType="fade" statusBarTranslucent transparent {...rest}>
       <KeyboardAvoidingView behavior="padding" style={styles.container}>
@@ -43,6 +49,7 @@ export function PopUpRecado({ handleOk, handleClose, ...rest }: Props) {
             style={styles.input}
             placeholder="Deixe seu recado aqui"
             placeholderTextColor="#fff"
+            onChange={(e) => handleChangeText(e.nativeEvent.text)}
           />
           <TouchableOpacity onPress={handleOk} style={styles.okButton}>
             <Text style={styles.okText}>Enviar</Text>

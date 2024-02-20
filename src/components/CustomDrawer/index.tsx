@@ -13,6 +13,33 @@ import { version } from "../../../package.json";
 import { DiscordUser, UserContext } from "../../contexts/user.context";
 import { THEME } from "../../theme";
 
+export const checkIfUserIsStillInTheServerAndIfYesExtendSession: (
+  user: DiscordUser
+) => Promise<boolean> = async (user: DiscordUser) => {
+  const { PHPSESSID } = user;
+  const url =
+    "https://www.animu.com.br/teste/chatIsThisReal.php?PHPSESSID=" + PHPSESSID;
+  const response = await fetch(url);
+  const data = await response.text();
+  return data === "1";
+};
+
+export const logoutUserFromTheServer: (
+  user: DiscordUser
+) => Promise<boolean> = async (user: DiscordUser) => {
+  const { PHPSESSID } = user;
+  const url = "https://www.animu.com.br/teste/byeChat.php";
+  const response = await fetch(url, {
+    method: "POST",
+    credentials: "same-origin",
+    headers: {
+      Cookie: `PHPSESSID=${PHPSESSID}`,
+    },
+  });
+  const data = await response.text();
+  return data === "1";
+};
+
 export function CustomDrawerContent(props: DrawerContentComponentProps) {
   const userContext = useContext(UserContext);
 
@@ -26,14 +53,19 @@ export function CustomDrawerContent(props: DrawerContentComponentProps) {
 
     if (result.type === "success") {
       const data = Linking.parse(result.url);
-      console.log({ data });
       if (data.queryParams?.user) {
+        console.log({ data });
         const userString = decodeURIComponent(data.queryParams.user.toString());
         const user: DiscordUser = JSON.parse(userString);
+        const PHPSESSID = data.queryParams.PHPSESSID?.toString();
+        if (PHPSESSID) {
+          user.PHPSESSID = PHPSESSID;
+        }
         if (userContext) {
           userContext.setUser(user);
-          await AsyncStorage.setItem("user", userString);
+          await AsyncStorage.setItem("user", JSON.stringify(user));
         }
+        console.log({ user });
       }
     }
   };
