@@ -80,7 +80,6 @@ export function CustomDrawerContent(props: DrawerContentComponentProps) {
     if (result.type === "success") {
       const data = Linking.parse(result.url);
       if (data.queryParams?.user) {
-        console.log({ data });
         const userString = decodeURIComponent(data.queryParams.user.toString());
         const user: DiscordUser = JSON.parse(userString);
         const PHPSESSID = data.queryParams.PHPSESSID?.toString();
@@ -91,7 +90,6 @@ export function CustomDrawerContent(props: DrawerContentComponentProps) {
           userContext.setUser(user);
           await AsyncStorage.setItem("user", JSON.stringify(user));
         }
-        console.log({ user });
       }
     }
   };

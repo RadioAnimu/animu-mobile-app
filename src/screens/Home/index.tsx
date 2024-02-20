@@ -70,11 +70,9 @@ export function Home({ route, navigation }: Props) {
         await player.updateMetadata();
 
         if (userRefPHPSESSID.current !== null && userContext) {
-          console.log("Checking if user is still in the server");
           const user = userRefPHPSESSID.current;
           const isUserStillInServer =
             await checkIfUserIsStillInTheServerAndIfYesExtendSession(user);
-          console.log({ isUserStillInServer });
           if (!isUserStillInServer) {
             // Logout user from the app
             await AsyncStorage.removeItem("user");
