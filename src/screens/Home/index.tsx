@@ -58,14 +58,14 @@ export function Home({ route, navigation }: Props) {
         auxData = await player.getCurrentMusic();
         setAnimuInfo(auxData);
         await player.updateMetadata();
-        // if (userContext?.user) {
-        //   const user = userContext.user;
-        //   const isUserStillInServer =
-        //     await checkIfUserIsStillInTheServerAndIfYesExtendSession(user);
-        //   if (!isUserStillInServer) {
-        //     userContext.setUser(null);
-        //   }
-        // }
+        if (userContext?.user) {
+          const user = userContext.user;
+          const isUserStillInServer =
+            await checkIfUserIsStillInTheServerAndIfYesExtendSession(user);
+          if (!isUserStillInServer) {
+            userContext.setUser(null);
+          }
+        }
       }, 5000);
       setInterval(() => {
         player.currentProgress = player.currentInformation?.track.timestart

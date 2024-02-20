@@ -28,14 +28,9 @@ export const logoutUserFromTheServer: (
   user: DiscordUser
 ) => Promise<boolean> = async (user: DiscordUser) => {
   const { PHPSESSID } = user;
-  const url = "https://www.animu.com.br/teste/byeChat.php";
-  const response = await fetch(url, {
-    method: "POST",
-    credentials: "same-origin",
-    headers: {
-      Cookie: `PHPSESSID=${PHPSESSID}`,
-    },
-  });
+  const url =
+    "https://www.animu.com.br/teste/byeChat.php?PHPSESSID=" + PHPSESSID;
+  const response = await fetch(url);
   const data = await response.text();
   return data === "1";
 };
