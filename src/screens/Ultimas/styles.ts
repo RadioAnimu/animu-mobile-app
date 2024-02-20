@@ -5,10 +5,14 @@ export const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  containerApp: {
+  appContainer: {
+    flex: 1,
     flexDirection: "column",
     justifyContent: "center",
     alignItems: "center",
+    width: "85%",
+    marginBottom: 15,
+    alignSelf: "center",
   },
   ultimasPedidasImage: {
     width: "100%",
@@ -20,10 +24,9 @@ export const styles = StyleSheet.create({
     color: THEME.COLORS.WHITE_TEXT,
     fontSize: THEME.FONT_SIZE.ULTIMAS_PEDIDAS,
     fontFamily: THEME.FONT_FAMILY.BOLD,
-    maxWidth: "67%",
+    flex: 1,
   },
   containerList: {
-    paddingHorizontal: 20,
     gap: 10,
   },
   musicapedidatime: {

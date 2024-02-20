@@ -58,6 +58,7 @@ export function FazerPedido({ route, navigation }: Props) {
     const [status, setStatus] = useState<Status>("idle");
 
     const handleSearch = async () => {
+      setResults([]);
       if (searchText) {
         setStatus("loading");
         const queryURL: string = `${API.FAZER_PEDIDO_URL}${searchText}`;
@@ -122,7 +123,6 @@ export function FazerPedido({ route, navigation }: Props) {
     };
 
     const handleOk = async () => {
-      setResults([]);
       const formData = new FormData();
       if (!userContext?.user) {
         setErrorMessage("Você precisa estar logado para fazer um pedido");
@@ -153,6 +153,17 @@ export function FazerPedido({ route, navigation }: Props) {
       setSelected(null);
       setSuccessMessage("Pedido feito com sucesso!");
       setRecado("");
+      setResults((old) =>
+        old.map((item) => {
+          if (item.track.id === selected.track.id) {
+            return {
+              ...item,
+              requestable: false,
+            };
+          }
+          return item;
+        })
+      );
     };
 
     const [selected, setSelected] = useState<MusicRequestProps | null>(null);
@@ -175,6 +186,7 @@ export function FazerPedido({ route, navigation }: Props) {
                 placeholder="Digite aqui para pesquisar"
                 placeholderTextColor="#fff"
                 onChangeText={(text) => setSearchText(text)}
+                onSubmitEditing={handleSearch}
               />
               <TouchableOpacity
                 onPress={handleSearch}
@@ -228,6 +240,10 @@ export function FazerPedido({ route, navigation }: Props) {
                           onTrackRequest={() => {
                             if (item.requestable) {
                               setSelected(item);
+                            } else {
+                              setErrorMessage(
+                                "Música já foi pedida anteriormente"
+                              );
                             }
                           }}
                           musicToBeRequested={item}

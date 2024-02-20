@@ -4,19 +4,19 @@ import { Dimensions } from "react-native";
 import { CustomDrawerContent } from "../components/CustomDrawer";
 import { FazerPedido } from "../screens/FazerPedido";
 import { Home } from "../screens/Home";
-import { UltimasPedidas } from "../screens/UltimasPedidas";
-import { UltimasTocadas } from "../screens/UltimasTocadas";
+import { Ultimas } from "../screens/Ultimas";
 import { THEME } from "../theme";
 
 interface HomeProps {}
-interface UltimasPedidasProps {}
-interface UltimasTocadasProps {}
+interface UltimasProps {
+  type: "pedidas" | "tocadas";
+}
 interface FazerPedidoProps {}
 
 export type RootStackParamList = {
   Home: HomeProps;
-  UltimasPedidas: UltimasPedidasProps;
-  UltimasTocadas: UltimasTocadasProps;
+  UltimasPedidas: UltimasProps;
+  UltimasTocadas: UltimasProps;
   FazerPedido: FazerPedidoProps;
 };
 
@@ -59,14 +59,16 @@ export function AppRoutes() {
           drawerLabel: "Últimas Pedidas",
         }}
         name="UltimasPedidas"
-        component={UltimasPedidas}
+        component={Ultimas}
+        initialParams={{ type: "pedidas" }}
       />
       <Screen
         options={{
           drawerLabel: "Últimas Tocadas",
         }}
         name="UltimasTocadas"
-        component={UltimasTocadas}
+        component={Ultimas}
+        initialParams={{ type: "tocadas" }}
       />
       <Screen
         options={{

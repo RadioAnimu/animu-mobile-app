@@ -45,7 +45,7 @@ export function PopUpStatus({ ...rest }: Props) {
     >
       <KeyboardAvoidingView behavior="padding" style={styles.container}>
         <View style={styles.content}>
-          <TouchableOpacity onPress={close} style={styles.closeIcon}>
+          <TouchableOpacity onPress={handleClose} style={styles.closeIcon}>
             <MaterialIcons
               name="close"
               size={20}
