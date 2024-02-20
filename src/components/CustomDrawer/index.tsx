@@ -7,7 +7,7 @@ import {
 } from "@react-navigation/drawer";
 import * as Linking from "expo-linking";
 import * as WebBrowser from "expo-web-browser";
-import { useContext } from "react";
+import { useContext, useRef } from "react";
 import { Image, Text, TouchableOpacity, View } from "react-native";
 import { version } from "../../../package.json";
 import { DiscordUser, UserContext } from "../../contexts/user.context";
@@ -34,6 +34,33 @@ export const logoutUserFromTheServer: (
   const data = await response.text();
   return data === "1";
 };
+
+export interface SeparatorProps {
+  sectionTile: string;
+}
+
+export function Separator({ sectionTile }: SeparatorProps) {
+  return (
+    <View
+      style={{
+        borderBottomColor: THEME.COLORS.SHAPE,
+        borderBottomWidth: 1,
+        padding: 10,
+      }}
+    >
+      <Text
+        style={{
+          color: THEME.COLORS.WHITE_TEXT,
+          textAlign: "center",
+          fontFamily: THEME.FONT_FAMILY.BOLD,
+          fontSize: THEME.FONT_SIZE.MENU_ITEM,
+        }}
+      >
+        {sectionTile}
+      </Text>
+    </View>
+  );
+}
 
 export function CustomDrawerContent(props: DrawerContentComponentProps) {
   const userContext = useContext(UserContext);
@@ -165,6 +192,7 @@ export function CustomDrawerContent(props: DrawerContentComponentProps) {
             </Text>
           </TouchableOpacity>
         )}
+        <Separator sectionTile="Menu" />
         <DrawerItemList {...props} />
       </View>
       <TouchableOpacity

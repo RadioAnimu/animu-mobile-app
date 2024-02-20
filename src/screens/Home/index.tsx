@@ -1,30 +1,37 @@
-import React, { useEffect, useState, useContext } from "react";
-import { Text, View, ScrollView } from "react-native";
+import React, {
+  MutableRefObject,
+  RefObject,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
+import { ScrollView, Text, View } from "react-native";
 
-import { styles } from "./styles";
-import { Background } from "../../components/Background";
 import { AnimuInfoProps } from "../../api";
+import { Background } from "../../components/Background";
+import { styles } from "./styles";
 
-import { HeaderBar } from "../../components/HeaderBar";
-import { Loading } from "../Loading";
-import { Logo } from "../../components/Logo";
-import { Listeners } from "../../components/Listeners";
-import { Cover } from "../../components/Cover";
-import { Live } from "../../components/Live";
-import { Program } from "../../components/Program";
-import { CountdownTimerText } from "../../components/CountdownTimerText";
-import { ChooseBitrateSection } from "../../components/ChooseBitrateSection";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { ChooseBitrateSection } from "../../components/ChooseBitrateSection";
+import { CountdownTimerText } from "../../components/CountdownTimerText";
+import { Cover } from "../../components/Cover";
+import { HeaderBar } from "../../components/HeaderBar";
+import { Listeners } from "../../components/Listeners";
+import { Live } from "../../components/Live";
+import { Logo } from "../../components/Logo";
+import { Program } from "../../components/Program";
+import { Loading } from "../Loading";
 
-import BackgroundTimer from "react-native-background-timer";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
-import { RootStackParamList } from "../../routes/app.routes";
-import { PlayerContext } from "../../contexts/player.context";
+import BackgroundTimer from "react-native-background-timer";
+import { checkIfUserIsStillInTheServerAndIfYesExtendSession } from "../../components/CustomDrawer";
 import { PopUpProgram } from "../../components/PopUpProgram";
 import { AnimuInfoContext } from "../../contexts/animuinfo.context";
-import { checkIfUserIsStillInTheServerAndIfYesExtendSession } from "../../components/CustomDrawer";
-import { UserContext } from "../../contexts/user.context";
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import { PlayerContext } from "../../contexts/player.context";
+import { DiscordUser, UserContext } from "../../contexts/user.context";
+import { RootStackParamList } from "../../routes/app.routes";
 
 export const getUserSavedDataOrNull = async () => {
   try {
@@ -42,6 +49,9 @@ export function Home({ route, navigation }: Props) {
   const [isModalVisible, setIsModalVisible] = useState(false);
   const userContext = useContext(UserContext);
 
+  const userRefPHPSESSID: MutableRefObject<DiscordUser | null> =
+    useRef<DiscordUser>(null);
+
   if (playerProvider?.player) {
     const player = playerProvider.player;
 
@@ -58,11 +68,16 @@ export function Home({ route, navigation }: Props) {
         auxData = await player.getCurrentMusic();
         setAnimuInfo(auxData);
         await player.updateMetadata();
-        if (userContext?.user) {
-          const user = userContext.user;
+
+        if (userRefPHPSESSID.current !== null && userContext) {
+          console.log("Checking if user is still in the server");
+          const user = userRefPHPSESSID.current;
           const isUserStillInServer =
             await checkIfUserIsStillInTheServerAndIfYesExtendSession(user);
+          console.log({ isUserStillInServer });
           if (!isUserStillInServer) {
+            // Logout user from the app
+            await AsyncStorage.removeItem("user");
             userContext.setUser(null);
           }
         }
@@ -100,6 +115,12 @@ export function Home({ route, navigation }: Props) {
           console.error(e);
         });
     }, []);
+
+    useEffect(() => {
+      if (userContext?.user) {
+        userRefPHPSESSID.current = userContext.user;
+      }
+    }, [userContext?.user]);
 
     return (
       <Background>
