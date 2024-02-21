@@ -19,6 +19,7 @@ import { THEME } from "../../theme";
 import { API } from "../../api";
 import { DICT, IMGS, selectedLanguage } from "../../languages";
 import { UserSettingsContext } from "../../contexts/user.settings.context";
+import { DiscordProfile } from "../DiscordProfile";
 
 export const checkIfUserIsStillInTheServerAndIfYesExtendSession: (
   user: DiscordUser
@@ -209,34 +210,13 @@ export function CustomDrawerContent(props: DrawerContentComponentProps) {
             }}
             style={{
               flexDirection: "row",
+              justifyContent: "space-between",
               alignItems: "center",
               width: "90%",
               alignSelf: "center",
-              gap: 10,
             }}
           >
-            <Image
-              source={{
-                uri: userContext.user.avatar_url,
-              }}
-              style={{
-                width: 50,
-                height: 50,
-                borderRadius: 25,
-                borderWidth: 2,
-                borderColor: THEME.COLORS.WHITE_TEXT,
-              }}
-            />
-            <Text
-              style={{
-                color: THEME.COLORS.WHITE_TEXT,
-                textAlign: "center",
-                fontFamily: THEME.FONT_FAMILY.BOLD,
-                fontSize: THEME.FONT_SIZE.MENU_ITEM,
-              }}
-            >
-              {userContext.user.nickname || userContext.user.username}
-            </Text>
+            <DiscordProfile user={userContext.user} />
             <FontAwesome
               name="gear"
               size={THEME.FONT_SIZE.MENU_ITEM}

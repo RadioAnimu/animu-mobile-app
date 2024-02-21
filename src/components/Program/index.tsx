@@ -18,7 +18,14 @@ export function Program({ program, handleClick }: Props) {
       <Text style={[styles.title, styles.green]}>
         {program?.isSaijikkou ? "Animu Sai Jikkou" : program?.programa}
       </Text>
-      <Text style={styles.label}>
+      <Text
+        style={[
+          styles.label,
+          userSettings.selectedLanguage === "JN" && {
+            marginTop: -5.5,
+          },
+        ]}
+      >
         {DICT[userSettings.selectedLanguage].WITH_DJ}:{" "}
         <Text style={styles.green}>{program?.locutor}</Text>
       </Text>

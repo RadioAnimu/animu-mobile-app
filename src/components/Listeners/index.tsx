@@ -4,7 +4,7 @@ import foninho from "../../assets/icons/foninho.png";
 import foninho_branco from "../../assets/icons/foninho_branco.png";
 import { AnimuInfoProps } from "../../api";
 import { THEME } from "../../theme";
-import { DICT, selectedLanguage } from "../../languages";
+import { DICT } from "../../languages";
 import { useContext } from "react";
 import { UserSettingsContext } from "../../contexts/user.settings.context";
 
@@ -58,7 +58,7 @@ export function Listeners({ info }: Props) {
                 ? THEME.COLORS.WHITE_TEXT
                 : THEME.COLORS.LISTENERS,
           },
-          selectedLanguage === "JN" && {
+          userSettings.selectedLanguage === "JN" && {
             marginTop: -5.5,
           },
         ]}

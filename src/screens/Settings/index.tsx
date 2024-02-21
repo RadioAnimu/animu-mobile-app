@@ -18,6 +18,7 @@ import { DICT, LANGS_KEY_VALUE_PAIRS } from "../../languages";
 import { RootStackParamList } from "../../routes/app.routes";
 import { THEME } from "../../theme";
 import { styles } from "./styles";
+import { DiscordProfile } from "../../components/DiscordProfile";
 
 export const BackArrow = (props: SvgProps) => (
   <Svg width="21" height="19" viewBox="0 0 21 19" fill="none">
@@ -153,6 +154,7 @@ function ToggleSection({ label, ...props }: ToggleSectionProps) {
           color: THEME.COLORS.WHITE_TEXT,
           fontFamily: THEME.FONT_FAMILY.REGULAR,
           fontSize: THEME.FONT_SIZE.MD,
+          flex: 1,
         }}
       >
         {label}{" "}
@@ -217,47 +219,11 @@ export function Settings({ route, navigation }: Props) {
               <View
                 style={{
                   flexDirection: "row",
+                  justifyContent: "space-between",
                   alignItems: "center",
-                  width: "100%",
-                  alignSelf: "center",
-                  gap: 10,
                 }}
               >
-                <Image
-                  source={{
-                    uri: userContext.user.avatar_url,
-                  }}
-                  style={{
-                    width: 50,
-                    height: 50,
-                    borderRadius: 25,
-                    borderWidth: 2,
-                    borderColor: THEME.COLORS.WHITE_TEXT,
-                  }}
-                />
-                <View>
-                  <Text
-                    style={{
-                      color: THEME.COLORS.WHITE_TEXT,
-                      textAlign: "center",
-                      fontFamily: THEME.FONT_FAMILY.BOLD,
-                      fontSize: THEME.FONT_SIZE.MENU_ITEM,
-                    }}
-                  >
-                    {userContext.user.nickname || userContext.user.username}
-                  </Text>
-                  {userContext.user.nickname && (
-                    <Text
-                      style={{
-                        color: THEME.COLORS.WHITE_TEXT,
-                        fontFamily: THEME.FONT_FAMILY.REGULAR,
-                        fontSize: THEME.FONT_SIZE.SM,
-                      }}
-                    >
-                      {userContext.user.username}
-                    </Text>
-                  )}
-                </View>
+                <DiscordProfile user={userContext.user} />
                 <TouchableOpacity
                   onPress={async () => {
                     if (userContext.user) {
