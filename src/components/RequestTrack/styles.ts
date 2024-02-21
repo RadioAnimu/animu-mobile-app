@@ -13,7 +13,6 @@ export const styles = StyleSheet.create({
   image: {
     width: 50,
     height: 50,
-    resizeMode: "cover",
     borderColor: THEME.COLORS.TEXT,
     borderWidth: 1,
   },

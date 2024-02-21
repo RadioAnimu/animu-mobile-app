@@ -37,6 +37,7 @@ export function RequestTrack({ musicToBeRequested, onTrackRequest }: Props) {
               uri: CONFIG.DEFAULT_COVER,
             };
           }}
+          contentFit="cover"
           cachePolicy={userSettings.cacheEnabled ? "disk" : "none"}
         />
       )}

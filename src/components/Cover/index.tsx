@@ -29,6 +29,7 @@ export function Cover({ cover }: Props) {
         };
       }}
       cachePolicy={userSettings.cacheEnabled ? "disk" : "none"}
+      contentFit="cover"
     />
   );
 }

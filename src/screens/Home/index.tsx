@@ -166,16 +166,19 @@ export function Home({ route, navigation }: Props) {
                 <Logo size={127} />
                 <Listeners info={animuInfo} />
                 <Cover cover={animuInfo.track.artworks.cover} />
-                {!animuInfo?.program?.isLiveProgram && (
-                  <Text style={styles.timeLeft}>
-                    {DICT[userSettings.selectedLanguage].TIME_REMAINING}:{" "}
-                    <CountdownTimerText
-                      startTime={
-                        animuInfo.track.duration - player.currentProgress
-                      }
-                    />
-                  </Text>
-                )}
+                {!animuInfo?.program?.isLiveProgram &&
+                  !animuInfo?.track?.anime
+                    ?.toLocaleLowerCase()
+                    .includes("passagem") && (
+                    <Text style={styles.timeLeft}>
+                      {DICT[userSettings.selectedLanguage].TIME_REMAINING}:{" "}
+                      <CountdownTimerText
+                        startTime={
+                          animuInfo.track.duration - player.currentProgress
+                        }
+                      />
+                    </Text>
+                  )}
                 <Live track={animuInfo.track} />
                 <Program
                   program={animuInfo.program}

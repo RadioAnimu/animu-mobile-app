@@ -143,17 +143,18 @@ export function HeaderBar({ player, navigation }: Props) {
           <Image style={styles.noteIcon} source={noteIcon} />
         </TouchableOpacity>
       </View>
-      {!info?.program?.isLiveProgram && (
-        <Animated.View
-          style={[
-            styles.progressBarView,
-            {
-              // width: Dimensions.get("window").width * currentTime,
-              width: progressAnim,
-            },
-          ]}
-        ></Animated.View>
-      )}
+      {!info?.program?.isLiveProgram &&
+        !info?.track.anime.toLocaleLowerCase().includes("passagem") && (
+          <Animated.View
+            style={[
+              styles.progressBarView,
+              {
+                // width: Dimensions.get("window").width * currentTime,
+                width: progressAnim,
+              },
+            ]}
+          ></Animated.View>
+        )}
     </View>
   );
 }

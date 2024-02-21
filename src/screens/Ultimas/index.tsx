@@ -91,6 +91,7 @@ export function Ultimas({ route, navigation }: Props) {
                           cachePolicy={
                             userSettings.cacheEnabled ? "disk" : "none"
                           }
+                          contentFit="cover"
                         />
                       ) : (
                         <></>

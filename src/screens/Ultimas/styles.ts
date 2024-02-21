@@ -45,7 +45,6 @@ export const styles = StyleSheet.create({
   image: {
     width: 50,
     height: 50,
-    resizeMode: "cover",
     borderRadius: 12,
     borderColor: THEME.COLORS.COVER,
     borderWidth: 2,
