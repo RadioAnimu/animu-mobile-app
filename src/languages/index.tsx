@@ -1,6 +1,6 @@
 import { DICT as DICT_EN, IMGS as IMGS_EN } from "./language.en";
 import { DICT as DICT_ES, IMGS as IMGS_ES } from "./language.es";
-import { DICT as DICT_JP, IMGS as IMGS_JP } from "./language.jp";
+import { DICT as DICT_JP, IMGS as IMGS_JP } from "./language.jn";
 import { DICT as DICT_PT, IMGS as IMGS_PT } from "./language.pt";
 
 export const DICT = {
