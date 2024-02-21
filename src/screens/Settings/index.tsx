@@ -1,20 +1,23 @@
-import { ScrollView, Text, TouchableOpacity, View, Image } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
-import { Background } from "../../components/Background";
-import { styles } from "./styles";
 import { FontAwesome5 } from "@expo/vector-icons";
-import Svg, { SvgProps, Path, Rect } from "react-native-svg";
-import { THEME } from "../../theme";
-import { useContext, useState } from "react";
-import { UserContext } from "../../contexts/user.context";
-import { NativeStackScreenProps } from "@react-navigation/native-stack";
-import { RootStackParamList } from "../../routes/app.routes";
-import { logoutUserFromTheServer } from "../../components/CustomDrawer";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import Toggle from "react-native-toggle-input";
+import { NativeStackScreenProps } from "@react-navigation/native-stack";
+import { useContext } from "react";
+import { Image, ScrollView, Text, TouchableOpacity, View } from "react-native";
 import { SelectList } from "react-native-dropdown-select-list";
-import { DICT, LANGS_KEY_VALUE_PAIRS, selectedLanguage } from "../../languages";
-import { UserSettingsContext } from "../../contexts/user.settings.context";
+import { SafeAreaView } from "react-native-safe-area-context";
+import Svg, { Path, Rect, SvgProps } from "react-native-svg";
+import Toggle from "react-native-toggle-input";
+import { Background } from "../../components/Background";
+import { logoutUserFromTheServer } from "../../components/CustomDrawer";
+import { UserContext } from "../../contexts/user.context";
+import {
+  UserSettings,
+  UserSettingsContext,
+} from "../../contexts/user.settings.context";
+import { DICT, LANGS_KEY_VALUE_PAIRS } from "../../languages";
+import { RootStackParamList } from "../../routes/app.routes";
+import { THEME } from "../../theme";
+import { styles } from "./styles";
 
 export const BackArrow = (props: SvgProps) => (
   <Svg width="21" height="19" viewBox="0 0 21 19" fill="none">
@@ -29,6 +32,12 @@ export const BackArrow = (props: SvgProps) => (
 interface TitleSectionProps {
   title: string;
 }
+
+export const saveUserSettingsToLocalStorage = async (
+  userSettings: UserSettings
+) => {
+  await AsyncStorage.setItem("userSettings", JSON.stringify(userSettings));
+};
 
 export function TitleSection({ title }: TitleSectionProps) {
   return (
@@ -127,9 +136,6 @@ function Splitter() {
 export function Settings({ route, navigation }: Props) {
   const userContext = useContext(UserContext);
 
-  const [selectedMenuLanguage, setSelectedMenuLanguage] =
-    useState<keyof typeof LANGS_KEY_VALUE_PAIRS>("PT");
-
   const data = Object.keys(LANGS_KEY_VALUE_PAIRS).map((key: string) => ({
     key,
     value: LANGS_KEY_VALUE_PAIRS[
@@ -138,6 +144,13 @@ export function Settings({ route, navigation }: Props) {
   }));
 
   const { userSettings, setUserSettings } = useContext(UserSettingsContext);
+
+  const key = userSettings.selectedLanguage || "PT";
+
+  const keyAndValue = {
+    key,
+    value: LANGS_KEY_VALUE_PAIRS[key],
+  };
 
   return (
     <Background>
@@ -254,6 +267,10 @@ export function Settings({ route, navigation }: Props) {
                   ...userSettings,
                   liveQualityCover: "high",
                 });
+                saveUserSettingsToLocalStorage({
+                  ...userSettings,
+                  liveQualityCover: "high",
+                });
               }}
               position="left"
             />
@@ -268,6 +285,10 @@ export function Settings({ route, navigation }: Props) {
                   ...userSettings,
                   liveQualityCover: "medium",
                 });
+                saveUserSettingsToLocalStorage({
+                  ...userSettings,
+                  liveQualityCover: "medium",
+                });
               }}
               position="center"
             />
@@ -279,6 +300,10 @@ export function Settings({ route, navigation }: Props) {
               selected={userSettings.liveQualityCover === "low"}
               onPress={() => {
                 setUserSettings({
+                  ...userSettings,
+                  liveQualityCover: "low",
+                });
+                saveUserSettingsToLocalStorage({
                   ...userSettings,
                   liveQualityCover: "low",
                 });
@@ -311,12 +336,17 @@ export function Settings({ route, navigation }: Props) {
             <Toggle
               size={THEME.FONT_SIZE.MD}
               color="#fff"
-              toggle={userSettings.liveQualityCover === "off"}
+              toggle={userSettings.liveQualityCover !== "off"}
               setToggle={() => {
                 setUserSettings({
                   ...userSettings,
                   liveQualityCover:
-                    userSettings.liveQualityCover === "off" ? "high" : "off",
+                    userSettings.liveQualityCover === "off" ? "low" : "off",
+                });
+                saveUserSettingsToLocalStorage({
+                  ...userSettings,
+                  liveQualityCover:
+                    userSettings.liveQualityCover === "off" ? "low" : "off",
                 });
               }}
             />
@@ -352,6 +382,10 @@ export function Settings({ route, navigation }: Props) {
                   ...userSettings,
                   lastRequestedCovers: !userSettings.lastRequestedCovers,
                 });
+                saveUserSettingsToLocalStorage({
+                  ...userSettings,
+                  lastRequestedCovers: !userSettings.lastRequestedCovers,
+                });
               }}
             />
           </View>
@@ -373,7 +407,7 @@ export function Settings({ route, navigation }: Props) {
             >
               {
                 DICT[userSettings.selectedLanguage]
-                  .SETTINGS_COVER_LAST_REQUESTED_SWITCH
+                  .SETTINGS_COVER_LAST_PLAYED_SWITCH
               }{" "}
             </Text>
             {/* @ts-ignore => bcs the lib is kinda cringe*/}
@@ -383,6 +417,10 @@ export function Settings({ route, navigation }: Props) {
               toggle={userSettings.lastPlayedCovers}
               setToggle={() => {
                 setUserSettings({
+                  ...userSettings,
+                  lastPlayedCovers: !userSettings.lastPlayedCovers,
+                });
+                saveUserSettingsToLocalStorage({
                   ...userSettings,
                   lastPlayedCovers: !userSettings.lastPlayedCovers,
                 });
@@ -420,6 +458,10 @@ export function Settings({ route, navigation }: Props) {
                   ...userSettings,
                   coversInRequestSearch: !userSettings.coversInRequestSearch,
                 });
+                saveUserSettingsToLocalStorage({
+                  ...userSettings,
+                  coversInRequestSearch: !userSettings.coversInRequestSearch,
+                });
               }}
             />
           </View>
@@ -439,6 +481,10 @@ export function Settings({ route, navigation }: Props) {
               );
               if (key) {
                 setUserSettings({
+                  ...userSettings,
+                  selectedLanguage: key as keyof typeof LANGS_KEY_VALUE_PAIRS,
+                });
+                saveUserSettingsToLocalStorage({
                   ...userSettings,
                   selectedLanguage: key as keyof typeof LANGS_KEY_VALUE_PAIRS,
                 });
@@ -477,6 +523,7 @@ export function Settings({ route, navigation }: Props) {
               DICT[userSettings.selectedLanguage]
                 .SETTINGS_LANGUAGE_SELECT_PLACEHOLDER
             }
+            defaultOption={keyAndValue}
           />
           <Splitter />
           <TitleSection
@@ -510,6 +557,10 @@ export function Settings({ route, navigation }: Props) {
               toggle={userSettings.cacheEnabled}
               setToggle={() => {
                 setUserSettings({
+                  ...userSettings,
+                  cacheEnabled: !userSettings.cacheEnabled,
+                });
+                saveUserSettingsToLocalStorage({
                   ...userSettings,
                   cacheEnabled: !userSettings.cacheEnabled,
                 });

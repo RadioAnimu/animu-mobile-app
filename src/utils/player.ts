@@ -1,10 +1,12 @@
 import TrackPlayer, { NowPlayingMetadata } from "react-native-track-player";
 import { API, AnimuInfoProps, ProgramProps, TrackProps } from "../api";
+import { UserSettings } from "./../contexts/user.settings.context";
 import { CONFIG, StreamOption } from "./player.config";
 
 import { openBrowserAsync } from "expo-web-browser";
+import { DICT } from "../languages";
 import { SetupService } from "../services";
-import { DICT, selectedLanguage } from "../languages";
+import { getUserSettingsFromLocalStorage } from "../screens/Home";
 
 function isUrlAnImage(url: string) {
   return url.match(/\.(jpeg|jpg|gif|png|webp)$/) != null;
@@ -54,11 +56,29 @@ export const myPlayer = (): MyPlayerProps => ({
     json.track.song =
       json.track.song.split(" - ")[1]?.trim() || json.track.song;
     json.track.isRequest = json.track.rawtitle.toLowerCase().includes("pedido");
-    json.track.artworks.cover =
-      json.track.artworks.large ||
-      json.track.artworks.medium ||
-      json.track.artworks.tiny ||
-      CONFIG.DEFAULT_COVER;
+    const userSettings = await getUserSettingsFromLocalStorage();
+    switch (userSettings.liveQualityCover) {
+      case "high":
+        json.track.artworks.cover =
+          json.track.artworks.large ||
+          json.track.artworks.medium ||
+          json.track.artworks.tiny ||
+          CONFIG.DEFAULT_COVER;
+        break;
+      case "medium":
+        json.track.artworks.cover =
+          json.track.artworks.medium ||
+          json.track.artworks.tiny ||
+          CONFIG.DEFAULT_COVER;
+        break;
+      case "low":
+        json.track.artworks.cover =
+          json.track.artworks.tiny || CONFIG.DEFAULT_COVER;
+        break;
+      default:
+        json.track.artworks.cover = CONFIG.DEFAULT_COVER;
+        break;
+    }
     json.track.artworks.cover = isUrlAnImage(json.track.artworks.cover)
       ? json.track.artworks.cover
       : CONFIG.DEFAULT_COVER;

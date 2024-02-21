@@ -30,9 +30,30 @@ import { PopUpProgram } from "../../components/PopUpProgram";
 import { AnimuInfoContext } from "../../contexts/animuinfo.context";
 import { PlayerContext } from "../../contexts/player.context";
 import { DiscordUser, UserContext } from "../../contexts/user.context";
-import { UserSettingsContext } from "../../contexts/user.settings.context";
+import {
+  UserSettings,
+  UserSettingsContext,
+} from "../../contexts/user.settings.context";
 import { DICT } from "../../languages";
 import { RootStackParamList } from "../../routes/app.routes";
+
+export const getUserSettingsFromLocalStorage =
+  async (): Promise<UserSettings> => {
+    const defaultUserSettings: UserSettings = {
+      liveQualityCover: "high",
+      lastRequestedCovers: true,
+      lastPlayedCovers: true,
+      coversInRequestSearch: true,
+      selectedLanguage: "PT",
+      cacheEnabled: true,
+    };
+    try {
+      const userSettings = await AsyncStorage.getItem("userSettings");
+      return userSettings ? JSON.parse(userSettings) : defaultUserSettings;
+    } catch (e) {
+      return defaultUserSettings;
+    }
+  };
 
 export const getUserSavedDataOrNull = async () => {
   try {
@@ -49,6 +70,7 @@ export function Home({ route, navigation }: Props) {
   const playerProvider = useContext(PlayerContext);
   const [isModalVisible, setIsModalVisible] = useState(false);
   const userContext = useContext(UserContext);
+  const userSettingsContext = useContext(UserSettingsContext);
 
   const userRefPHPSESSID: MutableRefObject<DiscordUser | null> =
     useRef<DiscordUser>(null);
@@ -110,6 +132,15 @@ export function Home({ route, navigation }: Props) {
         .then((user) => {
           if (userContext && user) {
             userContext.setUser(user);
+          }
+        })
+        .catch((e) => {
+          console.error(e);
+        });
+      getUserSettingsFromLocalStorage()
+        .then((userSettings) => {
+          if (userSettingsContext && userSettings) {
+            userSettingsContext.setUserSettings(userSettings);
           }
         })
         .catch((e) => {

@@ -1,5 +1,5 @@
 import React, { useContext } from "react";
-import { FlatList, Image, Text, View } from "react-native";
+import { FlatList, Text, View } from "react-native";
 
 import { Background } from "../../components/Background";
 import { styles } from "./styles";
@@ -14,9 +14,10 @@ import { PlayerContext } from "../../contexts/player.context";
 import { RootStackParamList } from "../../routes/app.routes";
 
 import { AnimuInfoContext } from "../../contexts/animuinfo.context";
-import { IMGS, selectedLanguage } from "../../languages";
-import { Loading } from "../Loading";
 import { UserSettingsContext } from "../../contexts/user.settings.context";
+import { Image } from "expo-image";
+import { IMGS } from "../../languages";
+import { Loading } from "../Loading";
 
 type Props = NativeStackScreenProps<
   RootStackParamList,
@@ -70,15 +71,30 @@ export function Ultimas({ route, navigation }: Props) {
                   extraData={animuInfo.ultimasPedidas}
                   renderItem={({ item }) => (
                     <View style={styles.metadata}>
-                      <Image
-                        source={{
-                          uri: item.artworks.cover,
-                        }}
-                        style={styles.image}
-                        defaultSource={{
-                          uri: CONFIG.DEFAULT_COVER,
-                        }}
-                      />
+                      {(isUltimasPedidasScreen &&
+                        userSettings.lastRequestedCovers) ||
+                      (!isUltimasPedidasScreen &&
+                        userSettings.lastPlayedCovers) ? (
+                        <Image
+                          source={{
+                            uri: item.artworks.cover || CONFIG.DEFAULT_COVER,
+                          }}
+                          style={styles.image}
+                          placeholder={{
+                            uri: CONFIG.DEFAULT_COVER,
+                          }}
+                          onError={() => {
+                            return {
+                              uri: CONFIG.DEFAULT_COVER,
+                            };
+                          }}
+                          cachePolicy={
+                            userSettings.cacheEnabled ? "disk" : "none"
+                          }
+                        />
+                      ) : (
+                        <></>
+                      )}
                       <Text style={styles.musicapedidaname}>
                         {item.rawtitle}
                       </Text>
