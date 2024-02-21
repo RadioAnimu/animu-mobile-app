@@ -268,7 +268,7 @@ export function CustomDrawerContent(props: DrawerContentComponentProps) {
                 fontSize: THEME.FONT_SIZE.MENU_ITEM,
               }}
             >
-              Login Discord
+              {DICT[selectedLanguage].LOGIN_WORD} Discord
             </Text>
           </TouchableOpacity>
         )}

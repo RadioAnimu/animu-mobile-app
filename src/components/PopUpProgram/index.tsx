@@ -19,9 +19,16 @@ interface Props extends ModalProps {
 }
 
 export function PopUpProgram({ _program, handleClose, ...rest }: Props) {
-  const program: ProgramProps["raw"] = DICT[selectedLanguage].PROGRAMS.find(
-    (item) => item.name === _program.raw?.name
-  );
+  let i = 0;
+  let program: ProgramProps["raw"] = DICT["PT"].PROGRAMS.find((item) => {
+    if (item.name === _program?.raw?.name) {
+      return item;
+    } else {
+      i++;
+    }
+  });
+
+  program = DICT[selectedLanguage].PROGRAMS[i];
 
   if (!program) {
     return null;
@@ -38,7 +45,7 @@ export function PopUpProgram({ _program, handleClose, ...rest }: Props) {
               color={THEME.COLORS.WHITE_TEXT}
             />
           </TouchableOpacity>
-          <Image source={{ uri: program.img }} style={styles.img} />
+          <Image source={{ uri: _program.imagem }} style={styles.img} />
           <View style={styles.informationBlock}>
             <Text
               style={[
@@ -70,7 +77,7 @@ export function PopUpProgram({ _program, handleClose, ...rest }: Props) {
                 },
               ]}
             >
-              Tema: {program.theme}
+              {DICT[selectedLanguage].THEME_WORD}: {program.theme}
             </Text>
             <Text
               style={[

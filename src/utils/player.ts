@@ -64,7 +64,7 @@ export const myPlayer = (): MyPlayerProps => ({
       : CONFIG.DEFAULT_COVER;
     json.program = await this.getProgram();
     if (this._currentStream.category !== "REPRISES") {
-      json.program.raw = DICT[selectedLanguage].PROGRAMS.find(
+      json.program.raw = DICT["PT"].PROGRAMS.find(
         (program) =>
           program.name.toLocaleLowerCase() ===
           json.program.programa.toLocaleLowerCase()

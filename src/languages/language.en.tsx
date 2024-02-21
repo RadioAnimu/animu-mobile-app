@@ -159,6 +159,9 @@ const DICT = {
   REQUEST_SUCCESS: "Request made successfully!",
   REQUEST_SEARCH_PLACEHOLDER: "Type here to search",
   REQUEST_SEARCH_BUTTON_TEXT: "Search",
+  HARU_CHAN_TEXT: "HARU-CHAN",
+  THEME_WORD: "Theme",
+  LOGIN_WORD: "Login",
 };
 
 const NoArLabel = (props: SvgProps) => (

@@ -54,13 +54,16 @@ export function Listeners({ info }: Props) {
                 ? THEME.COLORS.WHITE_TEXT
                 : THEME.COLORS.LISTENERS,
           },
+          selectedLanguage === "JN" && {
+            marginTop: -5.5,
+          },
         ]}
       >
         {info?.program?.isLiveProgram
           ? info?.program.locutor.toUpperCase()
           : info.track.isRequest
           ? DICT[selectedLanguage].TRACK_REQUEST
-          : "HARU-CHAN"}
+          : DICT[selectedLanguage].HARU_CHAN_TEXT}
       </Text>
     </View>
   );
