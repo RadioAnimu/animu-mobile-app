@@ -202,7 +202,6 @@ export function Home({ route, navigation }: Props) {
               </View>
             </ScrollView>
             <LiveRequestModal
-              handleOk={async () => {}}
               handleClose={() => {
                 setIsLiveRequestModalVisible(false);
               }}
