@@ -22,7 +22,7 @@ export function ChooseBitrateSection({ player }: Props) {
             handleChangeStream={() => {
               player.changeStream(item);
             }}
-            selected={item === player._currentStream || false}
+            selected={item.url === player._currentStream.url || false}
             category={item.category}
             kbps={item.bitrate}
             isSaijikkou={item.category === "REPRISES" ? true : false}

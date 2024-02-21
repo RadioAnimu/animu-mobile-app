@@ -7,6 +7,7 @@ import { openBrowserAsync } from "expo-web-browser";
 import { DICT } from "../languages";
 import { SetupService } from "../services";
 import { getUserSettingsFromLocalStorage } from "../screens/Home";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 function isUrlAnImage(url: string) {
   return url.match(/\.(jpeg|jpg|gif|png|webp)$/) != null;
@@ -14,6 +15,7 @@ function isUrlAnImage(url: string) {
 
 export interface MyPlayerProps {
   CONFIG: typeof CONFIG;
+  firstTime: boolean;
   player: typeof TrackPlayer;
   _currentStream: StreamOption;
   currentProgress: number;
@@ -35,6 +37,7 @@ export interface MyPlayerProps {
 
 export const myPlayer = (): MyPlayerProps => ({
   CONFIG,
+  firstTime: true,
   player: TrackPlayer,
   _currentStream: CONFIG.DEFAULT_STREAM_OPTION,
   _loaded: false,
@@ -141,6 +144,13 @@ export const myPlayer = (): MyPlayerProps => ({
         console.error(err);
       } finally {
         this._loaded = true;
+        this._currentStream = JSON.parse(
+          (await AsyncStorage.getItem("currentStream")) ||
+            JSON.stringify(CONFIG.DEFAULT_STREAM_OPTION)
+        );
+        this._paused = (await AsyncStorage.getItem("isPaused"))
+          ? (await AsyncStorage.getItem("isPaused")) === "true"
+          : false;
       }
     }
     await this.getCurrentMusic();
@@ -151,16 +161,22 @@ export const myPlayer = (): MyPlayerProps => ({
       url: this._currentStream.url,
       userAgent: CONFIG.USER_AGENT,
     });
-    if (this._paused) {
+    if (
+      (this._paused && !this.firstTime) ||
+      (this.firstTime && !this._paused)
+    ) {
       await TrackPlayer.play();
       this._paused = false;
+      await AsyncStorage.setItem("isPaused", "false");
     }
+    this.firstTime = false;
     await this.updateMetadata();
   },
   async pause() {
     if (this._loaded && !this._paused) {
       await TrackPlayer.pause();
       this._paused = true;
+      await AsyncStorage.setItem("isPaused", "true");
     }
   },
   async changeStream(stream: StreamOption) {
@@ -170,6 +186,7 @@ export const myPlayer = (): MyPlayerProps => ({
         this._paused = true;
         await this.play();
       }
+      await AsyncStorage.setItem("currentStream", JSON.stringify(stream));
     }
   },
   async openPedidosURL(): Promise<void> {
@@ -238,7 +255,6 @@ export const myPlayer = (): MyPlayerProps => ({
         });
       }
     });
-
     switch (typeHistory) {
       case "pedidas":
         if (
