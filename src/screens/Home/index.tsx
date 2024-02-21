@@ -26,7 +26,10 @@ import { Loading } from "../Loading";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import BackgroundTimer from "react-native-background-timer";
-import { checkIfUserIsStillInTheServerAndIfYesExtendSession } from "../../components/CustomDrawer";
+import {
+  checkIfUserIsStillInTheServerAndIfYesExtendSession,
+  logoutUserFromTheServer,
+} from "../../components/CustomDrawer";
 import { PopUpProgram } from "../../components/PopUpProgram";
 import { AnimuInfoContext } from "../../contexts/animuinfo.context";
 import { PlayerContext } from "../../contexts/player.context";
@@ -102,6 +105,8 @@ export function Home({ route, navigation }: Props) {
     useEffect(() => {
       // clear all local storage
       // AsyncStorage.clear();
+      // if (userContext && userContext.user)
+      //   logoutUserFromTheServer(userContext.user);
 
       getUserSavedDataOrNull()
         .then((user) => {

@@ -1,4 +1,8 @@
-import { MaterialCommunityIcons } from "@expo/vector-icons";
+import {
+  FontAwesome,
+  FontAwesome5,
+  MaterialCommunityIcons,
+} from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
   DrawerContentComponentProps,
@@ -7,11 +11,12 @@ import {
 } from "@react-navigation/drawer";
 import * as Linking from "expo-linking";
 import * as WebBrowser from "expo-web-browser";
-import { useContext, useRef } from "react";
+import { useContext } from "react";
 import { Image, Text, TouchableOpacity, View } from "react-native";
 import { version } from "../../../package.json";
 import { DiscordUser, UserContext } from "../../contexts/user.context";
 import { THEME } from "../../theme";
+import { API } from "../../api";
 
 export const checkIfUserIsStillInTheServerAndIfYesExtendSession: (
   user: DiscordUser
@@ -36,18 +41,91 @@ export const logoutUserFromTheServer: (
 };
 
 export interface SeparatorProps {
-  sectionTile: string;
+  sectionTile?: string;
+  Icon?: () => JSX.Element;
 }
 
-export function Separator({ sectionTile }: SeparatorProps) {
+export function Separator({ sectionTile, Icon }: SeparatorProps) {
   return (
     <View
       style={{
-        borderBottomColor: THEME.COLORS.SHAPE,
-        borderBottomWidth: 1,
+        borderBottomColor: THEME.COLORS.WHITE_TEXT,
+        borderBottomWidth: 2,
         padding: 10,
+        width: "90%",
+        alignSelf: "center",
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "flex-start",
+        gap: 10,
+        marginTop: 10,
+        marginBottom: 5,
       }}
     >
+      {Icon && <Icon />}
+      {sectionTile && (
+        <Text
+          style={{
+            color: THEME.COLORS.WHITE_TEXT,
+            fontFamily: THEME.FONT_FAMILY.BOLD,
+            fontSize: THEME.FONT_SIZE.MENU_ITEM,
+          }}
+        >
+          {sectionTile}
+        </Text>
+      )}
+    </View>
+  );
+}
+
+export interface LinkMenuItemProps {
+  Icon?: () => JSX.Element;
+  title: string;
+  url: string;
+}
+
+const LINKS: LinkMenuItemProps[] = [
+  {
+    title: "Website",
+    url: API.WEB_URL,
+    Icon: () => (
+      <FontAwesome5
+        name="globe"
+        size={THEME.FONT_SIZE.MENU_ITEM}
+        color={THEME.COLORS.WHITE_TEXT}
+      />
+    ),
+  },
+  {
+    title: "Discord",
+    url: API.DISCORD_URL,
+    Icon: () => (
+      <FontAwesome5
+        name="discord"
+        size={THEME.FONT_SIZE.MENU_ITEM}
+        color={THEME.COLORS.WHITE_TEXT}
+      />
+    ),
+  },
+];
+
+export function LinkMenuItem({ Icon, title, url }: LinkMenuItemProps) {
+  return (
+    <TouchableOpacity
+      onPress={() => {
+        Linking.openURL(url);
+      }}
+      style={{
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "flex-start",
+        paddingHorizontal: 20,
+        paddingVertical: 10,
+        gap: 5,
+        marginBottom: 2,
+      }}
+    >
+      {Icon && <Icon />}
       <Text
         style={{
           color: THEME.COLORS.WHITE_TEXT,
@@ -56,9 +134,9 @@ export function Separator({ sectionTile }: SeparatorProps) {
           fontSize: THEME.FONT_SIZE.MENU_ITEM,
         }}
       >
-        {sectionTile}
+        {title}
       </Text>
-    </View>
+    </TouchableOpacity>
   );
 }
 
@@ -120,24 +198,15 @@ export function CustomDrawerContent(props: DrawerContentComponentProps) {
             }}
           />
         </TouchableOpacity>
-        <Text
-          style={{
-            color: THEME.COLORS.WHITE_TEXT,
-            textAlign: "center",
-            padding: 5,
-            fontFamily: THEME.FONT_FAMILY.BOLD,
-            fontSize: THEME.FONT_SIZE.MENU_ITEM,
-          }}
-        >
-          Em construção
-        </Text>
         {userContext?.user ? (
           <View
             style={{
               flexDirection: "row",
               alignItems: "center",
-              justifyContent: "center",
               padding: 10,
+              width: "90%",
+              alignSelf: "center",
+              gap: 10,
             }}
           >
             <Image
@@ -148,19 +217,28 @@ export function CustomDrawerContent(props: DrawerContentComponentProps) {
                 width: 50,
                 height: 50,
                 borderRadius: 25,
+                borderWidth: 2,
+                borderColor: THEME.COLORS.WHITE_TEXT,
               }}
             />
             <Text
               style={{
                 color: THEME.COLORS.WHITE_TEXT,
                 textAlign: "center",
-                padding: 5,
                 fontFamily: THEME.FONT_FAMILY.BOLD,
                 fontSize: THEME.FONT_SIZE.MENU_ITEM,
               }}
             >
               {userContext.user.nickname || userContext.user.username}
             </Text>
+            <FontAwesome
+              name="gear"
+              size={THEME.FONT_SIZE.MENU_ITEM}
+              color={THEME.COLORS.WHITE_TEXT}
+              style={{
+                marginLeft: "auto",
+              }}
+            />
           </View>
         ) : (
           <TouchableOpacity
@@ -171,16 +249,17 @@ export function CustomDrawerContent(props: DrawerContentComponentProps) {
               justifyContent: "flex-start",
               paddingHorizontal: 20,
               gap: 5,
+              marginVertical: 10,
             }}
           >
             <MaterialCommunityIcons
               name="discord"
-              size={20}
-              color={THEME.COLORS.SHAPE}
+              size={THEME.FONT_SIZE.MENU_ITEM}
+              color={THEME.COLORS.WHITE_TEXT}
             />
             <Text
               style={{
-                color: THEME.COLORS.SHAPE,
+                color: THEME.COLORS.WHITE_TEXT,
                 textAlign: "center",
                 fontFamily: THEME.FONT_FAMILY.BOLD,
                 fontSize: THEME.FONT_SIZE.MENU_ITEM,
@@ -190,8 +269,35 @@ export function CustomDrawerContent(props: DrawerContentComponentProps) {
             </Text>
           </TouchableOpacity>
         )}
-        <Separator sectionTile="Menu" />
+        <Separator
+          Icon={() => (
+            <FontAwesome5
+              name="bars"
+              size={THEME.FONT_SIZE.MENU_ITEM}
+              color={THEME.COLORS.WHITE_TEXT}
+            />
+          )}
+          sectionTile="Menu"
+        />
         <DrawerItemList {...props} />
+        <Separator
+          Icon={() => (
+            <FontAwesome5
+              name="link"
+              size={THEME.FONT_SIZE.MENU_ITEM}
+              color={THEME.COLORS.WHITE_TEXT}
+            />
+          )}
+          sectionTile="Links"
+        />
+        {LINKS.map((link, index) => (
+          <LinkMenuItem
+            key={index}
+            Icon={link.Icon}
+            title={link.title}
+            url={link.url}
+          />
+        ))}
       </View>
       <TouchableOpacity
         onPress={goToNessSocial}
@@ -212,7 +318,14 @@ export function CustomDrawerContent(props: DrawerContentComponentProps) {
             alignItems: "center",
           }}
         >
-          Versão v{version} - Desenvolvido com muito ❤️ por @Ness.js
+          Versão v{version} - Desenvolvido com muito ❤️ por{" "}
+          <Text
+            style={{
+              textDecorationLine: "underline",
+            }}
+          >
+            @Ness.js
+          </Text>
         </Text>
       </TouchableOpacity>
     </DrawerContentScrollView>

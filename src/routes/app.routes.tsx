@@ -1,5 +1,6 @@
 import { createDrawerNavigator } from "@react-navigation/drawer";
 
+import { MaterialIcons, FontAwesome5 } from "@expo/vector-icons";
 import { Dimensions } from "react-native";
 import { CustomDrawerContent } from "../components/CustomDrawer";
 import { FazerPedido } from "../screens/FazerPedido";
@@ -32,12 +33,14 @@ export function AppRoutes() {
           width: Dimensions.get("window").width * 0.75, // 75% of the screen
         },
         drawerActiveTintColor: THEME.COLORS.WHITE_TEXT,
-        drawerInactiveTintColor: THEME.COLORS.SHAPE,
+        drawerInactiveTintColor: THEME.COLORS.WHITE_TEXT,
         drawerLabelStyle: {
           fontFamily: THEME.FONT_FAMILY.BOLD,
           fontSize: THEME.FONT_SIZE.MENU_ITEM,
+          textAlign: "left",
         },
         drawerItemStyle: {
+          marginVertical: 0,
           marginHorizontal: 10,
           borderRadius: 10,
         },
@@ -57,6 +60,18 @@ export function AppRoutes() {
       <Screen
         options={{
           drawerLabel: "Últimas Pedidas",
+          drawerIcon: () => {
+            return (
+              <MaterialIcons
+                name="queue-music"
+                size={25}
+                color={THEME.COLORS.WHITE_TEXT}
+                style={{
+                  marginRight: -30,
+                }}
+              />
+            );
+          },
         }}
         name="UltimasPedidas"
         component={Ultimas}
@@ -65,6 +80,18 @@ export function AppRoutes() {
       <Screen
         options={{
           drawerLabel: "Últimas Tocadas",
+          drawerIcon: () => {
+            return (
+              <FontAwesome5
+                name="history"
+                size={20}
+                color={THEME.COLORS.WHITE_TEXT}
+                style={{
+                  marginRight: -24,
+                }}
+              />
+            );
+          },
         }}
         name="UltimasTocadas"
         component={Ultimas}

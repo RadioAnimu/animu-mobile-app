@@ -11,6 +11,7 @@ const ULTIMAS_TOCADAS_URL =
   "https://www.animu.com.br/teste/ultimasmusicas_json.php";
 const FAZER_PEDIDO_URL =
   "https://www.animu.com.br/teste/requestSearchTest.php?server=1&filter=&limit=25&offset=0&requestable=true&query=";
+const DISCORD_URL = "https://discord.animu.com.br";
 
 export const API = {
   WEB_URL,
@@ -21,6 +22,7 @@ export const API = {
   ULTIMAS_PEDIDAS_URL,
   ULTIMAS_TOCADAS_URL,
   FAZER_PEDIDO_URL,
+  DISCORD_URL,
 };
 
 export interface AnimuInfoProps {
