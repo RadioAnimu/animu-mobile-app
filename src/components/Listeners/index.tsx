@@ -5,12 +5,16 @@ import foninho_branco from "../../assets/icons/foninho_branco.png";
 import { AnimuInfoProps } from "../../api";
 import { THEME } from "../../theme";
 import { DICT, selectedLanguage } from "../../languages";
+import { useContext } from "react";
+import { UserSettingsContext } from "../../contexts/user.settings.context";
 
 interface Props {
   info: AnimuInfoProps;
 }
 
 export function Listeners({ info }: Props) {
+  const { userSettings } = useContext(UserSettingsContext);
+
   return (
     <View
       style={[
@@ -62,8 +66,8 @@ export function Listeners({ info }: Props) {
         {info?.program?.isLiveProgram
           ? info?.program.locutor.toUpperCase()
           : info.track.isRequest
-          ? DICT[selectedLanguage].TRACK_REQUEST
-          : DICT[selectedLanguage].HARU_CHAN_TEXT}
+          ? DICT[userSettings.selectedLanguage].TRACK_REQUEST
+          : DICT[userSettings.selectedLanguage].HARU_CHAN_TEXT}
       </Text>
     </View>
   );

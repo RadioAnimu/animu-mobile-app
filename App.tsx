@@ -13,6 +13,10 @@ import {
 } from "./src/contexts/player.context";
 import { SuccessContext } from "./src/contexts/success.context";
 import { DiscordUser, UserContext } from "./src/contexts/user.context";
+import {
+  UserSettings,
+  UserSettingsContext,
+} from "./src/contexts/user.settings.context";
 import { Routes } from "./src/routes";
 import { Loading } from "./src/screens/Loading";
 import { THEME } from "./src/theme";
@@ -26,6 +30,15 @@ export default function App() {
   const [animuInfo, setAnimuInfo] = useState<AnimuInfoProps | null>(null);
 
   const [user, setUser] = useState<DiscordUser | null>(null);
+
+  const [userSettings, setUserSettings] = useState<UserSettings>({
+    liveQualityCover: "high",
+    lastRequestedCovers: true,
+    lastPlayedCovers: true,
+    coversInRequestSearch: true,
+    selectedLanguage: "PT",
+    cacheEnabled: true,
+  });
 
   const [errorMessage, setErrorMessage] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
@@ -50,6 +63,11 @@ export default function App() {
   const successMessageProvider = useMemo(
     () => ({ successMessage, setSuccessMessage }),
     [successMessage, setSuccessMessage]
+  );
+
+  const userSettingsProvider = useMemo(
+    () => ({ userSettings, setUserSettings }),
+    [userSettings, setUserSettings]
   );
 
   useEffect(() => {
@@ -93,7 +111,9 @@ export default function App() {
               <UserContext.Provider value={userProvider}>
                 <ErrorContext.Provider value={errorMessageProvider}>
                   <SuccessContext.Provider value={successMessageProvider}>
-                    <Routes />
+                    <UserSettingsContext.Provider value={userSettingsProvider}>
+                      <Routes />
+                    </UserSettingsContext.Provider>
                   </SuccessContext.Provider>
                 </ErrorContext.Provider>
               </UserContext.Provider>

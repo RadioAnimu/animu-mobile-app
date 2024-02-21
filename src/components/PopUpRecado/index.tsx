@@ -1,5 +1,5 @@
 import { MaterialIcons } from "@expo/vector-icons";
-import React, { useState } from "react";
+import React, { useContext, useState } from "react";
 import {
   ActivityIndicator,
   Image,
@@ -15,6 +15,7 @@ import RecadoHaruka from "../../assets/reacdo_haruka.png";
 import { THEME } from "../../theme";
 import { styles } from "./styles";
 import { DICT, selectedLanguage } from "../../languages";
+import { UserSettingsContext } from "../../contexts/user.settings.context";
 
 interface Props extends ModalProps {
   handleClose: () => void;
@@ -38,6 +39,8 @@ export function PopUpRecado({
     setStatus("idle");
   };
 
+  const { userSettings } = useContext(UserSettingsContext);
+
   return (
     <Modal animationType="fade" statusBarTranslucent transparent {...rest}>
       <KeyboardAvoidingView behavior="padding" style={styles.container}>
@@ -50,13 +53,17 @@ export function PopUpRecado({
             />
           </TouchableOpacity>
           <Image source={RecadoHaruka} style={styles.img} />
-          <Text style={styles.text}>{DICT[selectedLanguage].INFO_REQUEST}</Text>
+          <Text style={styles.text}>
+            {DICT[userSettings.selectedLanguage].INFO_REQUEST}
+          </Text>
           <TextInput
             style={[
               styles.input,
               status === "requesting" && styles.inputDisabled,
             ]}
-            placeholder={DICT[selectedLanguage].SEND_REQUEST_PLACEHOLDER}
+            placeholder={
+              DICT[userSettings.selectedLanguage].SEND_REQUEST_PLACEHOLDER
+            }
             placeholderTextColor="#fff"
             onChange={(e) => handleChangeText(e.nativeEvent.text)}
             editable={status === "idle"}
@@ -67,7 +74,7 @@ export function PopUpRecado({
           ) : (
             <TouchableOpacity onPress={_handleOk} style={styles.okButton}>
               <Text style={styles.okText}>
-                {DICT[selectedLanguage].SEND_REQUEST_BUTTON_TEXT}
+                {DICT[userSettings.selectedLanguage].SEND_REQUEST_BUTTON_TEXT}
               </Text>
             </TouchableOpacity>
           )}

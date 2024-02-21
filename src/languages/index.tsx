@@ -24,4 +24,4 @@ export const LANGS_KEY_VALUE_PAIRS = {
   JN: "日本語",
 };
 
-export const selectedLanguage: keyof typeof DICT = "JN";
+export const selectedLanguage: keyof typeof DICT = "EN";

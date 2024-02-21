@@ -1,5 +1,5 @@
 import { MaterialIcons } from "@expo/vector-icons";
-import React from "react";
+import React, { useContext } from "react";
 import {
   Image,
   Modal,
@@ -12,6 +12,7 @@ import { THEME } from "../../theme";
 import { styles } from "./styles";
 import { ProgramProps } from "../../api";
 import { DICT, selectedLanguage } from "../../languages";
+import { UserSettingsContext } from "../../contexts/user.settings.context";
 
 interface Props extends ModalProps {
   handleClose: () => void;
@@ -19,6 +20,8 @@ interface Props extends ModalProps {
 }
 
 export function PopUpProgram({ _program, handleClose, ...rest }: Props) {
+  const { userSettings } = useContext(UserSettingsContext);
+
   let i = 0;
   let program: ProgramProps["raw"] = DICT["PT"].PROGRAMS.find((item) => {
     if (item.name === _program?.raw?.name) {
@@ -28,7 +31,7 @@ export function PopUpProgram({ _program, handleClose, ...rest }: Props) {
     }
   });
 
-  program = DICT[selectedLanguage].PROGRAMS[i];
+  program = DICT[userSettings.selectedLanguage].PROGRAMS[i];
 
   if (!program) {
     return null;
@@ -77,7 +80,7 @@ export function PopUpProgram({ _program, handleClose, ...rest }: Props) {
                 },
               ]}
             >
-              {DICT[selectedLanguage].THEME_WORD}: {program.theme}
+              {DICT[userSettings.selectedLanguage].THEME_WORD}: {program.theme}
             </Text>
             <Text
               style={[

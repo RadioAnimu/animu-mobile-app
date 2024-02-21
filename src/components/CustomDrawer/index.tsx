@@ -18,6 +18,7 @@ import { DiscordUser, UserContext } from "../../contexts/user.context";
 import { THEME } from "../../theme";
 import { API } from "../../api";
 import { DICT, IMGS, selectedLanguage } from "../../languages";
+import { UserSettingsContext } from "../../contexts/user.settings.context";
 
 export const checkIfUserIsStillInTheServerAndIfYesExtendSession: (
   user: DiscordUser
@@ -85,31 +86,6 @@ export interface LinkMenuItemProps {
   url: string;
 }
 
-const LINKS: LinkMenuItemProps[] = [
-  {
-    title: DICT[selectedLanguage].LINKS_WEBSITE,
-    url: API.WEB_URL,
-    Icon: () => (
-      <FontAwesome5
-        name="globe"
-        size={THEME.FONT_SIZE.MENU_ITEM}
-        color={THEME.COLORS.WHITE_TEXT}
-      />
-    ),
-  },
-  {
-    title: DICT[selectedLanguage].LINKS_DISCORD,
-    url: API.DISCORD_URL,
-    Icon: () => (
-      <FontAwesome5
-        name="discord"
-        size={THEME.FONT_SIZE.MENU_ITEM}
-        color={THEME.COLORS.WHITE_TEXT}
-      />
-    ),
-  },
-];
-
 export function LinkMenuItem({ Icon, title, url }: LinkMenuItemProps) {
   return (
     <TouchableOpacity
@@ -142,6 +118,33 @@ export function LinkMenuItem({ Icon, title, url }: LinkMenuItemProps) {
 }
 
 export function CustomDrawerContent(props: DrawerContentComponentProps) {
+  const { userSettings } = useContext(UserSettingsContext);
+
+  const LINKS: LinkMenuItemProps[] = [
+    {
+      title: DICT[userSettings.selectedLanguage].LINKS_WEBSITE,
+      url: API.WEB_URL,
+      Icon: () => (
+        <FontAwesome5
+          name="globe"
+          size={THEME.FONT_SIZE.MENU_ITEM}
+          color={THEME.COLORS.WHITE_TEXT}
+        />
+      ),
+    },
+    {
+      title: DICT[userSettings.selectedLanguage].LINKS_DISCORD,
+      url: API.DISCORD_URL,
+      Icon: () => (
+        <FontAwesome5
+          name="discord"
+          size={THEME.FONT_SIZE.MENU_ITEM}
+          color={THEME.COLORS.WHITE_TEXT}
+        />
+      ),
+    },
+  ];
+
   const userContext = useContext(UserContext);
 
   const goToNessSocial = () => {
@@ -191,7 +194,7 @@ export function CustomDrawerContent(props: DrawerContentComponentProps) {
           }}
         >
           <Image
-            source={IMGS[selectedLanguage].LOGO}
+            source={IMGS[userSettings.selectedLanguage].LOGO}
             style={{
               height: 100,
               alignSelf: "center",
@@ -268,7 +271,7 @@ export function CustomDrawerContent(props: DrawerContentComponentProps) {
                 fontSize: THEME.FONT_SIZE.MENU_ITEM,
               }}
             >
-              {DICT[selectedLanguage].LOGIN_WORD} Discord
+              {DICT[userSettings.selectedLanguage].LOGIN_WORD} Discord
             </Text>
           </TouchableOpacity>
         )}
@@ -280,7 +283,7 @@ export function CustomDrawerContent(props: DrawerContentComponentProps) {
               color={THEME.COLORS.WHITE_TEXT}
             />
           )}
-          sectionTile={DICT[selectedLanguage].MENU}
+          sectionTile={DICT[userSettings.selectedLanguage].MENU}
         />
         <DrawerItemList {...props} />
         <Separator
@@ -291,7 +294,7 @@ export function CustomDrawerContent(props: DrawerContentComponentProps) {
               color={THEME.COLORS.WHITE_TEXT}
             />
           )}
-          sectionTile={DICT[selectedLanguage].LINKS}
+          sectionTile={DICT[userSettings.selectedLanguage].LINKS}
         />
         {LINKS.map((link, index) => (
           <LinkMenuItem
@@ -321,7 +324,7 @@ export function CustomDrawerContent(props: DrawerContentComponentProps) {
             alignItems: "center",
           }}
         >
-          {DICT[selectedLanguage].VERSION_TEXT}
+          {DICT[userSettings.selectedLanguage].VERSION_TEXT}
           <Text
             style={{
               textDecorationLine: "underline",

@@ -29,6 +29,7 @@ import { RootStackParamList } from "../../routes/app.routes";
 import { THEME } from "../../theme";
 import { CONFIG } from "../../utils/player.config";
 import { DICT, IMGS, selectedLanguage } from "../../languages";
+import { UserSettingsContext } from "../../contexts/user.settings.context";
 
 type Props = NativeStackScreenProps<RootStackParamList, "FazerPedido">;
 type Status = "idle" | "loading";
@@ -125,11 +126,11 @@ export function FazerPedido({ route, navigation }: Props) {
     const handleOk = async () => {
       const formData = new FormData();
       if (!userContext?.user) {
-        setErrorMessage(DICT[selectedLanguage].LOGIN_ERROR);
+        setErrorMessage(DICT[userSettings.selectedLanguage].LOGIN_ERROR);
         return;
       }
       if (selected === null) {
-        setErrorMessage(DICT[selectedLanguage].SELECT_ERROR);
+        setErrorMessage(DICT[userSettings.selectedLanguage].SELECT_ERROR);
         return;
       }
       const allmusic: string = selected.track.id.toString();
@@ -147,11 +148,13 @@ export function FazerPedido({ route, navigation }: Props) {
       });
       const data = await response.text();
       if (data !== "") {
-        setErrorMessage(`${DICT[selectedLanguage].REQUEST_ERROR}${data}`);
+        setErrorMessage(
+          `${DICT[userSettings.selectedLanguage].REQUEST_ERROR}${data}`
+        );
         return;
       }
       setSelected(null);
-      setSuccessMessage(DICT[selectedLanguage].REQUEST_SUCCESS);
+      setSuccessMessage(DICT[userSettings.selectedLanguage].REQUEST_SUCCESS);
       setRecado("");
       setResults((old) =>
         old.map((item) => {
@@ -168,6 +171,8 @@ export function FazerPedido({ route, navigation }: Props) {
 
     const [selected, setSelected] = useState<MusicRequestProps | null>(null);
 
+    const { userSettings } = useContext(UserSettingsContext);
+
     return (
       <Background>
         <SafeAreaView style={styles.container}>
@@ -178,12 +183,17 @@ export function FazerPedido({ route, navigation }: Props) {
                 marginVertical: 15,
               }}
             >
-              <Logo img={IMGS[selectedLanguage].MAKE_REQUEST} size={127} />
+              <Logo
+                img={IMGS[userSettings.selectedLanguage].MAKE_REQUEST}
+                size={127}
+              />
             </View>
             <View style={styles.inputContainer}>
               <TextInput
                 style={styles.input}
-                placeholder={DICT[selectedLanguage].REQUEST_SEARCH_PLACEHOLDER}
+                placeholder={
+                  DICT[userSettings.selectedLanguage].REQUEST_SEARCH_PLACEHOLDER
+                }
                 placeholderTextColor="#fff"
                 onChangeText={(text) => setSearchText(text)}
                 onSubmitEditing={handleSearch}

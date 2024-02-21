@@ -14,6 +14,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import Toggle from "react-native-toggle-input";
 import { SelectList } from "react-native-dropdown-select-list";
 import { DICT, LANGS_KEY_VALUE_PAIRS, selectedLanguage } from "../../languages";
+import { UserSettingsContext } from "../../contexts/user.settings.context";
 
 export const BackArrow = (props: SvgProps) => (
   <Svg width="21" height="19" viewBox="0 0 21 19" fill="none">
@@ -126,8 +127,6 @@ function Splitter() {
 export function Settings({ route, navigation }: Props) {
   const userContext = useContext(UserContext);
 
-  const [toggle, setToggle] = useState<boolean>(false);
-
   const [selectedMenuLanguage, setSelectedMenuLanguage] =
     useState<keyof typeof LANGS_KEY_VALUE_PAIRS>("PT");
 
@@ -137,6 +136,8 @@ export function Settings({ route, navigation }: Props) {
       key as keyof typeof LANGS_KEY_VALUE_PAIRS
     ] as string,
   }));
+
+  const { userSettings, setUserSettings } = useContext(UserSettingsContext);
 
   return (
     <Background>
@@ -150,7 +151,7 @@ export function Settings({ route, navigation }: Props) {
             <BackArrow />
           </TouchableOpacity>
           <Text style={styles.settingsText}>
-            {DICT[selectedLanguage].SETTINGS_TITLE}
+            {DICT[userSettings.selectedLanguage].SETTINGS_TITLE}
           </Text>
           <View
             style={{
@@ -162,7 +163,7 @@ export function Settings({ route, navigation }: Props) {
         <ScrollView contentContainerStyle={styles.appContainer}>
           <View>
             <TitleSection
-              title={DICT[selectedLanguage].SETTINGS_ACCOUNT_TITLE}
+              title={DICT[userSettings.selectedLanguage].SETTINGS_ACCOUNT_TITLE}
             />
             {userContext?.user ? (
               <View
@@ -234,28 +235,54 @@ export function Settings({ route, navigation }: Props) {
           </View>
           <Splitter />
           <TitleSection
-            title={DICT[selectedLanguage].SETTINGS_SAVE_DATA_TITLE}
+            title={DICT[userSettings.selectedLanguage].SETTINGS_SAVE_DATA_TITLE}
           />
-          <Label label={DICT[selectedLanguage].SETTINGS_QUALITY_LIVE_LABEL} />
+          <Label
+            label={
+              DICT[userSettings.selectedLanguage].SETTINGS_QUALITY_LIVE_LABEL
+            }
+          />
           <View style={styles.qualitySectionButtons}>
             <QualityButton
-              quality={DICT[selectedLanguage].SETTINGS_QUALITY_LIVE_LABEL_HIGH}
-              selected={true}
-              onPress={() => {}}
+              quality={
+                DICT[userSettings.selectedLanguage]
+                  .SETTINGS_QUALITY_LIVE_LABEL_HIGH
+              }
+              selected={userSettings.liveQualityCover === "high"}
+              onPress={() => {
+                setUserSettings({
+                  ...userSettings,
+                  liveQualityCover: "high",
+                });
+              }}
               position="left"
             />
             <QualityButton
               quality={
-                DICT[selectedLanguage].SETTINGS_QUALITY_LIVE_LABEL_MEDIUM
+                DICT[userSettings.selectedLanguage]
+                  .SETTINGS_QUALITY_LIVE_LABEL_MEDIUM
               }
-              selected={false}
-              onPress={() => {}}
+              selected={userSettings.liveQualityCover === "medium"}
+              onPress={() => {
+                setUserSettings({
+                  ...userSettings,
+                  liveQualityCover: "medium",
+                });
+              }}
               position="center"
             />
             <QualityButton
-              quality={DICT[selectedLanguage].SETTINGS_QUALITY_LIVE_LABEL_LOW}
-              selected={false}
-              onPress={() => {}}
+              quality={
+                DICT[userSettings.selectedLanguage]
+                  .SETTINGS_QUALITY_LIVE_LABEL_LOW
+              }
+              selected={userSettings.liveQualityCover === "low"}
+              onPress={() => {
+                setUserSettings({
+                  ...userSettings,
+                  liveQualityCover: "low",
+                });
+              }}
               position="right"
             />
           </View>
@@ -275,14 +302,23 @@ export function Settings({ route, navigation }: Props) {
                 fontSize: THEME.FONT_SIZE.MD,
               }}
             >
-              {DICT[selectedLanguage].SETTINGS_COVER_LIVE_LABEL_SWITCH}{" "}
+              {
+                DICT[userSettings.selectedLanguage]
+                  .SETTINGS_COVER_LIVE_LABEL_SWITCH
+              }{" "}
             </Text>
             {/* @ts-ignore => bcs the lib is kinda cringe*/}
             <Toggle
               size={THEME.FONT_SIZE.MD}
               color="#fff"
-              toggle={toggle}
-              setToggle={setToggle}
+              toggle={userSettings.liveQualityCover === "off"}
+              setToggle={() => {
+                setUserSettings({
+                  ...userSettings,
+                  liveQualityCover:
+                    userSettings.liveQualityCover === "off" ? "high" : "off",
+                });
+              }}
             />
           </View>
           <View
@@ -301,14 +337,22 @@ export function Settings({ route, navigation }: Props) {
                 fontSize: THEME.FONT_SIZE.MD,
               }}
             >
-              {DICT[selectedLanguage].SETTINGS_COVER_LAST_REQUESTED_SWITCH}{" "}
+              {
+                DICT[userSettings.selectedLanguage]
+                  .SETTINGS_COVER_LAST_REQUESTED_SWITCH
+              }{" "}
             </Text>
             {/* @ts-ignore => bcs the lib is kinda cringe*/}
             <Toggle
               size={THEME.FONT_SIZE.MD}
               color="#fff"
-              toggle={toggle}
-              setToggle={setToggle}
+              toggle={userSettings.lastRequestedCovers}
+              setToggle={() => {
+                setUserSettings({
+                  ...userSettings,
+                  lastRequestedCovers: !userSettings.lastRequestedCovers,
+                });
+              }}
             />
           </View>
           <View
@@ -327,14 +371,22 @@ export function Settings({ route, navigation }: Props) {
                 fontSize: THEME.FONT_SIZE.MD,
               }}
             >
-              {DICT[selectedLanguage].SETTINGS_COVER_LAST_REQUESTED_SWITCH}{" "}
+              {
+                DICT[userSettings.selectedLanguage]
+                  .SETTINGS_COVER_LAST_REQUESTED_SWITCH
+              }{" "}
             </Text>
             {/* @ts-ignore => bcs the lib is kinda cringe*/}
             <Toggle
               size={THEME.FONT_SIZE.MD}
               color="#fff"
-              toggle={toggle}
-              setToggle={setToggle}
+              toggle={userSettings.lastPlayedCovers}
+              setToggle={() => {
+                setUserSettings({
+                  ...userSettings,
+                  lastPlayedCovers: !userSettings.lastPlayedCovers,
+                });
+              }}
             />
           </View>
           <View
@@ -353,24 +405,45 @@ export function Settings({ route, navigation }: Props) {
                 fontSize: THEME.FONT_SIZE.MD,
               }}
             >
-              {DICT[selectedLanguage].SETTINGS_COVER_REQUESTED_SWITCH}{" "}
+              {
+                DICT[userSettings.selectedLanguage]
+                  .SETTINGS_COVER_REQUESTED_SWITCH
+              }{" "}
             </Text>
             {/* @ts-ignore => bcs the lib is kinda cringe*/}
             <Toggle
               size={THEME.FONT_SIZE.MD}
               color="#fff"
-              toggle={toggle}
-              setToggle={setToggle}
+              toggle={userSettings.coversInRequestSearch}
+              setToggle={() => {
+                setUserSettings({
+                  ...userSettings,
+                  coversInRequestSearch: !userSettings.coversInRequestSearch,
+                });
+              }}
             />
           </View>
           <Splitter />
           <TitleSection
-            title={DICT[selectedLanguage].SETTINGS_LANGUAGE_SELECT_TITLE}
+            title={
+              DICT[userSettings.selectedLanguage].SETTINGS_LANGUAGE_SELECT_TITLE
+            }
           />
           <SelectList
-            setSelected={(val: keyof typeof LANGS_KEY_VALUE_PAIRS) =>
-              setSelectedMenuLanguage(val)
-            }
+            setSelected={(val: string) => {
+              const key = Object.keys(LANGS_KEY_VALUE_PAIRS).find(
+                (key) =>
+                  LANGS_KEY_VALUE_PAIRS[
+                    key as keyof typeof LANGS_KEY_VALUE_PAIRS
+                  ] === val
+              );
+              if (key) {
+                setUserSettings({
+                  ...userSettings,
+                  selectedLanguage: key as keyof typeof LANGS_KEY_VALUE_PAIRS,
+                });
+              }
+            }}
             data={data}
             save="value"
             boxStyles={{
@@ -401,11 +474,14 @@ export function Settings({ route, navigation }: Props) {
             }
             search={false}
             placeholder={
-              DICT[selectedLanguage].SETTINGS_LANGUAGE_SELECT_PLACEHOLDER
+              DICT[userSettings.selectedLanguage]
+                .SETTINGS_LANGUAGE_SELECT_PLACEHOLDER
             }
           />
           <Splitter />
-          <TitleSection title={DICT[selectedLanguage].SETTINGS_MEMORY_TITLE} />
+          <TitleSection
+            title={DICT[userSettings.selectedLanguage].SETTINGS_MEMORY_TITLE}
+          />
           <View
             style={{
               flexDirection: "row",
@@ -422,14 +498,22 @@ export function Settings({ route, navigation }: Props) {
                 fontSize: THEME.FONT_SIZE.MD,
               }}
             >
-              {DICT[selectedLanguage].SETTINGS_MEMORY_CLEAR_CACHE_SWITCH}{" "}
+              {
+                DICT[userSettings.selectedLanguage]
+                  .SETTINGS_MEMORY_CLEAR_CACHE_SWITCH
+              }{" "}
             </Text>
             {/* @ts-ignore => bcs the lib is kinda cringe*/}
             <Toggle
               size={THEME.FONT_SIZE.MD}
               color="#fff"
-              toggle={toggle}
-              setToggle={setToggle}
+              toggle={userSettings.cacheEnabled}
+              setToggle={() => {
+                setUserSettings({
+                  ...userSettings,
+                  cacheEnabled: !userSettings.cacheEnabled,
+                });
+              }}
             />
           </View>
         </ScrollView>

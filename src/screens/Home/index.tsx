@@ -30,8 +30,9 @@ import { PopUpProgram } from "../../components/PopUpProgram";
 import { AnimuInfoContext } from "../../contexts/animuinfo.context";
 import { PlayerContext } from "../../contexts/player.context";
 import { DiscordUser, UserContext } from "../../contexts/user.context";
+import { UserSettingsContext } from "../../contexts/user.settings.context";
+import { DICT } from "../../languages";
 import { RootStackParamList } from "../../routes/app.routes";
-import { DICT, selectedLanguage } from "../../languages";
 
 export const getUserSavedDataOrNull = async () => {
   try {
@@ -122,6 +123,8 @@ export function Home({ route, navigation }: Props) {
       }
     }, [userContext?.user]);
 
+    const { userSettings } = useContext(UserSettingsContext);
+
     return (
       <Background>
         {animuInfo ? (
@@ -134,7 +137,7 @@ export function Home({ route, navigation }: Props) {
                 <Cover cover={animuInfo.track.artworks.cover} />
                 {!animuInfo?.program?.isLiveProgram && (
                   <Text style={styles.timeLeft}>
-                    {DICT[selectedLanguage].TIME_REMAINING}:{" "}
+                    {DICT[userSettings.selectedLanguage].TIME_REMAINING}:{" "}
                     <CountdownTimerText
                       startTime={
                         animuInfo.track.duration - player.currentProgress

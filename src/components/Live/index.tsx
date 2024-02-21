@@ -3,13 +3,17 @@ import TextTicker from "react-native-text-ticker";
 import { TrackProps } from "../../api";
 import { styles } from "./styles";
 import { IMGS, selectedLanguage } from "../../languages";
+import { useContext } from "react";
+import { UserSettingsContext } from "../../contexts/user.settings.context";
 
 interface Props {
   track: TrackProps;
 }
 
 export function Live({ track }: Props) {
-  const NoAr = IMGS[selectedLanguage].LIVE_LABEL;
+  const { userSettings } = useContext(UserSettingsContext);
+
+  const NoAr = IMGS[userSettings.selectedLanguage].LIVE_LABEL;
 
   return (
     <View style={styles.track}>

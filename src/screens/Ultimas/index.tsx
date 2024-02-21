@@ -16,6 +16,7 @@ import { RootStackParamList } from "../../routes/app.routes";
 import { AnimuInfoContext } from "../../contexts/animuinfo.context";
 import { IMGS, selectedLanguage } from "../../languages";
 import { Loading } from "../Loading";
+import { UserSettingsContext } from "../../contexts/user.settings.context";
 
 type Props = NativeStackScreenProps<
   RootStackParamList,
@@ -36,6 +37,8 @@ export function Ultimas({ route, navigation }: Props) {
     }
     const { animuInfo } = animuInfoContext;
 
+    const { userSettings } = useContext(UserSettingsContext);
+
     return (
       <Background>
         {animuInfo ? (
@@ -45,8 +48,8 @@ export function Ultimas({ route, navigation }: Props) {
               <Image
                 source={
                   isUltimasPedidasScreen
-                    ? IMGS[selectedLanguage].LAST_REQUEST
-                    : IMGS[selectedLanguage].LAST_PLAYED
+                    ? IMGS[userSettings.selectedLanguage].LAST_REQUEST
+                    : IMGS[userSettings.selectedLanguage].LAST_PLAYED
                 }
                 style={styles.ultimasPedidasImage}
               />

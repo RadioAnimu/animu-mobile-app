@@ -9,6 +9,8 @@ import { Ultimas } from "../screens/Ultimas";
 import { THEME } from "../theme";
 import { Settings } from "../screens/Settings";
 import { DICT, selectedLanguage } from "../languages";
+import { useContext } from "react";
+import { UserSettingsContext } from "../contexts/user.settings.context";
 
 interface HomeProps {}
 interface UltimasProps {
@@ -28,6 +30,8 @@ export type RootStackParamList = {
 const { Navigator, Screen } = createDrawerNavigator<RootStackParamList>();
 
 export function AppRoutes() {
+  const { userSettings } = useContext(UserSettingsContext);
+
   return (
     <Navigator
       screenOptions={{
@@ -63,7 +67,7 @@ export function AppRoutes() {
       />
       <Screen
         options={{
-          drawerLabel: DICT[selectedLanguage].MENU_LAST_REQUESTED,
+          drawerLabel: DICT[userSettings.selectedLanguage].MENU_LAST_REQUESTED,
           drawerIcon: () => {
             return (
               <MaterialIcons
@@ -83,7 +87,7 @@ export function AppRoutes() {
       />
       <Screen
         options={{
-          drawerLabel: DICT[selectedLanguage].MENU_LAST_PLAYED,
+          drawerLabel: DICT[userSettings.selectedLanguage].MENU_LAST_PLAYED,
           drawerIcon: () => {
             return (
               <FontAwesome5
