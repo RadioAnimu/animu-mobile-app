@@ -6,7 +6,7 @@ import { Image, ScrollView, Text, TouchableOpacity, View } from "react-native";
 import { SelectList } from "react-native-dropdown-select-list";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Svg, { Path, Rect, SvgProps } from "react-native-svg";
-import Toggle from "react-native-toggle-input";
+import Toggle, { ToggleProps } from "react-native-toggle-input";
 import { Background } from "../../components/Background";
 import { logoutUserFromTheServer } from "../../components/CustomDrawer";
 import { UserContext } from "../../contexts/user.context";
@@ -130,6 +130,41 @@ function Splitter() {
         marginTop: 20,
       }}
     ></View>
+  );
+}
+
+interface ToggleSectionProps extends ToggleProps {
+  label: string;
+}
+
+function ToggleSection({ label, ...props }: ToggleSectionProps) {
+  return (
+    <View
+      style={{
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "space-between",
+        width: "100%",
+        marginTop: 20,
+      }}
+    >
+      <Text
+        style={{
+          color: THEME.COLORS.WHITE_TEXT,
+          fontFamily: THEME.FONT_FAMILY.REGULAR,
+          fontSize: THEME.FONT_SIZE.MD,
+        }}
+      >
+        {label}{" "}
+      </Text>
+      {/* @ts-ignore => bcs the lib is kinda cringe*/}
+      <Toggle
+        size={THEME.FONT_SIZE.MD}
+        color="#fff"
+        toggle={props.toggle}
+        setToggle={props.setToggle}
+      />
+    </View>
   );
 }
 
@@ -311,160 +346,82 @@ export function Settings({ route, navigation }: Props) {
               position="right"
             />
           </View>
-          <View
-            style={{
-              flexDirection: "row",
-              alignItems: "center",
-              justifyContent: "space-between",
-              width: "100%",
-              marginTop: 20,
+          <ToggleSection
+            label={
+              DICT[userSettings.selectedLanguage]
+                .SETTINGS_COVER_LIVE_LABEL_SWITCH
+            }
+            toggle={userSettings.liveQualityCover !== "off"}
+            setToggle={() => {
+              setUserSettings({
+                ...userSettings,
+                liveQualityCover:
+                  userSettings.liveQualityCover === "off" ? "low" : "off",
+              });
+              saveUserSettingsToLocalStorage({
+                ...userSettings,
+                liveQualityCover:
+                  userSettings.liveQualityCover === "off" ? "low" : "off",
+              });
             }}
-          >
-            <Text
-              style={{
-                color: THEME.COLORS.WHITE_TEXT,
-                fontFamily: THEME.FONT_FAMILY.REGULAR,
-                fontSize: THEME.FONT_SIZE.MD,
-              }}
-            >
-              {
-                DICT[userSettings.selectedLanguage]
-                  .SETTINGS_COVER_LIVE_LABEL_SWITCH
-              }{" "}
-            </Text>
-            {/* @ts-ignore => bcs the lib is kinda cringe*/}
-            <Toggle
-              size={THEME.FONT_SIZE.MD}
-              color="#fff"
-              toggle={userSettings.liveQualityCover !== "off"}
-              setToggle={() => {
-                setUserSettings({
-                  ...userSettings,
-                  liveQualityCover:
-                    userSettings.liveQualityCover === "off" ? "low" : "off",
-                });
-                saveUserSettingsToLocalStorage({
-                  ...userSettings,
-                  liveQualityCover:
-                    userSettings.liveQualityCover === "off" ? "low" : "off",
-                });
-              }}
-            />
-          </View>
-          <View
-            style={{
-              flexDirection: "row",
-              alignItems: "center",
-              justifyContent: "space-between",
-              width: "100%",
-              marginTop: 20,
+          />
+          <ToggleSection
+            size={THEME.FONT_SIZE.MD}
+            color="#fff"
+            label={
+              DICT[userSettings.selectedLanguage]
+                .SETTINGS_COVER_LAST_REQUESTED_SWITCH
+            }
+            toggle={userSettings.lastRequestedCovers}
+            setToggle={() => {
+              setUserSettings({
+                ...userSettings,
+                lastRequestedCovers: !userSettings.lastRequestedCovers,
+              });
+              saveUserSettingsToLocalStorage({
+                ...userSettings,
+                lastRequestedCovers: !userSettings.lastRequestedCovers,
+              });
             }}
-          >
-            <Text
-              style={{
-                color: THEME.COLORS.WHITE_TEXT,
-                fontFamily: THEME.FONT_FAMILY.REGULAR,
-                fontSize: THEME.FONT_SIZE.MD,
-              }}
-            >
-              {
-                DICT[userSettings.selectedLanguage]
-                  .SETTINGS_COVER_LAST_REQUESTED_SWITCH
-              }{" "}
-            </Text>
-            {/* @ts-ignore => bcs the lib is kinda cringe*/}
-            <Toggle
-              size={THEME.FONT_SIZE.MD}
-              color="#fff"
-              toggle={userSettings.lastRequestedCovers}
-              setToggle={() => {
-                setUserSettings({
-                  ...userSettings,
-                  lastRequestedCovers: !userSettings.lastRequestedCovers,
-                });
-                saveUserSettingsToLocalStorage({
-                  ...userSettings,
-                  lastRequestedCovers: !userSettings.lastRequestedCovers,
-                });
-              }}
-            />
-          </View>
-          <View
-            style={{
-              flexDirection: "row",
-              alignItems: "center",
-              justifyContent: "space-between",
-              width: "100%",
-              marginTop: 20,
+          />
+          <ToggleSection
+            label={
+              DICT[userSettings.selectedLanguage]
+                .SETTINGS_COVER_LAST_PLAYED_SWITCH
+            }
+            size={THEME.FONT_SIZE.MD}
+            color="#fff"
+            toggle={userSettings.lastPlayedCovers}
+            setToggle={() => {
+              setUserSettings({
+                ...userSettings,
+                lastPlayedCovers: !userSettings.lastPlayedCovers,
+              });
+              saveUserSettingsToLocalStorage({
+                ...userSettings,
+                lastPlayedCovers: !userSettings.lastPlayedCovers,
+              });
             }}
-          >
-            <Text
-              style={{
-                color: THEME.COLORS.WHITE_TEXT,
-                fontFamily: THEME.FONT_FAMILY.REGULAR,
-                fontSize: THEME.FONT_SIZE.MD,
-              }}
-            >
-              {
-                DICT[userSettings.selectedLanguage]
-                  .SETTINGS_COVER_LAST_PLAYED_SWITCH
-              }{" "}
-            </Text>
-            {/* @ts-ignore => bcs the lib is kinda cringe*/}
-            <Toggle
-              size={THEME.FONT_SIZE.MD}
-              color="#fff"
-              toggle={userSettings.lastPlayedCovers}
-              setToggle={() => {
-                setUserSettings({
-                  ...userSettings,
-                  lastPlayedCovers: !userSettings.lastPlayedCovers,
-                });
-                saveUserSettingsToLocalStorage({
-                  ...userSettings,
-                  lastPlayedCovers: !userSettings.lastPlayedCovers,
-                });
-              }}
-            />
-          </View>
-          <View
-            style={{
-              flexDirection: "row",
-              alignItems: "center",
-              justifyContent: "space-between",
-              width: "100%",
-              marginTop: 20,
+          />
+          <ToggleSection
+            label={
+              DICT[userSettings.selectedLanguage]
+                .SETTINGS_COVER_REQUESTED_SWITCH
+            }
+            size={THEME.FONT_SIZE.MD}
+            color="#fff"
+            toggle={userSettings.coversInRequestSearch}
+            setToggle={() => {
+              setUserSettings({
+                ...userSettings,
+                coversInRequestSearch: !userSettings.coversInRequestSearch,
+              });
+              saveUserSettingsToLocalStorage({
+                ...userSettings,
+                coversInRequestSearch: !userSettings.coversInRequestSearch,
+              });
             }}
-          >
-            <Text
-              style={{
-                color: THEME.COLORS.WHITE_TEXT,
-                fontFamily: THEME.FONT_FAMILY.REGULAR,
-                fontSize: THEME.FONT_SIZE.MD,
-              }}
-            >
-              {
-                DICT[userSettings.selectedLanguage]
-                  .SETTINGS_COVER_REQUESTED_SWITCH
-              }{" "}
-            </Text>
-            {/* @ts-ignore => bcs the lib is kinda cringe*/}
-            <Toggle
-              size={THEME.FONT_SIZE.MD}
-              color="#fff"
-              toggle={userSettings.coversInRequestSearch}
-              setToggle={() => {
-                setUserSettings({
-                  ...userSettings,
-                  coversInRequestSearch: !userSettings.coversInRequestSearch,
-                });
-                saveUserSettingsToLocalStorage({
-                  ...userSettings,
-                  coversInRequestSearch: !userSettings.coversInRequestSearch,
-                });
-              }}
-            />
-          </View>
+          />
           <Splitter />
           <TitleSection
             title={
@@ -529,44 +486,25 @@ export function Settings({ route, navigation }: Props) {
           <TitleSection
             title={DICT[userSettings.selectedLanguage].SETTINGS_MEMORY_TITLE}
           />
-          <View
-            style={{
-              flexDirection: "row",
-              alignItems: "center",
-              justifyContent: "space-between",
-              width: "100%",
-              marginTop: 5,
+          <ToggleSection
+            label={
+              DICT[userSettings.selectedLanguage]
+                .SETTINGS_MEMORY_CLEAR_CACHE_SWITCH
+            }
+            size={THEME.FONT_SIZE.MD}
+            color="#fff"
+            toggle={userSettings.cacheEnabled}
+            setToggle={() => {
+              setUserSettings({
+                ...userSettings,
+                cacheEnabled: !userSettings.cacheEnabled,
+              });
+              saveUserSettingsToLocalStorage({
+                ...userSettings,
+                cacheEnabled: !userSettings.cacheEnabled,
+              });
             }}
-          >
-            <Text
-              style={{
-                color: THEME.COLORS.WHITE_TEXT,
-                fontFamily: THEME.FONT_FAMILY.REGULAR,
-                fontSize: THEME.FONT_SIZE.MD,
-              }}
-            >
-              {
-                DICT[userSettings.selectedLanguage]
-                  .SETTINGS_MEMORY_CLEAR_CACHE_SWITCH
-              }{" "}
-            </Text>
-            {/* @ts-ignore => bcs the lib is kinda cringe*/}
-            <Toggle
-              size={THEME.FONT_SIZE.MD}
-              color="#fff"
-              toggle={userSettings.cacheEnabled}
-              setToggle={() => {
-                setUserSettings({
-                  ...userSettings,
-                  cacheEnabled: !userSettings.cacheEnabled,
-                });
-                saveUserSettingsToLocalStorage({
-                  ...userSettings,
-                  cacheEnabled: !userSettings.cacheEnabled,
-                });
-              }}
-            />
-          </View>
+          />
         </ScrollView>
       </SafeAreaView>
     </Background>
