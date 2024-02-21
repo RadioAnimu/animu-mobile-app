@@ -4,6 +4,7 @@ import foninho from "../../assets/icons/foninho.png";
 import foninho_branco from "../../assets/icons/foninho_branco.png";
 import { AnimuInfoProps } from "../../api";
 import { THEME } from "../../theme";
+import { DICT, selectedLanguage } from "../../languages";
 
 interface Props {
   info: AnimuInfoProps;
@@ -58,7 +59,7 @@ export function Listeners({ info }: Props) {
         {info?.program?.isLiveProgram
           ? info?.program.locutor.toUpperCase()
           : info.track.isRequest
-          ? "MÚSICA PEDIDA"
+          ? DICT[selectedLanguage].TRACK_REQUEST
           : "HARU-CHAN"}
       </Text>
     </View>

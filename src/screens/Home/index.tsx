@@ -1,6 +1,5 @@
 import React, {
   MutableRefObject,
-  RefObject,
   useContext,
   useEffect,
   useRef,
@@ -26,15 +25,13 @@ import { Loading } from "../Loading";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import BackgroundTimer from "react-native-background-timer";
-import {
-  checkIfUserIsStillInTheServerAndIfYesExtendSession,
-  logoutUserFromTheServer,
-} from "../../components/CustomDrawer";
+import { checkIfUserIsStillInTheServerAndIfYesExtendSession } from "../../components/CustomDrawer";
 import { PopUpProgram } from "../../components/PopUpProgram";
 import { AnimuInfoContext } from "../../contexts/animuinfo.context";
 import { PlayerContext } from "../../contexts/player.context";
 import { DiscordUser, UserContext } from "../../contexts/user.context";
 import { RootStackParamList } from "../../routes/app.routes";
+import { DICT, selectedLanguage } from "../../languages";
 
 export const getUserSavedDataOrNull = async () => {
   try {
@@ -137,7 +134,7 @@ export function Home({ route, navigation }: Props) {
                 <Cover cover={animuInfo.track.artworks.cover} />
                 {!animuInfo?.program?.isLiveProgram && (
                   <Text style={styles.timeLeft}>
-                    Tempo restante:{" "}
+                    {DICT[selectedLanguage].TIME_REMAINING}:{" "}
                     <CountdownTimerText
                       startTime={
                         animuInfo.track.duration - player.currentProgress
@@ -158,7 +155,7 @@ export function Home({ route, navigation }: Props) {
             {player._currentStream.category !== "REPRISES" && (
               <PopUpProgram
                 visible={isModalVisible}
-                program={animuInfo.program}
+                _program={animuInfo.program}
                 handleClose={() => {
                   setIsModalVisible(false);
                 }}

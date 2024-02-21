@@ -11,13 +11,22 @@ import {
 import { THEME } from "../../theme";
 import { styles } from "./styles";
 import { ProgramProps } from "../../api";
+import { DICT, selectedLanguage } from "../../languages";
 
 interface Props extends ModalProps {
   handleClose: () => void;
-  program: ProgramProps;
+  _program: ProgramProps;
 }
 
-export function PopUpProgram({ program, handleClose, ...rest }: Props) {
+export function PopUpProgram({ _program, handleClose, ...rest }: Props) {
+  const program: ProgramProps["raw"] = DICT[selectedLanguage].PROGRAMS.find(
+    (item) => item.name === _program.raw?.name
+  );
+
+  if (!program) {
+    return null;
+  }
+
   return (
     <Modal animationType="fade" statusBarTranslucent transparent {...rest}>
       <View style={styles.container}>
@@ -29,7 +38,7 @@ export function PopUpProgram({ program, handleClose, ...rest }: Props) {
               color={THEME.COLORS.WHITE_TEXT}
             />
           </TouchableOpacity>
-          <Image source={{ uri: program.imagem }} style={styles.img} />
+          <Image source={{ uri: program.img }} style={styles.img} />
           <View style={styles.informationBlock}>
             <Text
               style={[
@@ -40,7 +49,7 @@ export function PopUpProgram({ program, handleClose, ...rest }: Props) {
                 },
               ]}
             >
-              {program.programa}
+              {program.name}
             </Text>
             <Text
               style={[
@@ -50,7 +59,7 @@ export function PopUpProgram({ program, handleClose, ...rest }: Props) {
                 },
               ]}
             >
-              {program.infoPrograma}
+              {program.information}
             </Text>
             <Text
               style={[
@@ -61,23 +70,19 @@ export function PopUpProgram({ program, handleClose, ...rest }: Props) {
                 },
               ]}
             >
-              Tema: {program.temaPrograma}
+              Tema: {program.theme}
             </Text>
-            {program.raw && (
-              <>
-                <Text
-                  style={[
-                    styles.label,
-                    {
-                      textAlign: "left",
-                      fontSize: THEME.FONT_SIZE.INFO_PROGRAM,
-                    },
-                  ]}
-                >
-                  {program.raw?.dayAndTime}
-                </Text>
-              </>
-            )}
+            <Text
+              style={[
+                styles.label,
+                {
+                  textAlign: "left",
+                  fontSize: THEME.FONT_SIZE.INFO_PROGRAM,
+                },
+              ]}
+            >
+              {program.dayAndTime}
+            </Text>
           </View>
         </View>
       </View>

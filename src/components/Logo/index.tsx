@@ -1,7 +1,6 @@
 import { Image } from "react-native";
 import { styles } from "./styles";
-
-import logo from "../../assets/logo.png";
+import { IMGS, selectedLanguage } from "../../languages";
 
 interface Props {
   size?: number;
@@ -10,7 +9,7 @@ interface Props {
 
 export function Logo({ size, img }: Props) {
   const defaultSize = 100;
-  const defaultImg = logo;
+  const defaultImg = IMGS[selectedLanguage].LOGO;
   return (
     <Image
       source={img ? img : defaultImg}

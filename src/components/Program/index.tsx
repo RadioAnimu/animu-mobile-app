@@ -1,6 +1,7 @@
 import { Text, TouchableOpacity, View } from "react-native";
 import { ProgramProps } from "../../api";
 import { styles } from "./styles";
+import { DICT, selectedLanguage } from "../../languages";
 
 interface Props {
   program: ProgramProps;
@@ -14,7 +15,8 @@ export function Program({ program, handleClick }: Props) {
         {program?.isSaijikkou ? "Animu Sai Jikkou" : program?.programa}
       </Text>
       <Text style={styles.label}>
-        COM: <Text style={styles.green}>{program?.locutor}</Text>
+        {DICT[selectedLanguage].WITH_DJ}:{" "}
+        <Text style={styles.green}>{program?.locutor}</Text>
       </Text>
     </TouchableOpacity>
   );

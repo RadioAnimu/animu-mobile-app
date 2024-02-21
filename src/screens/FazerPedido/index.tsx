@@ -12,7 +12,6 @@ import { Background } from "../../components/Background";
 import { styles } from "./styles";
 
 import { SafeAreaView } from "react-native-safe-area-context";
-import Harukinha from "../../assets/pedidos-harukinha-two.png";
 import { HeaderBar } from "../../components/HeaderBar";
 import { Logo } from "../../components/Logo";
 
@@ -29,6 +28,7 @@ import { UserContext } from "../../contexts/user.context";
 import { RootStackParamList } from "../../routes/app.routes";
 import { THEME } from "../../theme";
 import { CONFIG } from "../../utils/player.config";
+import { DICT, IMGS, selectedLanguage } from "../../languages";
 
 type Props = NativeStackScreenProps<RootStackParamList, "FazerPedido">;
 type Status = "idle" | "loading";
@@ -125,11 +125,11 @@ export function FazerPedido({ route, navigation }: Props) {
     const handleOk = async () => {
       const formData = new FormData();
       if (!userContext?.user) {
-        setErrorMessage("Você precisa estar logado para fazer um pedido");
+        setErrorMessage(DICT[selectedLanguage].LOGIN_ERROR);
         return;
       }
       if (selected === null) {
-        setErrorMessage("Erro ao selecionar a música");
+        setErrorMessage(DICT[selectedLanguage].SELECT_ERROR);
         return;
       }
       const allmusic: string = selected.track.id.toString();
@@ -147,11 +147,11 @@ export function FazerPedido({ route, navigation }: Props) {
       });
       const data = await response.text();
       if (data !== "") {
-        setErrorMessage(`Erro ao fazer pedido: ${data}`);
+        setErrorMessage(`${DICT[selectedLanguage].REQUEST_ERROR}${data}`);
         return;
       }
       setSelected(null);
-      setSuccessMessage("Pedido feito com sucesso!");
+      setSuccessMessage(DICT[selectedLanguage].REQUEST_SUCCESS);
       setRecado("");
       setResults((old) =>
         old.map((item) => {
@@ -178,12 +178,12 @@ export function FazerPedido({ route, navigation }: Props) {
                 marginVertical: 15,
               }}
             >
-              <Logo img={Harukinha} size={127} />
+              <Logo img={IMGS[selectedLanguage].MAKE_REQUEST} size={127} />
             </View>
             <View style={styles.inputContainer}>
               <TextInput
                 style={styles.input}
-                placeholder="Digite aqui para pesquisar"
+                placeholder={DICT[selectedLanguage].REQUEST_SEARCH_PLACEHOLDER}
                 placeholderTextColor="#fff"
                 onChangeText={(text) => setSearchText(text)}
                 onSubmitEditing={handleSearch}

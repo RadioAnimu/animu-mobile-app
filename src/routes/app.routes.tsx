@@ -7,18 +7,22 @@ import { FazerPedido } from "../screens/FazerPedido";
 import { Home } from "../screens/Home";
 import { Ultimas } from "../screens/Ultimas";
 import { THEME } from "../theme";
+import { Settings } from "../screens/Settings";
+import { DICT, selectedLanguage } from "../languages";
 
 interface HomeProps {}
 interface UltimasProps {
   type: "pedidas" | "tocadas";
 }
 interface FazerPedidoProps {}
+interface SettingsProps {}
 
 export type RootStackParamList = {
   Home: HomeProps;
   UltimasPedidas: UltimasProps;
   UltimasTocadas: UltimasProps;
   FazerPedido: FazerPedidoProps;
+  Settings: SettingsProps;
 };
 
 const { Navigator, Screen } = createDrawerNavigator<RootStackParamList>();
@@ -59,7 +63,7 @@ export function AppRoutes() {
       />
       <Screen
         options={{
-          drawerLabel: "Últimas Pedidas",
+          drawerLabel: DICT[selectedLanguage].MENU_LAST_REQUESTED,
           drawerIcon: () => {
             return (
               <MaterialIcons
@@ -79,7 +83,7 @@ export function AppRoutes() {
       />
       <Screen
         options={{
-          drawerLabel: "Últimas Tocadas",
+          drawerLabel: DICT[selectedLanguage].MENU_LAST_PLAYED,
           drawerIcon: () => {
             return (
               <FontAwesome5
@@ -99,13 +103,21 @@ export function AppRoutes() {
       />
       <Screen
         options={{
-          drawerLabel: "Fazer Pedido",
           drawerItemStyle: {
             display: "none",
           },
         }}
         name="FazerPedido"
         component={FazerPedido}
+      />
+      <Screen
+        options={{
+          drawerItemStyle: {
+            display: "none",
+          },
+        }}
+        name="Settings"
+        component={Settings}
       />
     </Navigator>
   );

@@ -4,6 +4,7 @@ import { CONFIG, StreamOption } from "./player.config";
 
 import { openBrowserAsync } from "expo-web-browser";
 import { SetupService } from "../services";
+import { DICT, selectedLanguage } from "../languages";
 
 function isUrlAnImage(url: string) {
   return url.match(/\.(jpeg|jpg|gif|png|webp)$/) != null;
@@ -63,7 +64,7 @@ export const myPlayer = (): MyPlayerProps => ({
       : CONFIG.DEFAULT_COVER;
     json.program = await this.getProgram();
     if (this._currentStream.category !== "REPRISES") {
-      json.program.raw = CONFIG.PROGRAMAS.find(
+      json.program.raw = DICT[selectedLanguage].PROGRAMS.find(
         (program) =>
           program.name.toLocaleLowerCase() ===
           json.program.programa.toLocaleLowerCase()

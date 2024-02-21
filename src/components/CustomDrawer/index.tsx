@@ -13,10 +13,11 @@ import * as Linking from "expo-linking";
 import * as WebBrowser from "expo-web-browser";
 import { useContext } from "react";
 import { Image, Text, TouchableOpacity, View } from "react-native";
-import { version } from "../../../package.json";
+import { author } from "../../../package.json";
 import { DiscordUser, UserContext } from "../../contexts/user.context";
 import { THEME } from "../../theme";
 import { API } from "../../api";
+import { DICT, IMGS, selectedLanguage } from "../../languages";
 
 export const checkIfUserIsStillInTheServerAndIfYesExtendSession: (
   user: DiscordUser
@@ -86,7 +87,7 @@ export interface LinkMenuItemProps {
 
 const LINKS: LinkMenuItemProps[] = [
   {
-    title: "Website",
+    title: DICT[selectedLanguage].LINKS_WEBSITE,
     url: API.WEB_URL,
     Icon: () => (
       <FontAwesome5
@@ -97,7 +98,7 @@ const LINKS: LinkMenuItemProps[] = [
     ),
   },
   {
-    title: "Discord",
+    title: DICT[selectedLanguage].LINKS_DISCORD,
     url: API.DISCORD_URL,
     Icon: () => (
       <FontAwesome5
@@ -190,7 +191,7 @@ export function CustomDrawerContent(props: DrawerContentComponentProps) {
           }}
         >
           <Image
-            source={require("../../assets/logo.png")}
+            source={IMGS[selectedLanguage].LOGO}
             style={{
               height: 100,
               alignSelf: "center",
@@ -199,11 +200,13 @@ export function CustomDrawerContent(props: DrawerContentComponentProps) {
           />
         </TouchableOpacity>
         {userContext?.user ? (
-          <View
+          <TouchableOpacity
+            onPress={() => {
+              navigation.navigate("Settings");
+            }}
             style={{
               flexDirection: "row",
               alignItems: "center",
-              padding: 10,
               width: "90%",
               alignSelf: "center",
               gap: 10,
@@ -239,7 +242,7 @@ export function CustomDrawerContent(props: DrawerContentComponentProps) {
                 marginLeft: "auto",
               }}
             />
-          </View>
+          </TouchableOpacity>
         ) : (
           <TouchableOpacity
             onPress={onLogin}
@@ -277,7 +280,7 @@ export function CustomDrawerContent(props: DrawerContentComponentProps) {
               color={THEME.COLORS.WHITE_TEXT}
             />
           )}
-          sectionTile="Menu"
+          sectionTile={DICT[selectedLanguage].MENU}
         />
         <DrawerItemList {...props} />
         <Separator
@@ -288,7 +291,7 @@ export function CustomDrawerContent(props: DrawerContentComponentProps) {
               color={THEME.COLORS.WHITE_TEXT}
             />
           )}
-          sectionTile="Links"
+          sectionTile={DICT[selectedLanguage].LINKS}
         />
         {LINKS.map((link, index) => (
           <LinkMenuItem
@@ -311,20 +314,20 @@ export function CustomDrawerContent(props: DrawerContentComponentProps) {
           style={{
             color: THEME.COLORS.WHITE_TEXT,
             textAlign: "center",
-            padding: 10,
+            width: "90%",
             fontFamily: THEME.FONT_FAMILY.BOLD,
             fontSize: THEME.FONT_SIZE.FOOTER,
             justifyContent: "center",
             alignItems: "center",
           }}
         >
-          Versão v{version} - Desenvolvido com muito ❤️ por{" "}
+          {DICT[selectedLanguage].VERSION_TEXT}
           <Text
             style={{
               textDecorationLine: "underline",
             }}
           >
-            @Ness.js
+            @{author}
           </Text>
         </Text>
       </TouchableOpacity>

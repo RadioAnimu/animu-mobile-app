@@ -14,6 +14,7 @@ import {
 import RecadoHaruka from "../../assets/reacdo_haruka.png";
 import { THEME } from "../../theme";
 import { styles } from "./styles";
+import { DICT, selectedLanguage } from "../../languages";
 
 interface Props extends ModalProps {
   handleClose: () => void;
@@ -49,19 +50,13 @@ export function PopUpRecado({
             />
           </TouchableOpacity>
           <Image source={RecadoHaruka} style={styles.img} />
-          <Text style={styles.text}>
-            Oii! Sou a Haruka, a DJ da mais moe do Brasil!{"\n"}Vi que já fez a
-            sua escolha!{"\n"}Mas antes não quer deixar um recadinho para mim ou
-            para nossa equipe? Este recado será entregue no chat principal do
-            nosso servidor discord para todo mundo ver{"\n"}💜 Você não precisa
-            deixar recado se não quiser.
-          </Text>
+          <Text style={styles.text}>{DICT[selectedLanguage].INFO_REQUEST}</Text>
           <TextInput
             style={[
               styles.input,
               status === "requesting" && styles.inputDisabled,
             ]}
-            placeholder="Deixe seu recado aqui"
+            placeholder={DICT[selectedLanguage].SEND_REQUEST_PLACEHOLDER}
             placeholderTextColor="#fff"
             onChange={(e) => handleChangeText(e.nativeEvent.text)}
             editable={status === "idle"}
@@ -71,7 +66,9 @@ export function PopUpRecado({
             <ActivityIndicator color={THEME.COLORS.WHITE_TEXT} />
           ) : (
             <TouchableOpacity onPress={_handleOk} style={styles.okButton}>
-              <Text style={styles.okText}>Enviar</Text>
+              <Text style={styles.okText}>
+                {DICT[selectedLanguage].SEND_REQUEST_BUTTON_TEXT}
+              </Text>
             </TouchableOpacity>
           )}
         </View>

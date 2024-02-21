@@ -1,8 +1,11 @@
+import { useNavigation } from "@react-navigation/native";
 import { useEffect, useRef, useState } from "react";
 import {
   Animated,
   Dimensions,
+  Easing,
   Image,
+  Text,
   TouchableOpacity,
   View,
 } from "react-native";
@@ -13,7 +16,6 @@ import playButtonImage from "../../assets/play_square_btn.png";
 import pauseButtonImage from "../../assets/play_triangle_btn.png";
 import { MyPlayerProps } from "../../utils";
 import { styles } from "./styles";
-import { useNavigation } from "@react-navigation/native";
 
 interface Props {
   player: MyPlayerProps;
@@ -64,6 +66,37 @@ export function HeaderBar({ player, navigation }: Props) {
     }
   }, [progressAnim, info]);
 
+  const [isEnabled, setIsEnabled] = useState(false);
+  const [animation] = useState(new Animated.Value(0));
+
+  useEffect(() => {
+    startAnimation();
+  }, []);
+
+  const startAnimation = () => {
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(animation, {
+          toValue: 0.3,
+          duration: 4000,
+          easing: Easing.linear,
+          useNativeDriver: true,
+        }),
+        Animated.timing(animation, {
+          toValue: 0,
+          duration: 4000,
+          easing: Easing.linear,
+          useNativeDriver: true,
+        }),
+      ])
+    ).start();
+  };
+
+  const translateY = animation.interpolate({
+    inputRange: [0, 1],
+    outputRange: [50, -50],
+  });
+
   return (
     <View style={styles.view}>
       <View style={styles.container}>
@@ -102,6 +135,9 @@ export function HeaderBar({ player, navigation }: Props) {
           onPress={() => {
             // @ts-ignore
             navigation.navigate("FazerPedido");
+          }}
+          style={{
+            position: "relative",
           }}
         >
           <Image style={styles.noteIcon} source={noteIcon} />

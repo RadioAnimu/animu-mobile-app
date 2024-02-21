@@ -13,8 +13,8 @@ import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { PlayerContext } from "../../contexts/player.context";
 import { RootStackParamList } from "../../routes/app.routes";
 
-import UltimasPedidasImage from "../../assets/ultimos_pedidas-haru.png";
 import { AnimuInfoContext } from "../../contexts/animuinfo.context";
+import { IMGS, selectedLanguage } from "../../languages";
 import { Loading } from "../Loading";
 
 type Props = NativeStackScreenProps<
@@ -43,7 +43,11 @@ export function Ultimas({ route, navigation }: Props) {
             <HeaderBar player={player} navigation={navigation} />
             <View style={styles.appContainer}>
               <Image
-                source={UltimasPedidasImage}
+                source={
+                  isUltimasPedidasScreen
+                    ? IMGS[selectedLanguage].LAST_REQUEST
+                    : IMGS[selectedLanguage].LAST_PLAYED
+                }
                 style={styles.ultimasPedidasImage}
               />
               <View
