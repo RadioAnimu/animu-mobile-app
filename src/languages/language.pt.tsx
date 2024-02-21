@@ -160,7 +160,7 @@ const DICT = {
   REQUEST_SEARCH_PLACEHOLDER: "Digite aqui para pesquisar",
   REQUEST_SEARCH_BUTTON_TEXT: "Pesquisar",
   THEME_WORD: "Tema",
-  LOGIN_WORD: "Entrar",
+  LOGIN_WORD: "Entrar com",
   HARU_CHAN_TEXT: "HARU-CHAN",
 };
 

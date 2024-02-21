@@ -17,7 +17,7 @@ import { author } from "../../../package.json";
 import { DiscordUser, UserContext } from "../../contexts/user.context";
 import { THEME } from "../../theme";
 import { API } from "../../api";
-import { DICT, IMGS, selectedLanguage } from "../../languages";
+import { DICT, IMGS, LANGS_KEY_VALUE_PAIRS } from "../../languages";
 import { UserSettingsContext } from "../../contexts/user.settings.context";
 import { DiscordProfile } from "../DiscordProfile";
 
@@ -118,6 +118,65 @@ export function LinkMenuItem({ Icon, title, url }: LinkMenuItemProps) {
   );
 }
 
+export function LoginComponent() {
+  const { userSettings } = useContext(UserSettingsContext);
+  const userContext = useContext(UserContext);
+
+  const onLogin = async () => {
+    const callbackUrl = Linking.createURL("redirect", { scheme: "animuapp" });
+
+    const result = await WebBrowser.openAuthSessionAsync(
+      "https://discord.com/api/oauth2/authorize?client_id=1159273876732256266&response_type=code&redirect_uri=https%3A%2F%2Fwww.animu.com.br%2Fteste%2Fprocess-oauth-mobile.php&scope=identify",
+      callbackUrl
+    );
+
+    if (result.type === "success") {
+      const data = Linking.parse(result.url);
+      if (data.queryParams?.user) {
+        const userString = decodeURIComponent(data.queryParams.user.toString());
+        const user: DiscordUser = JSON.parse(userString);
+        const PHPSESSID = data.queryParams.PHPSESSID?.toString();
+        if (PHPSESSID) {
+          user.PHPSESSID = PHPSESSID;
+        }
+        if (userContext) {
+          userContext.setUser(user);
+          await AsyncStorage.setItem("user", JSON.stringify(user));
+        }
+      }
+    }
+  };
+
+  return (
+    <TouchableOpacity
+      onPress={onLogin}
+      style={{
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "flex-start",
+        gap: 5,
+        marginVertical: 10,
+      }}
+    >
+      <MaterialCommunityIcons
+        name="discord"
+        size={THEME.FONT_SIZE.MENU_ITEM}
+        color={THEME.COLORS.WHITE_TEXT}
+      />
+      <Text
+        style={{
+          color: THEME.COLORS.WHITE_TEXT,
+          textAlign: "center",
+          fontFamily: THEME.FONT_FAMILY.BOLD,
+          fontSize: THEME.FONT_SIZE.MENU_ITEM,
+        }}
+      >
+        {DICT[userSettings.selectedLanguage].LOGIN_WORD} Discord
+      </Text>
+    </TouchableOpacity>
+  );
+}
+
 export function CustomDrawerContent(props: DrawerContentComponentProps) {
   const { userSettings } = useContext(UserSettingsContext);
 
@@ -150,31 +209,6 @@ export function CustomDrawerContent(props: DrawerContentComponentProps) {
 
   const goToNessSocial = () => {
     Linking.openURL("https://x.com/rmotafreitas");
-  };
-
-  const onLogin = async () => {
-    const callbackUrl = Linking.createURL("redirect", { scheme: "animuapp" });
-
-    const result = await WebBrowser.openAuthSessionAsync(
-      "https://discord.com/api/oauth2/authorize?client_id=1159273876732256266&response_type=code&redirect_uri=https%3A%2F%2Fwww.animu.com.br%2Fteste%2Fprocess-oauth-mobile.php&scope=identify",
-      callbackUrl
-    );
-
-    if (result.type === "success") {
-      const data = Linking.parse(result.url);
-      if (data.queryParams?.user) {
-        const userString = decodeURIComponent(data.queryParams.user.toString());
-        const user: DiscordUser = JSON.parse(userString);
-        const PHPSESSID = data.queryParams.PHPSESSID?.toString();
-        if (PHPSESSID) {
-          user.PHPSESSID = PHPSESSID;
-        }
-        if (userContext) {
-          userContext.setUser(user);
-          await AsyncStorage.setItem("user", JSON.stringify(user));
-        }
-      }
-    }
   };
 
   const { navigation } = props;
@@ -227,33 +261,31 @@ export function CustomDrawerContent(props: DrawerContentComponentProps) {
             />
           </TouchableOpacity>
         ) : (
-          <TouchableOpacity
-            onPress={onLogin}
+          <View
             style={{
               flexDirection: "row",
+              justifyContent: "space-between",
               alignItems: "center",
-              justifyContent: "flex-start",
-              paddingHorizontal: 20,
-              gap: 5,
-              marginVertical: 10,
+              width: "90%",
+              alignSelf: "center",
             }}
           >
-            <MaterialCommunityIcons
-              name="discord"
-              size={THEME.FONT_SIZE.MENU_ITEM}
-              color={THEME.COLORS.WHITE_TEXT}
-            />
-            <Text
-              style={{
-                color: THEME.COLORS.WHITE_TEXT,
-                textAlign: "center",
-                fontFamily: THEME.FONT_FAMILY.BOLD,
-                fontSize: THEME.FONT_SIZE.MENU_ITEM,
+            <LoginComponent />
+            <TouchableOpacity
+              onPress={() => {
+                navigation.navigate("Settings");
               }}
             >
-              {DICT[userSettings.selectedLanguage].LOGIN_WORD} Discord
-            </Text>
-          </TouchableOpacity>
+              <FontAwesome
+                name="gear"
+                size={THEME.FONT_SIZE.MENU_ITEM}
+                color={THEME.COLORS.WHITE_TEXT}
+                style={{
+                  marginLeft: "auto",
+                }}
+              />
+            </TouchableOpacity>
+          </View>
         )}
         <Separator
           Icon={() => (

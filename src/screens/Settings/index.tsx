@@ -8,7 +8,10 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import Svg, { Path, Rect, SvgProps } from "react-native-svg";
 import Toggle, { ToggleProps } from "react-native-toggle-input";
 import { Background } from "../../components/Background";
-import { logoutUserFromTheServer } from "../../components/CustomDrawer";
+import {
+  LoginComponent,
+  logoutUserFromTheServer,
+} from "../../components/CustomDrawer";
 import { UserContext } from "../../contexts/user.context";
 import {
   UserSettings,
@@ -244,7 +247,7 @@ export function Settings({ route, navigation }: Props) {
                 </TouchableOpacity>
               </View>
             ) : (
-              <></>
+              <LoginComponent />
             )}
           </View>
           <Splitter />
