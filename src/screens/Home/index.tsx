@@ -37,6 +37,7 @@ import {
 import { DICT } from "../../languages";
 import { RootStackParamList } from "../../routes/app.routes";
 import { LiveRequestModal } from "../../components/LiveRequestModal";
+import { PopUpStatus } from "../../components/PopUpStatus";
 
 export const getUserSettingsFromLocalStorage =
   async (): Promise<UserSettings> => {
@@ -201,6 +202,7 @@ export function Home({ route, navigation }: Props) {
                 <ChooseBitrateSection player={player} />
               </View>
             </ScrollView>
+            <PopUpStatus />
             <LiveRequestModal
               handleClose={() => {
                 setIsLiveRequestModalVisible(false);

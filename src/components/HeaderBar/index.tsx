@@ -5,7 +5,6 @@ import {
   Dimensions,
   Easing,
   Image,
-  Text,
   TouchableOpacity,
   View,
 } from "react-native";
@@ -102,7 +101,7 @@ export function HeaderBar({ player, navigation, openLiveRequestModal }: Props) {
   const { userSettings } = useContext(UserSettingsContext);
 
   const LiveRequestComponent =
-    info?.program.pedidos_ao_vivo === "no"
+    info?.program.pedidos_ao_vivo !== "no"
       ? IMGS[userSettings.selectedLanguage].LIVE_REQUEST_ENABLED
       : IMGS[userSettings.selectedLanguage].LIVE_REQUEST_DISABLED;
 
@@ -144,9 +143,8 @@ export function HeaderBar({ player, navigation, openLiveRequestModal }: Props) {
         <TouchableOpacity
           onPress={() => {
             if (
-              info?.program?.isLiveProgram ||
-              (true && info?.program?.pedidos_ao_vivo !== "no") ||
-              true
+              info?.program?.isLiveProgram &&
+              info?.program?.pedidos_ao_vivo !== "no"
             ) {
               openLiveRequestModal();
               return;
@@ -160,19 +158,18 @@ export function HeaderBar({ player, navigation, openLiveRequestModal }: Props) {
             position: "relative",
           }}
         >
-          {info?.program?.isLiveProgram ||
-            (true && (
-              <Animated.View
-                style={{
-                  transform: [{ translateY }],
-                  position: "absolute",
-                  right: 25,
-                  bottom: 48,
-                }}
-              >
-                <LiveRequestComponent />
-              </Animated.View>
-            ))}
+          {info?.program?.isLiveProgram && (
+            <Animated.View
+              style={{
+                transform: [{ translateY }],
+                position: "absolute",
+                right: 25,
+                bottom: 48,
+              }}
+            >
+              <LiveRequestComponent />
+            </Animated.View>
+          )}
           <Image style={styles.noteIcon} source={noteIcon} />
         </TouchableOpacity>
       </View>

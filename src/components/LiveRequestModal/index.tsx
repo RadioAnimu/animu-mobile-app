@@ -17,6 +17,9 @@ import { styles } from "./styles";
 import CloseIcon from "../../assets/icons/ArrastarParaBaixo.png";
 import { ScrollView } from "react-native-gesture-handler";
 import { API } from "../../api";
+import { UserContext } from "../../contexts/user.context";
+import { SuccessContext } from "../../contexts/success.context";
+import { ErrorContext } from "../../contexts/error.context";
 
 interface Props extends ModalProps {
   handleClose: () => void;
@@ -44,7 +47,7 @@ interface InputProps {
   disabled?: boolean;
   multiline?: boolean;
   placeholder?: string;
-  onEndEditing?: () => Promise<boolean>;
+  onEndEditing?: () => Promise<void>;
 }
 
 function Input({
@@ -68,6 +71,10 @@ function Input({
 }
 
 export function LiveRequestModal({ handleClose, ...rest }: Props) {
+  const { successMessage, setSuccessMessage } = useContext(SuccessContext);
+  const { errorMessage, setErrorMessage } = useContext(ErrorContext);
+
+  const userContext = useContext(UserContext);
   const [status, setStatus] = useState<Status>("idle");
   const [formData, setFormData] = useState<{
     name: string;
@@ -77,7 +84,7 @@ export function LiveRequestModal({ handleClose, ...rest }: Props) {
     anime: string;
     request: string;
   }>({
-    name: "",
+    name: userContext?.user?.nickname || userContext?.user?.username || "",
     city: "",
     artist: "",
     music: "",
@@ -87,14 +94,21 @@ export function LiveRequestModal({ handleClose, ...rest }: Props) {
 
   const { userSettings } = useContext(UserSettingsContext);
 
-  const handleRequestMusic: () => Promise<boolean> = async () => {
+  const handleRequestMusic: () => Promise<void> = async () => {
     setStatus("requesting");
     const url = API.LIVE_REQUEST_URL;
     let res: boolean = false;
     const form = new FormData();
-    FORM_BUILDER_MAPPER.forEach((item) => {
+    for (const item of FORM_BUILDER_MAPPER) {
+      if (!item.optional && !formData[item.name as keyof typeof formData]) {
+        setErrorMessage(
+          "O campo " + item.label + " é obrigatório para fazer o pedido"
+        );
+        setStatus("idle");
+        return;
+      }
       form.append(item.name, formData[item.name as keyof typeof formData]);
-    });
+    }
     const method: "POST" = "POST";
     const headers = {};
     const body = form;
@@ -104,8 +118,20 @@ export function LiveRequestModal({ handleClose, ...rest }: Props) {
     } catch (error) {
       res = false;
     }
+    setFormData({
+      name: userContext?.user?.nickname || userContext?.user?.username || "",
+      city: "",
+      artist: "",
+      music: "",
+      anime: "",
+      request: "",
+    });
+    if (res) {
+      setSuccessMessage("Pedido feito com sucesso!");
+    } else {
+      setErrorMessage("Erro ao fazer o pedido, tente novamente mais tarde");
+    }
     setStatus("idle");
-    return res;
   };
 
   const FORM_BUILDER_MAPPER = [
