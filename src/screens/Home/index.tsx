@@ -36,6 +36,7 @@ import {
 } from "../../contexts/user.settings.context";
 import { DICT } from "../../languages";
 import { RootStackParamList } from "../../routes/app.routes";
+import { LiveRequestModal } from "../../components/LiveRequestModal";
 
 export const getUserSettingsFromLocalStorage =
   async (): Promise<UserSettings> => {
@@ -156,12 +157,23 @@ export function Home({ route, navigation }: Props) {
 
     const { userSettings } = useContext(UserSettingsContext);
 
+    const [isLiveRequestModalVisible, setIsLiveRequestModalVisible] =
+      useState<boolean>(false);
+
+    const openLiveRequestModal = () => {
+      setIsLiveRequestModalVisible(true);
+    };
+
     return (
       <Background>
         {animuInfo ? (
           <SafeAreaView style={styles.container}>
             <ScrollView>
-              <HeaderBar player={player} navigation={navigation} />
+              <HeaderBar
+                openLiveRequestModal={openLiveRequestModal}
+                player={player}
+                navigation={navigation}
+              />
               <View style={styles.containerApp}>
                 <Logo size={127} />
                 <Listeners info={animuInfo} />
@@ -189,6 +201,13 @@ export function Home({ route, navigation }: Props) {
                 <ChooseBitrateSection player={player} />
               </View>
             </ScrollView>
+            <LiveRequestModal
+              handleOk={async () => {}}
+              handleClose={() => {
+                setIsLiveRequestModalVisible(false);
+              }}
+              visible={isLiveRequestModalVisible}
+            />
             {player._currentStream.category !== "REPRISES" && (
               <PopUpProgram
                 visible={isModalVisible}

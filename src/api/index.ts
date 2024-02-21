@@ -43,6 +43,7 @@ export interface ProgramProps {
   locutor: string;
   programa: string;
   isLiveProgram: boolean;
+  pedidos_ao_vivo: string;
   isSaijikkou: boolean;
   infoPrograma: string;
   imagem: string;

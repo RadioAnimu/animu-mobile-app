@@ -1,5 +1,5 @@
 import { useNavigation } from "@react-navigation/native";
-import { useEffect, useRef, useState } from "react";
+import { useContext, useEffect, useRef, useState } from "react";
 import {
   Animated,
   Dimensions,
@@ -16,15 +16,18 @@ import playButtonImage from "../../assets/play_square_btn.png";
 import pauseButtonImage from "../../assets/play_triangle_btn.png";
 import { MyPlayerProps } from "../../utils";
 import { styles } from "./styles";
+import { DICT, IMGS } from "../../languages";
+import { UserSettingsContext } from "../../contexts/user.settings.context";
 
 interface Props {
   player: MyPlayerProps;
   navigation: ReturnType<typeof useNavigation>;
+  openLiveRequestModal: () => void;
 }
 
 type Status = "playing" | "paused" | "changing";
 
-export function HeaderBar({ player, navigation }: Props) {
+export function HeaderBar({ player, navigation, openLiveRequestModal }: Props) {
   const progressAnim = useRef(new Animated.Value(0)).current; // Initial value for opacity: 0
   const [status, setStatus] = useState<Status>("playing");
 
@@ -66,7 +69,6 @@ export function HeaderBar({ player, navigation }: Props) {
     }
   }, [progressAnim, info]);
 
-  const [isEnabled, setIsEnabled] = useState(false);
   const [animation] = useState(new Animated.Value(0));
 
   useEffect(() => {
@@ -77,14 +79,14 @@ export function HeaderBar({ player, navigation }: Props) {
     Animated.loop(
       Animated.sequence([
         Animated.timing(animation, {
-          toValue: 0.3,
-          duration: 4000,
+          toValue: 0.05,
+          duration: 1750,
           easing: Easing.linear,
           useNativeDriver: true,
         }),
         Animated.timing(animation, {
           toValue: 0,
-          duration: 4000,
+          duration: 1750,
           easing: Easing.linear,
           useNativeDriver: true,
         }),
@@ -96,6 +98,13 @@ export function HeaderBar({ player, navigation }: Props) {
     inputRange: [0, 1],
     outputRange: [50, -50],
   });
+
+  const { userSettings } = useContext(UserSettingsContext);
+
+  const LiveRequestComponent =
+    info?.program.pedidos_ao_vivo === "no"
+      ? IMGS[userSettings.selectedLanguage].LIVE_REQUEST_ENABLED
+      : IMGS[userSettings.selectedLanguage].LIVE_REQUEST_DISABLED;
 
   return (
     <View style={styles.view}>
@@ -131,8 +140,19 @@ export function HeaderBar({ player, navigation }: Props) {
             source={player._paused ? pauseButtonImage : playButtonImage}
           />
         </TouchableOpacity>
+
         <TouchableOpacity
           onPress={() => {
+            if (
+              info?.program?.isLiveProgram ||
+              (true && info?.program?.pedidos_ao_vivo !== "no") ||
+              true
+            ) {
+              openLiveRequestModal();
+              return;
+            } else if (info?.program?.isLiveProgram) {
+              return;
+            }
             // @ts-ignore
             navigation.navigate("FazerPedido");
           }}
@@ -140,6 +160,19 @@ export function HeaderBar({ player, navigation }: Props) {
             position: "relative",
           }}
         >
+          {info?.program?.isLiveProgram ||
+            (true && (
+              <Animated.View
+                style={{
+                  transform: [{ translateY }],
+                  position: "absolute",
+                  right: 25,
+                  bottom: 48,
+                }}
+              >
+                <LiveRequestComponent />
+              </Animated.View>
+            ))}
           <Image style={styles.noteIcon} source={noteIcon} />
         </TouchableOpacity>
       </View>
