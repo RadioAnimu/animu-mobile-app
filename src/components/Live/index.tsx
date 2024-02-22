@@ -1,19 +1,21 @@
+import { useContext } from "react";
 import { View } from "react-native";
 import TextTicker from "react-native-text-ticker";
-import { TrackProps } from "../../api";
-import { styles } from "./styles";
-import { IMGS, selectedLanguage } from "../../languages";
-import { useContext } from "react";
+import { AnimuInfoContext } from "../../contexts/animuinfo.context";
 import { UserSettingsContext } from "../../contexts/user.settings.context";
+import { IMGS } from "../../languages";
+import { styles } from "./styles";
 
-interface Props {
-  track: TrackProps;
-}
-
-export function Live({ track }: Props) {
+export function Live() {
   const { userSettings } = useContext(UserSettingsContext);
 
   const NoAr = IMGS[userSettings.selectedLanguage].LIVE_LABEL;
+
+  const animuInfoContext = useContext(AnimuInfoContext);
+  if (!animuInfoContext) {
+    return null;
+  }
+  const { animuInfo } = animuInfoContext;
 
   return (
     <View style={styles.track}>
@@ -28,7 +30,7 @@ export function Live({ track }: Props) {
           marqueeDelay={1000}
           shouldAnimateTreshold={10}
         >
-          {track.anime}
+          {animuInfo?.track.anime}
         </TextTicker>
         <TextTicker
           style={styles.artist}
@@ -39,7 +41,7 @@ export function Live({ track }: Props) {
           marqueeDelay={1000}
           shouldAnimateTreshold={10}
         >
-          {track.artist}
+          {animuInfo?.track.artist}
         </TextTicker>
         <TextTicker
           style={styles.song}
@@ -50,7 +52,7 @@ export function Live({ track }: Props) {
           marqueeDelay={1000}
           shouldAnimateTreshold={10}
         >
-          {track.song}
+          {animuInfo?.track.song}
         </TextTicker>
       </View>
     </View>

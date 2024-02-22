@@ -114,6 +114,7 @@ export function LiveRequestModal({ handleClose, ...rest }: Props) {
     const body = form;
     try {
       await fetch(url, { method, headers, body });
+      console.log("Pedido feito com sucesso!");
       res = true;
     } catch (error) {
       res = false;
