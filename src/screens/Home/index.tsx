@@ -192,7 +192,7 @@ export function Home({ route, navigation }: Props) {
                       />
                     </Text>
                   )}
-                <Live track={animuInfo.track} />
+                <Live animuInfo={animuInfo.track} />
                 <Program
                   program={animuInfo.program}
                   handleClick={() => {

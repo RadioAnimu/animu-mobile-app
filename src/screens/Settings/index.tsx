@@ -22,6 +22,7 @@ import { RootStackParamList } from "../../routes/app.routes";
 import { THEME } from "../../theme";
 import { styles } from "./styles";
 import { DiscordProfile } from "../../components/DiscordProfile";
+import { AnimuInfoContext } from "../../contexts/animuinfo.context";
 
 export const BackArrow = (props: SvgProps) => (
   <Svg width="21" height="19" viewBox="0 0 21 19" fill="none">
@@ -191,6 +192,8 @@ export function Settings({ route, navigation }: Props) {
     key,
     value: LANGS_KEY_VALUE_PAIRS[key],
   };
+
+  const animuInfoContext = useContext(AnimuInfoContext);
 
   return (
     <Background>
@@ -414,6 +417,9 @@ export function Settings({ route, navigation }: Props) {
                   ...userSettings,
                   selectedLanguage: key as keyof typeof LANGS_KEY_VALUE_PAIRS,
                 });
+                if (animuInfoContext?.setAnimuInfo) {
+                  animuInfoContext.setAnimuInfo(null);
+                }
               }
             }}
             data={data}

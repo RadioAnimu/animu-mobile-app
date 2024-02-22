@@ -58,10 +58,6 @@ export function Listeners({ info }: Props) {
                 ? THEME.COLORS.WHITE_TEXT
                 : THEME.COLORS.LISTENERS,
           },
-          !info?.program?.isLiveProgram &&
-            userSettings.selectedLanguage === "JN" && {
-              marginTop: -5.5,
-            },
         ]}
       >
         {info?.program?.isLiveProgram

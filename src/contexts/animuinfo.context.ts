@@ -3,7 +3,7 @@ import { AnimuInfoProps } from "../api";
 
 export interface AnimuInfoContextProps {
   animuInfo: AnimuInfoProps | null;
-  setAnimuInfo: (animuInfo: AnimuInfoProps) => void;
+  setAnimuInfo: (animuInfo: AnimuInfoProps | null) => void;
 }
 
 export const AnimuInfoContext: React.Context<AnimuInfoContextProps | null> =
