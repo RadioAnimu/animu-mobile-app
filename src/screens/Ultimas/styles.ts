@@ -18,7 +18,6 @@ export const styles = StyleSheet.create({
     width: "100%",
     height: 127,
     marginVertical: 15,
-    resizeMode: "contain",
   },
   musicapedidaname: {
     color: THEME.COLORS.WHITE_TEXT,

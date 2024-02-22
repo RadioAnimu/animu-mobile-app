@@ -132,6 +132,7 @@ export function LiveRequestModal({ handleClose, ...rest }: Props) {
       setErrorMessage("Erro ao fazer o pedido, tente novamente mais tarde");
     }
     setStatus("idle");
+    handleClose();
   };
 
   const FORM_BUILDER_MAPPER = [

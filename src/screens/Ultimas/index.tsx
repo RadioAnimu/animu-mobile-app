@@ -1,4 +1,4 @@
-import React, { useContext } from "react";
+import React, { useContext, useState } from "react";
 import { FlatList, Text, View } from "react-native";
 
 import { Background } from "../../components/Background";
@@ -40,11 +40,22 @@ export function Ultimas({ route, navigation }: Props) {
 
     const { userSettings } = useContext(UserSettingsContext);
 
+    const [isLiveRequestModalVisible, setIsLiveRequestModalVisible] =
+      useState<boolean>(false);
+
+    const openLiveRequestModal = () => {
+      setIsLiveRequestModalVisible(true);
+    };
+
     return (
       <Background>
         {animuInfo ? (
           <SafeAreaView style={styles.container}>
-            <HeaderBar player={player} navigation={navigation} />
+            <HeaderBar
+              openLiveRequestModal={openLiveRequestModal}
+              player={player}
+              navigation={navigation}
+            />
             <View style={styles.appContainer}>
               <Image
                 source={
@@ -53,6 +64,8 @@ export function Ultimas({ route, navigation }: Props) {
                     : IMGS[userSettings.selectedLanguage].LAST_PLAYED
                 }
                 style={styles.ultimasPedidasImage}
+                contentFit="contain"
+                cachePolicy={"none"}
               />
               <View
                 style={{
