@@ -1,12 +1,12 @@
-import { View, Text, Image } from "react-native";
-import { styles } from "./styles";
+import { useContext } from "react";
+import { Image, Text, View } from "react-native";
+import { AnimuInfoProps } from "../../api";
 import foninho from "../../assets/icons/foninho.png";
 import foninho_branco from "../../assets/icons/foninho_branco.png";
-import { AnimuInfoProps } from "../../api";
-import { THEME } from "../../theme";
-import { DICT } from "../../languages";
-import { useContext } from "react";
 import { UserSettingsContext } from "../../contexts/user.settings.context";
+import { DICT } from "../../languages";
+import { THEME } from "../../theme";
+import { styles } from "./styles";
 
 interface Props {
   info: AnimuInfoProps;
@@ -57,6 +57,9 @@ export function Listeners({ info }: Props) {
               info.track.isRequest || info?.program?.isLiveProgram
                 ? THEME.COLORS.WHITE_TEXT
                 : THEME.COLORS.LISTENERS,
+          },
+          userSettings.selectedLanguage === "JN" && {
+            lineHeight: THEME.FONT_SIZE.MD + 7.5,
           },
         ]}
       >

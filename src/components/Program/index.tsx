@@ -4,6 +4,7 @@ import { styles } from "./styles";
 import { DICT, selectedLanguage } from "../../languages";
 import { UserSettingsContext } from "../../contexts/user.settings.context";
 import { useContext } from "react";
+import { THEME } from "../../theme";
 
 interface Props {
   program: ProgramProps;
@@ -21,8 +22,9 @@ export function Program({ program, handleClick }: Props) {
       <Text
         style={[
           styles.label,
+
           userSettings.selectedLanguage === "JN" && {
-            marginTop: -5.5,
+            lineHeight: THEME.FONT_SIZE.PROGRAM_LABELS + 1,
           },
         ]}
       >

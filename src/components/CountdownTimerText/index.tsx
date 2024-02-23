@@ -1,4 +1,7 @@
+import { useContext } from "react";
 import { Text } from "react-native";
+import { UserSettingsContext } from "../../contexts/user.settings.context";
+import { THEME } from "../../theme";
 
 interface Props {
   startTime: number;
@@ -15,5 +18,21 @@ export function CountdownTimerText({ startTime }: Props) {
     return minutes + ":" + (seconds < 10 ? "0" : "") + seconds;
   };
 
-  return <Text>{formatTimer(startTime)}</Text>;
+  const userSettingsContext = useContext(UserSettingsContext);
+
+  return (
+    <Text
+      style={[
+        {
+          fontSize: THEME.FONT_SIZE.SM,
+          fontFamily: THEME.FONT_FAMILY.REGULAR,
+        },
+        userSettingsContext.userSettings.selectedLanguage === "JN" && {
+          lineHeight: THEME.FONT_SIZE.SM + 2,
+        },
+      ]}
+    >
+      {formatTimer(startTime)}
+    </Text>
+  );
 }
