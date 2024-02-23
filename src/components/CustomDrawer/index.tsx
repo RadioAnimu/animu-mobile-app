@@ -336,7 +336,7 @@ export function CustomDrawerContent(props: DrawerContentComponentProps) {
             alignItems: "center",
           }}
         >
-          {DICT[userSettings.selectedLanguage].VERSION_TEXT}
+          {DICT[userSettings.selectedLanguage].VERSION_TEXT}{" "}
           <Text
             style={{
               textDecorationLine: "underline",
