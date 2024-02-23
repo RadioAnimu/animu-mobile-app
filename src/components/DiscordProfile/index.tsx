@@ -1,8 +1,7 @@
-import { FontAwesome } from "@expo/vector-icons";
-import { Text, TouchableOpacity, View } from "react-native";
-import { THEME } from "../../theme";
 import { Image } from "expo-image";
+import { Text, View } from "react-native";
 import { DiscordUser } from "../../contexts/user.context";
+import { THEME } from "../../theme";
 
 interface ProfileProps {
   user: DiscordUser;
@@ -28,7 +27,7 @@ export function DiscordProfile({ user }: ProfileProps) {
           height: 50,
           borderRadius: 25,
           borderWidth: 2,
-          borderColor: THEME.COLORS.WHITE_TEXT,
+          borderColor: THEME.COLORS.SHAPE,
         }}
       />
       <View>
