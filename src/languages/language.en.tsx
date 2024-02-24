@@ -162,6 +162,14 @@ const DICT = {
   HARU_CHAN_TEXT: "HARU-CHAN",
   THEME_WORD: "Theme",
   LOGIN_WORD: "Login",
+  FORM_LABEL_NICK: "Nickname",
+  FORM_LABEL_CITY: "City",
+  FORM_LABEL_ARTIST: "Artist",
+  FORM_LABEL_MUSIC: "Music",
+  FORM_LABEL_ANIME: "Anime/VN/Game",
+  FORM_LABEL_REQUEST: "Message",
+  ERROR_STRIKE_AND_OUT:
+    "Error! You have reached the limit of requests for 90 minutes",
 };
 
 const NoArLabel = (props: SvgProps) => (

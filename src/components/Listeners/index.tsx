@@ -60,6 +60,14 @@ export function Listeners({ info }: Props) {
           },
           userSettings.selectedLanguage === "JN" && {
             lineHeight: THEME.FONT_SIZE.MD + 7.5,
+            fontSize: (
+              info?.program?.isLiveProgram
+                ? info?.program.locutor.toUpperCase()
+                : info.track.isRequest
+            )
+              ? THEME.FONT_SIZE.MD - 3.8
+              : THEME.FONT_SIZE.MD,
+            marginLeft: -1.2,
           },
         ]}
       >

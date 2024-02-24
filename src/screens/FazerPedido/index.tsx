@@ -148,9 +148,18 @@ export function FazerPedido({ route, navigation }: Props) {
       });
       const data = await response.text();
       if (data !== "") {
-        setErrorMessage(
-          `${DICT[userSettings.selectedLanguage].REQUEST_ERROR}${data}`
-        );
+        switch (data) {
+          case "strike and out":
+            setErrorMessage(
+              DICT[userSettings.selectedLanguage].ERROR_STRIKE_AND_OUT
+            );
+            break;
+          default:
+            setErrorMessage(
+              `${DICT[userSettings.selectedLanguage].REQUEST_ERROR}${data}`
+            );
+            break;
+        }
         return;
       }
       setSelected(null);
@@ -185,7 +194,7 @@ export function FazerPedido({ route, navigation }: Props) {
             >
               <Logo
                 img={IMGS[userSettings.selectedLanguage].MAKE_REQUEST}
-                size={127}
+                size={150}
               />
             </View>
             <View style={styles.inputContainer}>

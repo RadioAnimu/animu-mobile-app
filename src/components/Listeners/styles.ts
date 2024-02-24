@@ -7,7 +7,8 @@ export const styles = StyleSheet.create({
     alignItems: "center",
     flexDirection: "row",
     borderRadius: 10,
-    paddingHorizontal: 10.13,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
     gap: 4,
     marginBottom: 10,
   },
@@ -16,8 +17,6 @@ export const styles = StyleSheet.create({
     fontFamily: THEME.FONT_FAMILY.BOLD,
     verticalAlign: "middle",
     textAlign: "center",
-    justifyContent: "center",
-    alignItems: "center",
   },
   foninho: {
     width: 20,

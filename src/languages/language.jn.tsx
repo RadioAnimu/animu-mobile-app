@@ -162,6 +162,13 @@ const DICT = {
   HARU_CHAN_TEXT: "はるちゃん",
   THEME_WORD: "テーマ",
   LOGIN_WORD: "ログイン",
+  FORM_LABEL_NICK: "ニックネーム",
+  FORM_LABEL_CITY: "都市",
+  FORM_LABEL_ARTIST: "アーティスト",
+  FORM_LABEL_MUSIC: "音楽",
+  FORM_LABEL_ANIME: "アニメ/ビジュアルノベル/ゲーム",
+  FORM_LABEL_REQUEST: "メッセージ",
+  ERROR_STRIKE_AND_OUT: "エラー！90分間のリクエスト制限に達しました",
 };
 
 const NoArLabel = (props: SvgProps) => (

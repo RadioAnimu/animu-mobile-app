@@ -13,15 +13,15 @@ import menuIcon from "../../assets/icons/menu.png";
 import noteIcon from "../../assets/icons/note.png";
 import playButtonImage from "../../assets/play_square_btn.png";
 import pauseButtonImage from "../../assets/play_triangle_btn.png";
+import { UserSettingsContext } from "../../contexts/user.settings.context";
+import { IMGS } from "../../languages";
 import { MyPlayerProps } from "../../utils";
 import { styles } from "./styles";
-import { DICT, IMGS } from "../../languages";
-import { UserSettingsContext } from "../../contexts/user.settings.context";
 
 interface Props {
   player: MyPlayerProps;
   navigation: ReturnType<typeof useNavigation>;
-  openLiveRequestModal: () => void;
+  openLiveRequestModal?: () => void;
 }
 
 type Status = "playing" | "paused" | "changing";
@@ -144,7 +144,8 @@ export function HeaderBar({ player, navigation, openLiveRequestModal }: Props) {
           onPress={() => {
             if (
               info?.program?.isLiveProgram &&
-              info?.program?.pedidos_ao_vivo !== "no"
+              info?.program?.pedidos_ao_vivo !== "no" &&
+              openLiveRequestModal
             ) {
               openLiveRequestModal();
               return;
@@ -158,7 +159,7 @@ export function HeaderBar({ player, navigation, openLiveRequestModal }: Props) {
             position: "relative",
           }}
         >
-          {info?.program?.isLiveProgram && (
+          {info?.program?.isLiveProgram && openLiveRequestModal && (
             <Animated.View
               style={{
                 transform: [{ translateY }],

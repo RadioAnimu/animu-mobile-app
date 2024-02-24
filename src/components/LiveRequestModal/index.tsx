@@ -1,4 +1,4 @@
-import React, { useContext, useState } from "react";
+import React, { useContext, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Image,
@@ -75,7 +75,6 @@ export function LiveRequestModal({ handleClose, ...rest }: Props) {
   const { errorMessage, setErrorMessage } = useContext(ErrorContext);
 
   const userContext = useContext(UserContext);
-  const [status, setStatus] = useState<Status>("idle");
   const [formData, setFormData] = useState<{
     name: string;
     city: string;
@@ -94,31 +93,38 @@ export function LiveRequestModal({ handleClose, ...rest }: Props) {
 
   const { userSettings } = useContext(UserSettingsContext);
 
-  const handleRequestMusic: () => Promise<void> = async () => {
-    setStatus("requesting");
+  const handleRequestMusic = async () => {
     const url = API.LIVE_REQUEST_URL;
-    let res: boolean = false;
     const form = new FormData();
     for (const item of FORM_BUILDER_MAPPER) {
       if (!item.optional && !formData[item.name as keyof typeof formData]) {
-        setErrorMessage(
-          "O campo " + item.label + " é obrigatório para fazer o pedido"
-        );
-        setStatus("idle");
-        return;
+        return false;
       }
       form.append(item.name, formData[item.name as keyof typeof formData]);
     }
-    const method: "POST" = "POST";
-    const headers = {};
-    const body = form;
-    try {
-      await fetch(url, { method, headers, body });
-      console.log("Pedido feito com sucesso!");
-      res = true;
-    } catch (error) {
-      res = false;
+    const response = await fetch(url, {
+      method: "POST",
+      credentials: "same-origin",
+      body: form,
+    });
+    const data = await response.text();
+    console.log("Made request");
+    if (data !== "1") {
+      setErrorMessage(
+        `${DICT[userSettings.selectedLanguage].REQUEST_ERROR}${data}`
+      );
+      return;
     }
+    handleClose();
+    setSuccessMessage(DICT[userSettings.selectedLanguage].REQUEST_SUCCESS);
+  };
+
+  const [tests, setTests] = useState(1);
+
+  const _handleRequestMusic = async () => {
+    setTests(0);
+    await handleRequestMusic();
+    setTests(1);
     setFormData({
       name: userContext?.user?.nickname || userContext?.user?.username || "",
       city: "",
@@ -127,18 +133,11 @@ export function LiveRequestModal({ handleClose, ...rest }: Props) {
       anime: "",
       request: "",
     });
-    if (res) {
-      setSuccessMessage("Pedido feito com sucesso!");
-    } else {
-      setErrorMessage("Erro ao fazer o pedido, tente novamente mais tarde");
-    }
-    setStatus("idle");
-    handleClose();
   };
 
   const FORM_BUILDER_MAPPER = [
     {
-      label: "Nick",
+      label: DICT[userSettings.selectedLanguage].FORM_LABEL_NICK,
       name: "name",
       input: {
         value: "",
@@ -148,7 +147,7 @@ export function LiveRequestModal({ handleClose, ...rest }: Props) {
       },
     },
     {
-      label: "Cidade",
+      label: DICT[userSettings.selectedLanguage].FORM_LABEL_CITY,
       name: "city",
       input: {
         value: "",
@@ -158,7 +157,7 @@ export function LiveRequestModal({ handleClose, ...rest }: Props) {
       },
     },
     {
-      label: "Artista",
+      label: DICT[userSettings.selectedLanguage].FORM_LABEL_ARTIST,
       name: "artist",
       input: {
         value: "",
@@ -168,7 +167,7 @@ export function LiveRequestModal({ handleClose, ...rest }: Props) {
       },
     },
     {
-      label: "Música",
+      label: DICT[userSettings.selectedLanguage].FORM_LABEL_MUSIC,
       name: "music",
       input: {
         value: "",
@@ -178,7 +177,7 @@ export function LiveRequestModal({ handleClose, ...rest }: Props) {
       },
     },
     {
-      label: "Anime/VN/Jogo",
+      label: DICT[userSettings.selectedLanguage].FORM_LABEL_ANIME,
       name: "anime",
       input: {
         value: "",
@@ -188,7 +187,7 @@ export function LiveRequestModal({ handleClose, ...rest }: Props) {
       },
     },
     {
-      label: "Recado",
+      label: DICT[userSettings.selectedLanguage].FORM_LABEL_REQUEST,
       optional: true,
       name: "request",
       input: {
@@ -197,7 +196,7 @@ export function LiveRequestModal({ handleClose, ...rest }: Props) {
           setFormData({ ...formData, request: text }),
         placeholder: "Digite um recado para o locutor",
         multiline: true,
-        onEndEditing: handleRequestMusic,
+        onEndEditing: () => _handleRequestMusic(),
       },
     },
   ];
@@ -237,15 +236,15 @@ export function LiveRequestModal({ handleClose, ...rest }: Props) {
                   placeholder={item.input.placeholder}
                   multiline={item.input.multiline}
                   onEndEditing={item.input.onEndEditing}
-                  disabled={status === "requesting"}
+                  disabled={tests === 0}
                 />
               </View>
             ))}
-            {status === "requesting" ? (
+            {tests === 0 ? (
               <ActivityIndicator color={THEME.COLORS.WHITE_TEXT} />
             ) : (
               <TouchableOpacity
-                onPress={handleRequestMusic}
+                onPress={() => _handleRequestMusic()}
                 style={styles.okButton}
               >
                 <Text style={styles.okText}>

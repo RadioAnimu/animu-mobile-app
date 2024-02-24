@@ -38,7 +38,7 @@ export function AppRoutes() {
         headerShown: false,
         drawerStyle: {
           backgroundColor: THEME.COLORS.PRIMARY,
-          width: Dimensions.get("window").width * 0.75, // 75% of the screen
+          width: Dimensions.get("window").width * 0.8, // 75% of the screen
         },
         drawerActiveTintColor: THEME.COLORS.WHITE_TEXT,
         drawerInactiveTintColor: THEME.COLORS.WHITE_TEXT,
@@ -46,6 +46,7 @@ export function AppRoutes() {
           fontFamily: THEME.FONT_FAMILY.BOLD,
           fontSize: THEME.FONT_SIZE.MENU_ITEM,
           textAlign: "left",
+          width: Dimensions.get("window").width * 0.64,
         },
         drawerItemStyle: {
           marginVertical: 0,
