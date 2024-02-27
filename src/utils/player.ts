@@ -1,13 +1,12 @@
 import TrackPlayer, { NowPlayingMetadata } from "react-native-track-player";
 import { API, AnimuInfoProps, ProgramProps, TrackProps } from "../api";
-import { UserSettings } from "./../contexts/user.settings.context";
 import { CONFIG, StreamOption } from "./player.config";
 
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { openBrowserAsync } from "expo-web-browser";
 import { DICT } from "../languages";
-import { SetupService } from "../services";
 import { getUserSettingsFromLocalStorage } from "../screens/Home";
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import { SetupService } from "../services";
 
 function isUrlAnImage(url: string) {
   return url.match(/\.(jpeg|jpg|gif|png|webp)$/) != null;
@@ -204,7 +203,7 @@ export const myPlayer = (): MyPlayerProps => ({
   async getListeners() {
     const data: any = await fetch(API.SAIJIKKOU_URL);
     const json: any = await data.json();
-    return json.listeners + 1; // +1 to count the current listener
+    return json.listeners;
   },
   async getUltimas(typeHistory: "pedidas" | "tocadas") {
     const res: TrackProps[] = [];

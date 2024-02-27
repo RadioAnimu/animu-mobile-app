@@ -11,9 +11,12 @@
       "backgroundColor": "#270051"
     },
     "scheme": "animuapp",
-    "assetBundlePatterns": ["**/*"],
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.nessjs.animu"
     },
     "android": {
       "adaptiveIcon": {

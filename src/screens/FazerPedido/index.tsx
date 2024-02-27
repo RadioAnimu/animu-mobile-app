@@ -25,11 +25,11 @@ import { ErrorContext } from "../../contexts/error.context";
 import { PlayerContext } from "../../contexts/player.context";
 import { SuccessContext } from "../../contexts/success.context";
 import { UserContext } from "../../contexts/user.context";
+import { UserSettingsContext } from "../../contexts/user.settings.context";
+import { DICT, IMGS } from "../../languages";
 import { RootStackParamList } from "../../routes/app.routes";
 import { THEME } from "../../theme";
 import { CONFIG } from "../../utils/player.config";
-import { DICT, IMGS, selectedLanguage } from "../../languages";
-import { UserSettingsContext } from "../../contexts/user.settings.context";
 
 type Props = NativeStackScreenProps<RootStackParamList, "FazerPedido">;
 type Status = "idle" | "loading";
