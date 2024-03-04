@@ -3,7 +3,7 @@ import { Background } from "./src/components/Background";
 
 import { useFonts } from "expo-font";
 
-import { useContext, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { AnimuInfoProps } from "./src/api";
 import { AnimuInfoContext } from "./src/contexts/animuinfo.context";
 import { ErrorContext } from "./src/contexts/error.context";
@@ -14,6 +14,7 @@ import {
 import { SuccessContext } from "./src/contexts/success.context";
 import { DiscordUser, UserContext } from "./src/contexts/user.context";
 import {
+  DEFAULT_USER_SETTINGS,
   UserSettings,
   UserSettingsContext,
 } from "./src/contexts/user.settings.context";
@@ -31,14 +32,9 @@ export default function App() {
 
   const [user, setUser] = useState<DiscordUser | null>(null);
 
-  const [userSettings, setUserSettings] = useState<UserSettings>({
-    liveQualityCover: "high",
-    lastRequestedCovers: true,
-    lastPlayedCovers: true,
-    coversInRequestSearch: true,
-    selectedLanguage: "PT",
-    cacheEnabled: true,
-  });
+  const [userSettings, setUserSettings] = useState<UserSettings>(
+    DEFAULT_USER_SETTINGS
+  );
 
   const [errorMessage, setErrorMessage] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
@@ -87,8 +83,6 @@ export default function App() {
       }
     };
   }, []);
-
-  const userContext = useContext(UserContext);
 
   const [fontsLoaded] = useFonts({
     "ProximaNova-Regular": require("./src/assets/fonts/proximanova-reg.ttf"),

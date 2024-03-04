@@ -9,6 +9,15 @@ export interface UserSettings {
   cacheEnabled: boolean;
 }
 
+export const DEFAULT_USER_SETTINGS: UserSettings = {
+  liveQualityCover: "high",
+  lastRequestedCovers: true,
+  lastPlayedCovers: true,
+  coversInRequestSearch: true,
+  selectedLanguage: "PT",
+  cacheEnabled: true,
+};
+
 import { Context, createContext } from "react";
 
 export interface UserSettingsContextProps {
@@ -18,13 +27,6 @@ export interface UserSettingsContextProps {
 
 export const UserSettingsContext: Context<UserSettingsContextProps> =
   createContext<UserSettingsContextProps>({
-    userSettings: {
-      liveQualityCover: "high",
-      lastRequestedCovers: true,
-      lastPlayedCovers: true,
-      coversInRequestSearch: true,
-      selectedLanguage: "PT",
-      cacheEnabled: true,
-    },
+    userSettings: DEFAULT_USER_SETTINGS,
     setUserSettings: () => {},
   });

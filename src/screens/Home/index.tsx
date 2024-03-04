@@ -26,34 +26,27 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import BackgroundTimer from "react-native-background-timer";
 import { checkIfUserIsStillInTheServerAndIfYesExtendSession } from "../../components/CustomDrawer";
+import { LiveRequestModal } from "../../components/LiveRequestModal";
 import { PopUpProgram } from "../../components/PopUpProgram";
+import { PopUpStatus } from "../../components/PopUpStatus";
 import { AnimuInfoContext } from "../../contexts/animuinfo.context";
 import { PlayerContext } from "../../contexts/player.context";
 import { DiscordUser, UserContext } from "../../contexts/user.context";
 import {
+  DEFAULT_USER_SETTINGS,
   UserSettings,
   UserSettingsContext,
 } from "../../contexts/user.settings.context";
 import { DICT } from "../../languages";
 import { RootStackParamList } from "../../routes/app.routes";
-import { LiveRequestModal } from "../../components/LiveRequestModal";
-import { PopUpStatus } from "../../components/PopUpStatus";
 
 export const getUserSettingsFromLocalStorage =
   async (): Promise<UserSettings> => {
-    const defaultUserSettings: UserSettings = {
-      liveQualityCover: "high",
-      lastRequestedCovers: true,
-      lastPlayedCovers: true,
-      coversInRequestSearch: true,
-      selectedLanguage: "PT",
-      cacheEnabled: true,
-    };
     try {
       const userSettings = await AsyncStorage.getItem("userSettings");
-      return userSettings ? JSON.parse(userSettings) : defaultUserSettings;
+      return userSettings ? JSON.parse(userSettings) : DEFAULT_USER_SETTINGS;
     } catch (e) {
-      return defaultUserSettings;
+      return DEFAULT_USER_SETTINGS;
     }
   };
 
