@@ -1,10 +1,10 @@
 import { Path, Rect, Svg, SvgProps } from "react-native-svg";
-import { Program } from "../utils/player.config";
-import logo from "../assets/logo_PT.png";
-import ultimas_pedidas from "../assets/ultimos_pedidas-haru_pt.png";
-import ultimas_tocadas from "../assets/ultimas_tocadas-haru_pt.png";
-import fazer_pedido from "../assets/pedidos_harukinha_pt.png";
 import { version } from "../../package.json";
+import { Program } from "../api";
+import logo from "../assets/logo_PT.png";
+import fazer_pedido from "../assets/pedidos_harukinha_pt.png";
+import ultimas_tocadas from "../assets/ultimas_tocadas-haru_pt.png";
+import ultimas_pedidas from "../assets/ultimos_pedidas-haru_pt.png";
 
 const PROGRAMS: Program[] = [
   {

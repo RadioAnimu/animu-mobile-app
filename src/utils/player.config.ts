@@ -34,15 +34,6 @@ const DEFAULT_STREAM_OPTION: StreamOption = STREAM_OPTIONS[0]; // 320bitrate MP3
 
 const USER_AGENT: string = "Animu Mobile App";
 
-export interface Program {
-  img: string;
-  name: string;
-  dj: string;
-  theme: string;
-  dayAndTime: string;
-  information: string;
-}
-
 export const CONFIG = {
   STREAM_OPTIONS,
   DEFAULT_STREAM_OPTION,

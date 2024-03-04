@@ -1,10 +1,10 @@
-import { Text, TouchableOpacity, View } from "react-native";
-import { ProgramProps } from "../../api";
-import { styles } from "./styles";
-import { DICT, selectedLanguage } from "../../languages";
-import { UserSettingsContext } from "../../contexts/user.settings.context";
 import { useContext } from "react";
+import { Text, TouchableOpacity } from "react-native";
+import { ProgramProps } from "../../api";
+import { UserSettingsContext } from "../../contexts/user.settings.context";
+import { DICT } from "../../languages";
 import { THEME } from "../../theme";
+import { styles } from "./styles";
 
 interface Props {
   program: ProgramProps;

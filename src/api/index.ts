@@ -1,5 +1,3 @@
-import { Program } from "../utils/player.config";
-
 const WEB_URL = "https://www.animu.com.br/";
 const BASE_URL = "https://api.animu.com.br/";
 const PROGRAM_URL = "https://www.animu.com.br/teste/locutor.php";
@@ -14,6 +12,15 @@ const FAZER_PEDIDO_URL =
 const DISCORD_URL = "https://discord.animu.com.br";
 const LIVE_REQUEST_URL =
   "https://www.animu.com.br/paineldj/ajaxforms(defasado)/request/salvar.php";
+
+export interface Program {
+  img: string;
+  name: string;
+  dj: string;
+  theme: string;
+  dayAndTime: string;
+  information: string;
+}
 
 export const API = {
   WEB_URL,

@@ -4,15 +4,15 @@ import {
   Image,
   Modal,
   ModalProps,
+  Text,
   TouchableOpacity,
   View,
-  Text,
 } from "react-native";
+import { ProgramProps } from "../../api";
+import { UserSettingsContext } from "../../contexts/user.settings.context";
+import { DICT } from "../../languages";
 import { THEME } from "../../theme";
 import { styles } from "./styles";
-import { ProgramProps } from "../../api";
-import { DICT, selectedLanguage } from "../../languages";
-import { UserSettingsContext } from "../../contexts/user.settings.context";
 
 interface Props extends ModalProps {
   handleClose: () => void;

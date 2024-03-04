@@ -1,10 +1,10 @@
-import Svg, { SvgProps, Rect, Path } from "react-native-svg";
-import logo from "../assets/logo_EN.png";
-import { Program } from "../utils/player.config";
+import Svg, { Path, Rect, SvgProps } from "react-native-svg";
 import { version } from "../../package.json";
-import ultimas_pedidas from "../assets/ultimos_pedidas-haru_en.png";
-import ultimas_tocadas from "../assets/ultimas_tocadas-haru_en.png";
+import { Program } from "../api";
+import logo from "../assets/logo_EN.png";
 import fazer_pedido from "../assets/pedidos_harukinha_en.png";
+import ultimas_tocadas from "../assets/ultimas_tocadas-haru_en.png";
+import ultimas_pedidas from "../assets/ultimos_pedidas-haru_en.png";
 
 const LANG = {
   key: "EN",
