@@ -7,7 +7,6 @@ interface Props {
   category: string;
   kbps: number;
   handleChangeStream: () => void;
-  isSaijikkou: boolean;
 }
 
 export function ButtonKBPS({
@@ -15,7 +14,6 @@ export function ButtonKBPS({
   category,
   kbps,
   handleChangeStream,
-  isSaijikkou,
 }: Props) {
   return (
     <TouchableOpacity
