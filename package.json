@@ -38,7 +38,7 @@
     "react-native-svg": "15.8.0",
     "react-native-text-ticker": "^1.14.0",
     "react-native-toggle-input": "^1.0.12",
-    "react-native-track-player": "3.2.0-6d22c10da7fb04d6b30cc9628c4acabe388d7f92"
+    "react-native-track-player": "^4.1.1"
   },
   "resolutions": {
     "@expo/config-plugins": "~9.0.0",
