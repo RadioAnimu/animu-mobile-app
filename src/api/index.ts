@@ -52,13 +52,14 @@ export interface MusicRequestProps {
 export interface ProgramProps {
   locutor: string;
   programa: string;
-  isLiveProgram: boolean;
   pedidos_ao_vivo: string;
-  isSaijikkou: boolean;
-  infoPrograma: string;
   imagem: string;
-  raw: Program | undefined;
+  infoPrograma: string;
   temaPrograma: string;
+
+  raw: Program | undefined;
+  isLiveProgram: boolean;
+  isSaijikkou: boolean;
 }
 
 export interface TrackProps {

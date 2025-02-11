@@ -18,8 +18,8 @@ import { DiscordUser, UserContext } from "../../contexts/user.context";
 import { THEME } from "../../theme";
 import { API } from "../../api";
 import { DICT, IMGS, LANGS_KEY_VALUE_PAIRS } from "../../languages";
-import { UserSettingsContext } from "../../contexts/user.settings.context";
 import { DiscordProfile } from "../DiscordProfile";
+import { useUserSettings } from "../../contexts/user/UserSettingsProvider";
 
 export const checkIfUserIsStillInTheServerAndIfYesExtendSession: (
   user: DiscordUser
@@ -119,7 +119,7 @@ export function LinkMenuItem({ Icon, title, url }: LinkMenuItemProps) {
 }
 
 export function LoginComponent() {
-  const { userSettings } = useContext(UserSettingsContext);
+  const { settings } = useUserSettings();
   const userContext = useContext(UserContext);
 
   const onLogin = async () => {
@@ -171,18 +171,18 @@ export function LoginComponent() {
           fontSize: THEME.FONT_SIZE.MENU_ITEM,
         }}
       >
-        {DICT[userSettings.selectedLanguage].LOGIN_WORD} Discord
+        {DICT[settings.selectedLanguage].LOGIN_WORD} Discord
       </Text>
     </TouchableOpacity>
   );
 }
 
 export function CustomDrawerContent(props: DrawerContentComponentProps) {
-  const { userSettings } = useContext(UserSettingsContext);
+  const { settings } = useUserSettings();
 
   const LINKS: LinkMenuItemProps[] = [
     {
-      title: DICT[userSettings.selectedLanguage].LINKS_WEBSITE,
+      title: DICT[settings.selectedLanguage].LINKS_WEBSITE,
       url: API.WEB_URL,
       Icon: () => (
         <FontAwesome5
@@ -193,7 +193,7 @@ export function CustomDrawerContent(props: DrawerContentComponentProps) {
       ),
     },
     {
-      title: DICT[userSettings.selectedLanguage].LINKS_DISCORD,
+      title: DICT[settings.selectedLanguage].LINKS_DISCORD,
       url: API.DISCORD_URL,
       Icon: () => (
         <FontAwesome5
@@ -229,7 +229,7 @@ export function CustomDrawerContent(props: DrawerContentComponentProps) {
           }}
         >
           <Image
-            source={IMGS[userSettings.selectedLanguage].LOGO}
+            source={IMGS[settings.selectedLanguage].LOGO}
             style={{
               height: 100,
               alignSelf: "center",
@@ -295,7 +295,7 @@ export function CustomDrawerContent(props: DrawerContentComponentProps) {
               color={THEME.COLORS.WHITE_TEXT}
             />
           )}
-          sectionTile={DICT[userSettings.selectedLanguage].MENU}
+          sectionTile={DICT[settings.selectedLanguage].MENU}
         />
         <DrawerItemList {...props} />
         <Separator
@@ -306,7 +306,7 @@ export function CustomDrawerContent(props: DrawerContentComponentProps) {
               color={THEME.COLORS.WHITE_TEXT}
             />
           )}
-          sectionTile={DICT[userSettings.selectedLanguage].LINKS}
+          sectionTile={DICT[settings.selectedLanguage].LINKS}
         />
         {LINKS.map((link, index) => (
           <LinkMenuItem
@@ -336,7 +336,7 @@ export function CustomDrawerContent(props: DrawerContentComponentProps) {
             alignItems: "center",
           }}
         >
-          {DICT[userSettings.selectedLanguage].VERSION_TEXT}{" "}
+          {DICT[settings.selectedLanguage].VERSION_TEXT}{" "}
           <Text
             style={{
               textDecorationLine: "underline",

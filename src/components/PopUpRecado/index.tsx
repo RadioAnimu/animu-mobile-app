@@ -1,5 +1,5 @@
 import { MaterialIcons } from "@expo/vector-icons";
-import React, { useContext, useState } from "react";
+import React, { useState } from "react";
 import {
   ActivityIndicator,
   Image,
@@ -15,7 +15,7 @@ import RecadoHaruka from "../../assets/reacdo_haruka.png";
 import { THEME } from "../../theme";
 import { styles } from "./styles";
 import { DICT, selectedLanguage } from "../../languages";
-import { UserSettingsContext } from "../../contexts/user.settings.context";
+import { useUserSettings } from "../../contexts/user/UserSettingsProvider";
 
 interface Props extends ModalProps {
   handleClose: () => void;
@@ -34,12 +34,13 @@ export function PopUpRecado({
   const [status, setStatus] = useState<Status>("idle");
 
   const _handleOk = async () => {
+    console.log("handleOk");
     setStatus("requesting");
     await handleOk();
     setStatus("idle");
   };
 
-  const { userSettings } = useContext(UserSettingsContext);
+  const { settings } = useUserSettings();
 
   return (
     <Modal animationType="fade" statusBarTranslucent transparent {...rest}>
@@ -54,7 +55,7 @@ export function PopUpRecado({
           </TouchableOpacity>
           <Image source={RecadoHaruka} style={styles.img} />
           <Text style={styles.text}>
-            {DICT[userSettings.selectedLanguage].INFO_REQUEST}
+            {DICT[settings.selectedLanguage].INFO_REQUEST}
           </Text>
           <TextInput
             style={[
@@ -62,7 +63,7 @@ export function PopUpRecado({
               status === "requesting" && styles.inputDisabled,
             ]}
             placeholder={
-              DICT[userSettings.selectedLanguage].SEND_REQUEST_PLACEHOLDER
+              DICT[settings.selectedLanguage].SEND_REQUEST_PLACEHOLDER
             }
             placeholderTextColor="#fff"
             onChange={(e) => handleChangeText(e.nativeEvent.text)}
@@ -74,7 +75,7 @@ export function PopUpRecado({
           ) : (
             <TouchableOpacity onPress={_handleOk} style={styles.okButton}>
               <Text style={styles.okText}>
-                {DICT[userSettings.selectedLanguage].SEND_REQUEST_BUTTON_TEXT}
+                {DICT[settings.selectedLanguage].SEND_REQUEST_BUTTON_TEXT}
               </Text>
             </TouchableOpacity>
           )}

@@ -17,6 +17,7 @@
     "@react-navigation/native": "^6.1.6",
     "@react-navigation/native-stack": "^6.9.12",
     "@types/react-native-background-timer": "^2.0.0",
+    "axios": "^1.7.9",
     "expo": "^52.0.30",
     "expo-build-properties": "~0.13.2",
     "expo-dev-client": "~5.0.11",

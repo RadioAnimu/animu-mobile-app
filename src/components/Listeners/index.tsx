@@ -1,28 +1,31 @@
-import { useContext } from "react";
 import { Image, Text, View } from "react-native";
-import { AnimuInfoProps } from "../../api";
 import foninho from "../../assets/icons/foninho.png";
 import foninho_branco from "../../assets/icons/foninho_branco.png";
-import { UserSettingsContext } from "../../contexts/user.settings.context";
 import { DICT } from "../../languages";
 import { THEME } from "../../theme";
 import { styles } from "./styles";
+import { useUserSettings } from "../../contexts/user/UserSettingsProvider";
+import { Listeners as ListenerType } from "../../core/domain/listeners";
+import { Track } from "../../core/domain/track";
+import { Program } from "../../core/domain/program";
 
 interface Props {
-  info: AnimuInfoProps;
+  listeners: ListenerType;
+  track: Track;
+  program?: Program;
 }
 
-export function Listeners({ info }: Props) {
-  const { userSettings } = useContext(UserSettingsContext);
+export function Listeners({ props }: { props: Props }) {
+  const { settings } = useUserSettings();
 
   return (
     <View
       style={[
         styles.container,
         {
-          backgroundColor: info.track.isRequest
+          backgroundColor: props.track.isRequest
             ? THEME.COLORS.REQUEST
-            : info?.program?.isLiveProgram
+            : props.program?.isLive
             ? THEME.COLORS.LIVE_PROGRAM
             : THEME.COLORS.SHAPE,
         },
@@ -33,18 +36,18 @@ export function Listeners({ info }: Props) {
           styles.text,
           {
             color:
-              info.track.isRequest || info?.program?.isLiveProgram
+              props.track.isRequest || props?.program?.isLive
                 ? THEME.COLORS.WHITE_TEXT
                 : THEME.COLORS.LISTENERS,
           },
         ]}
       >
-        {info.listeners}
+        {props.listeners.value}
       </Text>
       <Image
         style={styles.foninho}
         source={
-          info.track.isRequest || info?.program?.isLiveProgram
+          props.track.isRequest || props?.program?.isLive
             ? foninho_branco
             : foninho
         }
@@ -54,16 +57,16 @@ export function Listeners({ info }: Props) {
           styles.text,
           {
             color:
-              info.track.isRequest || info?.program?.isLiveProgram
+              props.track.isRequest || props?.program?.isLive
                 ? THEME.COLORS.WHITE_TEXT
                 : THEME.COLORS.LISTENERS,
           },
-          userSettings.selectedLanguage === "JN" && {
+          settings.selectedLanguage === "JN" && {
             lineHeight: THEME.FONT_SIZE.MD + 7.5,
             fontSize: (
-              info?.program?.isLiveProgram
-                ? info?.program.locutor.toUpperCase()
-                : info.track.isRequest
+              props?.program?.isLive
+                ? props?.program.dj.toUpperCase()
+                : props.track.isRequest
             )
               ? THEME.FONT_SIZE.MD - 3.8
               : THEME.FONT_SIZE.MD,
@@ -71,11 +74,11 @@ export function Listeners({ info }: Props) {
           },
         ]}
       >
-        {info?.program?.isLiveProgram
-          ? info?.program.locutor.toUpperCase()
-          : info.track.isRequest
-          ? DICT[userSettings.selectedLanguage].TRACK_REQUEST
-          : DICT[userSettings.selectedLanguage].HARU_CHAN_TEXT}
+        {props?.program?.isLive
+          ? props?.program.dj.toUpperCase()
+          : props.track.isRequest
+          ? DICT[settings.selectedLanguage].TRACK_REQUEST
+          : DICT[settings.selectedLanguage].HARU_CHAN_TEXT}
       </Text>
     </View>
   );

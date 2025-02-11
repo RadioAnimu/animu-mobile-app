@@ -10,7 +10,6 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { UserSettingsContext } from "../../contexts/user.settings.context";
 import { DICT } from "../../languages";
 import { THEME } from "../../theme";
 import { styles } from "./styles";
@@ -20,6 +19,7 @@ import { API } from "../../api";
 import { UserContext } from "../../contexts/user.context";
 import { SuccessContext } from "../../contexts/success.context";
 import { ErrorContext } from "../../contexts/error.context";
+import { useUserSettings } from "../../contexts/user/UserSettingsProvider";
 
 interface Props extends ModalProps {
   handleClose: () => void;
@@ -91,7 +91,7 @@ export function LiveRequestModal({ handleClose, ...rest }: Props) {
     request: "",
   });
 
-  const { userSettings } = useContext(UserSettingsContext);
+  const { settings } = useUserSettings();
 
   const handleRequestMusic = async () => {
     const url = API.LIVE_REQUEST_URL;
@@ -111,12 +111,12 @@ export function LiveRequestModal({ handleClose, ...rest }: Props) {
     console.log("Made request");
     if (data !== "1") {
       setErrorMessage(
-        `${DICT[userSettings.selectedLanguage].REQUEST_ERROR}${data}`
+        `${DICT[settings.selectedLanguage].REQUEST_ERROR}${data}`
       );
       return;
     }
     handleClose();
-    setSuccessMessage(DICT[userSettings.selectedLanguage].REQUEST_SUCCESS);
+    setSuccessMessage(DICT[settings.selectedLanguage].REQUEST_SUCCESS);
   };
 
   const [tests, setTests] = useState(1);
@@ -137,7 +137,7 @@ export function LiveRequestModal({ handleClose, ...rest }: Props) {
 
   const FORM_BUILDER_MAPPER = [
     {
-      label: DICT[userSettings.selectedLanguage].FORM_LABEL_NICK,
+      label: DICT[settings.selectedLanguage].FORM_LABEL_NICK,
       name: "name",
       input: {
         value: "",
@@ -147,7 +147,7 @@ export function LiveRequestModal({ handleClose, ...rest }: Props) {
       },
     },
     {
-      label: DICT[userSettings.selectedLanguage].FORM_LABEL_CITY,
+      label: DICT[settings.selectedLanguage].FORM_LABEL_CITY,
       name: "city",
       input: {
         value: "",
@@ -157,7 +157,7 @@ export function LiveRequestModal({ handleClose, ...rest }: Props) {
       },
     },
     {
-      label: DICT[userSettings.selectedLanguage].FORM_LABEL_ARTIST,
+      label: DICT[settings.selectedLanguage].FORM_LABEL_ARTIST,
       name: "artist",
       input: {
         value: "",
@@ -167,7 +167,7 @@ export function LiveRequestModal({ handleClose, ...rest }: Props) {
       },
     },
     {
-      label: DICT[userSettings.selectedLanguage].FORM_LABEL_MUSIC,
+      label: DICT[settings.selectedLanguage].FORM_LABEL_MUSIC,
       name: "music",
       input: {
         value: "",
@@ -177,7 +177,7 @@ export function LiveRequestModal({ handleClose, ...rest }: Props) {
       },
     },
     {
-      label: DICT[userSettings.selectedLanguage].FORM_LABEL_ANIME,
+      label: DICT[settings.selectedLanguage].FORM_LABEL_ANIME,
       name: "anime",
       input: {
         value: "",
@@ -187,7 +187,7 @@ export function LiveRequestModal({ handleClose, ...rest }: Props) {
       },
     },
     {
-      label: DICT[userSettings.selectedLanguage].FORM_LABEL_REQUEST,
+      label: DICT[settings.selectedLanguage].FORM_LABEL_REQUEST,
       optional: true,
       name: "request",
       input: {
@@ -248,7 +248,7 @@ export function LiveRequestModal({ handleClose, ...rest }: Props) {
                 style={styles.okButton}
               >
                 <Text style={styles.okText}>
-                  {DICT[userSettings.selectedLanguage].SEND_REQUEST_BUTTON_TEXT}
+                  {DICT[settings.selectedLanguage].SEND_REQUEST_BUTTON_TEXT}
                 </Text>
               </TouchableOpacity>
             )}

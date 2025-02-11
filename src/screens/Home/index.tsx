@@ -1,17 +1,18 @@
 import React, {
-  MutableRefObject,
   useContext,
   useEffect,
   useRef,
   useState,
+  useCallback,
 } from "react";
 import { ScrollView, Text, View } from "react-native";
-
-import { AnimuInfoProps } from "../../api";
-import { Background } from "../../components/Background";
-import { styles } from "./styles";
-
 import { SafeAreaView } from "react-native-safe-area-context";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import BackgroundTimer from "react-native-background-timer";
+import { NativeStackScreenProps } from "@react-navigation/native-stack";
+
+// Components
+import { Background } from "../../components/Background";
 import { ChooseBitrateSection } from "../../components/ChooseBitrateSection";
 import { CountdownTimerText } from "../../components/CountdownTimerText";
 import { Cover } from "../../components/Cover";
@@ -20,202 +21,192 @@ import { Listeners } from "../../components/Listeners";
 import { Live } from "../../components/Live";
 import { Logo } from "../../components/Logo";
 import { Program } from "../../components/Program";
-import { Loading } from "../Loading";
-
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import { NativeStackScreenProps } from "@react-navigation/native-stack";
-import BackgroundTimer from "react-native-background-timer";
-import { checkIfUserIsStillInTheServerAndIfYesExtendSession } from "../../components/CustomDrawer";
 import { LiveRequestModal } from "../../components/LiveRequestModal";
 import { PopUpProgram } from "../../components/PopUpProgram";
 import { PopUpStatus } from "../../components/PopUpStatus";
-import { AnimuInfoContext } from "../../contexts/animuinfo.context";
-import { PlayerContext } from "../../contexts/player.context";
+
+// Contexts and Utilities
 import { DiscordUser, UserContext } from "../../contexts/user.context";
-import {
-  DEFAULT_USER_SETTINGS,
-  UserSettings,
-  UserSettingsContext,
-} from "../../contexts/user.settings.context";
 import { DICT } from "../../languages";
 import { RootStackParamList } from "../../routes/app.routes";
+import { useUserSettings } from "../../contexts/user/UserSettingsProvider";
+import { usePlayer } from "../../contexts/player/PlayerProvider";
+import { checkIfUserIsStillInTheServerAndIfYesExtendSession } from "../../components/CustomDrawer";
 
-export const getUserSettingsFromLocalStorage =
-  async (): Promise<UserSettings> => {
-    try {
-      const userSettings = await AsyncStorage.getItem("userSettings");
-      return userSettings ? JSON.parse(userSettings) : DEFAULT_USER_SETTINGS;
-    } catch (e) {
-      return DEFAULT_USER_SETTINGS;
-    }
-  };
-
-export const getUserSavedDataOrNull = async () => {
-  try {
-    const user = await AsyncStorage.getItem("user");
-    return user ? JSON.parse(user) : null;
-  } catch (e) {
-    return null;
-  }
-};
+// Styles
+import { styles } from "./styles";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Home">;
 
-export function Home({ route, navigation }: Props) {
-  const playerProvider = useContext(PlayerContext);
-  const [isModalVisible, setIsModalVisible] = useState(false);
+const USER_DATA_KEY = "user";
+const BACKGROUND_REFRESH_INTERVAL = 5000;
+const TRACK_PROGRESS_INTERVAL = 1000;
+
+export const Home = ({ navigation }: Props) => {
+  const player = usePlayer();
   const userContext = useContext(UserContext);
-  const userSettingsContext = useContext(UserSettingsContext);
+  const { settings } = useUserSettings();
 
-  const userRefPHPSESSID: MutableRefObject<DiscordUser | null> =
-    useRef<DiscordUser>(null);
+  const [isModalVisible, setIsModalVisible] = useState(false);
+  const [isLiveRequestModalVisible, setIsLiveRequestModalVisible] =
+    useState(false);
+  const userRefPHPSESSID = useRef<DiscordUser | null>(null);
+  const progressIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
-  if (playerProvider?.player) {
-    const player = playerProvider.player;
-
-    let auxData: AnimuInfoProps | null = null;
-
-    const animuInfoContext = useContext(AnimuInfoContext);
-    if (!animuInfoContext) {
-      throw new Error("AnimuInfoContext is null");
-    }
-    const { animuInfo, setAnimuInfo } = animuInfoContext;
-
-    useEffect(() => {
-      BackgroundTimer.runBackgroundTimer(async () => {
-        auxData = await player.getCurrentMusic();
-        setAnimuInfo(auxData);
-        await player.updateMetadata();
-
-        if (userRefPHPSESSID.current !== null && userContext) {
-          const user = userRefPHPSESSID.current;
-          const isUserStillInServer =
-            await checkIfUserIsStillInTheServerAndIfYesExtendSession(user);
-          if (!isUserStillInServer) {
-            // Logout user from the app
-            await AsyncStorage.removeItem("user");
-            userContext.setUser(null);
-          }
-        }
-      }, 5000);
-      setInterval(() => {
-        player.currentProgress = player.currentInformation?.track.timestart
-          ? Date.now() - player.currentInformation?.track.timestart
-          : 0;
-        if (player.currentInformation) {
-          setAnimuInfo({
-            ...player.currentInformation,
-            track: {
-              ...player.currentInformation.track,
-              progress: player.currentProgress,
-            },
-          });
-        }
-      }, 1000);
-      return () => {
-        BackgroundTimer.stopBackgroundTimer();
-      };
-    }, []);
-
-    useEffect(() => {
-      // clear all local storage
-      // AsyncStorage.clear();
-      // if (userContext && userContext.user)
-      //   logoutUserFromTheServer(userContext.user);
-
-      getUserSavedDataOrNull()
-        .then((user) => {
-          if (userContext && user) {
-            userContext.setUser(user);
-          }
-        })
-        .catch((e) => {
-          console.error(e);
-        });
-      getUserSettingsFromLocalStorage()
-        .then((userSettings) => {
-          if (userSettingsContext && userSettings) {
-            userSettingsContext.setUserSettings(userSettings);
-          }
-        })
-        .catch((e) => {
-          console.error(e);
-        });
-    }, []);
-
-    useEffect(() => {
-      if (userContext?.user) {
-        userRefPHPSESSID.current = userContext.user;
+  // User data management
+  const handleUserData = useCallback(async () => {
+    try {
+      const userData = await AsyncStorage.getItem(USER_DATA_KEY);
+      if (!userData) {
+        return;
       }
-    }, [userContext?.user]);
 
-    const { userSettings } = useContext(UserSettingsContext);
+      const user = JSON.parse(userData);
+      userContext?.setUser(user);
+    } catch (error) {
+      console.error("[Home] Error loading user data:", error);
+    }
+  }, [userContext]);
 
-    const [isLiveRequestModalVisible, setIsLiveRequestModalVisible] =
-      useState<boolean>(false);
+  // Background data refresh
+  const refreshData = useCallback(async () => {
+    console.log("[Home] Refreshing data...");
+    try {
+      await player.refreshData();
 
-    const openLiveRequestModal = () => {
-      setIsLiveRequestModalVisible(true);
+      if (userRefPHPSESSID.current && userContext?.user) {
+        const isUserValid =
+          await checkIfUserIsStillInTheServerAndIfYesExtendSession(
+            userContext.user
+          );
+        if (!isUserValid) {
+          await AsyncStorage.removeItem(USER_DATA_KEY);
+          userContext.setUser(null);
+        }
+      }
+    } catch (error) {
+      console.error("[Home] Error refreshing data:", error);
+    }
+  }, [player, userContext]);
+
+  // Track progress updates
+  const startProgressUpdates = useCallback(() => {
+    progressIntervalRef.current = setInterval(() => {
+      player.updateCurrentTrackProgress();
+    }, TRACK_PROGRESS_INTERVAL);
+  }, [player]);
+
+  // Effects
+  useEffect(() => {
+    handleUserData();
+    refreshData();
+    startProgressUpdates();
+
+    // Setup background refresh
+    BackgroundTimer.runBackgroundTimer(
+      refreshData,
+      BACKGROUND_REFRESH_INTERVAL
+    );
+
+    return () => {
+      BackgroundTimer.stopBackgroundTimer();
+      if (progressIntervalRef.current) {
+        clearInterval(progressIntervalRef.current);
+      }
     };
+  }, []);
 
-    return (
-      <Background>
-        {animuInfo ? (
-          <SafeAreaView style={styles.container}>
-            <ScrollView>
-              <HeaderBar
-                openLiveRequestModal={openLiveRequestModal}
-                player={player}
-                navigation={navigation}
-              />
-              <View style={styles.containerApp}>
-                <Logo size={127} />
-                <Listeners info={animuInfo} />
-                <Cover cover={animuInfo.track.artworks.cover} />
-                {!animuInfo?.program?.isLiveProgram &&
-                  !animuInfo?.track?.anime
-                    ?.toLocaleLowerCase()
-                    .includes("passagem") && (
-                    <Text style={styles.timeLeft}>
-                      {DICT[userSettings.selectedLanguage].TIME_REMAINING}:{" "}
-                      <CountdownTimerText
-                        startTime={
-                          animuInfo.track.duration - player.currentProgress
-                        }
-                      />
-                    </Text>
-                  )}
-                <Live animuInfo={animuInfo.track} />
-                <Program
-                  program={animuInfo.program}
-                  handleClick={() => {
-                    setIsModalVisible(true);
-                  }}
-                />
-                <ChooseBitrateSection player={player} />
-              </View>
-            </ScrollView>
-            <PopUpStatus />
-            <LiveRequestModal
-              handleClose={() => {
-                setIsLiveRequestModalVisible(false);
-              }}
-              visible={isLiveRequestModalVisible}
-            />
-            {player._currentStream.category !== "REPRISES" && (
-              <PopUpProgram
-                visible={isModalVisible}
-                _program={animuInfo.program}
-                handleClose={() => {
-                  setIsModalVisible(false);
+  useEffect(() => {
+    userRefPHPSESSID.current = userContext?.user || null;
+  }, [userContext?.user]);
+
+  // UI Handlers
+  const handleOpenProgramModal = useCallback(() => {
+    setIsModalVisible(true);
+  }, []);
+
+  const handleCloseProgramModal = useCallback(() => {
+    setIsModalVisible(false);
+  }, []);
+
+  const handleLiveRequestModal = useCallback((state: boolean) => {
+    setIsLiveRequestModalVisible(state);
+  }, []);
+
+  // Derived render values
+  const shouldShowTimeLeft =
+    !player.currentProgram?.isLive &&
+    !player.currentTrack?.anime?.toLowerCase().includes("passagem");
+
+  return (
+    <Background>
+      <SafeAreaView style={styles.container}>
+        <ScrollView>
+          <HeaderBar
+            openLiveRequestModal={() => handleLiveRequestModal(true)}
+            navigation={navigation}
+            currentTrack={player.currentTrack}
+            currentProgram={player.currentProgram}
+          />
+
+          <View style={styles.containerApp}>
+            <Logo size={127} />
+
+            {player.currentListeners && player.currentTrack && (
+              <Listeners
+                props={{
+                  listeners: player.currentListeners,
+                  track: player.currentTrack,
+                  program: player.currentProgram,
                 }}
               />
             )}
-          </SafeAreaView>
-        ) : (
-          <Loading />
-        )}
-      </Background>
-    );
-  }
-}
+
+            {player.currentTrack?.artwork && (
+              <Cover cover={player.currentTrack.artwork} />
+            )}
+
+            {shouldShowTimeLeft && (
+              <Text style={styles.timeLeft}>
+                {DICT[settings.selectedLanguage].TIME_REMAINING}:{" "}
+                <CountdownTimerText
+                  startTime={
+                    (player.currentTrack?.duration || 0) -
+                    (player.currentTrack?.progress || 0)
+                  }
+                />
+              </Text>
+            )}
+
+            {player.currentTrack && <Live track={player.currentTrack} />}
+
+            {player.currentProgram && (
+              <Program
+                program={player.currentProgram}
+                handleClick={handleOpenProgramModal}
+              />
+            )}
+
+            <ChooseBitrateSection />
+          </View>
+        </ScrollView>
+
+        <PopUpStatus />
+
+        <LiveRequestModal
+          visible={isLiveRequestModalVisible}
+          handleClose={() => handleLiveRequestModal(false)}
+        />
+
+        {player.currentStream?.category !== "REPRISES" &&
+          player.currentProgram && (
+            <PopUpProgram
+              visible={isModalVisible}
+              _program={player.currentProgram}
+              handleClose={handleCloseProgramModal}
+            />
+          )}
+      </SafeAreaView>
+    </Background>
+  );
+};

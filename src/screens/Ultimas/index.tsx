@@ -10,14 +10,14 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { HeaderBar } from "../../components/HeaderBar";
 
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
-import { PlayerContext } from "../../contexts/player.context";
 import { RootStackParamList } from "../../routes/app.routes";
 
-import { AnimuInfoContext } from "../../contexts/animuinfo.context";
-import { UserSettingsContext } from "../../contexts/user.settings.context";
 import { Image } from "expo-image";
 import { IMGS } from "../../languages";
 import { Loading } from "../Loading";
+import { useUserSettings } from "../../contexts/user/UserSettingsProvider";
+import { usePlayer } from "../../contexts/player/PlayerProvider";
+import { AnimuInfoProps, TrackProps } from "../../api";
 
 type Props = NativeStackScreenProps<
   RootStackParamList,
@@ -25,112 +25,104 @@ type Props = NativeStackScreenProps<
 >;
 
 export function Ultimas({ route, navigation }: Props) {
-  const playerProvider = useContext(PlayerContext);
   const { type } = route.params;
   const isUltimasPedidasScreen = type === "pedidas";
 
-  if (playerProvider?.player) {
-    const player = playerProvider.player;
+  const player = usePlayer();
 
-    const animuInfoContext = useContext(AnimuInfoContext);
-    if (!animuInfoContext) {
-      throw new Error("AnimuInfoContext is null");
-    }
-    const { animuInfo } = animuInfoContext;
+  const { settings } = useUserSettings();
 
-    const { userSettings } = useContext(UserSettingsContext);
+  const [isLiveRequestModalVisible, setIsLiveRequestModalVisible] =
+    useState<boolean>(false);
 
-    const [isLiveRequestModalVisible, setIsLiveRequestModalVisible] =
-      useState<boolean>(false);
+  const openLiveRequestModal = () => {
+    setIsLiveRequestModalVisible(true);
+  };
 
-    const openLiveRequestModal = () => {
-      setIsLiveRequestModalVisible(true);
-    };
-
-    return (
-      <Background>
-        {animuInfo ? (
-          <SafeAreaView style={styles.container}>
-            <HeaderBar
-              openLiveRequestModal={openLiveRequestModal}
-              player={player}
-              navigation={navigation}
+  return (
+    <Background>
+      {player ? (
+        <SafeAreaView style={styles.container}>
+          <HeaderBar
+            openLiveRequestModal={openLiveRequestModal}
+            navigation={navigation}
+          />
+          <View style={styles.appContainer}>
+            <Image
+              source={
+                isUltimasPedidasScreen
+                  ? IMGS[settings.selectedLanguage].LAST_REQUEST
+                  : IMGS[settings.selectedLanguage].LAST_PLAYED
+              }
+              style={styles.ultimasPedidasImage}
+              contentFit="contain"
+              cachePolicy={"none"}
             />
-            <View style={styles.appContainer}>
-              <Image
-                source={
+            <View
+              style={{
+                width: "100%",
+                flex: 1,
+              }}
+            >
+              <FlatList
+                data={
                   isUltimasPedidasScreen
-                    ? IMGS[userSettings.selectedLanguage].LAST_REQUEST
-                    : IMGS[userSettings.selectedLanguage].LAST_PLAYED
+                    ? // animuInfo.ultimasPedidas
+                      ([] as TrackProps[])
+                    : // animuInfo.ultimasTocadas
+                      ([] as TrackProps[])
                 }
-                style={styles.ultimasPedidasImage}
-                contentFit="contain"
-                cachePolicy={"none"}
-              />
-              <View
-                style={{
-                  width: "100%",
-                  flex: 1,
-                }}
-              >
-                <FlatList
-                  data={
-                    isUltimasPedidasScreen
-                      ? animuInfo.ultimasPedidas
-                      : animuInfo.ultimasTocadas
-                  }
-                  keyExtractor={(item, index) => item.rawtitle + index}
-                  contentContainerStyle={styles.containerList}
-                  extraData={animuInfo.ultimasPedidas}
-                  renderItem={({ item }) => (
-                    <View style={styles.metadata}>
-                      {(isUltimasPedidasScreen &&
-                        userSettings.lastRequestedCovers) ||
-                      (!isUltimasPedidasScreen &&
-                        userSettings.lastPlayedCovers) ? (
-                        <Image
-                          source={{
-                            uri: item.artworks.cover || CONFIG.DEFAULT_COVER,
-                          }}
-                          style={styles.image}
-                          placeholder={{
+                keyExtractor={(item, index) => item.rawtitle + index}
+                contentContainerStyle={styles.containerList}
+                extraData={
+                  isUltimasPedidasScreen
+                    ? // animuInfo.ultimasPedidas
+                      ([] as TrackProps[])
+                    : // animuInfo.ultimasTocadas
+                      ([] as TrackProps[])
+                }
+                renderItem={({ item }) => (
+                  <View style={styles.metadata}>
+                    {(isUltimasPedidasScreen && settings.lastRequestedCovers) ||
+                    (!isUltimasPedidasScreen && settings.lastPlayedCovers) ? (
+                      <Image
+                        source={{
+                          uri: item.artworks.cover || CONFIG.DEFAULT_COVER,
+                        }}
+                        style={styles.image}
+                        placeholder={{
+                          uri: CONFIG.DEFAULT_COVER,
+                        }}
+                        onError={() => {
+                          return {
                             uri: CONFIG.DEFAULT_COVER,
-                          }}
-                          onError={() => {
-                            return {
-                              uri: CONFIG.DEFAULT_COVER,
-                            };
-                          }}
-                          cachePolicy={
-                            userSettings.cacheEnabled ? "disk" : "none"
-                          }
-                          contentFit="cover"
-                        />
-                      ) : (
-                        <></>
-                      )}
-                      <Text style={styles.musicapedidaname}>
-                        {item.rawtitle}
+                          };
+                        }}
+                        cachePolicy={settings.cacheEnabled ? "disk" : "none"}
+                        contentFit="cover"
+                      />
+                    ) : (
+                      <></>
+                    )}
+                    <Text style={styles.musicapedidaname}>{item.rawtitle}</Text>
+                    {isUltimasPedidasScreen && (
+                      <Text style={styles.musicapedidatime}>
+                        {new Date(item.timestart).toLocaleTimeString([], {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                          hour12: false,
+                        })}
                       </Text>
-                      {isUltimasPedidasScreen && (
-                        <Text style={styles.musicapedidatime}>
-                          {new Date(item.timestart).toLocaleTimeString([], {
-                            hour: "2-digit",
-                            minute: "2-digit",
-                            hour12: false,
-                          })}
-                        </Text>
-                      )}
-                    </View>
-                  )}
-                />
-              </View>
+                    )}
+                  </View>
+                )}
+              />
             </View>
-          </SafeAreaView>
-        ) : (
-          <Loading />
-        )}
-      </Background>
-    );
-  }
+          </View>
+        </SafeAreaView>
+      ) : (
+        <Loading />
+      )}
+    </Background>
+  );
 }

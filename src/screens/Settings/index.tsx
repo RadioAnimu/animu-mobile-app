@@ -13,16 +13,13 @@ import {
   logoutUserFromTheServer,
 } from "../../components/CustomDrawer";
 import { UserContext } from "../../contexts/user.context";
-import {
-  UserSettings,
-  UserSettingsContext,
-} from "../../contexts/user.settings.context";
 import { DICT, LANGS_KEY_VALUE_PAIRS } from "../../languages";
 import { RootStackParamList } from "../../routes/app.routes";
 import { THEME } from "../../theme";
 import { styles } from "./styles";
 import { DiscordProfile } from "../../components/DiscordProfile";
-import { AnimuInfoContext } from "../../contexts/animuinfo.context";
+import { useUserSettings } from "../../contexts/user/UserSettingsProvider";
+import { updateOptions } from "react-native-track-player/lib/src/trackPlayer";
 
 export const BackArrow = (props: SvgProps) => (
   <Svg width="21" height="19" viewBox="0 0 21 19" fill="none">
@@ -37,12 +34,6 @@ export const BackArrow = (props: SvgProps) => (
 interface TitleSectionProps {
   title: string;
 }
-
-export const saveUserSettingsToLocalStorage = async (
-  userSettings: UserSettings
-) => {
-  await AsyncStorage.setItem("userSettings", JSON.stringify(userSettings));
-};
 
 export function TitleSection({ title }: TitleSectionProps) {
   return (
@@ -184,16 +175,14 @@ export function Settings({ route, navigation }: Props) {
     ] as string,
   }));
 
-  const { userSettings, setUserSettings } = useContext(UserSettingsContext);
+  const { settings, updateSettings } = useUserSettings();
 
-  const key = userSettings.selectedLanguage || "PT";
+  const key = settings.selectedLanguage || "PT";
 
   const keyAndValue = {
     key,
     value: LANGS_KEY_VALUE_PAIRS[key],
   };
-
-  const animuInfoContext = useContext(AnimuInfoContext);
 
   return (
     <Background>
@@ -207,7 +196,7 @@ export function Settings({ route, navigation }: Props) {
             <BackArrow />
           </TouchableOpacity>
           <Text style={styles.settingsText}>
-            {DICT[userSettings.selectedLanguage].SETTINGS_TITLE}
+            {DICT[settings.selectedLanguage].SETTINGS_TITLE}
           </Text>
           <View
             style={{
@@ -219,7 +208,7 @@ export function Settings({ route, navigation }: Props) {
         <ScrollView contentContainerStyle={styles.appContainer}>
           <View>
             <TitleSection
-              title={DICT[userSettings.selectedLanguage].SETTINGS_ACCOUNT_TITLE}
+              title={DICT[settings.selectedLanguage].SETTINGS_ACCOUNT_TITLE}
             />
             {userContext?.user ? (
               <View
@@ -255,27 +244,19 @@ export function Settings({ route, navigation }: Props) {
           </View>
           <Splitter />
           <TitleSection
-            title={DICT[userSettings.selectedLanguage].SETTINGS_SAVE_DATA_TITLE}
+            title={DICT[settings.selectedLanguage].SETTINGS_SAVE_DATA_TITLE}
           />
           <Label
-            label={
-              DICT[userSettings.selectedLanguage].SETTINGS_QUALITY_LIVE_LABEL
-            }
+            label={DICT[settings.selectedLanguage].SETTINGS_QUALITY_LIVE_LABEL}
           />
           <View style={styles.qualitySectionButtons}>
             <QualityButton
               quality={
-                DICT[userSettings.selectedLanguage]
-                  .SETTINGS_QUALITY_LIVE_LABEL_HIGH
+                DICT[settings.selectedLanguage].SETTINGS_QUALITY_LIVE_LABEL_HIGH
               }
-              selected={userSettings.liveQualityCover === "high"}
+              selected={settings.liveQualityCover === "high"}
               onPress={() => {
-                setUserSettings({
-                  ...userSettings,
-                  liveQualityCover: "high",
-                });
-                saveUserSettingsToLocalStorage({
-                  ...userSettings,
+                updateSettings({
                   liveQualityCover: "high",
                 });
               }}
@@ -283,17 +264,12 @@ export function Settings({ route, navigation }: Props) {
             />
             <QualityButton
               quality={
-                DICT[userSettings.selectedLanguage]
+                DICT[settings.selectedLanguage]
                   .SETTINGS_QUALITY_LIVE_LABEL_MEDIUM
               }
-              selected={userSettings.liveQualityCover === "medium"}
+              selected={settings.liveQualityCover === "medium"}
               onPress={() => {
-                setUserSettings({
-                  ...userSettings,
-                  liveQualityCover: "medium",
-                });
-                saveUserSettingsToLocalStorage({
-                  ...userSettings,
+                updateSettings({
                   liveQualityCover: "medium",
                 });
               }}
@@ -301,17 +277,14 @@ export function Settings({ route, navigation }: Props) {
             />
             <QualityButton
               quality={
-                DICT[userSettings.selectedLanguage]
-                  .SETTINGS_QUALITY_LIVE_LABEL_LOW
+                DICT[settings.selectedLanguage].SETTINGS_QUALITY_LIVE_LABEL_LOW
               }
-              selected={userSettings.liveQualityCover === "low"}
+              selected={settings.liveQualityCover === "low"}
               onPress={() => {
-                setUserSettings({
-                  ...userSettings,
+                updateSettings({
                   liveQualityCover: "low",
                 });
-                saveUserSettingsToLocalStorage({
-                  ...userSettings,
+                updateSettings({
                   liveQualityCover: "low",
                 });
               }}
@@ -320,20 +293,13 @@ export function Settings({ route, navigation }: Props) {
           </View>
           <ToggleSection
             label={
-              DICT[userSettings.selectedLanguage]
-                .SETTINGS_COVER_LIVE_LABEL_SWITCH
+              DICT[settings.selectedLanguage].SETTINGS_COVER_LIVE_LABEL_SWITCH
             }
-            toggle={userSettings.liveQualityCover !== "off"}
+            toggle={settings.liveQualityCover !== "off"}
             setToggle={() => {
-              setUserSettings({
-                ...userSettings,
+              updateSettings({
                 liveQualityCover:
-                  userSettings.liveQualityCover === "off" ? "low" : "off",
-              });
-              saveUserSettingsToLocalStorage({
-                ...userSettings,
-                liveQualityCover:
-                  userSettings.liveQualityCover === "off" ? "low" : "off",
+                  settings.liveQualityCover === "off" ? "low" : "off",
               });
             }}
           />
@@ -341,63 +307,46 @@ export function Settings({ route, navigation }: Props) {
             size={THEME.FONT_SIZE.MD}
             color="#fff"
             label={
-              DICT[userSettings.selectedLanguage]
+              DICT[settings.selectedLanguage]
                 .SETTINGS_COVER_LAST_REQUESTED_SWITCH
             }
-            toggle={userSettings.lastRequestedCovers}
+            toggle={settings.lastRequestedCovers}
             setToggle={() => {
-              setUserSettings({
-                ...userSettings,
-                lastRequestedCovers: !userSettings.lastRequestedCovers,
-              });
-              saveUserSettingsToLocalStorage({
-                ...userSettings,
-                lastRequestedCovers: !userSettings.lastRequestedCovers,
+              updateSettings({
+                lastRequestedCovers: !settings.lastRequestedCovers,
               });
             }}
           />
           <ToggleSection
             label={
-              DICT[userSettings.selectedLanguage]
-                .SETTINGS_COVER_LAST_PLAYED_SWITCH
+              DICT[settings.selectedLanguage].SETTINGS_COVER_LAST_PLAYED_SWITCH
             }
             size={THEME.FONT_SIZE.MD}
             color="#fff"
-            toggle={userSettings.lastPlayedCovers}
+            toggle={settings.lastPlayedCovers}
             setToggle={() => {
-              setUserSettings({
-                ...userSettings,
-                lastPlayedCovers: !userSettings.lastPlayedCovers,
-              });
-              saveUserSettingsToLocalStorage({
-                ...userSettings,
-                lastPlayedCovers: !userSettings.lastPlayedCovers,
+              updateSettings({
+                lastPlayedCovers: !settings.lastPlayedCovers,
               });
             }}
           />
           <ToggleSection
             label={
-              DICT[userSettings.selectedLanguage]
-                .SETTINGS_COVER_REQUESTED_SWITCH
+              DICT[settings.selectedLanguage].SETTINGS_COVER_REQUESTED_SWITCH
             }
             size={THEME.FONT_SIZE.MD}
             color="#fff"
-            toggle={userSettings.coversInRequestSearch}
+            toggle={settings.coversInRequestSearch}
             setToggle={() => {
-              setUserSettings({
-                ...userSettings,
-                coversInRequestSearch: !userSettings.coversInRequestSearch,
-              });
-              saveUserSettingsToLocalStorage({
-                ...userSettings,
-                coversInRequestSearch: !userSettings.coversInRequestSearch,
+              updateSettings({
+                coversInRequestSearch: !settings.coversInRequestSearch,
               });
             }}
           />
           <Splitter />
           <TitleSection
             title={
-              DICT[userSettings.selectedLanguage].SETTINGS_LANGUAGE_SELECT_TITLE
+              DICT[settings.selectedLanguage].SETTINGS_LANGUAGE_SELECT_TITLE
             }
           />
           <SelectList
@@ -409,17 +358,10 @@ export function Settings({ route, navigation }: Props) {
                   ] === val
               );
               if (key) {
-                setUserSettings({
-                  ...userSettings,
+                updateSettings({
                   selectedLanguage: key as keyof typeof LANGS_KEY_VALUE_PAIRS,
                 });
-                saveUserSettingsToLocalStorage({
-                  ...userSettings,
-                  selectedLanguage: key as keyof typeof LANGS_KEY_VALUE_PAIRS,
-                });
-                if (animuInfoContext?.setAnimuInfo) {
-                  animuInfoContext.setAnimuInfo(null);
-                }
+                //! NEED TO REFRESH PLAYER
               }
             }}
             data={data}
@@ -452,31 +394,25 @@ export function Settings({ route, navigation }: Props) {
             }
             search={false}
             placeholder={
-              DICT[userSettings.selectedLanguage]
+              DICT[settings.selectedLanguage]
                 .SETTINGS_LANGUAGE_SELECT_PLACEHOLDER
             }
             defaultOption={keyAndValue}
           />
           <Splitter />
           <TitleSection
-            title={DICT[userSettings.selectedLanguage].SETTINGS_MEMORY_TITLE}
+            title={DICT[settings.selectedLanguage].SETTINGS_MEMORY_TITLE}
           />
           <ToggleSection
             label={
-              DICT[userSettings.selectedLanguage]
-                .SETTINGS_MEMORY_CLEAR_CACHE_SWITCH
+              DICT[settings.selectedLanguage].SETTINGS_MEMORY_CLEAR_CACHE_SWITCH
             }
             size={THEME.FONT_SIZE.MD}
             color="#fff"
-            toggle={userSettings.cacheEnabled}
+            toggle={settings.cacheEnabled}
             setToggle={() => {
-              setUserSettings({
-                ...userSettings,
-                cacheEnabled: !userSettings.cacheEnabled,
-              });
-              saveUserSettingsToLocalStorage({
-                ...userSettings,
-                cacheEnabled: !userSettings.cacheEnabled,
+              updateSettings({
+                cacheEnabled: !settings.cacheEnabled,
               });
             }}
           />

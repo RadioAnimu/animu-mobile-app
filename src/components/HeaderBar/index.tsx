@@ -1,5 +1,5 @@
 import { useNavigation } from "@react-navigation/native";
-import { useContext, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Animated,
   Dimensions,
@@ -8,65 +8,55 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { AnimuInfoProps } from "../../api";
 import menuIcon from "../../assets/icons/menu.png";
 import noteIcon from "../../assets/icons/note.png";
 import playButtonImage from "../../assets/play_square_btn.png";
 import pauseButtonImage from "../../assets/play_triangle_btn.png";
-import { UserSettingsContext } from "../../contexts/user.settings.context";
 import { IMGS } from "../../languages";
-import { MyPlayerProps } from "../../utils";
 import { styles } from "./styles";
+import { useUserSettings } from "../../contexts/user/UserSettingsProvider";
+import { usePlayer } from "../../contexts/player/PlayerProvider";
+import { Track } from "../../core/domain/track";
+import { Program } from "../../core/domain/program";
 
 interface Props {
-  player: MyPlayerProps;
   navigation: ReturnType<typeof useNavigation>;
   openLiveRequestModal?: () => void;
+  currentTrack?: Track;
+  currentProgram?: Program;
 }
 
 type Status = "playing" | "paused" | "changing";
 
-export function HeaderBar({ player, navigation, openLiveRequestModal }: Props) {
+export function HeaderBar({
+  navigation,
+  openLiveRequestModal,
+  currentTrack,
+  currentProgram,
+}: Props) {
   const progressAnim = useRef(new Animated.Value(0)).current; // Initial value for opacity: 0
   const [status, setStatus] = useState<Status>("playing");
-
-  const [info, setAnimuInfo] = useState<AnimuInfoProps | null>(null);
-  useEffect(() => {
-    setInterval(() => {
-      player.currentProgress = player.currentInformation?.track.timestart
-        ? Date.now() - player.currentInformation?.track.timestart
-        : 0;
-      if (player.currentInformation) {
-        setAnimuInfo({
-          ...player.currentInformation,
-          track: {
-            ...player.currentInformation.track,
-            progress: player.currentProgress,
-          },
-        });
-      }
-    }, 1000);
-  }, []);
+  const player = usePlayer();
 
   useEffect(() => {
     if (
-      info?.track?.progress &&
-      info?.track?.duration &&
-      !Number.isNaN(info?.track?.progress) &&
-      !Number.isNaN(info?.track?.duration) &&
-      info?.track?.duration > 0 &&
-      info?.track?.progress > 0 &&
-      !Number.isNaN(info?.track?.progress / info?.track?.duration)
+      currentTrack?.progress &&
+      currentTrack?.duration &&
+      !Number.isNaN(currentTrack?.progress) &&
+      !Number.isNaN(currentTrack?.duration) &&
+      currentTrack?.duration > 0 &&
+      currentTrack?.progress > 0 &&
+      !Number.isNaN(currentTrack?.progress / currentTrack?.duration)
     ) {
       Animated.timing(progressAnim, {
         toValue:
           Dimensions.get("window").width *
-          (info?.track?.progress / info?.track?.duration),
+          (currentTrack?.progress / currentTrack?.duration),
         duration: 1000,
         useNativeDriver: false,
       }).start();
     }
-  }, [progressAnim, info]);
+  }, [progressAnim, currentTrack]);
 
   const [animation] = useState(new Animated.Value(0));
 
@@ -98,12 +88,11 @@ export function HeaderBar({ player, navigation, openLiveRequestModal }: Props) {
     outputRange: [50, -50],
   });
 
-  const { userSettings } = useContext(UserSettingsContext);
+  const { settings } = useUserSettings();
 
-  const LiveRequestComponent =
-    info?.program.pedidos_ao_vivo !== "no"
-      ? IMGS[userSettings.selectedLanguage].LIVE_REQUEST_ENABLED
-      : IMGS[userSettings.selectedLanguage].LIVE_REQUEST_DISABLED;
+  const LiveRequestComponent = currentProgram?.acceptingRequests
+    ? IMGS[settings.selectedLanguage].LIVE_REQUEST_ENABLED
+    : IMGS[settings.selectedLanguage].LIVE_REQUEST_DISABLED;
 
   return (
     <View style={styles.view}>
@@ -120,7 +109,7 @@ export function HeaderBar({ player, navigation, openLiveRequestModal }: Props) {
           onPress={async () => {
             if (status === "changing") return;
             setStatus("changing");
-            if (player._paused) {
+            if (!player.isPlaying) {
               await player.play();
               setStatus("playing");
             } else {
@@ -136,20 +125,20 @@ export function HeaderBar({ player, navigation, openLiveRequestModal }: Props) {
                 opacity: status === "changing" ? 0.5 : 1,
               },
             ]}
-            source={player._paused ? pauseButtonImage : playButtonImage}
+            source={!player.isPlaying ? pauseButtonImage : playButtonImage}
           />
         </TouchableOpacity>
 
         <TouchableOpacity
           onPress={() => {
             if (
-              info?.program?.isLiveProgram &&
-              info?.program?.pedidos_ao_vivo !== "no" &&
+              currentProgram?.isLive &&
+              currentProgram?.acceptingRequests &&
               openLiveRequestModal
             ) {
               openLiveRequestModal();
               return;
-            } else if (info?.program?.isLiveProgram) {
+            } else if (currentProgram?.isLive) {
               return;
             }
             // @ts-ignore
@@ -159,7 +148,7 @@ export function HeaderBar({ player, navigation, openLiveRequestModal }: Props) {
             position: "relative",
           }}
         >
-          {info?.program?.isLiveProgram && openLiveRequestModal && (
+          {currentProgram?.isLive && openLiveRequestModal && (
             <Animated.View
               style={{
                 transform: [{ translateY }],
@@ -174,8 +163,8 @@ export function HeaderBar({ player, navigation, openLiveRequestModal }: Props) {
           <Image style={styles.noteIcon} source={noteIcon} />
         </TouchableOpacity>
       </View>
-      {!info?.program?.isLiveProgram &&
-        !info?.track.anime.toLocaleLowerCase().includes("passagem") && (
+      {!currentProgram?.isLive &&
+        !currentTrack?.anime.toLocaleLowerCase().includes("passagem") && (
           <Animated.View
             style={[
               styles.progressBarView,

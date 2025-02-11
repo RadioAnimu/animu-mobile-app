@@ -5,7 +5,6 @@ import TrackPlayer, {
 } from "react-native-track-player";
 import { THEME } from "../theme";
 import { PlaybackService } from "./PlaybackService";
-import { MyPlayerProps } from "../utils";
 
 export const DefaultRepeatMode = RepeatMode.Queue;
 export const DefaultAudioServiceBehaviour =
@@ -29,7 +28,7 @@ const setupPlayer = async (
   }
 };
 
-export const SetupService = async (player: MyPlayerProps) => {
+export const SetupService = async () => {
   await setupPlayer({});
   await TrackPlayer.updateOptions({
     android: {
@@ -44,5 +43,5 @@ export const SetupService = async (player: MyPlayerProps) => {
     color: +THEME.COLORS.BACKGROUND_800.replace("#", ""),
     progressUpdateEventInterval: 1,
   });
-  await PlaybackService(player);
+  await PlaybackService();
 };

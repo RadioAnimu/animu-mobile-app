@@ -4,50 +4,22 @@ import { Background } from "./src/components/Background";
 import { useFonts } from "expo-font";
 
 import { useEffect, useMemo, useState } from "react";
-import { AnimuInfoProps } from "./src/api";
-import { AnimuInfoContext } from "./src/contexts/animuinfo.context";
 import { ErrorContext } from "./src/contexts/error.context";
-import {
-  PlayerContext,
-  PlayerProviderType,
-} from "./src/contexts/player.context";
 import { SuccessContext } from "./src/contexts/success.context";
 import { DiscordUser, UserContext } from "./src/contexts/user.context";
-import {
-  DEFAULT_USER_SETTINGS,
-  UserSettings,
-  UserSettingsContext,
-} from "./src/contexts/user.settings.context";
 import { Routes } from "./src/routes";
 import { Loading } from "./src/screens/Loading";
 import { THEME } from "./src/theme";
-import { MyPlayerProps, myPlayer } from "./src/utils";
+import { PlayerProvider } from "./src/contexts/player/PlayerProvider";
+import { UserSettingsProvider } from "./src/contexts/user/UserSettingsProvider";
 
 export default function App() {
   const [isLoading, setIsLoading] = useState(true);
 
-  const [player, setPlayer] = useState<MyPlayerProps>(myPlayer());
-
-  const [animuInfo, setAnimuInfo] = useState<AnimuInfoProps | null>(null);
-
   const [user, setUser] = useState<DiscordUser | null>(null);
-
-  const [userSettings, setUserSettings] = useState<UserSettings>(
-    DEFAULT_USER_SETTINGS
-  );
 
   const [errorMessage, setErrorMessage] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
-
-  const playerProvider: PlayerProviderType = useMemo(
-    () => ({ player, setPlayer }),
-    [player, setPlayer]
-  );
-
-  const animuInfoProvider = useMemo(
-    () => ({ animuInfo, setAnimuInfo }),
-    [animuInfo, setAnimuInfo]
-  );
 
   const userProvider = useMemo(() => ({ user, setUser }), [user, setUser]);
 
@@ -61,23 +33,16 @@ export default function App() {
     [successMessage, setSuccessMessage]
   );
 
-  const userSettingsProvider = useMemo(
-    () => ({ userSettings, setUserSettings }),
-    [userSettings, setUserSettings]
-  );
-
   useEffect(() => {
     (async () => {
       console.log("App mounted");
-      await player.play();
-      setPlayer(player);
       setIsLoading(false);
     })();
     return () => {
       console.log("App unmounted");
       try {
         // Sequence of events to destroy the player and turn off the app
-        player.destroy();
+        // player.destroy();
       } catch (err) {
         console.log(err);
       }
@@ -100,19 +65,17 @@ export default function App() {
       />
       {fontsLoaded && !isLoading ? (
         <Background>
-          <PlayerContext.Provider value={playerProvider}>
-            <AnimuInfoContext.Provider value={animuInfoProvider}>
-              <UserContext.Provider value={userProvider}>
-                <ErrorContext.Provider value={errorMessageProvider}>
-                  <SuccessContext.Provider value={successMessageProvider}>
-                    <UserSettingsContext.Provider value={userSettingsProvider}>
-                      <Routes />
-                    </UserSettingsContext.Provider>
-                  </SuccessContext.Provider>
-                </ErrorContext.Provider>
-              </UserContext.Provider>
-            </AnimuInfoContext.Provider>
-          </PlayerContext.Provider>
+          <PlayerProvider>
+            <UserContext.Provider value={userProvider}>
+              <ErrorContext.Provider value={errorMessageProvider}>
+                <SuccessContext.Provider value={successMessageProvider}>
+                  <UserSettingsProvider>
+                    <Routes />
+                  </UserSettingsProvider>
+                </SuccessContext.Provider>
+              </ErrorContext.Provider>
+            </UserContext.Provider>
+          </PlayerProvider>
         </Background>
       ) : (
         <Loading />

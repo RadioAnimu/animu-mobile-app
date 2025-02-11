@@ -1,5 +1,5 @@
 import { MaterialIcons } from "@expo/vector-icons";
-import React, { useContext } from "react";
+import React from "react";
 import {
   Image,
   Modal,
@@ -9,18 +9,19 @@ import {
   View,
 } from "react-native";
 import { ProgramProps } from "../../api";
-import { UserSettingsContext } from "../../contexts/user.settings.context";
 import { DICT } from "../../languages";
 import { THEME } from "../../theme";
 import { styles } from "./styles";
+import { useUserSettings } from "../../contexts/user/UserSettingsProvider";
+import { Program } from "../../core/domain/program";
 
 interface Props extends ModalProps {
   handleClose: () => void;
-  _program: ProgramProps;
+  _program: Program;
 }
 
 export function PopUpProgram({ _program, handleClose, ...rest }: Props) {
-  const { userSettings } = useContext(UserSettingsContext);
+  const { settings } = useUserSettings();
 
   let i = 0;
   let program: ProgramProps["raw"] = DICT["PT"].PROGRAMS.find((item) => {
@@ -31,7 +32,7 @@ export function PopUpProgram({ _program, handleClose, ...rest }: Props) {
     }
   });
 
-  program = DICT[userSettings.selectedLanguage].PROGRAMS[i];
+  program = DICT[settings.selectedLanguage].PROGRAMS[i];
 
   if (!program) {
     return null;
@@ -48,7 +49,7 @@ export function PopUpProgram({ _program, handleClose, ...rest }: Props) {
               color={THEME.COLORS.WHITE_TEXT}
             />
           </TouchableOpacity>
-          <Image source={{ uri: _program.imagem }} style={styles.img} />
+          <Image source={{ uri: _program.imageUrl }} style={styles.img} />
           <View style={styles.informationBlock}>
             <Text
               style={[
@@ -80,7 +81,7 @@ export function PopUpProgram({ _program, handleClose, ...rest }: Props) {
                 },
               ]}
             >
-              {DICT[userSettings.selectedLanguage].THEME_WORD}: {program.theme}
+              {DICT[settings.selectedLanguage].THEME_WORD}: {program.theme}
             </Text>
             <Text
               style={[

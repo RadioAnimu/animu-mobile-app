@@ -1,23 +1,19 @@
 import { Image } from "expo-image";
 import { styles } from "./styles";
 import { CONFIG } from "../../utils/player.config";
-import { useContext } from "react";
-import { UserSettingsContext } from "../../contexts/user.settings.context";
+import { useUserSettings } from "../../contexts/user/UserSettingsProvider";
 
 interface Props {
   cover: string;
 }
 
 export function Cover({ cover }: Props) {
-  const { userSettings } = useContext(UserSettingsContext);
+  const { settings } = useUserSettings();
 
   return (
     <Image
       source={{
-        uri:
-          userSettings.liveQualityCover === "off"
-            ? CONFIG.DEFAULT_COVER
-            : cover,
+        uri: cover,
       }}
       style={styles.image}
       placeholder={{
@@ -28,7 +24,7 @@ export function Cover({ cover }: Props) {
           uri: CONFIG.DEFAULT_COVER,
         };
       }}
-      cachePolicy={userSettings.cacheEnabled ? "disk" : "none"}
+      cachePolicy={settings.cacheEnabled ? "disk" : "none"}
       contentFit="cover"
     />
   );

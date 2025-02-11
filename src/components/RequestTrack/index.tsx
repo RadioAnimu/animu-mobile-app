@@ -4,8 +4,8 @@ import { styles } from "./styles";
 import { THEME } from "../../theme";
 import { Image } from "expo-image";
 import { CONFIG } from "../../utils/player.config";
-import { UserSettingsContext } from "../../contexts/user.settings.context";
 import { useContext } from "react";
+import { useUserSettings } from "../../contexts/user/UserSettingsProvider";
 
 interface Props {
   musicToBeRequested: MusicRequestProps;
@@ -13,7 +13,7 @@ interface Props {
 }
 
 export function RequestTrack({ musicToBeRequested, onTrackRequest }: Props) {
-  const { userSettings } = useContext(UserSettingsContext);
+  const { settings } = useUserSettings();
 
   return (
     <TouchableOpacity
@@ -27,7 +27,7 @@ export function RequestTrack({ musicToBeRequested, onTrackRequest }: Props) {
         },
       ]}
     >
-      {userSettings.coversInRequestSearch && (
+      {settings.coversInRequestSearch && (
         <Image
           source={{ uri: musicToBeRequested.track.artworks.cover }}
           style={styles.image}
@@ -38,7 +38,7 @@ export function RequestTrack({ musicToBeRequested, onTrackRequest }: Props) {
             };
           }}
           contentFit="cover"
-          cachePolicy={userSettings.cacheEnabled ? "disk" : "none"}
+          cachePolicy={settings.cacheEnabled ? "disk" : "none"}
         />
       )}
       <Text style={styles.text}>

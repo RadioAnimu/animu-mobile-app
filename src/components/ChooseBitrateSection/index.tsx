@@ -1,28 +1,29 @@
 import { FlatList } from "react-native";
-import { MyPlayerProps } from "../../utils";
 import { ButtonKBPS } from "../ButtonKBPS";
 import { styles } from "./styles";
+import { usePlayer } from "../../contexts/player/PlayerProvider";
+import { CONFIG } from "../../utils/player.config";
+import { useUserSettings } from "../../contexts/user/UserSettingsProvider";
 
-interface Props {
-  player: MyPlayerProps;
-}
+export function ChooseBitrateSection() {
+  const { changeStream, currentStream } = usePlayer();
+  const { settings } = useUserSettings();
 
-export function ChooseBitrateSection({ player }: Props) {
   return (
     <FlatList
       style={styles.container}
       contentContainerStyle={styles.contentContainer}
       horizontal
       showsHorizontalScrollIndicator={false}
-      data={player.CONFIG.STREAM_OPTIONS}
+      data={CONFIG.STREAM_OPTIONS}
       keyExtractor={(item) => item.url}
       renderItem={({ item }) => {
         return (
           <ButtonKBPS
             handleChangeStream={() => {
-              player.changeStream(item);
+              changeStream(item, settings.liveQualityCover);
             }}
-            selected={item.url === player._currentStream.url || false}
+            selected={item.url === currentStream?.url || false}
             category={item.category}
             kbps={item.bitrate}
           />

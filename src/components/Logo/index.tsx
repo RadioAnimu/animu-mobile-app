@@ -1,8 +1,7 @@
 import { Image } from "react-native";
 import { styles } from "./styles";
 import { IMGS, selectedLanguage } from "../../languages";
-import { useContext } from "react";
-import { UserSettingsContext } from "../../contexts/user.settings.context";
+import { useUserSettings } from "../../contexts/user/UserSettingsProvider";
 
 interface Props {
   size?: number;
@@ -11,9 +10,9 @@ interface Props {
 
 export function Logo({ size, img }: Props) {
   const defaultSize = 100;
-  const { userSettings } = useContext(UserSettingsContext);
+  const { settings } = useUserSettings();
 
-  const defaultImg = IMGS[userSettings.selectedLanguage].LOGO;
+  const defaultImg = IMGS[settings.selectedLanguage].LOGO;
   return (
     <Image
       source={img ? img : defaultImg}

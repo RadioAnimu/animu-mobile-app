@@ -1,35 +1,35 @@
-import { useContext } from "react";
 import { Text, TouchableOpacity } from "react-native";
 import { ProgramProps } from "../../api";
-import { UserSettingsContext } from "../../contexts/user.settings.context";
 import { DICT } from "../../languages";
 import { THEME } from "../../theme";
 import { styles } from "./styles";
+import { useUserSettings } from "../../contexts/user/UserSettingsProvider";
+import { Program as ProgramType } from "../../core/domain/program";
 
 interface Props {
-  program: ProgramProps;
+  program: ProgramType;
   handleClick: () => void;
 }
 
 export function Program({ program, handleClick }: Props) {
-  const { userSettings } = useContext(UserSettingsContext);
+  const { settings } = useUserSettings();
 
   return (
     <TouchableOpacity onPress={handleClick} style={styles.container}>
       <Text style={[styles.title, styles.green]}>
-        {program?.isSaijikkou ? "Animu Sai Jikkou" : program?.programa}
+        {program?.isSaijikkou ? "Animu Sai Jikkou" : program?.name}
       </Text>
       <Text
         style={[
           styles.label,
 
-          userSettings.selectedLanguage === "JN" && {
+          settings.selectedLanguage === "JN" && {
             lineHeight: THEME.FONT_SIZE.PROGRAM_LABELS + 1,
           },
         ]}
       >
-        {DICT[userSettings.selectedLanguage].WITH_DJ}:{" "}
-        <Text style={styles.green}>{program?.locutor}</Text>
+        {DICT[settings.selectedLanguage].WITH_DJ}:{" "}
+        <Text style={styles.green}>{program?.dj}</Text>
       </Text>
     </TouchableOpacity>
   );

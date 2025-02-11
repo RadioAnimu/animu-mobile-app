@@ -1,7 +1,10 @@
 import TrackPlayer, { Event } from "react-native-track-player";
-import { MyPlayerProps } from "../utils";
+import { myPlayer } from "../utils";
 
-export async function PlaybackService(player: MyPlayerProps): Promise<void> {
+export async function PlaybackService(): Promise<void> {
+  // Get the player instance
+  const player = myPlayer();
+
   TrackPlayer.addEventListener(Event.RemotePlay, () => {
     TrackPlayer.reset();
     player
