@@ -27,7 +27,7 @@ import { usePlayer } from "../../contexts/player/PlayerProvider";
 import { styles } from "./styles";
 import { useAuth } from "../../contexts/auth/AuthProvider";
 import { authService } from "../../core/services/auth.service";
-import { useAlert } from "../../contexts/alert/AlertProvider";
+import { backgroundService } from "../../core/services/background.service";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Home">;
 
@@ -42,11 +42,9 @@ export const Home = ({ navigation }: Props) => {
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [isLiveRequestModalVisible, setIsLiveRequestModalVisible] =
     useState(false);
-  const progressIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   // Background data refresh
   const refreshData = useCallback(async () => {
-    console.log("[Home] Refreshing data...");
     try {
       await player.refreshData();
       await authService.initialize();
@@ -62,29 +60,31 @@ export const Home = ({ navigation }: Props) => {
     }
   }, [player, user]);
 
-  // Track progress updates
-  const startProgressUpdates = useCallback(() => {
-    progressIntervalRef.current = setInterval(() => {
-      player.updateCurrentTrackProgress();
-    }, TRACK_PROGRESS_INTERVAL);
-  }, [player]);
-
   // Effects
   useEffect(() => {
+    // Initial data fetch
     refreshData();
-    startProgressUpdates();
+    player.updateCurrentTrackProgress();
 
-    // Setup background refresh
-    BackgroundTimer.runBackgroundTimer(
-      refreshData,
-      BACKGROUND_REFRESH_INTERVAL
-    );
+    // Start background tasks
+    backgroundService.startTask({
+      id: "refresh-data",
+      callback: refreshData,
+      interval: BACKGROUND_REFRESH_INTERVAL,
+      backgroundTimer: true,
+    });
 
+    backgroundService.startTask({
+      id: "track-progress",
+      callback: player.updateCurrentTrackProgress,
+      interval: TRACK_PROGRESS_INTERVAL,
+      backgroundTimer: false,
+    });
+
+    // Cleanup
     return () => {
-      BackgroundTimer.stopBackgroundTimer();
-      if (progressIntervalRef.current) {
-        clearInterval(progressIntervalRef.current);
-      }
+      backgroundService.stopTask("refresh-data");
+      backgroundService.stopTask("track-progress");
     };
   }, []);
 
