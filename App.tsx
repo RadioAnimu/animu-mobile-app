@@ -1,9 +1,9 @@
-import { Platform, StatusBar } from "react-native";
+import { StatusBar } from "react-native";
 import { Background } from "./src/components/Background";
 
 import { useFonts } from "expo-font";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { Routes } from "./src/routes";
 import { Loading } from "./src/screens/Loading";
 import { THEME } from "./src/theme";
@@ -11,9 +11,11 @@ import { PlayerProvider } from "./src/contexts/player/PlayerProvider";
 import { UserSettingsProvider } from "./src/contexts/user/UserSettingsProvider";
 import { AlertProvider } from "./src/contexts/alert/AlertProvider";
 import { AuthProvider } from "./src/contexts/auth/AuthProvider";
+import { playerService } from "./src/core/services/player.service";
 
 export default function App() {
   const [isLoading, setIsLoading] = useState(true);
+  const playerServiceInstance = playerService();
 
   useEffect(() => {
     (async () => {
@@ -24,7 +26,7 @@ export default function App() {
       console.log("App unmounted");
       try {
         // Sequence of events to destroy the player and turn off the app
-        // player.destroy();
+        playerServiceInstance.destroy();
       } catch (err) {
         console.log(err);
       }

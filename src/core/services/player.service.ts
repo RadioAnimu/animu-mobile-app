@@ -10,6 +10,7 @@ import { CONFIG } from "../../utils/player.config";
 import { API } from "../../api";
 import { SetupService } from "../../services";
 import { userSettingsService } from "./user-settings.service";
+import { Platform } from "react-native";
 
 export interface PlayerServiceProps {
   CONFIG: typeof CONFIG;
@@ -208,9 +209,55 @@ export const playerService = (): PlayerServiceProps => {
         }
       },
       async destroy() {
-        console.log("[PlayerService] Destroying player instance.");
-        await this.player.reset();
-        this._loaded = false;
+        console.log("[PlayerService] Nuclear destruction sequence initiated.");
+        if (!this._loaded) {
+          console.log("[PlayerService] Player instance not loaded.");
+          return;
+        }
+        try {
+          // 1. Stop any ongoing playback
+          await this.player.stop();
+
+          // 2. Reset all player components
+          await this.player.reset();
+
+          // 3. Remove all event listeners (critical for Android background services)
+          // this.player.removeAllListeners();
+
+          // 4. Actually destroy the player instance (Android specific but harmless on iOS)
+          // await this.player.destroy();
+
+          // 5. Clean up any remaining native resources
+          // if (Platform.OS === "android") {
+          //   await this.player.unregisterPlaybackService();
+          // }
+
+          // 6. Nuclear option: clear the entire queue and cache
+          await this.player.setQueue([]);
+          await this.player.removeUpcomingTracks();
+
+          // 7. Reset all internal state
+          this._loaded = false;
+          this._paused = true;
+          this._currentStream = CONFIG.DEFAULT_STREAM_OPTION;
+          this._currentTrack = null;
+          this._currentProgram = null;
+          this._listeners = null;
+          this.currentProgress = 0;
+
+          // 8. Nullify the service instance
+          playerServiceInstance = null;
+
+          console.log("[PlayerService] Player instance reduced to atoms.");
+        } catch (error) {
+          console.error("[PlayerService] Destruction failed:", error);
+          // Consider retry logic or error reporting here
+        } finally {
+          // 9. Force garbage collection (Android only)
+          if (Platform.OS === "android") {
+            (global as any).NativeModules?.TrackPlayer?.gc();
+          }
+        }
       },
     };
   }
