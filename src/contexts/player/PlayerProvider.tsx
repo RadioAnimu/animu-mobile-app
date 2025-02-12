@@ -56,6 +56,10 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
       console.log("[PlayerProvider] Player initialized.");
     };
     initializePlayer();
+    return () => {
+      console.log("[PlayerProvider] Cleaning up playerServiceInstance...");
+      playerServiceInstance.destroy();
+    };
   }, [playerServiceInstance]);
 
   const play = async () => {

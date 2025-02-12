@@ -1,6 +1,6 @@
 import TrackPlayer, { Event } from "react-native-track-player";
-import { playerService } from "../core/services/player.service";
-import { CONFIG } from "../utils/player.config";
+import { CONFIG } from "../../utils/player.config";
+import { playerService } from "./player.service";
 
 export async function PlaybackService(): Promise<void> {
   // Get the player instance
