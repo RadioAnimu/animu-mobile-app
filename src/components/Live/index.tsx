@@ -90,7 +90,7 @@ export function Live({ track }: Props) {
           loop={durations.anime > 0}
           repeatSpacer={20}
           bounce={false}
-          marqueeDelay={1000}
+          marqueeDelay={2500}
           shouldAnimateTreshold={1}
           isInteraction={false}
         >
@@ -103,7 +103,7 @@ export function Live({ track }: Props) {
           loop={durations.artist > 0}
           bounce={false}
           repeatSpacer={20}
-          marqueeDelay={1000}
+          marqueeDelay={2500}
           shouldAnimateTreshold={1}
           isInteraction={false}
         >
@@ -116,7 +116,7 @@ export function Live({ track }: Props) {
           loop={durations.song > 0}
           bounce={false}
           repeatSpacer={20}
-          marqueeDelay={1000}
+          marqueeDelay={2500}
           shouldAnimateTreshold={1}
           isInteraction={false}
         >
