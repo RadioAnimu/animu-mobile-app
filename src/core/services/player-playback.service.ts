@@ -3,7 +3,6 @@ import { CONFIG } from "../../utils/player.config";
 import { playerService } from "./player.service";
 
 export async function PlaybackService(): Promise<void> {
-  // Get the player instance
   const playerServiceInstance = playerService();
 
   TrackPlayer.addEventListener(Event.RemotePlay, () => {
@@ -13,7 +12,7 @@ export async function PlaybackService(): Promise<void> {
       .then(() => {
         TrackPlayer.add({
           id: "1",
-          url: CONFIG.DEFAULT_STREAM_OPTION.url,
+          url: playerServiceInstance._currentStream.url,
           ...playerServiceInstance.getNowPlayingMetadata(),
           userAgent: CONFIG.USER_AGENT,
         })
