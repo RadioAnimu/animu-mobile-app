@@ -25,15 +25,15 @@ import { LiveRequestModal } from "../../components/LiveRequestModal";
 import { PopUpProgram } from "../../components/PopUpProgram";
 
 // Contexts and Utilities
-import { DiscordUser, UserContext } from "../../contexts/user.context";
 import { DICT } from "../../languages";
 import { RootStackParamList } from "../../routes/app.routes";
 import { useUserSettings } from "../../contexts/user/UserSettingsProvider";
 import { usePlayer } from "../../contexts/player/PlayerProvider";
-import { checkIfUserIsStillInTheServerAndIfYesExtendSession } from "../../components/CustomDrawer";
 
 // Styles
 import { styles } from "./styles";
+import { useAuth } from "../../contexts/auth/AuthProvider";
+import { authService } from "../../core/services/auth.service";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Home">;
 
@@ -43,50 +43,31 @@ const TRACK_PROGRESS_INTERVAL = 1000;
 
 export const Home = ({ navigation }: Props) => {
   const player = usePlayer();
-  const userContext = useContext(UserContext);
+  const { user, logout } = useAuth();
   const { settings } = useUserSettings();
 
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [isLiveRequestModalVisible, setIsLiveRequestModalVisible] =
     useState(false);
-  const userRefPHPSESSID = useRef<DiscordUser | null>(null);
   const progressIntervalRef = useRef<NodeJS.Timeout | null>(null);
-
-  // User data management
-  const handleUserData = useCallback(async () => {
-    try {
-      const userData = await AsyncStorage.getItem(USER_DATA_KEY);
-      if (!userData) {
-        return;
-      }
-
-      const user = JSON.parse(userData);
-      userContext?.setUser(user);
-    } catch (error) {
-      console.error("[Home] Error loading user data:", error);
-    }
-  }, [userContext]);
 
   // Background data refresh
   const refreshData = useCallback(async () => {
     console.log("[Home] Refreshing data...");
     try {
       await player.refreshData();
+      await authService.initialize();
 
-      if (userRefPHPSESSID.current && userContext?.user) {
-        const isUserValid =
-          await checkIfUserIsStillInTheServerAndIfYesExtendSession(
-            userContext.user
-          );
+      if (user?.sessionId) {
+        const isUserValid = await authService.validateSession();
         if (!isUserValid) {
-          await AsyncStorage.removeItem(USER_DATA_KEY);
-          userContext.setUser(null);
+          await logout();
         }
       }
     } catch (error) {
       console.error("[Home] Error refreshing data:", error);
     }
-  }, [player, userContext]);
+  }, [player, user]);
 
   // Track progress updates
   const startProgressUpdates = useCallback(() => {
@@ -97,7 +78,6 @@ export const Home = ({ navigation }: Props) => {
 
   // Effects
   useEffect(() => {
-    handleUserData();
     refreshData();
     startProgressUpdates();
 
@@ -114,10 +94,6 @@ export const Home = ({ navigation }: Props) => {
       }
     };
   }, []);
-
-  useEffect(() => {
-    userRefPHPSESSID.current = userContext?.user || null;
-  }, [userContext?.user]);
 
   // UI Handlers
   const handleOpenProgramModal = useCallback(() => {

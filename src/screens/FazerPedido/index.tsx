@@ -21,19 +21,18 @@ import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { Text } from "react-native";
 import { PopUpRecado } from "../../components/PopUpRecado";
 import { RequestTrack } from "../../components/RequestTrack";
-import { UserContext } from "../../contexts/user.context";
 import { DICT, IMGS } from "../../languages";
 import { RootStackParamList } from "../../routes/app.routes";
 import { THEME } from "../../theme";
 import { CONFIG } from "../../utils/player.config";
 import { useUserSettings } from "../../contexts/user/UserSettingsProvider";
 import { useAlert } from "../../contexts/alert/AlertProvider";
+import { useAuth } from "../../contexts/auth/AuthProvider";
 
 type Props = NativeStackScreenProps<RootStackParamList, "FazerPedido">;
 type Status = "idle" | "loading";
 
 export function FazerPedido({ route, navigation }: Props) {
-  const userContext = useContext(UserContext);
   const { error, success } = useAlert();
   const [recado, setRecado] = useState("");
   const { settings } = useUserSettings();
@@ -115,11 +114,13 @@ export function FazerPedido({ route, navigation }: Props) {
     setStatus("idle");
   };
 
+  const { user } = useAuth();
+
   const handleOk = async () => {
     console.log("handleOk called");
     const formData = new FormData();
     console.log(settings);
-    if (!userContext?.user) {
+    if (!user?.sessionId) {
       error(DICT[settings.selectedLanguage].LOGIN_ERROR);
       return;
     }
@@ -129,12 +130,11 @@ export function FazerPedido({ route, navigation }: Props) {
     }
     const allmusic: string = selected.track.id.toString();
     const message: string = recado;
-    const { PHPSESSID } = userContext.user;
     formData.append("allmusic", allmusic);
     formData.append("message", message);
-    formData.append("PHPSESSID", PHPSESSID);
+    formData.append("PHPSESSID", user.sessionId);
 
-    console.log("PHPSESSID: " + PHPSESSID);
+    console.log("PHPSESSID: " + user.sessionId);
     const isIos = Platform.OS === "ios" ? 1 : 0;
 
     const url =

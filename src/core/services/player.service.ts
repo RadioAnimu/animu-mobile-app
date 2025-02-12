@@ -9,6 +9,7 @@ import { animuService } from "../services/animu.service";
 import { CONFIG } from "../../utils/player.config";
 import { API } from "../../api";
 import { SetupService } from "../../services";
+import { userSettingsService } from "./user-settings.service";
 
 export interface PlayerServiceProps {
   CONFIG: typeof CONFIG;
@@ -20,7 +21,7 @@ export interface PlayerServiceProps {
   _loaded: boolean;
   _paused: boolean;
   currentProgress: number;
-  refreshData: () => Promise<boolean>;
+  refreshData: (isToUpdateMetadata?: boolean) => Promise<boolean>;
   getNowPlayingMetadata: () => NowPlayingMetadata;
   play: () => Promise<void>;
   pause: () => Promise<void>;
@@ -44,18 +45,25 @@ export const playerService = (): PlayerServiceProps => {
       _loaded: false,
       _paused: true,
       currentProgress: 0,
-      async refreshData() {
+      async refreshData(isToUpdateMetadata = true) {
         console.log("[PlayerService] Updating status using animuService...");
         try {
+          await userSettingsService.initialize();
           const [newTrack, newProgram, newListeners] = await Promise.all([
-            animuService.getCurrentTrack(this._currentStream),
+            animuService.getCurrentTrack(
+              this._currentStream,
+              userSettingsService.getCurrentSettings().liveQualityCover
+            ),
             animuService.getCurrentProgram(this._currentStream),
             animuService.getCurrentListeners(this._currentStream),
           ]);
 
           let hasChanges = false;
 
-          if (this._currentTrack?.raw !== newTrack.raw) {
+          if (
+            this._currentTrack?.raw !== newTrack.raw ||
+            this._currentTrack?.artwork !== newTrack.artwork
+          ) {
             this._currentTrack = newTrack;
             hasChanges = true;
           }
@@ -74,7 +82,7 @@ export const playerService = (): PlayerServiceProps => {
             console.log(
               "[PlayerService] Status updated: data changes detected"
             );
-            if (this._loaded) {
+            if (this._loaded && isToUpdateMetadata) {
               await this.updateMetadata();
             }
             return true;
@@ -118,19 +126,24 @@ export const playerService = (): PlayerServiceProps => {
               : CONFIG.DEFAULT_STREAM_OPTION;
           }
         }
-        await this.refreshData(); // Fetch current track, program and listeners, update the objects, and update metadata.
+
+        // Force stop any existing playback
         await TrackPlayer.reset();
+        this._paused = true;
+
+        await this.refreshData(false);
+
         await TrackPlayer.add({
           ...this.getNowPlayingMetadata(),
           id: "1",
           url: this._currentStream.url,
           userAgent: CONFIG.USER_AGENT,
         });
-        if (this._paused) {
-          console.log("[PlayerService] Starting playback.");
-          await TrackPlayer.play();
-          this._paused = false;
-        }
+
+        console.log("[PlayerService] Starting playback.");
+        await TrackPlayer.play();
+        this._paused = false;
+
         await this.updateMetadata();
       },
       async pause() {
@@ -150,12 +163,22 @@ export const playerService = (): PlayerServiceProps => {
           console.log(
             `[PlayerService] Changing stream from ${this._currentStream.id} to ${stream.id}.`
           );
+
+          // Store previous playback state
+          const wasPlaying = !this._paused;
+
+          // Stop current playback immediately
+          if (wasPlaying) {
+            await this.pause();
+          }
+
+          // Update the stream
           this._currentStream = stream;
           await AsyncStorage.setItem("currentStream", JSON.stringify(stream));
-          if (!this._paused) {
-            console.log(
-              "[PlayerService] Restarting playback after stream change."
-            );
+
+          // Restart playback if it was playing
+          if (wasPlaying) {
+            console.log("[PlayerService] Restarting playback with new stream");
             await this.play();
           }
         } else {

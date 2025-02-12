@@ -1,10 +1,10 @@
 import { Image } from "expo-image";
 import { Text, View } from "react-native";
-import { DiscordUser } from "../../contexts/user.context";
 import { THEME } from "../../theme";
+import { User } from "../../core/domain/user";
 
 interface ProfileProps {
-  user: DiscordUser;
+  user: User;
 }
 
 export function DiscordProfile({ user }: ProfileProps) {
@@ -20,7 +20,7 @@ export function DiscordProfile({ user }: ProfileProps) {
     >
       <Image
         source={{
-          uri: user.avatar_url,
+          uri: user.avatarUrl,
         }}
         style={{
           width: 50,

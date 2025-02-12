@@ -16,9 +16,9 @@ import { styles } from "./styles";
 import CloseIcon from "../../assets/icons/ArrastarParaBaixo.png";
 import { ScrollView } from "react-native-gesture-handler";
 import { API } from "../../api";
-import { UserContext } from "../../contexts/user.context";
 import { useUserSettings } from "../../contexts/user/UserSettingsProvider";
 import { useAlert } from "../../contexts/alert/AlertProvider";
+import { useAuth } from "../../contexts/auth/AuthProvider";
 
 interface Props extends ModalProps {
   handleClose: () => void;
@@ -71,8 +71,8 @@ function Input({
 
 export function LiveRequestModal({ handleClose, ...rest }: Props) {
   const { success, error } = useAlert();
+  const { user } = useAuth();
 
-  const userContext = useContext(UserContext);
   const [formData, setFormData] = useState<{
     name: string;
     city: string;
@@ -81,7 +81,7 @@ export function LiveRequestModal({ handleClose, ...rest }: Props) {
     anime: string;
     request: string;
   }>({
-    name: userContext?.user?.nickname || userContext?.user?.username || "",
+    name: user?.nickname || user?.username || "",
     city: "",
     artist: "",
     music: "",
@@ -122,7 +122,7 @@ export function LiveRequestModal({ handleClose, ...rest }: Props) {
     await handleRequestMusic();
     setTests(1);
     setFormData({
-      name: userContext?.user?.nickname || userContext?.user?.username || "",
+      name: user?.nickname || user?.username || "",
       city: "",
       artist: "",
       music: "",

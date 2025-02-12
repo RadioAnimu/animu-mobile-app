@@ -4,7 +4,6 @@ import { styles } from "./styles";
 import { THEME } from "../../theme";
 import { Image } from "expo-image";
 import { CONFIG } from "../../utils/player.config";
-import { useContext } from "react";
 import { useUserSettings } from "../../contexts/user/UserSettingsProvider";
 
 interface Props {

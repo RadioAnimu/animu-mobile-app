@@ -4,33 +4,16 @@ import { Background } from "./src/components/Background";
 import { useFonts } from "expo-font";
 
 import { useEffect, useMemo, useState } from "react";
-import { DiscordUser, UserContext } from "./src/contexts/user.context";
 import { Routes } from "./src/routes";
 import { Loading } from "./src/screens/Loading";
 import { THEME } from "./src/theme";
 import { PlayerProvider } from "./src/contexts/player/PlayerProvider";
 import { UserSettingsProvider } from "./src/contexts/user/UserSettingsProvider";
 import { AlertProvider } from "./src/contexts/alert/AlertProvider";
+import { AuthProvider } from "./src/contexts/auth/AuthProvider";
 
 export default function App() {
   const [isLoading, setIsLoading] = useState(true);
-
-  const [user, setUser] = useState<DiscordUser | null>(null);
-
-  const [errorMessage, setErrorMessage] = useState("");
-  const [successMessage, setSuccessMessage] = useState("");
-
-  const userProvider = useMemo(() => ({ user, setUser }), [user, setUser]);
-
-  const errorMessageProvider = useMemo(
-    () => ({ errorMessage, setErrorMessage }),
-    [errorMessage, setErrorMessage]
-  );
-
-  const successMessageProvider = useMemo(
-    () => ({ successMessage, setSuccessMessage }),
-    [successMessage, setSuccessMessage]
-  );
 
   useEffect(() => {
     (async () => {
@@ -62,11 +45,11 @@ export default function App() {
         <Background>
           <AlertProvider>
             <PlayerProvider>
-              <UserContext.Provider value={userProvider}>
-                <UserSettingsProvider>
+              <UserSettingsProvider>
+                <AuthProvider>
                   <Routes />
-                </UserSettingsProvider>
-              </UserContext.Provider>
+                </AuthProvider>
+              </UserSettingsProvider>
             </PlayerProvider>
           </AlertProvider>
         </Background>

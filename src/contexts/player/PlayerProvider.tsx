@@ -9,7 +9,6 @@ import { Track, updateTrackProgress } from "../../core/domain/track";
 import { Stream } from "../../core/domain/stream";
 import { Listeners } from "../../core/domain/listeners";
 import { Program } from "../../core/domain/program";
-import { ArtworkQuality } from "../../@types/artwork-quality";
 import { playerService } from "../../core/services/player.service";
 
 type PlayerContextType = {

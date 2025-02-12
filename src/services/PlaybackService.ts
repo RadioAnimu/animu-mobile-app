@@ -1,25 +1,26 @@
 import TrackPlayer, { Event } from "react-native-track-player";
-import { myPlayer } from "../utils";
+import { playerService } from "../core/services/player.service";
+import { CONFIG } from "../utils/player.config";
 
 export async function PlaybackService(): Promise<void> {
   // Get the player instance
-  const player = myPlayer();
+  const playerServiceInstance = playerService();
 
   TrackPlayer.addEventListener(Event.RemotePlay, () => {
     TrackPlayer.reset();
-    player
-      .getCurrentMusic()
+    playerServiceInstance
+      .refreshData(false)
       .then(() => {
         TrackPlayer.add({
           id: "1",
-          url: player.CONFIG.DEFAULT_STREAM_OPTION.url,
-          ...player.getCurrentMusicInNowPlayingMetadataFormat(),
-          userAgent: player.CONFIG.USER_AGENT,
+          url: CONFIG.DEFAULT_STREAM_OPTION.url,
+          ...playerServiceInstance.getNowPlayingMetadata(),
+          userAgent: CONFIG.USER_AGENT,
         })
           .then(() => {
             TrackPlayer.play()
               .then(() => {
-                player._paused = false;
+                playerServiceInstance._paused = false;
               })
               .catch((e) => {
                 console.error(e);
@@ -37,7 +38,7 @@ export async function PlaybackService(): Promise<void> {
   TrackPlayer.addEventListener(Event.RemotePause, () => {
     TrackPlayer.pause()
       .then(() => {
-        player._paused = true;
+        playerServiceInstance._paused = true;
       })
       .catch((e) => {
         console.error(e);

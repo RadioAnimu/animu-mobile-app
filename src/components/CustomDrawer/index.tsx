@@ -3,45 +3,20 @@ import {
   FontAwesome5,
   MaterialCommunityIcons,
 } from "@expo/vector-icons";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
   DrawerContentComponentProps,
   DrawerContentScrollView,
   DrawerItemList,
 } from "@react-navigation/drawer";
 import * as Linking from "expo-linking";
-import * as WebBrowser from "expo-web-browser";
-import { useContext } from "react";
 import { Image, Text, TouchableOpacity, View } from "react-native";
 import { author } from "../../../package.json";
-import { DiscordUser, UserContext } from "../../contexts/user.context";
 import { THEME } from "../../theme";
 import { API } from "../../api";
-import { DICT, IMGS, LANGS_KEY_VALUE_PAIRS } from "../../languages";
+import { DICT, IMGS } from "../../languages";
 import { DiscordProfile } from "../DiscordProfile";
 import { useUserSettings } from "../../contexts/user/UserSettingsProvider";
-
-export const checkIfUserIsStillInTheServerAndIfYesExtendSession: (
-  user: DiscordUser
-) => Promise<boolean> = async (user: DiscordUser) => {
-  const { PHPSESSID } = user;
-  const url =
-    "https://www.animu.com.br/teste/chatIsThisReal.php?PHPSESSID=" + PHPSESSID;
-  const response = await fetch(url);
-  const data = await response.text();
-  return data === "1";
-};
-
-export const logoutUserFromTheServer: (
-  user: DiscordUser
-) => Promise<boolean> = async (user: DiscordUser) => {
-  const { PHPSESSID } = user;
-  const url =
-    "https://www.animu.com.br/teste/byeChat.php?PHPSESSID=" + PHPSESSID;
-  const response = await fetch(url);
-  const data = await response.text();
-  return data === "1";
-};
+import { useAuth } from "../../contexts/auth/AuthProvider";
 
 export interface SeparatorProps {
   sectionTile?: string;
@@ -120,31 +95,10 @@ export function LinkMenuItem({ Icon, title, url }: LinkMenuItemProps) {
 
 export function LoginComponent() {
   const { settings } = useUserSettings();
-  const userContext = useContext(UserContext);
+  const { user, login, logout, isLoading } = useAuth();
 
   const onLogin = async () => {
-    const callbackUrl = Linking.createURL("redirect", { scheme: "animuapp" });
-
-    const result = await WebBrowser.openAuthSessionAsync(
-      "https://discord.com/api/oauth2/authorize?client_id=1159273876732256266&response_type=code&redirect_uri=https%3A%2F%2Fwww.animu.com.br%2Fteste%2Fprocess-oauth-mobile.php&scope=identify",
-      callbackUrl
-    );
-
-    if (result.type === "success") {
-      const data = Linking.parse(result.url);
-      if (data.queryParams?.user) {
-        const userString = decodeURIComponent(data.queryParams.user.toString());
-        const user: DiscordUser = JSON.parse(userString);
-        const PHPSESSID = data.queryParams.PHPSESSID?.toString();
-        if (PHPSESSID) {
-          user.PHPSESSID = PHPSESSID;
-        }
-        if (userContext) {
-          userContext.setUser(user);
-          await AsyncStorage.setItem("user", JSON.stringify(user));
-        }
-      }
-    }
+    login();
   };
 
   return (
@@ -179,6 +133,7 @@ export function LoginComponent() {
 
 export function CustomDrawerContent(props: DrawerContentComponentProps) {
   const { settings } = useUserSettings();
+  const { user, login, logout, isLoading } = useAuth();
 
   const LINKS: LinkMenuItemProps[] = [
     {
@@ -204,8 +159,6 @@ export function CustomDrawerContent(props: DrawerContentComponentProps) {
       ),
     },
   ];
-
-  const userContext = useContext(UserContext);
 
   const goToNessSocial = () => {
     Linking.openURL("https://x.com/rmotafreitas");
@@ -237,7 +190,7 @@ export function CustomDrawerContent(props: DrawerContentComponentProps) {
             }}
           />
         </TouchableOpacity>
-        {userContext?.user ? (
+        {user?.sessionId ? (
           <TouchableOpacity
             onPress={() => {
               navigation.navigate("Settings");
@@ -250,7 +203,7 @@ export function CustomDrawerContent(props: DrawerContentComponentProps) {
               alignSelf: "center",
             }}
           >
-            <DiscordProfile user={userContext.user} />
+            <DiscordProfile user={user} />
             <FontAwesome
               name="gear"
               size={THEME.FONT_SIZE.MENU_ITEM}

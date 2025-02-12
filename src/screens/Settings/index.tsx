@@ -8,18 +8,14 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import Svg, { Path, Rect, SvgProps } from "react-native-svg";
 import Toggle, { ToggleProps } from "react-native-toggle-input";
 import { Background } from "../../components/Background";
-import {
-  LoginComponent,
-  logoutUserFromTheServer,
-} from "../../components/CustomDrawer";
-import { UserContext } from "../../contexts/user.context";
+import { LoginComponent } from "../../components/CustomDrawer";
 import { DICT, LANGS_KEY_VALUE_PAIRS } from "../../languages";
 import { RootStackParamList } from "../../routes/app.routes";
 import { THEME } from "../../theme";
 import { styles } from "./styles";
 import { DiscordProfile } from "../../components/DiscordProfile";
 import { useUserSettings } from "../../contexts/user/UserSettingsProvider";
-import { updateOptions } from "react-native-track-player/lib/src/trackPlayer";
+import { useAuth } from "../../contexts/auth/AuthProvider";
 
 export const BackArrow = (props: SvgProps) => (
   <Svg width="21" height="19" viewBox="0 0 21 19" fill="none">
@@ -166,8 +162,6 @@ function ToggleSection({ label, ...props }: ToggleSectionProps) {
 }
 
 export function Settings({ route, navigation }: Props) {
-  const userContext = useContext(UserContext);
-
   const data = Object.keys(LANGS_KEY_VALUE_PAIRS).map((key: string) => ({
     key,
     value: LANGS_KEY_VALUE_PAIRS[
@@ -183,6 +177,8 @@ export function Settings({ route, navigation }: Props) {
     key,
     value: LANGS_KEY_VALUE_PAIRS[key],
   };
+
+  const { user, logout } = useAuth();
 
   return (
     <Background>
@@ -210,7 +206,7 @@ export function Settings({ route, navigation }: Props) {
             <TitleSection
               title={DICT[settings.selectedLanguage].SETTINGS_ACCOUNT_TITLE}
             />
-            {userContext?.user ? (
+            {user?.sessionId ? (
               <View
                 style={{
                   flexDirection: "row",
@@ -218,14 +214,10 @@ export function Settings({ route, navigation }: Props) {
                   alignItems: "center",
                 }}
               >
-                <DiscordProfile user={userContext.user} />
+                <DiscordProfile user={user} />
                 <TouchableOpacity
                   onPress={async () => {
-                    if (userContext.user) {
-                      await AsyncStorage.removeItem("user");
-                      logoutUserFromTheServer(userContext.user);
-                      userContext.setUser(null);
-                    }
+                    await logout();
                   }}
                   style={{
                     marginLeft: "auto",
