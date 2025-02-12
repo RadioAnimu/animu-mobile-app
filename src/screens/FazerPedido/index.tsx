@@ -20,26 +20,21 @@ import { Ionicons } from "@expo/vector-icons";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { Text } from "react-native";
 import { PopUpRecado } from "../../components/PopUpRecado";
-import { PopUpStatus } from "../../components/PopUpStatus";
 import { RequestTrack } from "../../components/RequestTrack";
-import { ErrorContext } from "../../contexts/error.context";
-import { SuccessContext } from "../../contexts/success.context";
 import { UserContext } from "../../contexts/user.context";
 import { DICT, IMGS } from "../../languages";
 import { RootStackParamList } from "../../routes/app.routes";
 import { THEME } from "../../theme";
 import { CONFIG } from "../../utils/player.config";
 import { useUserSettings } from "../../contexts/user/UserSettingsProvider";
-import { usePlayer } from "../../contexts/player/PlayerProvider";
+import { useAlert } from "../../contexts/alert/AlertProvider";
 
 type Props = NativeStackScreenProps<RootStackParamList, "FazerPedido">;
 type Status = "idle" | "loading";
 
 export function FazerPedido({ route, navigation }: Props) {
-  const player = usePlayer();
   const userContext = useContext(UserContext);
-  const { setErrorMessage } = useContext(ErrorContext);
-  const { setSuccessMessage } = useContext(SuccessContext);
+  const { error, success } = useAlert();
   const [recado, setRecado] = useState("");
   const { settings } = useUserSettings();
 
@@ -125,11 +120,11 @@ export function FazerPedido({ route, navigation }: Props) {
     const formData = new FormData();
     console.log(settings);
     if (!userContext?.user) {
-      setErrorMessage(DICT[settings.selectedLanguage].LOGIN_ERROR);
+      error(DICT[settings.selectedLanguage].LOGIN_ERROR);
       return;
     }
     if (selected === null) {
-      setErrorMessage(DICT[settings.selectedLanguage].SELECT_ERROR);
+      error(DICT[settings.selectedLanguage].SELECT_ERROR);
       return;
     }
     const allmusic: string = selected.track.id.toString();
@@ -155,18 +150,16 @@ export function FazerPedido({ route, navigation }: Props) {
     if (data !== "") {
       switch (data) {
         case "strike and out":
-          setErrorMessage(DICT[settings.selectedLanguage].ERROR_STRIKE_AND_OUT);
+          error(DICT[settings.selectedLanguage].ERROR_STRIKE_AND_OUT);
           break;
         default:
-          setErrorMessage(
-            `${DICT[settings.selectedLanguage].REQUEST_ERROR}${data}`
-          );
+          error(`${DICT[settings.selectedLanguage].REQUEST_ERROR}${data}`);
           break;
       }
       return;
     }
     setSelected(null);
-    setSuccessMessage(DICT[settings.selectedLanguage].REQUEST_SUCCESS);
+    success(DICT[settings.selectedLanguage].REQUEST_SUCCESS);
     setRecado("");
     setResults((old) =>
       old.map((item) => {
@@ -256,9 +249,7 @@ export function FazerPedido({ route, navigation }: Props) {
                           if (item.requestable) {
                             setSelected(item);
                           } else {
-                            setErrorMessage(
-                              "Música já foi pedida anteriormente"
-                            );
+                            error("Música já foi pedida anteriormente");
                           }
                         }}
                         musicToBeRequested={item}
@@ -270,7 +261,6 @@ export function FazerPedido({ route, navigation }: Props) {
             />
           </View>
         </View>
-        <PopUpStatus />
         <PopUpRecado
           visible={selected !== null}
           handleClose={() => setSelected(null)}

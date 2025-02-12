@@ -1,17 +1,16 @@
-import { StatusBar } from "react-native";
+import { Platform, StatusBar } from "react-native";
 import { Background } from "./src/components/Background";
 
 import { useFonts } from "expo-font";
 
 import { useEffect, useMemo, useState } from "react";
-import { ErrorContext } from "./src/contexts/error.context";
-import { SuccessContext } from "./src/contexts/success.context";
 import { DiscordUser, UserContext } from "./src/contexts/user.context";
 import { Routes } from "./src/routes";
 import { Loading } from "./src/screens/Loading";
 import { THEME } from "./src/theme";
 import { PlayerProvider } from "./src/contexts/player/PlayerProvider";
 import { UserSettingsProvider } from "./src/contexts/user/UserSettingsProvider";
+import { AlertProvider } from "./src/contexts/alert/AlertProvider";
 
 export default function App() {
   const [isLoading, setIsLoading] = useState(true);
@@ -58,24 +57,18 @@ export default function App() {
 
   return (
     <>
-      <StatusBar
-        backgroundColor={THEME.COLORS.PRIMARY}
-        barStyle="light-content"
-        translucent
-      />
+      <StatusBar backgroundColor={THEME.COLORS.PRIMARY} />
       {fontsLoaded && !isLoading ? (
         <Background>
-          <PlayerProvider>
-            <UserContext.Provider value={userProvider}>
-              <ErrorContext.Provider value={errorMessageProvider}>
-                <SuccessContext.Provider value={successMessageProvider}>
-                  <UserSettingsProvider>
-                    <Routes />
-                  </UserSettingsProvider>
-                </SuccessContext.Provider>
-              </ErrorContext.Provider>
-            </UserContext.Provider>
-          </PlayerProvider>
+          <AlertProvider>
+            <PlayerProvider>
+              <UserContext.Provider value={userProvider}>
+                <UserSettingsProvider>
+                  <Routes />
+                </UserSettingsProvider>
+              </UserContext.Provider>
+            </PlayerProvider>
+          </AlertProvider>
         </Background>
       ) : (
         <Loading />

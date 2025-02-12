@@ -3,11 +3,9 @@ import { ButtonKBPS } from "../ButtonKBPS";
 import { styles } from "./styles";
 import { usePlayer } from "../../contexts/player/PlayerProvider";
 import { CONFIG } from "../../utils/player.config";
-import { useUserSettings } from "../../contexts/user/UserSettingsProvider";
 
 export function ChooseBitrateSection() {
   const { changeStream, currentStream } = usePlayer();
-  const { settings } = useUserSettings();
 
   return (
     <FlatList
@@ -21,7 +19,7 @@ export function ChooseBitrateSection() {
         return (
           <ButtonKBPS
             handleChangeStream={() => {
-              changeStream(item, settings.liveQualityCover);
+              changeStream(item);
             }}
             selected={item.url === currentStream?.url || false}
             category={item.category}

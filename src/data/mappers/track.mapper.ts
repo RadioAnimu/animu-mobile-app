@@ -1,5 +1,5 @@
 import { ArtworkQuality } from "../../@types/artwork-quality";
-import { Track } from "../../core/domain/track";
+import { Track, updateTrackProgress } from "../../core/domain/track";
 import { isUrlAnImage } from "../../utils";
 import { CONFIG } from "../../utils/player.config";
 import { TrackDTO } from "../http/dto/track.dto";
@@ -11,7 +11,7 @@ class TrackMapper {
   ): Track {
     const [raw, title, artist, anime] = this.parseRawTitle(dto.rawtitle);
 
-    return {
+    return updateTrackProgress({
       id: dto.track.playlist.track_id.toString(),
       raw,
       anime,
@@ -28,7 +28,7 @@ class TrackMapper {
         title: anime,
         artwork: this.selectArtwork(dto.track.artworks, artworkQuality),
       },
-    };
+    });
   }
 
   private static parseRawTitle(

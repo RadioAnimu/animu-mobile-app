@@ -23,7 +23,6 @@ import { Logo } from "../../components/Logo";
 import { Program } from "../../components/Program";
 import { LiveRequestModal } from "../../components/LiveRequestModal";
 import { PopUpProgram } from "../../components/PopUpProgram";
-import { PopUpStatus } from "../../components/PopUpStatus";
 
 // Contexts and Utilities
 import { DiscordUser, UserContext } from "../../contexts/user.context";
@@ -190,8 +189,6 @@ export const Home = ({ navigation }: Props) => {
             <ChooseBitrateSection />
           </View>
         </ScrollView>
-
-        <PopUpStatus />
 
         <LiveRequestModal
           visible={isLiveRequestModalVisible}

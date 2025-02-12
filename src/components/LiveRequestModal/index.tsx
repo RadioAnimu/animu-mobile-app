@@ -17,9 +17,8 @@ import CloseIcon from "../../assets/icons/ArrastarParaBaixo.png";
 import { ScrollView } from "react-native-gesture-handler";
 import { API } from "../../api";
 import { UserContext } from "../../contexts/user.context";
-import { SuccessContext } from "../../contexts/success.context";
-import { ErrorContext } from "../../contexts/error.context";
 import { useUserSettings } from "../../contexts/user/UserSettingsProvider";
+import { useAlert } from "../../contexts/alert/AlertProvider";
 
 interface Props extends ModalProps {
   handleClose: () => void;
@@ -71,8 +70,7 @@ function Input({
 }
 
 export function LiveRequestModal({ handleClose, ...rest }: Props) {
-  const { successMessage, setSuccessMessage } = useContext(SuccessContext);
-  const { errorMessage, setErrorMessage } = useContext(ErrorContext);
+  const { success, error } = useAlert();
 
   const userContext = useContext(UserContext);
   const [formData, setFormData] = useState<{
@@ -110,13 +108,11 @@ export function LiveRequestModal({ handleClose, ...rest }: Props) {
     const data = await response.text();
     console.log("Made request");
     if (data !== "1") {
-      setErrorMessage(
-        `${DICT[settings.selectedLanguage].REQUEST_ERROR}${data}`
-      );
+      error(`${DICT[settings.selectedLanguage].REQUEST_ERROR}${data}`);
       return;
     }
     handleClose();
-    setSuccessMessage(DICT[settings.selectedLanguage].REQUEST_SUCCESS);
+    success(DICT[settings.selectedLanguage].REQUEST_SUCCESS);
   };
 
   const [tests, setTests] = useState(1);
