@@ -8,9 +8,9 @@ import { Listeners } from "../domain/listeners";
 import { animuService } from "../services/animu.service";
 import { CONFIG } from "../../utils/player.config";
 import { API } from "../../api";
-import { SetupService } from "../../services";
 import { userSettingsService } from "./user-settings.service";
 import { Platform } from "react-native";
+import { SetupService } from "./player-setup.service";
 
 export interface PlayerServiceProps {
   CONFIG: typeof CONFIG;
