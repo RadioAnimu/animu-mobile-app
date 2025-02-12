@@ -1,4 +1,3 @@
-import { StatusBar } from "react-native";
 import { Background } from "./src/components/Background";
 
 import { useFonts } from "expo-font";
@@ -11,6 +10,7 @@ import { UserSettingsProvider } from "./src/contexts/user/UserSettingsProvider";
 import { AlertProvider } from "./src/contexts/alert/AlertProvider";
 import { AuthProvider } from "./src/contexts/auth/AuthProvider";
 import { PortalProvider } from "./src/contexts/Portal";
+import { MyStatusBar } from "./src/components/MyStatusBar";
 
 export default function App() {
   const [fontsLoaded] = useFonts({
@@ -22,7 +22,7 @@ export default function App() {
 
   return (
     <>
-      <StatusBar backgroundColor={THEME.COLORS.PRIMARY} />
+      <MyStatusBar backgroundColor={THEME.COLORS.PRIMARY} />
       {fontsLoaded ? (
         <Background>
           <PortalProvider>
