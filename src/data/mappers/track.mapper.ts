@@ -21,7 +21,6 @@ class TrackMapper {
       artwork: this.selectArtwork(dto.track.artworks, artworkQuality),
       duration: dto.track.duration,
       startTime: new Date(dto.track.timestart),
-      progress: 0,
       isRequest: dto.rawtitle.toLowerCase().includes("pedido"),
       metadata: {
         artist: dto.track.artist,

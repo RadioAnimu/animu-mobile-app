@@ -23,6 +23,7 @@ interface Props {
   navigation: ReturnType<typeof useNavigation>;
   openLiveRequestModal?: () => void;
   currentTrack?: Track;
+  currentTrackProgress?: number | null;
   currentProgram?: Program;
 }
 
@@ -32,6 +33,7 @@ export function HeaderBar({
   navigation,
   openLiveRequestModal,
   currentTrack,
+  currentTrackProgress,
   currentProgram,
 }: Props) {
   const progressAnim = useRef(new Animated.Value(0)).current; // Initial value for opacity: 0
@@ -40,23 +42,23 @@ export function HeaderBar({
 
   useEffect(() => {
     if (
-      currentTrack?.progress &&
+      currentTrackProgress &&
       currentTrack?.duration &&
-      !Number.isNaN(currentTrack?.progress) &&
+      !Number.isNaN(currentTrackProgress) &&
       !Number.isNaN(currentTrack?.duration) &&
       currentTrack?.duration > 0 &&
-      currentTrack?.progress > 0 &&
-      !Number.isNaN(currentTrack?.progress / currentTrack?.duration)
+      currentTrackProgress > 0 &&
+      !Number.isNaN(currentTrackProgress / currentTrack?.duration)
     ) {
       Animated.timing(progressAnim, {
         toValue:
           Dimensions.get("window").width *
-          (currentTrack?.progress / currentTrack?.duration),
+          (currentTrackProgress / currentTrack?.duration),
         duration: 1000,
         useNativeDriver: false,
       }).start();
     }
-  }, [progressAnim, currentTrack]);
+  }, [progressAnim, currentTrack, currentTrackProgress]);
 
   const [animation] = useState(new Animated.Value(0));
 

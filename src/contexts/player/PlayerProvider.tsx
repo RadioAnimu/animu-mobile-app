@@ -5,7 +5,7 @@ import React, {
   useMemo,
   useState,
 } from "react";
-import { Track, updateTrackProgress } from "../../core/domain/track";
+import { Track, getTrackProgress } from "../../core/domain/track";
 import { Stream } from "../../core/domain/stream";
 import { Listeners } from "../../core/domain/listeners";
 import { Program } from "../../core/domain/program";
@@ -21,6 +21,7 @@ type PlayerContextType = {
   currentProgram?: Program;
   currentStream?: Stream;
   currentListeners?: Listeners;
+  currentTrackProgress?: number | null;
   isPlaying: boolean;
 };
 
@@ -31,6 +32,7 @@ const PlayerContext = createContext<PlayerContextType>({
   updateCurrentTrackProgress: () => Promise.reject("Player not initialized"),
   refreshData: () => Promise.reject("Player not initialized"),
   isPlaying: false,
+  currentTrackProgress: null,
 });
 
 export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
@@ -38,6 +40,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
 }) => {
   const [state, setState] = useState<{
     track?: Track;
+    progress?: number | null;
     program?: Program;
     stream?: Stream;
     listeners?: Listeners;
@@ -72,6 +75,9 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
       program: playerServiceInstance._currentProgram || undefined,
       stream: playerServiceInstance._currentStream,
       listeners: playerServiceInstance._listeners || undefined,
+      progress: getTrackProgress(
+        playerServiceInstance._currentTrack || undefined
+      ),
     }));
   };
 
@@ -94,9 +100,9 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
   const updateCurrentTrackProgress = async () => {
     setState((prev) => ({
       ...prev,
-      track: playerServiceInstance._currentTrack
-        ? updateTrackProgress(playerServiceInstance._currentTrack)
-        : undefined,
+      progress: getTrackProgress(
+        playerServiceInstance._currentTrack || undefined
+      ),
     }));
   };
 
@@ -120,6 +126,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
         updateCurrentTrackProgress,
         refreshData,
         currentTrack: state.track,
+        currentTrackProgress: state.progress,
         currentProgram: state.program,
         currentStream: state.stream,
         currentListeners: state.listeners,

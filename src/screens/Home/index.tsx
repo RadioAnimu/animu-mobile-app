@@ -115,6 +115,7 @@ export const Home = ({ navigation }: Props) => {
             navigation={navigation}
             currentTrack={player.currentTrack}
             currentProgram={player.currentProgram}
+            currentTrackProgress={player.currentTrackProgress}
           />
 
           <View style={styles.containerApp}>
@@ -140,7 +141,7 @@ export const Home = ({ navigation }: Props) => {
                 <CountdownTimerText
                   startTime={
                     (player.currentTrack?.duration || 0) -
-                    (player.currentTrack?.progress || 0)
+                    (player?.currentTrackProgress || 0)
                   }
                 />
               </Text>
