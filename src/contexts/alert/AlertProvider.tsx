@@ -14,6 +14,7 @@ import HarukaError from "../../assets/erro_haruka.png";
 import HarukaSuccess from "../../assets/success_haruka.png";
 import { THEME } from "../../theme";
 import { styles } from "./styles";
+import { Portal } from "../Portal";
 
 export type AlertType = "success" | "error" | null;
 
@@ -52,11 +53,15 @@ export const AlertProvider: React.FC<{ children: ReactNode }> = ({
   };
 
   const success = (message: string) => {
-    setAlert(message, "success");
+    if (!alert || alert.message !== message) {
+      setAlert(message, "success");
+    }
   };
 
   const error = (message: string) => {
-    setAlert(message, "error");
+    if (!alert || alert.message !== message) {
+      setAlert(message, "error");
+    }
   };
 
   // Render the modal (PopUpStatus) directly within the provider.
@@ -74,29 +79,31 @@ export const AlertProvider: React.FC<{ children: ReactNode }> = ({
       value={{ alert, setAlert, clearAlert, success, error }}
     >
       {children}
-      <Modal
-        animationType="fade"
-        visible={visible}
-        statusBarTranslucent
-        transparent
-      >
-        <KeyboardAvoidingView behavior="padding" style={styles.container}>
-          <View style={styles.content}>
-            <TouchableOpacity onPress={handleClose} style={styles.closeIcon}>
-              <MaterialIcons
-                name="close"
-                size={20}
-                color={THEME.COLORS.WHITE_TEXT}
-              />
-            </TouchableOpacity>
-            <Image source={haruka} style={styles.img} />
-            <Text style={styles.text}>{alert?.message}</Text>
-            <TouchableOpacity onPress={handleClose} style={styles.okButton}>
-              <Text style={styles.okText}>Ok</Text>
-            </TouchableOpacity>
-          </View>
-        </KeyboardAvoidingView>
-      </Modal>
+      <Portal name="alert">
+        <Modal
+          animationType="fade"
+          visible={visible}
+          statusBarTranslucent
+          transparent
+        >
+          <KeyboardAvoidingView behavior="padding" style={styles.container}>
+            <View style={styles.content}>
+              <TouchableOpacity onPress={handleClose} style={styles.closeIcon}>
+                <MaterialIcons
+                  name="close"
+                  size={20}
+                  color={THEME.COLORS.WHITE_TEXT}
+                />
+              </TouchableOpacity>
+              <Image source={haruka} style={styles.img} />
+              <Text style={styles.text}>{alert?.message}</Text>
+              <TouchableOpacity onPress={handleClose} style={styles.okButton}>
+                <Text style={styles.okText}>Ok</Text>
+              </TouchableOpacity>
+            </View>
+          </KeyboardAvoidingView>
+        </Modal>
+      </Portal>
     </AlertContext.Provider>
   );
 };

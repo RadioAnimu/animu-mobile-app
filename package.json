@@ -14,7 +14,7 @@
     "@expo/vector-icons": "^14.0.2",
     "@react-native-async-storage/async-storage": "1.23.1",
     "@react-navigation/drawer": "^6.6.7",
-    "@react-navigation/native": "^6.1.6",
+    "@react-navigation/native": "6.1.6",
     "@react-navigation/native-stack": "^6.9.12",
     "@types/react-native-background-timer": "^2.0.0",
     "axios": "^1.7.9",

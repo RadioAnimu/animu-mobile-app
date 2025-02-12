@@ -10,6 +10,7 @@ import { PlayerProvider } from "./src/contexts/player/PlayerProvider";
 import { UserSettingsProvider } from "./src/contexts/user/UserSettingsProvider";
 import { AlertProvider } from "./src/contexts/alert/AlertProvider";
 import { AuthProvider } from "./src/contexts/auth/AuthProvider";
+import { PortalProvider } from "./src/contexts/Portal";
 
 export default function App() {
   const [fontsLoaded] = useFonts({
@@ -24,15 +25,17 @@ export default function App() {
       <StatusBar backgroundColor={THEME.COLORS.PRIMARY} />
       {fontsLoaded ? (
         <Background>
-          <AlertProvider>
-            <PlayerProvider>
-              <UserSettingsProvider>
-                <AuthProvider>
-                  <Routes />
-                </AuthProvider>
-              </UserSettingsProvider>
-            </PlayerProvider>
-          </AlertProvider>
+          <PortalProvider>
+            <AlertProvider>
+              <PlayerProvider>
+                <UserSettingsProvider>
+                  <AuthProvider>
+                    <Routes />
+                  </AuthProvider>
+                </UserSettingsProvider>
+              </PlayerProvider>
+            </AlertProvider>
+          </PortalProvider>
         </Background>
       ) : (
         <Loading />

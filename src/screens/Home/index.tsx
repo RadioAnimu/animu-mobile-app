@@ -1,13 +1,6 @@
-import React, {
-  useContext,
-  useEffect,
-  useRef,
-  useState,
-  useCallback,
-} from "react";
+import React, { useEffect, useRef, useState, useCallback } from "react";
 import { ScrollView, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import BackgroundTimer from "react-native-background-timer";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 
@@ -34,10 +27,10 @@ import { usePlayer } from "../../contexts/player/PlayerProvider";
 import { styles } from "./styles";
 import { useAuth } from "../../contexts/auth/AuthProvider";
 import { authService } from "../../core/services/auth.service";
+import { useAlert } from "../../contexts/alert/AlertProvider";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Home">;
 
-const USER_DATA_KEY = "user";
 const BACKGROUND_REFRESH_INTERVAL = 5000;
 const TRACK_PROGRESS_INTERVAL = 1000;
 
