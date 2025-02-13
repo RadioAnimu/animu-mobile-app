@@ -5,24 +5,24 @@ import { Dimensions } from "react-native";
 import { CustomDrawerContent } from "../components/CustomDrawer";
 import { FazerPedido } from "../screens/FazerPedido";
 import { Home } from "../screens/Home";
-import { Ultimas } from "../screens/Ultimas";
+import { Last } from "../screens/Ultimas";
 import { THEME } from "../theme";
 import { Settings } from "../screens/Settings";
-import { DICT, selectedLanguage } from "../languages";
-import { useContext } from "react";
+import { DICT } from "../languages";
 import { useUserSettings } from "../contexts/user/UserSettingsProvider";
+import { HistoryType } from "../@types/history-type";
 
 interface HomeProps {}
-interface UltimasProps {
-  type: "pedidas" | "tocadas";
+interface LastProps {
+  historyType: HistoryType;
 }
 interface FazerPedidoProps {}
 interface SettingsProps {}
 
 export type RootStackParamList = {
   Home: HomeProps;
-  UltimasPedidas: UltimasProps;
-  UltimasTocadas: UltimasProps;
+  LastRequested: LastProps;
+  LastPlayed: LastProps;
   FazerPedido: FazerPedidoProps;
   Settings: SettingsProps;
 };
@@ -82,9 +82,9 @@ export function AppRoutes() {
             );
           },
         }}
-        name="UltimasPedidas"
-        component={Ultimas}
-        initialParams={{ type: "pedidas" }}
+        name="LastRequested"
+        component={Last}
+        initialParams={{ historyType: "requests" }}
       />
       <Screen
         options={{
@@ -102,9 +102,9 @@ export function AppRoutes() {
             );
           },
         }}
-        name="UltimasTocadas"
-        component={Ultimas}
-        initialParams={{ type: "tocadas" }}
+        name="LastPlayed"
+        component={Last}
+        initialParams={{ historyType: "played" }}
       />
       <Screen
         options={{

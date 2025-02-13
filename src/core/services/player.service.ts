@@ -1,3 +1,4 @@
+import { HistoryType } from "./../../@types/history-type.d";
 import TrackPlayer, { NowPlayingMetadata } from "react-native-track-player";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { openBrowserAsync } from "expo-web-browser";
@@ -18,6 +19,8 @@ export interface PlayerServiceProps {
   _currentStream: Stream;
   _currentTrack: Track | null;
   _currentProgram: Program | null;
+  _lastRequestedTracks: Track[] | null;
+  _lastPlayedTracks: Track[] | null;
   _listeners: Listeners | null;
   _loaded: boolean;
   _paused: boolean;
@@ -30,6 +33,7 @@ export interface PlayerServiceProps {
   openPedidosURL: () => Promise<void>;
   updateMetadata: () => Promise<void>;
   destroy: () => Promise<void>;
+  refreshHistory: (type: HistoryType) => Promise<void>;
 }
 
 let playerServiceInstance: PlayerServiceProps | null = null;
@@ -41,6 +45,8 @@ export const playerService = (): PlayerServiceProps => {
       player: TrackPlayer,
       _currentStream: CONFIG.DEFAULT_STREAM_OPTION,
       _currentTrack: null,
+      _lastPlayedTracks: null,
+      _lastRequestedTracks: null,
       _currentProgram: null,
       _listeners: null,
       _loaded: false,
@@ -50,13 +56,21 @@ export const playerService = (): PlayerServiceProps => {
         console.log("[PlayerService] Updating status using animuService...");
         try {
           await userSettingsService.initialize();
-          const [newTrack, newProgram, newListeners] = await Promise.all([
+          const [
+            newTrack,
+            newProgram,
+            newListeners,
+            newLastPlayedTracks,
+            newLastRequestedTracks,
+          ] = await Promise.all([
             animuService.getCurrentTrack(
               this._currentStream,
               userSettingsService.getCurrentSettings().liveQualityCover
             ),
             animuService.getCurrentProgram(this._currentStream),
             animuService.getCurrentListeners(this._currentStream),
+            animuService.getTrackHistory("played"),
+            animuService.getTrackHistory("requests"),
           ]);
 
           let hasChanges = false;
@@ -66,6 +80,7 @@ export const playerService = (): PlayerServiceProps => {
             this._currentTrack?.artwork !== newTrack.artwork
           ) {
             this._currentTrack = newTrack;
+            this.refreshHistory("played");
             hasChanges = true;
           }
 
@@ -76,6 +91,16 @@ export const playerService = (): PlayerServiceProps => {
 
           if (this._listeners?.value !== newListeners.value) {
             this._listeners = newListeners;
+            hasChanges = true;
+          }
+
+          // Update history requests, only if there are new tracks
+          if (
+            newLastRequestedTracks.length > 0 &&
+            newLastRequestedTracks[0].raw !==
+              (this._lastRequestedTracks?.[0]?.raw || "")
+          ) {
+            this._lastRequestedTracks = newLastRequestedTracks;
             hasChanges = true;
           }
 
@@ -206,6 +231,41 @@ export const playerService = (): PlayerServiceProps => {
           await this.player.updateNowPlayingMetadata(newMetadata);
         } else {
           console.log("[PlayerService] Metadata unchanged, skipping update.");
+        }
+      },
+      async refreshHistory(typeHistory: HistoryType) {
+        // Initialize if undefined
+        if (
+          this._lastRequestedTracks === undefined ||
+          this._lastRequestedTracks === null
+        ) {
+          this._lastRequestedTracks = [] as Track[];
+        }
+        if (
+          this._lastPlayedTracks === undefined ||
+          this._lastPlayedTracks === null
+        ) {
+          this._lastPlayedTracks = [] as Track[];
+        }
+
+        // Get new tracks
+        const tracks = await animuService.getTrackHistory(typeHistory);
+
+        const targetArray =
+          typeHistory === "requests"
+            ? this._lastRequestedTracks
+            : this._lastPlayedTracks;
+
+        // Update list
+        for (const track of tracks) {
+          if (!targetArray.find((t) => t.raw === track.raw)) {
+            targetArray.unshift(track);
+          } else if (
+            Date.now() - track.startTime.getTime() >
+            24 * 60 * 60 * 1000
+          ) {
+            return;
+          }
         }
       },
       async destroy() {

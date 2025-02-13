@@ -4,9 +4,10 @@ import {
 } from "./../http/dto/track-history.dto";
 import { Track } from "../../core/domain/track";
 import { CONFIG } from "../../utils/player.config";
+import { HistoryType } from "../../@types/history-type";
 
 export class TrackHistoryMapper {
-  static fromDTO(dto: TrackHistoryDTO, type: "pedidas" | "tocadas"): Track[] {
+  static fromDTO(dto: TrackHistoryDTO, type: HistoryType): Track[] {
     return dto
       .filter((item) => this.isValidHistoryItem(item[0]))
       .map((item) => this.mapHistoryItem(item, type));
@@ -18,10 +19,10 @@ export class TrackHistoryMapper {
 
   private static mapHistoryItem(
     item: TrackHistoryItemDTO,
-    type: "pedidas" | "tocadas"
+    type: HistoryType
   ): Track {
     const [raw, title, artist, anime] = this.parseRawTitle(item[0]);
-    const isPedidas = type === "pedidas";
+    const isPedidas = type === "requests";
     const coverUrl = isPedidas ? item[3] : item[1];
 
     return {
@@ -37,7 +38,6 @@ export class TrackHistoryMapper {
       },
       artwork: coverUrl || CONFIG.DEFAULT_COVER,
       duration: 0,
-      progress: 0,
       isRequest: true,
       startTime: this.getStartTime(type, item[1]),
       metadata: {
@@ -62,11 +62,8 @@ export class TrackHistoryMapper {
     return [raw, title, artist, anime];
   }
 
-  private static getStartTime(
-    type: "pedidas" | "tocadas",
-    timeStr: string
-  ): Date {
-    if (type === "pedidas") {
+  private static getStartTime(type: HistoryType, timeStr: string): Date {
+    if (type === "requests") {
       return new Date(new Date().toDateString() + " " + timeStr + ":00");
     }
     return new Date();

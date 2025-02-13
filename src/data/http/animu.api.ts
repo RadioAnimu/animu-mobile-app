@@ -5,6 +5,7 @@ import { api } from "./axios.client";
 import { Stream } from "../../core/domain/stream";
 import { ListenersDTO } from "./dto/listeners.dto";
 import { TrackHistoryDTO } from "./dto/track-history.dto";
+import { HistoryType } from "../../@types/history-type";
 
 class AnimuApiClient {
   getCurrentTrack = async (stream: Stream): Promise<TrackDTO> => {
@@ -25,11 +26,9 @@ class AnimuApiClient {
     );
     return response.data;
   };
-  getTrackHistory = async (
-    type: "pedidas" | "tocadas"
-  ): Promise<TrackHistoryDTO> => {
+  getTrackHistory = async (type: HistoryType): Promise<TrackHistoryDTO> => {
     const url =
-      type === "pedidas" ? API.ULTIMAS_PEDIDAS_URL : API.ULTIMAS_TOCADAS_URL;
+      type === "requests" ? API.ULTIMAS_PEDIDAS_URL : API.ULTIMAS_TOCADAS_URL;
     const response = await api.get<TrackHistoryDTO>(url);
     return response.data;
   };

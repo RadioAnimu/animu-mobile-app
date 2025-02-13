@@ -18,6 +18,8 @@ type PlayerContextType = {
   updateCurrentTrackProgress: () => Promise<void>;
   refreshData: () => Promise<void>;
   currentTrack?: Track;
+  lastPlayedTracks?: Track[];
+  lastRequestedTracks?: Track[];
   currentProgram?: Program;
   currentStream?: Stream;
   currentListeners?: Listeners;
@@ -40,6 +42,8 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
 }) => {
   const [state, setState] = useState<{
     track?: Track;
+    lastPlayedTracks?: Track[];
+    lastRequestedTracks?: Track[];
     progress?: number | null;
     program?: Program;
     stream?: Stream;
@@ -72,6 +76,9 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
       ...prev,
       isPlaying: true,
       track: playerServiceInstance._currentTrack || undefined,
+      lastPlayedTracks: playerServiceInstance._lastPlayedTracks || undefined,
+      lastRequestedTracks:
+        playerServiceInstance._lastRequestedTracks || undefined,
       program: playerServiceInstance._currentProgram || undefined,
       stream: playerServiceInstance._currentStream,
       listeners: playerServiceInstance._listeners || undefined,
@@ -112,6 +119,9 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
     setState((prev) => ({
       ...prev,
       track: playerServiceInstance._currentTrack || undefined,
+      lastPlayedTracks: playerServiceInstance._lastPlayedTracks || undefined,
+      lastRequestedTracks:
+        playerServiceInstance._lastRequestedTracks || undefined,
       program: playerServiceInstance._currentProgram || undefined,
       listeners: playerServiceInstance._listeners || undefined,
     }));
@@ -127,6 +137,8 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
         refreshData,
         currentTrack: state.track,
         currentTrackProgress: state.progress,
+        lastPlayedTracks: state.lastPlayedTracks,
+        lastRequestedTracks: state.lastRequestedTracks,
         currentProgram: state.program,
         currentStream: state.stream,
         currentListeners: state.listeners,

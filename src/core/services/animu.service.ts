@@ -1,4 +1,5 @@
 import { ArtworkQuality } from "../../@types/artwork-quality";
+import { HistoryType } from "../../@types/history-type";
 import { animuApiClient as apiClient } from "../../data/http/animu.api";
 import { ListenersMapper } from "../../data/mappers/listeners.mapper";
 import { ProgramMapper } from "../../data/mappers/program.mapper";
@@ -28,7 +29,7 @@ class AnimuService {
     return ListenersMapper.fromDTO(dto);
   }
 
-  async getTrackHistory(type: "pedidas" | "tocadas"): Promise<Track[]> {
+  async getTrackHistory(type: HistoryType): Promise<Track[]> {
     const dto = await apiClient.getTrackHistory(type);
     return TrackHistoryMapper.fromDTO(dto, type);
   }
