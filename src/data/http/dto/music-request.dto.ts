@@ -18,3 +18,19 @@ export type MusicRequestResponseDTO = {
   };
   objects: MusicRequestDTO[];
 };
+
+export type MusicSearchParamsDto = {
+  server: number;
+  filter?: string;
+  query: string;
+  requestable?: boolean;
+  limit?: number;
+  offset?: number;
+};
+
+export interface MusicRequestSubmissionDTO {
+  allmusic: string;
+  message: string;
+  PHPSESSID: string;
+  ios: number;
+}

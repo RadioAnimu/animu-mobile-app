@@ -3,7 +3,7 @@ import { HistoryType } from "../../@types/history-type";
 import { animuApiClient as apiClient } from "../../data/http/animu.api";
 import { ListenersMapper } from "../../data/mappers/listeners.mapper";
 import { ProgramMapper } from "../../data/mappers/program.mapper";
-import { TrackHistoryMapper } from "../../data/mappers/track-history";
+import { TrackHistoryMapper } from "../../data/mappers/track-history.mapper";
 import { TrackMapper } from "../../data/mappers/track.mapper";
 import { Listeners } from "../domain/listeners";
 import { Program } from "../domain/program";

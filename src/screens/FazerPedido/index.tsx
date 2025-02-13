@@ -34,6 +34,7 @@ import { styles } from "./styles";
 import { DICT, IMGS } from "../../languages";
 import { THEME } from "../../theme";
 import { RootStackParamList } from "../../routes/app.routes";
+import { MusicRequestSubmissionDTO } from "../../data/http/dto/music-request.dto";
 
 type Props = NativeStackScreenProps<RootStackParamList, "FazerPedido">;
 
@@ -105,78 +106,69 @@ export function FazerPedido({ navigation }: Props) {
 
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  const onSuccess = useCallback((message: string) => {
+    setTimeout(() => {
+      success(message);
+    }, 500);
+  }, []);
+
+  const onError = useCallback((message: string) => {
+    setTimeout(() => {
+      error(message);
+    }, 500);
+  }, []);
+
   const handleSubmitRequest = useCallback(async () => {
     if (isSubmitting) return;
+
+    // Validation checks
+    if (!user?.sessionId) {
+      onError(DICT[settings.selectedLanguage].LOGIN_ERROR);
+      setRequestState({ message: "", selected: undefined });
+      return;
+    }
+
+    if (!requestState.selected) {
+      onError(DICT[settings.selectedLanguage].SELECT_ERROR);
+      setRequestState({ message: "", selected: undefined });
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {
-      if (!user?.sessionId) {
-        error(DICT[settings.selectedLanguage].LOGIN_ERROR);
-        setRequestState({ message: "", selected: undefined }); // Clear state
-        return;
-      }
+      // Store values before clearing state to avoid closure issues
+      const submissionDTO: MusicRequestSubmissionDTO = {
+        allmusic: requestState.selected.id,
+        message: requestState.message,
+        PHPSESSID: user.sessionId,
+        ios: Platform.OS === "ios" ? 1 : 0,
+      };
 
-      if (!requestState.selected) {
-        error(DICT[settings.selectedLanguage].SELECT_ERROR);
-        setRequestState({ message: "", selected: undefined }); // Clear state
-        return;
-      }
-
-      // Store selected in variable to avoid closure issues
-      const selectedId = requestState.selected.id;
-      const message = requestState.message;
-
-      // Clear request state first to prevent UI lockup
+      // Clear request state early to prevent UI lockup
       setRequestState({ message: "", selected: undefined });
 
-      const formData = new FormData();
-      formData.append("allmusic", selectedId);
-      formData.append("message", message);
-      formData.append("PHPSESSID", user.sessionId);
+      const result = await musicRequestService.submitRequest(submissionDTO);
 
-      const isIos = Platform.OS === "ios" ? 1 : 0;
-      const url =
-        "https://www.animu.com.br/teste/pedirquatroMobile.php?ios=" + isIos;
-
-      const response = await fetch(url, {
-        method: "POST",
-        credentials: "same-origin",
-        body: formData,
-      });
-
-      const data = await response.text();
-
-      if (data) {
-        setTimeout(() => {
-          switch (data) {
-            case "strike and out":
-              error(DICT[settings.selectedLanguage].ERROR_STRIKE_AND_OUT);
-              break;
-            default:
-              error(`${DICT[settings.selectedLanguage].REQUEST_ERROR}${data}`);
-              break;
-          }
-          return;
-        }, 100);
+      if (!result.success) {
+        onError(DICT[settings.selectedLanguage]["REQUEST_ERROR"]);
+        return;
       }
 
-      // Update results state after clearing request state
+      // Update search results to mark track as non-requestable
       setSearchState((prev) => ({
         ...prev,
         results: prev.results.map((item) =>
-          item.id === selectedId ? { ...item, requestable: false } : item
+          item.id === submissionDTO.allmusic
+            ? { ...item, requestable: false }
+            : item
         ),
       }));
 
-      setTimeout(() => {
-        success(DICT[settings.selectedLanguage].REQUEST_SUCCESS);
-      }, 100);
+      onSuccess(DICT[settings.selectedLanguage].REQUEST_SUCCESS);
     } catch (err) {
-      console.error(err);
-      setTimeout(() => {
-        error(DICT[settings.selectedLanguage].REQUEST_ERROR);
-      }, 100);
-      // Clear state even on error
+      console.error("Request submission error:", err);
+      onError(DICT[settings.selectedLanguage].REQUEST_ERROR);
       setRequestState({ message: "", selected: undefined });
     } finally {
       setIsSubmitting(false);

@@ -1,7 +1,13 @@
-import { MusicRequest, MusicRequestPagination } from "../domain/music-request";
+import {
+  MusicRequestPagination,
+  MusicRequestResult,
+} from "../domain/music-request";
 import { MusicRequestMapper } from "../../data/mappers/music-request.mapper";
 import { animuApiClient as apiClient } from "../../data/http/animu.api";
-import { MusicSearchParamsDto } from "../../data/http/dto/music-search-params.dto";
+import {
+  MusicRequestSubmissionDTO,
+  MusicSearchParamsDto,
+} from "../../data/http/dto/music-request.dto";
 
 class MusicRequestService {
   async searchTracksByQuery(
@@ -12,15 +18,25 @@ class MusicRequestService {
   }
 
   async searchTracksByTitle(title: string): Promise<MusicRequestPagination> {
-    const dto = await apiClient.searchTracks({
-      query: title,
-      server: 1,
-      filter: "",
-      limit: 25,
-      offset: 0,
-      requestable: true,
-    });
+    const dto = await apiClient.searchTracks(
+      MusicRequestMapper.stringTitleToMusicSearchParamsDTO(title)
+    );
     return MusicRequestMapper.paginationFromDTO(dto);
+  }
+
+  async submitRequest(
+    submissionDTO: MusicRequestSubmissionDTO
+  ): Promise<MusicRequestResult> {
+    try {
+      const response = await apiClient.submitMusicRequest(submissionDTO);
+      return MusicRequestMapper.fromResponseStringToResult(response);
+    } catch (error) {
+      console.error("Request submission error:", error);
+      return {
+        success: false,
+        error: "REQUEST_ERROR",
+      };
+    }
   }
 }
 

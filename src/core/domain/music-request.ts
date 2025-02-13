@@ -1,4 +1,4 @@
-import { MusicSearchParamsDto } from "../../data/http/dto/music-search-params.dto";
+import { MusicSearchParamsDto } from "../../data/http/dto/music-request.dto";
 
 export type MusicRequest = {
   id: string;
@@ -16,3 +16,8 @@ export type MusicRequestPagination = {
   totalResults: number;
   totalPages: number;
 };
+
+export interface MusicRequestResult {
+  success: boolean;
+  error?: string;
+}

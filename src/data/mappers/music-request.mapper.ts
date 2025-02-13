@@ -2,13 +2,14 @@ import { API } from "../../api";
 import {
   MusicRequest,
   MusicRequestPagination,
+  MusicRequestResult,
 } from "../../core/domain/music-request";
 import { CONFIG } from "../../utils/player.config";
 import {
   MusicRequestDTO,
   MusicRequestResponseDTO,
+  MusicSearchParamsDto,
 } from "../http/dto/music-request.dto";
-import { MusicSearchParamsDto } from "../http/dto/music-search-params.dto";
 
 const parseTitle = (title: string): [string, string, string] => {
   const [songPart, animePart] = title.split("|").map((s) => s.trim());
@@ -41,7 +42,9 @@ export class MusicRequestMapper {
     };
   }
 
-  static parseQueryParams(url: string): MusicSearchParamsDto {
+  static parseQueryParamsToMusicSearchParamsDTO(
+    url: string
+  ): MusicSearchParamsDto {
     // Extract query string from URL
     const queryString = url.split("?")[1];
 
@@ -64,16 +67,50 @@ export class MusicRequestMapper {
     };
   }
 
+  static stringTitleToMusicSearchParamsDTO(
+    title: string
+  ): MusicSearchParamsDto {
+    return {
+      server: 1,
+      filter: "",
+      query: title,
+      requestable: true,
+      limit: 25,
+      offset: 0,
+    };
+  }
+
   static paginationFromDTO(
     dto: MusicRequestResponseDTO
   ): MusicRequestPagination {
     return {
       results: dto.objects.map(this.fromDTO),
       nextPageQueryObject: dto.meta.next
-        ? MusicRequestMapper.parseQueryParams(dto.meta.next)
+        ? MusicRequestMapper.parseQueryParamsToMusicSearchParamsDTO(
+            dto.meta.next
+          )
         : undefined,
       totalResults: dto.meta.total_count,
       totalPages: Math.ceil(dto.meta.total_count / dto.meta.limit),
     };
+  }
+
+  static fromResponseStringToResult(response: string): MusicRequestResult {
+    if (!response) {
+      return { success: true };
+    }
+
+    switch (response) {
+      case "strike and out":
+        return {
+          success: false,
+          error: "ERROR_STRIKE_AND_OUT",
+        };
+      default:
+        return {
+          success: false,
+          error: `REQUEST_ERROR${response}`,
+        };
+    }
   }
 }

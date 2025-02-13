@@ -8,6 +8,8 @@ const ULTIMAS_PEDIDAS_URL =
 const ULTIMAS_TOCADAS_URL =
   "https://www.animu.com.br/teste/ultimasmusicas_json.php";
 const FAZER_PEDIDO_URL = "https://www.animu.com.br/teste/requestSearchTest.php";
+const FAZER_PEDIDO_URL_MOBILE_SUBMIT =
+  "https://www.animu.com.br/teste/pedirquatroMobile.php";
 const DISCORD_URL = "https://discord.animu.com.br";
 const LIVE_REQUEST_URL =
   "https://www.animu.com.br/paineldj/ajaxforms(defasado)/request/salvar.php";
@@ -32,6 +34,7 @@ export const API = {
   FAZER_PEDIDO_URL,
   DISCORD_URL,
   LIVE_REQUEST_URL,
+  FAZER_PEDIDO_URL_MOBILE_SUBMIT,
 };
 
 export interface AnimuInfoProps {
