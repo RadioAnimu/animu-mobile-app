@@ -1,7 +1,7 @@
 import { Stream } from "../core/domain/stream";
 
 const DEFAULT_COVER: string =
-  "https://cdn.discordapp.com/attachments/634406949198364702/1208229038192066640/Animu_icon_2023.png?ex=65e285fa&is=65d010fa&hm=f1136f9df203303a7e45da10e1474aba1ce60e170e8278d9ac472ac57848dd58&";
+  "https://www.animu.com.br/wp-content/uploads/2022/11/Animu-icon-para-OC.png";
 
 const STREAM_OPTIONS: Stream[] = [
   {
