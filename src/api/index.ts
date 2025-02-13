@@ -7,8 +7,7 @@ const ULTIMAS_PEDIDAS_URL =
   "https://www.animu.com.br/teste/ultimospedidos_json.php";
 const ULTIMAS_TOCADAS_URL =
   "https://www.animu.com.br/teste/ultimasmusicas_json.php";
-const FAZER_PEDIDO_URL =
-  "https://www.animu.com.br/teste/requestSearchTest.php?server=1&filter=&limit=25&offset=0&requestable=true&query=";
+const FAZER_PEDIDO_URL = "https://www.animu.com.br/teste/requestSearchTest.php";
 const DISCORD_URL = "https://discord.animu.com.br";
 const LIVE_REQUEST_URL =
   "https://www.animu.com.br/paineldj/ajaxforms(defasado)/request/salvar.php";

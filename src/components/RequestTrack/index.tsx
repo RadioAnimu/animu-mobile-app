@@ -1,17 +1,17 @@
 import { Text, TouchableOpacity } from "react-native";
-import { MusicRequestProps } from "../../api";
 import { styles } from "./styles";
 import { THEME } from "../../theme";
 import { Image } from "expo-image";
 import { CONFIG } from "../../utils/player.config";
 import { useUserSettings } from "../../contexts/user/UserSettingsProvider";
+import { MusicRequest } from "../../core/domain/music-request";
 
 interface Props {
-  musicToBeRequested: MusicRequestProps;
+  track: MusicRequest;
   onTrackRequest: () => void;
 }
 
-export function RequestTrack({ musicToBeRequested, onTrackRequest }: Props) {
+export function RequestTrack({ track, onTrackRequest }: Props) {
   const { settings } = useUserSettings();
 
   return (
@@ -20,7 +20,7 @@ export function RequestTrack({ musicToBeRequested, onTrackRequest }: Props) {
       style={[
         styles.container,
         {
-          backgroundColor: musicToBeRequested.requestable
+          backgroundColor: track.requestable
             ? THEME.COLORS.PEDIDO_POSSIVEL
             : THEME.COLORS.PEDIDO_IMPOSSIVEL,
         },
@@ -28,7 +28,7 @@ export function RequestTrack({ musicToBeRequested, onTrackRequest }: Props) {
     >
       {settings.coversInRequestSearch && (
         <Image
-          source={{ uri: musicToBeRequested.track.artworks.cover }}
+          source={{ uri: track.artwork }}
           style={styles.image}
           placeholder={CONFIG.DEFAULT_COVER}
           onError={() => {
@@ -41,7 +41,7 @@ export function RequestTrack({ musicToBeRequested, onTrackRequest }: Props) {
         />
       )}
       <Text style={styles.text}>
-        {musicToBeRequested.track.artist} | {musicToBeRequested.track.rawtitle}
+        {track.artist} | {track.raw}
       </Text>
     </TouchableOpacity>
   );

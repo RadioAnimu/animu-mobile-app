@@ -1,49 +1,27 @@
-// import { ArtworkQuality } from "../../@types/artwork-quality";
-// import { animuApiClient } from "../../data/http/animu.api";
-// import { MusicRequestMapper } from "../../data/mappers/music-request.mapper";
-// import { MusicRequest, PaginatedResponse } from "../domain/music-request";
+import { MusicRequest, MusicRequestPagination } from "../domain/music-request";
+import { MusicRequestMapper } from "../../data/mappers/music-request.mapper";
+import { animuApiClient as apiClient } from "../../data/http/animu.api";
+import { MusicSearchParamsDto } from "../../data/http/dto/music-search-params.dto";
 
-// class MusicRequestService {
-//   async searchMusic(
-//     query: string,
-//     artworkQuality?: ArtworkQuality
-//   ): Promise<PaginatedResponse<MusicRequest>> {
-//     const response = await animuApiClient.searchMusicRequest(query);
-//     return MusicRequestMapper.fromDTOList(response, artworkQuality);
-//   }
+class MusicRequestService {
+  async searchTracksByQuery(
+    params: MusicSearchParamsDto
+  ): Promise<MusicRequestPagination> {
+    const dto = await apiClient.searchTracks(params);
+    return MusicRequestMapper.paginationFromDTO(dto);
+  }
 
-//   async loadMore(
-//     url: string,
-//     artworkQuality?: ArtworkQuality
-//   ): Promise<PaginatedResponse<MusicRequest>> {
-//     const response = await animuApiClient.loadMoreMusicRequests(url);
-//     return MusicRequestMapper.fromDTOList(response, artworkQuality);
-//   }
+  async searchTracksByTitle(title: string): Promise<MusicRequestPagination> {
+    const dto = await apiClient.searchTracks({
+      query: title,
+      server: 1,
+      filter: "",
+      limit: 25,
+      offset: 0,
+      requestable: true,
+    });
+    return MusicRequestMapper.paginationFromDTO(dto);
+  }
+}
 
-//   async submitRequest(
-//     musicId: number,
-//     message: string,
-//     sessionId: string
-//   ): Promise<{ success: boolean; error?: string }> {
-//     try {
-//       const response = await animuApiClient.submitMusicRequest(
-//         musicId,
-//         message,
-//         sessionId
-//       );
-
-//       if (response.error) {
-//         return { success: false, error: response.error };
-//       }
-
-//       return { success: true };
-//     } catch (error) {
-//       return {
-//         success: false,
-//         error: error instanceof Error ? error.message : "Unknown error",
-//       };
-//     }
-//   }
-// }
-
-// export const musicRequestService = new MusicRequestService();
+export const musicRequestService = new MusicRequestService();

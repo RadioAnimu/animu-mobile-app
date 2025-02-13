@@ -12,7 +12,7 @@ class AxiosHttpClient {
     this.cache = new Map();
     this.client = axios.create({
       baseURL: API.BASE_URL,
-      timeout: 10000,
+      timeout: 20000,
       headers: {
         "User-Agent": CONFIG.USER_AGENT,
         "Content-Type": "application/json",

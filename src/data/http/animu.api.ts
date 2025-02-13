@@ -6,6 +6,8 @@ import { Stream } from "../../core/domain/stream";
 import { ListenersDTO } from "./dto/listeners.dto";
 import { TrackHistoryDTO } from "./dto/track-history.dto";
 import { HistoryType } from "../../@types/history-type";
+import { MusicRequestResponseDTO } from "./dto/music-request.dto";
+import { MusicSearchParamsDto } from "./dto/music-search-params.dto";
 
 class AnimuApiClient {
   getCurrentTrack = async (stream: Stream): Promise<TrackDTO> => {
@@ -32,6 +34,18 @@ class AnimuApiClient {
     const response = await api.get<TrackHistoryDTO>(url);
     return response.data;
   };
+  async searchTracks(
+    params: MusicSearchParamsDto
+  ): Promise<MusicRequestResponseDTO> {
+    const response = await api.get<MusicRequestResponseDTO>(
+      API.FAZER_PEDIDO_URL,
+      {
+        params,
+      }
+    );
+
+    return response.data;
+  }
 }
 
 const animuApiClient = new AnimuApiClient();

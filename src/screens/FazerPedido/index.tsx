@@ -1,196 +1,186 @@
-import React, { useContext, useState } from "react";
+import React, { useState, useCallback } from "react";
 import {
   ActivityIndicator,
   FlatList,
-  Platform,
   TextInput,
   TouchableOpacity,
   View,
+  Text,
+  Platform,
 } from "react-native";
-
-import { API, MusicRequestProps } from "../../api";
-import { Background } from "../../components/Background";
-import { styles } from "./styles";
-
 import { SafeAreaView } from "react-native-safe-area-context";
-import { HeaderBar } from "../../components/HeaderBar";
-import { Logo } from "../../components/Logo";
-
 import { Ionicons } from "@expo/vector-icons";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
-import { Text } from "react-native";
+
+// Components
+import { Background } from "../../components/Background";
+import { HeaderBar } from "../../components/HeaderBar";
+import { Logo } from "../../components/Logo";
 import { PopUpRecado } from "../../components/PopUpRecado";
 import { RequestTrack } from "../../components/RequestTrack";
-import { DICT, IMGS } from "../../languages";
-import { RootStackParamList } from "../../routes/app.routes";
-import { THEME } from "../../theme";
-import { CONFIG } from "../../utils/player.config";
-import { useUserSettings } from "../../contexts/user/UserSettingsProvider";
-import { useAlert } from "../../contexts/alert/AlertProvider";
+
+// Core
+import {
+  MusicRequest,
+  MusicRequestPagination,
+} from "../../core/domain/music-request";
+import { musicRequestService } from "../../core/services/music-request.service";
 import { useAuth } from "../../contexts/auth/AuthProvider";
+import { useAlert } from "../../contexts/alert/AlertProvider";
+import { useUserSettings } from "../../contexts/user/UserSettingsProvider";
+
+// Styles and Config
+import { styles } from "./styles";
+import { DICT, IMGS } from "../../languages";
+import { THEME } from "../../theme";
+import { RootStackParamList } from "../../routes/app.routes";
 
 type Props = NativeStackScreenProps<RootStackParamList, "FazerPedido">;
-type Status = "idle" | "loading";
 
-export function FazerPedido({ route, navigation }: Props) {
+export function FazerPedido({ navigation }: Props) {
   const { error, success } = useAlert();
-  const [recado, setRecado] = useState("");
+  const { user } = useAuth();
   const { settings } = useUserSettings();
 
-  const [searchText, setSearchText] = useState("");
-  const [results, setResults] = useState<MusicRequestProps[]>([]);
-  const [meta, setMeta] = useState(
-    {} as {
-      limit: number;
-      next: string;
-      offset: number;
-      previous: string;
-      total_count: number;
-      total_pages: number;
-    }
-  );
-  const [status, setStatus] = useState<Status>("idle");
+  const [searchState, setSearchState] = useState<{
+    query: string;
+    results: MusicRequest[];
+    pagination?: MusicRequestPagination;
+    status: "idle" | "loading" | "loadingMore";
+  }>({
+    query: "",
+    results: [],
+    status: "idle",
+  });
 
-  const handleSearch = async () => {
-    setResults([]);
-    if (searchText) {
-      setStatus("loading");
-      const queryURL: string = `${API.FAZER_PEDIDO_URL}${searchText}`;
-      const res = await fetch(queryURL);
-      const { meta, objects }: any = await res.json();
-      let cover: string = "";
-      const aux: MusicRequestProps[] = objects.map((obj: any) => {
-        cover = obj.image_large || obj.image_medium || obj.image_tiny || "";
-        return {
-          track: {
-            rawtitle: obj.title,
-            song: obj.title.split("|")[0],
-            anime: obj.title.split("|")[1],
-            artist: obj.author,
-            artworks: {
-              cover:
-                cover === "" ? CONFIG.DEFAULT_COVER : `${API.WEB_URL}${cover}`,
-            },
-            id: obj.id,
-          },
-          requestable: obj.timestrike === undefined,
-        };
+  const [requestState, setRequestState] = useState<{
+    selected?: MusicRequest;
+    message: string;
+  }>({ message: "" });
+
+  const handleSearch = useCallback(async () => {
+    if (!searchState.query) return;
+
+    setSearchState((prev) => ({ ...prev, status: "loading" }));
+
+    try {
+      const response = await musicRequestService.searchTracksByTitle(
+        searchState.query
+      );
+      setSearchState({
+        query: searchState.query,
+        results: response.results,
+        pagination: response,
+        status: "idle",
       });
-      setResults(aux);
-      meta.total_pages = Math.ceil(meta.total_count / meta.limit);
-      setMeta(meta);
-      setStatus("idle");
+    } catch (err) {
+      console.error(err);
+      error("Something went wrong");
+      setSearchState((prev) => ({ ...prev, status: "idle" }));
     }
-  };
+  }, [searchState.query, settings.selectedLanguage]);
 
-  const handleLoadMore = async (next: string) => {
-    setStatus("loading");
-    const queryURL: string = `${API.FAZER_PEDIDO_URL.split("?")[0]}?${
-      next.split("?")[1]
-    }`;
-    const res = await fetch(queryURL);
-    const { meta, objects }: any = await res.json();
-    let cover: string = "";
-    const aux: MusicRequestProps[] = objects.map((obj: any) => {
-      cover = obj.image_large || obj.image_medium || obj.image_tiny || "";
-      return {
-        track: {
-          rawtitle: obj.title,
-          song: obj.title.split("|")[0],
-          anime: obj.title.split("|")[1],
-          artist: obj.author,
-          artworks: {
-            cover:
-              cover === "" ? CONFIG.DEFAULT_COVER : `${API.WEB_URL}${cover}`,
-          },
-          id: obj.id,
-        },
-        requestable: obj.timestrike === undefined,
-      };
-    });
-    setResults([...results, ...aux]);
-    meta.total_pages = Math.ceil(meta.total_count / meta.limit);
-    setMeta(meta);
-    setStatus("idle");
-  };
+  const handleLoadMore = useCallback(async () => {
+    if (!searchState.pagination?.nextPageQueryObject) return;
 
-  const { user } = useAuth();
+    setSearchState((prev) => ({ ...prev, status: "loadingMore" }));
 
-  const handleOk = async () => {
-    console.log("handleOk called");
-    const formData = new FormData();
-    console.log(settings);
+    try {
+      const response = await musicRequestService.searchTracksByQuery(
+        searchState.pagination.nextPageQueryObject
+      );
+
+      setSearchState((prev) => ({
+        ...prev,
+        results: [...prev.results, ...response.results],
+        pagination: response,
+        status: "idle",
+      }));
+    } catch (err) {
+      console.error(err);
+      error("Something went wrong");
+      setSearchState((prev) => ({ ...prev, status: "idle" }));
+    }
+  }, [searchState.pagination, searchState.query]);
+
+  const handleSubmitRequest = useCallback(async () => {
     if (!user?.sessionId) {
       error(DICT[settings.selectedLanguage].LOGIN_ERROR);
+      setRequestState({ message: "", selected: undefined }); // Clear state
       return;
     }
-    if (selected === null) {
+
+    if (!requestState.selected) {
       error(DICT[settings.selectedLanguage].SELECT_ERROR);
+      setRequestState({ message: "", selected: undefined }); // Clear state
       return;
     }
-    const allmusic: string = selected.track.id.toString();
-    const message: string = recado;
-    formData.append("allmusic", allmusic);
-    formData.append("message", message);
-    formData.append("PHPSESSID", user.sessionId);
 
-    console.log("PHPSESSID: " + user.sessionId);
-    const isIos = Platform.OS === "ios" ? 1 : 0;
+    // Store selected in variable to avoid closure issues
+    const selectedTrack = requestState.selected;
 
-    const url =
-      "https://www.animu.com.br/teste/pedirquatroMobile.php?ios=" + isIos;
-    console.log(url);
-    const response = await fetch(url, {
-      method: "POST",
-      credentials: "same-origin",
-      body: formData,
-    });
-    console.log(response);
-    const data = await response.text();
-    if (data !== "") {
-      switch (data) {
-        case "strike and out":
-          error(DICT[settings.selectedLanguage].ERROR_STRIKE_AND_OUT);
-          break;
-        default:
-          error(`${DICT[settings.selectedLanguage].REQUEST_ERROR}${data}`);
-          break;
-      }
-      return;
-    }
-    setSelected(null);
-    success(DICT[settings.selectedLanguage].REQUEST_SUCCESS);
-    setRecado("");
-    setResults((old) =>
-      old.map((item) => {
-        if (item.track.id === selected.track.id) {
-          return {
-            ...item,
-            requestable: false,
-          };
+    try {
+      const formData = new FormData();
+      formData.append("allmusic", selectedTrack.id);
+      formData.append("message", requestState.message);
+      formData.append("PHPSESSID", user.sessionId);
+
+      const isIos = Platform.OS === "ios" ? 1 : 0;
+      const url =
+        "https://www.animu.com.br/teste/pedirquatroMobile.php?ios=" + isIos;
+
+      const response = await fetch(url, {
+        method: "POST",
+        credentials: "same-origin",
+        body: formData,
+      });
+
+      const data = await response.text();
+
+      // Clear request state first to prevent UI lockup
+      setRequestState({ message: "", selected: undefined });
+
+      if (data !== "") {
+        switch (data) {
+          case "strike and out":
+            error(DICT[settings.selectedLanguage].ERROR_STRIKE_AND_OUT);
+            break;
+          default:
+            error(`${DICT[settings.selectedLanguage].REQUEST_ERROR}${data}`);
+            break;
         }
-        return item;
-      })
-    );
-  };
+        return;
+      }
 
-  const [selected, setSelected] = useState<MusicRequestProps | null>(null);
+      // Update results state after clearing request state
+      setSearchState((prev) => ({
+        ...prev,
+        results: prev.results.map((item) =>
+          item.id === selectedTrack.id ? { ...item, requestable: false } : item
+        ),
+      }));
+
+      success(DICT[settings.selectedLanguage].REQUEST_SUCCESS);
+    } catch (err) {
+      console.error(err);
+      error(DICT[settings.selectedLanguage].REQUEST_ERROR);
+      // Clear state even on error
+      setRequestState({ message: "", selected: undefined });
+    }
+  }, [requestState, user?.sessionId, settings.selectedLanguage]);
 
   return (
     <Background>
       <SafeAreaView style={styles.container}>
         <HeaderBar navigation={navigation} />
         <View style={styles.appContainer}>
-          <View
-            style={{
-              marginVertical: 15,
-            }}
-          >
+          <View style={{ marginVertical: 15 }}>
             <Logo
               img={IMGS[settings.selectedLanguage].MAKE_REQUEST}
               size={150}
             />
           </View>
+
           <View style={styles.inputContainer}>
             <TextInput
               style={styles.input}
@@ -198,7 +188,10 @@ export function FazerPedido({ route, navigation }: Props) {
                 DICT[settings.selectedLanguage].REQUEST_SEARCH_PLACEHOLDER
               }
               placeholderTextColor="#fff"
-              onChangeText={(text) => setSearchText(text)}
+              value={searchState.query}
+              onChangeText={(query) =>
+                setSearchState((prev) => ({ ...prev, query }))
+              }
               onSubmitEditing={handleSearch}
             />
             <TouchableOpacity onPress={handleSearch} style={styles.searchIcon}>
@@ -209,63 +202,63 @@ export function FazerPedido({ route, navigation }: Props) {
               />
             </TouchableOpacity>
           </View>
+
           <View
             style={{
               width: "100%",
               flex: 1,
             }}
           >
-            {status === "loading" && results.length === 0 && (
+            {searchState.status === "loading" ? (
               <ActivityIndicator color={THEME.COLORS.WHITE_TEXT} />
-            )}
-            <FlatList
-              data={results}
-              keyExtractor={(item) => item.track.id.toString()}
-              initialNumToRender={results.length}
-              extraData={results}
-              contentContainerStyle={{
-                gap: 10,
-              }}
-              renderItem={({ item }) => {
-                return (
-                  <>
-                    {item.track.id === results[results.length - 1].track.id &&
-                    meta.next !== null ? (
-                      status === "loading" ? (
+            ) : (
+              <FlatList
+                data={searchState.results}
+                keyExtractor={(item) => item.id}
+                contentContainerStyle={{ flexGrow: 1, gap: 10 }}
+                renderItem={({ item }) => (
+                  <RequestTrack
+                    track={item}
+                    onTrackRequest={() => {
+                      if (item.requestable) {
+                        setRequestState({ selected: item, message: "" });
+                      } else {
+                        error("This song has already been requested");
+                      }
+                    }}
+                  />
+                )}
+                ListFooterComponent={
+                  searchState.pagination?.nextPageQueryObject ? (
+                    <TouchableOpacity
+                      style={styles.loadMoreBtn}
+                      onPress={handleLoadMore}
+                      disabled={searchState.status === "loadingMore"}
+                    >
+                      {searchState.status === "loadingMore" ? (
                         <ActivityIndicator color={THEME.COLORS.WHITE_TEXT} />
                       ) : (
-                        <TouchableOpacity
-                          onPress={() => {
-                            handleLoadMore(meta.next);
-                          }}
-                          style={styles.loadMoreBtn}
-                        >
-                          <Text style={styles.loadMoreText}>Carregar mais</Text>
-                        </TouchableOpacity>
-                      )
-                    ) : (
-                      <RequestTrack
-                        onTrackRequest={() => {
-                          if (item.requestable) {
-                            setSelected(item);
-                          } else {
-                            error("Música já foi pedida anteriormente");
-                          }
-                        }}
-                        musicToBeRequested={item}
-                      />
-                    )}
-                  </>
-                );
-              }}
-            />
+                        <Text style={styles.loadMoreText}>
+                          Load more results
+                        </Text>
+                      )}
+                    </TouchableOpacity>
+                  ) : null
+                }
+              />
+            )}
           </View>
         </View>
+
         <PopUpRecado
-          visible={selected !== null}
-          handleClose={() => setSelected(null)}
-          handleOk={handleOk}
-          handleChangeText={(text) => setRecado(text)}
+          visible={!!requestState.selected}
+          handleClose={() => {
+            setRequestState({ message: "", selected: undefined });
+          }}
+          handleOk={handleSubmitRequest}
+          handleChangeText={(message) =>
+            setRequestState((prev) => ({ ...prev, message }))
+          }
         />
       </SafeAreaView>
     </Background>

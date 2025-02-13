@@ -1,5 +1,5 @@
 import { MaterialIcons } from "@expo/vector-icons";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Image,
@@ -41,6 +41,13 @@ export function PopUpRecado({
   };
 
   const { settings } = useUserSettings();
+
+  useEffect(() => {
+    return () => {
+      // Cleanup any timers or listeners
+      handleChangeText(""); // Reset input if needed
+    };
+  }, []);
 
   return (
     <Modal animationType="fade" statusBarTranslucent transparent {...rest}>

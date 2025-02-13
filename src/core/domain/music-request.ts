@@ -1,18 +1,18 @@
-import { Track } from "./track";
+import { MusicSearchParamsDto } from "../../data/http/dto/music-search-params.dto";
 
-export interface MusicRequest {
-  track: Track;
+export type MusicRequest = {
+  id: string;
+  raw: string;
+  song: string;
+  anime: string;
+  artist: string;
+  artwork: string;
   requestable: boolean;
-}
+};
 
-export interface PaginatedResponse<T> {
-  items: T[];
-  meta: {
-    limit: number;
-    next: string | null;
-    offset: number;
-    previous: string | null;
-    totalCount: number;
-    totalPages: number;
-  };
-}
+export type MusicRequestPagination = {
+  results: MusicRequest[];
+  nextPageQueryObject?: MusicSearchParamsDto;
+  totalResults: number;
+  totalPages: number;
+};
