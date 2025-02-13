@@ -51,7 +51,10 @@ export function PopUpRecado({
 
   return (
     <Modal animationType="fade" statusBarTranslucent transparent {...rest}>
-      <KeyboardAvoidingView behavior="padding" style={styles.container}>
+      <KeyboardAvoidingView
+        behavior="padding"
+        style={[styles.container, { zIndex: 9998 }]}
+      >
         <View style={styles.content}>
           <TouchableOpacity onPress={handleClose} style={styles.closeIcon}>
             <MaterialIcons

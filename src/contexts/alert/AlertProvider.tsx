@@ -1,10 +1,17 @@
-import React, { createContext, useContext, useState, ReactNode } from "react";
+import React, {
+  createContext,
+  useContext,
+  useState,
+  ReactNode,
+  useRef,
+  useCallback,
+  useEffect,
+} from "react";
 import {
   Image,
   ImageSourcePropType,
   KeyboardAvoidingView,
   Modal,
-  ModalProps,
   Text,
   TouchableOpacity,
   View,
@@ -43,26 +50,40 @@ export const AlertProvider: React.FC<{ children: ReactNode }> = ({
   children,
 }) => {
   const [alert, setAlertState] = useState<Alert | null>(null);
+  const timeoutRef = useRef<NodeJS.Timeout>();
 
-  const setAlert = (message: string, type: AlertType) => {
+  // Clear any existing timeout when alert changes
+  useEffect(() => {
+    return () => {
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    };
+  }, []);
+
+  const setAlert = useCallback((message: string, type: AlertType) => {
     setAlertState({ message, type });
-  };
+    // Auto-dismiss after 3 seconds
+    timeoutRef.current = setTimeout(() => {
+      setAlertState(null);
+    }, 3000);
+  }, []);
 
-  const clearAlert = () => {
+  const clearAlert = useCallback(() => {
     setAlertState(null);
-  };
+  }, []);
 
-  const success = (message: string) => {
-    if (!alert || alert.message !== message) {
+  const success = useCallback(
+    (message: string) => {
       setAlert(message, "success");
-    }
-  };
+    },
+    [setAlert]
+  );
 
-  const error = (message: string) => {
-    if (!alert || alert.message !== message) {
+  const error = useCallback(
+    (message: string) => {
       setAlert(message, "error");
-    }
-  };
+    },
+    [setAlert]
+  );
 
   // Render the modal (PopUpStatus) directly within the provider.
   const haruka: ImageSourcePropType =
@@ -86,7 +107,10 @@ export const AlertProvider: React.FC<{ children: ReactNode }> = ({
           statusBarTranslucent
           transparent
         >
-          <KeyboardAvoidingView behavior="padding" style={styles.container}>
+          <KeyboardAvoidingView
+            behavior="padding"
+            style={[styles.container, { zIndex: 9999 }]}
+          >
             <View style={styles.content}>
               <TouchableOpacity onPress={handleClose} style={styles.closeIcon}>
                 <MaterialIcons

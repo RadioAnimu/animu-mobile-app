@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useEffect } from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -103,26 +103,35 @@ export function FazerPedido({ navigation }: Props) {
     }
   }, [searchState.pagination, searchState.query]);
 
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
   const handleSubmitRequest = useCallback(async () => {
-    if (!user?.sessionId) {
-      error(DICT[settings.selectedLanguage].LOGIN_ERROR);
-      setRequestState({ message: "", selected: undefined }); // Clear state
-      return;
-    }
-
-    if (!requestState.selected) {
-      error(DICT[settings.selectedLanguage].SELECT_ERROR);
-      setRequestState({ message: "", selected: undefined }); // Clear state
-      return;
-    }
-
-    // Store selected in variable to avoid closure issues
-    const selectedTrack = requestState.selected;
+    if (isSubmitting) return;
+    setIsSubmitting(true);
 
     try {
+      if (!user?.sessionId) {
+        error(DICT[settings.selectedLanguage].LOGIN_ERROR);
+        setRequestState({ message: "", selected: undefined }); // Clear state
+        return;
+      }
+
+      if (!requestState.selected) {
+        error(DICT[settings.selectedLanguage].SELECT_ERROR);
+        setRequestState({ message: "", selected: undefined }); // Clear state
+        return;
+      }
+
+      // Store selected in variable to avoid closure issues
+      const selectedId = requestState.selected.id;
+      const message = requestState.message;
+
+      // Clear request state first to prevent UI lockup
+      setRequestState({ message: "", selected: undefined });
+
       const formData = new FormData();
-      formData.append("allmusic", selectedTrack.id);
-      formData.append("message", requestState.message);
+      formData.append("allmusic", selectedId);
+      formData.append("message", message);
       formData.append("PHPSESSID", user.sessionId);
 
       const isIos = Platform.OS === "ios" ? 1 : 0;
@@ -137,37 +146,42 @@ export function FazerPedido({ navigation }: Props) {
 
       const data = await response.text();
 
-      // Clear request state first to prevent UI lockup
-      setRequestState({ message: "", selected: undefined });
-
-      if (data !== "") {
-        switch (data) {
-          case "strike and out":
-            error(DICT[settings.selectedLanguage].ERROR_STRIKE_AND_OUT);
-            break;
-          default:
-            error(`${DICT[settings.selectedLanguage].REQUEST_ERROR}${data}`);
-            break;
-        }
-        return;
+      if (data) {
+        setTimeout(() => {
+          switch (data) {
+            case "strike and out":
+              error(DICT[settings.selectedLanguage].ERROR_STRIKE_AND_OUT);
+              break;
+            default:
+              error(`${DICT[settings.selectedLanguage].REQUEST_ERROR}${data}`);
+              break;
+          }
+          return;
+        }, 100);
       }
 
       // Update results state after clearing request state
       setSearchState((prev) => ({
         ...prev,
         results: prev.results.map((item) =>
-          item.id === selectedTrack.id ? { ...item, requestable: false } : item
+          item.id === selectedId ? { ...item, requestable: false } : item
         ),
       }));
 
-      success(DICT[settings.selectedLanguage].REQUEST_SUCCESS);
+      setTimeout(() => {
+        success(DICT[settings.selectedLanguage].REQUEST_SUCCESS);
+      }, 100);
     } catch (err) {
       console.error(err);
-      error(DICT[settings.selectedLanguage].REQUEST_ERROR);
+      setTimeout(() => {
+        error(DICT[settings.selectedLanguage].REQUEST_ERROR);
+      }, 100);
       // Clear state even on error
       setRequestState({ message: "", selected: undefined });
+    } finally {
+      setIsSubmitting(false);
     }
-  }, [requestState, user?.sessionId, settings.selectedLanguage]);
+  }, [requestState, user?.sessionId, settings.selectedLanguage, isSubmitting]);
 
   return (
     <Background>
