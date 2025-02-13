@@ -9,7 +9,7 @@ import { HistoryType } from "../../@types/history-type";
 import {
   MusicRequestResponseDTO,
   MusicSearchParamsDto,
-  MusicRequestSubmissionDTO, // Add this DTO interface if it doesn't exist
+  MusicRequestSubmissionDTO,
 } from "./dto/music-request.dto";
 
 class AnimuApiClient {
@@ -54,24 +54,22 @@ class AnimuApiClient {
   }
 
   async submitMusicRequest(dto: MusicRequestSubmissionDTO): Promise<string> {
-    const url = new URL(
-      `${API.FAZER_PEDIDO_URL_MOBILE_SUBMIT}/teste/pedirquatroMobile.php`
-    );
-
-    // Add query parameters
-    url.searchParams.append("ios", dto.ios.toString());
-
     // Convert DTO to FormData
     const formData = this.convertDTOToFormData(dto);
 
-    console.log("Submitting request to", url.toString());
-    console.log("Request data", formData);
-
-    const response = await api.post(url.toString(), formData, {
-      headers: {
-        "Content-Type": "multipart/form-data",
-      },
-    });
+    const response = await api.post(
+      API.FAZER_PEDIDO_URL_MOBILE_SUBMIT,
+      formData,
+      {
+        params: {
+          ios: dto.ios.toString(),
+        },
+        transformResponse: [(data) => data], // Prevent axios from parsing the response
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+      }
+    );
 
     return response.data;
   }
