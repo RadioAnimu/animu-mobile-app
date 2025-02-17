@@ -16,8 +16,3 @@ export type MusicRequestPagination = {
   totalResults: number;
   totalPages: number;
 };
-
-export interface MusicRequestResult {
-  success: boolean;
-  error?: string;
-}

@@ -2,7 +2,6 @@ import { API } from "../../api";
 import {
   MusicRequest,
   MusicRequestPagination,
-  MusicRequestResult,
 } from "../../core/domain/music-request";
 import { CONFIG } from "../../utils/player.config";
 import {
@@ -95,7 +94,10 @@ export class MusicRequestMapper {
     };
   }
 
-  static fromResponseStringToResult(response: string): MusicRequestResult {
+  static fromResponseStringToResult(response: string): {
+    success: boolean;
+    error?: string;
+  } {
     if (!response) {
       return { success: true };
     }

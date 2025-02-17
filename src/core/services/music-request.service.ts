@@ -1,7 +1,4 @@
-import {
-  MusicRequestPagination,
-  MusicRequestResult,
-} from "../domain/music-request";
+import { MusicRequestPagination } from "../domain/music-request";
 import { MusicRequestMapper } from "../../data/mappers/music-request.mapper";
 import { animuApiClient as apiClient } from "../../data/http/animu.api";
 import {
@@ -24,9 +21,10 @@ class MusicRequestService {
     return MusicRequestMapper.paginationFromDTO(dto);
   }
 
-  async submitRequest(
-    submissionDTO: MusicRequestSubmissionDTO
-  ): Promise<MusicRequestResult> {
+  async submitRequest(submissionDTO: MusicRequestSubmissionDTO): Promise<{
+    success: boolean;
+    error?: string;
+  }> {
     try {
       const response = await apiClient.submitMusicRequest(submissionDTO);
       return MusicRequestMapper.fromResponseStringToResult(response);
