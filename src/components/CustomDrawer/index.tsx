@@ -97,13 +97,9 @@ export function LoginComponent() {
   const { settings } = useUserSettings();
   const { user, login, logout, isLoading } = useAuth();
 
-  const onLogin = async () => {
-    login();
-  };
-
   return (
     <TouchableOpacity
-      onPress={onLogin}
+      onPress={login}
       style={{
         flexDirection: "row",
         alignItems: "center",
@@ -133,7 +129,7 @@ export function LoginComponent() {
 
 export function CustomDrawerContent(props: DrawerContentComponentProps) {
   const { settings } = useUserSettings();
-  const { user, login, logout, isLoading } = useAuth();
+  const { user } = useAuth();
 
   const LINKS: LinkMenuItemProps[] = [
     {

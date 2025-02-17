@@ -11,6 +11,8 @@ import {
   MusicSearchParamsDto,
   MusicRequestSubmissionDTO,
 } from "./dto/music-request.dto";
+import { LiveRequestDTO } from "./dto/live-request.dto";
+import { convertDTOToFormData } from "../../utils";
 
 class AnimuApiClient {
   getCurrentTrack = async (stream: Stream): Promise<TrackDTO> => {
@@ -54,8 +56,7 @@ class AnimuApiClient {
   }
 
   async submitMusicRequest(dto: MusicRequestSubmissionDTO): Promise<string> {
-    // Convert DTO to FormData
-    const formData = this.convertDTOToFormData(dto);
+    const formData = convertDTOToFormData(dto);
 
     const response = await api.post(
       API.FAZER_PEDIDO_URL_MOBILE_SUBMIT,
@@ -74,12 +75,24 @@ class AnimuApiClient {
     return response.data;
   }
 
-  private convertDTOToFormData(dto: MusicRequestSubmissionDTO): FormData {
-    const formData = new FormData();
-    Object.entries(dto).forEach(([key, value]) => {
-      formData.append(key, value?.toString() ?? "");
-    });
-    return formData;
+  async submitLiveRequest(request: LiveRequestDTO): Promise<boolean> {
+    try {
+      const formData = convertDTOToFormData(request);
+
+      const response = await api.post(API.LIVE_REQUEST_URL, formData, {
+        transformResponse: [(data) => data], // Prevent axios from parsing the response
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+      });
+
+      const { data } = response;
+
+      return data === "1";
+    } catch (error) {
+      console.error("Failed to submit live request:", error);
+      return false;
+    }
   }
 }
 

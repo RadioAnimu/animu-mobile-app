@@ -30,28 +30,26 @@ export function DiscordProfile({ user }: ProfileProps) {
           borderColor: THEME.COLORS.SHAPE,
         }}
       />
-      <View>
+      <View style={{ flexDirection: "column", gap: 5 }}>
         <Text
           style={{
             color: THEME.COLORS.WHITE_TEXT,
-            textAlign: "center",
             fontFamily: THEME.FONT_FAMILY.BOLD,
             fontSize: THEME.FONT_SIZE.MENU_ITEM,
           }}
         >
           {user.nickname || user.username}
         </Text>
-        {user.nickname && (
-          <Text
-            style={{
-              color: THEME.COLORS.WHITE_TEXT,
-              fontFamily: THEME.FONT_FAMILY.REGULAR,
-              fontSize: THEME.FONT_SIZE.SM,
-            }}
-          >
-            {user.username}
-          </Text>
-        )}
+        <Text
+          style={{
+            color: THEME.COLORS.WHITE_TEXT,
+            fontFamily: THEME.FONT_FAMILY.REGULAR,
+            fontSize: THEME.FONT_SIZE.SM,
+            opacity: 0.8,
+          }}
+        >
+          {549} minutos ouvidos
+        </Text>
       </View>
     </View>
   );

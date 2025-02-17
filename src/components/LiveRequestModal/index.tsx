@@ -1,4 +1,4 @@
-import React, { useContext, useEffect, useRef, useState } from "react";
+import React, { useState } from "react";
 import {
   ActivityIndicator,
   Image,
@@ -15,16 +15,16 @@ import { THEME } from "../../theme";
 import { styles } from "./styles";
 import CloseIcon from "../../assets/icons/ArrastarParaBaixo.png";
 import { ScrollView } from "react-native-gesture-handler";
-import { API } from "../../api";
 import { useUserSettings } from "../../contexts/user/UserSettingsProvider";
 import { useAlert } from "../../contexts/alert/AlertProvider";
 import { useAuth } from "../../contexts/auth/AuthProvider";
+import { useLiveRequestForm } from "../../hooks/useLiveRequestForm";
+import { liveRequestService } from "../../core/services/live-request.service";
+import { HttpRequestError } from "../../core/errors/http.error";
 
 interface Props extends ModalProps {
   handleClose: () => void;
 }
-
-type Status = "idle" | "requesting";
 
 interface LabelProps {
   text: string;
@@ -70,65 +70,43 @@ function Input({
 }
 
 export function LiveRequestModal({ handleClose, ...rest }: Props) {
-  const { success, error } = useAlert();
+  const { success, error: showError } = useAlert();
   const { user } = useAuth();
-
-  const [formData, setFormData] = useState<{
-    name: string;
-    city: string;
-    artist: string;
-    music: string;
-    anime: string;
-    request: string;
-  }>({
-    name: user?.nickname || user?.username || "",
-    city: "",
-    artist: "",
-    music: "",
-    anime: "",
-    request: "",
-  });
-
   const { settings } = useUserSettings();
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleRequestMusic = async () => {
-    const url = API.LIVE_REQUEST_URL;
-    const form = new FormData();
-    for (const item of FORM_BUILDER_MAPPER) {
-      if (!item.optional && !formData[item.name as keyof typeof formData]) {
-        return false;
-      }
-      form.append(item.name, formData[item.name as keyof typeof formData]);
-    }
-    const response = await fetch(url, {
-      method: "POST",
-      credentials: "same-origin",
-      body: form,
-    });
-    const data = await response.text();
-    console.log("Made request");
-    if (data !== "1") {
-      error(`${DICT[settings.selectedLanguage].REQUEST_ERROR}${data}`);
-      return;
-    }
-    handleClose();
-    success(DICT[settings.selectedLanguage].REQUEST_SUCCESS);
-  };
-
-  const [tests, setTests] = useState(1);
-
-  const _handleRequestMusic = async () => {
-    setTests(0);
-    await handleRequestMusic();
-    setTests(1);
-    setFormData({
+  const { formData, setters, reset, getFormData, isFormValid } =
+    useLiveRequestForm({
       name: user?.nickname || user?.username || "",
-      city: "",
-      artist: "",
-      music: "",
-      anime: "",
-      request: "",
     });
+
+  const handleSubmit = async () => {
+    if (isSubmitting) return;
+
+    try {
+      if (!isFormValid()) return;
+
+      setIsSubmitting(true);
+      const result = await liveRequestService.submitRequest(getFormData());
+
+      if (result.success) {
+        success(DICT[settings.selectedLanguage].REQUEST_SUCCESS);
+        handleClose();
+        reset();
+      } else {
+        showError(
+          `${DICT[settings.selectedLanguage].REQUEST_ERROR}${result.error}`
+        );
+      }
+    } catch (error) {
+      if (error instanceof HttpRequestError) {
+        showError(error.message);
+      } else {
+        showError(DICT[settings.selectedLanguage].REQUEST_ERROR);
+      }
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const FORM_BUILDER_MAPPER = [
@@ -136,9 +114,8 @@ export function LiveRequestModal({ handleClose, ...rest }: Props) {
       label: DICT[settings.selectedLanguage].FORM_LABEL_NICK,
       name: "name",
       input: {
-        value: "",
-        onChangeText: (text: string) =>
-          setFormData({ ...formData, name: text }),
+        value: formData.name,
+        onChangeText: setters.setName,
         placeholder: "Digite seu nome ou nick",
       },
     },
@@ -146,9 +123,8 @@ export function LiveRequestModal({ handleClose, ...rest }: Props) {
       label: DICT[settings.selectedLanguage].FORM_LABEL_CITY,
       name: "city",
       input: {
-        value: "",
-        onChangeText: (text: string) =>
-          setFormData({ ...formData, city: text }),
+        value: formData.city,
+        onChangeText: setters.setCity,
         placeholder: "Digite sua cidade/estado",
       },
     },
@@ -156,9 +132,8 @@ export function LiveRequestModal({ handleClose, ...rest }: Props) {
       label: DICT[settings.selectedLanguage].FORM_LABEL_ARTIST,
       name: "artist",
       input: {
-        value: "",
-        onChangeText: (text: string) =>
-          setFormData({ ...formData, artist: text }),
+        value: formData.artist,
+        onChangeText: setters.setArtist,
         placeholder: "Digite o nome do artista",
       },
     },
@@ -166,9 +141,8 @@ export function LiveRequestModal({ handleClose, ...rest }: Props) {
       label: DICT[settings.selectedLanguage].FORM_LABEL_MUSIC,
       name: "music",
       input: {
-        value: "",
-        onChangeText: (text: string) =>
-          setFormData({ ...formData, music: text }),
+        value: formData.music,
+        onChangeText: setters.setMusic,
         placeholder: "Digite o nome da música",
       },
     },
@@ -176,9 +150,8 @@ export function LiveRequestModal({ handleClose, ...rest }: Props) {
       label: DICT[settings.selectedLanguage].FORM_LABEL_ANIME,
       name: "anime",
       input: {
-        value: "",
-        onChangeText: (text: string) =>
-          setFormData({ ...formData, anime: text }),
+        value: formData.anime,
+        onChangeText: setters.setAnime,
         placeholder: "Digite o nome do anime, visual novel ou jogo",
       },
     },
@@ -187,12 +160,11 @@ export function LiveRequestModal({ handleClose, ...rest }: Props) {
       optional: true,
       name: "request",
       input: {
-        value: "",
-        onChangeText: (text: string) =>
-          setFormData({ ...formData, request: text }),
+        value: formData.request,
+        onChangeText: setters.setRequest,
         placeholder: "Digite um recado para o locutor",
         multiline: true,
-        onEndEditing: () => _handleRequestMusic(),
+        onEndEditing: handleSubmit,
       },
     },
   ];
@@ -232,17 +204,14 @@ export function LiveRequestModal({ handleClose, ...rest }: Props) {
                   placeholder={item.input.placeholder}
                   multiline={item.input.multiline}
                   onEndEditing={item.input.onEndEditing}
-                  disabled={tests === 0}
+                  disabled={isSubmitting}
                 />
               </View>
             ))}
-            {tests === 0 ? (
+            {isSubmitting ? (
               <ActivityIndicator color={THEME.COLORS.WHITE_TEXT} />
             ) : (
-              <TouchableOpacity
-                onPress={() => _handleRequestMusic()}
-                style={styles.okButton}
-              >
+              <TouchableOpacity onPress={handleSubmit} style={styles.okButton}>
                 <Text style={styles.okText}>
                   {DICT[settings.selectedLanguage].SEND_REQUEST_BUTTON_TEXT}
                 </Text>
