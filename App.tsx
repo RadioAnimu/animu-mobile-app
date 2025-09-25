@@ -11,6 +11,7 @@ import { AlertProvider } from "./src/contexts/alert/AlertProvider";
 import { AuthProvider } from "./src/contexts/auth/AuthProvider";
 import { PortalProvider } from "./src/contexts/Portal";
 import { MyStatusBar } from "./src/components/MyStatusBar";
+import { useEffect } from "react";
 
 export default function App() {
   const [fontsLoaded] = useFonts({
@@ -19,6 +20,18 @@ export default function App() {
     "ProximaNova-Bold": require("./src/assets/fonts/proximanova-bold.ttf"),
     "ProximaNova-Black": require("./src/assets/fonts/ProximaNova-Black.ttf"),
   });
+
+  useEffect(() => {
+    console.log("App mounted");
+    console.log(`Fonts loaded: ${fontsLoaded}`);
+    return () => {
+      console.log("App unmounted");
+    };
+  }, []);
+
+  useEffect(() => {
+    console.log(`Fonts loaded: ${fontsLoaded}`);
+  }, [fontsLoaded]);
 
   return (
     <>

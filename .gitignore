@@ -147,4 +147,9 @@ target/
 android/
 
 radioanimu-f57f5fb48b99.json
-```
+```.expo/
+
+# Expo
+.expo
+dist/
+web-build/

@@ -4,7 +4,7 @@ import TrackPlayer, {
   RepeatMode,
 } from "react-native-track-player";
 import { THEME } from "../../theme";
-import { PlaybackService } from "./player-playback.service";
+import { Platform } from "react-native";
 
 export const DefaultRepeatMode = RepeatMode.Queue;
 export const DefaultAudioServiceBehaviour =
@@ -16,32 +16,49 @@ const setupPlayer = async (
   const setup = async () => {
     try {
       await TrackPlayer.setupPlayer(options);
+      return null;
     } catch (error) {
       return (error as Error & { code?: string }).code;
     }
   };
-  while ((await setup()) === "android_cannot_setup_player_in_background") {
-    // A timeout will mostly only execute when the app is in the foreground,
-    // and even if we were in the background still, it will reject the promise
-    // and we'll try again:
-    await new Promise<void>((resolve) => setTimeout(resolve, 1));
+
+  let result = await setup();
+  while (result === "android_cannot_setup_player_in_background") {
+    console.log(
+      "[SetupService] Waiting for background setup to be available..."
+    );
+    await new Promise<void>((resolve) => setTimeout(resolve, 100));
+    result = await setup();
+  }
+
+  if (result) {
+    throw new Error(`Failed to setup player: ${result}`);
   }
 };
 
 export const SetupService = async () => {
-  await setupPlayer({});
-  await TrackPlayer.updateOptions({
-    android: {
-      appKilledPlaybackBehavior: DefaultAudioServiceBehaviour,
-    },
-    // This flag is now deprecated. Please use the above to define playback mode.
-    // stoppingAppPausesPlayback: true,
-    capabilities: [Capability.Play, Capability.Pause],
-    compactCapabilities: [Capability.Play, Capability.Pause],
-    notificationCapabilities: [Capability.Play, Capability.Pause],
-    // Obviously, color property would not work if artwork is specified. It can be used as a fallback.
-    color: +THEME.COLORS.BACKGROUND_800.replace("#", ""),
-    progressUpdateEventInterval: 1,
-  });
-  await PlaybackService();
+  console.log("[SetupService] Setting up TrackPlayer...");
+
+  try {
+    await setupPlayer({
+      autoHandleInterruptions: true,
+    });
+
+    await TrackPlayer.updateOptions({
+      android: {
+        appKilledPlaybackBehavior: DefaultAudioServiceBehaviour,
+        alwaysPauseOnInterruption: true,
+      },
+      capabilities: [Capability.Play, Capability.Pause],
+      compactCapabilities: [Capability.Play, Capability.Pause],
+      notificationCapabilities: [Capability.Play, Capability.Pause],
+      color: parseInt(THEME.COLORS.BACKGROUND_800.replace("#", ""), 16),
+      progressUpdateEventInterval: 1,
+    });
+
+    console.log("[SetupService] TrackPlayer setup completed successfully");
+  } catch (error) {
+    console.error("[SetupService] TrackPlayer setup failed:", error);
+    throw error;
+  }
 };

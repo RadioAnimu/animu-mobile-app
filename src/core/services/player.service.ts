@@ -52,26 +52,21 @@ export const playerService = (): PlayerServiceProps => {
       _loaded: false,
       _paused: true,
       currentProgress: 0,
+
       async refreshData(isToUpdateMetadata = true) {
         console.log("[PlayerService] Updating status using animuService...");
         try {
           await userSettingsService.initialize();
-          const [
-            newTrack,
-            newProgram,
-            newListeners,
-            newLastPlayedTracks,
-            newLastRequestedTracks,
-          ] = await Promise.all([
-            animuService.getCurrentTrack(
-              this._currentStream,
-              userSettingsService.getCurrentSettings().liveQualityCover
-            ),
-            animuService.getCurrentProgram(this._currentStream),
-            animuService.getCurrentListeners(this._currentStream),
-            animuService.getTrackHistory("played"),
-            animuService.getTrackHistory("requests"),
-          ]);
+          const [newTrack, newProgram, newListeners, newLastRequestedTracks] =
+            await Promise.all([
+              animuService.getCurrentTrack(
+                this._currentStream,
+                userSettingsService.getCurrentSettings().liveQualityCover
+              ),
+              animuService.getCurrentProgram(this._currentStream),
+              animuService.getCurrentListeners(this._currentStream),
+              animuService.getTrackHistory("requests"),
+            ]);
 
           let hasChanges = false;
 
@@ -94,7 +89,6 @@ export const playerService = (): PlayerServiceProps => {
             hasChanges = true;
           }
 
-          // Update history requests, only if there are new tracks
           if (
             newLastRequestedTracks.length > 0 &&
             newLastRequestedTracks[0].raw !==
@@ -121,6 +115,7 @@ export const playerService = (): PlayerServiceProps => {
           return false;
         }
       },
+
       getNowPlayingMetadata() {
         return (
           this._currentTrack?.metadata || {
@@ -135,74 +130,91 @@ export const playerService = (): PlayerServiceProps => {
           }
         );
       },
+
       async play() {
         console.log("[PlayerService] Play requested.");
+
         if (!this._loaded) {
           try {
             console.log("[PlayerService] Initializing player...");
-            console.log("[PlayerService] Setting up player service...");
-            SetupService();
-          } catch (err) {
-            console.error("[PlayerService] Player setup error:", err);
-          } finally {
+
+            // Wait a bit to ensure the background service is ready on Android
+            if (Platform.OS === "android") {
+              await new Promise((resolve) => setTimeout(resolve, 1000));
+            }
+
+            await SetupService();
             this._loaded = true;
+
             const storedStream = await AsyncStorage.getItem("currentStream");
             this._currentStream = storedStream
               ? JSON.parse(storedStream)
               : CONFIG.DEFAULT_STREAM_OPTION;
+          } catch (err) {
+            console.error("[PlayerService] Player setup error:", err);
+            throw err;
           }
         }
 
-        // Force stop any existing playback
-        await TrackPlayer.reset();
-        this._paused = true;
+        try {
+          // Reset player state
+          await TrackPlayer.reset();
+          this._paused = true;
 
-        await this.refreshData(false);
+          // Refresh data before playing
+          await this.refreshData(false);
 
-        await TrackPlayer.add({
-          ...this.getNowPlayingMetadata(),
-          id: "1",
-          url: this._currentStream.url,
-          userAgent: CONFIG.USER_AGENT,
-        });
+          // Add track and start playback
+          await TrackPlayer.add({
+            ...this.getNowPlayingMetadata(),
+            id: "1",
+            url: this._currentStream.url,
+            userAgent: CONFIG.USER_AGENT,
+          });
 
-        console.log("[PlayerService] Starting playback.");
-        await TrackPlayer.play();
-        this._paused = false;
+          console.log("[PlayerService] Starting playback.");
+          await TrackPlayer.play();
+          this._paused = false;
 
-        await this.updateMetadata();
+          await this.updateMetadata();
+        } catch (error) {
+          console.error("[PlayerService] Playback error:", error);
+          throw error;
+        }
       },
+
       async pause() {
         console.log("[PlayerService] Pause requested.");
         if (this._loaded && !this._paused) {
-          await TrackPlayer.pause();
-          this._paused = true;
-          console.log("[PlayerService] Playback paused.");
+          try {
+            await TrackPlayer.pause();
+            this._paused = true;
+            console.log("[PlayerService] Playback paused.");
+          } catch (error) {
+            console.error("[PlayerService] Pause error:", error);
+          }
         } else {
           console.log(
             "[PlayerService] Pause skipped (already paused or not loaded)."
           );
         }
       },
+
       async changeStream(stream: Stream) {
         if (this._currentStream.id !== stream.id) {
           console.log(
             `[PlayerService] Changing stream from ${this._currentStream.id} to ${stream.id}.`
           );
 
-          // Store previous playback state
           const wasPlaying = !this._paused;
 
-          // Stop current playback immediately
           if (wasPlaying) {
             await this.pause();
           }
 
-          // Update the stream
           this._currentStream = stream;
           await AsyncStorage.setItem("currentStream", JSON.stringify(stream));
 
-          // Restart playback if it was playing
           if (wasPlaying) {
             console.log("[PlayerService] Restarting playback with new stream");
             await this.play();
@@ -213,28 +225,34 @@ export const playerService = (): PlayerServiceProps => {
           );
         }
       },
+
       async openPedidosURL() {
         console.log("[PlayerService] Opening pedidos URL.");
         await openBrowserAsync(API.PEDIDOS_URL);
       },
+
       async updateMetadata() {
         console.log("[PlayerService] Checking metadata update...");
-        const newMetadata = this.getNowPlayingMetadata();
-        const currentMetadata = await this.player.getActiveTrack();
+        try {
+          const newMetadata = this.getNowPlayingMetadata();
+          const currentMetadata = await this.player.getActiveTrack();
 
-        if (
-          !currentMetadata ||
-          currentMetadata.title !== newMetadata.title ||
-          currentMetadata.artist !== newMetadata.artist
-        ) {
-          console.log("[PlayerService] Updating Now Playing metadata.");
-          await this.player.updateNowPlayingMetadata(newMetadata);
-        } else {
-          console.log("[PlayerService] Metadata unchanged, skipping update.");
+          if (
+            !currentMetadata ||
+            currentMetadata.title !== newMetadata.title ||
+            currentMetadata.artist !== newMetadata.artist
+          ) {
+            console.log("[PlayerService] Updating Now Playing metadata.");
+            await this.player.updateNowPlayingMetadata(newMetadata);
+          } else {
+            console.log("[PlayerService] Metadata unchanged, skipping update.");
+          }
+        } catch (error) {
+          console.error("[PlayerService] Metadata update error:", error);
         }
       },
+
       async refreshHistory(typeHistory: HistoryType) {
-        // Initialize if undefined
         if (
           this._lastRequestedTracks === undefined ||
           this._lastRequestedTracks === null
@@ -248,55 +266,42 @@ export const playerService = (): PlayerServiceProps => {
           this._lastPlayedTracks = [] as Track[];
         }
 
-        // Get new tracks
-        const tracks = await animuService.getTrackHistory(typeHistory);
+        try {
+          const tracks = await animuService.getTrackHistory(typeHistory);
+          const targetArray =
+            typeHistory === "requests"
+              ? this._lastRequestedTracks
+              : this._lastPlayedTracks;
 
-        const targetArray =
-          typeHistory === "requests"
-            ? this._lastRequestedTracks
-            : this._lastPlayedTracks;
-
-        // Update list
-        for (const track of tracks) {
-          if (!targetArray.find((t) => t.raw === track.raw)) {
-            targetArray.unshift(track);
-          } else if (
-            Date.now() - track.startTime.getTime() >
-            24 * 60 * 60 * 1000
-          ) {
-            return;
+          for (const track of tracks) {
+            if (!targetArray.find((t) => t.raw === track.raw)) {
+              targetArray.unshift(track);
+            } else if (
+              Date.now() - track.startTime.getTime() >
+              24 * 60 * 60 * 1000
+            ) {
+              return;
+            }
           }
+        } catch (error) {
+          console.error(
+            `[PlayerService] Error refreshing ${typeHistory} history:`,
+            error
+          );
         }
       },
+
       async destroy() {
-        console.log("[PlayerService] Nuclear destruction sequence initiated.");
+        console.log("[PlayerService] Destruction sequence initiated.");
         if (!this._loaded) {
           console.log("[PlayerService] Player instance not loaded.");
           return;
         }
-        try {
-          // 1. Stop any ongoing playback
-          await this.player.stop();
 
-          // 2. Reset all player components
+        try {
+          await this.player.stop();
           await this.player.reset();
 
-          // 3. Remove all event listeners (critical for Android background services)
-          // this.player.removeAllListeners();
-
-          // 4. Actually destroy the player instance (Android specific but harmless on iOS)
-          // await this.player.destroy();
-
-          // 5. Clean up any remaining native resources
-          // if (Platform.OS === "android") {
-          //   await this.player.unregisterPlaybackService();
-          // }
-
-          // 6. Nuclear option: clear the entire queue and cache
-          await this.player.setQueue([]);
-          await this.player.removeUpcomingTracks();
-
-          // 7. Reset all internal state
           this._loaded = false;
           this._paused = true;
           this._currentStream = CONFIG.DEFAULT_STREAM_OPTION;
@@ -305,18 +310,10 @@ export const playerService = (): PlayerServiceProps => {
           this._listeners = null;
           this.currentProgress = 0;
 
-          // 8. Nullify the service instance
           playerServiceInstance = null;
-
-          console.log("[PlayerService] Player instance reduced to atoms.");
+          console.log("[PlayerService] Player instance destroyed.");
         } catch (error) {
           console.error("[PlayerService] Destruction failed:", error);
-          // Consider retry logic or error reporting here
-        } finally {
-          // 9. Force garbage collection (Android only)
-          if (Platform.OS === "android") {
-            (global as any).NativeModules?.TrackPlayer?.gc();
-          }
         }
       },
     };

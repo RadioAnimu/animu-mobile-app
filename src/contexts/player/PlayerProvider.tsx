@@ -10,6 +10,8 @@ import { Stream } from "../../core/domain/stream";
 import { Listeners } from "../../core/domain/listeners";
 import { Program } from "../../core/domain/program";
 import { playerService } from "../../core/services/player.service";
+import { setPlayerServiceReference } from "../../core/services/player-playback.service";
+import { Platform } from "react-native";
 
 type PlayerContextType = {
   play: () => Promise<void>;
@@ -25,6 +27,7 @@ type PlayerContextType = {
   currentListeners?: Listeners;
   currentTrackProgress?: number | null;
   isPlaying: boolean;
+  isInitialized: boolean;
 };
 
 const PlayerContext = createContext<PlayerContextType>({
@@ -35,6 +38,7 @@ const PlayerContext = createContext<PlayerContextType>({
   refreshData: () => Promise.reject("Player not initialized"),
   isPlaying: false,
   currentTrackProgress: null,
+  isInitialized: false,
 });
 
 export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
@@ -49,82 +53,130 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
     stream?: Stream;
     listeners?: Listeners;
     isPlaying: boolean;
-  }>({ isPlaying: false });
+    isInitialized: boolean;
+  }>({ isPlaying: false, isInitialized: false });
 
   const playerServiceInstance = useMemo(() => playerService(), []);
 
   useEffect(() => {
     const initializePlayer = async () => {
       console.log("[PlayerProvider] Initializing playerServiceInstance...");
-      setState({
-        stream: playerServiceInstance._currentStream,
-        isPlaying: false,
-      });
-      console.log("[PlayerProvider] Player initialized.");
+
+      try {
+        // Set the reference for the background service (Android only)
+        if (Platform.OS === "android") {
+          setPlayerServiceReference(playerServiceInstance);
+        }
+
+        setState((prev) => ({
+          ...prev,
+          stream: playerServiceInstance._currentStream,
+          isInitialized: true,
+        }));
+
+        console.log("[PlayerProvider] Player initialized successfully.");
+      } catch (error) {
+        console.error("[PlayerProvider] Player initialization failed:", error);
+        setState((prev) => ({
+          ...prev,
+          isInitialized: false,
+        }));
+      }
     };
-    initializePlayer();
+
+    // Initialize immediately but allow React to finish rendering first
+    const timer = setTimeout(initializePlayer, 0);
+
     return () => {
+      clearTimeout(timer);
       console.log("[PlayerProvider] Cleaning up playerServiceInstance...");
-      playerServiceInstance.destroy();
+
+      // Cleanup with a delay to prevent crashes
+      setTimeout(() => {
+        if (playerServiceInstance) {
+          playerServiceInstance.destroy().catch(console.error);
+        }
+      }, 1000);
     };
   }, [playerServiceInstance]);
 
   const play = async () => {
     console.log("[PlayerProvider] Play requested.");
-    await playerServiceInstance.play();
-    setState((prev) => ({
-      ...prev,
-      isPlaying: true,
-      track: playerServiceInstance._currentTrack || undefined,
-      lastPlayedTracks: playerServiceInstance._lastPlayedTracks || undefined,
-      lastRequestedTracks:
-        playerServiceInstance._lastRequestedTracks || undefined,
-      program: playerServiceInstance._currentProgram || undefined,
-      stream: playerServiceInstance._currentStream,
-      listeners: playerServiceInstance._listeners || undefined,
-      progress: getTrackProgress(
-        playerServiceInstance._currentTrack || undefined
-      ),
-    }));
+    try {
+      await playerServiceInstance.play();
+      setState((prev) => ({
+        ...prev,
+        isPlaying: true,
+        track: playerServiceInstance._currentTrack || undefined,
+        lastPlayedTracks: playerServiceInstance._lastPlayedTracks || undefined,
+        lastRequestedTracks:
+          playerServiceInstance._lastRequestedTracks || undefined,
+        program: playerServiceInstance._currentProgram || undefined,
+        stream: playerServiceInstance._currentStream,
+        listeners: playerServiceInstance._listeners || undefined,
+        progress: getTrackProgress(
+          playerServiceInstance._currentTrack || undefined
+        ),
+      }));
+    } catch (error) {
+      console.error("[PlayerProvider] Play error:", error);
+      setState((prev) => ({ ...prev, isPlaying: false }));
+    }
   };
 
   const pause = async () => {
     console.log("[PlayerProvider] Pause requested.");
-    await playerServiceInstance.pause();
-    setState((prev) => ({ ...prev, isPlaying: false }));
+    try {
+      await playerServiceInstance.pause();
+      setState((prev) => ({ ...prev, isPlaying: false }));
+    } catch (error) {
+      console.error("[PlayerProvider] Pause error:", error);
+    }
   };
 
   const changeStream = async (stream: Stream) => {
     console.log("[PlayerProvider] Stream change requested.");
-    await playerServiceInstance.changeStream(stream);
-    setState((prev) => ({
-      ...prev,
-      stream,
-      // Keep current playing state; you might also update track and program if needed.
-    }));
+    try {
+      await playerServiceInstance.changeStream(stream);
+      setState((prev) => ({
+        ...prev,
+        stream,
+      }));
+    } catch (error) {
+      console.error("[PlayerProvider] Stream change error:", error);
+    }
   };
 
   const updateCurrentTrackProgress = async () => {
-    setState((prev) => ({
-      ...prev,
-      progress: getTrackProgress(
-        playerServiceInstance._currentTrack || undefined
-      ),
-    }));
+    try {
+      setState((prev) => ({
+        ...prev,
+        progress: getTrackProgress(
+          playerServiceInstance._currentTrack || undefined
+        ),
+      }));
+    } catch (error) {
+      console.error("[PlayerProvider] Progress update error:", error);
+    }
   };
 
   const refreshData = async () => {
-    const hasChanges = await playerServiceInstance.refreshData();
-    if (!hasChanges) return;
-    setState((prev) => ({
-      ...prev,
-      track: playerServiceInstance._currentTrack || undefined,
-      lastPlayedTracks: playerServiceInstance._lastPlayedTracks || undefined,
-      lastRequestedTracks:
-        playerServiceInstance._lastRequestedTracks || undefined,
-      program: playerServiceInstance._currentProgram || undefined,
-      listeners: playerServiceInstance._listeners || undefined,
-    }));
+    try {
+      const hasChanges = await playerServiceInstance.refreshData();
+      if (!hasChanges) return;
+
+      setState((prev) => ({
+        ...prev,
+        track: playerServiceInstance._currentTrack || undefined,
+        lastPlayedTracks: playerServiceInstance._lastPlayedTracks || undefined,
+        lastRequestedTracks:
+          playerServiceInstance._lastRequestedTracks || undefined,
+        program: playerServiceInstance._currentProgram || undefined,
+        listeners: playerServiceInstance._listeners || undefined,
+      }));
+    } catch (error) {
+      console.error("[PlayerProvider] Error refreshing data:", error);
+    }
   };
 
   return (
@@ -143,6 +195,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
         currentStream: state.stream,
         currentListeners: state.listeners,
         isPlaying: state.isPlaying,
+        isInitialized: state.isInitialized,
       }}
     >
       {children}

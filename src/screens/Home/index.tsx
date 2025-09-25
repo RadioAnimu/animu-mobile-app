@@ -1,7 +1,6 @@
 import React, { useEffect, useRef, useState, useCallback } from "react";
 import { ScrollView, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import BackgroundTimer from "react-native-background-timer";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 
 // Components
@@ -31,8 +30,8 @@ import { backgroundService } from "../../core/services/background.service";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Home">;
 
-const BACKGROUND_REFRESH_INTERVAL = 5000;
-const TRACK_PROGRESS_INTERVAL = 1000;
+const BACKGROUND_REFRESH_INTERVAL = 5000; // 5 seconds
+const TRACK_PROGRESS_INTERVAL = 1000; // 1 second
 
 export const Home = ({ navigation }: Props) => {
   const player = usePlayer();
@@ -62,31 +61,47 @@ export const Home = ({ navigation }: Props) => {
 
   // Effects
   useEffect(() => {
-    // Initial data fetch
-    refreshData();
-    player.updateCurrentTrackProgress();
+    const initializeApp = async () => {
+      console.log("[Home] Starting app initialization...");
 
-    // Start background tasks
-    backgroundService.startTask({
-      id: "refresh-data",
-      callback: refreshData,
-      interval: BACKGROUND_REFRESH_INTERVAL,
-      backgroundTimer: true,
-    });
+      try {
+        // Initial data fetch first
+        console.log("[Home] Fetching initial data...");
+        await refreshData();
+        await player.updateCurrentTrackProgress();
 
-    backgroundService.startTask({
-      id: "track-progress",
-      callback: player.updateCurrentTrackProgress,
-      interval: TRACK_PROGRESS_INTERVAL,
-      backgroundTimer: false,
-    });
+        console.log("[Home] Starting background tasks...");
 
-    // Cleanup
+        // Start background tasks with correct property names
+        await backgroundService.startTask({
+          id: "refresh-data",
+          callback: refreshData,
+          interval: BACKGROUND_REFRESH_INTERVAL,
+          backgroundTask: true,
+        });
+
+        await backgroundService.startTask({
+          id: "track-progress",
+          callback: player.updateCurrentTrackProgress,
+          interval: TRACK_PROGRESS_INTERVAL,
+          backgroundTask: true,
+        });
+
+        console.log("[Home] App initialization complete.");
+      } catch (error) {
+        console.error("[Home] Error during initialization:", error);
+      }
+    };
+
+    initializeApp();
+
+    // Cleanup function
     return () => {
+      console.log("[Home] Cleaning up background tasks...");
       backgroundService.stopTask("refresh-data");
       backgroundService.stopTask("track-progress");
     };
-  }, []);
+  }, []); // Remove dependencies to prevent re-initialization
 
   // UI Handlers
   const handleOpenProgramModal = useCallback(() => {
