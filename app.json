@@ -5,7 +5,7 @@
     "version": "1.2.1",
     "orientation": "portrait",
     "icon": "./assets/icon_top.png",
-    "userInterfaceStyle": "light",
+    "userInterfaceStyle": "automatic",
     "splash": {
       "image": "./assets/splash_top.png",
       "backgroundColor": "#270051"
@@ -29,7 +29,9 @@
         "foregroundImage": "./assets/adaptive-icon-top.png",
         "backgroundColor": "#270051"
       },
-      "package": "com.nessjs.animu"
+      "package": "com.nessjs.animu",
+      "versionCode": 2,
+      "edgeToEdgeEnabled": true
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -57,7 +59,8 @@
         }
       ],
       "expo-asset",
-      "expo-background-task"
+      "expo-background-task",
+      "expo-web-browser"
     ],
     "extra": {
       "eas": {
