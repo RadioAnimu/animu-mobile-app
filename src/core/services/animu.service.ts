@@ -16,12 +16,16 @@ class AnimuService {
     artworkQuality?: ArtworkQuality
   ): Promise<Track> {
     const dto = await apiClient.getCurrentTrack(stream);
-    return TrackMapper.fromDTO(dto, artworkQuality);
+    const track = TrackMapper.fromDTO(dto, artworkQuality);
+
+    return track;
   }
 
   async getCurrentProgram(stream: Stream): Promise<Program> {
     const dto = await apiClient.getProgramInfo(stream);
-    return ProgramMapper.fromDTO(dto, stream.category === "REPRISES");
+    const program = ProgramMapper.fromDTO(dto, stream.category === "REPRISES");
+
+    return program;
   }
 
   async getCurrentListeners(stream: Stream): Promise<Listeners> {

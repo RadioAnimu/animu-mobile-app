@@ -4,10 +4,11 @@ import { DICT } from "../../languages";
 
 export class ProgramMapper {
   static fromDTO(dto: ProgramDTO, isReprises: boolean): Program {
-    const isLiveProgram =
-      !isReprises && dto.locutor.toLowerCase().trim() !== "haruka yuki";
+    const locutorValue = dto?.locutor?.toLowerCase().trim();
+    const isLiveProgram = !isReprises && locutorValue !== "haruka yuki";
+    const rawProgram = this.findRawProgram(dto.programa);
 
-    return {
+    const result = {
       name: dto.programa,
       dj: isLiveProgram ? dto.locutor : "Haruka Yuki",
       isLive: isLiveProgram,
@@ -16,13 +17,26 @@ export class ProgramMapper {
       info: dto.infoPrograma,
       theme: dto.temaPrograma,
       acceptingRequests: dto.pedidos_ao_vivo !== "no",
-      raw: this.findRawProgram(dto.programa),
+      raw: rawProgram,
     };
+
+    return result;
   }
 
   private static findRawProgram(programName: string) {
-    return DICT["PT"].PROGRAMS.find(
-      (program) => program.name.toLowerCase() === programName.toLowerCase()
+    if (!programName) {
+      console.log(
+        "[ProgramMapper.findRawProgram] programName is falsy, returning undefined"
+      );
+      return undefined;
+    }
+
+    const programNameLower = programName.toLowerCase();
+
+    const result = DICT["PT"].PROGRAMS.find(
+      (program) => program.name.toLowerCase() === programNameLower
     );
+
+    return result;
   }
 }

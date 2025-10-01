@@ -44,6 +44,7 @@ export class TrackHistoryMapper {
         artist,
         title: anime,
         artwork: coverUrl || CONFIG.DEFAULT_COVER,
+        duration: 0,
       },
     };
   }

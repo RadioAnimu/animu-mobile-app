@@ -39,15 +39,12 @@ class AxiosHttpClient {
         const cachedData = this.cache.get(cacheKey);
 
         if (cachedData && this.isCacheValid(cachedData.timestamp)) {
-          console.log(`[Cache] Hit for ${cacheKey}`);
-          // Return cached data by rejecting the request with a special flag
           return Promise.reject({
             __cached: true,
             data: cachedData.data,
           });
         }
 
-        console.log(`[Cache] Miss for ${cacheKey}`);
         return config;
       },
       (error) => Promise.reject(error)
@@ -60,11 +57,9 @@ class AxiosHttpClient {
           data: response.data,
           timestamp: Date.now(),
         });
-        console.log(`[Cache] Stored ${cacheKey}`);
         return response;
       },
       (error) => {
-        // If this is our cached response, return it as a successful response
         if (error.__cached) {
           return Promise.resolve({ data: error.data });
         }

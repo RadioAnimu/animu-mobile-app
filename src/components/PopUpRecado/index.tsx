@@ -34,7 +34,6 @@ export function PopUpRecado({
   const [status, setStatus] = useState<Status>("idle");
 
   const _handleOk = async () => {
-    console.log("handleOk");
     setStatus("requesting");
     await handleOk();
     setStatus("idle");

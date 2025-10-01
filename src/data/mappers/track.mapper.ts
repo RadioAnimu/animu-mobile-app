@@ -21,7 +21,7 @@ class TrackMapper {
       artwork: this.selectArtwork(dto.track.artworks, artworkQuality),
       duration: dto.track.duration,
       startTime: new Date(dto.track.timestart),
-      isRequest: dto.rawtitle.toLowerCase().includes("pedido"),
+      isRequest: dto.rawtitle?.toLowerCase().includes("pedido") ?? false,
       metadata: {
         artist: dto.track.artist,
         title: anime,
@@ -34,6 +34,10 @@ class TrackMapper {
   private static parseRawTitle(
     rawTitle: string
   ): [string, string, string, string] {
+    if (!rawTitle) {
+      return ["", "", "", "Tocando Agora"];
+    }
+
     // Initialize defaults
     const raw = rawTitle;
     let title = rawTitle;

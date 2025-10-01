@@ -42,7 +42,6 @@ class AuthService {
       if (data.queryParams.PHPSESSID) {
         userDTO.PHPSESSID = data.queryParams.PHPSESSID;
       }
-      console.log({ userDTO });
 
       this.currentUser = UserMapper.fromDTO(userDTO);
       await AsyncStorage.setItem(
