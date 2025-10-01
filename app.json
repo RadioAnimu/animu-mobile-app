@@ -19,6 +19,7 @@
       "bundleIdentifier": "com.nessjs.animu",
       "infoPlist": {
         "UIBackgroundModes": [
+          "audio",
           "processing"
         ]
       }
@@ -44,7 +45,17 @@
           }
         }
       ],
-      "expo-font",
+      [
+        "expo-font",
+        {
+          "fonts": [
+            "./src/assets/fonts/proximanova-reg.ttf",
+            "./src/assets/fonts/proximanova-light.ttf",
+            "./src/assets/fonts/proximanova-bold.ttf",
+            "./src/assets/fonts/ProximaNova-Black.ttf"
+          ]
+        }
+      ],
       "expo-asset",
       "expo-background-task"
     ],

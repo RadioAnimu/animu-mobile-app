@@ -26,9 +26,9 @@ export const THEME = {
   },
 
   FONT_FAMILY: {
-    REGULAR: "ProximaNova-Regular",
-    LIGHT: "ProximaNova-Light",
-    BOLD: "ProximaNova-Bold",
+    REGULAR: "proximanova-reg",
+    LIGHT: "proximanova-light",
+    BOLD: "proximanova-bold",
     BLACK: "ProximaNova-Black",
   },
 

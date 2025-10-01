@@ -26,6 +26,7 @@ class TrackMapper {
         artist: dto.track.artist,
         title: anime,
         artwork: this.selectArtwork(dto.track.artworks, artworkQuality),
+        duration: dto.track.duration,
       },
     };
   }

@@ -8,7 +8,7 @@ export const setPlayerServiceReference = (service: any) => {
   playerServiceReference = service;
 };
 
-export function PlaybackService() {
+export async function PlaybackService() {
   console.log("[PlaybackService] Android background service initialized");
 
   TrackPlayer.addEventListener(Event.RemotePlay, async () => {

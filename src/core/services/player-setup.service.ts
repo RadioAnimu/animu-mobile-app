@@ -4,7 +4,6 @@ import TrackPlayer, {
   RepeatMode,
 } from "react-native-track-player";
 import { THEME } from "../../theme";
-import { Platform } from "react-native";
 
 export const DefaultRepeatMode = RepeatMode.Queue;
 export const DefaultAudioServiceBehaviour =

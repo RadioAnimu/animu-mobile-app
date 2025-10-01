@@ -8,8 +8,8 @@ import { PlaybackService } from "./src/core/services/player-playback.service";
 // It also ensures that whether you load the app in Expo Go or in a native build,
 // the environment is set up appropriately
 
+registerRootComponent(App);
+
 if (Platform.OS === "android") {
   TrackPlayer.registerPlaybackService(() => PlaybackService);
 }
-
-registerRootComponent(App);

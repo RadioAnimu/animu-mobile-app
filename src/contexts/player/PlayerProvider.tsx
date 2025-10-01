@@ -162,6 +162,12 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const refreshData = async () => {
     try {
+      console.log("[PlayerProvider] Refreshing player data...");
+      console.log(
+        "Metadata before refresh:",
+        playerServiceInstance.getNowPlayingMetadata()
+      );
+
       const hasChanges = await playerServiceInstance.refreshData();
       if (!hasChanges) return;
 

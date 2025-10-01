@@ -17,6 +17,7 @@ export type Track = {
     artist: string; // artist
     title: string; // anime
     artwork: string; // cover artwork
+    duration: number; // duration in seconds
   };
 };
 

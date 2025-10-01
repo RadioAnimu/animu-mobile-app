@@ -77,14 +77,14 @@ export const Home = ({ navigation }: Props) => {
           id: "refresh-data",
           callback: refreshData,
           interval: BACKGROUND_REFRESH_INTERVAL,
-          backgroundTask: true,
+          backgroundTask: false,
         });
 
         await backgroundService.startTask({
           id: "track-progress",
           callback: player.updateCurrentTrackProgress,
           interval: TRACK_PROGRESS_INTERVAL,
-          backgroundTask: true,
+          backgroundTask: false,
         });
 
         console.log("[Home] App initialization complete.");

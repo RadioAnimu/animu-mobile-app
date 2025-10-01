@@ -10,12 +10,18 @@ import { animuService } from "../services/animu.service";
 import { CONFIG } from "../../utils/player.config";
 import { API } from "../../api";
 import { userSettingsService } from "./user-settings.service";
-import { Platform } from "react-native";
 import { SetupService } from "./player-setup.service";
 
+// ============================================================================
+// * TYPES & INTERFACES
+// ============================================================================
+
 export interface PlayerServiceProps {
+  // ! Configuration & Core
   CONFIG: typeof CONFIG;
   player: typeof TrackPlayer;
+
+  // ! State Properties
   _currentStream: Stream;
   _currentTrack: Track | null;
   _currentProgram: Program | null;
@@ -25,6 +31,8 @@ export interface PlayerServiceProps {
   _loaded: boolean;
   _paused: boolean;
   currentProgress: number;
+
+  // ! Public Methods
   refreshData: (isToUpdateMetadata?: boolean) => Promise<boolean>;
   getNowPlayingMetadata: () => NowPlayingMetadata;
   play: () => Promise<void>;
@@ -36,13 +44,22 @@ export interface PlayerServiceProps {
   refreshHistory: (type: HistoryType) => Promise<void>;
 }
 
+// ============================================================================
+// * SINGLETON INSTANCE
+// ============================================================================
+
 let playerServiceInstance: PlayerServiceProps | null = null;
+
+// ============================================================================
 
 export const playerService = (): PlayerServiceProps => {
   if (!playerServiceInstance) {
     playerServiceInstance = {
+      // ! Configuration & Core Setup
       CONFIG,
       player: TrackPlayer,
+
+      // ! Initial State
       _currentStream: CONFIG.DEFAULT_STREAM_OPTION,
       _currentTrack: null,
       _lastPlayedTracks: null,
@@ -53,10 +70,22 @@ export const playerService = (): PlayerServiceProps => {
       _paused: true,
       currentProgress: 0,
 
-      async refreshData(isToUpdateMetadata = true) {
+      // ========================================================================
+      // * DATA MANAGEMENT METHODS
+      // ========================================================================
+
+      /**
+       * ? Refreshes all player data from the API
+       * @param isToUpdateMetadata - Whether to update track metadata after refresh
+       * @returns Promise<boolean> - True if data changed, false otherwise
+       */
+      async refreshData(isToUpdateMetadata = true): Promise<boolean> {
         console.log("[PlayerService] Updating status using animuService...");
+
         try {
           await userSettingsService.initialize();
+
+          // TODO: Parallel API calls for better performance
           const [newTrack, newProgram, newListeners, newLastRequestedTracks] =
             await Promise.all([
               animuService.getCurrentTrack(
@@ -70,6 +99,7 @@ export const playerService = (): PlayerServiceProps => {
 
           let hasChanges = false;
 
+          // * Check for track changes
           if (
             this._currentTrack?.raw !== newTrack.raw ||
             this._currentTrack?.artwork !== newTrack.artwork
@@ -79,16 +109,19 @@ export const playerService = (): PlayerServiceProps => {
             hasChanges = true;
           }
 
+          // * Check for program changes
           if (this._currentProgram?.raw !== newProgram.raw) {
             this._currentProgram = newProgram;
             hasChanges = true;
           }
 
+          // * Check for listener count changes
           if (this._listeners?.value !== newListeners.value) {
             this._listeners = newListeners;
             hasChanges = true;
           }
 
+          // * Check for new requested tracks
           if (
             newLastRequestedTracks.length > 0 &&
             newLastRequestedTracks[0].raw !==
@@ -98,6 +131,7 @@ export const playerService = (): PlayerServiceProps => {
             hasChanges = true;
           }
 
+          // * Update metadata if changes detected
           if (hasChanges) {
             console.log(
               "[PlayerService] Status updated: data changes detected"
@@ -116,36 +150,50 @@ export const playerService = (): PlayerServiceProps => {
         }
       },
 
-      getNowPlayingMetadata() {
-        return (
-          this._currentTrack?.metadata || {
-            title: "N/A",
-            artist: "N/A",
-            album: "N/A",
-            date: "N/A",
-            genre: "N/A",
-            description: "N/A",
-            duration: 0,
-            artwork: CONFIG.DEFAULT_COVER,
-          }
-        );
+      /**
+       * ? Gets formatted metadata for TrackPlayer
+       * @returns NowPlayingMetadata - Formatted metadata object
+       */
+      getNowPlayingMetadata(): NowPlayingMetadata {
+        const baseMetadata = this._currentTrack?.metadata || {
+          title: "N/A",
+          artist: "N/A",
+          album: "N/A",
+          date: "N/A",
+          genre: "N/A",
+          description: "N/A",
+          duration: 0,
+          artwork: CONFIG.DEFAULT_COVER,
+        };
+
+        // * Convert milliseconds to seconds for TrackPlayer
+        return {
+          ...baseMetadata,
+          duration: baseMetadata.duration ? baseMetadata.duration / 1000 : 0,
+          elapsedTime: this.currentProgress / 1000,
+        };
       },
 
-      async play() {
+      // ========================================================================
+      // * PLAYBACK CONTROL METHODS
+      // ========================================================================
+
+      /**
+       * ! Starts audio playback
+       * @throws Error if setup or playback fails
+       */
+      async play(): Promise<void> {
         console.log("[PlayerService] Play requested.");
 
+        // * Initialize player if not loaded
         if (!this._loaded) {
           try {
             console.log("[PlayerService] Initializing player...");
 
-            // Wait a bit to ensure the background service is ready on Android
-            if (Platform.OS === "android") {
-              await new Promise((resolve) => setTimeout(resolve, 1000));
-            }
-
             await SetupService();
             this._loaded = true;
 
+            // * Restore saved stream or use default
             const storedStream = await AsyncStorage.getItem("currentStream");
             this._currentStream = storedStream
               ? JSON.parse(storedStream)
@@ -157,25 +205,27 @@ export const playerService = (): PlayerServiceProps => {
         }
 
         try {
-          // Reset player state
+          // * Reset and prepare player
           await TrackPlayer.reset();
           this._paused = true;
 
-          // Refresh data before playing
+          // * Get fresh data before playing
           await this.refreshData(false);
 
-          // Add track and start playback
+          // * Add track to player queue
           await TrackPlayer.add({
-            ...this.getNowPlayingMetadata(),
             id: "1",
             url: this._currentStream.url,
             userAgent: CONFIG.USER_AGENT,
+            ...this.getNowPlayingMetadata(),
           });
 
+          // * Start playback
           console.log("[PlayerService] Starting playback.");
           await TrackPlayer.play();
           this._paused = false;
 
+          // * Update metadata after successful start
           await this.updateMetadata();
         } catch (error) {
           console.error("[PlayerService] Playback error:", error);
@@ -183,8 +233,12 @@ export const playerService = (): PlayerServiceProps => {
         }
       },
 
-      async pause() {
+      /**
+       * ! Pauses audio playback
+       */
+      async pause(): Promise<void> {
         console.log("[PlayerService] Pause requested.");
+
         if (this._loaded && !this._paused) {
           try {
             await TrackPlayer.pause();
@@ -200,7 +254,11 @@ export const playerService = (): PlayerServiceProps => {
         }
       },
 
-      async changeStream(stream: Stream) {
+      /**
+       * ? Changes the audio stream
+       * @param stream - New stream to switch to
+       */
+      async changeStream(stream: Stream): Promise<void> {
         if (this._currentStream.id !== stream.id) {
           console.log(
             `[PlayerService] Changing stream from ${this._currentStream.id} to ${stream.id}.`
@@ -208,13 +266,16 @@ export const playerService = (): PlayerServiceProps => {
 
           const wasPlaying = !this._paused;
 
+          // * Pause current stream
           if (wasPlaying) {
             await this.pause();
           }
 
+          // * Update stream and persist
           this._currentStream = stream;
           await AsyncStorage.setItem("currentStream", JSON.stringify(stream));
 
+          // * Resume with new stream if was playing
           if (wasPlaying) {
             console.log("[PlayerService] Restarting playback with new stream");
             await this.play();
@@ -226,17 +287,29 @@ export const playerService = (): PlayerServiceProps => {
         }
       },
 
-      async openPedidosURL() {
+      // ========================================================================
+      // * UTILITY METHODS
+      // ========================================================================
+
+      /**
+       * ? Opens the song requests URL in browser
+       */
+      async openPedidosURL(): Promise<void> {
         console.log("[PlayerService] Opening pedidos URL.");
         await openBrowserAsync(API.PEDIDOS_URL);
       },
 
-      async updateMetadata() {
+      /**
+       * ? Updates the Now Playing metadata if changes detected
+       */
+      async updateMetadata(): Promise<void> {
         console.log("[PlayerService] Checking metadata update...");
+
         try {
           const newMetadata = this.getNowPlayingMetadata();
           const currentMetadata = await this.player.getActiveTrack();
 
+          // * Only update if metadata actually changed
           if (
             !currentMetadata ||
             currentMetadata.title !== newMetadata.title ||
@@ -252,18 +325,17 @@ export const playerService = (): PlayerServiceProps => {
         }
       },
 
-      async refreshHistory(typeHistory: HistoryType) {
-        if (
-          this._lastRequestedTracks === undefined ||
-          this._lastRequestedTracks === null
-        ) {
-          this._lastRequestedTracks = [] as Track[];
+      /**
+       * ? Refreshes track history (played or requested)
+       * @param typeHistory - Type of history to refresh
+       */
+      async refreshHistory(typeHistory: HistoryType): Promise<void> {
+        // * Initialize arrays if null/undefined
+        if (!this._lastRequestedTracks) {
+          this._lastRequestedTracks = [];
         }
-        if (
-          this._lastPlayedTracks === undefined ||
-          this._lastPlayedTracks === null
-        ) {
-          this._lastPlayedTracks = [] as Track[];
+        if (!this._lastPlayedTracks) {
+          this._lastPlayedTracks = [];
         }
 
         try {
@@ -273,6 +345,7 @@ export const playerService = (): PlayerServiceProps => {
               ? this._lastRequestedTracks
               : this._lastPlayedTracks;
 
+          // * Add new tracks, skip duplicates, ignore old tracks (>24h)
           for (const track of tracks) {
             if (!targetArray.find((t) => t.raw === track.raw)) {
               targetArray.unshift(track);
@@ -280,7 +353,7 @@ export const playerService = (): PlayerServiceProps => {
               Date.now() - track.startTime.getTime() >
               24 * 60 * 60 * 1000
             ) {
-              return;
+              return; // TODO: This should probably be a break, not return
             }
           }
         } catch (error) {
@@ -291,17 +364,27 @@ export const playerService = (): PlayerServiceProps => {
         }
       },
 
-      async destroy() {
+      // ========================================================================
+      // * CLEANUP METHODS
+      // ========================================================================
+
+      /**
+       * ! Destroys the player instance and cleans up resources
+       */
+      async destroy(): Promise<void> {
         console.log("[PlayerService] Destruction sequence initiated.");
+
         if (!this._loaded) {
           console.log("[PlayerService] Player instance not loaded.");
           return;
         }
 
         try {
+          // * Stop and reset player
           await this.player.stop();
           await this.player.reset();
 
+          // * Reset all state
           this._loaded = false;
           this._paused = true;
           this._currentStream = CONFIG.DEFAULT_STREAM_OPTION;
@@ -310,6 +393,7 @@ export const playerService = (): PlayerServiceProps => {
           this._listeners = null;
           this.currentProgress = 0;
 
+          // * Clear singleton instance
           playerServiceInstance = null;
           console.log("[PlayerService] Player instance destroyed.");
         } catch (error) {
@@ -318,5 +402,6 @@ export const playerService = (): PlayerServiceProps => {
       },
     };
   }
+
   return playerServiceInstance;
 };
