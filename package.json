@@ -1,6 +1,6 @@
 {
   "name": "animu",
-  "version": "1.2.0 (beta)",
+  "version": "1.2.1",
   "author": "Ness.js",
   "scripts": {
     "start": "expo start --dev-client",
