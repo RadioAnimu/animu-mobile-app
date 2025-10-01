@@ -5,6 +5,7 @@
     "orientation": "portrait",
     "icon": "./assets/icon_top.png",
     "userInterfaceStyle": "automatic",
+    "newArchEnabled": false,
     "splash": {
       "image": "./assets/splash_top.png",
       "backgroundColor": "#270051"
