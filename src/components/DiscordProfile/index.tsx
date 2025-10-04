@@ -40,7 +40,7 @@ export function DiscordProfile({ user }: ProfileProps) {
         >
           {user.nickname || user.username}
         </Text>
-        <Text
+        {/* <Text
           style={{
             color: THEME.COLORS.WHITE_TEXT,
             fontFamily: THEME.FONT_FAMILY.REGULAR,
@@ -49,7 +49,7 @@ export function DiscordProfile({ user }: ProfileProps) {
           }}
         >
           {549} minutos ouvidos
-        </Text>
+        </Text> */}
       </View>
     </View>
   );
