@@ -242,7 +242,7 @@ export const playerService = (): PlayerServiceProps => {
                   Math.round(elapsed / 1000) + "s",
                 );
                 try {
-                  await TrackPlayer.seekTo(elapsed / 1000);
+                  // await TrackPlayer.seekTo(elapsed / 1000);
                 } catch (e) {
                   console.warn("[PlayerService] refreshData: seekTo failed", e);
                 }
@@ -416,7 +416,7 @@ export const playerService = (): PlayerServiceProps => {
                 "[PlayerService] play: Android seekTo",
                 Math.round(elapsed / 1000) + "s",
               );
-              await TrackPlayer.seekTo(elapsed / 1000);
+              // await TrackPlayer.seekTo(elapsed / 1000);
             }
           }
         } catch (error) {
