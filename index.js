@@ -10,6 +10,4 @@ import { PlaybackService } from "./src/core/services/player-playback.service";
 
 registerRootComponent(App);
 
-if (Platform.OS === "android") {
-  TrackPlayer.registerPlaybackService(() => PlaybackService);
-}
+TrackPlayer.registerPlaybackService(() => PlaybackService);

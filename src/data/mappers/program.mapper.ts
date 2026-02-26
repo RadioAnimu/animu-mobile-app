@@ -3,16 +3,18 @@ import { ProgramDTO } from "../http/dto/program.dto";
 import { DICT } from "../../languages";
 
 export class ProgramMapper {
-  static fromDTO(dto: ProgramDTO, isReprises: boolean): Program {
+  static fromDTO(dto: ProgramDTO): Program {
     const locutorValue = dto?.locutor?.toLowerCase().trim();
-    const isLiveProgram = !isReprises && locutorValue !== "haruka yuki";
+    const isLiveProgram =
+      !!locutorValue &&
+      locutorValue !== "haruka yuki" &&
+      locutorValue !== "haru";
     const rawProgram = this.findRawProgram(dto.programa);
 
     const result = {
       name: dto.programa,
       dj: isLiveProgram ? dto.locutor : "Haruka Yuki",
       isLive: isLiveProgram,
-      isSaijikkou: isReprises,
       imageUrl: dto.imagem,
       info: dto.infoPrograma,
       theme: dto.temaPrograma,
@@ -26,7 +28,7 @@ export class ProgramMapper {
   private static findRawProgram(programName: string) {
     if (!programName) {
       console.log(
-        "[ProgramMapper.findRawProgram] programName is falsy, returning undefined"
+        "[ProgramMapper.findRawProgram] programName is falsy, returning undefined",
       );
       return undefined;
     }
@@ -34,7 +36,7 @@ export class ProgramMapper {
     const programNameLower = programName.toLowerCase();
 
     const result = DICT["PT"].PROGRAMS.find(
-      (program) => program.name.toLowerCase() === programNameLower
+      (program) => program.name.toLowerCase() === programNameLower,
     );
 
     return result;

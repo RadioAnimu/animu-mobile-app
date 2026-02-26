@@ -5,12 +5,6 @@ export const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  timeLeft: {
-    fontSize: THEME.FONT_SIZE.SM,
-    fontFamily: THEME.FONT_FAMILY.REGULAR,
-    color: "white",
-    marginBottom: 8,
-  },
   containerApp: {
     flexDirection: "column",
     justifyContent: "center",
@@ -20,6 +14,22 @@ export const styles = StyleSheet.create({
     width: "100%",
     flexDirection: "row",
     justifyContent: "space-evenly",
+  },
+  listenersWrapper: {
+    marginBottom: 10,
+  },
+  coverWrapper: {
+    marginBottom: 11,
+  },
+  timeRemainingWrapper: {
+    marginTop: 10,
+    marginBottom: 8,
+  },
+  liveWrapper: {
+    marginBottom: 9,
+  },
+  programWrapper: {
+    marginBottom: 9,
   },
   /*
   oscilloscopeAndLogo: {

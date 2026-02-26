@@ -1,24 +1,27 @@
+import React from "react";
 import { Text, TouchableOpacity } from "react-native";
 import { ProgramProps } from "../../api";
 import { DICT } from "../../languages";
 import { THEME } from "../../theme";
 import { styles } from "./styles";
 import { useUserSettings } from "../../contexts/user/UserSettingsProvider";
-import { Program as ProgramType } from "../../core/domain/program";
+import { usePlayer } from "../../contexts/player/PlayerProvider";
 
 interface Props {
-  program: ProgramType;
   handleClick: () => void;
 }
 
-export function Program({ program, handleClick }: Props) {
+export const Program = React.memo(function Program({ handleClick }: Props) {
   const { settings } = useUserSettings();
+  const player = usePlayer();
+
+  const program = player.currentProgram;
+
+  if (!program) return null;
 
   return (
     <TouchableOpacity onPress={handleClick} style={styles.container}>
-      <Text style={[styles.title, styles.green]}>
-        {program?.isSaijikkou ? "Animu Sai Jikkou" : program?.name}
-      </Text>
+      <Text style={[styles.title, styles.green]}>{program?.name}</Text>
       <Text
         style={[
           styles.label,
@@ -33,4 +36,4 @@ export function Program({ program, handleClick }: Props) {
       </Text>
     </TouchableOpacity>
   );
-}
+});

@@ -8,22 +8,18 @@ import { User } from "../domain/user";
 const USER_STORAGE_KEY = "user";
 
 class AuthService {
-  private currentUser: User | null = null;
-
-  async initialize(): Promise<User | null> {
+  async getStoredUser(): Promise<User | null> {
     try {
       const userData = await AsyncStorage.getItem(USER_STORAGE_KEY);
       if (!userData) return null;
-
-      this.currentUser = JSON.parse(userData);
-      return this.currentUser;
+      return JSON.parse(userData);
     } catch (error) {
-      console.error("[AuthService] Failed to initialize:", error);
+      console.error("[AuthService] Failed to get stored user:", error);
       return null;
     }
   }
 
-  async login(): Promise<User | null> {
+  async login(): Promise<User> {
     try {
       const callbackUrl = Linking.createURL("redirect", { scheme: "animuapp" });
       const result = await WebBrowser.openAuthSessionAsync(
@@ -31,10 +27,14 @@ class AuthService {
         callbackUrl
       );
 
-      if (result.type !== "success") return null;
+      if (result.type !== "success") {
+        throw new Error("Authentication cancelled");
+      }
 
       const data = Linking.parse(result.url);
-      if (!data.queryParams?.user) return null;
+      if (!data.queryParams?.user) {
+        throw new Error("Invalid authentication response");
+      }
 
       const userDTO = JSON.parse(
         decodeURIComponent(data.queryParams.user.toString())
@@ -43,44 +43,34 @@ class AuthService {
         userDTO.PHPSESSID = data.queryParams.PHPSESSID;
       }
 
-      this.currentUser = UserMapper.fromDTO(userDTO);
-      await AsyncStorage.setItem(
-        USER_STORAGE_KEY,
-        JSON.stringify(this.currentUser)
-      );
-
-      return this.currentUser;
+      const user = UserMapper.fromDTO(userDTO);
+      await AsyncStorage.setItem(USER_STORAGE_KEY, JSON.stringify(user));
+      return user;
     } catch (error) {
       console.error("[AuthService] Login failed:", error);
-      return null;
+      throw error;
     }
   }
 
-  async logout(): Promise<void> {
+  async logout(sessionId?: string): Promise<void> {
     try {
-      if (this.currentUser) {
-        await authApiClient.logout(this.currentUser.sessionId);
+      if (sessionId) {
+        await authApiClient.logout(sessionId);
       }
       await AsyncStorage.removeItem(USER_STORAGE_KEY);
-      this.currentUser = null;
     } catch (error) {
       console.error("[AuthService] Logout failed:", error);
+      throw error;
     }
   }
 
-  async validateSession(): Promise<boolean> {
-    if (!this.currentUser) return false;
-
+  async validateSession(sessionId: string): Promise<boolean> {
     try {
-      return await authApiClient.validateSession(this.currentUser.sessionId);
+      return await authApiClient.validateSession(sessionId);
     } catch (error) {
       console.error("[AuthService] Session validation failed:", error);
       return false;
     }
-  }
-
-  getCurrentUser(): User | null {
-    return this.currentUser;
   }
 }
 

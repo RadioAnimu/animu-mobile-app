@@ -7,32 +7,37 @@ import { TrackDTO } from "../http/dto/track.dto";
 class TrackMapper {
   static fromDTO(
     dto: TrackDTO,
-    artworkQuality: ArtworkQuality = "medium"
-  ): Track {
+    artworkQuality: ArtworkQuality = "medium",
+  ): Track | null {
+    if (!dto?.track) {
+      console.warn("[TrackMapper] Invalid DTO: missing track data");
+      return null;
+    }
+
     const [raw, title, artist, anime] = this.parseRawTitle(dto.rawtitle);
 
     return {
-      id: dto.track.playlist.track_id.toString(),
+      id: dto.track.playlist?.track_id?.toString() ?? "0",
       raw,
       anime,
       title: title,
-      artist: artist || dto.track.artist,
-      artworks: dto.track.artworks,
+      artist: artist || dto.track.artist || "",
+      artworks: dto.track.artworks ?? {},
       artwork: this.selectArtwork(dto.track.artworks, artworkQuality),
-      duration: dto.track.duration,
-      startTime: new Date(dto.track.timestart),
+      duration: dto.track.duration ?? 0,
+      startTime: new Date(dto.track.timestart ?? Date.now()),
       isRequest: dto.rawtitle?.toLowerCase().includes("pedido") ?? false,
       metadata: {
-        artist: dto.track.artist,
+        artist: dto.track.artist || "",
         title: anime,
         artwork: this.selectArtwork(dto.track.artworks, artworkQuality),
-        duration: dto.track.duration,
+        duration: dto.track.duration ?? 0,
       },
     };
   }
 
   private static parseRawTitle(
-    rawTitle: string
+    rawTitle: string,
   ): [string, string, string, string] {
     if (!rawTitle) {
       return ["", "", "", "Tocando Agora"];
@@ -66,9 +71,10 @@ class TrackMapper {
   }
 
   private static selectArtwork(
-    artworks: TrackDTO["track"]["artworks"],
-    quality: ArtworkQuality
+    artworks: TrackDTO["track"]["artworks"] | undefined,
+    quality: ArtworkQuality,
   ): string {
+    if (!artworks) return CONFIG.DEFAULT_COVER;
     let res: string;
     switch (quality) {
       case "high":

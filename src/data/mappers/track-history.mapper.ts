@@ -8,8 +8,9 @@ import { HistoryType } from "../../@types/history-type";
 
 export class TrackHistoryMapper {
   static fromDTO(dto: TrackHistoryDTO, type: HistoryType): Track[] {
+    if (!dto || !Array.isArray(dto)) return [];
     return dto
-      .filter((item) => this.isValidHistoryItem(item[0]))
+      .filter((item) => item?.[0] && this.isValidHistoryItem(item[0]))
       .map((item) => this.mapHistoryItem(item, type));
   }
 
@@ -19,7 +20,7 @@ export class TrackHistoryMapper {
 
   private static mapHistoryItem(
     item: TrackHistoryItemDTO,
-    type: HistoryType
+    type: HistoryType,
   ): Track {
     const [raw, title, artist, anime] = this.parseRawTitle(item[0]);
     const isPedidas = type === "requests";
@@ -50,7 +51,7 @@ export class TrackHistoryMapper {
   }
 
   private static parseRawTitle(
-    rawTitle: string
+    rawTitle: string,
   ): [string, string, string, string] {
     const raw = rawTitle;
     const [songPart, anime = "Tocando Agora"] = rawTitle

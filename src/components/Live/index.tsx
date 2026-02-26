@@ -3,23 +3,22 @@ import TextTicker from "react-native-text-ticker";
 import { IMGS } from "../../languages";
 import { styles } from "./styles";
 import { useUserSettings } from "../../contexts/user/UserSettingsProvider";
-import { Track } from "../../core/domain/track";
+import { usePlayer } from "../../contexts/player/PlayerProvider";
 import { useCallback, useEffect, useState } from "react";
 import { Text } from "react-native";
 import React from "react";
 
-interface Props {
-  track: Track;
-}
-
 // Base scroll speed in characters per second
 const BASE_SCROLL_SPEED = 15; // Adjust this value to match desired reading speed
 
-export function Live({ track }: Props) {
+export const Live = React.memo(function Live() {
   const { settings } = useUserSettings();
+  const player = usePlayer();
   const { width: windowWidth } = useWindowDimensions();
   const [containerWidth, setContainerWidth] = useState(0);
   const NoAr = IMGS[settings.selectedLanguage].LIVE_LABEL;
+
+  const track = player.currentTrack;
 
   // State for individual durations
   const [durations, setDurations] = useState({
@@ -49,19 +48,21 @@ export function Live({ track }: Props) {
         return Math.min(
           Math.max(
             baseDuration * screenCount,
-            3000 // Minimum duration
+            3000, // Minimum duration
           ),
-          15000
+          15000,
         ); // Maximum duration
       } catch (error) {
         console.error("Error measuring text:", error);
         return 6000; // Fallback duration
       }
     },
-    [containerWidth, windowWidth]
+    [containerWidth, windowWidth],
   );
 
   useEffect(() => {
+    if (!track) return;
+
     const updateDurations = async () => {
       const animeDuration = await calculateScrollDuration(track.anime);
       const artistDuration = await calculateScrollDuration(track.artist);
@@ -76,6 +77,8 @@ export function Live({ track }: Props) {
 
     updateDurations();
   }, [track, calculateScrollDuration]);
+
+  if (!track) return null;
 
   return (
     <View
@@ -125,7 +128,7 @@ export function Live({ track }: Props) {
       </View>
     </View>
   );
-}
+});
 function measure({
   text,
   width: maxWidth,

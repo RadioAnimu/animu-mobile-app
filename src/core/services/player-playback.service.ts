@@ -1,11 +1,21 @@
 import TrackPlayer, { Event } from "react-native-track-player";
-import { CONFIG } from "../../utils/player.config";
 
-// Global reference to the player service - this will be set by the main service
-let playerServiceReference: any = null;
+let updatePlayerState: ((isPlaying: boolean) => void) | null = null;
+let remotePlayHandler: (() => Promise<void>) | null = null;
+let remotePauseHandler: (() => Promise<void>) | null = null;
 
-export const setPlayerServiceReference = (service: any) => {
-  playerServiceReference = service;
+export const setPlayerStateUpdater = (
+  updater: (isPlaying: boolean) => void,
+) => {
+  updatePlayerState = updater;
+};
+
+export const setRemotePlaybackHandlers = (handlers: {
+  play: () => Promise<void>;
+  pause: () => Promise<void>;
+}) => {
+  remotePlayHandler = handlers.play;
+  remotePauseHandler = handlers.pause;
 };
 
 export async function PlaybackService() {
@@ -14,19 +24,13 @@ export async function PlaybackService() {
   TrackPlayer.addEventListener(Event.RemotePlay, async () => {
     console.log("[PlaybackService] Remote play requested");
     try {
-      if (playerServiceReference) {
-        await TrackPlayer.reset();
-        await playerServiceReference.refreshData(false);
-
-        await TrackPlayer.add({
-          id: "1",
-          url: playerServiceReference._currentStream.url,
-          ...playerServiceReference.getNowPlayingMetadata(),
-          userAgent: CONFIG.USER_AGENT,
-        });
-
+      if (remotePlayHandler) {
+        // Full reconnect: reset → fetch fresh data → add stream → play
+        await remotePlayHandler();
+      } else {
+        // Fallback before handlers are wired up
         await TrackPlayer.play();
-        playerServiceReference._paused = false;
+        updatePlayerState?.(true);
       }
     } catch (error) {
       console.error("[PlaybackService] Remote play error:", error);
@@ -36,9 +40,11 @@ export async function PlaybackService() {
   TrackPlayer.addEventListener(Event.RemotePause, async () => {
     console.log("[PlaybackService] Remote pause requested");
     try {
-      await TrackPlayer.pause();
-      if (playerServiceReference) {
-        playerServiceReference._paused = true;
+      if (remotePauseHandler) {
+        await remotePauseHandler();
+      } else {
+        await TrackPlayer.pause();
+        updatePlayerState?.(false);
       }
     } catch (error) {
       console.error("[PlaybackService] Remote pause error:", error);
@@ -49,6 +55,7 @@ export async function PlaybackService() {
     console.log("[PlaybackService] Remote stop requested");
     try {
       await TrackPlayer.reset();
+      updatePlayerState?.(false);
     } catch (error) {
       console.error("[PlaybackService] Remote stop error:", error);
     }

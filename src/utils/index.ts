@@ -4,10 +4,30 @@ function isUrlAnImage(url: string) {
 
 function convertDTOToFormData(dto: Object): FormData {
   const formData = new FormData();
+
   Object.entries(dto).forEach(([key, value]) => {
-    formData.append(key, value?.toString() ?? "");
+    if (value === null || value === undefined) return; // skip empties instead of sending ""
+
+    if (value instanceof File || value instanceof Blob) {
+      formData.append(key, value);
+    } else if (typeof value === "boolean") {
+      formData.append(key, value ? "true" : "false");
+    } else if (typeof value === "object") {
+      // Avoid silent "[object Object]" — serialize or skip
+      formData.append(key, JSON.stringify(value));
+    } else {
+      formData.append(key, String(value));
+    }
   });
+
   return formData;
 }
 
-export { isUrlAnImage, convertDTOToFormData };
+function logFormData(label: string, formData: FormData): void {
+  console.log(`[FormData] ${label}:`);
+  formData.forEach((value, key) => {
+    console.log(`  ${key}:`, value);
+  });
+}
+
+export { isUrlAnImage, convertDTOToFormData, logFormData };

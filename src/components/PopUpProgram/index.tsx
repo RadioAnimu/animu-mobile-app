@@ -13,15 +13,24 @@ import { DICT } from "../../languages";
 import { THEME } from "../../theme";
 import { styles } from "./styles";
 import { useUserSettings } from "../../contexts/user/UserSettingsProvider";
-import { Program } from "../../core/domain/program";
+import { usePlayer } from "../../contexts/player/PlayerProvider";
 
 interface Props extends ModalProps {
   handleClose: () => void;
-  _program: Program;
 }
 
-export function PopUpProgram({ _program, handleClose, ...rest }: Props) {
+export const PopUpProgram = React.memo(function PopUpProgram({
+  handleClose,
+  ...rest
+}: Props) {
   const { settings } = useUserSettings();
+  const player = usePlayer();
+
+  const _program = player.currentProgram;
+
+  if (!_program) {
+    return null;
+  }
 
   let i = 0;
   let program: ProgramProps["raw"] = DICT["PT"].PROGRAMS.find((item) => {
@@ -99,4 +108,4 @@ export function PopUpProgram({ _program, handleClose, ...rest }: Props) {
       </View>
     </Modal>
   );
-}
+});

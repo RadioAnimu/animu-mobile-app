@@ -32,5 +32,4 @@ export interface MusicRequestSubmissionDTO {
   allmusic: string;
   message: string;
   PHPSESSID: string;
-  ios: number;
 }

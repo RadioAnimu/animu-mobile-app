@@ -15,30 +15,25 @@ import pauseButtonImage from "../../assets/play_triangle_btn.png";
 import { IMGS } from "../../languages";
 import { styles } from "./styles";
 import { useUserSettings } from "../../contexts/user/UserSettingsProvider";
-import { usePlayer } from "../../contexts/player/PlayerProvider";
-import { Track } from "../../core/domain/track";
-import { Program } from "../../core/domain/program";
+import {
+  usePlayer,
+  useTrackProgress,
+} from "../../contexts/player/PlayerProvider";
 
 interface Props {
   navigation: ReturnType<typeof useNavigation>;
   openLiveRequestModal?: () => void;
-  currentTrack?: Track;
-  currentTrackProgress?: number | null;
-  currentProgram?: Program;
 }
 
 type Status = "playing" | "paused" | "changing";
 
-export function HeaderBar({
-  navigation,
-  openLiveRequestModal,
-  currentTrack,
-  currentTrackProgress,
-  currentProgram,
-}: Props) {
+export function HeaderBar({ navigation, openLiveRequestModal }: Props) {
   const progressAnim = useRef(new Animated.Value(0)).current; // Initial value for opacity: 0
   const [status, setStatus] = useState<Status>("playing");
   const player = usePlayer();
+  const { currentTrackProgress } = useTrackProgress();
+  const currentTrack = player.currentTrack;
+  const currentProgram = player.currentProgram;
 
   useEffect(() => {
     if (
@@ -55,6 +50,12 @@ export function HeaderBar({
           Dimensions.get("window").width *
           (currentTrackProgress / currentTrack?.duration),
         duration: 1000,
+        useNativeDriver: false,
+      }).start();
+    } else {
+      Animated.timing(progressAnim, {
+        toValue: 0,
+        duration: 300,
         useNativeDriver: false,
       }).start();
     }
@@ -81,7 +82,7 @@ export function HeaderBar({
           easing: Easing.linear,
           useNativeDriver: true,
         }),
-      ])
+      ]),
     ).start();
   };
 

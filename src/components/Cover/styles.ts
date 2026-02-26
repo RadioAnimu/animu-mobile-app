@@ -7,7 +7,6 @@ export const styles = StyleSheet.create({
     height: 240,
     borderRadius: 12,
     borderColor: THEME.COLORS.COVER,
-    marginBottom: 11,
     borderWidth: 5,
   },
 });

@@ -8,7 +8,7 @@ import {
 
 class MusicRequestService {
   async searchTracksByQuery(
-    params: MusicSearchParamsDto
+    params: MusicSearchParamsDto,
   ): Promise<MusicRequestPagination> {
     const dto = await apiClient.searchTracks(params);
     return MusicRequestMapper.paginationFromDTO(dto);
@@ -16,13 +16,14 @@ class MusicRequestService {
 
   async searchTracksByTitle(title: string): Promise<MusicRequestPagination> {
     const dto = await apiClient.searchTracks(
-      MusicRequestMapper.stringTitleToMusicSearchParamsDTO(title)
+      MusicRequestMapper.stringTitleToMusicSearchParamsDTO(title),
     );
     return MusicRequestMapper.paginationFromDTO(dto);
   }
 
   async submitRequest(submissionDTO: MusicRequestSubmissionDTO): Promise<{
     success: boolean;
+    detail?: string;
     error?: string;
   }> {
     try {

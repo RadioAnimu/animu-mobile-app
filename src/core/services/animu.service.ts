@@ -13,17 +13,15 @@ import { Track } from "../domain/track";
 class AnimuService {
   async getCurrentTrack(
     stream: Stream,
-    artworkQuality?: ArtworkQuality
-  ): Promise<Track> {
+    artworkQuality?: ArtworkQuality,
+  ): Promise<Track | null> {
     const dto = await apiClient.getCurrentTrack(stream);
-    const track = TrackMapper.fromDTO(dto, artworkQuality);
-
-    return track;
+    return TrackMapper.fromDTO(dto, artworkQuality);
   }
 
   async getCurrentProgram(stream: Stream): Promise<Program> {
     const dto = await apiClient.getProgramInfo(stream);
-    const program = ProgramMapper.fromDTO(dto, stream.category === "REPRISES");
+    const program = ProgramMapper.fromDTO(dto);
 
     return program;
   }

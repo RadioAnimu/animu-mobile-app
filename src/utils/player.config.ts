@@ -8,25 +8,19 @@ const STREAM_OPTIONS: Stream[] = [
     id: "320",
     bitrate: 320,
     category: "MP3",
-    url: "https://cast.animu.com.br:9079/stream",
+    url: "https://animu.moe/stream",
   },
   {
     id: "192",
     bitrate: 192,
     category: "MP3",
-    url: "https://cast.animu.com.br:9089/stream",
-  },
-  {
-    id: "128",
-    bitrate: 64,
-    category: "AAC+",
-    url: "https://cast.animu.com.br:9069/stream",
+    url: "https://animu.moe/stream192",
   },
   {
     id: "64",
-    bitrate: 320,
-    category: "REPRISES",
-    url: "https://cast.animu.com.br:9019/stream",
+    bitrate: 64,
+    category: "AAC+",
+    url: "https://animu.moe/stream64",
   },
 ];
 

@@ -2,14 +2,13 @@ const WEB_URL = "https://www.animu.com.br/";
 const BASE_URL = "https://api.animu.com.br/";
 const PROGRAM_URL = "https://www.animu.com.br/teste/locutor.php";
 const PEDIDOS_URL = "https://www.animu.com.br/pedidos/";
-const SAIJIKKOU_URL = "https://api.animu.com.br/?r=sj";
 const ULTIMAS_PEDIDAS_URL =
   "https://www.animu.com.br/teste/ultimospedidos_json.php";
 const ULTIMAS_TOCADAS_URL =
   "https://www.animu.com.br/teste/ultimasmusicas_json.php";
 const FAZER_PEDIDO_URL = "https://www.animu.com.br/teste/requestSearchTest.php";
-const FAZER_PEDIDO_URL_MOBILE_SUBMIT =
-  "https://www.animu.com.br/teste/pedirquatroMobile.php";
+const FAZER_PEDIDO_URL_SUBMIT =
+  "https://www.animu.com.br/teste/sistemaPedidos/pedirquatro.php";
 const DISCORD_URL = "https://discord.animu.com.br";
 const LIVE_REQUEST_URL =
   "https://www.animu.com.br/paineldj/ajaxforms(defasado)/request/salvar.php";
@@ -28,13 +27,12 @@ export const API = {
   BASE_URL,
   PROGRAM_URL,
   PEDIDOS_URL,
-  SAIJIKKOU_URL,
   ULTIMAS_PEDIDAS_URL,
   ULTIMAS_TOCADAS_URL,
   FAZER_PEDIDO_URL,
   DISCORD_URL,
   LIVE_REQUEST_URL,
-  FAZER_PEDIDO_URL_MOBILE_SUBMIT,
+  FAZER_PEDIDO_URL_SUBMIT,
 };
 
 export interface AnimuInfoProps {
@@ -61,7 +59,6 @@ export interface ProgramProps {
 
   raw: Program | undefined;
   isLiveProgram: boolean;
-  isSaijikkou: boolean;
 }
 
 export interface TrackProps {

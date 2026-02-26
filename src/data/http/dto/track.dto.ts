@@ -9,7 +9,7 @@ export type TrackDTO = {
       medium?: string;
       large?: string;
     };
-    playlist: {
+    playlist?: {
       track_id: number;
     };
   };

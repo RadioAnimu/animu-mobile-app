@@ -12,27 +12,21 @@ import {
   MusicRequestSubmissionDTO,
 } from "./dto/music-request.dto";
 import { LiveRequestDTO } from "./dto/live-request.dto";
-import { convertDTOToFormData } from "../../utils";
+import { convertDTOToFormData, logFormData } from "../../utils";
 
 class AnimuApiClient {
   getCurrentTrack = async (stream: Stream): Promise<TrackDTO> => {
-    const response = await api.get<TrackDTO>(
-      stream.category === "REPRISES" ? API.SAIJIKKOU_URL : API.BASE_URL
-    );
+    const response = await api.get<TrackDTO>(API.BASE_URL);
     return response.data;
   };
 
   getProgramInfo = async (stream: Stream): Promise<ProgramDTO> => {
-    const response = await api.get<ProgramDTO>(
-      stream.category === "REPRISES" ? API.SAIJIKKOU_URL : API.PROGRAM_URL
-    );
+    const response = await api.get<ProgramDTO>(API.PROGRAM_URL);
     return response.data;
   };
 
   getListeners = async (stream: Stream): Promise<ListenersDTO> => {
-    const response = await api.get<ListenersDTO>(
-      stream.category === "REPRISES" ? API.SAIJIKKOU_URL : API.BASE_URL
-    );
+    const response = await api.get<ListenersDTO>(API.BASE_URL);
     return response.data;
   };
 
@@ -44,34 +38,29 @@ class AnimuApiClient {
   };
 
   async searchTracks(
-    params: MusicSearchParamsDto
+    params: MusicSearchParamsDto,
   ): Promise<MusicRequestResponseDTO> {
     const response = await api.get<MusicRequestResponseDTO>(
       API.FAZER_PEDIDO_URL,
       {
         params,
-      }
+      },
     );
     return response.data;
   }
-
   async submitMusicRequest(dto: MusicRequestSubmissionDTO): Promise<string> {
     const formData = convertDTOToFormData(dto);
+    logFormData("submitMusicRequest", formData);
 
-    const response = await api.post(
-      API.FAZER_PEDIDO_URL_MOBILE_SUBMIT,
-      formData,
-      {
-        params: {
-          ios: dto.ios.toString(),
-        },
-        transformResponse: [(data) => data], // Prevent axios from parsing the response
-        headers: {
-          "Content-Type": "multipart/form-data",
-        },
-      }
-    );
+    const response = await api.post(API.FAZER_PEDIDO_URL_SUBMIT, formData, {
+      params: {
+        mobileapp: "1",
+      },
+      transformResponse: [(data) => data],
+      headers: { "Content-Type": "multipart/form-data" },
+    });
 
+    console.log("Raw response from music request submission:", response.data);
     return response.data;
   }
 

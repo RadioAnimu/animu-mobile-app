@@ -10,7 +10,6 @@ export const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 2,
     gap: 4,
-    marginBottom: 10,
   },
   text: {
     fontSize: THEME.FONT_SIZE.MD,

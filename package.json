@@ -23,7 +23,7 @@
     "expo-dev-client": "~5.2.4",
     "expo-device": "~7.1.4",
     "expo-font": "~13.3.2",
-    "expo-image": "~2.4.0",
+    "expo-image": "~2.4.1",
     "expo-linking": "~7.1.7",
     "expo-splash-screen": "~0.30.10",
     "expo-status-bar": "~2.2.3",
@@ -31,6 +31,7 @@
     "expo-web-browser": "~14.2.0",
     "react": "19.0.0",
     "react-native": "0.79.5",
+    "react-native-background-timer": "^2.4.1",
     "react-native-dropdown-select-list": "^2.0.5",
     "react-native-gesture-handler": "~2.24.0",
     "react-native-reanimated": "~3.17.4",
@@ -58,7 +59,8 @@
     "doctor": {
       "reactNativeDirectoryCheck": {
         "exclude": [
-          "react-native-track-player"
+          "react-native-track-player",
+          "react-native-background-timer"
         ],
         "listUnknownPackages": false
       }

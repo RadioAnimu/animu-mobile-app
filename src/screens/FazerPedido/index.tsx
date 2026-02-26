@@ -1,16 +1,16 @@
-import React, { useState, useCallback, useEffect } from "react";
+import { Ionicons } from "@expo/vector-icons";
+import { NativeStackScreenProps } from "@react-navigation/native-stack";
+import React, { useCallback, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
+  Platform,
+  Text,
   TextInput,
   TouchableOpacity,
   View,
-  Text,
-  Platform,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { Ionicons } from "@expo/vector-icons";
-import { NativeStackScreenProps } from "@react-navigation/native-stack";
 
 // Components
 import { Background } from "../../components/Background";
@@ -20,21 +20,22 @@ import { PopUpRecado } from "../../components/PopUpRecado";
 import { RequestTrack } from "../../components/RequestTrack";
 
 // Core
+import { useAlert } from "../../contexts/alert/AlertProvider";
+import { useAuth } from "../../contexts/auth/AuthProvider";
+import { useUserSettings } from "../../contexts/user/UserSettingsProvider";
 import {
   MusicRequest,
   MusicRequestPagination,
 } from "../../core/domain/music-request";
 import { musicRequestService } from "../../core/services/music-request.service";
-import { useAuth } from "../../contexts/auth/AuthProvider";
-import { useAlert } from "../../contexts/alert/AlertProvider";
-import { useUserSettings } from "../../contexts/user/UserSettingsProvider";
 
 // Styles and Config
-import { styles } from "./styles";
-import { DICT, IMGS } from "../../languages";
-import { THEME } from "../../theme";
-import { RootStackParamList } from "../../routes/app.routes";
 import { MusicRequestSubmissionDTO } from "../../data/http/dto/music-request.dto";
+import { DICT, IMGS } from "../../languages";
+import { RootStackParamList } from "../../routes/app.routes";
+import { THEME } from "../../theme";
+import { styles } from "./styles";
+import { MusicRequestMapper } from "../../data/mappers/music-request.mapper";
 
 type Props = NativeStackScreenProps<RootStackParamList, "FazerPedido">;
 
@@ -66,7 +67,7 @@ export function FazerPedido({ navigation }: Props) {
 
     try {
       const response = await musicRequestService.searchTracksByTitle(
-        searchState.query
+        searchState.query,
       );
       setSearchState({
         query: searchState.query,
@@ -88,7 +89,7 @@ export function FazerPedido({ navigation }: Props) {
 
     try {
       const response = await musicRequestService.searchTracksByQuery(
-        searchState.pagination.nextPageQueryObject
+        searchState.pagination.nextPageQueryObject,
       );
 
       setSearchState((prev) => ({
@@ -142,8 +143,9 @@ export function FazerPedido({ navigation }: Props) {
         allmusic: requestState.selected.id,
         message: requestState.message,
         PHPSESSID: user.sessionId,
-        ios: Platform.OS === "ios" ? 1 : 0,
       };
+
+      console.log({ submissionDTO });
 
       // Clear request state early to prevent UI lockup
       setRequestState({ message: "", selected: undefined });
@@ -151,7 +153,12 @@ export function FazerPedido({ navigation }: Props) {
       const result = await musicRequestService.submitRequest(submissionDTO);
 
       if (!result.success) {
-        onError(DICT[settings.selectedLanguage]["REQUEST_ERROR"]);
+        const errorMessage = MusicRequestMapper.getErrorMessage(
+          result.error,
+          result.detail,
+          settings.selectedLanguage,
+        );
+        onError(errorMessage);
         return;
       }
 
@@ -161,7 +168,7 @@ export function FazerPedido({ navigation }: Props) {
         results: prev.results.map((item) =>
           item.id === submissionDTO.allmusic
             ? { ...item, requestable: false }
-            : item
+            : item,
         ),
       }));
 
