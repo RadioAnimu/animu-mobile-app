@@ -1,9 +1,5 @@
 import { HistoryType } from "./../../@types/history-type.d";
-import TrackPlayer, {
-  NowPlayingMetadata,
-  State,
-} from "react-native-track-player";
-import { Platform } from "react-native";
+import TrackPlayer, { NowPlayingMetadata } from "react-native-track-player";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { openBrowserAsync } from "expo-web-browser";
 import { Stream } from "../domain/stream";
@@ -15,11 +11,14 @@ import { CONFIG } from "../../utils/player.config";
 import { API } from "../../api";
 import { userSettingsService } from "./user-settings.service";
 import { SetupService } from "./player-setup.service";
+import { PlayerSnapshot, playerStore, progressStore } from "./player-store";
+import { fetchStreams } from "../../data/http/animu-streams.api";
 
 export interface PlayerServiceProps {
   CONFIG: typeof CONFIG;
   player: typeof TrackPlayer;
   _currentStream: Stream;
+  _streamOptions: Stream[];
   _currentTrack: Track | null;
   _currentProgram: Program | null;
   _lastRequestedTracks: Track[] | null;
@@ -28,14 +27,25 @@ export interface PlayerServiceProps {
   _paused: boolean;
   _isRefreshing: boolean;
   _lastMetadataTitle: string;
+  /** Whether the native TrackPlayer.setupPlayer() has been called */
+  _nativeSetupDone: boolean;
   /** Whether to show real progress in the media session notification */
   _showMediaProgress: boolean;
+  /** Counter for throttling native metadata pushes in _tickProgress */
+  _nativeProgressTickCount: number;
+  _isInitialized: boolean;
   isPlayerSetup: () => Promise<boolean>;
   _isRealTrack: (track: Track) => boolean;
-  _resetMediaSession: () => Promise<void>;
+  /**
+   * Single entry-point that bootstraps everything the player needs:
+   * streams from API, stored stream preference, native TrackPlayer,
+   * first data fetch, and media session preload.
+   */
+  setupPlayer: () => Promise<void>;
+  /** Fire-and-forget media session preload */
+  _preloadMediaSession: () => Promise<void>;
   refreshData: (isToUpdateMetadata?: boolean) => Promise<boolean>;
   getNowPlayingMetadata: () => NowPlayingMetadata;
-  preload: () => Promise<void>;
   play: () => Promise<void>;
   pause: () => Promise<void>;
   changeStream: (stream: Stream) => Promise<void>;
@@ -44,6 +54,9 @@ export interface PlayerServiceProps {
   updateNowPlayingProgress: () => Promise<void>;
   destroy: () => Promise<void>;
   refreshHistory: (type: HistoryType) => Promise<void>;
+  _emitState: () => void;
+  _emitProgress: () => void;
+  _tickProgress: () => Promise<void>;
 }
 
 let playerServiceInstance: PlayerServiceProps | null = null;
@@ -54,6 +67,7 @@ export const playerService = (): PlayerServiceProps => {
       CONFIG,
       player: TrackPlayer,
       _currentStream: CONFIG.DEFAULT_STREAM_OPTION,
+      _streamOptions: [],
       _currentTrack: null,
       _lastPlayedTracks: null,
       _lastRequestedTracks: null,
@@ -61,7 +75,10 @@ export const playerService = (): PlayerServiceProps => {
       _listeners: null,
       _paused: true,
       _lastMetadataTitle: "",
+      _nativeSetupDone: false,
       _showMediaProgress: false,
+      _nativeProgressTickCount: 0,
+      _isInitialized: false,
 
       _isRefreshing: false,
 
@@ -73,41 +90,186 @@ export const playerService = (): PlayerServiceProps => {
         );
       },
 
-      async _resetMediaSession(): Promise<void> {
-        // Push a clean 0/0 metadata so the native player fully resets
-        // its progress bar before we set new values.
-        this._showMediaProgress = false;
-        // Only push if the player is actually set up — avoids heavy
-        // native calls (getPlaybackState, getActiveTrack) when not needed.
-        if (!(await this.isPlayerSetup())) {
-          console.log(
-            "[PlayerService] _resetMediaSession: skipped (player not set up)",
+      async setupPlayer(): Promise<void> {
+        console.log("[PlayerService] setupPlayer: starting bootstrap...");
+
+        // ── Phase 1: fire EVERYTHING that has no interdependencies ──
+        // Streams, stored preference, native TrackPlayer, and user
+        // settings all resolve independently — run them all at once.
+        const [
+          streams,
+          storedStreamRaw, // SetupService — void
+          ,
+          userSettings, // UserSettings — pre-warm cache
+        ] = await Promise.all([
+          fetchStreams(),
+          AsyncStorage.getItem("currentStream"),
+          SetupService().then(() => {
+            this._nativeSetupDone = true;
+          }),
+          userSettingsService.initialize(),
+        ]);
+
+        this._streamOptions = streams;
+
+        // Resolve the user's preferred stream (or default to first)
+        const storedStream: Stream | null = storedStreamRaw
+          ? JSON.parse(storedStreamRaw)
+          : null;
+
+        if (storedStream && streams.find((s) => s.id === storedStream.id)) {
+          this._currentStream = storedStream;
+        } else {
+          // First launch or stored stream no longer exists — pick first from API
+          this._currentStream = streams[0] ?? CONFIG.DEFAULT_STREAM_OPTION;
+          // Persist immediately so every other code path sees a valid stream
+          await AsyncStorage.setItem(
+            "currentStream",
+            JSON.stringify(this._currentStream),
           );
+          console.log(
+            "[PlayerService] First-time stream defaulted to:",
+            this._currentStream.id,
+            this._currentStream.url,
+          );
+        }
+
+        // ── Phase 2: first data fetch (needs stream + settings ready) ──
+        try {
+          await this.refreshData();
+        } catch (err) {
+          console.warn(
+            "[PlayerService] setupPlayer: initial data fetch failed:",
+            err,
+          );
+        }
+
+        // Mark initialized ASAP — UI can render now
+        this._isInitialized = true;
+        this._emitState();
+        this._emitProgress();
+
+        // ── Phase 3: media session preload (non-blocking) ──
+        // Fire-and-forget: the notification player is nice-to-have,
+        // the UI is already interactive.
+        if (this._currentTrack && this._nativeSetupDone) {
+          this._preloadMediaSession().catch((err) =>
+            console.warn(
+              "[PlayerService] setupPlayer: media preload failed:",
+              err,
+            ),
+          );
+        }
+
+        console.log("[PlayerService] setupPlayer: bootstrap complete.");
+      },
+
+      /** Fire-and-forget media session preload */
+      async _preloadMediaSession(): Promise<void> {
+        const metadata = this.getNowPlayingMetadata();
+        await TrackPlayer.add({
+          id: "1",
+          url: this._currentStream.url,
+          userAgent: CONFIG.USER_AGENT,
+          title: metadata.title,
+          artist: metadata.artist,
+          artwork: metadata.artwork,
+        });
+        await this.updateMetadata();
+      },
+
+      _emitState(): void {
+        const next: PlayerSnapshot = {
+          currentTrack: this._currentTrack || undefined,
+          lastPlayedTracks: this._lastPlayedTracks || undefined,
+          lastRequestedTracks: this._lastRequestedTracks || undefined,
+          currentProgram: this._currentProgram || undefined,
+          currentStream: this._currentStream,
+          streamOptions: this._streamOptions,
+          currentListeners: this._listeners || undefined,
+          isPlaying: !this._paused,
+          isInitialized: this._isInitialized,
+        };
+        playerStore.setSnapshot(next);
+      },
+
+      _emitProgress(): void {
+        progressStore.setSnapshot({
+          currentTrackProgress: getTrackProgress(
+            this._currentTrack || undefined,
+          ),
+          showProgress: this._showMediaProgress,
+        });
+      },
+
+      async _tickProgress(): Promise<void> {
+        // Fast exit — no work when no track
+        if (!this._currentTrack) return;
+
+        const elapsed = getTrackProgress(this._currentTrack || undefined);
+        const prev = progressStore.getSnapshot();
+
+        // Only emit if the value actually changed (avoids 1/sec React re-render)
+        if (
+          prev.currentTrackProgress !== elapsed ||
+          prev.showProgress !== this._showMediaProgress
+        ) {
+          progressStore.setSnapshot({
+            currentTrackProgress: elapsed,
+            showProgress: this._showMediaProgress,
+          });
+        }
+
+        // Detect track end
+        if (!this._showMediaProgress) return;
+
+        if (elapsed == null) {
+          console.log(
+            "[PlayerService] tickProgress: track ended, clearing progress",
+          );
+          this._showMediaProgress = false;
+          this._nativeProgressTickCount = 0;
+          progressStore.setSnapshot({
+            currentTrackProgress: null,
+            showProgress: false,
+          });
+          try {
+            if (this._nativeSetupDone) {
+              const cleanMeta = this.getNowPlayingMetadata();
+              await this.player.updateNowPlayingMetadata(cleanMeta);
+            }
+          } catch {
+            // best-effort
+          }
           return;
         }
-        console.log("[PlayerService] _resetMediaSession: pushing 0/0");
-        try {
-          const meta = this.getNowPlayingMetadata();
-          await this.player.updateNowPlayingMetadata(meta);
-        } catch {
-          // best-effort
+
+        // Periodically push elapsed time to the native media session.
+        // iOS: re-asserts elapsedPlaybackTime to counteract AVPlayer auto-updates.
+        // Android: the native patch reads elapsedTime from this metadata and
+        //          sets PlaybackState position directly on the MediaSession.
+        // Push every ~3 ticks (3 seconds at 1s interval).
+        this._nativeProgressTickCount++;
+        if (this._nativeProgressTickCount >= 3) {
+          this._nativeProgressTickCount = 0;
+          if (this._nativeSetupDone && (await this.isPlayerSetup())) {
+            try {
+              const meta = this.getNowPlayingMetadata();
+              await this.player.updateNowPlayingMetadata(meta);
+            } catch {
+              // best-effort
+            }
+          }
         }
       },
 
       async isPlayerSetup(): Promise<boolean> {
+        // Fast path — if native setup never completed, skip bridge calls
+        if (!this._nativeSetupDone || !this._currentTrack) return false;
+
         try {
-          // 1. Native TrackPlayer must be initialized
-          const { state } = await TrackPlayer.getPlaybackState();
-          if (state === State.None) return false;
-
-          // 2. App player must have been polled at least once
-          if (!this._currentTrack) return false;
-
-          // 3. Media session must have a track loaded
           const activeTrack = await TrackPlayer.getActiveTrack();
-          if (!activeTrack) return false;
-
-          return true;
+          return !!activeTrack;
         } catch {
           return false;
         }
@@ -117,8 +279,6 @@ export const playerService = (): PlayerServiceProps => {
         if (this._isRefreshing) return false;
         this._isRefreshing = true;
         try {
-          await userSettingsService.initialize();
-
           const [newTrack, newProgram, newListeners, newLastRequestedTracks] =
             await Promise.all([
               animuService.getCurrentTrack(
@@ -155,31 +315,22 @@ export const playerService = (): PlayerServiceProps => {
             this.refreshHistory("played");
             hasChanges = true;
 
-            // Always fully reset media session progress on track change
-            await this._resetMediaSession();
-
-            // Start progress for real tracks that are actively playing.
-            // NOTE: seekTo is deferred to AFTER updateMetadata below —
-            // otherwise updateMetadata would trigger a notification
-            // rebuild that reads ExoPlayer's real position and resets the bar.
-            if (
-              !this._paused &&
-              this._isRealTrack(newTrack) &&
-              !newProgram.isLive
-            ) {
+            // Enable progress for real, non-live tracks (radio keeps
+            // playing server-side so we always show progress).
+            if (this._isRealTrack(newTrack) && !newProgram.isLive) {
               this._showMediaProgress = true;
+              this._nativeProgressTickCount = 0;
               const elapsed = getTrackProgress(newTrack);
               console.log(
-                "[PlayerService] refreshData: new track progress ON | elapsed:",
+                "[PlayerService] refreshData: track progress ON | elapsed:",
                 elapsed != null ? Math.round(elapsed / 1000) + "s" : "null",
                 "| duration:",
                 Math.round(newTrack.duration / 1000) + "s",
               );
             } else {
+              this._showMediaProgress = false;
               console.log(
-                "[PlayerService] refreshData: progress OFF | paused:",
-                this._paused,
-                "| isReal:",
+                "[PlayerService] refreshData: progress OFF | isReal:",
                 this._isRealTrack(newTrack),
                 "| isLive:",
                 newProgram.isLive,
@@ -225,29 +376,13 @@ export const playerService = (): PlayerServiceProps => {
           ) {
             await this.updateMetadata();
 
-            // Android: after metadata is pushed, sync ExoPlayer's position
-            // to the real track elapsed. This MUST be the last operation —
-            // any subsequent updateNowPlayingMetadata would trigger a
-            // notification rebuild that reads ExoPlayer's real stream
-            // position (≈0 for ICY) and reset the bar.
-            if (
-              Platform.OS === "android" &&
-              this._showMediaProgress &&
-              this._currentTrack
-            ) {
-              const elapsed = getTrackProgress(this._currentTrack);
-              if (elapsed != null) {
-                console.log(
-                  "[PlayerService] refreshData: Android seekTo (after metadata)",
-                  Math.round(elapsed / 1000) + "s",
-                );
-                try {
-                  // await TrackPlayer.seekTo(elapsed / 1000);
-                } catch (e) {
-                  console.warn("[PlayerService] refreshData: seekTo failed", e);
-                }
-              }
-            }
+            // Android: the native RNTP patch now handles position via
+            // PlaybackState set from elapsedTime in updateNowPlayingMetadata.
+            // No seekTo needed — it causes stream reconnection on ICY streams.
+          }
+
+          if (hasChanges) {
+            this._emitState();
           }
 
           return hasChanges;
@@ -296,20 +431,43 @@ export const playerService = (): PlayerServiceProps => {
         };
       },
 
-      async preload(): Promise<void> {
-        if (await this.isPlayerSetup()) return;
+      async play(): Promise<void> {
+        console.log("[PlayerService] Play requested.");
+
+        // Ensure native player is set up
+        if (!this._nativeSetupDone) {
+          try {
+            await SetupService();
+            this._nativeSetupDone = true;
+
+            // Resolve stream: prefer AsyncStorage, then already-fetched options,
+            // then hardcoded fallback. On first launch setupPlayer() already
+            // persisted the default, so AsyncStorage should have a value.
+            const storedStream = await AsyncStorage.getItem("currentStream");
+            if (storedStream) {
+              this._currentStream = JSON.parse(storedStream);
+            } else if (this._streamOptions.length > 0) {
+              this._currentStream = this._streamOptions[0];
+            }
+            // else: keep the existing _currentStream (already set by setupPlayer or init)
+          } catch (err) {
+            console.error("[PlayerService] Setup error:", err);
+            throw err;
+          }
+        }
 
         try {
-          await SetupService();
+          // Only reset + re-add if the player has no active track yet,
+          // or if the stream URL changed. Avoids the notification flash.
+          const activeTrack = await TrackPlayer.getActiveTrack().catch(
+            () => null,
+          );
+          const needsReload =
+            !activeTrack || activeTrack.url !== this._currentStream.url;
 
-          const storedStream = await AsyncStorage.getItem("currentStream");
-          this._currentStream = storedStream
-            ? JSON.parse(storedStream)
-            : CONFIG.DEFAULT_STREAM_OPTION;
+          if (needsReload) {
+            await TrackPlayer.reset();
 
-          // Add a paused track so the system media session shows
-          // current track info immediately (before the user presses play).
-          if (this._currentTrack) {
             const metadata = this.getNowPlayingMetadata();
             await TrackPlayer.add({
               id: "1",
@@ -319,107 +477,19 @@ export const playerService = (): PlayerServiceProps => {
               artist: metadata.artist,
               artwork: metadata.artwork,
             });
-            await this.updateMetadata();
           }
-
-          console.log("[PlayerService] Player preloaded (paused).");
-        } catch (err) {
-          console.error("[PlayerService] Preload error:", err);
-        }
-      },
-
-      async play(): Promise<void> {
-        console.log("[PlayerService] Play requested.");
-
-        // Narrow check: only need to know if native SetupService() was called
-        let nativeReady = false;
-        try {
-          await TrackPlayer.getPlaybackState();
-          nativeReady = true;
-        } catch {
-          // Player not initialized yet
-        }
-
-        if (!nativeReady) {
-          try {
-            await SetupService();
-
-            const storedStream = await AsyncStorage.getItem("currentStream");
-            this._currentStream = storedStream
-              ? JSON.parse(storedStream)
-              : CONFIG.DEFAULT_STREAM_OPTION;
-          } catch (err) {
-            console.error("[PlayerService] Setup error:", err);
-            throw err;
-          }
-        }
-
-        try {
-          await TrackPlayer.reset();
-          this._paused = true;
-          await this.refreshData(false);
-
-          const metadata = this.getNowPlayingMetadata();
-
-          // Add the track without duration/elapsedTime — the native player
-          // would use its own stream position (always 0 for ICY streams),
-          // conflicting with our calculated track progress.
-          // We push the correct progress via updateNowPlayingMetadata after play.
-          await TrackPlayer.add({
-            id: "1",
-            url: this._currentStream.url,
-            userAgent: CONFIG.USER_AGENT,
-            title: metadata.title,
-            artist: metadata.artist,
-            artwork: metadata.artwork,
-          });
 
           await TrackPlayer.play();
           this._paused = false;
 
-          // Start media session progress for real tracks
-          this._showMediaProgress = false;
-          if (
-            this._currentTrack &&
-            this._currentProgram &&
-            this._isRealTrack(this._currentTrack) &&
-            !this._currentProgram.isLive
-          ) {
-            this._showMediaProgress = true;
-            const elapsed = getTrackProgress(this._currentTrack);
-            console.log(
-              "[PlayerService] play: progress ON | elapsed:",
-              elapsed != null ? Math.round(elapsed / 1000) + "s" : "null",
-              "| duration:",
-              Math.round(this._currentTrack.duration / 1000) + "s",
-            );
-          } else {
-            console.log(
-              "[PlayerService] play: progress OFF (not a real track or live)",
-            );
-          }
+          // Fetch fresh data + push metadata in one go
+          await this.refreshData();
 
-          // Push full metadata with real elapsed/duration
-          await this.updateMetadata();
-
-          // Android: ExoPlayer position starts at 0 for ICY streams.
-          // Seek to the real elapsed time ONCE so the notification bar
-          // matches. After this, the bar auto-advances on both platforms.
-          if (
-            Platform.OS === "android" &&
-            this._showMediaProgress &&
-            this._currentTrack
-          ) {
-            const elapsed = getTrackProgress(this._currentTrack);
-            if (elapsed != null) {
-              console.log(
-                "[PlayerService] play: Android seekTo",
-                Math.round(elapsed / 1000) + "s",
-              );
-              // await TrackPlayer.seekTo(elapsed / 1000);
-            }
-          }
+          this._emitState();
+          this._emitProgress();
         } catch (error) {
+          this._emitState();
+          this._emitProgress();
           console.error("[PlayerService] Playback error:", error);
           throw error;
         }
@@ -430,11 +500,9 @@ export const playerService = (): PlayerServiceProps => {
           try {
             await TrackPlayer.pause();
             this._paused = true;
-            // Fully clear media session progress
-            this._showMediaProgress = false;
-            console.log("[PlayerService] pause: progress cleared, pushing 0/0");
-            const pauseMetadata = this.getNowPlayingMetadata();
-            await this.player.updateNowPlayingMetadata(pauseMetadata);
+            // Just update state — progress keeps ticking (radio server-side)
+            // and metadata stays as-is in the notification.
+            this._emitState();
           } catch (error) {
             console.error("[PlayerService] Pause error:", error);
           }
@@ -443,18 +511,35 @@ export const playerService = (): PlayerServiceProps => {
 
       async changeStream(stream: Stream): Promise<void> {
         if (this._currentStream.id !== stream.id) {
-          const wasPlaying = !this._paused;
-
-          if (wasPlaying) {
-            await this.pause();
-          }
-
           this._currentStream = stream;
           await AsyncStorage.setItem("currentStream", JSON.stringify(stream));
 
-          if (wasPlaying) {
-            await this.play();
+          // If the player is active, swap the stream without destroying
+          // the media session — just reset + re-add with the new URL.
+          if (await this.isPlayerSetup()) {
+            const wasPlaying = !this._paused;
+            await TrackPlayer.reset();
+
+            const metadata = this.getNowPlayingMetadata();
+            await TrackPlayer.add({
+              id: "1",
+              url: stream.url,
+              userAgent: CONFIG.USER_AGENT,
+              title: metadata.title,
+              artist: metadata.artist,
+              artwork: metadata.artwork,
+            });
+
+            if (wasPlaying) {
+              await TrackPlayer.play();
+              this._paused = false;
+            }
+
+            // Fetch fresh data for the new stream
+            await this.refreshData();
           }
+
+          this._emitState();
         }
       },
 
@@ -482,23 +567,19 @@ export const playerService = (): PlayerServiceProps => {
       },
 
       async updateNowPlayingProgress(): Promise<void> {
-        if (this._paused || !this._currentTrack) return;
+        // Progress is now handled by _tickProgress which periodically
+        // pushes updateNowPlayingMetadata to the native media session.
+        // This method is kept for API compatibility.
+        if (!this._currentTrack) return;
         if (!this._showMediaProgress) return;
 
-        // We do NOT push metadata every second.
-        // Both iOS and Android auto-advance the progress bar after the
-        // initial elapsedTime/seekTo sync. Pushing updateNowPlayingMetadata
-        // each tick causes Android to rebuild the notification and re-read
-        // ExoPlayer's real stream position (≈0 for ICY), resetting the bar.
-        //
-        // This function only detects when the track has ended so we can
-        // clear the progress bar.
         const elapsed = getTrackProgress(this._currentTrack);
         if (elapsed == null) {
           console.log(
             "[PlayerService] updateProgress: track ended, clearing progress",
           );
           this._showMediaProgress = false;
+          this._nativeProgressTickCount = 0;
           try {
             if (await this.isPlayerSetup()) {
               const cleanMeta = this.getNowPlayingMetadata();
@@ -537,6 +618,8 @@ export const playerService = (): PlayerServiceProps => {
               break;
             }
           }
+
+          this._emitState();
         } catch (error) {
           console.error(
             `[PlayerService] Error refreshing ${typeHistory} history:`,
@@ -560,6 +643,12 @@ export const playerService = (): PlayerServiceProps => {
           this._currentProgram = null;
           this._listeners = null;
           this._showMediaProgress = false;
+          this._nativeProgressTickCount = 0;
+          this._nativeSetupDone = false;
+          this._isInitialized = false;
+
+          this._emitState();
+          this._emitProgress();
 
           playerServiceInstance = null;
         } catch (error) {

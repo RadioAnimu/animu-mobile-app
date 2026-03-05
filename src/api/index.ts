@@ -12,6 +12,7 @@ const FAZER_PEDIDO_URL_SUBMIT =
 const DISCORD_URL = "https://discord.animu.com.br";
 const LIVE_REQUEST_URL =
   "https://www.animu.com.br/paineldj/ajaxforms(defasado)/request/salvar.php";
+const STREAMS_URL = "https://stream.animu.moe/?json=1";
 
 export interface Program {
   img: string;
@@ -33,6 +34,7 @@ export const API = {
   DISCORD_URL,
   LIVE_REQUEST_URL,
   FAZER_PEDIDO_URL_SUBMIT,
+  STREAMS_URL,
 };
 
 export interface AnimuInfoProps {

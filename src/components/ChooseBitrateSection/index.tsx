@@ -2,10 +2,9 @@ import { FlatList } from "react-native";
 import { ButtonKBPS } from "../ButtonKBPS";
 import { styles } from "./styles";
 import { usePlayer } from "../../contexts/player/PlayerProvider";
-import { CONFIG } from "../../utils/player.config";
 
 export function ChooseBitrateSection() {
-  const { changeStream, currentStream } = usePlayer();
+  const { changeStream, currentStream, streamOptions } = usePlayer();
 
   return (
     <FlatList
@@ -13,7 +12,7 @@ export function ChooseBitrateSection() {
       contentContainerStyle={styles.contentContainer}
       horizontal
       showsHorizontalScrollIndicator={false}
-      data={CONFIG.STREAM_OPTIONS}
+      data={streamOptions}
       keyExtractor={(item) => item.url}
       renderItem={({ item }) => {
         return (

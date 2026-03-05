@@ -4,6 +4,7 @@ import React, {
   useEffect,
   useState,
   useCallback,
+  useRef,
 } from "react";
 import { User } from "../../core/domain/user";
 import { authService } from "../../core/services/auth.service";
@@ -15,12 +16,12 @@ interface AuthContextType {
   isAuthenticated: boolean;
   login: () => Promise<void>;
   logout: () => Promise<void>;
-  validateAndRefreshSession: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
 const SESSION_CHECK_INTERVAL = 60000; // 1 minute
+const SESSION_CHECK_TASK_ID = "session-check";
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
@@ -28,32 +29,58 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  const logout = useCallback(async () => {
-    try {
-      await authService.logout(user?.sessionId);
-    } catch (error) {
-      console.error("[AuthProvider] Logout failed:", error);
-    } finally {
-      setUser(null);
-    }
+  // Ref avoids stale closures in the background task callback
+  const userRef = useRef<User | null>(null);
+
+  useEffect(() => {
+    userRef.current = user;
   }, [user]);
 
-  const validateAndRefreshSession = useCallback(async () => {
-    console.log("[AuthProvider] Validating session...");
+  const clearSession = useCallback(async () => {
+    backgroundService.stopTask(SESSION_CHECK_TASK_ID);
+    await authService.clearStoredUser();
+    userRef.current = null;
+    setUser(null);
+  }, []);
 
-    if (!user?.sessionId) return;
-
+  const logout = useCallback(async () => {
+    const sessionId = userRef.current?.sessionId;
     try {
-      const isValid = await authService.validateSession(user.sessionId);
-      if (!isValid) {
-        console.log("[AuthProvider] Session invalid, logging out");
-        await logout();
+      if (sessionId) {
+        await authService.logoutFromServer(sessionId);
       }
     } catch (error) {
-      console.error("[AuthProvider] Session validation failed:", error);
-      await logout();
+      console.error("[AuthProvider] Server logout failed:", error);
+    } finally {
+      await clearSession();
     }
-  }, [user, logout]);
+  }, [clearSession]);
+
+  const startSessionCheck = useCallback(() => {
+    backgroundService.stopTask(SESSION_CHECK_TASK_ID);
+
+    backgroundService.startTask({
+      id: SESSION_CHECK_TASK_ID,
+      interval: SESSION_CHECK_INTERVAL,
+      callback: async () => {
+        const currentUser = userRef.current;
+        if (!currentUser?.sessionId) return;
+
+        try {
+          const isValid = await authService.validateSession(
+            currentUser.sessionId,
+          );
+          if (!isValid) {
+            console.log("[AuthProvider] Session expired, clearing session");
+            await clearSession();
+          }
+        } catch (error) {
+          console.error("[AuthProvider] Session check failed:", error);
+          await clearSession();
+        }
+      },
+    });
+  }, [clearSession]);
 
   // Initialize auth on mount
   useEffect(() => {
@@ -63,47 +90,45 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
         if (storedUser) {
           const isValid = await authService.validateSession(
-            storedUser.sessionId
+            storedUser.sessionId,
           );
           if (isValid) {
+            userRef.current = storedUser;
             setUser(storedUser);
+            startSessionCheck();
           } else {
-            await authService.logout();
+            await authService.clearStoredUser();
           }
         }
       } catch (error) {
         console.error("[AuthProvider] Initialization failed:", error);
       } finally {
         setIsLoading(false);
-
-        await backgroundService.startTask({
-          id: "session-check",
-          callback: validateAndRefreshSession,
-          interval: SESSION_CHECK_INTERVAL,
-          backgroundTask: false,
-        });
       }
-
-      return () => {
-        backgroundService.stopTask("session-check");
-      };
     };
 
     initializeAuth();
-  }, []);
 
-  const login = async () => {
+    // Proper cleanup — returned from the effect, not from the async fn
+    return () => {
+      backgroundService.stopTask(SESSION_CHECK_TASK_ID);
+    };
+  }, [startSessionCheck]);
+
+  const login = useCallback(async () => {
     try {
       setIsLoading(true);
       const newUser = await authService.login();
+      userRef.current = newUser;
       setUser(newUser);
+      startSessionCheck();
     } catch (error) {
       console.error("[AuthProvider] Login failed:", error);
       throw error;
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [startSessionCheck]);
 
   return (
     <AuthContext.Provider
@@ -113,7 +138,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         isAuthenticated: !!user,
         login,
         logout,
-        validateAndRefreshSession,
       }}
     >
       {children}

@@ -4,7 +4,6 @@ import React, { useCallback, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
-  Platform,
   Text,
   TextInput,
   TouchableOpacity,
@@ -31,11 +30,11 @@ import { musicRequestService } from "../../core/services/music-request.service";
 
 // Styles and Config
 import { MusicRequestSubmissionDTO } from "../../data/http/dto/music-request.dto";
+import { MusicRequestMapper } from "../../data/mappers/music-request.mapper";
 import { DICT, IMGS } from "../../languages";
 import { RootStackParamList } from "../../routes/app.routes";
 import { THEME } from "../../theme";
 import { styles } from "./styles";
-import { MusicRequestMapper } from "../../data/mappers/music-request.mapper";
 
 type Props = NativeStackScreenProps<RootStackParamList, "FazerPedido">;
 
