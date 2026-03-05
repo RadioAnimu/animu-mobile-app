@@ -7,28 +7,27 @@ import { TrackHistoryMapper } from "../../data/mappers/track-history.mapper";
 import { TrackMapper } from "../../data/mappers/track.mapper";
 import { Listeners } from "../domain/listeners";
 import { Program } from "../domain/program";
-import { Stream } from "../domain/stream";
 import { Track } from "../domain/track";
 
 class AnimuService {
-  async getCurrentTrack(
-    stream: Stream,
+  /**
+   * Fetches track + listeners from a single API call (BASE_URL).
+   */
+  async getStreamMetadata(
     artworkQuality?: ArtworkQuality,
-  ): Promise<Track | null> {
-    const dto = await apiClient.getCurrentTrack(stream);
-    return TrackMapper.fromDTO(dto, artworkQuality);
+  ): Promise<{ track: Track | null; listeners: Listeners }> {
+    const dto = await apiClient.getStreamMetadata();
+    return {
+      track: TrackMapper.fromDTO(dto, artworkQuality),
+      listeners: ListenersMapper.fromDTO(dto),
+    };
   }
 
-  async getCurrentProgram(stream: Stream): Promise<Program> {
-    const dto = await apiClient.getProgramInfo(stream);
+  async getCurrentProgram(): Promise<Program> {
+    const dto = await apiClient.getProgramInfo();
     const program = ProgramMapper.fromDTO(dto);
 
     return program;
-  }
-
-  async getCurrentListeners(stream: Stream): Promise<Listeners> {
-    const dto = await apiClient.getListeners(stream);
-    return ListenersMapper.fromDTO(dto);
   }
 
   async getTrackHistory(type: HistoryType): Promise<Track[]> {

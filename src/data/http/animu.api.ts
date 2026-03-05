@@ -1,9 +1,7 @@
-import { TrackDTO } from "./dto/track.dto";
 import { ProgramDTO } from "./dto/program.dto";
 import { API } from "../../api";
 import { api } from "./axios.client";
-import { Stream } from "../../core/domain/stream";
-import { ListenersDTO } from "./dto/listeners.dto";
+import { StreamMetadataDTO } from "./dto/stream-metadata.dto";
 import { TrackHistoryDTO } from "./dto/track-history.dto";
 import { HistoryType } from "../../@types/history-type";
 import {
@@ -15,18 +13,16 @@ import { LiveRequestDTO } from "./dto/live-request.dto";
 import { convertDTOToFormData, logFormData } from "../../utils";
 
 class AnimuApiClient {
-  getCurrentTrack = async (stream: Stream): Promise<TrackDTO> => {
-    const response = await api.get<TrackDTO>(API.BASE_URL);
+  /**
+   * Single call to BASE_URL — returns track info + listener count.
+   */
+  getStreamMetadata = async (): Promise<StreamMetadataDTO> => {
+    const response = await api.get<StreamMetadataDTO>(API.BASE_URL);
     return response.data;
   };
 
-  getProgramInfo = async (stream: Stream): Promise<ProgramDTO> => {
+  getProgramInfo = async (): Promise<ProgramDTO> => {
     const response = await api.get<ProgramDTO>(API.PROGRAM_URL);
-    return response.data;
-  };
-
-  getListeners = async (stream: Stream): Promise<ListenersDTO> => {
-    const response = await api.get<ListenersDTO>(API.BASE_URL);
     return response.data;
   };
 

@@ -2,6 +2,8 @@ import { HistoryType } from "./../../@types/history-type.d";
 import TrackPlayer, { NowPlayingMetadata } from "react-native-track-player";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { openBrowserAsync } from "expo-web-browser";
+import { Platform } from "react-native";
+import BackgroundTimer from "react-native-background-timer";
 import { Stream } from "../domain/stream";
 import { getTrackProgress, Track } from "../domain/track";
 import { Program } from "../domain/program";
@@ -13,6 +15,30 @@ import { userSettingsService } from "./user-settings.service";
 import { SetupService } from "./player-setup.service";
 import { PlayerSnapshot, playerStore, progressStore } from "./player-store";
 import { fetchStreams } from "../../data/http/animu-streams.api";
+
+// ── Platform-safe one-shot timers (Android needs BackgroundTimer) ──
+const _setTimeout = (fn: () => void, ms: number): number => {
+  if (Platform.OS === "android") {
+    return BackgroundTimer.setTimeout(fn, ms);
+  }
+  return setTimeout(fn, ms) as unknown as number;
+};
+
+const _clearTimeout = (id: number | null): void => {
+  if (id == null) return;
+  if (Platform.OS === "android") {
+    BackgroundTimer.clearTimeout(id);
+  } else {
+    clearTimeout(id as unknown as NodeJS.Timeout);
+  }
+};
+
+/** Buffer after expected track end before fetching (ms) */
+const TRACK_END_BUFFER_MS = 500;
+/** Max backoff delay on consecutive network errors (ms) */
+const MAX_RETRY_DELAY_MS = 30_000;
+/** Base retry delay (ms) — doubles each consecutive error */
+const BASE_RETRY_DELAY_MS = 2_000;
 
 export interface PlayerServiceProps {
   CONFIG: typeof CONFIG;
@@ -34,8 +60,20 @@ export interface PlayerServiceProps {
   /** Counter for throttling native metadata pushes in _tickProgress */
   _nativeProgressTickCount: number;
   _isInitialized: boolean;
+  /** Timeout ID for the one-shot track-end refresh */
+  _trackEndTimeoutId: number | null;
+  /** Timeout ID for exponential-backoff retry on network errors */
+  _retryTimeoutId: number | null;
+  /** Consecutive network errors (reset on success) — drives backoff */
+  _consecutiveErrors: number;
   isPlayerSetup: () => Promise<boolean>;
   _isRealTrack: (track: Track) => boolean;
+  /** Schedule a one-shot refresh at the expected track-end time */
+  _scheduleTrackEndRefresh: () => void;
+  /** Cancel any pending track-end or retry timers */
+  _cancelScheduledRefresh: () => void;
+  /** Schedule an exponential-backoff retry after a network error */
+  _scheduleRetry: () => void;
   /**
    * Single entry-point that bootstraps everything the player needs:
    * streams from API, stored stream preference, native TrackPlayer,
@@ -79,8 +117,81 @@ export const playerService = (): PlayerServiceProps => {
       _showMediaProgress: false,
       _nativeProgressTickCount: 0,
       _isInitialized: false,
+      _trackEndTimeoutId: null,
+      _retryTimeoutId: null,
+      _consecutiveErrors: 0,
 
       _isRefreshing: false,
+
+      _scheduleTrackEndRefresh(): void {
+        // Cancel any previous track-end timer
+        _clearTimeout(this._trackEndTimeoutId);
+        this._trackEndTimeoutId = null;
+
+        if (!this._currentTrack || this._currentTrack.duration <= 0) return;
+
+        // Don't schedule for non-real tracks (jingles, transitions) or live
+        if (!this._isRealTrack(this._currentTrack)) return;
+        if (this._currentProgram?.isLive) return;
+
+        const now = Date.now();
+        const trackEnd =
+          this._currentTrack.startTime.getTime() + this._currentTrack.duration;
+        const msUntilEnd = trackEnd - now;
+
+        if (msUntilEnd <= 0) {
+          // Track already ended — refresh soon
+          this._trackEndTimeoutId = _setTimeout(() => {
+            this._trackEndTimeoutId = null;
+            console.log(
+              "[PlayerService] Track already ended, refreshing now...",
+            );
+            this.refreshData().catch(console.error);
+          }, 1000);
+          return;
+        }
+
+        const delay = msUntilEnd + TRACK_END_BUFFER_MS;
+        console.log(
+          "[PlayerService] Track-end refresh scheduled in",
+          Math.round(delay / 1000) + "s",
+        );
+
+        this._trackEndTimeoutId = _setTimeout(() => {
+          this._trackEndTimeoutId = null;
+          console.log("[PlayerService] Track-end timer fired, refreshing...");
+          this.refreshData().catch(console.error);
+        }, delay);
+      },
+
+      _cancelScheduledRefresh(): void {
+        _clearTimeout(this._trackEndTimeoutId);
+        this._trackEndTimeoutId = null;
+        _clearTimeout(this._retryTimeoutId);
+        this._retryTimeoutId = null;
+      },
+
+      _scheduleRetry(): void {
+        _clearTimeout(this._retryTimeoutId);
+
+        // Exponential backoff: 2s → 4s → 8s → 16s → 30s (cap)
+        const delay = Math.min(
+          BASE_RETRY_DELAY_MS * Math.pow(2, this._consecutiveErrors - 1),
+          MAX_RETRY_DELAY_MS,
+        );
+
+        console.log(
+          "[PlayerService] Scheduling retry in",
+          Math.round(delay / 1000) + "s",
+          "(attempt",
+          this._consecutiveErrors + ")",
+        );
+
+        this._retryTimeoutId = _setTimeout(() => {
+          this._retryTimeoutId = null;
+          this.refreshData().catch(console.error);
+        }, delay);
+      },
 
       _isRealTrack(track: Track): boolean {
         return (
@@ -279,16 +390,17 @@ export const playerService = (): PlayerServiceProps => {
         if (this._isRefreshing) return false;
         this._isRefreshing = true;
         try {
-          const [newTrack, newProgram, newListeners, newLastRequestedTracks] =
-            await Promise.all([
-              animuService.getCurrentTrack(
-                this._currentStream,
-                userSettingsService.getCurrentSettings().liveQualityCover,
-              ),
-              animuService.getCurrentProgram(this._currentStream),
-              animuService.getCurrentListeners(this._currentStream),
-              animuService.getTrackHistory("requests"),
-            ]);
+          const [
+            { track: newTrack, listeners: newListeners },
+            newProgram,
+            newLastRequestedTracks,
+          ] = await Promise.all([
+            animuService.getStreamMetadata(
+              userSettingsService.getCurrentSettings().liveQualityCover,
+            ),
+            animuService.getCurrentProgram(),
+            animuService.getTrackHistory("requests"),
+          ]);
 
           if (!newTrack) {
             console.warn(
@@ -385,9 +497,20 @@ export const playerService = (): PlayerServiceProps => {
             this._emitState();
           }
 
+          // ── Success: reset error backoff & schedule track-end refresh ──
+          this._consecutiveErrors = 0;
+          _clearTimeout(this._retryTimeoutId);
+          this._retryTimeoutId = null;
+          this._scheduleTrackEndRefresh();
+
           return hasChanges;
         } catch (error) {
           console.error("[PlayerService] Error refreshing data:", error);
+
+          // ── Network / API error: exponential backoff retry ──
+          this._consecutiveErrors++;
+          this._scheduleRetry();
+
           return false;
         } finally {
           this._isRefreshing = false;
@@ -457,27 +580,17 @@ export const playerService = (): PlayerServiceProps => {
         }
 
         try {
-          // Only reset + re-add if the player has no active track yet,
-          // or if the stream URL changed. Avoids the notification flash.
-          const activeTrack = await TrackPlayer.getActiveTrack().catch(
-            () => null,
-          );
-          const needsReload =
-            !activeTrack || activeTrack.url !== this._currentStream.url;
+          await TrackPlayer.reset();
 
-          if (needsReload) {
-            await TrackPlayer.reset();
-
-            const metadata = this.getNowPlayingMetadata();
-            await TrackPlayer.add({
-              id: "1",
-              url: this._currentStream.url,
-              userAgent: CONFIG.USER_AGENT,
-              title: metadata.title,
-              artist: metadata.artist,
-              artwork: metadata.artwork,
-            });
-          }
+          const metadata = this.getNowPlayingMetadata();
+          await TrackPlayer.add({
+            id: "1",
+            url: this._currentStream.url,
+            userAgent: CONFIG.USER_AGENT,
+            title: metadata.title,
+            artist: metadata.artist,
+            artwork: metadata.artwork,
+          });
 
           await TrackPlayer.play();
           this._paused = false;
@@ -637,6 +750,8 @@ export const playerService = (): PlayerServiceProps => {
           await this.player.stop();
           await this.player.reset();
 
+          this._cancelScheduledRefresh();
+          this._consecutiveErrors = 0;
           this._paused = true;
           this._currentStream = CONFIG.DEFAULT_STREAM_OPTION;
           this._currentTrack = null;

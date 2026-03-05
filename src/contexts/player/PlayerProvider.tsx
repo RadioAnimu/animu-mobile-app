@@ -21,8 +21,8 @@ import {
 } from "../../core/services/player-store";
 import { Loading } from "../../screens/Loading";
 
-const REFRESH_INTERVAL_PLAYING = 5000; // 5s when playing
-const REFRESH_INTERVAL_PAUSED = 15000; // 15s when paused (battery friendly)
+const REFRESH_INTERVAL_PLAYING = 20_000; // 20s safety net (track-end timer handles transitions)
+const REFRESH_INTERVAL_PAUSED = 30_000; // 30s when paused (battery friendly)
 const TRACK_PROGRESS_INTERVAL = 1000; // 1s (only ticks when track)
 
 // ─── Separate context for track progress (changes every 1s) ───
