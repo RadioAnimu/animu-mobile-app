@@ -5,7 +5,7 @@ import {
 } from "../../contexts/player/PlayerProvider";
 import { useUserSettings } from "../../contexts/user/UserSettingsProvider";
 import { CountdownTimerText } from "../CountdownTimerText";
-import { DICT } from "../../languages";
+import { DICT } from "../../i18n";
 import { THEME } from "../../theme";
 
 export function TimeRemaining() {

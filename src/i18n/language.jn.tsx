@@ -22,6 +22,15 @@ const PROGRAMS: Program[] = [
       "ＤＪ春香の番組に乱入して、彼女にコーヒーを飲むように促します。ブラジルで最萌えエなラジオでいつでも、いつでもお楽しみください！",
   },
   {
+    img: "https://www.animu.moe/wp-content/uploads/2024/01/NO-AR-ANIMU-NON-STOP-2024-FUYU.webp",
+    name: "Animu NON-STOP",
+    dj: "春香ゆき",
+    theme: "ミュージックブロック",
+    dayAndTime: "いつでも",
+    information:
+      "Animu NON-STOP は、アニムが止まらないブロックです。常にベストな曲を流し続け、あなたリスナーがいつでも選曲をリクエストできます",
+  },
+  {
     img: "https://www.animu.com.br/wp-content/uploads/2023/03/AnimuSong-Logo.webp",
     name: "アニムソング",
     dj: "LL!",

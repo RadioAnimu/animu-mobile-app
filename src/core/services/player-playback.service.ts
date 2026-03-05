@@ -19,10 +19,7 @@ export const setRemotePlaybackHandlers = (handlers: {
 };
 
 export async function PlaybackService() {
-  console.log("[PlaybackService] Android background service initialized");
-
   TrackPlayer.addEventListener(Event.RemotePlay, async () => {
-    console.log("[PlaybackService] Remote play requested");
     try {
       if (remotePlayHandler) {
         // Full reconnect: reset → fetch fresh data → add stream → play
@@ -38,7 +35,6 @@ export async function PlaybackService() {
   });
 
   TrackPlayer.addEventListener(Event.RemotePause, async () => {
-    console.log("[PlaybackService] Remote pause requested");
     try {
       if (remotePauseHandler) {
         await remotePauseHandler();
@@ -52,7 +48,6 @@ export async function PlaybackService() {
   });
 
   TrackPlayer.addEventListener(Event.RemoteStop, async () => {
-    console.log("[PlaybackService] Remote stop requested");
     try {
       await TrackPlayer.reset();
       updatePlayerState?.(false);

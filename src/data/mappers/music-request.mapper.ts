@@ -3,7 +3,7 @@ import {
   MusicRequest,
   MusicRequestPagination,
 } from "../../core/domain/music-request";
-import { DICT, LanguageKey } from "../../languages";
+import { DICT, LanguageKey } from "../../i18n";
 import { CONFIG } from "../../utils/player.config";
 import {
   MusicRequestDTO,

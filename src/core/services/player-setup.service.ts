@@ -10,7 +10,7 @@ export const DefaultAudioServiceBehaviour =
   AppKilledPlaybackBehavior.StopPlaybackAndRemoveNotification;
 
 const setupPlayer = async (
-  options: Parameters<typeof TrackPlayer.setupPlayer>[0]
+  options: Parameters<typeof TrackPlayer.setupPlayer>[0],
 ) => {
   const setup = async () => {
     try {
@@ -23,9 +23,6 @@ const setupPlayer = async (
 
   let result = await setup();
   while (result === "android_cannot_setup_player_in_background") {
-    console.log(
-      "[SetupService] Waiting for background setup to be available..."
-    );
     await new Promise<void>((resolve) => setTimeout(resolve, 100));
     result = await setup();
   }
@@ -36,8 +33,6 @@ const setupPlayer = async (
 };
 
 export const SetupService = async () => {
-  console.log("[SetupService] Setting up TrackPlayer...");
-
   try {
     await setupPlayer({
       autoHandleInterruptions: true,
@@ -54,8 +49,6 @@ export const SetupService = async () => {
       color: parseInt(THEME.COLORS.BACKGROUND_800.replace("#", ""), 16),
       progressUpdateEventInterval: 1,
     });
-
-    console.log("[SetupService] TrackPlayer setup completed successfully");
   } catch (error) {
     console.error("[SetupService] TrackPlayer setup failed:", error);
     throw error;

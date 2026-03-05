@@ -21,7 +21,7 @@ import {
 } from "../../core/services/player-store";
 import { Loading } from "../../screens/Loading";
 
-const REFRESH_INTERVAL_PLAYING = 20_000; // 20s safety net (track-end timer handles transitions)
+const REFRESH_INTERVAL_PLAYING = 5_000; // 5s safety net (track-end timer handles transitions)
 const REFRESH_INTERVAL_PAUSED = 30_000; // 30s when paused (battery friendly)
 const TRACK_PROGRESS_INTERVAL = 1000; // 1s (only ticks when track)
 
@@ -69,8 +69,6 @@ export const PlayerProvider: React.FC<{
     let cancelled = false;
 
     const initializePlayer = async () => {
-      console.log("[PlayerProvider] Initializing playerServiceInstance...");
-
       try {
         // Bridge lock-screen / notification events back to the service.
         setPlayerStateUpdater((isPlaying: boolean) => {
@@ -113,8 +111,6 @@ export const PlayerProvider: React.FC<{
           },
           interval: TRACK_PROGRESS_INTERVAL,
         });
-
-        console.log("[PlayerProvider] Background tasks started.");
       } catch (error) {
         console.error("[PlayerProvider] Player initialization failed:", error);
         playerServiceInstance._isInitialized = false;

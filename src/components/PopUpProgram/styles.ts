@@ -4,36 +4,57 @@ import { THEME } from "../../theme";
 export const styles = StyleSheet.create({
   container: {
     flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
+    flexDirection: "column",
     backgroundColor: THEME.COLORS.OVERLAY,
   },
-  content: {
-    width: 311,
-    backgroundColor: THEME.COLORS.PRIMARY,
-    alignItems: "center",
-    borderRadius: 8,
-    padding: 8,
+  backdrop: {
+    flex: 1,
   },
-  closeIcon: {
-    alignSelf: "flex-end",
+  content: {
+    width: "100%",
+    backgroundColor: THEME.COLORS.PRIMARY,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingBottom: 32,
+    maxHeight: "75%",
+  },
+  closeArea: {
+    width: "100%",
+    flexDirection: "row",
+    justifyContent: "center",
+    height: 35,
+    alignItems: "center",
+  },
+  dragIcon: {
+    height: 14,
+    resizeMode: "contain",
+  },
+  scrollContent: {
+    alignItems: "center",
+    paddingHorizontal: 16,
+    paddingBottom: 8,
+    gap: 12,
   },
   img: {
-    height: 127,
+    height: 140,
     width: "100%",
     borderRadius: 8,
-    resizeMode: "contain",
-    marginBottom: 20,
+  },
+  programName: {
+    color: THEME.COLORS.SHAPE,
+    fontSize: THEME.FONT_SIZE.MD,
+    fontFamily: THEME.FONT_FAMILY.BOLD,
+    textAlign: "center",
   },
   informationBlock: {
     flexDirection: "column",
-    justifyContent: "center",
     gap: 8,
-    marginBottom: 8,
+    width: "100%",
+    paddingBottom: 4,
   },
   label: {
     color: THEME.COLORS.WHITE_TEXT,
-    fontSize: THEME.FONT_SIZE.MD,
+    fontSize: THEME.FONT_SIZE.INFO_PROGRAM,
     fontFamily: THEME.FONT_FAMILY.BOLD,
   },
 });

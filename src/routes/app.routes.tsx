@@ -8,7 +8,7 @@ import { Home } from "../screens/Home";
 import { Last } from "../screens/Ultimas";
 import { THEME } from "../theme";
 import { Settings } from "../screens/Settings";
-import { DICT } from "../languages";
+import { DICT } from "../i18n";
 import { useUserSettings } from "../contexts/user/UserSettingsProvider";
 import { HistoryType } from "../@types/history-type";
 

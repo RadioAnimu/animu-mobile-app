@@ -1,19 +1,19 @@
-import { MaterialIcons } from "@expo/vector-icons";
+import { Image } from "expo-image";
 import React from "react";
 import {
-  Image,
   Modal,
   ModalProps,
+  Image as RNImage,
+  ScrollView,
   Text,
   TouchableOpacity,
   View,
 } from "react-native";
-import { ProgramProps } from "../../api";
-import { DICT } from "../../languages";
-import { THEME } from "../../theme";
-import { styles } from "./styles";
-import { useUserSettings } from "../../contexts/user/UserSettingsProvider";
+import DragIcon from "../../assets/icons/ArrastarParaBaixo.png";
 import { usePlayer } from "../../contexts/player/PlayerProvider";
+import { useUserSettings } from "../../contexts/user/UserSettingsProvider";
+import { DICT } from "../../i18n";
+import { styles } from "./styles";
 
 interface Props extends ModalProps {
   handleClose: () => void;
@@ -28,82 +28,68 @@ export const PopUpProgram = React.memo(function PopUpProgram({
 
   const _program = player.currentProgram;
 
-  if (!_program) {
-    return null;
-  }
-
-  let i = 0;
-  let program: ProgramProps["raw"] = DICT["PT"].PROGRAMS.find((item) => {
-    if (item.name === _program?.raw?.name) {
-      return item;
-    } else {
-      i++;
+  // Try to find localized program data; fall back to domain object fields
+  const localized = (() => {
+    if (!_program?.raw?.name) {
+      return undefined;
     }
-  });
+    const ptIndex = DICT["PT"].PROGRAMS.findIndex(
+      (p) => p.name === _program.raw!.name,
+    );
+    return ptIndex >= 0
+      ? DICT[settings.selectedLanguage].PROGRAMS[ptIndex]
+      : undefined;
+  })();
 
-  program = DICT[settings.selectedLanguage].PROGRAMS[i];
-
-  if (!program) {
-    return null;
-  }
+  const programName = localized?.name ?? _program?.name;
+  const programInfo = localized?.information ?? _program?.info;
+  const programTheme = localized?.theme ?? _program?.theme;
+  const programDayTime = localized?.dayAndTime;
 
   return (
-    <Modal animationType="fade" statusBarTranslucent transparent {...rest}>
+    <Modal animationType="slide" statusBarTranslucent transparent {...rest}>
       <View style={styles.container}>
+        {/* Backdrop tap-to-close */}
+        <TouchableOpacity
+          style={styles.backdrop}
+          activeOpacity={1}
+          onPress={handleClose}
+        />
+
         <View style={styles.content}>
-          <TouchableOpacity onPress={handleClose} style={styles.closeIcon}>
-            <MaterialIcons
-              name="close"
-              size={20}
-              color={THEME.COLORS.WHITE_TEXT}
-            />
+          {/* Drag handle */}
+          <TouchableOpacity style={styles.closeArea} onPress={handleClose}>
+            <RNImage source={DragIcon} style={styles.dragIcon} />
           </TouchableOpacity>
-          <Image source={{ uri: _program.imageUrl }} style={styles.img} />
-          <View style={styles.informationBlock}>
-            <Text
-              style={[
-                styles.label,
-                {
-                  textAlign: "center",
-                  color: THEME.COLORS.SHAPE,
-                },
-              ]}
+
+          {_program ? (
+            <ScrollView
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={styles.scrollContent}
             >
-              {program.name}
-            </Text>
-            <Text
-              style={[
-                styles.label,
-                {
-                  fontSize: THEME.FONT_SIZE.INFO_PROGRAM,
-                },
-              ]}
-            >
-              {program.information}
-            </Text>
-            <Text
-              style={[
-                styles.label,
-                {
-                  textAlign: "left",
-                  fontSize: THEME.FONT_SIZE.INFO_PROGRAM,
-                },
-              ]}
-            >
-              {DICT[settings.selectedLanguage].THEME_WORD}: {program.theme}
-            </Text>
-            <Text
-              style={[
-                styles.label,
-                {
-                  textAlign: "left",
-                  fontSize: THEME.FONT_SIZE.INFO_PROGRAM,
-                },
-              ]}
-            >
-              {program.dayAndTime}
-            </Text>
-          </View>
+              <Image
+                source={{ uri: _program.imageUrl }}
+                style={styles.img}
+                contentFit="contain"
+              />
+
+              <Text style={styles.programName}>{programName}</Text>
+
+              <View style={styles.informationBlock}>
+                {!!programInfo && (
+                  <Text style={styles.label}>{programInfo}</Text>
+                )}
+                {!!programTheme && (
+                  <Text style={styles.label}>
+                    {DICT[settings.selectedLanguage].THEME_WORD}: {programTheme}
+                  </Text>
+                )}
+                {!!programDayTime && (
+                  <Text style={styles.label}>{programDayTime}</Text>
+                )}
+              </View>
+            </ScrollView>
+          ) : null}
         </View>
       </View>
     </Modal>

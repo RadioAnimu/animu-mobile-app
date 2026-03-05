@@ -1,11 +1,20 @@
-import { AxiosRequestConfig, AxiosResponse } from "axios";
+export interface RequestConfig {
+  method?: string;
+  url?: string;
+  params?: Record<string, any>;
+}
+
+export interface RequestResponse {
+  status?: number;
+  data?: any;
+}
 
 export class HttpRequestError extends Error {
   constructor(
     message: string,
     public readonly statusCode: number,
-    public readonly config?: AxiosRequestConfig,
-    public readonly response?: AxiosResponse
+    public readonly config?: RequestConfig,
+    public readonly response?: RequestResponse,
   ) {
     super(message);
     Object.setPrototypeOf(this, HttpRequestError.prototype);

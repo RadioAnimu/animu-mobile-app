@@ -1,6 +1,6 @@
 import { View, useWindowDimensions, Platform } from "react-native";
 import TextTicker from "react-native-text-ticker";
-import { IMGS } from "../../languages";
+import { IMGS } from "../../i18n";
 import { styles } from "./styles";
 import { useUserSettings } from "../../contexts/user/UserSettingsProvider";
 import { usePlayer } from "../../contexts/player/PlayerProvider";

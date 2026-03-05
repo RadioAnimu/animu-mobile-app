@@ -1,6 +1,6 @@
 import { Image } from "react-native";
 import { styles } from "./styles";
-import { IMGS, selectedLanguage } from "../../languages";
+import { IMGS, selectedLanguage } from "../../i18n";
 import { useUserSettings } from "../../contexts/user/UserSettingsProvider";
 
 interface Props {

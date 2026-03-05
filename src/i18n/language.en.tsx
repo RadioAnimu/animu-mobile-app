@@ -22,6 +22,15 @@ const PROGRAMS: Program[] = [
       "The program where we invade DJ Haruka's schedule and make her have that little coffee break. And it can happen anytime, anywhere, on the most moe radio in Brazil!",
   },
   {
+    img: "https://www.animu.moe/wp-content/uploads/2024/01/NO-AR-ANIMU-NON-STOP-2024-FUYU.webp",
+    name: "Animu NON-STOP",
+    dj: "Haruka Yuki",
+    theme: "Music Block",
+    dayAndTime: "Anytime",
+    information:
+      "Animu NON-STOP is the block where Animu never stops, always playing the best songs while you, the listener, command the sequence at any moment",
+  },
+  {
     img: "https://www.animu.com.br/wp-content/uploads/2023/03/AnimuSong-Logo.webp",
     name: "AnimuSong",
     dj: "LL!",

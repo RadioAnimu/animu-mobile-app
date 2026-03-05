@@ -143,23 +143,15 @@ export const playerService = (): PlayerServiceProps => {
           // Track already ended — refresh soon
           this._trackEndTimeoutId = _setTimeout(() => {
             this._trackEndTimeoutId = null;
-            console.log(
-              "[PlayerService] Track already ended, refreshing now...",
-            );
             this.refreshData().catch(console.error);
           }, 1000);
           return;
         }
 
         const delay = msUntilEnd + TRACK_END_BUFFER_MS;
-        console.log(
-          "[PlayerService] Track-end refresh scheduled in",
-          Math.round(delay / 1000) + "s",
-        );
 
         this._trackEndTimeoutId = _setTimeout(() => {
           this._trackEndTimeoutId = null;
-          console.log("[PlayerService] Track-end timer fired, refreshing...");
           this.refreshData().catch(console.error);
         }, delay);
       },
@@ -180,13 +172,6 @@ export const playerService = (): PlayerServiceProps => {
           MAX_RETRY_DELAY_MS,
         );
 
-        console.log(
-          "[PlayerService] Scheduling retry in",
-          Math.round(delay / 1000) + "s",
-          "(attempt",
-          this._consecutiveErrors + ")",
-        );
-
         this._retryTimeoutId = _setTimeout(() => {
           this._retryTimeoutId = null;
           this.refreshData().catch(console.error);
@@ -202,8 +187,6 @@ export const playerService = (): PlayerServiceProps => {
       },
 
       async setupPlayer(): Promise<void> {
-        console.log("[PlayerService] setupPlayer: starting bootstrap...");
-
         // ── Phase 1: fire EVERYTHING that has no interdependencies ──
         // Streams, stored preference, native TrackPlayer, and user
         // settings all resolve independently — run them all at once.
@@ -238,11 +221,6 @@ export const playerService = (): PlayerServiceProps => {
             "currentStream",
             JSON.stringify(this._currentStream),
           );
-          console.log(
-            "[PlayerService] First-time stream defaulted to:",
-            this._currentStream.id,
-            this._currentStream.url,
-          );
         }
 
         // ── Phase 2: first data fetch (needs stream + settings ready) ──
@@ -271,8 +249,6 @@ export const playerService = (): PlayerServiceProps => {
             ),
           );
         }
-
-        console.log("[PlayerService] setupPlayer: bootstrap complete.");
       },
 
       /** Fire-and-forget media session preload */
@@ -335,9 +311,6 @@ export const playerService = (): PlayerServiceProps => {
         if (!this._showMediaProgress) return;
 
         if (elapsed == null) {
-          console.log(
-            "[PlayerService] tickProgress: track ended, clearing progress",
-          );
           this._showMediaProgress = false;
           this._nativeProgressTickCount = 0;
           progressStore.setSnapshot({
@@ -415,13 +388,6 @@ export const playerService = (): PlayerServiceProps => {
             this._currentTrack?.raw !== newTrack.raw ||
             this._currentTrack?.artwork !== newTrack.artwork
           ) {
-            console.log(
-              "[PlayerService] Track changed:",
-              newTrack.raw,
-              "| isLive:",
-              newProgram.isLive,
-            );
-
             const prevTrackRaw = this._currentTrack?.raw;
             this._currentTrack = newTrack;
             this.refreshHistory("played");
@@ -433,20 +399,8 @@ export const playerService = (): PlayerServiceProps => {
               this._showMediaProgress = true;
               this._nativeProgressTickCount = 0;
               const elapsed = getTrackProgress(newTrack);
-              console.log(
-                "[PlayerService] refreshData: track progress ON | elapsed:",
-                elapsed != null ? Math.round(elapsed / 1000) + "s" : "null",
-                "| duration:",
-                Math.round(newTrack.duration / 1000) + "s",
-              );
             } else {
               this._showMediaProgress = false;
-              console.log(
-                "[PlayerService] refreshData: progress OFF | isReal:",
-                this._isRealTrack(newTrack),
-                "| isLive:",
-                newProgram.isLive,
-              );
             }
           }
 
@@ -455,14 +409,6 @@ export const playerService = (): PlayerServiceProps => {
             this._currentProgram?.dj !== newProgram.dj ||
             this._currentProgram?.isLive !== newProgram.isLive
           ) {
-            console.log(
-              "[PlayerService] Program changed:",
-              newProgram.name,
-              "| dj:",
-              newProgram.dj,
-              "| isLive:",
-              newProgram.isLive,
-            );
             this._currentProgram = newProgram;
             hasChanges = true;
           }
@@ -555,8 +501,6 @@ export const playerService = (): PlayerServiceProps => {
       },
 
       async play(): Promise<void> {
-        console.log("[PlayerService] Play requested.");
-
         // Ensure native player is set up
         if (!this._nativeSetupDone) {
           try {
@@ -665,12 +609,6 @@ export const playerService = (): PlayerServiceProps => {
           const newMetadata = this.getNowPlayingMetadata();
           const titleKey = `${newMetadata.title}|${newMetadata.artist}`;
           if (this._lastMetadataTitle !== titleKey) {
-            console.log(
-              "[PlayerService] 🎵 Updating metadata:",
-              newMetadata.title,
-              "-",
-              newMetadata.artist,
-            );
             this._lastMetadataTitle = titleKey;
           }
           await this.player.updateNowPlayingMetadata(newMetadata);
@@ -688,9 +626,6 @@ export const playerService = (): PlayerServiceProps => {
 
         const elapsed = getTrackProgress(this._currentTrack);
         if (elapsed == null) {
-          console.log(
-            "[PlayerService] updateProgress: track ended, clearing progress",
-          );
           this._showMediaProgress = false;
           this._nativeProgressTickCount = 0;
           try {

@@ -12,7 +12,7 @@ export function Loading() {
         source={splashScreenImage}
         style={{
           flex: 1,
-          flexDirection: "column-reverse",
+          justifyContent: "flex-end",
           paddingBottom: "40%",
         }}
       >

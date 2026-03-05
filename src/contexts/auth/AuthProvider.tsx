@@ -71,7 +71,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
             currentUser.sessionId,
           );
           if (!isValid) {
-            console.log("[AuthProvider] Session expired, clearing session");
             await clearSession();
           }
         } catch (error) {

@@ -12,7 +12,7 @@ import menuIcon from "../../assets/icons/menu.png";
 import noteIcon from "../../assets/icons/note.png";
 import playButtonImage from "../../assets/play_square_btn.png";
 import pauseButtonImage from "../../assets/play_triangle_btn.png";
-import { IMGS } from "../../languages";
+import { IMGS } from "../../i18n";
 import { styles } from "./styles";
 import { useUserSettings } from "../../contexts/user/UserSettingsProvider";
 import {

@@ -10,7 +10,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { DICT } from "../../languages";
+import { DICT } from "../../i18n";
 import { THEME } from "../../theme";
 import { styles } from "./styles";
 import CloseIcon from "../../assets/icons/ArrastarParaBaixo.png";
@@ -95,7 +95,7 @@ export function LiveRequestModal({ handleClose, ...rest }: Props) {
         reset();
       } else {
         showError(
-          `${DICT[settings.selectedLanguage].REQUEST_ERROR}${result.error}`
+          `${DICT[settings.selectedLanguage].REQUEST_ERROR}${result.error}`,
         );
       }
     } catch (error) {

@@ -1,42 +1,45 @@
-import axios, { AxiosInstance } from "axios";
 import { CONFIG } from "../../utils/player.config";
 import { HttpRequestError } from "../../core/errors/http.error";
 
-class AuthApiClient {
-  private client: AxiosInstance;
+const BASE_URL = "https://www.animu.com.br/teste";
+const TIMEOUT = 10000;
 
-  constructor() {
-    this.client = axios.create({
-      baseURL: "https://www.animu.com.br/teste",
-      timeout: 10000,
-      headers: {
-        "User-Agent": CONFIG.USER_AGENT,
-      },
+async function authFetch(
+  path: string,
+  params: Record<string, string>,
+): Promise<string> {
+  const searchParams = new URLSearchParams(params);
+  const url = `${BASE_URL}${path}?${searchParams.toString()}`;
+
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), TIMEOUT);
+
+  try {
+    const response = await fetch(url, {
+      method: "GET",
+      headers: { "User-Agent": CONFIG.USER_AGENT },
+      signal: controller.signal,
     });
 
-    // Add error handling interceptor
-    this.client.interceptors.response.use(
-      (response) => response,
-      (error) => {
-        if (axios.isAxiosError(error)) {
-          const status = error.response?.status || 500;
-          const message =
-            error.message || `HTTP request failed with status ${status}`;
+    if (!response.ok) {
+      throw new HttpRequestError(
+        `HTTP error ${response.status}`,
+        response.status,
+        { method: "GET", url },
+      );
+    }
 
-          return Promise.reject(
-            new HttpRequestError(message, status, error.config, error.response)
-          );
-        }
-        return Promise.reject(error);
-      }
-    );
+    return await response.text();
+  } finally {
+    clearTimeout(timeoutId);
   }
+}
 
+class AuthApiClient {
   async validateSession(sessionId: string): Promise<boolean> {
     try {
-      const { data } = await this.client.get<string>("/chatIsThisReal.php", {
-        params: { PHPSESSID: sessionId },
-        transformResponse: [(data) => data], // Keep text response handling
+      const data = await authFetch("/chatIsThisReal.php", {
+        PHPSESSID: sessionId,
       });
       return data === "1";
     } catch (error) {
@@ -51,10 +54,7 @@ class AuthApiClient {
 
   async logout(sessionId: string): Promise<boolean> {
     try {
-      const { data } = await this.client.get<string>("/byeChat.php", {
-        params: { PHPSESSID: sessionId },
-        transformResponse: [(data) => data],
-      });
+      const data = await authFetch("/byeChat.php", { PHPSESSID: sessionId });
       return data === "1";
     } catch (error) {
       if (error instanceof HttpRequestError) {

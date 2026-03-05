@@ -9,7 +9,7 @@ import Svg, { Path, Rect, SvgProps } from "react-native-svg";
 import Toggle, { ToggleProps } from "react-native-toggle-input";
 import { Background } from "../../components/Background";
 import { LoginComponent } from "../../components/CustomDrawer";
-import { DICT, LANGS_KEY_VALUE_PAIRS } from "../../languages";
+import { DICT, LANGS_KEY_VALUE_PAIRS } from "../../i18n";
 import { RootStackParamList } from "../../routes/app.routes";
 import { THEME } from "../../theme";
 import { styles } from "./styles";
@@ -347,7 +347,7 @@ export function Settings({ route, navigation }: Props) {
                 (key) =>
                   LANGS_KEY_VALUE_PAIRS[
                     key as keyof typeof LANGS_KEY_VALUE_PAIRS
-                  ] === val
+                  ] === val,
               );
               if (key) {
                 updateSettings({

@@ -1,7 +1,5 @@
-import axios, { AxiosInstance, AxiosResponse } from "axios";
 import { CONFIG } from "../../utils/player.config";
 import { HttpRequestError } from "../../core/errors/http.error";
-import { API } from "../../api";
 
 type LogLevel = "info" | "warn" | "error" | "debug";
 
@@ -27,119 +25,183 @@ const logger = {
   },
 };
 
-class AxiosHttpClient {
+interface RequestOptions {
+  params?: Record<string, string | number | boolean>;
+  headers?: Record<string, string>;
+  timeout?: number;
+  responseType?: "json" | "text";
+}
+
+class FetchHttpClient {
   private cache: Map<string, { data: any; timestamp: number }>;
   private readonly CACHE_DURATION = 2500;
-  public readonly client: AxiosInstance;
+  private readonly defaultHeaders: Record<string, string>;
+  private readonly defaultTimeout: number;
 
   constructor() {
     this.cache = new Map();
-    this.client = axios.create({
-      baseURL: API.BASE_URL,
-      timeout: 20000,
-      headers: {
-        "User-Agent": CONFIG.USER_AGENT,
-        "Content-Type": "application/json",
-      },
-    });
-    this.setupInterceptors();
+    this.defaultHeaders = {
+      "User-Agent": CONFIG.USER_AGENT,
+      "Content-Type": "application/json",
+    };
+    this.defaultTimeout = 20000;
   }
 
-  private getCacheKey(config: any): string {
-    return `${config.method}:${config.url}${JSON.stringify(config.params || {})}`;
+  private getCacheKey(method: string, url: string): string {
+    return `${method}:${url}`;
   }
 
   private isCacheValid(timestamp: number): boolean {
     return Date.now() - timestamp < this.CACHE_DURATION;
   }
 
-  private setupInterceptors() {
-    this.client.interceptors.request.use(
-      (config) => {
-        const cacheKey = this.getCacheKey(config);
-        const cachedData = this.cache.get(cacheKey);
+  private buildUrl(
+    url: string,
+    params?: Record<string, string | number | boolean>,
+  ): string {
+    if (!params || Object.keys(params).length === 0) return url;
+    const searchParams = new URLSearchParams();
+    for (const [key, value] of Object.entries(params)) {
+      searchParams.append(key, String(value));
+    }
+    return `${url}?${searchParams.toString()}`;
+  }
 
-        if (cachedData && this.isCacheValid(cachedData.timestamp)) {
-          // logger.log("debug", `Cache hit — returning cached response`, {
-          //   cacheKey,
-          //   cachedAt: new Date(cachedData.timestamp).toISOString(),
-          //   expiresIn: `${this.CACHE_DURATION - (Date.now() - cachedData.timestamp)}ms`,
-          // });
-          return Promise.reject({ __cached: true, data: cachedData.data });
-        }
+  async get<T = any>(
+    url: string,
+    options?: RequestOptions,
+  ): Promise<{ data: T }> {
+    const fullUrl = this.buildUrl(url, options?.params);
+    const cacheKey = this.getCacheKey("GET", fullUrl);
+    const cachedData = this.cache.get(cacheKey);
 
-        // logger.log("info", `Outgoing request`, {
-        //   method: config.method?.toUpperCase(),
-        //   url: `${config.baseURL}${config.url}`,
-        //   params: config.params,
-        // });
+    if (cachedData && this.isCacheValid(cachedData.timestamp)) {
+      return { data: cachedData.data };
+    }
 
-        return config;
-      },
-      (error) => {
-        logger.log("error", `Request setup failed`, { error: error.message });
-        return Promise.reject(error);
-      },
+    const controller = new AbortController();
+    const timeoutId = setTimeout(
+      () => controller.abort(),
+      options?.timeout ?? this.defaultTimeout,
     );
 
-    this.client.interceptors.response.use(
-      (response) => {
-        const cacheKey = this.getCacheKey(response.config);
-        this.cache.set(cacheKey, {
-          data: response.data,
-          timestamp: Date.now(),
+    try {
+      const response = await fetch(fullUrl, {
+        method: "GET",
+        headers: { ...this.defaultHeaders, ...options?.headers },
+        signal: controller.signal,
+      });
+
+      if (!response.ok) {
+        const level: LogLevel = response.status >= 500 ? "error" : "warn";
+        logger.log(level, `Request failed`, {
+          method: "GET",
+          url: fullUrl,
+          status: response.status,
+          statusText: response.statusText,
         });
+        throw new HttpRequestError(
+          `HTTP error ${response.status}`,
+          response.status,
+          { method: "GET", url: fullUrl },
+        );
+      }
 
-        // logger.log("info", `Response received`, {
-        //   method: response.config.method?.toUpperCase(),
-        //   url: `${response.config.baseURL}${response.config.url}`,
-        //   status: response.status,
-        //   statusText: response.statusText,
-        // });
-
-        return response;
-      },
-      (error) => {
-        if (error.__cached) {
-          return Promise.resolve({ data: error.data });
+      let data: T;
+      if (options?.responseType === "text") {
+        data = (await response.text()) as any;
+      } else {
+        const text = await response.text();
+        try {
+          data = JSON.parse(text);
+        } catch {
+          data = text as any;
         }
+      }
 
-        if (axios.isAxiosError(error)) {
-          const status = error.response?.status || 500;
-          const level: LogLevel = status >= 500 ? "error" : "warn";
+      this.cache.set(cacheKey, { data, timestamp: Date.now() });
+      return { data };
+    } catch (error) {
+      if (error instanceof HttpRequestError) throw error;
+      const message = error instanceof Error ? error.message : "Unknown error";
+      logger.log("error", `Unexpected error in HTTP client`, { message });
+      throw new HttpRequestError(message, 0, { method: "GET", url: fullUrl });
+    } finally {
+      clearTimeout(timeoutId);
+    }
+  }
 
-          logger.log(level, `Request failed`, {
-            method: error.config?.method?.toUpperCase(),
-            url: `${error.config?.baseURL}${error.config?.url}`,
-            status,
-            statusText: error.response?.statusText,
-            message: error.message,
-            responseData: error.response?.data,
-            // Omit params/headers if they may contain sensitive data
-            params: error.config?.params,
-          });
-
-          return Promise.reject(
-            new HttpRequestError(
-              error.message,
-              status,
-              error.config,
-              error.response,
-            ),
-          );
-        }
-
-        // Unexpected non-Axios error
-        logger.log("error", `Unexpected error in HTTP client`, {
-          message: error?.message,
-          stack: error?.stack,
-        });
-
-        return Promise.reject(error);
-      },
+  async post<T = any>(
+    url: string,
+    body?: any,
+    options?: RequestOptions,
+  ): Promise<{ data: T }> {
+    const fullUrl = this.buildUrl(url, options?.params);
+    const controller = new AbortController();
+    const timeoutId = setTimeout(
+      () => controller.abort(),
+      options?.timeout ?? this.defaultTimeout,
     );
+
+    const headers: Record<string, string> = {
+      ...this.defaultHeaders,
+      ...options?.headers,
+    };
+    let fetchBody: BodyInit | undefined;
+
+    if (body instanceof FormData) {
+      delete headers["Content-Type"]; // Let fetch set it with boundary
+      fetchBody = body;
+    } else if (body !== undefined) {
+      fetchBody = JSON.stringify(body);
+    }
+
+    try {
+      const response = await fetch(fullUrl, {
+        method: "POST",
+        headers,
+        body: fetchBody,
+        signal: controller.signal,
+      });
+
+      if (!response.ok) {
+        const level: LogLevel = response.status >= 500 ? "error" : "warn";
+        logger.log(level, `Request failed`, {
+          method: "POST",
+          url: fullUrl,
+          status: response.status,
+          statusText: response.statusText,
+        });
+        throw new HttpRequestError(
+          `HTTP error ${response.status}`,
+          response.status,
+          { method: "POST", url: fullUrl },
+        );
+      }
+
+      let data: T;
+      if (options?.responseType === "text") {
+        data = (await response.text()) as any;
+      } else {
+        const text = await response.text();
+        try {
+          data = JSON.parse(text);
+        } catch {
+          data = text as any;
+        }
+      }
+
+      return { data };
+    } catch (error) {
+      if (error instanceof HttpRequestError) throw error;
+      const message = error instanceof Error ? error.message : "Unknown error";
+      logger.log("error", `Unexpected error in HTTP client`, { message });
+      throw new HttpRequestError(message, 0, { method: "POST", url: fullUrl });
+    } finally {
+      clearTimeout(timeoutId);
+    }
   }
 }
 
-const { client: api } = new AxiosHttpClient();
+const api = new FetchHttpClient();
 export { api };

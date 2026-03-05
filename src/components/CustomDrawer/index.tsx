@@ -13,7 +13,7 @@ import { Image, Text, TouchableOpacity, View } from "react-native";
 import { author } from "../../../package.json";
 import { THEME } from "../../theme";
 import { API } from "../../api";
-import { DICT, IMGS } from "../../languages";
+import { DICT, IMGS } from "../../i18n";
 import { DiscordProfile } from "../DiscordProfile";
 import { useUserSettings } from "../../contexts/user/UserSettingsProvider";
 import { useAuth } from "../../contexts/auth/AuthProvider";

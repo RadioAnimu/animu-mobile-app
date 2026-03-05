@@ -13,7 +13,7 @@ import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../../routes/app.routes";
 
 import { Image } from "expo-image";
-import { IMGS } from "../../languages";
+import { IMGS } from "../../i18n";
 import { useUserSettings } from "../../contexts/user/UserSettingsProvider";
 import { usePlayer } from "../../contexts/player/PlayerProvider";
 

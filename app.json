@@ -58,7 +58,6 @@
         }
       ],
       "expo-asset",
-      "expo-background-task",
       "expo-web-browser"
     ],
     "extra": {

@@ -14,7 +14,7 @@ import {
 import RecadoHaruka from "../../assets/reacdo_haruka.png";
 import { THEME } from "../../theme";
 import { styles } from "./styles";
-import { DICT, selectedLanguage } from "../../languages";
+import { DICT, selectedLanguage } from "../../i18n";
 import { useUserSettings } from "../../contexts/user/UserSettingsProvider";
 
 interface Props extends ModalProps {

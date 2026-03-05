@@ -49,14 +49,10 @@ class AnimuApiClient {
     logFormData("submitMusicRequest", formData);
 
     const response = await api.post(API.FAZER_PEDIDO_URL_SUBMIT, formData, {
-      params: {
-        mobileapp: "1",
-      },
-      transformResponse: [(data) => data],
-      headers: { "Content-Type": "multipart/form-data" },
+      params: { mobileapp: "1" },
+      responseType: "text",
     });
 
-    console.log("Raw response from music request submission:", response.data);
     return response.data;
   }
 
@@ -65,10 +61,7 @@ class AnimuApiClient {
       const formData = convertDTOToFormData(request);
 
       const response = await api.post(API.LIVE_REQUEST_URL, formData, {
-        transformResponse: [(data) => data], // Prevent axios from parsing the response
-        headers: {
-          "Content-Type": "multipart/form-data",
-        },
+        responseType: "text",
       });
 
       const { data } = response;

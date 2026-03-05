@@ -1,6 +1,6 @@
 import { Program } from "../../core/domain/program";
 import { ProgramDTO } from "../http/dto/program.dto";
-import { DICT } from "../../languages";
+import { DICT } from "../../i18n";
 
 export class ProgramMapper {
   static fromDTO(dto: ProgramDTO): Program {
@@ -27,16 +27,13 @@ export class ProgramMapper {
 
   private static findRawProgram(programName: string) {
     if (!programName) {
-      console.log(
-        "[ProgramMapper.findRawProgram] programName is falsy, returning undefined",
-      );
       return undefined;
     }
 
-    const programNameLower = programName.toLowerCase();
+    const programNameLower = programName.trim().toLowerCase();
 
     const result = DICT["PT"].PROGRAMS.find(
-      (program) => program.name.toLowerCase() === programNameLower,
+      (program) => program.name.trim().toLowerCase() === programNameLower,
     );
 
     return result;

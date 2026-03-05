@@ -1,4 +1,4 @@
-import { LANGS_KEY_VALUE_PAIRS } from "../languages";
+import { LANGS_KEY_VALUE_PAIRS } from "../i18n";
 import { ArtworkQuality } from "./artwork-quality";
 
 export interface UserSettings {

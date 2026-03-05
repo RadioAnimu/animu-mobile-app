@@ -17,6 +17,15 @@ const PROGRAMS: Program[] = [
       "O programa onde invadimos a programação da DJ Haruka e mandamos ela tomar aquele cafezinho. E pode ser a qualquer momento e a qualquer hora, na rádio mais moe do Brasil!",
   },
   {
+    img: "https://www.animu.moe/wp-content/uploads/2024/01/NO-AR-ANIMU-NON-STOP-2024-FUYU.webp",
+    name: "Animu NON-STOP",
+    dj: "Haruka Yuki",
+    theme: "Bloco Musical",
+    dayAndTime: "A qualquer momento",
+    information:
+      "O Animu NON-STOP é o bloco onde a Animu não para, sempre tocando as melhores e onde você ouvinte comanda a sequência a qualquer momento",
+  },
+  {
     img: "https://www.animu.com.br/wp-content/uploads/2023/03/AnimuSong-Logo.webp",
     name: "AnimuSong",
     dj: "LL!",

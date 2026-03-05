@@ -2,7 +2,7 @@ import React from "react";
 import { Image, Text, View } from "react-native";
 import foninho from "../../assets/icons/foninho.png";
 import foninho_branco from "../../assets/icons/foninho_branco.png";
-import { DICT } from "../../languages";
+import { DICT } from "../../i18n";
 import { THEME } from "../../theme";
 import { styles } from "./styles";
 import { useUserSettings } from "../../contexts/user/UserSettingsProvider";

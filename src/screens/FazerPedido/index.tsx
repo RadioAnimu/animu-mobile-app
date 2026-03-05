@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -15,12 +15,12 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Background } from "../../components/Background";
 import { HeaderBar } from "../../components/HeaderBar";
 import { Logo } from "../../components/Logo";
-import { PopUpRecado } from "../../components/PopUpRecado";
+import { RequestBottomSheet } from "../../components/RequestBottomSheet";
 import { RequestTrack } from "../../components/RequestTrack";
 
 // Core
-import { useAlert } from "../../contexts/alert/AlertProvider";
 import { useAuth } from "../../contexts/auth/AuthProvider";
+import { usePlayer } from "../../contexts/player/PlayerProvider";
 import { useUserSettings } from "../../contexts/user/UserSettingsProvider";
 import {
   MusicRequest,
@@ -31,7 +31,7 @@ import { musicRequestService } from "../../core/services/music-request.service";
 // Styles and Config
 import { MusicRequestSubmissionDTO } from "../../data/http/dto/music-request.dto";
 import { MusicRequestMapper } from "../../data/mappers/music-request.mapper";
-import { DICT, IMGS } from "../../languages";
+import { DICT, IMGS } from "../../i18n";
 import { RootStackParamList } from "../../routes/app.routes";
 import { THEME } from "../../theme";
 import { styles } from "./styles";
@@ -39,9 +39,9 @@ import { styles } from "./styles";
 type Props = NativeStackScreenProps<RootStackParamList, "FazerPedido">;
 
 export function FazerPedido({ navigation }: Props) {
-  const { error, success } = useAlert();
   const { user } = useAuth();
   const { settings } = useUserSettings();
+  const player = usePlayer();
 
   const [searchState, setSearchState] = useState<{
     query: string;
@@ -54,16 +54,54 @@ export function FazerPedido({ navigation }: Props) {
     status: "idle",
   });
 
-  const [requestState, setRequestState] = useState<{
-    selected?: MusicRequest;
-    message: string;
-  }>({ message: "" });
+  const [selectedTrack, setSelectedTrack] = useState<MusicRequest | undefined>(
+    undefined,
+  );
+
+  const queueCount = useMemo(() => {
+    const requested = player.lastRequestedTracks;
+    const current = player.currentTrack;
+
+    if (!requested?.length) return undefined;
+
+    const now = Date.now();
+
+    // Sort all requests chronologically so we can reason about position
+    const sorted = [...requested].sort(
+      (a, b) => a.startTime.getTime() - b.startTime.getTime(),
+    );
+
+    // Case 1: A request is currently on air.
+    // Walk the sorted list from the end to find the last entry whose startTime
+    // has already passed — that is the track currently playing.
+    // Everything after it is genuinely still in the queue.
+    if (current?.isRequest) {
+      let playingIdx = -1;
+      for (let i = sorted.length - 1; i >= 0; i--) {
+        if (sorted[i].startTime.getTime() <= now) {
+          playingIdx = i;
+          break;
+        }
+      }
+      if (playingIdx !== -1) {
+        return sorted.length - 1 - playingIdx;
+      }
+    }
+
+    // Case 2: Free-play / DJ / non-request track is on air.
+    // Use the precise moment the current track ends as the cutoff —
+    // requests scheduled after that point haven't been consumed yet.
+    const pivot =
+      current?.startTime && current.duration > 0
+        ? Math.max(now, current.startTime.getTime() + current.duration)
+        : now;
+
+    return sorted.filter((t) => t.startTime.getTime() > pivot).length;
+  }, [player.lastRequestedTracks, player.currentTrack]);
 
   const handleSearch = useCallback(async () => {
     if (!searchState.query) return;
-
     setSearchState((prev) => ({ ...prev, status: "loading" }));
-
     try {
       const response = await musicRequestService.searchTracksByTitle(
         searchState.query,
@@ -76,21 +114,17 @@ export function FazerPedido({ navigation }: Props) {
       });
     } catch (err) {
       console.error(err);
-      error("Something went wrong");
       setSearchState((prev) => ({ ...prev, status: "idle" }));
     }
-  }, [searchState.query, settings.selectedLanguage]);
+  }, [searchState.query]);
 
   const handleLoadMore = useCallback(async () => {
     if (!searchState.pagination?.nextPageQueryObject) return;
-
     setSearchState((prev) => ({ ...prev, status: "loadingMore" }));
-
     try {
       const response = await musicRequestService.searchTracksByQuery(
         searchState.pagination.nextPageQueryObject,
       );
-
       setSearchState((prev) => ({
         ...prev,
         results: [...prev.results, ...response.results],
@@ -99,87 +133,61 @@ export function FazerPedido({ navigation }: Props) {
       }));
     } catch (err) {
       console.error(err);
-      error("Something went wrong");
       setSearchState((prev) => ({ ...prev, status: "idle" }));
     }
   }, [searchState.pagination, searchState.query]);
 
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const handleSubmitRequest = useCallback(
+    async (message: string): Promise<{ success: boolean; message: string }> => {
+      if (!user?.sessionId) {
+        return {
+          success: false,
+          message: DICT[settings.selectedLanguage].LOGIN_ERROR,
+        };
+      }
 
-  const onSuccess = useCallback((message: string) => {
-    setTimeout(() => {
-      success(message);
-    }, 500);
-  }, []);
+      if (!selectedTrack) {
+        return {
+          success: false,
+          message: DICT[settings.selectedLanguage].SELECT_ERROR,
+        };
+      }
 
-  const onError = useCallback((message: string) => {
-    setTimeout(() => {
-      error(message);
-    }, 500);
-  }, []);
-
-  const handleSubmitRequest = useCallback(async () => {
-    if (isSubmitting) return;
-
-    // Validation checks
-    if (!user?.sessionId) {
-      onError(DICT[settings.selectedLanguage].LOGIN_ERROR);
-      setRequestState({ message: "", selected: undefined });
-      return;
-    }
-
-    if (!requestState.selected) {
-      onError(DICT[settings.selectedLanguage].SELECT_ERROR);
-      setRequestState({ message: "", selected: undefined });
-      return;
-    }
-
-    setIsSubmitting(true);
-
-    try {
-      // Store values before clearing state to avoid closure issues
       const submissionDTO: MusicRequestSubmissionDTO = {
-        allmusic: requestState.selected.id,
-        message: requestState.message,
+        allmusic: selectedTrack.id,
+        message,
         PHPSESSID: user.sessionId,
       };
-
-      console.log({ submissionDTO });
-
-      // Clear request state early to prevent UI lockup
-      setRequestState({ message: "", selected: undefined });
 
       const result = await musicRequestService.submitRequest(submissionDTO);
 
       if (!result.success) {
-        const errorMessage = MusicRequestMapper.getErrorMessage(
-          result.error,
-          result.detail,
-          settings.selectedLanguage,
-        );
-        onError(errorMessage);
-        return;
+        return {
+          success: false,
+          message: MusicRequestMapper.getErrorMessage(
+            result.error,
+            result.detail,
+            settings.selectedLanguage,
+          ),
+        };
       }
 
-      // Update search results to mark track as non-requestable
-      setSearchState((prev) => ({
-        ...prev,
-        results: prev.results.map((item) =>
-          item.id === submissionDTO.allmusic
-            ? { ...item, requestable: false }
-            : item,
-        ),
-      }));
+      return {
+        success: true,
+        message: DICT[settings.selectedLanguage].REQUEST_SUCCESS,
+      };
+    },
+    [selectedTrack, user?.sessionId, settings.selectedLanguage],
+  );
 
-      onSuccess(DICT[settings.selectedLanguage].REQUEST_SUCCESS);
-    } catch (err) {
-      console.error("Request submission error:", err);
-      onError(DICT[settings.selectedLanguage].REQUEST_ERROR);
-      setRequestState({ message: "", selected: undefined });
-    } finally {
-      setIsSubmitting(false);
-    }
-  }, [requestState, user?.sessionId, settings.selectedLanguage, isSubmitting]);
+  const handleRequestSuccess = useCallback((trackId: string) => {
+    setSearchState((prev) => ({
+      ...prev,
+      results: prev.results.map((item) =>
+        item.id === trackId ? { ...item, requestable: false } : item,
+      ),
+    }));
+  }, []);
 
   return (
     <Background>
@@ -233,9 +241,7 @@ export function FazerPedido({ navigation }: Props) {
                     track={item}
                     onTrackRequest={() => {
                       if (item.requestable) {
-                        setRequestState({ selected: item, message: "" });
-                      } else {
-                        error("This song has already been requested");
+                        setSelectedTrack(item);
                       }
                     }}
                   />
@@ -262,15 +268,14 @@ export function FazerPedido({ navigation }: Props) {
           </View>
         </View>
 
-        <PopUpRecado
-          visible={!!requestState.selected}
-          handleClose={() => {
-            setRequestState({ message: "", selected: undefined });
-          }}
-          handleOk={handleSubmitRequest}
-          handleChangeText={(message) =>
-            setRequestState((prev) => ({ ...prev, message }))
-          }
+        <RequestBottomSheet
+          visible={!!selectedTrack}
+          track={selectedTrack}
+          user={user}
+          queueCount={queueCount}
+          onClose={() => setSelectedTrack(undefined)}
+          onSubmit={handleSubmitRequest}
+          onRequestSuccess={handleRequestSuccess}
         />
       </SafeAreaView>
     </Background>
