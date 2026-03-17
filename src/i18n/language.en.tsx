@@ -13,6 +13,15 @@ const LANG = {
 
 const PROGRAMS: Program[] = [
   {
+    img: "https://www.animu.moe/wp-content/uploads/2024/01/NO-AR-ANIMU-NON-STOP-2024-FUYU.webp",
+    name: "Animu NON-STOP",
+    dj: "Haruka Yuki",
+    theme: "Music Block",
+    dayAndTime: "Anytime",
+    information:
+      "Animu NON-STOP is the block where Animu never stops: the best songs play nonstop while you, the listener, can command the sequence anytime.",
+  },
+  {
     img: "https://www.animu.com.br/wp-content/uploads/2023/03/Jiyuu-Jikan-Logo.webp",
     name: "Jiyuu Jikan",
     dj: "Anyone who's part of the broadcasting team",
@@ -20,15 +29,6 @@ const PROGRAMS: Program[] = [
     dayAndTime: "Anytime",
     information:
       "The program where we invade DJ Haruka's schedule and make her have that little coffee break. And it can happen anytime, anywhere, on the most moe radio in Brazil!",
-  },
-  {
-    img: "https://www.animu.moe/wp-content/uploads/2024/01/NO-AR-ANIMU-NON-STOP-2024-FUYU.webp",
-    name: "Animu NON-STOP",
-    dj: "Haruka Yuki",
-    theme: "Music Block",
-    dayAndTime: "Anytime",
-    information:
-      "Animu NON-STOP is the block where Animu never stops, always playing the best songs while you, the listener, command the sequence at any moment",
   },
   {
     img: "https://www.animu.com.br/wp-content/uploads/2023/03/AnimuSong-Logo.webp",
@@ -178,7 +178,7 @@ const DICT = {
   FORM_LABEL_ANIME: "Anime/VN/Game",
   FORM_LABEL_REQUEST: "Message",
   ERROR_STRIKE_AND_OUT:
-    "Error! You have reached the limit of requests for 90 minutes",
+    "Oops! You can only request 3 songs every 90 minutes 💜🎶",
 };
 
 const NoArLabel = (props: SvgProps) => (

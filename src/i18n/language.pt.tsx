@@ -8,6 +8,15 @@ import ultimas_pedidas from "../assets/ultimos_pedidas-haru_pt.png";
 
 const PROGRAMS: Program[] = [
   {
+    img: "https://www.animu.moe/wp-content/uploads/2024/01/NO-AR-ANIMU-NON-STOP-2024-FUYU.webp",
+    name: "Animu NON-STOP",
+    dj: "Haruka Yuki",
+    theme: "Bloco Musical",
+    dayAndTime: "A qualquer momento",
+    information:
+      "Animu NON-STOP é o bloco em que a Animu não para nunca: as melhores músicas tocam sem parar enquanto você, ouvinte, comanda a sequência a qualquer momento.",
+  },
+  {
     img: "https://www.animu.com.br/wp-content/uploads/2023/03/Jiyuu-Jikan-Logo.webp",
     name: "Jiyuu Jikan",
     dj: "Qualquer pessoa que faz parte da equipe de locução",
@@ -15,15 +24,6 @@ const PROGRAMS: Program[] = [
     dayAndTime: "A qualquer momento",
     information:
       "O programa onde invadimos a programação da DJ Haruka e mandamos ela tomar aquele cafezinho. E pode ser a qualquer momento e a qualquer hora, na rádio mais moe do Brasil!",
-  },
-  {
-    img: "https://www.animu.moe/wp-content/uploads/2024/01/NO-AR-ANIMU-NON-STOP-2024-FUYU.webp",
-    name: "Animu NON-STOP",
-    dj: "Haruka Yuki",
-    theme: "Bloco Musical",
-    dayAndTime: "A qualquer momento",
-    information:
-      "O Animu NON-STOP é o bloco onde a Animu não para, sempre tocando as melhores e onde você ouvinte comanda a sequência a qualquer momento",
   },
   {
     img: "https://www.animu.com.br/wp-content/uploads/2023/03/AnimuSong-Logo.webp",
@@ -177,7 +177,8 @@ const DICT = {
   FORM_LABEL_MUSIC: "Música",
   FORM_LABEL_ANIME: "Anime/VN/Jogo",
   FORM_LABEL_REQUEST: "Recado",
-  ERROR_STRIKE_AND_OUT: "Erro! Você atingiu o limite de pedidos por 90 minutos",
+  ERROR_STRIKE_AND_OUT:
+    "Ooops.. Você só pode pedir 3 músicas a cada 90 minutos 💜🎶",
 };
 
 const NoArLabel = (props: SvgProps) => (
