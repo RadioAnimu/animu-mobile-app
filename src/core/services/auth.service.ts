@@ -10,6 +10,8 @@ const USER_STORAGE_KEY = "user";
 const DISCORD_OAUTH_URL =
   "https://discord.com/api/oauth2/authorize?client_id=1159273876732256266&response_type=code&redirect_uri=https%3A%2F%2Fwww.animu.com.br%2Fteste%2Fprocess-oauth-mobile.php&scope=identify";
 
+export const REDIRECT_URL = Linking.createURL("redirect");
+
 class AuthService {
   async getStoredUser(): Promise<User | null> {
     try {
@@ -26,45 +28,11 @@ class AuthService {
     await AsyncStorage.removeItem(USER_STORAGE_KEY);
   }
 
-  async login(): Promise<User> {
-    const callbackUrl = Linking.createURL("redirect", { scheme: "animuapp" });
+  async openLoginBrowser(): Promise<void> {
+    await WebBrowser.openBrowserAsync(DISCORD_OAUTH_URL);
+  }
 
-    const url = await new Promise<string>((resolve, reject) => {
-      const subscription = Linking.addEventListener(
-        "url",
-        ({ url: incomingUrl }) => {
-          if (incomingUrl.startsWith("animuapp://redirect")) {
-            subscription.remove();
-            WebBrowser.dismissBrowser();
-            resolve(incomingUrl);
-          }
-        },
-      );
-
-      WebBrowser.openAuthSessionAsync(DISCORD_OAUTH_URL, callbackUrl)
-        .then((result) => {
-          subscription.remove(); // clean up listener if browser wins
-          if (result.type === "success") {
-            resolve(result.url);
-          } else {
-            reject(new Error("Authentication cancelled"));
-          }
-        })
-        .catch((err) => {
-          subscription.remove();
-          reject(err);
-        });
-
-      setTimeout(
-        () => {
-          subscription.remove();
-          WebBrowser.dismissBrowser();
-          reject(new Error("Authentication timeout"));
-        },
-        5 * 60 * 1000,
-      );
-    });
-
+  async processLoginUrl(url: string): Promise<User> {
     const data = Linking.parse(url);
 
     if (!data.queryParams?.user) {

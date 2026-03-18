@@ -6,8 +6,10 @@ import React, {
   useCallback,
   useRef,
 } from "react";
+import * as Linking from "expo-linking";
+import * as WebBrowser from "expo-web-browser";
 import { User } from "../../core/domain/user";
-import { authService } from "../../core/services/auth.service";
+import { authService, REDIRECT_URL } from "../../core/services/auth.service";
 import { backgroundService } from "../../core/services/background.service";
 
 interface AuthContextType {
@@ -58,14 +60,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const startSessionCheck = useCallback(() => {
     backgroundService.stopTask(SESSION_CHECK_TASK_ID);
-
     backgroundService.startTask({
       id: SESSION_CHECK_TASK_ID,
       interval: SESSION_CHECK_INTERVAL,
       callback: async () => {
         const currentUser = userRef.current;
         if (!currentUser?.sessionId) return;
-
         try {
           const isValid = await authService.validateSession(
             currentUser.sessionId,
@@ -86,7 +86,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     const initializeAuth = async () => {
       try {
         const storedUser = await authService.getStoredUser();
-
         if (storedUser) {
           const isValid = await authService.validateSession(
             storedUser.sessionId,
@@ -108,16 +107,52 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
     initializeAuth();
 
-    // Proper cleanup — returned from the effect, not from the async fn
     return () => {
       backgroundService.stopTask(SESSION_CHECK_TASK_ID);
     };
   }, [startSessionCheck]);
 
   const login = useCallback(async () => {
+    setIsLoading(true);
+
     try {
-      setIsLoading(true);
-      const newUser = await authService.login();
+      const newUser = await new Promise<User>((resolve, reject) => {
+        // REDIRECT_URL comes from Linking.createURL("redirect") in the service,
+        // which reads the scheme from app.json at runtime
+        const subscription = Linking.addEventListener(
+          "url",
+          async ({ url }) => {
+            if (!url.startsWith(REDIRECT_URL)) return;
+
+            subscription.remove();
+            WebBrowser.dismissBrowser();
+
+            try {
+              const user = await authService.processLoginUrl(url);
+              resolve(user);
+            } catch (err) {
+              reject(err);
+            }
+          },
+        );
+
+        // Open browser — its closing does NOT reject the promise
+        authService.openLoginBrowser().catch((err) => {
+          subscription.remove();
+          reject(err);
+        });
+
+        // Safety timeout: 5 minutes
+        setTimeout(
+          () => {
+            subscription.remove();
+            WebBrowser.dismissBrowser();
+            reject(new Error("Authentication timeout"));
+          },
+          5 * 60 * 1000,
+        );
+      });
+
       userRef.current = newUser;
       setUser(newUser);
       startSessionCheck();
