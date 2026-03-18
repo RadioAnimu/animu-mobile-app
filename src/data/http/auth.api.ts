@@ -52,17 +52,15 @@ class AuthApiClient {
     }
   }
 
-  async logout(sessionId: string): Promise<boolean> {
+  async logout(sessionId: string): Promise<void> {
     try {
-      const data = await authFetch("/byeChat.php", { PHPSESSID: sessionId });
-      return data === "1";
+      await authFetch("/byeChat.php", { PHPSESSID: sessionId });
     } catch (error) {
       if (error instanceof HttpRequestError) {
         console.error(`[Auth] Logout failed: ${error.message}`);
       } else {
         console.error("[Auth] Unknown error during logout:", error);
       }
-      return false;
     }
   }
 }

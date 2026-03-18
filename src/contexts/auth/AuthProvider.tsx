@@ -73,9 +73,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
           if (!isValid) {
             await clearSession();
           }
+          // exceptions are silent — validateSession already handles them
+          // internally and returns false. A network hiccup should not log
+          // the user out.
         } catch (error) {
           console.error("[AuthProvider] Session check failed:", error);
-          await clearSession();
         }
       },
     });
@@ -117,24 +119,29 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
     try {
       const newUser = await new Promise<User>((resolve, reject) => {
-        // REDIRECT_URL comes from Linking.createURL("redirect") in the service,
-        // which reads the scheme from app.json at runtime
-        const subscription = Linking.addEventListener(
-          "url",
-          async ({ url }) => {
-            if (!url.startsWith(REDIRECT_URL)) return;
+        const handleUrl = async (url: string) => {
+          if (!url.startsWith(REDIRECT_URL)) return;
+          subscription.remove();
+          WebBrowser.dismissBrowser();
+          try {
+            resolve(await authService.processLoginUrl(url));
+          } catch (err) {
+            reject(err);
+          }
+        };
 
-            subscription.remove();
-            WebBrowser.dismissBrowser();
+        const subscription = Linking.addEventListener("url", ({ url }) => {
+          handleUrl(url);
+        });
 
-            try {
-              const user = await authService.processLoginUrl(url);
-              resolve(user);
-            } catch (err) {
-              reject(err);
-            }
-          },
-        );
+        // Catch the case where Android restores the app and the deep link
+        // arrives as the initial URL instead of a url event.
+        // Guard with "user=" to avoid matching a stale URL from a previous launch.
+        Linking.getInitialURL().then((url) => {
+          if (url && url.startsWith(REDIRECT_URL) && url.includes("user=")) {
+            handleUrl(url);
+          }
+        });
 
         // Open browser — its closing does NOT reject the promise
         authService.openLoginBrowser().catch((err) => {
