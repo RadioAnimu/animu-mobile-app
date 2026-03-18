@@ -8,7 +8,10 @@ const USER_STORAGE_KEY = "user";
 const CLIENT_ID = "1159273876732256266";
 const TOKEN_EXCHANGE_URL = "https://www.animu.com.br/teste/exchange-token.php";
 
-export const REDIRECT_URI = AuthSession.makeRedirectUri({ scheme: "animuapp" });
+export const REDIRECT_URI = AuthSession.makeRedirectUri({
+  scheme: "animuapp",
+  path: "redirect",
+});
 
 const discovery = {
   authorizationEndpoint: "https://discord.com/api/oauth2/authorize",
