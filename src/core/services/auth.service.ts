@@ -29,16 +29,44 @@ class AuthService {
   async login(): Promise<User> {
     const callbackUrl = Linking.createURL("redirect", { scheme: "animuapp" });
 
-    const result = await WebBrowser.openAuthSessionAsync(
-      DISCORD_OAUTH_URL,
-      callbackUrl,
-    );
+    const url = await new Promise<string>((resolve, reject) => {
+      const subscription = Linking.addEventListener(
+        "url",
+        ({ url: incomingUrl }) => {
+          if (incomingUrl.startsWith("animuapp://redirect")) {
+            subscription.remove();
+            WebBrowser.dismissBrowser();
+            resolve(incomingUrl);
+          }
+        },
+      );
 
-    if (result.type !== "success") {
-      throw new Error("Authentication cancelled");
-    }
+      WebBrowser.openAuthSessionAsync(DISCORD_OAUTH_URL, callbackUrl)
+        .then((result) => {
+          subscription.remove(); // clean up listener if browser wins
+          if (result.type === "success") {
+            resolve(result.url);
+          } else {
+            reject(new Error("Authentication cancelled"));
+          }
+        })
+        .catch((err) => {
+          subscription.remove();
+          reject(err);
+        });
 
-    const data = Linking.parse(result.url);
+      setTimeout(
+        () => {
+          subscription.remove();
+          WebBrowser.dismissBrowser();
+          reject(new Error("Authentication timeout"));
+        },
+        5 * 60 * 1000,
+      );
+    });
+
+    const data = Linking.parse(url);
+
     if (!data.queryParams?.user) {
       throw new Error("Invalid authentication response");
     }
@@ -46,6 +74,7 @@ class AuthService {
     const userDTO = JSON.parse(
       decodeURIComponent(data.queryParams.user.toString()),
     );
+
     if (data.queryParams.PHPSESSID) {
       userDTO.PHPSESSID = data.queryParams.PHPSESSID;
     }
