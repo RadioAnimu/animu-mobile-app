@@ -1,16 +1,18 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import * as WebBrowser from "expo-web-browser";
-import * as Linking from "expo-linking";
+import * as AuthSession from "expo-auth-session";
 import { authApiClient } from "../../data/http/auth.api";
 import { UserMapper } from "../../data/mappers/user.mapper";
 import { User } from "../domain/user";
 
 const USER_STORAGE_KEY = "user";
+const CLIENT_ID = "1159273876732256266";
+const TOKEN_EXCHANGE_URL = "https://www.animu.com.br/teste/exchange-token.php";
 
-const DISCORD_OAUTH_URL =
-  "https://discord.com/api/oauth2/authorize?client_id=1159273876732256266&response_type=code&redirect_uri=https%3A%2F%2Fwww.animu.com.br%2Fteste%2Fprocess-oauth-mobile.php&scope=identify";
+export const REDIRECT_URI = AuthSession.makeRedirectUri({ scheme: "animuapp" });
 
-export const REDIRECT_URL = Linking.createURL("redirect");
+const discovery = {
+  authorizationEndpoint: "https://discord.com/api/oauth2/authorize",
+};
 
 class AuthService {
   async getStoredUser(): Promise<User | null> {
@@ -28,24 +30,45 @@ class AuthService {
     await AsyncStorage.removeItem(USER_STORAGE_KEY);
   }
 
-  async openLoginBrowser(): Promise<void> {
-    await WebBrowser.openBrowserAsync(DISCORD_OAUTH_URL);
-  }
+  async login(): Promise<User> {
+    const request = new AuthSession.AuthRequest({
+      clientId: CLIENT_ID,
+      scopes: ["identify"],
+      redirectUri: REDIRECT_URI,
+      responseType: AuthSession.ResponseType.Code,
+    });
 
-  async processLoginUrl(url: string): Promise<User> {
-    const data = Linking.parse(url);
+    const result = await request.promptAsync(discovery);
 
-    if (!data.queryParams?.user) {
-      throw new Error("Invalid authentication response");
+    if (result.type !== "success") {
+      throw new Error("Authentication cancelled");
     }
 
-    const userDTO = JSON.parse(
-      decodeURIComponent(data.queryParams.user.toString()),
-    );
+    const response = await fetch(TOKEN_EXCHANGE_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({
+        code: result.params.code,
+        redirect_uri: REDIRECT_URI,
+        code_verifier: request.codeVerifier ?? "",
+      }).toString(),
+    });
 
-    if (data.queryParams.PHPSESSID) {
-      userDTO.PHPSESSID = data.queryParams.PHPSESSID;
+    const rawText = await response.text();
+
+    let data: any;
+    try {
+      data = JSON.parse(rawText);
+    } catch (e) {
+      throw new Error(`Exchange response is not valid JSON: ${rawText}`);
     }
+
+    if (data.error) {
+      console.error("[Auth] Exchange error details:", JSON.stringify(data));
+      throw new Error(`Token exchange failed: ${data.error}`);
+    }
+
+    const userDTO = { ...data.user, PHPSESSID: data.PHPSESSID };
 
     const user = UserMapper.fromDTO(userDTO);
     await AsyncStorage.setItem(USER_STORAGE_KEY, JSON.stringify(user));

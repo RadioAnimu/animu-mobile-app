@@ -6,10 +6,8 @@ import React, {
   useCallback,
   useRef,
 } from "react";
-import * as Linking from "expo-linking";
-import * as WebBrowser from "expo-web-browser";
 import { User } from "../../core/domain/user";
-import { authService, REDIRECT_URL } from "../../core/services/auth.service";
+import { authService } from "../../core/services/auth.service";
 import { backgroundService } from "../../core/services/background.service";
 
 interface AuthContextType {
@@ -116,50 +114,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const login = useCallback(async () => {
     setIsLoading(true);
-
     try {
-      const newUser = await new Promise<User>((resolve, reject) => {
-        const handleUrl = async (url: string) => {
-          if (!url.startsWith(REDIRECT_URL)) return;
-          subscription.remove();
-          WebBrowser.dismissBrowser();
-          try {
-            resolve(await authService.processLoginUrl(url));
-          } catch (err) {
-            reject(err);
-          }
-        };
-
-        const subscription = Linking.addEventListener("url", ({ url }) => {
-          handleUrl(url);
-        });
-
-        // Catch the case where Android restores the app and the deep link
-        // arrives as the initial URL instead of a url event.
-        // Guard with "user=" to avoid matching a stale URL from a previous launch.
-        Linking.getInitialURL().then((url) => {
-          if (url && url.startsWith(REDIRECT_URL) && url.includes("user=")) {
-            handleUrl(url);
-          }
-        });
-
-        // Open browser — its closing does NOT reject the promise
-        authService.openLoginBrowser().catch((err) => {
-          subscription.remove();
-          reject(err);
-        });
-
-        // Safety timeout: 5 minutes
-        setTimeout(
-          () => {
-            subscription.remove();
-            WebBrowser.dismissBrowser();
-            reject(new Error("Authentication timeout"));
-          },
-          5 * 60 * 1000,
-        );
-      });
-
+      const newUser = await authService.login();
       userRef.current = newUser;
       setUser(newUser);
       startSessionCheck();
