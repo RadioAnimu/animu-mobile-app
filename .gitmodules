@@ -1,0 +1,3 @@
+[submodule "packages/animu-api"]
+	path = packages/animu-api
+	url = https://github.com/RadioAnimu/animu-api.git
