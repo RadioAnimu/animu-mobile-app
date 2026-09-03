@@ -83,6 +83,16 @@ export const PlayerProvider: React.FC<{
           pause: async () => {
             await playerServiceInstance.pause();
           },
+          toggle: async () => {
+            if (playerServiceInstance._paused) {
+              await playerServiceInstance.play();
+            } else {
+              await playerServiceInstance.pause();
+            }
+          },
+          stop: async () => {
+            await playerServiceInstance.pause();
+          },
         });
 
         if (cancelled) return;
@@ -129,6 +139,8 @@ export const PlayerProvider: React.FC<{
       setRemotePlaybackHandlers({
         play: async () => {},
         pause: async () => {},
+        toggle: async () => {},
+        stop: async () => {},
       });
 
       playerServiceInstance.destroy().catch(console.error);

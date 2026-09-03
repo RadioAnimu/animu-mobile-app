@@ -65,8 +65,14 @@ export class TrackHistoryMapper {
   }
 
   private static getStartTime(type: HistoryType, timeStr: string): Date {
-    if (type === "requests") {
-      return new Date(new Date().toDateString() + " " + timeStr + ":00");
+    if (type === "requests" && timeStr) {
+      // Build via Date components — Hermes can't parse "Wed Sep 03 2026 HH:MM:SS"
+      const [hours = 0, minutes = 0, seconds = 0] = timeStr
+        .split(":")
+        .map((part) => parseInt(part, 10) || 0);
+      const date = new Date();
+      date.setHours(hours, minutes, seconds, 0);
+      return date;
     }
     return new Date();
   }

@@ -1,7 +1,6 @@
 import {
   FontAwesome,
   FontAwesome5,
-  MaterialCommunityIcons,
 } from "@expo/vector-icons";
 import {
   DrawerContentComponentProps,
@@ -108,7 +107,7 @@ export function LoginComponent() {
         marginVertical: 10,
       }}
     >
-      <MaterialCommunityIcons
+      <FontAwesome5
         name="discord"
         size={THEME.FONT_SIZE.MENU_ITEM}
         color={THEME.COLORS.WHITE_TEXT}

@@ -25,13 +25,15 @@ class TrackMapper {
       artworks: dto.track.artworks ?? {},
       artwork: this.selectArtwork(dto.track.artworks, artworkQuality),
       duration: dto.track.duration ?? 0,
-      startTime: new Date(dto.track.timestart ?? Date.now()),
+      // API returns timestart as a numeric-string epoch (ms) — coerce it,
+      // falling back to now so progress math never sees NaN
+      startTime: new Date(Number(dto.track.timestart) || Date.now()),
       isRequest: dto.rawtitle?.toLowerCase().includes("pedido") ?? false,
       metadata: {
         artist: dto.track.artist || "",
         title: anime,
         artwork: this.selectArtwork(dto.track.artworks, artworkQuality),
-        duration: dto.track.duration ?? 0,
+        duration: Number(dto.track.duration) || 0,
       },
     };
   }

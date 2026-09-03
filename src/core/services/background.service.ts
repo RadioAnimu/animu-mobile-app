@@ -1,6 +1,3 @@
-import BackgroundTimer from "react-native-background-timer";
-import { Platform } from "react-native";
-
 type Task = {
   id: string;
   callback: () => Promise<void>;
@@ -11,38 +8,20 @@ class BackgroundService {
   private tasks: Map<string, NodeJS.Timeout> = new Map();
 
   startTask(task: Task): void {
-    if (this.tasks.has(task.id)) {
-      console.warn(`[BackgroundService] Task ${task.id} is already running`);
-      return;
-    }
+    // Restart cleanly if the task is already running (e.g. StrictMode remount)
+    this.stopTask(task.id);
 
     console.info(`[BackgroundService] Starting task ${task.id}`);
 
-    if (Platform.OS === "android") {
-      // On Android, use BackgroundTimer.setInterval to keep running in background
-      const timer = BackgroundTimer.setInterval(async () => {
-        try {
-          await task.callback();
-        } catch (error) {
-          console.error(`[BackgroundService] Task ${task.id} failed:`, error);
-        }
-      }, task.interval);
+    const timer = setInterval(async () => {
+      try {
+        await task.callback();
+      } catch (error) {
+        console.error(`[BackgroundService] Task ${task.id} failed:`, error);
+      }
+    }, task.interval);
 
-      this.tasks.set(task.id, timer as unknown as NodeJS.Timeout);
-    } else {
-      // On iOS, use standard setInterval — BackgroundTimer.start() creates
-      // iOS background tasks that get terminated after ~30s.
-      // react-native-track-player already handles iOS background audio.
-      const timer = setInterval(async () => {
-        try {
-          await task.callback();
-        } catch (error) {
-          console.error(`[BackgroundService] Task ${task.id} failed:`, error);
-        }
-      }, task.interval);
-
-      this.tasks.set(task.id, timer);
-    }
+    this.tasks.set(task.id, timer);
   }
 
   stopTask(taskId: string): void {
@@ -52,11 +31,7 @@ class BackgroundService {
     }
 
     console.info(`[BackgroundService] Stopping task ${taskId}`);
-    if (Platform.OS === "android") {
-      BackgroundTimer.clearInterval(timer as unknown as number);
-    } else {
-      clearInterval(timer);
-    }
+    clearInterval(timer);
     this.tasks.delete(taskId);
   }
 

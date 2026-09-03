@@ -1,4 +1,5 @@
-import { View, StatusBar, SafeAreaView, StatusBarProps } from "react-native";
+import { StatusBar, StatusBarProps, View } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { styles } from "./styles";
 
 interface MyStatusBarProps extends StatusBarProps {
@@ -10,7 +11,7 @@ export const MyStatusBar = ({
   ...props
 }: MyStatusBarProps) => (
   <View style={[styles.statusBar, { backgroundColor }]}>
-    <SafeAreaView>
+    <SafeAreaView edges={["top"]}>
       <StatusBar translucent backgroundColor={backgroundColor} {...props} />
     </SafeAreaView>
   </View>

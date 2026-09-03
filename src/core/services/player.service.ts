@@ -1,9 +1,14 @@
 import { HistoryType } from "./../../@types/history-type.d";
-import TrackPlayer, { NowPlayingMetadata } from "react-native-track-player";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { openBrowserAsync } from "expo-web-browser";
-import { Platform } from "react-native";
-import BackgroundTimer from "react-native-background-timer";
+import {
+  createAudioPlayer,
+  type AudioPlayer,
+  type AudioStatus,
+  type AudioSource,
+} from "expo-audio";
+import NetInfo from "@react-native-community/netinfo";
+import type { NowPlayingMetadata } from "react-native-playback-controls";
 import { Stream } from "../domain/stream";
 import { getTrackProgress, Track } from "../domain/track";
 import { Program } from "../domain/program";
@@ -13,24 +18,21 @@ import { CONFIG } from "../../utils/player.config";
 import { API } from "../../api";
 import { userSettingsService } from "./user-settings.service";
 import { SetupService } from "./player-setup.service";
+import {
+  EndPlaybackSession,
+  setNowPlayingMetadata,
+  setRemotePlaybackStatus,
+} from "./player-playback.service";
 import { PlayerSnapshot, playerStore, progressStore } from "./player-store";
 import { fetchStreams } from "../../data/http/animu-streams.api";
 
-// ── Platform-safe one-shot timers (Android needs BackgroundTimer) ──
-const _setTimeout = (fn: () => void, ms: number): number => {
-  if (Platform.OS === "android") {
-    return BackgroundTimer.setTimeout(fn, ms);
-  }
-  return setTimeout(fn, ms) as unknown as number;
-};
+// ── One-shot timers (plain JS timers) ──
+const _setTimeout = (fn: () => void, ms: number): number =>
+  setTimeout(fn, ms) as unknown as number;
 
 const _clearTimeout = (id: number | null): void => {
   if (id == null) return;
-  if (Platform.OS === "android") {
-    BackgroundTimer.clearTimeout(id);
-  } else {
-    clearTimeout(id as unknown as NodeJS.Timeout);
-  }
+  clearTimeout(id as unknown as NodeJS.Timeout);
 };
 
 /** Buffer after expected track end before fetching (ms) */
@@ -40,9 +42,31 @@ const MAX_RETRY_DELAY_MS = 30_000;
 /** Base retry delay (ms) — doubles each consecutive error */
 const BASE_RETRY_DELAY_MS = 2_000;
 
+/** Builds an expo-audio source for a live stream with the app User-Agent */
+const buildStreamSource = (url: string): AudioSource => ({
+  uri: url,
+  headers: { "User-Agent": CONFIG.USER_AGENT },
+});
+
+/** ms → seconds for the native media session, rejecting NaN/Infinity */
+const toSec = (ms: number | null | undefined): number | undefined =>
+  ms != null && Number.isFinite(ms) ? ms / 1000 : undefined;
+
+/**
+ * Native-driven tick interval (ms). expo-audio emits playbackStatusUpdate
+ * events from the native layer — these keep firing while the app is
+ * backgrounded on Android (the foreground service keeps the process alive),
+ * unlike Choreographer-driven JS timers which OEMs pause in background.
+ */
+const PLAYER_TICK_INTERVAL_MS = 1000;
+/** Base delay between stream reconnect attempts (ms) — doubles each retry */
+const BASE_RECONNECT_DELAY_MS = 2_000;
+/** Max delay between stream reconnect attempts (ms) */
+const MAX_RECONNECT_DELAY_MS = 30_000;
+
 export interface PlayerServiceProps {
   CONFIG: typeof CONFIG;
-  player: typeof TrackPlayer;
+  player: AudioPlayer | null;
   _currentStream: Stream;
   _streamOptions: Stream[];
   _currentTrack: Track | null;
@@ -53,7 +77,7 @@ export interface PlayerServiceProps {
   _paused: boolean;
   _isRefreshing: boolean;
   _lastMetadataTitle: string;
-  /** Whether the native TrackPlayer.setupPlayer() has been called */
+  /** Whether the audio mode + media session setup has been called */
   _nativeSetupDone: boolean;
   /** Whether to show real progress in the media session notification */
   _showMediaProgress: boolean;
@@ -62,18 +86,42 @@ export interface PlayerServiceProps {
   _isInitialized: boolean;
   /** Timeout ID for the one-shot track-end refresh */
   _trackEndTimeoutId: number | null;
+  /** Native playbackStatusUpdate listener (keeps ticks alive in background) */
+  _statusListener: { remove(): void } | null;
   /** Timeout ID for exponential-backoff retry on network errors */
   _retryTimeoutId: number | null;
+  /** Timeout ID for pending stream reconnect attempt */
+  _reconnectTimeoutId: number | null;
+  /** Consecutive stream reconnect attempts (reset when audio plays) */
+  _reconnectAttempts: number;
+  /** Whether the stream has actually played once (guards false reconnects) */
+  _streamStarted: boolean;
+  /** Last known network connectivity (null = unknown) */
+  _wasConnected: boolean | null;
+  /** NetInfo listener unsubscribe fn */
+  _networkUnsubscribe: (() => void) | null;
   /** Consecutive network errors (reset on success) — drives backoff */
   _consecutiveErrors: number;
   isPlayerSetup: () => Promise<boolean>;
   _isRealTrack: (track: Track) => boolean;
   /** Schedule a one-shot refresh at the expected track-end time */
   _scheduleTrackEndRefresh: () => void;
+  /** Attach the native status listener that drives _tickProgress */
+  _attachStatusListener: () => void;
   /** Cancel any pending track-end or retry timers */
   _cancelScheduledRefresh: () => void;
   /** Schedule an exponential-backoff retry after a network error */
   _scheduleRetry: () => void;
+  /** Handle native playback status events (progress + stream-loss detection) */
+  _handlePlaybackStatus: (status: AudioStatus) => void;
+  /** Schedule an exponential-backoff stream reconnect */
+  _scheduleReconnect: () => void;
+  /** Cancel any pending stream reconnect */
+  _cancelReconnect: () => void;
+  /** Replace the stream source and resume playback (live point) */
+  _attemptReconnect: () => Promise<void>;
+  /** Subscribe to connectivity changes for instant reconnect + data refresh */
+  _subscribeToNetwork: () => void;
   /**
    * Single entry-point that bootstraps everything the player needs:
    * streams from API, stored stream preference, native TrackPlayer,
@@ -103,7 +151,7 @@ export const playerService = (): PlayerServiceProps => {
   if (!playerServiceInstance) {
     playerServiceInstance = {
       CONFIG,
-      player: TrackPlayer,
+      player: null,
       _currentStream: CONFIG.DEFAULT_STREAM_OPTION,
       _streamOptions: [],
       _currentTrack: null,
@@ -119,9 +167,124 @@ export const playerService = (): PlayerServiceProps => {
       _isInitialized: false,
       _trackEndTimeoutId: null,
       _retryTimeoutId: null,
+      _reconnectTimeoutId: null,
+      _reconnectAttempts: 0,
+      _streamStarted: false,
+      _wasConnected: null,
+      _networkUnsubscribe: null,
+      _statusListener: null,
       _consecutiveErrors: 0,
 
       _isRefreshing: false,
+
+      /** Attach the native status listener that drives _tickProgress */
+      _attachStatusListener(): void {
+        if (!this.player || this._statusListener) return;
+        this._statusListener = this.player.addListener(
+          "playbackStatusUpdate",
+          (status: AudioStatus) => {
+            this._handlePlaybackStatus(status);
+          },
+        );
+      },
+
+      /**
+       * Native playback status handler. Drives reconnect detection:
+       * Android surfaces a dead stream as playbackState "idle" (ExoPlayer
+       * exhausts its internal retries and stops — expo-audio never retries),
+       * iOS as "failed" (AVPlayer .failed status).
+       */
+      _handlePlaybackStatus(status: AudioStatus): void {
+        // Stream is actually producing audio — reset reconnect backoff
+        if (status.playing) {
+          this._streamStarted = true;
+          this._reconnectAttempts = 0;
+          this._cancelReconnect();
+        }
+
+        // Stream died while the user wants playback → schedule reconnect
+        if (
+          !this._paused &&
+          !status.playing &&
+          !status.isBuffering &&
+          this._streamStarted &&
+          (status.playbackState === "idle" ||
+            status.playbackState === "failed")
+        ) {
+          this._scheduleReconnect();
+        }
+      },
+
+      _scheduleReconnect(): void {
+        if (this._reconnectTimeoutId != null) return;
+
+        // Exponential backoff: 2s → 4s → 8s → 16s → 30s (cap)
+        const delay = Math.min(
+          BASE_RECONNECT_DELAY_MS * Math.pow(2, this._reconnectAttempts),
+          MAX_RECONNECT_DELAY_MS,
+        );
+        this._reconnectAttempts++;
+
+        console.warn(
+          `[PlayerService] Stream lost — reconnecting in ${delay}ms (attempt ${this._reconnectAttempts})`,
+        );
+
+        this._reconnectTimeoutId = _setTimeout(() => {
+          this._reconnectTimeoutId = null;
+          this._attemptReconnect().catch(console.error);
+        }, delay);
+      },
+
+      _cancelReconnect(): void {
+        _clearTimeout(this._reconnectTimeoutId);
+        this._reconnectTimeoutId = null;
+      },
+
+      /**
+       * Reconnects to the live stream: replaces the audio source (which
+       * re-opens the connection at the current live point — there is no
+       * gapless resume on a radio stream) and resumes playback.
+       */
+      async _attemptReconnect(): Promise<void> {
+        if (this._paused || !this.player) return;
+
+        try {
+          this.player.replace(buildStreamSource(this._currentStream.url));
+          this.player.play();
+          setRemotePlaybackStatus("buffering");
+        } catch (error) {
+          console.error("[PlayerService] Reconnect attempt failed:", error);
+          this._scheduleReconnect();
+        }
+      },
+
+      /** Subscribe to connectivity changes for instant reconnect + refresh */
+      _subscribeToNetwork(): void {
+        if (this._networkUnsubscribe) return;
+
+        this._networkUnsubscribe = NetInfo.addEventListener((state) => {
+          const isConnected = !!state.isConnected;
+          const wasConnected = this._wasConnected;
+          this._wasConnected = isConnected;
+
+          // React only to the offline → online transition (netinfo also
+          // emits once immediately on subscribe)
+          if (wasConnected === false && isConnected) {
+            console.info("[PlayerService] Network restored");
+
+            // Instant reconnect instead of waiting the backoff out
+            this._cancelReconnect();
+            this._reconnectAttempts = 0;
+
+            if (!this._paused) {
+              this._attemptReconnect().catch(console.error);
+            }
+
+            // Refresh all API data (track, program, listeners, history)
+            this.refreshData().catch(console.error);
+          }
+        });
+      },
 
       _scheduleTrackEndRefresh(): void {
         // Cancel any previous track-end timer
@@ -206,6 +369,9 @@ export const playerService = (): PlayerServiceProps => {
 
         this._streamOptions = streams;
 
+        // Watch connectivity: instant reconnect + data refresh when back online
+        this._subscribeToNetwork();
+
         // Resolve the user's preferred stream (or default to first)
         const storedStream: Stream | null = storedStreamRaw
           ? JSON.parse(storedStreamRaw)
@@ -254,15 +420,8 @@ export const playerService = (): PlayerServiceProps => {
       /** Fire-and-forget media session preload */
       async _preloadMediaSession(): Promise<void> {
         const metadata = this.getNowPlayingMetadata();
-        await TrackPlayer.add({
-          id: "1",
-          url: this._currentStream.url,
-          userAgent: CONFIG.USER_AGENT,
-          title: metadata.title,
-          artist: metadata.artist,
-          artwork: metadata.artwork,
-        });
-        await this.updateMetadata();
+        setNowPlayingMetadata(metadata);
+        setRemotePlaybackStatus(this._paused ? "paused" : "playing");
       },
 
       _emitState(): void {
@@ -320,7 +479,11 @@ export const playerService = (): PlayerServiceProps => {
           try {
             if (this._nativeSetupDone) {
               const cleanMeta = this.getNowPlayingMetadata();
-              await this.player.updateNowPlayingMetadata(cleanMeta);
+              setNowPlayingMetadata(cleanMeta);
+              setRemotePlaybackStatus(
+                this._paused ? "paused" : "playing",
+                0,
+              );
             }
           } catch {
             // best-effort
@@ -329,9 +492,7 @@ export const playerService = (): PlayerServiceProps => {
         }
 
         // Periodically push elapsed time to the native media session.
-        // iOS: re-asserts elapsedPlaybackTime to counteract AVPlayer auto-updates.
-        // Android: the native patch reads elapsedTime from this metadata and
-        //          sets PlaybackState position directly on the MediaSession.
+        // The OS interpolates the seek bar between snapshots.
         // Push every ~3 ticks (3 seconds at 1s interval).
         this._nativeProgressTickCount++;
         if (this._nativeProgressTickCount >= 3) {
@@ -339,7 +500,11 @@ export const playerService = (): PlayerServiceProps => {
           if (this._nativeSetupDone && (await this.isPlayerSetup())) {
             try {
               const meta = this.getNowPlayingMetadata();
-              await this.player.updateNowPlayingMetadata(meta);
+              setNowPlayingMetadata(meta);
+              setRemotePlaybackStatus(
+                this._paused ? "paused" : "playing",
+                toSec(elapsed),
+              );
             } catch {
               // best-effort
             }
@@ -348,15 +513,10 @@ export const playerService = (): PlayerServiceProps => {
       },
 
       async isPlayerSetup(): Promise<boolean> {
-        // Fast path — if native setup never completed, skip bridge calls
+        // Fast path — if native setup never completed, skip checks
         if (!this._nativeSetupDone || !this._currentTrack) return false;
 
-        try {
-          const activeTrack = await TrackPlayer.getActiveTrack();
-          return !!activeTrack;
-        } catch {
-          return false;
-        }
+        return !!this.player;
       },
 
       async refreshData(isToUpdateMetadata = true): Promise<boolean> {
@@ -434,9 +594,8 @@ export const playerService = (): PlayerServiceProps => {
           ) {
             await this.updateMetadata();
 
-            // Android: the native RNTP patch now handles position via
-            // PlaybackState set from elapsedTime in updateNowPlayingMetadata.
-            // No seekTo needed — it causes stream reconnection on ICY streams.
+            // PlaybackControls interpolates the seek bar from the position
+            // snapshot pushed by _tickProgress — no native seek needed.
           }
 
           if (hasChanges) {
@@ -464,44 +623,41 @@ export const playerService = (): PlayerServiceProps => {
       },
 
       getNowPlayingMetadata(): NowPlayingMetadata {
-        const baseMetadata = this._currentTrack?.metadata || {
-          title: "N/A",
-          artist: "N/A",
-          date: "N/A",
-          genre: "N/A",
-          description: "N/A",
-          duration: 0,
-          artwork: CONFIG.DEFAULT_COVER,
-        };
-
         const isLive = this._currentProgram?.isLive ?? false;
 
-        // Show REAL elapsed/duration from the track data
-        if (this._showMediaProgress && this._currentTrack) {
-          const elapsed = getTrackProgress(this._currentTrack);
-          if (elapsed != null) {
-            const durationSec = this._currentTrack.duration / 1000;
-            const elapsedSec = elapsed / 1000;
-            return {
-              ...baseMetadata,
-              duration: durationSec,
-              elapsedTime: elapsedSec,
+        const baseMetadata: NowPlayingMetadata = this._currentTrack
+          ? {
+              title: this._currentTrack.metadata.title || "N/A",
+              artist: this._currentTrack.metadata.artist || "N/A",
+              artwork:
+                this._currentTrack.metadata.artwork || CONFIG.DEFAULT_COVER,
+              isLiveStream: isLive,
+            }
+          : {
+              title: "N/A",
+              artist: "N/A",
+              artwork: CONFIG.DEFAULT_COVER,
               isLiveStream: isLive,
             };
-          }
+
+        // Show REAL duration from the track data
+        if (
+          this._showMediaProgress &&
+          this._currentTrack &&
+          this._currentTrack.duration > 0
+        ) {
+          return {
+            ...baseMetadata,
+            durationSec: this._currentTrack.duration / 1000,
+          };
         }
 
-        // No progress: send 0/0 so the bar is empty/hidden
-        return {
-          ...baseMetadata,
-          duration: 0,
-          elapsedTime: 0,
-          isLiveStream: isLive,
-        };
+        // No progress: no duration so the bar is empty/hidden
+        return baseMetadata;
       },
 
       async play(): Promise<void> {
-        // Ensure native player is set up
+        // Ensure audio mode + media session are set up
         if (!this._nativeSetupDone) {
           try {
             await SetupService();
@@ -524,23 +680,28 @@ export const playerService = (): PlayerServiceProps => {
         }
 
         try {
-          await TrackPlayer.reset();
+          const source = buildStreamSource(this._currentStream.url);
 
-          const metadata = this.getNowPlayingMetadata();
-          await TrackPlayer.add({
-            id: "1",
-            url: this._currentStream.url,
-            userAgent: CONFIG.USER_AGENT,
-            title: metadata.title,
-            artist: metadata.artist,
-            artwork: metadata.artwork,
-          });
+          // Fresh playback session: clear any reconnect state
+          this._cancelReconnect();
+          this._reconnectAttempts = 0;
+          this._streamStarted = false;
 
-          await TrackPlayer.play();
+          if (this.player) {
+            this.player.replace(source);
+          } else {
+            this.player = createAudioPlayer(source, {
+              updateInterval: PLAYER_TICK_INTERVAL_MS,
+            });
+            this._attachStatusListener();
+          }
+
+          this.player.play();
           this._paused = false;
 
           // Fetch fresh data + push metadata in one go
           await this.refreshData();
+          await this.updateMetadata();
 
           this._emitState();
           this._emitProgress();
@@ -555,8 +716,11 @@ export const playerService = (): PlayerServiceProps => {
       async pause(): Promise<void> {
         if ((await this.isPlayerSetup()) && !this._paused) {
           try {
-            await TrackPlayer.pause();
+            this.player?.pause();
             this._paused = true;
+            setRemotePlaybackStatus("paused");
+            // User paused — stop any pending stream reconnects
+            this._cancelReconnect();
             // Just update state — progress keeps ticking (radio server-side)
             // and metadata stays as-is in the notification.
             this._emitState();
@@ -572,28 +736,28 @@ export const playerService = (): PlayerServiceProps => {
           await AsyncStorage.setItem("currentStream", JSON.stringify(stream));
 
           // If the player is active, swap the stream without destroying
-          // the media session — just reset + re-add with the new URL.
+          // the media session — just replace the audio source.
           if (await this.isPlayerSetup()) {
             const wasPlaying = !this._paused;
-            await TrackPlayer.reset();
+            const source = buildStreamSource(stream.url);
 
-            const metadata = this.getNowPlayingMetadata();
-            await TrackPlayer.add({
-              id: "1",
-              url: stream.url,
-              userAgent: CONFIG.USER_AGENT,
-              title: metadata.title,
-              artist: metadata.artist,
-              artwork: metadata.artwork,
-            });
+            if (this.player) {
+              this.player.replace(source);
+            } else {
+              this.player = createAudioPlayer(source, {
+                updateInterval: PLAYER_TICK_INTERVAL_MS,
+              });
+              this._attachStatusListener();
+            }
 
             if (wasPlaying) {
-              await TrackPlayer.play();
+              this.player.play();
               this._paused = false;
             }
 
             // Fetch fresh data for the new stream
             await this.refreshData();
+            await this.updateMetadata();
           }
 
           this._emitState();
@@ -611,7 +775,11 @@ export const playerService = (): PlayerServiceProps => {
           if (this._lastMetadataTitle !== titleKey) {
             this._lastMetadataTitle = titleKey;
           }
-          await this.player.updateNowPlayingMetadata(newMetadata);
+          setNowPlayingMetadata(newMetadata);
+          setRemotePlaybackStatus(
+            this._paused ? "paused" : "playing",
+            toSec(getTrackProgress(this._currentTrack ?? undefined)),
+          );
         } catch (error) {
           console.error("[PlayerService] Metadata update error:", error);
         }
@@ -631,7 +799,8 @@ export const playerService = (): PlayerServiceProps => {
           try {
             if (await this.isPlayerSetup()) {
               const cleanMeta = this.getNowPlayingMetadata();
-              await this.player.updateNowPlayingMetadata(cleanMeta);
+              setNowPlayingMetadata(cleanMeta);
+              setRemotePlaybackStatus(this._paused ? "paused" : "playing", 0);
             }
           } catch {
             // best-effort
@@ -682,8 +851,17 @@ export const playerService = (): PlayerServiceProps => {
         }
 
         try {
-          await this.player.stop();
-          await this.player.reset();
+          this._statusListener?.remove();
+          this._statusListener = null;
+          this._cancelReconnect();
+          this._networkUnsubscribe?.();
+          this._networkUnsubscribe = null;
+          this._wasConnected = null;
+          this._reconnectAttempts = 0;
+          this._streamStarted = false;
+          this.player?.remove();
+          this.player = null;
+          await EndPlaybackSession();
 
           this._cancelScheduledRefresh();
           this._consecutiveErrors = 0;

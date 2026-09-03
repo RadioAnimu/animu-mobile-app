@@ -1,56 +1,19 @@
-import TrackPlayer, {
-  AppKilledPlaybackBehavior,
-  Capability,
-  RepeatMode,
-} from "react-native-track-player";
-import { THEME } from "../../theme";
-
-export const DefaultRepeatMode = RepeatMode.Queue;
-export const DefaultAudioServiceBehaviour =
-  AppKilledPlaybackBehavior.StopPlaybackAndRemoveNotification;
-
-const setupPlayer = async (
-  options: Parameters<typeof TrackPlayer.setupPlayer>[0],
-) => {
-  const setup = async () => {
-    try {
-      await TrackPlayer.setupPlayer(options);
-      return null;
-    } catch (error) {
-      return (error as Error & { code?: string }).code;
-    }
-  };
-
-  let result = await setup();
-  while (result === "android_cannot_setup_player_in_background") {
-    await new Promise<void>((resolve) => setTimeout(resolve, 100));
-    result = await setup();
-  }
-
-  if (result) {
-    throw new Error(`Failed to setup player: ${result}`);
-  }
-};
+import { setAudioModeAsync } from "expo-audio";
+import { StartPlaybackSession } from "./player-playback.service";
 
 export const SetupService = async () => {
   try {
-    await setupPlayer({
-      autoHandleInterruptions: true,
+    await setAudioModeAsync({
+      playsInSilentMode: true,
+      shouldPlayInBackground: true,
+      interruptionMode: "doNotMix",
     });
 
-    await TrackPlayer.updateOptions({
-      android: {
-        appKilledPlaybackBehavior: DefaultAudioServiceBehaviour,
-        alwaysPauseOnInterruption: true,
-      },
-      capabilities: [Capability.Play, Capability.Pause],
-      compactCapabilities: [Capability.Play, Capability.Pause],
-      notificationCapabilities: [Capability.Play, Capability.Pause],
-      color: parseInt(THEME.COLORS.BACKGROUND_800.replace("#", ""), 16),
-      progressUpdateEventInterval: 1,
-    });
+    // Start the system media session (lock screen / notification controls).
+    // Must be called while the app is in the foreground.
+    await StartPlaybackSession();
   } catch (error) {
-    console.error("[SetupService] TrackPlayer setup failed:", error);
+    console.error("[SetupService] Audio setup failed:", error);
     throw error;
   }
 };
