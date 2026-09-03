@@ -17,7 +17,7 @@ This repository is the official mobile application: a real-time internet-radio c
 - **iOS** — in development
 - **Website** — [animu.moe](https://www.animu.moe) / [animu.com.br](https://www.animu.com.br)
 
-> **📦 [`animu-api`](https://github.com/RadioAnimu/animu-api)** — the radio's TypeScript API client lives in its own repository ([npm](https://www.npmjs.com/package/animu-api)). It powers this app's entire data layer (now playing, programs, history, requests, streams, auth) and is developed at [`packages/animu-api`](packages/animu-api) in this monorepo.
+> **📦 [`animu-api`](https://github.com/RadioAnimu/animu-api)** — the station's TypeScript API client, extracted from this app into its own repository and consumed here as a [git submodule](https://git-scm.com/docs/git-submodule) at `packages/animu-api`. It covers now playing, programs, history, music requests, live shout-outs, streams and auth — see its [API reference](https://github.com/RadioAnimu/animu-api/blob/main/API.md). Not yet on npm.
 
 ---
 
@@ -104,6 +104,8 @@ src/
 ### Install & run
 
 ```bash
+git clone --recurse-submodules https://github.com/RadioAnimu/animu-mobile-app.git
+# already cloned? git submodule update --init
 npm install        # applies the native patches via postinstall
 npm run start      # Expo dev client
 npm run android    # build & run on Android
@@ -126,18 +128,20 @@ Release artifacts are submitted through `eas submit` and published to the Google
 
 ## API surface
 
-The app consumes the public Animu endpoints (`src/api/index.ts`):
+All station endpoints are wrapped by the [`animu-api`](https://github.com/RadioAnimu/animu-api) client submodule — full schemas and business rules in its [API reference](https://github.com/RadioAnimu/animu-api/blob/main/API.md):
 
 | Endpoint | Purpose |
 | --- | --- |
 | `api.animu.com.br` | Current track + artwork + listener count |
 | `www.animu.com.br/teste/locutor.php` | Live program / DJ information |
-| `www.animu.com.br/teste/ultimospedidas_json.php` | Last requested tracks |
+| `www.animu.com.br/teste/ultimospedidos_json.php` | Last requested tracks |
 | `www.animu.com.br/teste/ultimasmusicas_json.php` | Last played tracks |
-| `www.animu.com.br/teste/requestSearchTest.php` | Music request search / submission |
+| `www.animu.com.br/teste/requestSearchTest.php` | Music request search |
+| `www.animu.com.br/teste/sistemaPedidos/pedirquatro.php` | Music request submission |
 | `stream.animu.moe/?json=1` | Available stream endpoints (`/320`, `/192`, `/64`) |
 | `www.animu.com.br/paineldj/…/request/salvar.php` | Live request / shout-out submission |
 | `www.animu.com.br/teste/exchange-token.php` | Discord OAuth token exchange |
+| `www.animu.com.br/teste/chatIsThisReal.php` · `byeChat.php` | Session validation / logout |
 
 ## Roadmap
 
