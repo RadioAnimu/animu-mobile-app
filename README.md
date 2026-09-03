@@ -17,6 +17,8 @@ This repository is the official mobile application: a real-time internet-radio c
 - **iOS** — in development
 - **Website** — [animu.moe](https://www.animu.moe) / [animu.com.br](https://www.animu.com.br)
 
+> **📦 [`animu-api`](https://github.com/RadioAnimu/animu-api)** — the radio's TypeScript API client lives in its own repository ([npm](https://www.npmjs.com/package/animu-api)). It powers this app's entire data layer (now playing, programs, history, requests, streams, auth) and is developed at [`packages/animu-api`](packages/animu-api) in this monorepo.
+
 ---
 
 ## Features

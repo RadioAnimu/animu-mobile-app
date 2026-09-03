@@ -1,0 +1,60 @@
+{
+  "name": "animu-api",
+  "version": "1.0.0",
+  "description": "TypeScript API client for Animu radio (api.animu.com.br). Track metadata, programs, history, music requests, live requests, streams and auth.",
+  "keywords": [
+    "animu",
+    "radio",
+    "anime",
+    "api",
+    "client",
+    "typescript"
+  ],
+  "license": "MIT",
+  "author": "Ness.js",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/RadioAnimu/animu-api.git"
+  },
+  "homepage": "https://github.com/RadioAnimu/animu-api#readme",
+  "bugs": {
+    "url": "https://github.com/RadioAnimu/animu-api/issues"
+  },
+  "sideEffects": false,
+  "type": "module",
+  "main": "./dist/cjs/index.js",
+  "module": "./dist/esm/index.js",
+  "types": "./dist/esm/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/esm/index.d.ts",
+      "import": "./dist/esm/index.js",
+      "require": "./dist/cjs/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "clean": "rm -rf dist",
+    "build": "npm run build:esm && npm run build:cjs",
+    "build:esm": "tsc -p tsconfig.esm.json",
+    "build:cjs": "tsc -p tsconfig.cjs.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "prepublishOnly": "npm run build"
+  },
+  "peerDependencies": {
+    "zod": ">=3.24 <5"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "typescript": "^5.9.2",
+    "vitest": "^4.1.11",
+    "zod": "^4.5.4"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
