@@ -3,14 +3,13 @@ import { ListenersDTO } from "../http/dto/listeners.dto";
 
 export class ListenersMapper {
   static fromDTO(dto: ListenersDTO): Listeners {
-    // Coerce — guard against numeric-strings from the API
-    const value = Number(
+    // Field name varies by endpoint — first known alias wins
+    const value =
       dto.listeners ??
-        dto.currentListeners ??
-        dto.active_listeners ??
-        dto.total ??
-        0,
-    );
+      dto.currentListeners ??
+      dto.active_listeners ??
+      dto.total ??
+      0;
     return { value: Number.isFinite(value) && value >= 0 ? value : 0 };
   }
 }

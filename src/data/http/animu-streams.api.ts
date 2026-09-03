@@ -1,11 +1,13 @@
 import { API } from "../../api";
-import { Stream } from "../../core/domain/stream";
 import { CONFIG } from "../../utils/player.config";
+import { StreamListDTOSchema } from "./dto/stream.dto";
+import { Stream } from "../../core/domain/stream";
 
 /**
  * Standalone HTTP client for fetching available radio streams.
  *
  * – Caches the result in memory for the entire app session.
+ * – Validates the payload at the boundary (zod).
  * – Falls back to the hardcoded FALLBACK_STREAM_OPTIONS on any error.
  */
 
@@ -31,29 +33,20 @@ export async function fetchStreams(forceRefresh = false): Promise<Stream[]> {
         throw new Error(`HTTP error ${response.status}`);
       }
 
-      data = await response.json();
+      data = StreamListDTOSchema.parse(await response.json()).map((s) => ({
+        id: s.id,
+        bitrate: s.bitrate,
+        category: s.category,
+        url: s.url,
+      }));
     } finally {
       clearTimeout(timeoutId);
     }
 
-    if (!Array.isArray(data) || data.length === 0) {
-      console.warn(
-        "[StreamsAPI] Response was empty or invalid, using fallback",
-      );
-      cachedStreams = CONFIG.FALLBACK_STREAM_OPTIONS;
-      return cachedStreams;
-    }
-
-    cachedStreams = data.map((s) => ({
-      id: s.id,
-      bitrate: s.bitrate,
-      category: s.category,
-      url: s.url,
-    }));
-
+    cachedStreams = data;
     return cachedStreams;
   } catch (error) {
-    console.warn("[StreamsAPI] Fetch failed, using fallback:", error);
+    console.warn("[StreamsAPI] Fetch failed or invalid, using fallback:", error);
     cachedStreams = CONFIG.FALLBACK_STREAM_OPTIONS;
     return cachedStreams;
   }

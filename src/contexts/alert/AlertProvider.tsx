@@ -50,7 +50,7 @@ export const AlertProvider: React.FC<{ children: ReactNode }> = ({
   children,
 }) => {
   const [alert, setAlertState] = useState<Alert | null>(null);
-  const timeoutRef = useRef<NodeJS.Timeout>();
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Clear any existing timeout when alert changes
   useEffect(() => {

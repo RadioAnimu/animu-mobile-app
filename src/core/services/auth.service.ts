@@ -1,6 +1,7 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as AuthSession from "expo-auth-session";
 import { authApiClient } from "../../data/http/auth.api";
+import { UserDTOSchema } from "../../data/http/dto/user.dto";
 import { UserMapper } from "../../data/mappers/user.mapper";
 import { User } from "../domain/user";
 
@@ -62,7 +63,7 @@ class AuthService {
     let data: any;
     try {
       data = JSON.parse(rawText);
-    } catch (e) {
+    } catch {
       throw new Error(`Exchange response is not valid JSON: ${rawText}`);
     }
 
@@ -73,7 +74,7 @@ class AuthService {
 
     const userDTO = { ...data.user, PHPSESSID: data.PHPSESSID };
 
-    const user = UserMapper.fromDTO(userDTO);
+    const user = UserMapper.fromDTO(UserDTOSchema.parse(userDTO));
     await AsyncStorage.setItem(USER_STORAGE_KEY, JSON.stringify(user));
     return user;
   }

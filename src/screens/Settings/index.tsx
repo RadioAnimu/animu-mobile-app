@@ -1,8 +1,7 @@
 import { FontAwesome5 } from "@expo/vector-icons";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
-import { useContext } from "react";
-import { Image, ScrollView, Text, TouchableOpacity, View } from "react-native";
+
+import { ScrollView, Text, TouchableOpacity, View } from "react-native";
 import { SelectList } from "react-native-dropdown-select-list";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Svg, { Path, Rect, SvgProps } from "react-native-svg";

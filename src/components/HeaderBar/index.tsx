@@ -1,5 +1,5 @@
 import { useNavigation } from "@react-navigation/native";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Animated,
   Dimensions,
@@ -28,7 +28,7 @@ interface Props {
 type Status = "playing" | "paused" | "changing";
 
 export function HeaderBar({ navigation, openLiveRequestModal }: Props) {
-  const progressAnim = useRef(new Animated.Value(0)).current; // Initial value for opacity: 0
+  const progressAnim = useMemo(() => new Animated.Value(0), []); // Initial value for opacity: 0
   const [status, setStatus] = useState<Status>("playing");
   const player = usePlayer();
   const { currentTrackProgress } = useTrackProgress();
@@ -61,11 +61,7 @@ export function HeaderBar({ navigation, openLiveRequestModal }: Props) {
     }
   }, [progressAnim, currentTrack, currentTrackProgress]);
 
-  const [animation] = useState(new Animated.Value(0));
-
-  useEffect(() => {
-    startAnimation();
-  }, []);
+  const [animation] = useState(() => new Animated.Value(0));
 
   const startAnimation = () => {
     Animated.loop(
@@ -85,6 +81,12 @@ export function HeaderBar({ navigation, openLiveRequestModal }: Props) {
       ]),
     ).start();
   };
+
+  useEffect(() => {
+    startAnimation();
+    // Runs once on mount — the loop lives for the component's lifetime
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const translateY = animation.interpolate({
     inputRange: [0, 1],

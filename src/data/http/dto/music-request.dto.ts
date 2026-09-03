@@ -1,23 +1,33 @@
-export type MusicRequestDTO = {
-  id: number;
-  title: string;
-  author: string;
-  image_large?: string;
-  image_medium?: string;
-  image_tiny?: string;
-  timestrike?: string;
-};
+import { z } from "zod";
 
-export type MusicRequestResponseDTO = {
-  meta: {
-    limit: number;
-    next: string | null;
-    offset: number;
-    previous: string | null;
-    total_count: number;
-  };
-  objects: MusicRequestDTO[];
-};
+export const MusicRequestDTOSchema = z.object({
+  id: z.coerce.number(),
+  title: z.string(),
+  author: z.string().catch(""),
+  image_large: z.string().optional(),
+  image_medium: z.string().optional(),
+  image_tiny: z.string().optional(),
+  timestrike: z.string().optional(),
+});
+
+export type MusicRequestDTO = z.infer<typeof MusicRequestDTOSchema>;
+
+export const MusicRequestResponseDTOSchema = z.object({
+  meta: z.object({
+    limit: z.coerce.number(),
+    next: z.string().nullable(),
+    offset: z.coerce.number(),
+    previous: z.string().nullable(),
+    total_count: z.coerce.number(),
+  }),
+  objects: z.array(MusicRequestDTOSchema),
+});
+
+export type MusicRequestResponseDTO = z.infer<
+  typeof MusicRequestResponseDTOSchema
+>;
+
+// ─── Outbound params (constructed by the app, not parsed from API) ───
 
 export type MusicSearchParamsDto = {
   server: number;

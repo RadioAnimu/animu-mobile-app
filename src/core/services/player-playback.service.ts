@@ -8,7 +8,6 @@ import {
   type PlaybackStatus,
 } from "react-native-playback-controls";
 
-let updatePlayerState: ((isPlaying: boolean) => void) | null = null;
 let remotePlayHandler: (() => Promise<void>) | null = null;
 let remotePauseHandler: (() => Promise<void>) | null = null;
 let remoteStopHandler: (() => Promise<void>) | null = null;
@@ -16,12 +15,6 @@ let remoteToggleHandler: (() => Promise<void>) | null = null;
 
 let session: PlaybackSession | null = null;
 let subscription: ListenerSubscription | null = null;
-
-export const setPlayerStateUpdater = (
-  updater: (isPlaying: boolean) => void,
-) => {
-  updatePlayerState = updater;
-};
 
 export const setRemotePlaybackHandlers = (handlers: {
   play: () => Promise<void>;
@@ -36,23 +29,19 @@ export const setRemotePlaybackHandlers = (handlers: {
 };
 
 const handleCommand = async (event: CommandEvent) => {
+  // Handlers delegate to playerService.play()/pause(), which drive the
+  // transport state machine — no extra state syncing needed here.
   switch (event.command) {
     case "play":
       try {
-        if (remotePlayHandler) {
-          await remotePlayHandler();
-        }
-        updatePlayerState?.(true);
+        await remotePlayHandler?.();
       } catch (error) {
         console.error("[PlaybackService] Remote play error:", error);
       }
       break;
     case "pause":
       try {
-        if (remotePauseHandler) {
-          await remotePauseHandler();
-        }
-        updatePlayerState?.(false);
+        await remotePauseHandler?.();
       } catch (error) {
         console.error("[PlaybackService] Remote pause error:", error);
       }
@@ -70,10 +59,7 @@ const handleCommand = async (event: CommandEvent) => {
       break;
     case "stop":
       try {
-        if (remoteStopHandler) {
-          await remoteStopHandler();
-        }
-        updatePlayerState?.(false);
+        await remoteStopHandler?.();
       } catch (error) {
         console.error("[PlaybackService] Remote stop error:", error);
       }

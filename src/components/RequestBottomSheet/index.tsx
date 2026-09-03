@@ -1,6 +1,6 @@
 import { Ionicons, MaterialIcons } from "@expo/vector-icons";
 import { Image } from "expo-image";
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import {
   ActivityIndicator,
   Image as RNImage,
@@ -51,14 +51,20 @@ export function RequestBottomSheet({
   const [status, setStatus] = useState<SubmitStatus>("idle");
   const [statusMessage, setStatusMessage] = useState("");
 
-  // Reset form when modal opens with a new track
-  useEffect(() => {
+  // Reset form when modal opens with a new track — "adjust state during
+  // render" pattern (compiler-safe, no cascading effect render)
+  const [prevOpenState, setPrevOpenState] = useState({
+    visible,
+    trackId: track?.id,
+  });
+  if (prevOpenState.visible !== visible || prevOpenState.trackId !== track?.id) {
+    setPrevOpenState({ visible, trackId: track?.id });
     if (visible) {
       setMessage("");
       setStatus("idle");
       setStatusMessage("");
     }
-  }, [visible, track?.id]);
+  }
 
   const handleSubmit = async () => {
     if (status !== "idle") return;

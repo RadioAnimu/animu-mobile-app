@@ -1,6 +1,5 @@
 import React from "react";
 import { Text, TouchableOpacity } from "react-native";
-import { ProgramProps } from "../../api";
 import { DICT } from "../../i18n";
 import { THEME } from "../../theme";
 import { styles } from "./styles";

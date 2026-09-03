@@ -8,7 +8,8 @@
     "ios": "expo run:ios",
     "web": "expo start --web",
     "postinstall": "patch-package || echo '[patch-package] skipped (patch target missing)'",
-    "install:apk": "adb uninstall com.nessjs.animu; adb install $(ls -t *.apk | head -1)"
+    "install:apk": "adb uninstall com.nessjs.animu; adb install $(ls -t *.apk | head -1)",
+    "lint": "expo lint"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.3",
@@ -38,12 +39,15 @@
     "react-native-svg": "15.12.1",
     "react-native-text-ticker": "^1.14.0",
     "react-native-toggle-input": "^1.0.12",
-    "react-native-worklets": "0.5.1"
+    "react-native-worklets": "0.5.1",
+    "zod": "^4.5.4"
   },
   "devDependencies": {
     "@babel/core": "^7.20.0",
     "@types/react": "~19.1.10",
     "babel-preset-expo": "~54.0.10",
+    "eslint": "^9.39.5",
+    "eslint-config-expo": "~10.0.0",
     "patch-package": "^8.0.1",
     "typescript": "~5.9.2"
   },

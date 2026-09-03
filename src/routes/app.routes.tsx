@@ -12,12 +12,12 @@ import { DICT } from "../i18n";
 import { useUserSettings } from "../contexts/user/UserSettingsProvider";
 import { HistoryType } from "../@types/history-type";
 
-interface HomeProps {}
+type HomeProps = Record<string, never>;
 interface LastProps {
   historyType: HistoryType;
 }
-interface FazerPedidoProps {}
-interface SettingsProps {}
+type FazerPedidoProps = Record<string, never>;
+type SettingsProps = Record<string, never>;
 
 export type RootStackParamList = {
   Home: HomeProps;

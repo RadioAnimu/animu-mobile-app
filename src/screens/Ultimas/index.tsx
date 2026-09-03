@@ -1,4 +1,4 @@
-import React, { useContext, useState } from "react";
+import React from "react";
 import { FlatList, Text, View } from "react-native";
 
 import { Background } from "../../components/Background";

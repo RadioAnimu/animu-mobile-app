@@ -1,8 +1,15 @@
-export type TrackHistoryItemDTO = [
-  title: string, // item[0]
-  timeOrCover: string, // item[1] - time for requests, cover for played
-  requestId?: number, // item[2] - only for requests
-  coverUrl?: string // item[3] - only for requests
-];
+import { z } from "zod";
 
-export type TrackHistoryDTO = TrackHistoryItemDTO[];
+/**
+ * PHP endpoints return positional arrays:
+ *   [title, time|cover, requestId?, coverUrl?]
+ * Row shape varies by endpoint, so trailing elements are a loose union.
+ * Rows that aren't arrays of at least two strings are dropped at parse.
+ */
+export const TrackHistoryItemSchema = z
+  .tuple([z.string(), z.string()], z.union([z.string(), z.number()]));
+
+export const TrackHistorySchema = z.array(TrackHistoryItemSchema);
+
+export type TrackHistoryItemDTO = z.infer<typeof TrackHistoryItemSchema>;
+export type TrackHistoryDTO = z.infer<typeof TrackHistorySchema>;

@@ -20,7 +20,7 @@ export class LiveRequestMapper {
       artist: domain.artist,
       music: domain.music,
       anime: domain.anime,
-      request: domain.request,
+      request: domain.request ?? "",
     };
   }
 }

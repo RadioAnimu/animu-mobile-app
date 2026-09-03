@@ -1,3 +1,4 @@
+import type { JSX } from "react";
 import {
   FontAwesome,
   FontAwesome5,
@@ -94,7 +95,7 @@ export function LinkMenuItem({ Icon, title, url }: LinkMenuItemProps) {
 
 export function LoginComponent() {
   const { settings } = useUserSettings();
-  const { user, login, logout, isLoading } = useAuth();
+  const { login } = useAuth();
 
   return (
     <TouchableOpacity

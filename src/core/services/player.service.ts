@@ -52,6 +52,10 @@ const buildStreamSource = (url: string): AudioSource => ({
 const toSec = (ms: number | null | undefined): number | undefined =>
   ms != null && Number.isFinite(ms) ? ms / 1000 : undefined;
 
+/** Exponential backoff delay for a (0-based) attempt: base → 2× → 4× … capped */
+const backoffDelay = (attempt: number, base: number, max: number): number =>
+  Math.min(base * Math.pow(2, Math.max(0, attempt)), max);
+
 /**
  * Native-driven tick interval (ms). expo-audio emits playbackStatusUpdate
  * events from the native layer — these keep firing while the app is
@@ -63,6 +67,34 @@ const PLAYER_TICK_INTERVAL_MS = 1000;
 const BASE_RECONNECT_DELAY_MS = 2_000;
 /** Max delay between stream reconnect attempts (ms) */
 const MAX_RECONNECT_DELAY_MS = 30_000;
+/**
+ * Grace period after a transport transition before an idle/failed native
+ * status is treated as a dead stream. Filters transient native states:
+ * e.g. replace() emits a brief ExoPlayer "idle" before play() starts
+ * buffering. Real stream deaths (ExoPlayer retry exhaustion, AVPlayer
+ * .failed) always arrive after their internal retry windows.
+ */
+const STREAM_DEATH_GRACE_MS = 3_000;
+
+// ─── Transport state machine ───
+// Explicit lifecycle instead of independent booleans ("paused", "started").
+// The user's *intent* is any state where they last pressed play:
+// connecting | playing | reconnecting. "idle" means not set up / destroyed.
+
+export type TransportState =
+  | "idle" // no setup or destroyed — cannot play
+  | "connecting" // play() requested, stream not producing audio yet
+  | "playing" // audio actually flowing
+  | "paused" // user paused
+  | "reconnecting"; // stream lost while user wants audio; backoff scheduled
+
+const TRANSPORT_TRANSITIONS: Record<TransportState, TransportState[]> = {
+  idle: ["connecting"],
+  connecting: ["playing", "paused", "reconnecting", "idle"],
+  playing: ["connecting", "paused", "reconnecting", "idle"],
+  paused: ["connecting", "idle"],
+  reconnecting: ["connecting", "paused", "idle"],
+};
 
 export interface PlayerServiceProps {
   CONFIG: typeof CONFIG;
@@ -74,7 +106,10 @@ export interface PlayerServiceProps {
   _lastRequestedTracks: Track[] | null;
   _lastPlayedTracks: Track[] | null;
   _listeners: Listeners | null;
-  _paused: boolean;
+  /** Transport lifecycle state — see TransportState */
+  _state: TransportState;
+  /** Date.now() when _state last changed (drives the death-detection grace) */
+  _stateEnteredAt: number;
   _isRefreshing: boolean;
   _lastMetadataTitle: string;
   /** Whether the audio mode + media session setup has been called */
@@ -94,8 +129,6 @@ export interface PlayerServiceProps {
   _reconnectTimeoutId: number | null;
   /** Consecutive stream reconnect attempts (reset when audio plays) */
   _reconnectAttempts: number;
-  /** Whether the stream has actually played once (guards false reconnects) */
-  _streamStarted: boolean;
   /** Last known network connectivity (null = unknown) */
   _wasConnected: boolean | null;
   /** NetInfo listener unsubscribe fn */
@@ -114,6 +147,12 @@ export interface PlayerServiceProps {
   _scheduleRetry: () => void;
   /** Handle native playback status events (progress + stream-loss detection) */
   _handlePlaybackStatus: (status: AudioStatus) => void;
+  /** Transition the transport state machine (refuses invalid transitions) */
+  _setState: (next: TransportState) => void;
+  /** Whether the user's last action was "play" (covers the whole intent chain) */
+  isPlayingIntent: () => boolean;
+  /** Map the transport state to a media-session PlaybackStatus */
+  _remoteStatus: () => "playing" | "paused" | "buffering" | "stopped";
   /** Schedule an exponential-backoff stream reconnect */
   _scheduleReconnect: () => void;
   /** Cancel any pending stream reconnect */
@@ -137,7 +176,6 @@ export interface PlayerServiceProps {
   changeStream: (stream: Stream) => Promise<void>;
   openPedidosURL: () => Promise<void>;
   updateMetadata: () => Promise<void>;
-  updateNowPlayingProgress: () => Promise<void>;
   destroy: () => Promise<void>;
   refreshHistory: (type: HistoryType) => Promise<void>;
   _emitState: () => void;
@@ -159,7 +197,8 @@ export const playerService = (): PlayerServiceProps => {
       _lastRequestedTracks: null,
       _currentProgram: null,
       _listeners: null,
-      _paused: true,
+      _state: "idle",
+      _stateEnteredAt: Date.now(),
       _lastMetadataTitle: "",
       _nativeSetupDone: false,
       _showMediaProgress: false,
@@ -169,7 +208,6 @@ export const playerService = (): PlayerServiceProps => {
       _retryTimeoutId: null,
       _reconnectTimeoutId: null,
       _reconnectAttempts: 0,
-      _streamStarted: false,
       _wasConnected: null,
       _networkUnsubscribe: null,
       _statusListener: null,
@@ -195,32 +233,74 @@ export const playerService = (): PlayerServiceProps => {
        * iOS as "failed" (AVPlayer .failed status).
        */
       _handlePlaybackStatus(status: AudioStatus): void {
-        // Stream is actually producing audio — reset reconnect backoff
+        // Stream is actually producing audio — resets the backoff chain
         if (status.playing) {
-          this._streamStarted = true;
           this._reconnectAttempts = 0;
           this._cancelReconnect();
+          this._setState("playing");
+          return;
         }
 
-        // Stream died while the user wants playback → schedule reconnect
-        if (
-          !this._paused &&
-          !status.playing &&
+        // Stream died while the user wants playback → schedule reconnect.
+        // The grace window filters transient native idle states (replace()).
+        const streamLost =
+          this.isPlayingIntent() &&
           !status.isBuffering &&
-          this._streamStarted &&
           (status.playbackState === "idle" ||
-            status.playbackState === "failed")
-        ) {
+            status.playbackState === "failed") &&
+          Date.now() - this._stateEnteredAt > STREAM_DEATH_GRACE_MS;
+
+        if (streamLost) {
           this._scheduleReconnect();
+        }
+      },
+
+      _setState(next: TransportState): void {
+        if (this._state === next) return;
+
+        if (!TRANSPORT_TRANSITIONS[this._state].includes(next)) {
+          console.warn(
+            `[PlayerService] Invalid transport transition: ${this._state} → ${next} (ignored)`,
+          );
+          return;
+        }
+
+        this._state = next;
+        this._stateEnteredAt = Date.now();
+        this._emitState();
+      },
+
+      isPlayingIntent(): boolean {
+        return (
+          this._state === "connecting" ||
+          this._state === "playing" ||
+          this._state === "reconnecting"
+        );
+      },
+
+      _remoteStatus(): "playing" | "paused" | "buffering" | "stopped" {
+        switch (this._state) {
+          case "playing":
+            return "playing";
+          case "connecting":
+          case "reconnecting":
+            return "buffering";
+          case "paused":
+            return "paused";
+          default:
+            return "stopped";
         }
       },
 
       _scheduleReconnect(): void {
         if (this._reconnectTimeoutId != null) return;
 
+        this._setState("reconnecting");
+
         // Exponential backoff: 2s → 4s → 8s → 16s → 30s (cap)
-        const delay = Math.min(
-          BASE_RECONNECT_DELAY_MS * Math.pow(2, this._reconnectAttempts),
+        const delay = backoffDelay(
+          this._reconnectAttempts,
+          BASE_RECONNECT_DELAY_MS,
           MAX_RECONNECT_DELAY_MS,
         );
         this._reconnectAttempts++;
@@ -246,12 +326,13 @@ export const playerService = (): PlayerServiceProps => {
        * gapless resume on a radio stream) and resumes playback.
        */
       async _attemptReconnect(): Promise<void> {
-        if (this._paused || !this.player) return;
+        if (!this.isPlayingIntent() || !this.player) return;
 
         try {
           this.player.replace(buildStreamSource(this._currentStream.url));
           this.player.play();
-          setRemotePlaybackStatus("buffering");
+          this._setState("connecting");
+          setRemotePlaybackStatus(this._remoteStatus());
         } catch (error) {
           console.error("[PlayerService] Reconnect attempt failed:", error);
           this._scheduleReconnect();
@@ -276,7 +357,7 @@ export const playerService = (): PlayerServiceProps => {
             this._cancelReconnect();
             this._reconnectAttempts = 0;
 
-            if (!this._paused) {
+            if (this.isPlayingIntent()) {
               this._attemptReconnect().catch(console.error);
             }
 
@@ -330,8 +411,9 @@ export const playerService = (): PlayerServiceProps => {
         _clearTimeout(this._retryTimeoutId);
 
         // Exponential backoff: 2s → 4s → 8s → 16s → 30s (cap)
-        const delay = Math.min(
-          BASE_RETRY_DELAY_MS * Math.pow(2, this._consecutiveErrors - 1),
+        const delay = backoffDelay(
+          this._consecutiveErrors - 1,
+          BASE_RETRY_DELAY_MS,
           MAX_RETRY_DELAY_MS,
         );
 
@@ -355,9 +437,9 @@ export const playerService = (): PlayerServiceProps => {
         // settings all resolve independently — run them all at once.
         const [
           streams,
-          storedStreamRaw, // SetupService — void
-          ,
-          userSettings, // UserSettings — pre-warm cache
+          storedStreamRaw, // AsyncStorage — stored stream preference
+          , // SetupService — void, resolved for its side effect
+          , // userSettingsService.initialize() — pre-warm cache
         ] = await Promise.all([
           fetchStreams(),
           AsyncStorage.getItem("currentStream"),
@@ -421,7 +503,7 @@ export const playerService = (): PlayerServiceProps => {
       async _preloadMediaSession(): Promise<void> {
         const metadata = this.getNowPlayingMetadata();
         setNowPlayingMetadata(metadata);
-        setRemotePlaybackStatus(this._paused ? "paused" : "playing");
+        setRemotePlaybackStatus(this._remoteStatus());
       },
 
       _emitState(): void {
@@ -433,7 +515,7 @@ export const playerService = (): PlayerServiceProps => {
           currentStream: this._currentStream,
           streamOptions: this._streamOptions,
           currentListeners: this._listeners || undefined,
-          isPlaying: !this._paused,
+          isPlaying: this.isPlayingIntent(),
           isInitialized: this._isInitialized,
         };
         playerStore.setSnapshot(next);
@@ -480,10 +562,7 @@ export const playerService = (): PlayerServiceProps => {
             if (this._nativeSetupDone) {
               const cleanMeta = this.getNowPlayingMetadata();
               setNowPlayingMetadata(cleanMeta);
-              setRemotePlaybackStatus(
-                this._paused ? "paused" : "playing",
-                0,
-              );
+              setRemotePlaybackStatus(this._remoteStatus(), 0);
             }
           } catch {
             // best-effort
@@ -501,10 +580,7 @@ export const playerService = (): PlayerServiceProps => {
             try {
               const meta = this.getNowPlayingMetadata();
               setNowPlayingMetadata(meta);
-              setRemotePlaybackStatus(
-                this._paused ? "paused" : "playing",
-                toSec(elapsed),
-              );
+              setRemotePlaybackStatus(this._remoteStatus(), toSec(elapsed));
             } catch {
               // best-effort
             }
@@ -548,7 +624,6 @@ export const playerService = (): PlayerServiceProps => {
             this._currentTrack?.raw !== newTrack.raw ||
             this._currentTrack?.artwork !== newTrack.artwork
           ) {
-            const prevTrackRaw = this._currentTrack?.raw;
             this._currentTrack = newTrack;
             this.refreshHistory("played");
             hasChanges = true;
@@ -558,7 +633,6 @@ export const playerService = (): PlayerServiceProps => {
             if (this._isRealTrack(newTrack) && !newProgram.isLive) {
               this._showMediaProgress = true;
               this._nativeProgressTickCount = 0;
-              const elapsed = getTrackProgress(newTrack);
             } else {
               this._showMediaProgress = false;
             }
@@ -685,7 +759,6 @@ export const playerService = (): PlayerServiceProps => {
           // Fresh playback session: clear any reconnect state
           this._cancelReconnect();
           this._reconnectAttempts = 0;
-          this._streamStarted = false;
 
           if (this.player) {
             this.player.replace(source);
@@ -697,7 +770,7 @@ export const playerService = (): PlayerServiceProps => {
           }
 
           this.player.play();
-          this._paused = false;
+          this._setState("connecting");
 
           // Fetch fresh data + push metadata in one go
           await this.refreshData();
@@ -714,16 +787,16 @@ export const playerService = (): PlayerServiceProps => {
       },
 
       async pause(): Promise<void> {
-        if ((await this.isPlayerSetup()) && !this._paused) {
+        if ((await this.isPlayerSetup()) && this._state !== "paused") {
           try {
-            this.player?.pause();
-            this._paused = true;
-            setRemotePlaybackStatus("paused");
-            // User paused — stop any pending stream reconnects
+            // User paused — stop any pending stream reconnects first
             this._cancelReconnect();
+
+            this.player?.pause();
+            this._setState("paused");
+            setRemotePlaybackStatus("paused");
             // Just update state — progress keeps ticking (radio server-side)
             // and metadata stays as-is in the notification.
-            this._emitState();
           } catch (error) {
             console.error("[PlayerService] Pause error:", error);
           }
@@ -738,8 +811,11 @@ export const playerService = (): PlayerServiceProps => {
           // If the player is active, swap the stream without destroying
           // the media session — just replace the audio source.
           if (await this.isPlayerSetup()) {
-            const wasPlaying = !this._paused;
+            const wasPlaying = this.isPlayingIntent();
             const source = buildStreamSource(stream.url);
+
+            // A pending reconnect would double-fire after the manual re-tune
+            this._cancelReconnect();
 
             if (this.player) {
               this.player.replace(source);
@@ -752,7 +828,7 @@ export const playerService = (): PlayerServiceProps => {
 
             if (wasPlaying) {
               this.player.play();
-              this._paused = false;
+              this._setState("connecting");
             }
 
             // Fetch fresh data for the new stream
@@ -777,34 +853,11 @@ export const playerService = (): PlayerServiceProps => {
           }
           setNowPlayingMetadata(newMetadata);
           setRemotePlaybackStatus(
-            this._paused ? "paused" : "playing",
+            this._remoteStatus(),
             toSec(getTrackProgress(this._currentTrack ?? undefined)),
           );
         } catch (error) {
           console.error("[PlayerService] Metadata update error:", error);
-        }
-      },
-
-      async updateNowPlayingProgress(): Promise<void> {
-        // Progress is now handled by _tickProgress which periodically
-        // pushes updateNowPlayingMetadata to the native media session.
-        // This method is kept for API compatibility.
-        if (!this._currentTrack) return;
-        if (!this._showMediaProgress) return;
-
-        const elapsed = getTrackProgress(this._currentTrack);
-        if (elapsed == null) {
-          this._showMediaProgress = false;
-          this._nativeProgressTickCount = 0;
-          try {
-            if (await this.isPlayerSetup()) {
-              const cleanMeta = this.getNowPlayingMetadata();
-              setNowPlayingMetadata(cleanMeta);
-              setRemotePlaybackStatus(this._paused ? "paused" : "playing", 0);
-            }
-          } catch {
-            // best-effort
-          }
         }
       },
 
@@ -858,14 +911,13 @@ export const playerService = (): PlayerServiceProps => {
           this._networkUnsubscribe = null;
           this._wasConnected = null;
           this._reconnectAttempts = 0;
-          this._streamStarted = false;
           this.player?.remove();
           this.player = null;
           await EndPlaybackSession();
 
           this._cancelScheduledRefresh();
           this._consecutiveErrors = 0;
-          this._paused = true;
+          this._setState("idle");
           this._currentStream = CONFIG.DEFAULT_STREAM_OPTION;
           this._currentTrack = null;
           this._currentProgram = null;

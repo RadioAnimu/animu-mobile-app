@@ -24,10 +24,11 @@ export class TrackHistoryMapper {
   ): Track {
     const [raw, title, artist, anime] = this.parseRawTitle(item[0]);
     const isPedidas = type === "requests";
-    const coverUrl = isPedidas ? item[3] : item[1];
+    // Trailing tuple elements are typed loosely (PHP arrays) — coerce here
+    const coverUrl = String((isPedidas ? item[3] : item[1]) ?? "");
 
     return {
-      id: isPedidas ? item[2]?.toString() || "-1" : "-1",
+      id: isPedidas ? String(item[2] ?? "") || "-1" : "-1",
       raw,
       title,
       artist,

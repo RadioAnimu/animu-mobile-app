@@ -1,12 +1,10 @@
-import { View, useWindowDimensions, Platform } from "react-native";
+import React, { useCallback, useEffect, useState } from "react";
+import { View, useWindowDimensions } from "react-native";
 import TextTicker from "react-native-text-ticker";
 import { IMGS } from "../../i18n";
 import { styles } from "./styles";
 import { useUserSettings } from "../../contexts/user/UserSettingsProvider";
 import { usePlayer } from "../../contexts/player/PlayerProvider";
-import { useCallback, useEffect, useState } from "react";
-import { Text } from "react-native";
-import React from "react";
 
 // Base scroll speed in characters per second
 const BASE_SCROLL_SPEED = 15; // Adjust this value to match desired reading speed

@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useState } from "react";
 import PortalContext from "./PortalContext";
 interface PortalProviderProps {
   children: React.ReactNode;

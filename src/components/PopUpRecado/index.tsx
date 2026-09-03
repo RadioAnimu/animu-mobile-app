@@ -1,5 +1,5 @@
 import { MaterialIcons } from "@expo/vector-icons";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Image,
@@ -14,7 +14,7 @@ import {
 import RecadoHaruka from "../../assets/reacdo_haruka.png";
 import { THEME } from "../../theme";
 import { styles } from "./styles";
-import { DICT, selectedLanguage } from "../../i18n";
+import { DICT } from "../../i18n";
 import { useUserSettings } from "../../contexts/user/UserSettingsProvider";
 
 interface Props extends ModalProps {
@@ -41,10 +41,16 @@ export function PopUpRecado({
 
   const { settings } = useUserSettings();
 
+  // Capture the latest handler so unmount cleanup resets the current input
+  const handleChangeTextRef = useRef(handleChangeText);
+  useEffect(() => {
+    handleChangeTextRef.current = handleChangeText;
+  });
+
   useEffect(() => {
     return () => {
       // Cleanup any timers or listeners
-      handleChangeText(""); // Reset input if needed
+      handleChangeTextRef.current(""); // Reset input if needed
     };
   }, []);
 

@@ -8,10 +8,7 @@ import React, {
 } from "react";
 import { Stream } from "../../core/domain/stream";
 import { playerService } from "../../core/services/player.service";
-import {
-  setPlayerStateUpdater,
-  setRemotePlaybackHandlers,
-} from "../../core/services/player-playback.service";
+import { setRemotePlaybackHandlers } from "../../core/services/player-playback.service";
 import { backgroundService } from "../../core/services/background.service";
 import {
   playerStore,
@@ -51,7 +48,9 @@ const PlayerContext = createContext<PlayerContextType>({
 export const PlayerProvider: React.FC<{
   children: React.ReactNode;
 }> = ({ children }) => {
-  const playerServiceInstance = useMemo(() => playerService(), []);
+  // Singleton service — plain call, no memoization (the compiler treats
+  // memoized objects as frozen, and the player is inherently mutable)
+  const playerServiceInstance = playerService();
 
   // ─── Subscribe to stores — the service is the single source of truth ───
   const snapshot = useSyncExternalStore(
@@ -70,12 +69,6 @@ export const PlayerProvider: React.FC<{
 
     const initializePlayer = async () => {
       try {
-        // Bridge lock-screen / notification events back to the service.
-        setPlayerStateUpdater((isPlaying: boolean) => {
-          playerServiceInstance._paused = !isPlaying;
-          playerServiceInstance._emitState();
-        });
-
         setRemotePlaybackHandlers({
           play: async () => {
             await playerServiceInstance.play();
@@ -84,10 +77,10 @@ export const PlayerProvider: React.FC<{
             await playerServiceInstance.pause();
           },
           toggle: async () => {
-            if (playerServiceInstance._paused) {
-              await playerServiceInstance.play();
-            } else {
+            if (playerServiceInstance.isPlayingIntent()) {
               await playerServiceInstance.pause();
+            } else {
+              await playerServiceInstance.play();
             }
           },
           stop: async () => {
@@ -108,9 +101,9 @@ export const PlayerProvider: React.FC<{
           callback: async () => {
             await playerServiceInstance.refreshData();
           },
-          interval: playerServiceInstance._paused
-            ? REFRESH_INTERVAL_PAUSED
-            : REFRESH_INTERVAL_PLAYING,
+          interval: playerServiceInstance.isPlayingIntent()
+            ? REFRESH_INTERVAL_PLAYING
+            : REFRESH_INTERVAL_PAUSED,
         });
 
         // Progress tick (the service itself early-returns when paused)
@@ -123,7 +116,8 @@ export const PlayerProvider: React.FC<{
         });
       } catch (error) {
         console.error("[PlayerProvider] Player initialization failed:", error);
-        playerServiceInstance._isInitialized = false;
+        // No need to reset _isInitialized — it was never set to true.
+        // Re-emit so any subscribers reflect the (still uninitialized) state.
         playerServiceInstance._emitState();
       }
     };
@@ -135,7 +129,6 @@ export const PlayerProvider: React.FC<{
 
       backgroundService.stopTask("refresh-data");
       backgroundService.stopTask("track-progress");
-      setPlayerStateUpdater(() => {});
       setRemotePlaybackHandlers({
         play: async () => {},
         pause: async () => {},

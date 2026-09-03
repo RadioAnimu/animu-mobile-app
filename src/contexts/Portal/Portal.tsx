@@ -12,7 +12,7 @@ const Portal: React.FC<PortalProps> = ({ children, name }) => {
     return () => {
       removeComponent(name);
     };
-  }, [children, name]);
+  }, [addComponent, removeComponent, children, name]);
 
   return null;
 };

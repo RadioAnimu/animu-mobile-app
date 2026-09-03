@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
-import React, { useCallback, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -58,13 +58,19 @@ export function FazerPedido({ navigation }: Props) {
     undefined,
   );
 
+  // Wall-clock ticker — the queue count depends on "now", so refresh it
+  // on an interval instead of reading Date.now() during render
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 30_000);
+    return () => clearInterval(id);
+  }, []);
+
   const queueCount = useMemo(() => {
     const requested = player.lastRequestedTracks;
     const current = player.currentTrack;
 
     if (!requested?.length) return undefined;
-
-    const now = Date.now();
 
     // Sort all requests chronologically so we can reason about position
     const sorted = [...requested].sort(
@@ -97,7 +103,7 @@ export function FazerPedido({ navigation }: Props) {
         : now;
 
     return sorted.filter((t) => t.startTime.getTime() > pivot).length;
-  }, [player.lastRequestedTracks, player.currentTrack]);
+  }, [player.lastRequestedTracks, player.currentTrack, now]);
 
   const handleSearch = useCallback(async () => {
     if (!searchState.query) return;
@@ -135,7 +141,7 @@ export function FazerPedido({ navigation }: Props) {
       console.error(err);
       setSearchState((prev) => ({ ...prev, status: "idle" }));
     }
-  }, [searchState.pagination, searchState.query]);
+  }, [searchState.pagination]);
 
   const handleSubmitRequest = useCallback(
     async (message: string): Promise<{ success: boolean; message: string }> => {
@@ -177,7 +183,7 @@ export function FazerPedido({ navigation }: Props) {
         message: DICT[settings.selectedLanguage].REQUEST_SUCCESS,
       };
     },
-    [selectedTrack, user?.sessionId, settings.selectedLanguage],
+    [selectedTrack, user, settings.selectedLanguage],
   );
 
   const handleRequestSuccess = useCallback((trackId: string) => {
