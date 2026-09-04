@@ -6,6 +6,7 @@ import React, {
   useCallback,
   useSyncExternalStore,
 } from "react";
+import { AppState } from "react-native";
 import { Stream } from "../../core/domain/stream";
 import { playerService } from "../../core/player";
 import { setRemotePlaybackHandlers } from "../../core/services/player-playback.service";
@@ -139,9 +140,22 @@ export const PlayerProvider: React.FC<{
 
     initializePlayer();
 
+    // ── Foreground refresh: fresh data the moment the app is visible ──
+    // JS timers freeze while backgrounded (iOS) or drift while the OS
+    // throttles them (Android Doze), so the last poll can be minutes old.
+    const appStateSubscription = AppState.addEventListener(
+      "change",
+      (nextAppState) => {
+        if (nextAppState === "active" && playerServiceInstance.isReady) {
+          void playerServiceInstance.refreshData().catch(console.error);
+        }
+      },
+    );
+
     return () => {
       cancelled = true;
 
+      appStateSubscription?.remove();
       backgroundService.stopTask("refresh-data");
       backgroundService.stopTask("track-progress");
       setRemotePlaybackHandlers({
