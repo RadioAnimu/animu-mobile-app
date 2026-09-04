@@ -17,12 +17,10 @@ import {
 import { useUserSettings } from "../../contexts/user/UserSettingsProvider";
 import { MusicRequest } from "../../core/domain/music-request";
 import { User } from "../../core/domain/user";
-import type { QueueStatus } from "../../core/player/queue-tracker";
 import { DICT } from "../../i18n";
 import { THEME } from "../../theme";
 import { CONFIG } from "../../utils/player.config";
 import DragIcon from "../../assets/icons/ArrastarParaBaixo.png";
-import { QueueStatusStrip } from "../QueueStatusStrip";
 import { styles } from "./styles";
 
 type SubmitStatus = "idle" | "submitting" | "success" | "error";
@@ -31,8 +29,6 @@ interface Props {
   visible: boolean;
   track?: MusicRequest;
   user: User | null;
-  /** Provable queue status for the user's own requests. */
-  queueStatus: QueueStatus;
   onClose: () => void;
   onSubmit: (message: string) => Promise<{ success: boolean; message: string }>;
   onRequestSuccess: (trackId: string) => void;
@@ -42,7 +38,6 @@ export function RequestBottomSheet({
   visible,
   track,
   user,
-  queueStatus,
   onClose,
   onSubmit,
   onRequestSuccess,
@@ -151,10 +146,6 @@ export function RequestBottomSheet({
                 </View>
               </View>
             )}
-
-            {/* Queue status (post-submission only — the pending queue is
-                server-side, so a pre-submit count can't be proven) */}
-            <QueueStatusStrip status={queueStatus} />
 
             {user && (
               <View style={styles.userRow}>

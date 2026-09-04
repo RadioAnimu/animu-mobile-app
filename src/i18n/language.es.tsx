@@ -167,10 +167,6 @@ const DICT = {
   REQUEST_ERROR_ALREADY_REQUESTED:
     "La canción ya ha sido solicitada anteriormente",
   REQUEST_SUCCESS: "¡Solicitud realizada con éxito!",
-  QUEUE_IN_LINE: "¡Estás en la fila! 🎶",
-  QUEUE_PLAYED_AHEAD: "≥%1 sonaron antes del tuyo",
-  QUEUE_CADENCE: "solicitudes suenan cada ~%1 min",
-  QUEUE_PLAYING_NOW: "¡Tu solicitud está sonando ahora! 🎶",
   REQUEST_SEARCH_PLACEHOLDER: "Escribe aquí para buscar",
   REQUEST_SEARCH_BUTTON_TEXT: "Buscar",
   HARU_CHAN_TEXT: "HARU-CHAN",

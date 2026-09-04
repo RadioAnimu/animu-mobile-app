@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -15,13 +15,11 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Background } from "../../components/Background";
 import { HeaderBar } from "../../components/HeaderBar";
 import { Logo } from "../../components/Logo";
-import { QueueStatusStrip } from "../../components/QueueStatusStrip";
 import { RequestBottomSheet } from "../../components/RequestBottomSheet";
 import { RequestTrack } from "../../components/RequestTrack";
 
 // Core
 import { useAuth } from "../../contexts/auth/AuthProvider";
-import { usePlayer, useStation } from "../../contexts/player/PlayerProvider";
 import { useUserSettings } from "../../contexts/user/UserSettingsProvider";
 import {
   MusicRequest,
@@ -32,10 +30,6 @@ import {
   getSubmissionErrorMessage,
   musicRequestService,
 } from "../../core/services/music-request.service";
-import {
-  QueueTracker,
-  type QueueStatus,
-} from "../../core/player/queue-tracker";
 import { DICT, IMGS } from "../../i18n";
 import { RootStackParamList } from "../../routes/app.routes";
 import { THEME } from "../../theme";
@@ -46,8 +40,6 @@ type Props = NativeStackScreenProps<RootStackParamList, "FazerPedido">;
 export function FazerPedido({ navigation }: Props) {
   const { user } = useAuth();
   const { settings } = useUserSettings();
-  const { currentTrack } = usePlayer();
-  const { lastRequestedTracks } = useStation();
 
   const [searchState, setSearchState] = useState<{
     query: string;
@@ -63,35 +55,6 @@ export function FazerPedido({ navigation }: Props) {
   const [selectedTrack, setSelectedTrack] = useState<MusicRequest | undefined>(
     undefined,
   );
-
-  // Own-request queue tracker — see queue-tracker.ts for the business
-  // rules. Persists across sessions; observes every station poll.
-  const queueTracker = useMemo(() => new QueueTracker(), []);
-  const [queueStatus, setQueueStatus] = useState<QueueStatus>(() =>
-    queueTracker.status,
-  );
-
-  useEffect(() => {
-    let cancelled = false;
-    queueTracker.load().then(() => {
-      if (!cancelled) setQueueStatus(queueTracker.status);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [queueTracker]);
-
-  // Advance the queue on every station poll merge — the effect only runs
-  // when the poll data actually changed (store emits on real changes)
-  useEffect(() => {
-    setQueueStatus(
-      queueTracker.observe({
-        now: Date.now(),
-        onAirTrack: currentTrack ?? null,
-        playedRequests: lastRequestedTracks ?? [],
-      }),
-    );
-  }, [queueTracker, currentTrack, lastRequestedTracks]);
 
   const handleSearch = useCallback(async () => {
     if (!searchState.query) return;
@@ -166,15 +129,12 @@ export function FazerPedido({ navigation }: Props) {
         };
       }
 
-      // Record for the queue tracker — "played ahead" counting starts here
-      await queueTracker.add(selectedTrack.id, selectedTrack.song);
-
       return {
         success: true,
         message: DICT[settings.selectedLanguage].REQUEST_SUCCESS,
       };
     },
-    [selectedTrack, user, settings.selectedLanguage, queueTracker],
+    [selectedTrack, user, settings.selectedLanguage],
   );
 
   const handleRequestSuccess = useCallback((trackId: string) => {
@@ -197,9 +157,6 @@ export function FazerPedido({ navigation }: Props) {
               size={150}
             />
           </View>
-
-          {/* Own-request queue status — persists across the session */}
-          <QueueStatusStrip status={queueStatus} />
 
           <View style={styles.inputContainer}>
             <TextInput
@@ -272,7 +229,6 @@ export function FazerPedido({ navigation }: Props) {
           visible={!!selectedTrack}
           track={selectedTrack}
           user={user}
-          queueStatus={queueStatus}
           onClose={() => setSelectedTrack(undefined)}
           onSubmit={handleSubmitRequest}
           onRequestSuccess={handleRequestSuccess}
