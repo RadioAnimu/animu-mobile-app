@@ -1,39 +1,49 @@
-import { ArtworkQuality } from "../../@types/artwork-quality";
-import { HistoryType } from "../../@types/history-type";
-import { animuApiClient as apiClient } from "../../data/http/animu.api";
-import { ListenersMapper } from "../../data/mappers/listeners.mapper";
-import { ProgramMapper } from "../../data/mappers/program.mapper";
-import { TrackHistoryMapper } from "../../data/mappers/track-history.mapper";
-import { TrackMapper } from "../../data/mappers/track.mapper";
-import { Listeners } from "../domain/listeners";
-import { Program } from "../domain/program";
-import { Track } from "../domain/track";
+import type { ArtworkQuality, HistoryType, Track, Listeners } from "animu-api";
+import type { Program } from "../domain/program";
+import { DICT } from "../../i18n";
+import type { Program as ProgramDictionaryEntry } from "../../api";
+import { animuApi, createMetadataClient } from "../../api/client";
 
 class AnimuService {
   /**
-   * Fetches track + listeners from a single API call (BASE_URL).
+   * Fetches track + listeners from a single API call.
+   *
+   * Artwork quality is a runtime user setting, so this uses a dedicated
+   * client per call instead of the shared one.
    */
   async getStreamMetadata(
     artworkQuality?: ArtworkQuality,
   ): Promise<{ track: Track | null; listeners: Listeners }> {
-    const dto = await apiClient.getStreamMetadata();
+    const client = createMetadataClient(artworkQuality ?? "medium");
+    return client.getStreamMetadata();
+  }
+
+  /**
+   * Fetches the program currently on air, enriched with the matching i18n
+   * dictionary entry (the package doesn't know about DICT).
+   */
+  async getCurrentProgram(): Promise<Program> {
+    const program = await animuApi.getProgram();
     return {
-      track: TrackMapper.fromDTO(dto, artworkQuality),
-      listeners: ListenersMapper.fromDTO(dto),
+      ...program,
+      raw: findRawProgram(program.name),
     };
   }
 
-  async getCurrentProgram(): Promise<Program> {
-    const dto = await apiClient.getProgramInfo();
-    const program = ProgramMapper.fromDTO(dto);
-
-    return program;
-  }
-
   async getTrackHistory(type: HistoryType): Promise<Track[]> {
-    const dto = await apiClient.getTrackHistory(type);
-    return TrackHistoryMapper.fromDTO(dto, type);
+    return animuApi.getTrackHistory(type);
   }
 }
+
+const findRawProgram = (
+  programName: string,
+): ProgramDictionaryEntry | undefined => {
+  if (!programName) return undefined;
+
+  const programNameLower = programName.trim().toLowerCase();
+  return DICT["PT"].PROGRAMS.find(
+    (program) => program.name.trim().toLowerCase() === programNameLower,
+  );
+};
 
 export const animuService = new AnimuService();

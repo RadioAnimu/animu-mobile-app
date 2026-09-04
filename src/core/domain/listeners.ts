@@ -1,3 +1,1 @@
-export type Listeners = {
-  value: number;
-};
+export type { Listeners } from "animu-api";

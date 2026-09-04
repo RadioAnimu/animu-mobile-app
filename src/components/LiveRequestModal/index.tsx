@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { ValidationError } from "animu-api";
 import {
   ActivityIndicator,
   Image,
@@ -20,7 +21,6 @@ import { useAlert } from "../../contexts/alert/AlertProvider";
 import { useAuth } from "../../contexts/auth/AuthProvider";
 import { useLiveRequestForm } from "../../hooks/useLiveRequestForm";
 import { liveRequestService } from "../../core/services/live-request.service";
-import { HttpRequestError } from "../../core/errors/http.error";
 
 interface Props extends ModalProps {
   handleClose: () => void;
@@ -99,7 +99,7 @@ export function LiveRequestModal({ handleClose, ...rest }: Props) {
         );
       }
     } catch (error) {
-      if (error instanceof HttpRequestError) {
+      if (error instanceof ValidationError) {
         showError(error.message);
       } else {
         showError(DICT[settings.selectedLanguage].REQUEST_ERROR);

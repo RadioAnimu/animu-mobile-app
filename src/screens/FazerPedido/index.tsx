@@ -25,12 +25,12 @@ import { useUserSettings } from "../../contexts/user/UserSettingsProvider";
 import {
   MusicRequest,
   MusicRequestPagination,
+  MusicRequestSubmission,
 } from "../../core/domain/music-request";
-import { musicRequestService } from "../../core/services/music-request.service";
-
-// Styles and Config
-import { MusicRequestSubmissionDTO } from "../../data/http/dto/music-request.dto";
-import { MusicRequestMapper } from "../../data/mappers/music-request.mapper";
+import {
+  getSubmissionErrorMessage,
+  musicRequestService,
+} from "../../core/services/music-request.service";
 import { DICT, IMGS } from "../../i18n";
 import { RootStackParamList } from "../../routes/app.routes";
 import { THEME } from "../../theme";
@@ -125,11 +125,11 @@ export function FazerPedido({ navigation }: Props) {
   }, [searchState.query]);
 
   const handleLoadMore = useCallback(async () => {
-    if (!searchState.pagination?.nextPageQueryObject) return;
+    if (!searchState.pagination?.nextPageParams) return;
     setSearchState((prev) => ({ ...prev, status: "loadingMore" }));
     try {
       const response = await musicRequestService.searchTracksByQuery(
-        searchState.pagination.nextPageQueryObject,
+        searchState.pagination.nextPageParams,
       );
       setSearchState((prev) => ({
         ...prev,
@@ -159,18 +159,18 @@ export function FazerPedido({ navigation }: Props) {
         };
       }
 
-      const submissionDTO: MusicRequestSubmissionDTO = {
-        allmusic: selectedTrack.id,
+      const submission: MusicRequestSubmission = {
+        trackId: selectedTrack.id,
         message,
-        PHPSESSID: user.sessionId,
+        sessionId: user.sessionId,
       };
 
-      const result = await musicRequestService.submitRequest(submissionDTO);
+      const result = await musicRequestService.submitRequest(submission);
 
       if (!result.success) {
         return {
           success: false,
-          message: MusicRequestMapper.getErrorMessage(
+          message: getSubmissionErrorMessage(
             result.error,
             result.detail,
             settings.selectedLanguage,
@@ -253,7 +253,7 @@ export function FazerPedido({ navigation }: Props) {
                   />
                 )}
                 ListFooterComponent={
-                  searchState.pagination?.nextPageQueryObject ? (
+                  searchState.pagination?.nextPageParams ? (
                     <TouchableOpacity
                       style={styles.loadMoreBtn}
                       onPress={handleLoadMore}

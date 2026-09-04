@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { LiveRequest, validateLiveRequest } from "../core/domain/live-request";
-import { HttpRequestError } from "../core/errors/http.error";
 
 export function useLiveRequestForm(initialData?: Partial<LiveRequest>) {
   const [name, setName] = useState(initialData?.name || "");
@@ -56,10 +55,5 @@ export function useLiveRequestForm(initialData?: Partial<LiveRequest>) {
   };
 }
 
-export const isFormDataValid = (formData: LiveRequest): boolean => {
-  const result = validateLiveRequest(formData);
-  if (!result.success) {
-    throw new HttpRequestError(`Invalid field: ${result.message}`, 400);
-  }
-  return true;
-};
+export const isFormDataValid = (formData: LiveRequest): boolean =>
+  validateLiveRequest(formData).success;

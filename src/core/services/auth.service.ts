@@ -1,13 +1,10 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as AuthSession from "expo-auth-session";
-import { authApiClient } from "../../data/http/auth.api";
-import { UserDTOSchema } from "../../data/http/dto/user.dto";
-import { UserMapper } from "../../data/mappers/user.mapper";
+import { animuApi } from "../../api/client";
 import { User } from "../domain/user";
 
 const USER_STORAGE_KEY = "user";
 const CLIENT_ID = "1159273876732256266";
-const TOKEN_EXCHANGE_URL = "https://www.animu.com.br/teste/exchange-token.php";
 
 export const REDIRECT_URI = AuthSession.makeRedirectUri({
   scheme: "animuapp",
@@ -48,44 +45,25 @@ class AuthService {
       throw new Error("Authentication cancelled");
     }
 
-    const response = await fetch(TOKEN_EXCHANGE_URL, {
-      method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body: new URLSearchParams({
-        code: result.params.code,
-        redirect_uri: REDIRECT_URI,
-        code_verifier: request.codeVerifier ?? "",
-      }).toString(),
+    // PKCE exchange happens on the Animu server; the client validates the
+    // payload and folds PHPSESSID into the returned user.
+    const user = await animuApi.exchangeToken({
+      code: result.params.code,
+      redirectUri: REDIRECT_URI,
+      codeVerifier: request.codeVerifier ?? "",
     });
 
-    const rawText = await response.text();
-
-    let data: any;
-    try {
-      data = JSON.parse(rawText);
-    } catch {
-      throw new Error(`Exchange response is not valid JSON: ${rawText}`);
-    }
-
-    if (data.error) {
-      console.error("[Auth] Exchange error details:", JSON.stringify(data));
-      throw new Error(`Token exchange failed: ${data.error}`);
-    }
-
-    const userDTO = { ...data.user, PHPSESSID: data.PHPSESSID };
-
-    const user = UserMapper.fromDTO(UserDTOSchema.parse(userDTO));
     await AsyncStorage.setItem(USER_STORAGE_KEY, JSON.stringify(user));
     return user;
   }
 
   async logoutFromServer(sessionId: string): Promise<void> {
-    await authApiClient.logout(sessionId);
+    await animuApi.logout(sessionId);
   }
 
   async validateSession(sessionId: string): Promise<boolean> {
     try {
-      return await authApiClient.validateSession(sessionId);
+      return await animuApi.validateSession(sessionId);
     } catch (error) {
       console.error("[AuthService] Session validation failed:", error);
       return false;

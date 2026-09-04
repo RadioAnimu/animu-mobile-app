@@ -1,8 +1,6 @@
-import { LiveRequest } from "../domain/live-request";
-import { LiveRequestMapper } from "../../data/mappers/live-request.mapper";
-import { animuApiClient as apiClient } from "../../data/http/animu.api";
-import * as LiveRequestFormTools from "../../hooks/useLiveRequestForm";
-import { HttpRequestError } from "../errors/http.error";
+import type { LiveRequest } from "../domain/live-request";
+import { ValidationError } from "animu-api";
+import { animuApi } from "../../api/client";
 
 class LiveRequestService {
   private isSubmitting = false;
@@ -19,28 +17,19 @@ class LiveRequestService {
     try {
       this.isSubmitting = true;
 
-      // Validate request
-      try {
-        const validation = LiveRequestFormTools.isFormDataValid(request);
-        if (!validation) {
-          return { success: false, error: "Invalid request data" };
-        }
-      } catch (error) {
-        if (error instanceof HttpRequestError) {
-          return { success: false, error: error.message };
-        } else {
-          return { success: false, error: "Invalid request data" };
-        }
-      }
-
-      // Submit request
-      const dto = LiveRequestMapper.toDTO(request);
-      const success = await apiClient.submitLiveRequest(dto);
+      // The client validates client-side (throws ValidationError before any
+      // network call) and returns `true` only on a server-confirmed `"1"`.
+      const success = await animuApi.submitLiveRequest(request);
 
       return {
         success,
         error: success ? undefined : "Failed to submit request",
       };
+    } catch (error) {
+      if (error instanceof ValidationError) {
+        return { success: false, error: error.message };
+      }
+      return { success: false, error: "Failed to submit request" };
     } finally {
       this.isSubmitting = false;
     }

@@ -24,7 +24,7 @@ import {
   setRemotePlaybackStatus,
 } from "./player-playback.service";
 import { PlayerSnapshot, playerStore, progressStore } from "./player-store";
-import { fetchStreams } from "../../data/http/animu-streams.api";
+import { animuApi } from "../../api/client";
 
 // ── One-shot timers (plain JS timers) ──
 const _setTimeout = (fn: () => void, ms: number): number =>
@@ -441,7 +441,7 @@ export const playerService = (): PlayerServiceProps => {
           , // SetupService — void, resolved for its side effect
           , // userSettingsService.initialize() — pre-warm cache
         ] = await Promise.all([
-          fetchStreams(),
+          animuApi.getStreams(),
           AsyncStorage.getItem("currentStream"),
           SetupService().then(() => {
             this._nativeSetupDone = true;
@@ -701,10 +701,11 @@ export const playerService = (): PlayerServiceProps => {
 
         const baseMetadata: NowPlayingMetadata = this._currentTrack
           ? {
-              title: this._currentTrack.metadata.title || "N/A",
-              artist: this._currentTrack.metadata.artist || "N/A",
-              artwork:
-                this._currentTrack.metadata.artwork || CONFIG.DEFAULT_COVER,
+              // The media session has always shown the anime as the title
+              // (legacy mapper behavior) — keep it.
+              title: this._currentTrack.anime || "N/A",
+              artist: this._currentTrack.artist || "N/A",
+              artwork: this._currentTrack.artwork || CONFIG.DEFAULT_COVER,
               isLiveStream: isLive,
             }
           : {
