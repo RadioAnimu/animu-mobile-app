@@ -4,9 +4,10 @@ import React, {
   useEffect,
   useMemo,
   useCallback,
+  useState,
   useSyncExternalStore,
 } from "react";
-import { AppState } from "react-native";
+import { AppState, type AppStateStatus } from "react-native";
 import { Stream } from "../../core/domain/stream";
 import { playerService } from "../../core/player";
 import { setRemotePlaybackHandlers } from "../../core/services/player-playback.service";
@@ -80,6 +81,11 @@ export const PlayerProvider: React.FC<{
     progressStore.getSnapshot,
   );
 
+  // ─── App visibility — gates the poll lifecycle (see the effect below) ───
+  const [appState, setAppState] = useState<AppStateStatus>(
+    AppState.currentState,
+  );
+
   // ─── Initialization & background tasks ───
   useEffect(() => {
     let cancelled = false;
@@ -109,28 +115,6 @@ export const PlayerProvider: React.FC<{
 
         // Single call: streams + stored pref + native setup + settings + data fetch
         await playerServiceInstance.setupPlayer();
-
-        if (cancelled) return;
-
-        // Adaptive refresh — polls faster when playing, slower when paused
-        backgroundService.startTask({
-          id: "refresh-data",
-          callback: async () => {
-            await playerServiceInstance.refreshData();
-          },
-          interval: playerServiceInstance.isPlayingIntent
-            ? REFRESH_INTERVAL_PLAYING
-            : REFRESH_INTERVAL_PAUSED,
-        });
-
-        // Progress tick (the service itself early-returns when paused)
-        backgroundService.startTask({
-          id: "track-progress",
-          callback: async () => {
-            playerServiceInstance.tickProgress();
-          },
-          interval: TRACK_PROGRESS_INTERVAL,
-        });
       } catch (error) {
         console.error("[PlayerProvider] Player initialization failed:", error);
         // The service never flipped its initialized flag, so the store
@@ -146,6 +130,7 @@ export const PlayerProvider: React.FC<{
     const appStateSubscription = AppState.addEventListener(
       "change",
       (nextAppState) => {
+        setAppState(nextAppState);
         if (nextAppState === "active" && playerServiceInstance.isReady) {
           void playerServiceInstance.refreshData().catch(console.error);
         }
@@ -169,12 +154,26 @@ export const PlayerProvider: React.FC<{
     };
   }, [playerServiceInstance]);
 
-  // ─── Adaptive refresh: switch interval on play/pause ───
+  // ─── Poll lifecycle: while visible or playing, otherwise suspended ───
+  //
+  // - Playing (foreground or background): 5s — powers the live badge AND
+  //   keeps the notification's metadata/seek bar fresh on track changes.
+  // - Paused + foreground: 30s — badge/history stay fresh for a user with
+  //   the app open but paused.
+  // - Paused + background: suspended — nothing visible can change, so
+  //   polling would be pure battery/radio-data waste.
   useEffect(() => {
     if (!playerSnapshot.isInitialized) return;
 
-    // Restart refresh task with the appropriate interval
-    backgroundService.stopTask("refresh-data");
+    const shouldPoll = playerSnapshot.isPlaying || appState === "active";
+
+    if (!shouldPoll) {
+      backgroundService.stopTask("refresh-data");
+      backgroundService.stopTask("track-progress");
+      return;
+    }
+
+    // startTask restarts cleanly by id — safe on every effect re-run
     backgroundService.startTask({
       id: "refresh-data",
       callback: async () => {
@@ -184,9 +183,19 @@ export const PlayerProvider: React.FC<{
         ? REFRESH_INTERVAL_PLAYING
         : REFRESH_INTERVAL_PAUSED,
     });
+
+    // Progress tick (the ticker itself early-returns without a track)
+    backgroundService.startTask({
+      id: "track-progress",
+      callback: async () => {
+        playerServiceInstance.tickProgress();
+      },
+      interval: TRACK_PROGRESS_INTERVAL,
+    });
   }, [
     playerSnapshot.isPlaying,
     playerSnapshot.isInitialized,
+    appState,
     playerServiceInstance,
   ]);
   // ─── Action wrappers — delegate to the service (which auto-emits) ───

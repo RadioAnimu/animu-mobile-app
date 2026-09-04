@@ -23,7 +23,8 @@ export interface ProgressTickerOptions {
 }
 
 /**
- * 1 Hz heartbeat driven by the native playbackStatusUpdate interval.
+ * 1 Hz heartbeat, driven by the app-level poll task ("track-progress" in
+ * `background.service.ts` — see `PlayerProvider` for the visibility gates).
  *
  * - Updates `progressStore` only when the value actually changed (avoids
  *   1/sec React re-renders).
