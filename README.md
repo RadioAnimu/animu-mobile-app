@@ -27,7 +27,7 @@ This repository is the official mobile application: a real-time internet-radio c
 - **Real-time station metadata** — the app polls the station API and keeps the UI in sync with the server-side track, cover artwork, live program, DJ, and live listener count.
 - **True now-playing in the system media session** — title, artist, anime, artwork, and *real track progress* are pushed to the native notification on both platforms, including for ICY/live streams where the player's internal position is stream-time rather than track-time (see [Engineering notes](#key-engineering-decisions)).
 - **Background playback** — audio continues with the screen locked via a foreground service (Android) and background audio mode (iOS).
-- **Music requests** — search a requestable catalog and submit a request to the station's queue, with a full form-feedback flow (success/error states) and duplicate-submission guards. After submitting, a queue strip tracks your own requests: "in line", a conservative "≥ N played ahead of yours" (FIFO frontier, see `queue-tracker.ts` for the business rules), a rough request cadence hint, and "playing now" when your song hits the air. The station exposes no pending-queue endpoint — the strip never shows history as a queue.
+- **Music requests** — search a requestable catalog and submit a request to the station's queue, with a full form-feedback flow (success/error states) and duplicate-submission guards.
 - **Live request / shout-out submissions** — validated form (name, city, artist, music, anime, message) submitted to the DJ panel.
 - **Discord OAuth 2.0 sign-in** — PKCE-based authorization flow through `expo-auth-session`, token exchanged on the Animu backend, and a session that is silently re-validated on a background heartbeat; sessions are persisted and restored on launch.
 - **Track history** — last requested and last played lists, deduplicated and merged incrementally.
@@ -40,10 +40,10 @@ The codebase follows a **clean, layered architecture** that keeps the UI decoupl
 
 | Layer | Location | Responsibility |
 | --- | --- | --- |
-| **Domain** | `src/core/domain` | Framework-free entities (`Track`, `Program`, `Stream`, `Listeners`, `LiveRequest`, `User`) and business rules such as track-progress math and form validation. |
+| **Domain** | `src/core/domain` | Thin re-exports of the `animu-api` entities (`Track`, `Stream`, `Listeners`, `User`…) and its pure helpers (track-progress math, filler filtering) — one import path, no app-side duplication. |
 | **Player core** | `src/core/player` | The playback engine — small, focused units composed by a thin orchestrator (see below). |
 | **Services** | `src/core/services` | Application orchestration — auth, music/live requests, background tasks, and user settings. |
-| **Data** | `src/data` | HTTP clients (`data/http`), wire DTOs (`data/http/dto`), and mappers (`data/mappers`) that translate DTOs into domain models. |
+| **Data** | `packages/animu-api` | The `animu-api` submodule owns all HTTP, wire DTOs and DTO→domain mapping (see its [API reference](https://github.com/RadioAnimu/animu-api/blob/main/API.md)). |
 | **UI** | `src/screens`, `src/components` | React Native screens and reusable components, driven by React contexts and external stores. |
 
 The player core (`src/core/player`) decomposes playback into small, testable units composed by a **thin orchestrator** (`PlayerService`) that owns no playback or data logic itself — it only routes events between units and is the single writer of the React stores:
@@ -75,14 +75,10 @@ src/
 ├── components/           # Reusable UI (player, modals, drawer, dialogs…)
 ├── contexts/             # Player, Auth, UserSettings, Alert, Portal providers
 ├── core/
-│   ├── domain/           # Entities + validation
+│   ├── domain/           # Thin re-exports of animu-api entities + helpers
 │   ├── errors/           # Typed HTTP errors
 │   ├── player/           # Playback engine (transport, repository, orchestrator…)
 │   └── services/         # Auth, requests, background, settings
-├── data/
-│   ├── http/             # API clients + axios-equivalent fetch client
-│   │   └── dto/          # Wire-format types
-│   └── mappers/          # DTO → domain mapping
 ├── hooks/                # Shared hooks (live-request form)
 ├── i18n/                 # PT / EN / ES / JP dictionaries
 ├── routes/               # Navigation (drawer + stack)
@@ -94,25 +90,25 @@ src/
 - **Custom HTTP layer instead of a third-party client.** A small `fetch`-based client with `AbortController` timeouts, a 2.5 s in-memory GET cache, structured request logging, and typed `HttpRequestError`s. Removing Axios eliminated a dependency while keeping a familiar request API.
 - **Predictive track-end refresh.** The client knows each track's `startTime` and `duration`, so it schedules a metadata refresh just before the track ends (`startTime + duration + buffer`) — keeping the UI ahead of the station instead of polling blindly.
 - **Exponential backoff.** Consecutive API/network failures retry at 2 s → 4 s → 8 s → … capped at 30 s, resetting on the first success. Combined with the track-end scheduler, the app recovers from transient outages without user intervention.
-- **Native patch for live-stream progress.** Internet-radio (ICY) streams break `react-native-track-player`'s progress reporting, because ExoPlayer's position is stream time, not track time. The repo ships a `patch-package` patch (`patches/react-native-track-player+4.1.2.patch`) that plumbs `elapsedTime`/`duration` through `MusicModule` and overrides the `PlaybackStateCompat` position in the Android `MediaSession` — so the notification shows the *real* track progress.
-- **Platform-aware background timing.** One-shot timers and intervals use `react-native-background-timer` on Android and standard `setInterval` on iOS, where the background-audio service already owns the process.
+- **Real track progress in the media session.** The radio plays server-side, so progress derives from the station's `startTime` + `duration` (`getTrackProgress` in `animu-api`), not from the player's internal position — which on ICY streams is stream time, not track time. The app pushes `durationSec` and periodically re-pushes the elapsed position to `react-native-playback-controls`, letting the OS interpolate the seek bar between snapshots.
+- **Visibility-gated polling.** The app-level task runner (`background.service.ts`) re-arms each task only after the previous run settles, so a slow poll never overlaps itself. Polling follows visibility: 5s while playing (keeps the notification fresh on track changes, foreground or background), 30s while paused in the foreground, and fully suspended while paused in the background — nothing visible can change there, so polling would be pure battery/radio waste. Returning to the foreground always triggers an immediate refresh.
 - **Auth that survives relaunch.** The Discord OAuth code is exchanged on the Animu backend for a `PHPSESSID`, persisted to `AsyncStorage`, validated on cold start, and re-checked every 60 s by a background task. A network hiccup never logs the user out.
 
 ## Tech stack
 
 | Concern | Choice |
 | --- | --- |
-| Runtime | React Native 0.79 · React 19 |
-| Build tooling | Expo SDK 53 · EAS Build |
-| Language | TypeScript 5.8 (strict) |
+| Runtime | React Native 0.81 · React 19 (New Architecture) |
+| Build tooling | Expo SDK 54 · EAS Build |
+| Language | TypeScript 5.9 (strict) |
 | Navigation | React Navigation (drawer + native stack) |
-| Audio | `react-native-track-player` (patched) · `expo-web-browser` |
+| Audio | `expo-audio` · `react-native-playback-controls` (media session) |
 | Auth | `expo-auth-session` (Discord OAuth 2.0 + PKCE) |
 | State | React Context · custom external stores (`useSyncExternalStore`) |
 | Storage | `@react-native-async-storage/async-storage` |
 | Networking | Native `fetch` + `AbortController` |
-| Background | `react-native-background-timer` |
-| Patching | `patch-package` |
+| API client | `animu-api` submodule (zod-validated DTOs) |
+| Background | JS task runner gated by app visibility (see engineering notes) |
 | i18n | Custom dictionary-based localization (PT/EN/ES/JP) |
 
 ## Getting started
