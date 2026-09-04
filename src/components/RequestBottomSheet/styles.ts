@@ -60,22 +60,6 @@ export const styles = StyleSheet.create({
     fontSize: THEME.FONT_SIZE.FOOTER,
     opacity: 0.7,
   },
-  queueUserRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-  queueRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    flexShrink: 1,
-  },
-  queueText: {
-    color: THEME.COLORS.CAPTION_500,
-    fontFamily: THEME.FONT_FAMILY.BOLD,
-    fontSize: THEME.FONT_SIZE.SM,
-  },
   noteBox: {
     width: "100%",
   },

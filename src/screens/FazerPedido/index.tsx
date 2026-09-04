@@ -15,6 +15,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Background } from "../../components/Background";
 import { HeaderBar } from "../../components/HeaderBar";
 import { Logo } from "../../components/Logo";
+import { QueueStatusStrip } from "../../components/QueueStatusStrip";
 import { RequestBottomSheet } from "../../components/RequestBottomSheet";
 import { RequestTrack } from "../../components/RequestTrack";
 
@@ -31,6 +32,10 @@ import {
   getSubmissionErrorMessage,
   musicRequestService,
 } from "../../core/services/music-request.service";
+import {
+  QueueTracker,
+  type QueueStatus,
+} from "../../core/player/queue-tracker";
 import { DICT, IMGS } from "../../i18n";
 import { RootStackParamList } from "../../routes/app.routes";
 import { THEME } from "../../theme";
@@ -59,49 +64,34 @@ export function FazerPedido({ navigation }: Props) {
     undefined,
   );
 
-  // Wall-clock ticker — the queue count depends on "now", so refresh it
-  // on an interval instead of reading Date.now() during render
-  const [now, setNow] = useState(() => Date.now());
+  // Own-request queue tracker — see queue-tracker.ts for the business
+  // rules. Persists across sessions; observes every station poll.
+  const queueTracker = useMemo(() => new QueueTracker(), []);
+  const [queueStatus, setQueueStatus] = useState<QueueStatus>(() =>
+    queueTracker.status,
+  );
+
   useEffect(() => {
-    const id = setInterval(() => setNow(Date.now()), 30_000);
-    return () => clearInterval(id);
-  }, []);
+    let cancelled = false;
+    queueTracker.load().then(() => {
+      if (!cancelled) setQueueStatus(queueTracker.status);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [queueTracker]);
 
-  const queueCount = useMemo(() => {
-    if (!lastRequestedTracks?.length) return undefined;
-
-    // Sort all requests chronologically so we can reason about position
-    const sorted = [...lastRequestedTracks].sort(
-      (a, b) => a.startTime.getTime() - b.startTime.getTime(),
+  // Advance the queue on every station poll merge — the effect only runs
+  // when the poll data actually changed (store emits on real changes)
+  useEffect(() => {
+    setQueueStatus(
+      queueTracker.observe({
+        now: Date.now(),
+        onAirTrack: currentTrack ?? null,
+        playedRequests: lastRequestedTracks ?? [],
+      }),
     );
-
-    // Case 1: A request is currently on air.
-    // Walk the sorted list from the end to find the last entry whose startTime
-    // has already passed — that is the track currently playing.
-    // Everything after it is genuinely still in the queue.
-    if (currentTrack?.isRequest) {
-      let playingIdx = -1;
-      for (let i = sorted.length - 1; i >= 0; i--) {
-        if (sorted[i].startTime.getTime() <= now) {
-          playingIdx = i;
-          break;
-        }
-      }
-      if (playingIdx !== -1) {
-        return sorted.length - 1 - playingIdx;
-      }
-    }
-
-    // Case 2: Free-play / DJ / non-request track is on air.
-    // Use the precise moment the current track ends as the cutoff —
-    // requests scheduled after that point haven't been consumed yet.
-    const pivot =
-      currentTrack?.startTime && currentTrack.duration > 0
-        ? Math.max(now, currentTrack.startTime.getTime() + currentTrack.duration)
-        : now;
-
-    return sorted.filter((t) => t.startTime.getTime() > pivot).length;
-  }, [lastRequestedTracks, currentTrack, now]);
+  }, [queueTracker, currentTrack, lastRequestedTracks]);
 
   const handleSearch = useCallback(async () => {
     if (!searchState.query) return;
@@ -176,12 +166,15 @@ export function FazerPedido({ navigation }: Props) {
         };
       }
 
+      // Record for the queue tracker — "played ahead" counting starts here
+      await queueTracker.add(selectedTrack.id, selectedTrack.song);
+
       return {
         success: true,
         message: DICT[settings.selectedLanguage].REQUEST_SUCCESS,
       };
     },
-    [selectedTrack, user, settings.selectedLanguage],
+    [selectedTrack, user, settings.selectedLanguage, queueTracker],
   );
 
   const handleRequestSuccess = useCallback((trackId: string) => {
@@ -204,6 +197,9 @@ export function FazerPedido({ navigation }: Props) {
               size={150}
             />
           </View>
+
+          {/* Own-request queue status — persists across the session */}
+          <QueueStatusStrip status={queueStatus} />
 
           <View style={styles.inputContainer}>
             <TextInput
@@ -276,7 +272,7 @@ export function FazerPedido({ navigation }: Props) {
           visible={!!selectedTrack}
           track={selectedTrack}
           user={user}
-          queueCount={queueCount}
+          queueStatus={queueStatus}
           onClose={() => setSelectedTrack(undefined)}
           onSubmit={handleSubmitRequest}
           onRequestSuccess={handleRequestSuccess}

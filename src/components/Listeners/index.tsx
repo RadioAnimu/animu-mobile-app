@@ -43,7 +43,8 @@ export const Listeners = React.memo(function Listeners() {
         ]}
       >
         {currentListeners.value}
-      </Text>      <Image
+      </Text>
+      <Image
         style={styles.foninho}
         source={track.isRequest || program?.isLive ? foninho_branco : foninho}
       />

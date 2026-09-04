@@ -1,4 +1,4 @@
-import { Ionicons, MaterialIcons } from "@expo/vector-icons";
+import { MaterialIcons } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import React, { useState } from "react";
 import {
@@ -17,10 +17,12 @@ import {
 import { useUserSettings } from "../../contexts/user/UserSettingsProvider";
 import { MusicRequest } from "../../core/domain/music-request";
 import { User } from "../../core/domain/user";
+import type { QueueStatus } from "../../core/player/queue-tracker";
 import { DICT } from "../../i18n";
 import { THEME } from "../../theme";
 import { CONFIG } from "../../utils/player.config";
 import DragIcon from "../../assets/icons/ArrastarParaBaixo.png";
+import { QueueStatusStrip } from "../QueueStatusStrip";
 import { styles } from "./styles";
 
 type SubmitStatus = "idle" | "submitting" | "success" | "error";
@@ -29,7 +31,8 @@ interface Props {
   visible: boolean;
   track?: MusicRequest;
   user: User | null;
-  queueCount?: number;
+  /** Provable queue status for the user's own requests. */
+  queueStatus: QueueStatus;
   onClose: () => void;
   onSubmit: (message: string) => Promise<{ success: boolean; message: string }>;
   onRequestSuccess: (trackId: string) => void;
@@ -39,7 +42,7 @@ export function RequestBottomSheet({
   visible,
   track,
   user,
-  queueCount,
+  queueStatus,
   onClose,
   onSubmit,
   onRequestSuccess,
@@ -149,38 +152,20 @@ export function RequestBottomSheet({
               </View>
             )}
 
-            {/* Queue count + user */}
-            {(queueCount !== undefined || user) && (
-              <View style={styles.queueUserRow}>
-                {queueCount !== undefined ? (
-                  <View style={styles.queueRow}>
-                    <Ionicons
-                      name={queueCount === 0 ? "flash" : "musical-notes"}
-                      size={14}
-                      color={THEME.COLORS.CAPTION_500}
-                    />
-                    <Text style={styles.queueText}>
-                      {queueCount === 0
-                        ? "It will play next! 🎶"
-                        : `${queueCount} song${queueCount !== 1 ? "s" : ""} in the request queue`}
-                    </Text>
-                  </View>
-                ) : (
-                  <View />
-                )}
+            {/* Queue status (post-submission only — the pending queue is
+                server-side, so a pre-submit count can't be proven) */}
+            <QueueStatusStrip status={queueStatus} />
 
-                {user && (
-                  <View style={styles.userRow}>
-                    <Image
-                      source={{ uri: user.avatarUrl }}
-                      style={styles.avatar}
-                      contentFit="cover"
-                    />
-                    <Text style={styles.username}>
-                      {user.nickname || user.username}
-                    </Text>
-                  </View>
-                )}
+            {user && (
+              <View style={styles.userRow}>
+                <Image
+                  source={{ uri: user.avatarUrl }}
+                  style={styles.avatar}
+                  contentFit="cover"
+                />
+                <Text style={styles.username}>
+                  {user.nickname || user.username}
+                </Text>
               </View>
             )}
 
