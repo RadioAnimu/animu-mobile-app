@@ -215,34 +215,42 @@ export class NowPlayingRepository {
   }
 
   /**
-   * Incrementally merges a history type into its list: new tracks are
-   * unshifted, already-known tracks stop the walk once they're older than
-   * a day (everything after is guaranteed older). The merged list is
-   * replaced with a shallow copy so store snapshots can diff by reference.
+   * Incrementally merges a history type into its list.
+   *
+   * The station feeds are newest-first. Fresh (unknown) tracks are
+   * collected in payload order and prepended as a block, so the merged
+   * list stays newest-first for the UI. The walk stops at a known track
+   * older than a day — everything after is guaranteed older/known. Tracks
+   * already known stop nothing but add nothing (dedup by `raw`, first =
+   * newest occurrence wins for repeats within one payload).
    */
   async refreshHistory(type: HistoryType): Promise<void> {
-    const target =
-      type === "requests" ? this.requestedTracks : this.playedTracks;
-
     try {
       const tracks = await this.options.fetchers.getTrackHistory(type);
       if (!tracks || tracks.length === 0) return;
 
-      let added = false;
+      const target =
+        type === "requests" ? this.requestedTracks : this.playedTracks;
+
+      const fresh: Track[] = [];
+      const seenPayloadRaws = new Set<string>();
       for (const track of tracks) {
-        if (!target.find((t) => t.raw === track.raw)) {
-          target.unshift(track);
-          added = true;
-        } else if (Date.now() - track.startTime.getTime() > DAY_MS) {
-          break;
+        if (seenPayloadRaws.has(track.raw)) continue;
+        seenPayloadRaws.add(track.raw);
+
+        const isKnown = target.some((t) => t.raw === track.raw);
+        if (isKnown) {
+          if (Date.now() - track.startTime.getTime() > DAY_MS) break;
+          continue;
         }
+        fresh.push(track);
       }
-      if (!added) return;
+      if (fresh.length === 0) return;
 
       if (type === "requests") {
-        this.requestedTracks = [...this.requestedTracks];
+        this.requestedTracks = [...fresh, ...this.requestedTracks];
       } else {
-        this.playedTracks = [...this.playedTracks];
+        this.playedTracks = [...fresh, ...this.playedTracks];
       }
 
       this.onChange({

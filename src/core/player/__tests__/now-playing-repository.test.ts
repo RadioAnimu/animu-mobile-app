@@ -278,6 +278,84 @@ describe("NowPlayingRepository", () => {
     ]);
   });
 
+  it("merges fresh history as a newest-first block (feed order preserved)", async () => {
+    // The station feeds are newest-first — row 0 is the most recent play.
+    // Regression: the old per-row unshift walked this order and REVERSED
+    // it, so "last played" displayed oldest-at-top.
+    const oldest = makeTrack({ id: "-1", raw: "A - Oldest", duration: 0 });
+    const mid = makeTrack({ id: "-2", raw: "B - Mid", duration: 0 });
+    const newest = makeTrack({ id: "-3", raw: "C - Newest", duration: 0 });
+
+    let playedFeed: Track[] = [oldest];
+    const { repository, changes } = makeRepository({
+      getTrackHistory: async (type) => (type === "played" ? playedFeed : []),
+    });
+
+    await repository.refreshHistory("played");
+    expect(repository.lastPlayedTracks.map((t) => t.raw)).toEqual([
+      "A - Oldest",
+    ]);
+    changes.length = 0;
+
+    // Next poll brings two newer plays → prepended as a block, order kept
+    playedFeed = [newest, mid, oldest];
+    await repository.refreshHistory("played");
+
+    expect(repository.lastPlayedTracks.map((t) => t.raw)).toEqual([
+      "C - Newest",
+      "B - Mid",
+      "A - Oldest",
+    ]);
+    expect(changes).toHaveLength(1);
+    expect(changes[0].playedChanged).toBe(true);
+  });
+
+  it("dedupes repeated rows within one payload (first = newest wins)", async () => {
+    const first = makeTrack({ id: "-1", raw: "Repeat - Song", duration: 0 });
+    const second = makeTrack({
+      id: "-1",
+      raw: "Repeat - Song",
+      duration: 0,
+      artwork: "cover-2.jpg",
+    });
+
+    const { repository } = makeRepository({
+      getTrackHistory: async () => [first, second],
+    });
+
+    await repository.refreshHistory("played");
+
+    expect(repository.lastPlayedTracks).toHaveLength(1);
+    expect(repository.lastPlayedTracks[0].artwork).toBe("cover-1.jpg");
+  });
+
+  it("replaces the requests list when the newest request changes", async () => {
+    const initial = makeTrack({ id: "-1", raw: "Old - Request", duration: 0 });
+    const { repository, changes } = makeRepository({
+      getTrackHistory: async (type) =>
+        type === "requests" ? [initial] : [],
+    });
+
+    await repository.refresh();
+    expect(repository.lastRequestedTracks.map((t) => t.raw)).toEqual([
+      "Old - Request",
+    ]);
+    changes.length = 0;
+
+    // A new request played → full replace with the fresh payload
+    const fresh = makeTrack({ id: "-2", raw: "New - Request", duration: 0 });
+    repository["options"].fetchers.getTrackHistory = async (type) =>
+      type === "requests" ? [fresh, initial] : [];
+
+    await repository.refresh();
+
+    expect(repository.lastRequestedTracks.map((t) => t.raw)).toEqual([
+      "New - Request",
+      "Old - Request",
+    ]);
+    expect(changes[0].requestedChanged).toBe(true);
+  });
+
   it("replaces the history array reference when tracks are added", async () => {
     // Store snapshots diff by reference — in-place mutation would never
     // notify subscribers, so refreshHistory must copy-on-write.
