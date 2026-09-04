@@ -10,11 +10,19 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          submodules: recursive
 
       - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
+
+      - name: Install animu-api dependencies
+        run: npm ci --prefix packages/animu-api
+
+      - name: Build animu-api
+        run: npm run build --prefix packages/animu-api
 
       - name: Install dependencies
         run: npm ci
