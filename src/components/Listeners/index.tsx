@@ -6,17 +6,17 @@ import { DICT } from "../../i18n";
 import { THEME } from "../../theme";
 import { styles } from "./styles";
 import { useUserSettings } from "../../contexts/user/UserSettingsProvider";
-import { usePlayer } from "../../contexts/player/PlayerProvider";
+import { usePlayer, useStation } from "../../contexts/player/PlayerProvider";
 
 export const Listeners = React.memo(function Listeners() {
   const { settings } = useUserSettings();
-  const player = usePlayer();
+  const { currentListeners } = useStation();
+  const { currentTrack, currentProgram } = usePlayer();
 
-  const listeners = player.currentListeners;
-  const track = player.currentTrack;
-  const program = player.currentProgram;
+  const track = currentTrack;
+  const program = currentProgram;
 
-  if (!listeners || !track) return null;
+  if (!currentListeners || !track) return null;
 
   return (
     <View
@@ -42,9 +42,8 @@ export const Listeners = React.memo(function Listeners() {
           },
         ]}
       >
-        {listeners.value}
-      </Text>
-      <Image
+        {currentListeners.value}
+      </Text>      <Image
         style={styles.foninho}
         source={track.isRequest || program?.isLive ? foninho_branco : foninho}
       />

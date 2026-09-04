@@ -4,19 +4,30 @@ import { Listeners } from "../domain/listeners";
 import { Program } from "../domain/program";
 
 // ─── Snapshot types ───
+//
+// Three stores by change cadence — components opt into the granularity
+// they need, so a listener-count tick never re-renders the now-playing
+// UI and a 1 Hz progress tick never re-renders anything but progress.
 
+/** "Now playing" — changes per song / program / stream / user action. */
 export type PlayerSnapshot = {
   currentTrack?: Track;
-  lastPlayedTracks?: Track[];
-  lastRequestedTracks?: Track[];
   currentProgram?: Program;
   currentStream?: Stream;
+  /** Static after boot (Settings' bitrate picker). */
   streamOptions?: Stream[];
-  currentListeners?: Listeners;
   isPlaying: boolean;
   isInitialized: boolean;
 };
 
+/** Poll data — changes per API poll (5s playing / 30s paused). */
+export type StationSnapshot = {
+  currentListeners?: Listeners;
+  lastPlayedTracks?: Track[];
+  lastRequestedTracks?: Track[];
+};
+
+/** Progress — changes every second while a track plays. */
 export type ProgressSnapshot = {
   currentTrackProgress: number | null;
   showProgress: boolean;
@@ -79,6 +90,8 @@ export const playerStore = createStore<PlayerSnapshot>({
   isPlaying: false,
   isInitialized: false,
 });
+
+export const stationStore = createStore<StationSnapshot>({});
 
 export const progressStore = createStore<ProgressSnapshot>({
   currentTrackProgress: null,

@@ -7,28 +7,32 @@ import React, {
   useSyncExternalStore,
 } from "react";
 import { Stream } from "../../core/domain/stream";
-import { playerService } from "../../core/services/player.service";
+import { playerService } from "../../core/player";
 import { setRemotePlaybackHandlers } from "../../core/services/player-playback.service";
 import { backgroundService } from "../../core/services/background.service";
 import {
   playerStore,
   progressStore,
+  stationStore,
   type PlayerSnapshot,
   type ProgressSnapshot,
-} from "../../core/services/player-store";
+  type StationSnapshot,
+} from "../../core/player";
 import { Loading } from "../../screens/Loading";
 
 const REFRESH_INTERVAL_PLAYING = 5_000; // 5s safety net (track-end timer handles transitions)
 const REFRESH_INTERVAL_PAUSED = 30_000; // 30s when paused (battery friendly)
 const TRACK_PROGRESS_INTERVAL = 1000; // 1s (only ticks when track)
 
-// ─── Separate context for track progress (changes every 1s) ───
-const ProgressContext = createContext<ProgressSnapshot>({
-  currentTrackProgress: null,
-  showProgress: false,
-});
+// ─── Contexts by change cadence — subscribe to the one you need ───
+//
+// - usePlayer()        → now-playing data + actions (per song / action)
+// - useStation()       → listeners + histories (per API poll)
+// - useTrackProgress() → progress (every 1s)
+//
+// A component reading from only one context never re-renders for the
+// others' updates.
 
-// ─── Main player context (changes only on real data updates) ───
 type PlayerContextType = PlayerSnapshot & {
   play: () => Promise<void>;
   pause: () => Promise<void>;
@@ -45,6 +49,13 @@ const PlayerContext = createContext<PlayerContextType>({
   isInitialized: false,
 });
 
+const StationContext = createContext<StationSnapshot>({});
+
+const ProgressContext = createContext<ProgressSnapshot>({
+  currentTrackProgress: null,
+  showProgress: false,
+});
+
 export const PlayerProvider: React.FC<{
   children: React.ReactNode;
 }> = ({ children }) => {
@@ -53,9 +64,14 @@ export const PlayerProvider: React.FC<{
   const playerServiceInstance = playerService();
 
   // ─── Subscribe to stores — the service is the single source of truth ───
-  const snapshot = useSyncExternalStore(
+  const playerSnapshot = useSyncExternalStore(
     playerStore.subscribe,
     playerStore.getSnapshot,
+  );
+
+  const stationSnapshot = useSyncExternalStore(
+    stationStore.subscribe,
+    stationStore.getSnapshot,
   );
 
   const progressSnapshot = useSyncExternalStore(
@@ -77,7 +93,7 @@ export const PlayerProvider: React.FC<{
             await playerServiceInstance.pause();
           },
           toggle: async () => {
-            if (playerServiceInstance.isPlayingIntent()) {
+            if (playerServiceInstance.isPlayingIntent) {
               await playerServiceInstance.pause();
             } else {
               await playerServiceInstance.play();
@@ -101,7 +117,7 @@ export const PlayerProvider: React.FC<{
           callback: async () => {
             await playerServiceInstance.refreshData();
           },
-          interval: playerServiceInstance.isPlayingIntent()
+          interval: playerServiceInstance.isPlayingIntent
             ? REFRESH_INTERVAL_PLAYING
             : REFRESH_INTERVAL_PAUSED,
         });
@@ -110,15 +126,14 @@ export const PlayerProvider: React.FC<{
         backgroundService.startTask({
           id: "track-progress",
           callback: async () => {
-            await playerServiceInstance._tickProgress();
+            playerServiceInstance.tickProgress();
           },
           interval: TRACK_PROGRESS_INTERVAL,
         });
       } catch (error) {
         console.error("[PlayerProvider] Player initialization failed:", error);
-        // No need to reset _isInitialized — it was never set to true.
-        // Re-emit so any subscribers reflect the (still uninitialized) state.
-        playerServiceInstance._emitState();
+        // The service never flipped its initialized flag, so the store
+        // still reflects the uninitialized state — nothing to re-emit.
       }
     };
 
@@ -142,7 +157,7 @@ export const PlayerProvider: React.FC<{
 
   // ─── Adaptive refresh: switch interval on play/pause ───
   useEffect(() => {
-    if (!snapshot.isInitialized) return;
+    if (!playerSnapshot.isInitialized) return;
 
     // Restart refresh task with the appropriate interval
     backgroundService.stopTask("refresh-data");
@@ -151,12 +166,15 @@ export const PlayerProvider: React.FC<{
       callback: async () => {
         await playerServiceInstance.refreshData();
       },
-      interval: snapshot.isPlaying
+      interval: playerSnapshot.isPlaying
         ? REFRESH_INTERVAL_PLAYING
         : REFRESH_INTERVAL_PAUSED,
     });
-  }, [snapshot.isPlaying, snapshot.isInitialized, playerServiceInstance]);
-
+  }, [
+    playerSnapshot.isPlaying,
+    playerSnapshot.isInitialized,
+    playerServiceInstance,
+  ]);
   // ─── Action wrappers — delegate to the service (which auto-emits) ───
 
   const play = useCallback(async () => {
@@ -198,23 +216,31 @@ export const PlayerProvider: React.FC<{
 
   const playerContextValue = useMemo<PlayerContextType>(
     () => ({
-      ...snapshot,
+      ...playerSnapshot,
       play,
       pause,
       changeStream,
       refreshData,
     }),
-    [snapshot, play, pause, changeStream, refreshData],
+    [playerSnapshot, play, pause, changeStream, refreshData],
   );
 
   return (
     <PlayerContext.Provider value={playerContextValue}>
-      <ProgressContext.Provider value={progressSnapshot}>
-        {snapshot.isInitialized ? children : <Loading />}
-      </ProgressContext.Provider>
+      <StationContext.Provider value={stationSnapshot}>
+        <ProgressContext.Provider value={progressSnapshot}>
+          {playerSnapshot.isInitialized ? children : <Loading />}
+        </ProgressContext.Provider>
+      </StationContext.Provider>
     </PlayerContext.Provider>
   );
 };
 
+/** Now-playing data + playback actions (per song / program / action). */
 export const usePlayer = () => useContext(PlayerContext);
+
+/** Poll data — current listeners and the request/played histories. */
+export const useStation = () => useContext(StationContext);
+
+/** Track progress (every 1s while a track plays). */
 export const useTrackProgress = () => useContext(ProgressContext);

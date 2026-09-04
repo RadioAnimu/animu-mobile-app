@@ -41,11 +41,33 @@ The codebase follows a **clean, layered architecture** that keeps the UI decoupl
 | Layer | Location | Responsibility |
 | --- | --- | --- |
 | **Domain** | `src/core/domain` | Framework-free entities (`Track`, `Program`, `Stream`, `Listeners`, `LiveRequest`, `User`) and business rules such as track-progress math and form validation. |
-| **Services** | `src/core/services` | Application orchestration — the player engine, auth, music/live requests, background tasks, and user settings. |
+| **Player core** | `src/core/player` | The playback engine — small, focused units composed by a thin orchestrator (see below). |
+| **Services** | `src/core/services` | Application orchestration — auth, music/live requests, background tasks, and user settings. |
 | **Data** | `src/data` | HTTP clients (`data/http`), wire DTOs (`data/http/dto`), and mappers (`data/mappers`) that translate DTOs into domain models. |
 | **UI** | `src/screens`, `src/components` | React Native screens and reusable components, driven by React contexts and external stores. |
 
-The player core is a **singleton service** (`playerService()`) that owns all mutable state and exposes it through **snapshot-based external stores** (`playerStore`, `progressStore`) built on `useSyncExternalStore` with shallow-equality diffing — so components only re-render when the state actually changes, and every subscriber always reads a consistent snapshot.
+The player core (`src/core/player`) decomposes playback into small, testable units composed by a **thin orchestrator** (`PlayerService`) that owns no playback or data logic itself — it only routes events between units and is the single writer of the React stores:
+
+| Unit | Responsibility |
+| --- | --- |
+| `AudioTransport` | Native player + audio-session lifecycle (create/replace/resume/pause, status events) |
+| `TransportStateMachine` | Explicit play-intent lifecycle (`idle → connecting → playing/paused/reconnecting`) |
+| `BackoffScheduler` | Reusable exponential-backoff timer (stream reconnects + data retries) |
+| `NowPlayingRepository` | On-air data: parallel fetch, diffing merge, predictive track-end refresh, error backoff |
+| `MediaSessionPublisher` | Pushes now-playing metadata/status/position to the OS media session |
+| `ProgressTicker` | 1 Hz heartbeat — progress store updates, track-end detection, native position push |
+| `StreamPreferences` | Persisted stream-quality choice with corrupt-storage safety |
+| `NetworkMonitor` | Offline → online transitions for instant reconnect + data refresh |
+
+The units communicate through narrow, constructor-injected dependencies (a `Timer` abstraction replaces raw `setTimeout`, fetchers and connectivity subscriptions are injectable), which makes everything but the thin native seams unit-testable with plain fakes — see `src/core/player/__tests__`.
+
+Snapshot state reaches React through **three external stores split by change cadence** (all built on `useSyncExternalStore` with shallow-equality diffing), so components opt into the granularity they need — a listener-count poll never re-renders the now-playing UI, and a 1 Hz progress tick never re-renders anything but progress:
+
+| Store | Snapshot | Cadence | Consumed via |
+| --- | --- | --- | --- |
+| `playerStore` | current track/program/stream, stream options, `isPlaying`, `isInitialized` | per song / per action | `usePlayer()` |
+| `stationStore` | current listeners, request/played histories | per API poll (5s playing / 30s paused) | `useStation()` |
+| `progressStore` | track progress, `showProgress` | every 1s | `useTrackProgress()` |
 
 ```
 src/
@@ -55,7 +77,8 @@ src/
 ├── core/
 │   ├── domain/           # Entities + validation
 │   ├── errors/           # Typed HTTP errors
-│   └── services/         # Player, auth, requests, background, settings
+│   ├── player/           # Playback engine (transport, repository, orchestrator…)
+│   └── services/         # Auth, requests, background, settings
 ├── data/
 │   ├── http/             # API clients + axios-equivalent fetch client
 │   │   └── dto/          # Wire-format types

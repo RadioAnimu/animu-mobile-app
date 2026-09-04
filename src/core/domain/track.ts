@@ -25,3 +25,14 @@ export const getTrackProgress = (track?: Track): number | null => {
 
   return elapsed;
 };
+
+/**
+ * Whether a track is real programming instead of station filler
+ * (jingles / transitions / self-promo). Drives progress display and the
+ * predictive track-end refresh.
+ */
+export const isRealTrack = (track?: Track | null): boolean =>
+  !!track &&
+  !track.anime?.toLowerCase().includes("passagem") &&
+  !track.artist?.toLowerCase().includes("rádio animu") &&
+  !track.anime?.toLowerCase().includes("animu");

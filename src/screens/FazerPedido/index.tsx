@@ -20,7 +20,7 @@ import { RequestTrack } from "../../components/RequestTrack";
 
 // Core
 import { useAuth } from "../../contexts/auth/AuthProvider";
-import { usePlayer } from "../../contexts/player/PlayerProvider";
+import { usePlayer, useStation } from "../../contexts/player/PlayerProvider";
 import { useUserSettings } from "../../contexts/user/UserSettingsProvider";
 import {
   MusicRequest,
@@ -41,7 +41,8 @@ type Props = NativeStackScreenProps<RootStackParamList, "FazerPedido">;
 export function FazerPedido({ navigation }: Props) {
   const { user } = useAuth();
   const { settings } = useUserSettings();
-  const player = usePlayer();
+  const { currentTrack } = usePlayer();
+  const { lastRequestedTracks } = useStation();
 
   const [searchState, setSearchState] = useState<{
     query: string;
@@ -67,13 +68,10 @@ export function FazerPedido({ navigation }: Props) {
   }, []);
 
   const queueCount = useMemo(() => {
-    const requested = player.lastRequestedTracks;
-    const current = player.currentTrack;
-
-    if (!requested?.length) return undefined;
+    if (!lastRequestedTracks?.length) return undefined;
 
     // Sort all requests chronologically so we can reason about position
-    const sorted = [...requested].sort(
+    const sorted = [...lastRequestedTracks].sort(
       (a, b) => a.startTime.getTime() - b.startTime.getTime(),
     );
 
@@ -81,7 +79,7 @@ export function FazerPedido({ navigation }: Props) {
     // Walk the sorted list from the end to find the last entry whose startTime
     // has already passed — that is the track currently playing.
     // Everything after it is genuinely still in the queue.
-    if (current?.isRequest) {
+    if (currentTrack?.isRequest) {
       let playingIdx = -1;
       for (let i = sorted.length - 1; i >= 0; i--) {
         if (sorted[i].startTime.getTime() <= now) {
@@ -98,12 +96,12 @@ export function FazerPedido({ navigation }: Props) {
     // Use the precise moment the current track ends as the cutoff —
     // requests scheduled after that point haven't been consumed yet.
     const pivot =
-      current?.startTime && current.duration > 0
-        ? Math.max(now, current.startTime.getTime() + current.duration)
+      currentTrack?.startTime && currentTrack.duration > 0
+        ? Math.max(now, currentTrack.startTime.getTime() + currentTrack.duration)
         : now;
 
     return sorted.filter((t) => t.startTime.getTime() > pivot).length;
-  }, [player.lastRequestedTracks, player.currentTrack, now]);
+  }, [lastRequestedTracks, currentTrack, now]);
 
   const handleSearch = useCallback(async () => {
     if (!searchState.query) return;

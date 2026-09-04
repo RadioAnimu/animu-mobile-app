@@ -15,7 +15,7 @@ import { RootStackParamList } from "../../routes/app.routes";
 import { Image } from "expo-image";
 import { IMGS } from "../../i18n";
 import { useUserSettings } from "../../contexts/user/UserSettingsProvider";
-import { usePlayer } from "../../contexts/player/PlayerProvider";
+import { useStation } from "../../contexts/player/PlayerProvider";
 
 type Props = NativeStackScreenProps<
   RootStackParamList,
@@ -26,7 +26,7 @@ export function Last({ route, navigation }: Props) {
   const { historyType } = route.params;
   const isUltimasPedidasScreen = historyType === "requests";
 
-  const player = usePlayer();
+  const station = useStation();
 
   const { settings } = useUserSettings();
 
@@ -54,15 +54,15 @@ export function Last({ route, navigation }: Props) {
             <FlatList
               data={
                 isUltimasPedidasScreen
-                  ? player.lastRequestedTracks
-                  : player.lastPlayedTracks
+                  ? station.lastRequestedTracks
+                  : station.lastPlayedTracks
               }
               keyExtractor={(item, index) => item.raw + index}
               contentContainerStyle={styles.containerList}
               extraData={
                 isUltimasPedidasScreen
-                  ? player.lastRequestedTracks
-                  : player.lastPlayedTracks
+                  ? station.lastRequestedTracks
+                  : station.lastPlayedTracks
               }
               renderItem={({ item }) => (
                 <View style={styles.metadata}>

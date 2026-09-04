@@ -10,7 +10,8 @@
     "postinstall": "patch-package || echo '[patch-package] skipped (patch target missing)'",
     "install:apk": "adb uninstall com.nessjs.animu; adb install $(ls -t *.apk | head -1)",
     "lint": "expo lint",
-    "build:api": "npm run build --prefix packages/animu-api"
+    "build:api": "npm run build --prefix packages/animu-api",
+    "test": "vitest run"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.3",
@@ -51,7 +52,8 @@
     "eslint": "^9.39.5",
     "eslint-config-expo": "~10.0.0",
     "patch-package": "^8.0.1",
-    "typescript": "~5.9.2"
+    "typescript": "~5.9.2",
+    "vitest": "^5.0.0"
   },
   "private": true,
   "expo": {
