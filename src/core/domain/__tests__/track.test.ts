@@ -49,10 +49,19 @@ describe("isRealTrack", () => {
     expect(isRealTrack(makeTrack())).toBe(true);
   });
 
-  it("filters jingles, transitions and self-promo", () => {
-    expect(isRealTrack(makeTrack({ anime: "Passagem Musical" }))).toBe(false);
+  it("filters jingles, transitions and self-promo (raw is the full line)", () => {
+    expect(isRealTrack(makeTrack({ raw: "Rádio Animu - Animesong? | Haruka VHT" }))).toBe(
+      false,
+    );
+    expect(
+      isRealTrack(
+        makeTrack({
+          raw: "Rádio Animu - Nemukunai, a nossa comunidade sonora | Passagem Urahara",
+        }),
+      ),
+    ).toBe(false);
     expect(isRealTrack(makeTrack({ artist: "Rádio Animu" }))).toBe(false);
-    expect(isRealTrack(makeTrack({ anime: "Animu Delivery" }))).toBe(false);
+    expect(isRealTrack(makeTrack({ anime: "Passagem Musical" }))).toBe(false);
   });
 
   it("rejects missing tracks", () => {

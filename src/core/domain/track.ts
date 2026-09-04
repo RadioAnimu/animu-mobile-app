@@ -1,38 +1,10 @@
-import type { Track } from "animu-api";
-
 /**
- * Track type comes from the `animu-api` package — the package's mappers
- * guarantee it. Only progress math stays app-side.
+ * Track types and station logic come from the `animu-api` package — the
+ * package's mappers own the parsing (rawtitle, filler filtering, progress
+ * math), so the app never re-implements station rules.
+ *
+ * This file stays as the app-side import path so call sites keep reading
+ * `core/domain/track` (thin re-export, no logic here).
  */
 export type { Track, Artworks } from "animu-api";
-
-export const getTrackProgress = (track?: Track): number | null => {
-  if (!track) return null;
-
-  // Ensure that startTime is not in the future.
-  const now = Date.now();
-  const start = track.startTime.getTime();
-  if (start > now) return null;
-
-  // Validate that the track duration is a positive finite number.
-  if (!Number.isFinite(track.duration) || track.duration <= 0) return null;
-
-  // Calculate elapsed time in milliseconds.
-  const elapsed = now - start;
-
-  // Guard against invalid dates (NaN) and ended tracks.
-  if (!Number.isFinite(elapsed) || elapsed > track.duration) return null;
-
-  return elapsed;
-};
-
-/**
- * Whether a track is real programming instead of station filler
- * (jingles / transitions / self-promo). Drives progress display and the
- * predictive track-end refresh.
- */
-export const isRealTrack = (track?: Track | null): boolean =>
-  !!track &&
-  !track.anime?.toLowerCase().includes("passagem") &&
-  !track.artist?.toLowerCase().includes("rádio animu") &&
-  !track.anime?.toLowerCase().includes("animu");
+export { getTrackProgress, isRealTrack } from "animu-api";
