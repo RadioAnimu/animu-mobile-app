@@ -1,5 +1,8 @@
 import { getTrackProgress } from "../domain/track";
-import type { NowPlayingMetadata } from "react-native-playback-controls";
+import type {
+  NowPlayingMetadata,
+  PlaybackStatus,
+} from "react-native-playback-controls";
 import { progressStore } from "./store";
 import type { MediaSessionPublisher } from "./media-session.publisher";
 import type { NowPlayingRepository } from "./now-playing.repository";
@@ -89,8 +92,9 @@ export class ProgressTicker {
     const positionSec = showProgress ? toSec(elapsed) : undefined;
 
     // No seek bar → the OS interpolates nothing → a push only matters
-    // when the metadata itself changed (song change on a live show).
-    const key = metadataKey(metadata);
+    // when the metadata or the playback status changed (song change on a
+    // live show; status repairs after a lost push, e.g. post-reconnect).
+    const key = metadataKey(metadata, this.options.state.remoteStatus);
     if (positionSec === undefined && key === this.lastPushedKey) return;
     this.lastPushedKey = key;
 
@@ -116,7 +120,10 @@ export class ProgressTicker {
 
     if (!this.options.transport.isSessionReady) return;
     const metadata = this.options.buildMetadata();
-    this.lastPushedKey = metadataKey(metadata);
+    this.lastPushedKey = metadataKey(
+      metadata,
+      this.options.state.remoteStatus,
+    );
     this.options.publisher.push(
       metadata,
       this.options.state.remoteStatus,
@@ -125,8 +132,16 @@ export class ProgressTicker {
   }
 }
 
-/** Identity of a metadata payload — pushes are skipped when unchanged. */
-const metadataKey = (metadata: NowPlayingMetadata): string =>
+/**
+ * Identity of a pushed payload — redundant pushes are skipped when
+ * nothing changed. The playback status is part of the identity: a
+ * status flip alone (playing ↔ buffering after a reconnect) must reach
+ * the OS even when the song metadata is identical.
+ */
+const metadataKey = (
+  metadata: NowPlayingMetadata,
+  status: PlaybackStatus,
+): string =>
   [
     metadata.title,
     metadata.artist,
@@ -134,4 +149,5 @@ const metadataKey = (metadata: NowPlayingMetadata): string =>
     metadata.artwork,
     metadata.durationSec ?? "",
     metadata.isLiveStream ? "live" : "",
+    status,
   ].join("|");

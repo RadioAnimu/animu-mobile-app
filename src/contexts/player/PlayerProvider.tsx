@@ -46,6 +46,7 @@ const PlayerContext = createContext<PlayerContextType>({
   changeStream: () => Promise.reject("Player not initialized"),
   refreshData: () => Promise.reject("Player not initialized"),
   isPlaying: false,
+  playbackState: "idle",
   isInitialized: false,
 });
 

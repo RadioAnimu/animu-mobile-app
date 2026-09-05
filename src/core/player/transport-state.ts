@@ -26,6 +26,17 @@ const TRANSPORT_TRANSITIONS: Record<TransportState, readonly TransportState[]> =
 export const isPlayingIntentState = (state: TransportState): boolean =>
   state === "connecting" || state === "playing" || state === "reconnecting";
 
+/**
+ * Native playback states that mean the stream is gone — no more audio is
+ * coming without a source replacement. Android (ExoPlayer) surfaces a dead
+ * live stream as "idle" (retry exhaustion — expo-audio never retries) or
+ * "ended" (connection closed cleanly); iOS (AVPlayer) as "failed".
+ */
+export const isDeadPlaybackState = (playbackState: string): boolean =>
+  playbackState === "idle" ||
+  playbackState === "failed" ||
+  playbackState === "ended";
+
 /** Maps the transport state to a media-session PlaybackStatus. */
 export const toRemoteStatus = (state: TransportState): PlaybackStatus => {
   switch (state) {
@@ -68,17 +79,23 @@ export class TransportStateMachine {
     return toRemoteStatus(this.current);
   }
 
-  transition(next: TransportState): void {
-    if (this.current === next) return;
+  /**
+   * Applies the transition if legal. Returns whether the state actually
+   * changed — callers that reconcile stores / the media session on top of
+   * a transition need to know (refused transitions must not re-emit).
+   */
+  transition(next: TransportState): boolean {
+    if (this.current === next) return false;
 
     if (!TRANSPORT_TRANSITIONS[this.current].includes(next)) {
       console.warn(
         `[TransportState] Invalid transport transition: ${this.current} → ${next} (ignored)`,
       );
-      return;
+      return false;
     }
 
     this.current = next;
     this.enteredAtMs = Date.now();
+    return true;
   }
 }

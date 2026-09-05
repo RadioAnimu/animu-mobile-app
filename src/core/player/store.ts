@@ -2,6 +2,7 @@ import { Track } from "../domain/track";
 import { Stream } from "../domain/stream";
 import { Listeners } from "../domain/listeners";
 import { Program } from "../domain/program";
+import type { TransportState } from "./transport-state";
 
 // ─── Snapshot types ───
 //
@@ -17,6 +18,13 @@ export type PlayerSnapshot = {
   /** Static after boot (Settings' bitrate picker). */
   streamOptions?: Stream[];
   isPlaying: boolean;
+  /**
+   * Fine-grained transport lifecycle — `isPlaying` alone can't express
+   * "reconnecting", so the UI was showing stale truth during stream
+   * losses. Consumers that only care about play/pause keep reading
+   * `isPlaying`.
+   */
+  playbackState: TransportState;
   isInitialized: boolean;
 };
 
@@ -88,6 +96,7 @@ function createStore<T extends Record<string, unknown>>(initialSnapshot: T) {
 
 export const playerStore = createStore<PlayerSnapshot>({
   isPlaying: false,
+  playbackState: "idle",
   isInitialized: false,
 });
 

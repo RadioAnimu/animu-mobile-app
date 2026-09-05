@@ -36,7 +36,10 @@ import {
 } from "./store";
 import { StreamPreferences } from "./stream-preferences";
 import { AudioTransport } from "./transport";
-import { TransportStateMachine } from "./transport-state";
+import {
+  TransportStateMachine,
+  type TransportState,
+} from "./transport-state";
 import { jsTimer } from "./timer";
 
 // ── Stream reconnect backoff ──
@@ -285,7 +288,9 @@ export class PlayerService {
       this.deps.heartbeat.reset();
 
       this.deps.transport.play(this.deps.streamPreferences.current.url);
-      this.deps.state.transition("connecting");
+      // Reconcile emits the store (isPlaying → true immediately) and
+      // pushes "buffering" to the media session.
+      this.reconcile("connecting");
 
       // Fetch fresh data + push metadata in one go
       await this.refreshData();
@@ -315,17 +320,14 @@ export class PlayerService {
       this.deps.reconnect.cancel();
 
       this.deps.transport.pause();
-      this.deps.state.transition("paused");
-      this.deps.publisher.pushStatus("paused");
-      // Just update state — progress keeps ticking (radio server-side)
-      // and metadata stays as-is in the notification.
+      // Reconcile flips isPlayingIntent → false, emits the store and
+      // pushes "paused" to the media session (the old flow pushed the
+      // status manually and could leave the button latched).
+      this.reconcile("paused");
+      // Progress keeps ticking (radio plays server-side) and metadata
+      // stays as-is in the notification.
     } catch (error) {
       console.error("[PlayerService] Pause error:", error);
-    } finally {
-      // The state machine no longer emits (orchestrator is the single
-      // store writer) — flipping isPlayingIntent → false must reach the
-      // UI or the play/pause button latches (old _setState emitted here).
-      this.emitPlayer();
     }
   }
 
@@ -347,7 +349,9 @@ export class PlayerService {
       this.deps.transport.load(stream.url);
       if (wasPlaying) {
         this.deps.transport.resume();
-        this.deps.state.transition("connecting");
+        // Reconcile: the notification follows the re-tune ("buffering")
+        // instead of claiming the old stream is still playing.
+        this.reconcile("connecting");
       }
 
       // Fetch fresh data for the new stream
@@ -424,10 +428,31 @@ export class PlayerService {
   // ── Event handlers (wired in the constructor) ──
 
   /**
-   * Native playback status handler. Drives reconnect detection:
-   * Android surfaces a dead stream as playbackState "idle" (ExoPlayer
-   * exhausts its internal retries and stops — expo-audio never retries),
-   * iOS as "failed" (AVPlayer .failed status).
+   * Reconciles a transport state across every surface: the state machine,
+   * the React stores and the media session. This is the fix for the
+   * "reconnection messes with state" class of bugs — transitions used to
+   * be silent (no emit, no status push), so the notification stayed on
+   * "buffering" after a live-stream reconnect and the app button could
+   * disagree with reality until the next track change.
+   *
+   * Refused transitions (e.g. the state machine guarding a race) emit and
+   * push nothing.
+   */
+  private reconcile(next: TransportState): void {
+    if (!this.deps.state.transition(next)) return;
+    // Any state change is UI-visible: isPlaying and playbackState derive
+    // from the state machine.
+    this.emitPlayer();
+    // …and it changes the media session's affordance (play/pause/loading
+    // icon) — tell the OS immediately, don't wait for the next tick.
+    this.deps.publisher.pushStatus(this.deps.state.remoteStatus);
+  }
+
+  /**
+   * Native playback status handler. Drives reconnect detection AND state
+   * reconciliation: every native reality (audio flowing, focus-loss pause,
+   * dead stream) is folded back into the state machine here, so the stores
+   * and the media session can never drift from the audio.
    */
   private handlePlaybackStatus(status: AudioStatus): void {
     // Straggler native event after teardown — a destroyed instance must
@@ -437,14 +462,38 @@ export class PlayerService {
     // Stream is actually producing audio — resets the backoff chain
     if (status.playing) {
       this.deps.reconnect.reset();
-      this.deps.state.transition("playing");
+
+      // Native self-recovery while the user has paused (in-flight
+      // straggler event, rare interruption auto-resume) must not
+      // resurrect audio against the user's intent — re-assert the pause.
+      if (this.deps.state.state === "paused") {
+        this.deps.transport.pause();
+        return;
+      }
 
       // Native 1 Hz heartbeat: drives progress + media-session pushes AND
       // the data poll while playing (see `HeartbeatScheduler`). These
       // events keep arriving while the app is backgrounded, where JS
       // timers freeze/throttle — without this, a live show's notification
       // keeps a stale title/cover forever.
+      this.reconcile("playing");
       this.deps.heartbeat.beat();
+      return;
+    }
+
+    // Natively paused without our say-so — audio focus loss, phone call,
+    // car/Siri interruption. Adopt the native truth so the button and the
+    // media session stop claiming "playing" while nothing plays. Dead
+    // streams also report a paused time-control, so they are excluded
+    // here and handled by the loss detection below.
+    if (
+      !status.isBuffering &&
+      status.timeControlStatus === "paused" &&
+      !DEAD_PLAYBACK_STATES.includes(
+        status.playbackState as (typeof DEAD_PLAYBACK_STATES)[number],
+      )
+    ) {
+      this.reconcile("paused");
       return;
     }
 
@@ -453,8 +502,9 @@ export class PlayerService {
     const streamLost =
       this.deps.state.isPlayingIntent &&
       !status.isBuffering &&
-      (status.playbackState === "idle" ||
-        status.playbackState === "failed") &&
+      DEAD_PLAYBACK_STATES.includes(
+        status.playbackState as (typeof DEAD_PLAYBACK_STATES)[number],
+      ) &&
       Date.now() - this.deps.state.enteredAt > STREAM_DEATH_GRACE_MS;
 
     if (streamLost) {
@@ -481,7 +531,9 @@ export class PlayerService {
   private scheduleReconnect(): void {
     if (this.deps.reconnect.isPending) return;
 
-    this.deps.state.transition("reconnecting");
+    // Reconcile: the notification leaves "playing" the moment the stream
+    // is lost (it used to stay stale until the next track change).
+    this.reconcile("reconnecting");
 
     // Exponential backoff: 2s → 4s → 8s → 16s → 30s (cap)
     const delay = this.deps.reconnect.schedule(() => {
@@ -505,8 +557,8 @@ export class PlayerService {
 
     try {
       this.deps.transport.play(this.deps.streamPreferences.current.url);
-      this.deps.state.transition("connecting");
-      this.deps.publisher.pushStatus(this.deps.state.remoteStatus);
+      // Reconcile pushes "buffering" — no manual pushStatus needed.
+      this.reconcile("connecting");
     } catch (error) {
       console.error("[PlayerService] Reconnect attempt failed:", error);
       this.scheduleReconnect();
@@ -534,6 +586,7 @@ export class PlayerService {
       currentStream: this.deps.streamPreferences.current,
       streamOptions: this.streamOptions,
       isPlaying: this.isPlayingIntent,
+      playbackState: this.deps.state.state,
       isInitialized: this.initialized,
     };
     playerStore.setSnapshot(next);

@@ -10,13 +10,25 @@ describe("player stores", () => {
     const spy = vi.fn();
     const unsubscribe = playerStore.subscribe(spy);
 
-    playerStore.setSnapshot({ isPlaying: true, isInitialized: true });
+    playerStore.setSnapshot({
+      isPlaying: true,
+      playbackState: "playing",
+      isInitialized: true,
+    });
     expect(spy).toHaveBeenCalledTimes(1);
 
-    playerStore.setSnapshot({ isPlaying: true, isInitialized: true });
+    playerStore.setSnapshot({
+      isPlaying: true,
+      playbackState: "playing",
+      isInitialized: true,
+    });
     expect(spy).toHaveBeenCalledTimes(1); // identical → no notification
 
-    playerStore.setSnapshot({ isPlaying: false, isInitialized: true });
+    playerStore.setSnapshot({
+      isPlaying: false,
+      playbackState: "paused",
+      isInitialized: true,
+    });
     expect(spy).toHaveBeenCalledTimes(2);
 
     unsubscribe();

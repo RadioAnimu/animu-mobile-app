@@ -155,7 +155,11 @@ const wiredHandler = (transport: {
 describe("PlayerService store emission", () => {
   beforeEach(() => {
     // Reset singletons between tests
-    playerStore.setSnapshot({ isPlaying: false, isInitialized: false });
+    playerStore.setSnapshot({
+      isPlaying: false,
+      playbackState: "idle",
+      isInitialized: false,
+    });
     progressStore.setSnapshot({
       currentTrackProgress: null,
       showProgress: false,
@@ -260,6 +264,111 @@ describe("PlayerService stream-loss handling", () => {
       } as AudioStatus);
 
       expect(deps.state.state).toBe("connecting");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("tells the media session 'playing' again right after a reconnect", async () => {
+    vi.useFakeTimers();
+    try {
+      const { deps, transport, publisher } = makeDeps();
+      const service = new PlayerService(deps);
+      await service.play();
+      const handler = wiredHandler(transport);
+
+      handler({ playing: true } as AudioStatus); // recovery push #1
+      vi.advanceTimersByTime(4000);
+      handler({
+        playing: false,
+        isBuffering: false,
+        playbackState: "idle",
+        timeControlStatus: "paused",
+      } as AudioStatus); // dead → "buffering"
+      handler({ playing: true } as AudioStatus); // recovered → "playing"
+
+      const statuses = publisher.pushStatus.mock.calls.map(
+        (call) => call[0],
+      );
+      expect(statuses[statuses.length - 1]).toBe("playing");
+      // The death and the recovery were both pushed immediately — no
+      // waiting for the next track change (the live-stream dedupe bug).
+      expect(statuses).toContain("buffering");
+      expect(deps.state.state).toBe("playing");
+      expect(playerStore.getSnapshot().isPlaying).toBe(true);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("adopts a native pause (focus loss, interruption) into the stores", async () => {
+    vi.useFakeTimers();
+    try {
+      const { deps, transport, publisher } = makeDeps();
+      const service = new PlayerService(deps);
+      await service.play();
+      const handler = wiredHandler(transport);
+      handler({ playing: true } as AudioStatus);
+
+      // Audio focus lost — expo-audio pauses natively and reports it
+      handler({
+        playing: false,
+        isBuffering: false,
+        playbackState: "ready",
+        timeControlStatus: "paused",
+      } as AudioStatus);
+
+      expect(deps.state.state).toBe("paused");
+      expect(playerStore.getSnapshot().isPlaying).toBe(false);
+      expect(playerStore.getSnapshot().playbackState).toBe("paused");
+      expect(publisher.pushStatus).toHaveBeenLastCalledWith("paused");
+      expect(transport.pause).not.toHaveBeenCalled(); // native already did
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("re-asserts the user's pause when audio self-recovers", async () => {
+    vi.useFakeTimers();
+    try {
+      const { deps, transport } = makeDeps();
+      const service = new PlayerService(deps);
+      await service.play();
+      const handler = wiredHandler(transport);
+      await service.pause(); // user's explicit intent
+      const pauseCalls = transport.pause.mock.calls.length;
+
+      // A straggler playing event (or rare auto-resume) must not
+      // resurrect audio against the user's intent
+      handler({ playing: true } as AudioStatus);
+
+      expect(deps.state.state).toBe("paused");
+      expect(transport.pause).toHaveBeenCalledTimes(pauseCalls + 1);
+      expect(playerStore.getSnapshot().isPlaying).toBe(false);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("treats a cleanly ended live stream as a dead stream", async () => {
+    vi.useFakeTimers();
+    try {
+      const { deps, transport, reconnect } = makeDeps();
+      const service = new PlayerService(deps);
+      await service.play();
+      const handler = wiredHandler(transport);
+      handler({ playing: true } as AudioStatus);
+      vi.advanceTimersByTime(4000);
+
+      handler({
+        playing: false,
+        isBuffering: false,
+        playbackState: "ended",
+        timeControlStatus: "paused",
+      } as AudioStatus);
+
+      expect(reconnect.schedule).toHaveBeenCalledTimes(1);
+      expect(deps.state.state).toBe("reconnecting");
     } finally {
       vi.useRealTimers();
     }
