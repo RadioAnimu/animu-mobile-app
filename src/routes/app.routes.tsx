@@ -1,8 +1,7 @@
 import { createDrawerNavigator } from "@react-navigation/drawer";
 
-import { MaterialIcons, FontAwesome5 } from "@expo/vector-icons";
 import { Dimensions } from "react-native";
-import { CustomDrawerContent } from "../components/CustomDrawer";
+import { CustomDrawerContent, DrawerIcon } from "../components/CustomDrawer";
 import { FazerPedido } from "../screens/FazerPedido";
 import { Home } from "../screens/Home";
 import { Last } from "../screens/Ultimas";
@@ -36,32 +35,18 @@ export function AppRoutes() {
     <Navigator
       screenOptions={{
         headerShown: false,
+        overlayColor: THEME.COLORS.OVERLAY,
         drawerStyle: {
           backgroundColor: THEME.COLORS.PRIMARY,
-          width: Dimensions.get("window").width * 0.8, // 75% of the screen
-        },
-        drawerActiveTintColor: THEME.COLORS.WHITE_TEXT,
-        drawerInactiveTintColor: THEME.COLORS.WHITE_TEXT,
-        drawerLabelStyle: {
-          fontFamily: THEME.FONT_FAMILY.BOLD,
-          fontSize: THEME.FONT_SIZE.MENU_ITEM,
-          textAlign: "left",
-          width: Dimensions.get("window").width * 0.64,
-        },
-        drawerItemStyle: {
-          marginVertical: 0,
-          marginHorizontal: 10,
-          borderRadius: 10,
+          width: Dimensions.get("window").width * 0.8,
         },
       }}
       drawerContent={(props) => <CustomDrawerContent {...props} />}
     >
       <Screen
         options={{
-          drawerLabel: "Player",
-          drawerItemStyle: {
-            display: "none",
-          },
+          drawerLabel: DICT[settings.selectedLanguage].MENU_PLAYER,
+          drawerIcon: ({ color }) => <DrawerIcon name="play-circle" color={color} />,
         }}
         name="Home"
         component={Home}
@@ -69,18 +54,7 @@ export function AppRoutes() {
       <Screen
         options={{
           drawerLabel: DICT[settings.selectedLanguage].MENU_LAST_REQUESTED,
-          drawerIcon: () => {
-            return (
-              <MaterialIcons
-                name="queue-music"
-                size={25}
-                color={THEME.COLORS.WHITE_TEXT}
-                style={{
-                  marginRight: -30,
-                }}
-              />
-            );
-          },
+          drawerIcon: ({ color }) => <DrawerIcon name="queue-music" color={color} />,
         }}
         name="LastRequested"
         component={Last}
@@ -89,18 +63,7 @@ export function AppRoutes() {
       <Screen
         options={{
           drawerLabel: DICT[settings.selectedLanguage].MENU_LAST_PLAYED,
-          drawerIcon: () => {
-            return (
-              <FontAwesome5
-                name="history"
-                size={20}
-                color={THEME.COLORS.WHITE_TEXT}
-                style={{
-                  marginRight: -24,
-                }}
-              />
-            );
-          },
+          drawerIcon: ({ color }) => <DrawerIcon name="history" color={color} />,
         }}
         name="LastPlayed"
         component={Last}

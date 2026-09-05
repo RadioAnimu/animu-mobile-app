@@ -136,6 +136,7 @@ const DICT = {
   TIME_REMAINING: "Time remaining",
   WITH_DJ: "WITH",
   MENU: "Menu",
+  MENU_PLAYER: "Player",
   MENU_LAST_REQUESTED: "Last Requests",
   MENU_LAST_PLAYED: "Last Played",
   LINKS: "Links",

@@ -136,6 +136,7 @@ const DICT = {
   TIME_REMAINING: "のこり時間",
   WITH_DJ: "DJ",
   MENU: "メニュー",
+  MENU_PLAYER: "プレーヤー",
   MENU_LAST_REQUESTED: "最後のリクエスト",
   MENU_LAST_PLAYED: "最後に流れた曲",
   LINKS: "リンク",

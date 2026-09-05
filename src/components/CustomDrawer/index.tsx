@@ -1,22 +1,47 @@
-import type { JSX } from "react";
-import {
-  FontAwesome,
-  FontAwesome5,
-} from "@expo/vector-icons";
+import type { ComponentProps, JSX } from "react";
+import { MaterialIcons } from "@expo/vector-icons";
 import {
   DrawerContentComponentProps,
   DrawerContentScrollView,
-  DrawerItemList,
 } from "@react-navigation/drawer";
+import {
+  CommonActions,
+  DrawerActions,
+} from "@react-navigation/native";
 import * as Linking from "expo-linking";
-import { Image, Text, TouchableOpacity, View } from "react-native";
+import { Image, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { author } from "../../../package.json";
-import { THEME } from "../../theme";
 import { API } from "../../api";
-import { DICT, IMGS } from "../../i18n";
-import { DiscordProfile } from "../DiscordProfile";
-import { useUserSettings } from "../../contexts/user/UserSettingsProvider";
 import { useAuth } from "../../contexts/auth/AuthProvider";
+import { useUserSettings } from "../../contexts/user/UserSettingsProvider";
+import { DICT, IMGS } from "../../i18n";
+import { THEME } from "../../theme";
+import { DiscordProfile } from "../DiscordProfile";
+import { styles } from "./styles";
+
+export const MENU_ICON_SIZE = 22;
+const SECTION_ICON_SIZE = 18;
+const TEXT_MUTED = "rgba(255, 255, 255, 0.7)";
+
+type MaterialIconName = ComponentProps<typeof MaterialIcons>["name"];
+
+interface DrawerIconProps {
+  name: MaterialIconName;
+  size?: number;
+  color?: string;
+}
+
+export function DrawerIcon({
+  name,
+  size = MENU_ICON_SIZE,
+  color = THEME.COLORS.WHITE_TEXT,
+}: DrawerIconProps) {
+  return (
+    <View style={styles.iconBox}>
+      <MaterialIcons name={name} size={size} color={color} />
+    </View>
+  );
+}
 
 export interface SeparatorProps {
   sectionTile?: string;
@@ -25,32 +50,10 @@ export interface SeparatorProps {
 
 export function Separator({ sectionTile, Icon }: SeparatorProps) {
   return (
-    <View
-      style={{
-        borderBottomColor: THEME.COLORS.WHITE_TEXT,
-        borderBottomWidth: 2,
-        padding: 10,
-        width: "90%",
-        alignSelf: "center",
-        flexDirection: "row",
-        alignItems: "center",
-        justifyContent: "flex-start",
-        gap: 10,
-        marginTop: 10,
-        marginBottom: 5,
-      }}
-    >
+    <View style={styles.section}>
       {Icon && <Icon />}
       {sectionTile && (
-        <Text
-          style={{
-            color: THEME.COLORS.WHITE_TEXT,
-            fontFamily: THEME.FONT_FAMILY.BOLD,
-            fontSize: THEME.FONT_SIZE.MENU_ITEM,
-          }}
-        >
-          {sectionTile}
-        </Text>
+        <Text style={styles.sectionText}>{sectionTile.toUpperCase()}</Text>
       )}
     </View>
   );
@@ -65,30 +68,14 @@ export interface LinkMenuItemProps {
 export function LinkMenuItem({ Icon, title, url }: LinkMenuItemProps) {
   return (
     <TouchableOpacity
+      activeOpacity={0.7}
       onPress={() => {
         Linking.openURL(url);
       }}
-      style={{
-        flexDirection: "row",
-        alignItems: "center",
-        justifyContent: "flex-start",
-        paddingHorizontal: 20,
-        paddingVertical: 10,
-        gap: 5,
-        marginBottom: 2,
-      }}
+      style={styles.navItem}
     >
       {Icon && <Icon />}
-      <Text
-        style={{
-          color: THEME.COLORS.WHITE_TEXT,
-          textAlign: "center",
-          fontFamily: THEME.FONT_FAMILY.BOLD,
-          fontSize: THEME.FONT_SIZE.MENU_ITEM,
-        }}
-      >
-        {title}
-      </Text>
+      <Text style={styles.navItemText}>{title}</Text>
     </TouchableOpacity>
   );
 }
@@ -99,60 +86,82 @@ export function LoginComponent() {
 
   return (
     <TouchableOpacity
+      activeOpacity={0.7}
       onPress={login}
-      style={{
-        flexDirection: "row",
-        alignItems: "center",
-        justifyContent: "flex-start",
-        gap: 5,
-        marginVertical: 10,
-      }}
+      style={styles.loginButton}
     >
-      <FontAwesome5
-        name="discord"
-        size={THEME.FONT_SIZE.MENU_ITEM}
-        color={THEME.COLORS.WHITE_TEXT}
-      />
-      <Text
-        style={{
-          color: THEME.COLORS.WHITE_TEXT,
-          textAlign: "center",
-          fontFamily: THEME.FONT_FAMILY.BOLD,
-          fontSize: THEME.FONT_SIZE.MENU_ITEM,
-        }}
-      >
+      <DrawerIcon name="discord" />
+      <Text style={styles.navItemText}>
         {DICT[settings.selectedLanguage].LOGIN_WORD} Discord
       </Text>
     </TouchableOpacity>
   );
 }
 
+function NavItems({ state, descriptors, navigation }: DrawerContentComponentProps) {
+  return (
+    <View>
+      {state.routes.map((route) => {
+        const { options } = descriptors[route.key];
+        const itemStyle = StyleSheet.flatten(options.drawerItemStyle);
+        if (itemStyle?.display === "none") return null;
+
+        const focused = state.routes[state.index]?.key === route.key;
+        const label =
+          typeof options.drawerLabel === "string"
+            ? options.drawerLabel
+            : (options.title ?? route.name);
+
+        const onPress = () => {
+          navigation.dispatch({
+            ...(focused
+              ? DrawerActions.closeDrawer()
+              : CommonActions.navigate(route.name, route.params)),
+            target: state.key,
+          });
+        };
+
+        return (
+          <TouchableOpacity
+            key={route.key}
+            accessibilityRole="button"
+            accessibilityState={{ selected: focused }}
+            activeOpacity={0.7}
+            onPress={onPress}
+            style={[styles.navItem, focused && styles.navItemFocused]}
+          >
+            {options.drawerIcon?.({
+              color: focused ? THEME.COLORS.WHITE_TEXT : TEXT_MUTED,
+              focused,
+              size: MENU_ICON_SIZE,
+            })}
+            <Text style={styles.navItemText}>{label}</Text>
+          </TouchableOpacity>
+        );
+      })}
+    </View>
+  );
+}
+
 export function CustomDrawerContent(props: DrawerContentComponentProps) {
   const { settings } = useUserSettings();
   const { user } = useAuth();
+  const { navigation } = props;
+
+  const goToSettings = () => {
+    navigation.navigate("Settings");
+  };
 
   const LINKS: LinkMenuItemProps[] = [
     {
       title: DICT[settings.selectedLanguage].LINKS_WEBSITE,
       url: API.WEB_URL,
-      Icon: () => (
-        <FontAwesome5
-          name="globe"
-          size={THEME.FONT_SIZE.MENU_ITEM}
-          color={THEME.COLORS.WHITE_TEXT}
-        />
-      ),
+      Icon: () => <DrawerIcon name="web" />,
     },
     {
       title: DICT[settings.selectedLanguage].LINKS_DISCORD,
       url: API.DISCORD_URL,
-      Icon: () => (
-        <FontAwesome5
-          name="discord"
-          size={THEME.FONT_SIZE.MENU_ITEM}
-          color={THEME.COLORS.WHITE_TEXT}
-        />
-      ),
+      Icon: () => <DrawerIcon name="discord" />,
     },
   ];
 
@@ -160,101 +169,63 @@ export function CustomDrawerContent(props: DrawerContentComponentProps) {
     Linking.openURL("https://x.com/rmotafreitas");
   };
 
-  const { navigation } = props;
   return (
     <DrawerContentScrollView
       {...props}
       contentContainerStyle={{
+        flexGrow: 1,
         justifyContent: "space-between",
-        alignContent: "center",
-        flexDirection: "column",
-        height: "100%",
       }}
     >
       <View>
-        <TouchableOpacity
-          onPress={() => {
-            navigation.navigate("Home");
-          }}
-        >
-          <Image
-            source={IMGS[settings.selectedLanguage].LOGO}
-            style={{
-              height: 100,
-              alignSelf: "center",
-              resizeMode: "contain",
-            }}
-          />
-        </TouchableOpacity>
-        {user?.sessionId ? (
+        <View style={styles.header}>
           <TouchableOpacity
+            activeOpacity={0.8}
             onPress={() => {
-              navigation.navigate("Settings");
+              navigation.navigate("Home");
             }}
-            style={{
-              flexDirection: "row",
-              justifyContent: "space-between",
-              alignItems: "center",
-              width: "90%",
-              alignSelf: "center",
-            }}
+            style={styles.logoButton}
           >
-            <DiscordProfile user={user} />
-            <FontAwesome
-              name="gear"
-              size={THEME.FONT_SIZE.MENU_ITEM}
-              color={THEME.COLORS.WHITE_TEXT}
-              style={{
-                marginLeft: "auto",
-              }}
+            <Image
+              source={IMGS[settings.selectedLanguage].LOGO}
+              style={styles.logo}
             />
           </TouchableOpacity>
-        ) : (
-          <View
-            style={{
-              flexDirection: "row",
-              justifyContent: "space-between",
-              alignItems: "center",
-              width: "90%",
-              alignSelf: "center",
-            }}
-          >
-            <LoginComponent />
+
+          {user?.sessionId ? (
             <TouchableOpacity
-              onPress={() => {
-                navigation.navigate("Settings");
-              }}
+              activeOpacity={0.8}
+              onPress={goToSettings}
+              style={styles.headerCard}
             >
-              <FontAwesome
-                name="gear"
-                size={THEME.FONT_SIZE.MENU_ITEM}
-                color={THEME.COLORS.WHITE_TEXT}
-                style={{
-                  marginLeft: "auto",
-                }}
-              />
+              <View style={styles.headerRow}>
+                <DiscordProfile user={user} />
+              </View>
+              <DrawerIcon name="settings" />
             </TouchableOpacity>
-          </View>
-        )}
-        <Separator
-          Icon={() => (
-            <FontAwesome5
-              name="bars"
-              size={THEME.FONT_SIZE.MENU_ITEM}
-              color={THEME.COLORS.WHITE_TEXT}
-            />
+          ) : (
+            <View style={styles.headerCard}>
+              <LoginComponent />
+              <TouchableOpacity
+                accessibilityRole="button"
+                hitSlop={4}
+                onPress={goToSettings}
+                style={styles.settingsButton}
+              >
+                <DrawerIcon name="settings" />
+              </TouchableOpacity>
+            </View>
           )}
+        </View>
+
+        <Separator
+          Icon={() => <DrawerIcon name="queue-music" size={SECTION_ICON_SIZE} />}
           sectionTile={DICT[settings.selectedLanguage].MENU}
         />
-        <DrawerItemList {...props} />
+        <NavItems {...props} />
+
         <Separator
-          Icon={() => (
-            <FontAwesome5
-              name="link"
-              size={THEME.FONT_SIZE.MENU_ITEM}
-              color={THEME.COLORS.WHITE_TEXT}
-            />
-          )}
+          Icon={() => <DrawerIcon name="link" size={SECTION_ICON_SIZE} />}
           sectionTile={DICT[settings.selectedLanguage].LINKS}
         />
         {LINKS.map((link, index) => (
@@ -266,33 +237,15 @@ export function CustomDrawerContent(props: DrawerContentComponentProps) {
           />
         ))}
       </View>
+
       <TouchableOpacity
+        activeOpacity={0.7}
         onPress={goToNessSocial}
-        style={{
-          marginBottom: 10,
-          alignItems: "center",
-          justifyContent: "center",
-        }}
+        style={styles.footer}
       >
-        <Text
-          style={{
-            color: THEME.COLORS.WHITE_TEXT,
-            textAlign: "center",
-            width: "90%",
-            fontFamily: THEME.FONT_FAMILY.BOLD,
-            fontSize: THEME.FONT_SIZE.FOOTER,
-            justifyContent: "center",
-            alignItems: "center",
-          }}
-        >
+        <Text style={styles.footerText}>
           {DICT[settings.selectedLanguage].VERSION_TEXT}{" "}
-          <Text
-            style={{
-              textDecorationLine: "underline",
-            }}
-          >
-            @{author}
-          </Text>
+          <Text style={styles.footerAuthor}>@{author}</Text>
         </Text>
       </TouchableOpacity>
     </DrawerContentScrollView>
