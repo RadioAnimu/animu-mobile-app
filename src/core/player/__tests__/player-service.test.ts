@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { AudioStatus } from "expo-audio";
 import { setAudioModeAsync } from "expo-audio";
 import { PlayerService, playerService } from "../player-service";
+import { ArtworkResolver } from "../artwork";
 import { HeartbeatScheduler } from "../heartbeat";
 import { TransportStateMachine } from "../transport-state";
 import { playerStore, progressStore } from "../store";
@@ -17,6 +18,19 @@ vi.mock("expo-audio", () => ({
     addListener: () => ({ remove: () => {} }),
   })),
   setAudioModeAsync: vi.fn(),
+}));
+vi.mock("expo-asset", () => ({
+  Asset: {
+    fromModule: vi.fn(() => ({
+      localUri: "file://mock/default-cover.png",
+      downloadAsync: async () => ({ localUri: "file://mock/default-cover.png" }),
+    })),
+    fromURI: vi.fn((uri: string) => ({
+      uri,
+      localUri: "file://mock/artwork.png",
+      downloadAsync: async () => ({ localUri: "file://mock/artwork.png" }),
+    })),
+  },
 }));
 vi.mock("expo-web-browser", () => ({ openBrowserAsync: vi.fn() }));
 vi.mock("@react-native-community/netinfo", () => ({
@@ -115,6 +129,7 @@ const makeDeps = () => {
     isPlayingIntent: () => state.isPlayingIntent,
     stateLabel: () => state.state,
   });
+  const artwork = new ArtworkResolver();
 
   const deps = {
     state,
@@ -126,6 +141,7 @@ const makeDeps = () => {
     networkMonitor,
     ticker,
     heartbeat,
+    artwork,
   } as unknown as PlayerServiceDependencies;
 
   return { deps, transport, publisher, repository, reconnect };

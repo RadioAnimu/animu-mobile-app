@@ -76,6 +76,7 @@ const makeRepository = (
   const repository = new NowPlayingRepository({
     fetchers,
     getCoverQuality: () => "medium",
+    getDefaultCover: () => "default-cover.png",
     timer,
   });
   repository.onChange = (result) => changes.push(result);
@@ -264,6 +265,37 @@ describe("NowPlayingRepository", () => {
     await repository.refresh();
 
     expect(timer.scheduled.filter((call) => call.ms > 1000)).toHaveLength(0);
+  });
+
+  it("passes the user's artwork quality and default cover to every fetch", async () => {
+    const getStreamMetadata = vi.fn(async () => ({
+      track: makeTrack(),
+      listeners: { value: 10 },
+    }));
+    const getTrackHistory = vi.fn(async () => [makeTrack()]);
+    const { repository } = makeRepository({
+      getStreamMetadata,
+      getTrackHistory,
+    });
+
+    await repository.refresh();
+    await repository.refreshHistory("played");
+    await tick();
+
+    expect(getStreamMetadata).toHaveBeenCalledWith(
+      "medium",
+      "default-cover.png",
+    );
+    expect(getTrackHistory).toHaveBeenCalledWith(
+      "requests",
+      "medium",
+      "default-cover.png",
+    );
+    expect(getTrackHistory).toHaveBeenCalledWith(
+      "played",
+      "medium",
+      "default-cover.png",
+    );
   });
 
   it("dedupes history entries and notifies only on additions", async () => {

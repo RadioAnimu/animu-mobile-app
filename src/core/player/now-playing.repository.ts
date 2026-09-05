@@ -33,9 +33,14 @@ const REFRESH_STALE_MS = 30_000;
 export interface NowPlayingFetchers {
   getStreamMetadata(
     artworkQuality?: ArtworkQuality,
+    defaultCover?: string,
   ): Promise<{ track: Track | null; listeners: Listeners }>;
   getCurrentProgram(): Promise<Program>;
-  getTrackHistory(type: HistoryType): Promise<Track[]>;
+  getTrackHistory(
+    type: HistoryType,
+    artworkQuality?: ArtworkQuality,
+    defaultCover?: string,
+  ): Promise<Track[]>;
   /**
    * Aborts every in-flight HTTP request. Called by `expireStuckRefresh()`:
    * the native heartbeat drives the abort because the fetch's own
@@ -48,6 +53,8 @@ export interface NowPlayingRepositoryOptions {
   fetchers: NowPlayingFetchers;
   /** Runtime user setting — cover artwork quality. */
   getCoverQuality: () => ArtworkQuality;
+  /** Runtime resolver value — bundled default cover for missing artwork. */
+  getDefaultCover: () => string;
   timer: Timer;
 }
 
@@ -165,9 +172,14 @@ export class NowPlayingRepository {
         await Promise.all([
           this.options.fetchers.getStreamMetadata(
             this.options.getCoverQuality(),
+            this.options.getDefaultCover(),
           ),
           this.options.fetchers.getCurrentProgram(),
-          this.options.fetchers.getTrackHistory("requests"),
+          this.options.fetchers.getTrackHistory(
+            "requests",
+            this.options.getCoverQuality(),
+            this.options.getDefaultCover(),
+          ),
         ]);
 
       // Invalidated while in flight (watchdog expiry or dispose): the
@@ -293,7 +305,11 @@ export class NowPlayingRepository {
   async refreshHistory(type: HistoryType): Promise<void> {
     if (this.disposed) return;
     try {
-      const tracks = await this.options.fetchers.getTrackHistory(type);
+      const tracks = await this.options.fetchers.getTrackHistory(
+        type,
+        this.options.getCoverQuality(),
+        this.options.getDefaultCover(),
+      );
       if (!tracks || tracks.length === 0) return;
 
       const target =

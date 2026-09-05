@@ -16,6 +16,7 @@ import {
   buildNowPlayingMetadata,
   type NowPlayingInput,
 } from "./now-playing.metadata";
+import { ArtworkResolver } from "./artwork";
 import { HeartbeatScheduler } from "./heartbeat";
 import { MediaSessionPublisher } from "./media-session.publisher";
 import {
@@ -62,6 +63,7 @@ export interface PlayerServiceDependencies {
   networkMonitor: NetworkMonitor;
   ticker: ProgressTicker;
   heartbeat: HeartbeatScheduler;
+  artwork: ArtworkResolver;
 }
 
 /**
@@ -74,6 +76,7 @@ export interface PlayerServiceDependencies {
  * - `MediaSessionPublisher`— pushes metadata/status to the OS
  * - `ProgressTicker`       — 1 Hz progress heartbeat
  * - `HeartbeatScheduler`   — 1 Hz gate + watchdog + data-poll cadence
+ * - `ArtworkResolver`      — local-file artwork + bundled default cover
  * - `StreamPreferences`    — persisted stream choice
  * - `NetworkMonitor`       — offline → online transitions
  *
@@ -159,12 +162,13 @@ export class PlayerService {
 
   private async runSetup(): Promise<void> {
     // ── Phase 1: fire EVERYTHING that has no interdependencies ──
-    // Streams, native TrackPlayer, and user settings resolve
-    // independently — run them all at once.
+    // Streams, native TrackPlayer, user settings, and the bundled default
+    // cover resolve independently — run them all at once.
     const [streams] = await Promise.all([
       animuApi.getStreams(),
       this.deps.transport.ensureSession(),
       userSettingsService.initialize(), // pre-warm cache
+      this.deps.artwork.init(), // pre-warm the local default cover
     ]);
     // Destroyed while bootstrapping (e.g. unmount mid-setup) — bail
     // before touching any state or store.
@@ -221,6 +225,7 @@ export class PlayerService {
       this.deps.reconnect.reset();
       this.deps.networkMonitor.stop();
       this.deps.heartbeat.reset();
+      this.deps.artwork.reset();
       if (this.deps.transport.hasPlayer) {
         this.deps.transport.dispose();
         this.deps.transport.markSessionDown();
@@ -245,6 +250,7 @@ export class PlayerService {
       this.deps.repository.clear();
       this.deps.ticker.reset();
       this.deps.heartbeat.reset();
+      this.deps.artwork.reset();
       this.deps.transport.markSessionDown();
       this.initialized = false;
       this.streamOptions = [];
@@ -375,6 +381,20 @@ export class PlayerService {
 
   async updateMetadata(): Promise<void> {
     try {
+      // Download the cover to a local file so the media session's native
+      // loader (no UA, no retry) renders it reliably. The first push uses
+      // the remote URL as-is; when the local file lands, push again so
+      // the notification swaps to the file URI within seconds. Skipped
+      // when the song changed mid-download — that push owns the session.
+      const artworkUrl = this.deps.repository.currentTrack?.artwork;
+      if (artworkUrl && !this.deps.artwork.peek(artworkUrl)) {
+        void this.deps.artwork.resolve(artworkUrl).then(() => {
+          if (this.deps.repository.currentTrack?.artwork === artworkUrl) {
+            this.updateMetadata();
+          }
+        });
+      }
+
       this.deps.publisher.push(
         this.getNowPlayingMetadata(),
         this.deps.state.remoteStatus,
@@ -497,10 +517,12 @@ export class PlayerService {
 
   private nowPlayingInput(): NowPlayingInput {
     return {
-      track: this.deps.repository.currentTrack,
+      // The media session gets the locally cached cover file when it is
+      // ready — its native loader has no UA/retry guarantees over HTTP.
+      track: this.deps.artwork.apply(this.deps.repository.currentTrack),
       isLive: this.deps.repository.currentProgram?.isLive ?? false,
       showProgress: this.deps.repository.showProgress,
-      defaultCover: CONFIG.DEFAULT_COVER,
+      defaultCover: this.deps.artwork.defaultCover,
     };
   }
 
@@ -564,9 +586,11 @@ export const createPlayerService = (): PlayerService => {
     fetchers: animuService,
     getCoverQuality: () =>
       userSettingsService.getCurrentSettings().liveQualityCover,
+    getDefaultCover: () => artwork.defaultCover,
     timer: jsTimer,
   });
   const networkMonitor = new NetworkMonitor(netInfoSubscribe);
+  const artwork = new ArtworkResolver();
   const ticker = new ProgressTicker({
     repository,
     state,
@@ -574,10 +598,10 @@ export const createPlayerService = (): PlayerService => {
     publisher,
     buildMetadata: () =>
       buildNowPlayingMetadata({
-        track: repository.currentTrack,
+        track: artwork.apply(repository.currentTrack),
         isLive: repository.currentProgram?.isLive ?? false,
         showProgress: repository.showProgress,
-        defaultCover: CONFIG.DEFAULT_COVER,
+        defaultCover: artwork.defaultCover,
       }),
   });
   const heartbeat = new HeartbeatScheduler({
@@ -598,6 +622,7 @@ export const createPlayerService = (): PlayerService => {
     networkMonitor,
     ticker,
     heartbeat,
+    artwork,
   });
 };
 

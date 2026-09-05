@@ -19,7 +19,7 @@ import { MusicRequest } from "../../core/domain/music-request";
 import { User } from "../../core/domain/user";
 import { DICT } from "../../i18n";
 import { THEME } from "../../theme";
-import { CONFIG } from "../../utils/player.config";
+import { Cover } from "../Cover";
 import DragIcon from "../../assets/icons/ArrastarParaBaixo.png";
 import { styles } from "./styles";
 
@@ -126,13 +126,7 @@ export function RequestBottomSheet({
             {/* Track row */}
             {track && (
               <View style={styles.trackRow}>
-                <Image
-                  source={{ uri: track.artwork }}
-                  style={styles.cover}
-                  placeholder={{ uri: CONFIG.DEFAULT_COVER }}
-                  contentFit="cover"
-                  cachePolicy="memory-disk"
-                />
+                <Cover cover={track.artwork} style={styles.cover} />
                 <View style={styles.trackInfo}>
                   <Text style={styles.songName} numberOfLines={2}>
                     {track.song}

@@ -9,13 +9,15 @@ class AnimuService {
   /**
    * Fetches track + listeners from a single API call.
    *
-   * Artwork quality is a runtime user setting, so this uses a dedicated
+   * Artwork quality is a runtime user setting and the default cover a
+   * runtime resolver value (bundled asset), so this uses a dedicated
    * client per call instead of the shared one.
    */
   async getStreamMetadata(
     artworkQuality?: ArtworkQuality,
+    defaultCover?: string,
   ): Promise<{ track: Track | null; listeners: Listeners }> {
-    const client = createMetadataClient(artworkQuality ?? "medium");
+    const client = createMetadataClient(artworkQuality ?? "medium", defaultCover);
     return client.getStreamMetadata();
   }
 
@@ -31,8 +33,21 @@ class AnimuService {
     };
   }
 
-  async getTrackHistory(type: HistoryType): Promise<Track[]> {
-    return animuApi.getTrackHistory(type);
+  /**
+   * Fetches a history feed (played/requested).
+   *
+   * Same rationale as getStreamMetadata: the user's artwork quality and
+   * the resolver's default cover are runtime values — history covers are
+   * size-variant picks, so the shared client's module-load defaults would
+   * pin every row to medium quality.
+   */
+  async getTrackHistory(
+    type: HistoryType,
+    artworkQuality?: ArtworkQuality,
+    defaultCover?: string,
+  ): Promise<Track[]> {
+    const client = createMetadataClient(artworkQuality ?? "medium", defaultCover);
+    return client.getTrackHistory(type);
   }
 
   /**

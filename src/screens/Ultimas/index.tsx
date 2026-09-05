@@ -4,10 +4,9 @@ import { FlatList, Text, View } from "react-native";
 import { Background } from "../../components/Background";
 import { styles } from "./styles";
 
-import { CONFIG } from "../../utils/player.config";
-
 import { SafeAreaView } from "react-native-safe-area-context";
 import { HeaderBar } from "../../components/HeaderBar";
+import { Cover } from "../../components/Cover";
 
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../../routes/app.routes";
@@ -68,22 +67,7 @@ export function Last({ route, navigation }: Props) {
                 <View style={styles.metadata}>
                   {(isUltimasPedidasScreen && settings.lastRequestedCovers) ||
                   (!isUltimasPedidasScreen && settings.lastPlayedCovers) ? (
-                    <Image
-                      source={{
-                        uri: item.artwork,
-                      }}
-                      style={styles.image}
-                      placeholder={{
-                        uri: CONFIG.DEFAULT_COVER,
-                      }}
-                      onError={() => {
-                        return {
-                          uri: CONFIG.DEFAULT_COVER,
-                        };
-                      }}
-                      cachePolicy={settings.cacheEnabled ? "disk" : "none"}
-                      contentFit="cover"
-                    />
+                    <Cover cover={item.artwork} style={styles.image} />
                   ) : (
                     <></>
                   )}

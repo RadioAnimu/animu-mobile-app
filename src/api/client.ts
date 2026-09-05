@@ -23,17 +23,19 @@ export const animuApi = new AnimuApi({
 });
 
 /**
- * Now-playing metadata is the only call whose artwork quality is a runtime
- * user setting, so it gets a lightweight dedicated client per call. The
- * client is stateless apart from a short-lived HTTP micro-cache, which the
- * player's 5s polling doesn't depend on.
+ * Now-playing metadata is the only call whose options (artwork quality,
+ * default cover) are runtime user/resolver state, so it gets a lightweight
+ * dedicated client per call. The client is stateless apart from a
+ * short-lived HTTP micro-cache, which the player's 5s polling doesn't
+ * depend on.
  */
 export const createMetadataClient = (
   artworkQuality: ArtworkQuality,
+  defaultCover: string = CONFIG.DEFAULT_COVER,
 ): AnimuApi =>
   new AnimuApi({
     userAgent: CONFIG.USER_AGENT,
-    defaultCover: CONFIG.DEFAULT_COVER,
+    defaultCover,
     artworkQuality,
     fetchImpl: expoFetch,
   });

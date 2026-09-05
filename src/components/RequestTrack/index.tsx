@@ -1,8 +1,7 @@
 import { Text, TouchableOpacity } from "react-native";
 import { styles } from "./styles";
 import { THEME } from "../../theme";
-import { Image } from "expo-image";
-import { CONFIG } from "../../utils/player.config";
+import { Cover } from "../Cover";
 import { useUserSettings } from "../../contexts/user/UserSettingsProvider";
 import { MusicRequest } from "../../core/domain/music-request";
 
@@ -27,18 +26,7 @@ export function RequestTrack({ track, onTrackRequest }: Props) {
       ]}
     >
       {settings.coversInRequestSearch && (
-        <Image
-          source={{ uri: track.artwork }}
-          style={styles.image}
-          placeholder={CONFIG.DEFAULT_COVER}
-          onError={() => {
-            return {
-              uri: CONFIG.DEFAULT_COVER,
-            };
-          }}
-          contentFit="cover"
-          cachePolicy={settings.cacheEnabled ? "disk" : "none"}
-        />
+        <Cover cover={track.artwork} style={styles.image} />
       )}
       <Text style={styles.text}>
         {track.artist} | {track.raw}
