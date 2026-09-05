@@ -38,6 +38,7 @@ import { StreamPreferences } from "./stream-preferences";
 import { AudioTransport } from "./transport";
 import {
   TransportStateMachine,
+  isDeadPlaybackState,
   type TransportState,
 } from "./transport-state";
 import { jsTimer } from "./timer";
@@ -489,9 +490,7 @@ export class PlayerService {
     if (
       !status.isBuffering &&
       status.timeControlStatus === "paused" &&
-      !DEAD_PLAYBACK_STATES.includes(
-        status.playbackState as (typeof DEAD_PLAYBACK_STATES)[number],
-      )
+      !isDeadPlaybackState(status.playbackState)
     ) {
       this.reconcile("paused");
       return;
@@ -502,9 +501,7 @@ export class PlayerService {
     const streamLost =
       this.deps.state.isPlayingIntent &&
       !status.isBuffering &&
-      DEAD_PLAYBACK_STATES.includes(
-        status.playbackState as (typeof DEAD_PLAYBACK_STATES)[number],
-      ) &&
+      isDeadPlaybackState(status.playbackState) &&
       Date.now() - this.deps.state.enteredAt > STREAM_DEATH_GRACE_MS;
 
     if (streamLost) {

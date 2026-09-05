@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import {
   TransportStateMachine,
+  isDeadPlaybackState,
   isPlayingIntentState,
   toRemoteStatus,
 } from "../transport-state";
@@ -57,5 +58,17 @@ describe("TransportStateMachine", () => {
     expect(toRemoteStatus("paused")).toBe("paused");
     expect(isPlayingIntentState("connecting")).toBe(true);
     expect(isPlayingIntentState("paused")).toBe(false);
+  });
+
+  it("classifies dead native playback states", () => {
+    // Android (ExoPlayer): retry exhaustion / clean close; iOS: AVPlayer
+    expect(isDeadPlaybackState("idle")).toBe(true);
+    expect(isDeadPlaybackState("ended")).toBe(true);
+    expect(isDeadPlaybackState("failed")).toBe(true);
+    // Transient / alive states must never read as dead
+    expect(isDeadPlaybackState("ready")).toBe(false);
+    expect(isDeadPlaybackState("buffering")).toBe(false);
+    expect(isDeadPlaybackState("loaded")).toBe(false);
+    expect(isDeadPlaybackState("unknown")).toBe(false);
   });
 });
