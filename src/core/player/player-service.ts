@@ -391,23 +391,37 @@ export class PlayerService {
       // the remote URL as-is; when the local file lands, push again so
       // the notification swaps to the file URI within seconds. Skipped
       // when the song changed mid-download — that push owns the session.
+      //
+      // Only remote URLs enter the download/re-push dance. Local artwork
+      // (e.g. the bundled default when "Live covers" is off, or an
+      // already-resolved file) is final — `resolve()` passes it through
+      // WITHOUT tracking it, so a "re-push until peek hits" loop would
+      // recurse forever and wedge the JS thread.
       const artworkUrl = this.deps.repository.currentTrack?.artwork;
-      if (artworkUrl && !this.deps.artwork.peek(artworkUrl)) {
+      if (
+        artworkUrl &&
+        this.deps.artwork.isRemote(artworkUrl) &&
+        !this.deps.artwork.peek(artworkUrl)
+      ) {
         void this.deps.artwork.resolve(artworkUrl).then(() => {
           if (this.deps.repository.currentTrack?.artwork === artworkUrl) {
-            this.updateMetadata();
+            this.pushNowPlaying();
           }
         });
       }
 
-      this.deps.publisher.push(
-        this.getNowPlayingMetadata(),
-        this.deps.state.remoteStatus,
-        toSec(getTrackProgress(this.deps.repository.currentTrack ?? undefined)),
-      );
+      this.pushNowPlaying();
     } catch (error) {
       console.error("[PlayerService] Metadata update error:", error);
     }
+  }
+
+  private pushNowPlaying(): void {
+    this.deps.publisher.push(
+      this.getNowPlayingMetadata(),
+      this.deps.state.remoteStatus,
+      toSec(getTrackProgress(this.deps.repository.currentTrack ?? undefined)),
+    );
   }
 
   /**

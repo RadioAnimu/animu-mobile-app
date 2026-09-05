@@ -61,6 +61,15 @@ export class ArtworkResolver {
     return this.defaultCoverValue;
   }
 
+  /**
+   * Whether a URL needs a download. Non-remote URIs (bundled default,
+   * prior `file://` results) are already final — `resolve()` passes them
+   * through untouched, so callers should skip the download/re-push dance.
+   */
+  isRemote(url: string): boolean {
+    return /^https?:/i.test(url);
+  }
+
   /** Local URI for a previously resolved remote URL (sync lookup). */
   peek(url: string): string | undefined {
     return this.resolved.get(url);
@@ -84,7 +93,7 @@ export class ArtworkResolver {
    */
   async resolve(url: string): Promise<string> {
     // Already local (bundled default, prior file URI) — nothing to do
-    if (!/^https?:/i.test(url)) return url;
+    if (!this.isRemote(url)) return url;
 
     const cached = this.resolved.get(url);
     if (cached) return cached;

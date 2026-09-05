@@ -538,3 +538,72 @@ describe("PlayerService heartbeat", () => {
     }
   });
 });
+
+describe("PlayerService updateMetadata", () => {
+  const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
+
+  it("does not re-enter itself when the artwork is already local (covers off)", async () => {
+    const { deps, publisher, repository } = makeDeps();
+    // Covers OFF → selectArtwork returns the bundled default cover, which
+    // resolves to a local file URI — resolve() passes it through untracked.
+    repository.currentTrack = {
+      ...makeTrack(),
+      artwork: "file://bundled/default-cover.png",
+    } as Track;
+    const service = new PlayerService(deps);
+
+    await service.updateMetadata();
+    await flush();
+
+    // Exactly the initial push — the old "re-push until peek hits" logic
+    // looped forever and wedged the JS thread.
+    expect(publisher.push).toHaveBeenCalledTimes(1);
+  });
+
+  it("re-pushes once (and terminates) when a remote cover resolves locally", async () => {
+    const { deps, publisher, repository } = makeDeps();
+    repository.currentTrack = {
+      ...makeTrack(),
+      artwork: "https://images.test/cover.png",
+    } as Track;
+    const service = new PlayerService(deps);
+
+    await service.updateMetadata();
+    await flush();
+
+    // Initial push + the swapped-file re-push once the download lands — no
+    // unbounded recursion when the resolve succeeds.
+    expect(publisher.push).toHaveBeenCalledTimes(2);
+    // Only one download was kicked off.
+    expect(deps.artwork.peek("https://images.test/cover.png")).toBe(
+      "file://mock/artwork.png",
+    );
+  });
+
+  it("terminates (no re-download storm) when a remote cover download fails", async () => {
+    const { deps, publisher, repository } = makeDeps();
+    repository.currentTrack = {
+      ...makeTrack(),
+      artwork: "https://images.test/failing.png",
+    } as Track;
+    const service = new PlayerService(deps);
+
+    // Simulate a failed download: resolve() degrades to the remote URL and
+    // never tracks it, so peek() stays undefined forever. The pre-fix code
+    // re-entered updateMetadata() until it wedged the JS thread.
+    const resolveSpy = vi
+      .spyOn(deps.artwork, "resolve")
+      .mockImplementation(async (url) => url);
+
+    await service.updateMetadata();
+    await flush();
+    await flush();
+
+    // One resolve attempt + the initial push + exactly ONE settle push —
+    // bounded, no recursion.
+    expect(resolveSpy).toHaveBeenCalledTimes(1);
+    expect(publisher.push).toHaveBeenCalledTimes(2);
+
+    resolveSpy.mockRestore();
+  });
+});

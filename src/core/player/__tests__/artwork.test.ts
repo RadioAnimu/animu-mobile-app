@@ -156,6 +156,20 @@ describe("ArtworkResolver", () => {
     });
   });
 
+  describe("isRemote()", () => {
+    it("treats http(s) URLs as needing a download", () => {
+      const resolver = new ArtworkResolver();
+      expect(resolver.isRemote("https://images.test/cover.png")).toBe(true);
+      expect(resolver.isRemote("http://images.test/cover.png")).toBe(true);
+    });
+
+    it("treats already-local URIs as final", () => {
+      const resolver = new ArtworkResolver();
+      expect(resolver.isRemote("file://cache/cover.png")).toBe(false);
+      expect(resolver.isRemote("content://media/cover")).toBe(false);
+    });
+  });
+
   it("reset() drops the lookups but keeps the resolved default cover", async () => {
     assetMocks.fromModule.mockReturnValueOnce({
       localUri: "file://bundled.png",
