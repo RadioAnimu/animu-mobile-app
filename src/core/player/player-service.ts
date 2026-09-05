@@ -16,6 +16,7 @@ import {
   buildNowPlayingMetadata,
   type NowPlayingInput,
 } from "./now-playing.metadata";
+import { HeartbeatScheduler } from "./heartbeat";
 import { MediaSessionPublisher } from "./media-session.publisher";
 import {
   NetworkMonitor,
@@ -50,21 +51,6 @@ const MAX_RECONNECT_DELAY_MS = 30_000;
  * .failed) always arrive after their internal retry windows.
  */
 const STREAM_DEATH_GRACE_MS = 3000;
-/**
- * Minimum spacing between processed progress ticks (ms). The heartbeat
- * has two drivers — native `playbackStatusUpdate` events (playing) and
- * the JS "track-progress" task (paused foreground) — both call
- * `tickProgress()`; this gate collapses them to ≤1 Hz.
- */
-const HEARTBEAT_MIN_INTERVAL_MS = 800;
-/**
- * Data-refresh cadence while PLAYING, driven by native heartbeats (one
- * poll every N seconds of audio). Native events keep arriving while the
- * app is backgrounded (foreground service on Android, background audio
- * on iOS) — JS timers don't — so this is what keeps the media session's
- * title/cover updating on live shows in the background.
- */
-const PLAY_HEARTBEATS_PER_POLL = 5;
 
 export interface PlayerServiceDependencies {
   state: TransportStateMachine;
@@ -75,6 +61,7 @@ export interface PlayerServiceDependencies {
   reconnect: BackoffScheduler;
   networkMonitor: NetworkMonitor;
   ticker: ProgressTicker;
+  heartbeat: HeartbeatScheduler;
 }
 
 /**
@@ -86,6 +73,7 @@ export interface PlayerServiceDependencies {
  * - `NowPlayingRepository` — on-air data: fetch, diff, retry, track-end
  * - `MediaSessionPublisher`— pushes metadata/status to the OS
  * - `ProgressTicker`       — 1 Hz progress heartbeat
+ * - `HeartbeatScheduler`   — 1 Hz gate + watchdog + data-poll cadence
  * - `StreamPreferences`    — persisted stream choice
  * - `NetworkMonitor`       — offline → online transitions
  *
@@ -100,12 +88,6 @@ export class PlayerService {
   private setupPromise: Promise<void> | null = null;
   /** One-way: a destroyed instance must never touch stores/native again. */
   private disposed = false;
-  /** Date.now() of the last processed progress tick (heartbeat gate). */
-  private lastHeartbeatAt = 0;
-  /** Processed heartbeats since the last heartbeat-driven data poll. */
-  private heartbeats = 0;
-  /** Total processed heartbeats — drives the sampled status log. */
-  private heartbeatSamples = 0;
 
   constructor(private readonly deps: PlayerServiceDependencies) {
     // ── Wiring: this class owns every cross-unit connection ──
@@ -126,6 +108,9 @@ export class PlayerService {
       }
     };
     this.deps.networkMonitor.onRestore = () => this.handleNetworkRestore();
+    this.deps.heartbeat.onPoll = () => {
+      void this.refreshData().catch(console.error);
+    };
   }
 
   // ── Queries ──
@@ -235,9 +220,7 @@ export class PlayerService {
       this.deps.repository.dispose();
       this.deps.reconnect.reset();
       this.deps.networkMonitor.stop();
-      this.heartbeats = 0;
-      this.lastHeartbeatAt = 0;
-      this.heartbeatSamples = 0;
+      this.deps.heartbeat.reset();
       if (this.deps.transport.hasPlayer) {
         this.deps.transport.dispose();
         this.deps.transport.markSessionDown();
@@ -261,12 +244,10 @@ export class PlayerService {
       this.deps.streamPreferences.reset();
       this.deps.repository.clear();
       this.deps.ticker.reset();
+      this.deps.heartbeat.reset();
       this.deps.transport.markSessionDown();
       this.initialized = false;
       this.streamOptions = [];
-      this.heartbeats = 0;
-      this.lastHeartbeatAt = 0;
-      this.heartbeatSamples = 0;
 
       this.emitPlayer();
       this.emitStation();
@@ -295,9 +276,7 @@ export class PlayerService {
       this.deps.reconnect.reset();
       // …and restart the heartbeat cadence (first native tick processes
       // immediately; the poll cycle counts from zero)
-      this.heartbeats = 0;
-      this.lastHeartbeatAt = 0;
-      this.heartbeatSamples = 0;
+      this.deps.heartbeat.reset();
 
       this.deps.transport.play(this.deps.streamPreferences.current.url);
       this.deps.state.transition("connecting");
@@ -378,11 +357,13 @@ export class PlayerService {
   async refreshData(): Promise<boolean> {
     const changed = await this.deps.repository.refresh();
     if (changed && this.isReady) {
-      console.info(
-        `[PlayerService] track/program changed → updating media session: ${
-          this.deps.repository.currentTrack?.title ?? "?"
-        }`,
-      );
+      if (CONFIG.DEBUG) {
+        console.info(
+          `[PlayerService] track/program changed → updating media session: ${
+            this.deps.repository.currentTrack?.title ?? "?"
+          }`,
+        );
+      }
       await this.updateMetadata();
     }
     return changed;
@@ -405,22 +386,15 @@ export class PlayerService {
   }
 
   /**
-   * 1 Hz heartbeat — see `ProgressTicker`. Gates the two drivers (native
-   * status events while playing, the JS task otherwise) into at-most-one
-   * processed tick per second. Returns whether the tick was processed.
+   * JS fallback driver for the 1 Hz heartbeat (see `HeartbeatScheduler`):
+   * covers paused-in-foreground — where native status events go silent but
+   * the radio keeps playing server-side — plus a foreground safety net
+   * while playing. While backgrounded, the NATIVE driver
+   * (`playbackStatusUpdate`) beats into the same scheduler, where JS
+   * timers freeze/throttle.
    */
-  tickProgress(): boolean {
-    const now = Date.now();
-    if (now - this.lastHeartbeatAt < HEARTBEAT_MIN_INTERVAL_MS) return false;
-    this.lastHeartbeatAt = now;
-    // Watchdog: expires a data refresh latched past its hard limit. In the
-    // background a stalled fetch's JS-timer abort never fires, so without
-    // this the repository (and the media session with it) freezes on an
-    // old track forever. Native heartbeats keep ticking where JS timers
-    // don't — see REFRESH_STALE_MS.
-    this.deps.repository.expireStuckRefresh();
-    this.deps.ticker.tick();
-    return true;
+  heartbeat(): void {
+    this.deps.heartbeat.beat();
   }
 
   async openPedidosURL(): Promise<void> {
@@ -446,24 +420,11 @@ export class PlayerService {
       this.deps.state.transition("playing");
 
       // Native 1 Hz heartbeat: drives progress + media-session pushes AND
-      // the data poll while playing. These events keep arriving while the
-      // app is backgrounded, where JS timers freeze/throttle — without
-      // this, a live show's notification keeps a stale title/cover forever.
-      if (this.tickProgress()) {
-        this.heartbeats++;
-        this.heartbeatSamples++;
-        // Sampled: proves native status events still reach JS while
-        // backgrounded (JS timers freeze there) — one line every ~30s.
-        if (this.heartbeatSamples % 30 === 0) {
-          console.info(
-            `[PlayerService] heartbeat ok (state=${this.deps.state.state})`,
-          );
-        }
-        if (this.heartbeats >= PLAY_HEARTBEATS_PER_POLL) {
-          this.heartbeats = 0;
-          void this.refreshData().catch(console.error);
-        }
-      }
+      // the data poll while playing (see `HeartbeatScheduler`). These
+      // events keep arriving while the app is backgrounded, where JS
+      // timers freeze/throttle — without this, a live show's notification
+      // keeps a stale title/cover forever.
+      this.deps.heartbeat.beat();
       return;
     }
 
@@ -619,6 +580,13 @@ export const createPlayerService = (): PlayerService => {
         defaultCover: CONFIG.DEFAULT_COVER,
       }),
   });
+  const heartbeat = new HeartbeatScheduler({
+    repository,
+    ticker,
+    isPlayingIntent: () => state.isPlayingIntent,
+    stateLabel: () => state.state,
+    debug: CONFIG.DEBUG,
+  });
 
   return new PlayerService({
     state,
@@ -629,6 +597,7 @@ export const createPlayerService = (): PlayerService => {
     reconnect,
     networkMonitor,
     ticker,
+    heartbeat,
   });
 };
 

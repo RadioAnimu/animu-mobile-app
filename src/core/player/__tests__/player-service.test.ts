@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { AudioStatus } from "expo-audio";
 import { setAudioModeAsync } from "expo-audio";
 import { PlayerService, playerService } from "../player-service";
+import { HeartbeatScheduler } from "../heartbeat";
 import { TransportStateMachine } from "../transport-state";
 import { playerStore, progressStore } from "../store";
 import type { PlayerServiceDependencies } from "../player-service";
@@ -60,6 +61,7 @@ const makeTrack = (): Track =>
 
 /** Mutable fakes + the assembled dependency bag. Tests tweak fakes directly. */
 const makeDeps = () => {
+  const state = new TransportStateMachine();
   const transport = {
     setStatusHandler: vi.fn(),
     isSessionReady: true,
@@ -107,9 +109,15 @@ const makeDeps = () => {
     attemptCount: 0,
   };
   const networkMonitor = { onRestore: vi.fn(), start: vi.fn(), stop: vi.fn() };
+  const heartbeat = new HeartbeatScheduler({
+    repository,
+    ticker,
+    isPlayingIntent: () => state.isPlayingIntent,
+    stateLabel: () => state.state,
+  });
 
   const deps = {
-    state: new TransportStateMachine(),
+    state,
     transport,
     publisher,
     repository,
@@ -117,6 +125,7 @@ const makeDeps = () => {
     reconnect,
     networkMonitor,
     ticker,
+    heartbeat,
   } as unknown as PlayerServiceDependencies;
 
   return { deps, transport, publisher, repository, reconnect };
@@ -325,8 +334,8 @@ describe("PlayerService heartbeat", () => {
       handler({ playing: true } as AudioStatus);
       expect(deps.ticker.tick).toHaveBeenCalledTimes(1);
 
-      // …JS task 300ms later is gated (< 800ms since last tick)
-      service.tickProgress();
+      // …JS task 300ms later is gated (< 800ms since last beat)
+      service.heartbeat();
       expect(deps.ticker.tick).toHaveBeenCalledTimes(1);
 
       // …next native event a second later processes again

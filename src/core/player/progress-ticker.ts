@@ -23,17 +23,13 @@ export interface ProgressTickerOptions {
 }
 
 /**
- * 1 Hz heartbeat. Driven by TWO sources that the orchestrator gates into
- * at-most-one tick per second (see `PlayerService.tickProgress`):
+ * 1 Hz progress tick, driven by `HeartbeatScheduler`'s ≤1 Hz gate.
  *
- * - native `playbackStatusUpdate` events while PLAYING — these keep
- *   firing in the background (foreground service on Android, background
- *   audio on iOS), so the media session stays fresh where JS timers
- *   freeze/throttle;
- * - the JS "track-progress" task — covers paused-in-foreground, where
- *   native events go silent but the radio keeps playing server-side.
+ * The heartbeat's two drivers — native `playbackStatusUpdate` events while
+ * PLAYING and the JS heartbeat task (paused foreground) — both feed the
+ * scheduler, which keeps the data-poll cadence and the watchdog; this unit
+ * only owns what ONE tick does:
  *
- * Per tick:
  * - Updates `progressStore` only when the value actually changed (avoids
  *   1/sec React re-renders).
  * - Detects track end (`getTrackProgress` → null while progress is shown)

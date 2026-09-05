@@ -22,9 +22,7 @@ import {
 } from "../../core/player";
 import { Loading } from "../../screens/Loading";
 
-const REFRESH_INTERVAL_PLAYING = 5_000; // 5s safety net (track-end timer handles transitions)
-const REFRESH_INTERVAL_PAUSED = 30_000; // 30s when paused (battery friendly)
-const TRACK_PROGRESS_INTERVAL = 1000; // 1s (only ticks when track)
+const HEARTBEAT_INTERVAL = 1000; // 1s fallback driver (see HeartbeatScheduler)
 
 // ─── Contexts by change cadence — subscribe to the one you need ───
 //
@@ -141,8 +139,7 @@ export const PlayerProvider: React.FC<{
       cancelled = true;
 
       appStateSubscription?.remove();
-      backgroundService.stopTask("refresh-data");
-      backgroundService.stopTask("track-progress");
+      backgroundService.stopTask("heartbeat");
       setRemotePlaybackHandlers({
         play: async () => {},
         pause: async () => {},
@@ -154,12 +151,18 @@ export const PlayerProvider: React.FC<{
     };
   }, [playerServiceInstance]);
 
-  // ─── Poll lifecycle: while visible or playing, otherwise suspended ───
+  // ─── Heartbeat driver: while visible or playing, otherwise suspended ───
   //
-  // - Playing (foreground or background): 5s — powers the live badge AND
-  //   keeps the notification's metadata/seek bar fresh on track changes.
-  // - Paused + foreground: 30s — badge/history stay fresh for a user with
-  //   the app open but paused.
+  // The 1 Hz JS fallback driver (see `HeartbeatScheduler` for what a beat
+  // does: progress tick + refresh watchdog + data-poll cadence — the 5s/
+  // 30s poll policy lives THERE, once). The native playbackStatusUpdate
+  // stream beats into the same scheduler while playing, which is what
+  // keeps everything fresh in the background where these JS timers
+  // freeze/throttle.
+  //
+  // - Playing (foreground or background): runs — scheduler polls every 5s.
+  // - Paused + foreground: runs — scheduler polls every 30s (battery
+  //   friendly; badge/history stay fresh).
   // - Paused + background: suspended — nothing visible can change, so
   //   polling would be pure battery/radio-data waste.
   useEffect(() => {
@@ -168,29 +171,17 @@ export const PlayerProvider: React.FC<{
     const shouldPoll = playerSnapshot.isPlaying || appState === "active";
 
     if (!shouldPoll) {
-      backgroundService.stopTask("refresh-data");
-      backgroundService.stopTask("track-progress");
+      backgroundService.stopTask("heartbeat");
       return;
     }
 
     // startTask restarts cleanly by id — safe on every effect re-run
     backgroundService.startTask({
-      id: "refresh-data",
+      id: "heartbeat",
       callback: async () => {
-        await playerServiceInstance.refreshData();
+        playerServiceInstance.heartbeat();
       },
-      interval: playerSnapshot.isPlaying
-        ? REFRESH_INTERVAL_PLAYING
-        : REFRESH_INTERVAL_PAUSED,
-    });
-
-    // Progress tick (the ticker itself early-returns without a track)
-    backgroundService.startTask({
-      id: "track-progress",
-      callback: async () => {
-        playerServiceInstance.tickProgress();
-      },
-      interval: TRACK_PROGRESS_INTERVAL,
+      interval: HEARTBEAT_INTERVAL,
     });
   }, [
     playerSnapshot.isPlaying,

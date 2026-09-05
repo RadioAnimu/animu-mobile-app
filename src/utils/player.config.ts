@@ -1,5 +1,15 @@
 import { Stream } from "../core/domain/stream";
 
+/**
+ * React Native's dev flag — Metro defines it in every bundle (and inlines
+ * it as a literal), but it is undefined in plain node (unit tests), so
+ * those get `false`. Gates verbose player diagnostics (sampled heartbeat
+ * lines, track-change logs): prod logs stay quiet.
+ */
+declare const __DEV__: boolean | undefined;
+
+const DEBUG: boolean = typeof __DEV__ !== "undefined" ? __DEV__ : false;
+
 const DEFAULT_COVER: string =
   "https://www.animu.com.br/wp-content/uploads/2022/11/Animu-icon-para-OC.png";
 
@@ -38,4 +48,5 @@ export const CONFIG = {
   DEFAULT_STREAM_OPTION,
   DEFAULT_COVER,
   USER_AGENT,
+  DEBUG,
 };
