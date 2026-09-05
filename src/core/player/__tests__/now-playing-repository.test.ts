@@ -69,6 +69,7 @@ const makeRepository = (
     getTrackHistory: vi.fn(async (type) =>
       type === "requests" ? [makeTrack({ id: "-1", isRequest: true, duration: 0 })] : [],
     ),
+    abortInFlightRequests: vi.fn(),
     ...fetchersOverride,
   };
 
@@ -97,7 +98,7 @@ const makeRepository = (
 
 describe("NowPlayingRepository", () => {
   it("merges data and reports only real changes", async () => {
-    const { repository, changes } = makeRepository();
+    const { repository, changes, setStreamMetadata } = makeRepository();
 
     const first = await repository.refresh();
     expect(first).toBe(true);
@@ -120,6 +121,24 @@ describe("NowPlayingRepository", () => {
     const second = await repository.refresh();
     expect(second).toBe(false);
     expect(changes).toHaveLength(1); // only the first refresh changed things
+
+    // Scalar churn (listener count) is not an identity change: onChange
+    // still reports it (badge UI), but refresh() must not claim "changed"
+    // — otherwise the media session is re-pushed on every listener tick.
+    setStreamMetadata({
+      track: makeTrack(),
+      listeners: { value: 42 },
+    });
+    const third = await repository.refresh();
+    expect(third).toBe(false);
+    expect(changes).toHaveLength(2);
+    expect(changes[1]).toEqual({
+      trackChanged: false,
+      programChanged: false,
+      listenersChanged: true,
+      playedChanged: false,
+      requestedChanged: false,
+    });
   });
 
   it("enables progress only for real, non-live tracks", async () => {
@@ -387,4 +406,150 @@ describe("NowPlayingRepository", () => {
     expect(repository.showProgress).toBe(false);
     expect(repository.hasTrack).toBe(false);
   });
+
+  it("dispose() kills the retry chain and blocks all further fetches", async () => {
+    const getStreamMetadata = vi.fn(async () => {
+      throw new Error("network down");
+    });
+    const { repository, timer, changes } = makeRepository({
+      getStreamMetadata,
+    });
+
+    // Failing refresh arms the exponential retry chain
+    await repository.refresh();
+    expect(timer.scheduled).toHaveLength(1);
+
+    // Teardown must disarm it — an in-flight catch can never re-arm
+    repository.dispose();
+    expect(timer.scheduled).toHaveLength(0);
+
+    // Every future entry point is a no-op: no fetches, no emissions,
+    // no resurrected timers
+    await repository.refresh();
+    await repository.refreshHistory("played");
+    timer.advance(60_000);
+
+    expect(getStreamMetadata).toHaveBeenCalledTimes(1);
+    expect(changes).toHaveLength(0);
+    expect(timer.scheduled).toHaveLength(0);
+  });
+
+  it("expireStuckRefresh() breaks a latched run; its late settler is discarded", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    try {
+      const { flush: flushMicrotasks } = installMicrotaskDrain();
+      let release!: (v: unknown) => void;
+      const gate = new Promise((resolve) => {
+        release = resolve;
+      });
+      const { repository, changes } = makeRepository({
+        getStreamMetadata: vi.fn(() => gate) as NowPlayingFetchers["getStreamMetadata"],
+      });
+
+      // Run A: fetch hangs (background — the JS-timer abort never fires)
+      const runA = repository.refresh();
+      await flushMicrotasks();
+
+      // Watchdog expires the stuck run past the hard limit
+      vi.setSystemTime(Date.now() + 31_000);
+      repository.expireStuckRefresh();
+
+      // Run B starts immediately on the released latch…
+      const runB = repository.refresh();
+      await flushMicrotasks();
+
+      // …then the network finally answers — BOTH runs settle with data
+      release({
+        track: makeTrack({ raw: "New - Song" }),
+        listeners: { value: 42 },
+      });
+      await Promise.allSettled([runA, runB]);
+
+      // Only the current run may write state or emit
+      expect(changes).toHaveLength(1);
+      expect(changes[0].trackChanged).toBe(true);
+      expect(repository.currentTrack?.raw).toBe("New - Song");
+      expect(repository.listeners?.value).toBe(42);
+
+      // The latch must be released — a follow-up run goes through
+      const followUp = await repository.refresh();
+      expect(typeof followUp).toBe("boolean");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("expireStuckRefresh() aborts the hung in-flight requests", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    try {
+      const { flush: flushMicrotasks } = installMicrotaskDrain();
+      const abortInFlightRequests = vi.fn();
+      let release!: (v: unknown) => void;
+      const gate = new Promise((resolve) => {
+        release = resolve;
+      });
+      const { repository } = makeRepository({
+        getStreamMetadata: vi.fn(
+          () => gate,
+        ) as NowPlayingFetchers["getStreamMetadata"],
+        abortInFlightRequests,
+      });
+
+      void repository.refresh();
+      await flushMicrotasks();
+
+      vi.setSystemTime(Date.now() + 31_000);
+      repository.expireStuckRefresh();
+
+      // The watchdog must cut the hung sockets loose — the fetch's own
+      // abort timeout is a JS timer and never fires in the background
+      expect(abortInFlightRequests).toHaveBeenCalledTimes(1);
+
+      release({ track: makeTrack(), listeners: { value: 1 } });
+      await flushMicrotasks();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("expireStuckRefresh() leaves fresh in-flight runs alone", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    try {
+      const { flush: flushMicrotasks } = installMicrotaskDrain();
+      let release!: (v: unknown) => void;
+      const gate = new Promise((resolve) => {
+        release = resolve;
+      });
+      const { repository } = makeRepository({
+        getStreamMetadata: vi.fn(() => gate) as NowPlayingFetchers["getStreamMetadata"],
+      });
+
+      void repository.refresh();
+      await flushMicrotasks();
+
+      // Watchdog well before the hard limit → run keeps its latch
+      repository.expireStuckRefresh();
+      release({ track: makeTrack(), listeners: { value: 1 } });
+      await flushMicrotasks();
+
+      // The run was NOT invalidated — it completed and wrote state
+      expect(repository.currentTrack?.raw).toBe("Artist - Title");
+
+      // …and the latch was released by the run itself
+      const followUp = await repository.refresh();
+      expect(typeof followUp).toBe("boolean");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 });
+
+/** Drains the microtask queue without advancing fake timers. */
+const installMicrotaskDrain = (): { flush: () => Promise<void> } => {
+  const flush = () =>
+    new Promise<void>((resolve) => {
+      const realSetTimeout = globalThis.setTimeout;
+      realSetTimeout(resolve, 0);
+    });
+  return { flush };
+};

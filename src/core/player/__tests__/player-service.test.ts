@@ -1,0 +1,406 @@
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { AudioStatus } from "expo-audio";
+import { setAudioModeAsync } from "expo-audio";
+import { PlayerService, playerService } from "../player-service";
+import { TransportStateMachine } from "../transport-state";
+import { playerStore, progressStore } from "../store";
+import type { PlayerServiceDependencies } from "../player-service";
+import type { Track } from "../../domain/track";
+import type { Stream } from "../../domain/stream";
+
+// The orchestrator's module graph reaches react-native / expo native
+// modules — stub them so the class under test can load in node. (vi.mock
+// is hoisted above the imports.)
+vi.mock("expo-audio", () => ({
+  createAudioPlayer: vi.fn(() => ({
+    addListener: () => ({ remove: () => {} }),
+  })),
+  setAudioModeAsync: vi.fn(),
+}));
+vi.mock("expo-web-browser", () => ({ openBrowserAsync: vi.fn() }));
+vi.mock("@react-native-community/netinfo", () => ({
+  default: { addEventListener: () => () => {} },
+}));
+vi.mock("@react-native-async-storage/async-storage", () => ({
+  default: { getItem: async () => null, setItem: async () => {} },
+}));
+vi.mock("../../services/player-playback.service", () => ({
+  StartPlaybackSession: vi.fn(async () => ({})),
+  EndPlaybackSession: vi.fn(async () => {}),
+  getPlaybackSession: vi.fn(() => null),
+  setNowPlayingMetadata: vi.fn(),
+  setRemotePlaybackStatus: vi.fn(),
+}));
+vi.mock("../../services/animu.service", () => ({
+  animuService: { abortInFlightRequests: vi.fn() },
+}));
+vi.mock("../../../api/client", () => ({
+  animuApi: {
+    getStreams: vi.fn(async () => [
+      { id: "low", url: "https://stream-low", bitrate: 64, category: "aac" },
+    ]),
+  },
+  createMetadataClient: vi.fn(() => ({
+    getStreamMetadata: async () => ({
+      track: null,
+      listeners: { value: 0 },
+    }),
+  })),
+}));
+
+const makeTrack = (): Track =>
+  ({
+    raw: "raw-1",
+    anime: "Anime",
+    artist: "Artist",
+    artwork: "https://example.test/cover.png",
+    duration: 100_000,
+    startTime: new Date(),
+  }) as unknown as Track;
+
+/** Mutable fakes + the assembled dependency bag. Tests tweak fakes directly. */
+const makeDeps = () => {
+  const transport = {
+    setStatusHandler: vi.fn(),
+    isSessionReady: true,
+    hasPlayer: true,
+    ensureSession: vi.fn(async () => {}),
+    markSessionDown: vi.fn(),
+    play: vi.fn(),
+    load: vi.fn(),
+    resume: vi.fn(),
+    pause: vi.fn(),
+    dispose: vi.fn(),
+  };
+  const publisher = { push: vi.fn(), pushStatus: vi.fn() };
+  const ticker = { tick: vi.fn(), reset: vi.fn() };
+  const repository = {
+    onChange: vi.fn(),
+    currentTrack: makeTrack() as Track | null,
+    currentProgram: { name: "P", dj: "D", isLive: false } as
+      | { name: string; dj: string; isLive: boolean }
+      | null,
+    listeners: null,
+    lastPlayedTracks: [] as Track[],
+    lastRequestedTracks: [] as Track[],
+    hasTrack: true,
+    showProgress: false,
+    refresh: vi.fn(async () => false),
+    refreshHistory: vi.fn(async () => {}),
+    expireStuckRefresh: vi.fn(),
+    dispose: vi.fn(),
+    clear: vi.fn(),
+    setShowProgress: vi.fn(),
+  };
+  const streamPreferences = {
+    current: { id: "low", url: "https://stream", label: "Low" },
+    load: vi.fn(async () => {}),
+    restore: vi.fn(async () => {}),
+    set: vi.fn(async () => {}),
+    reset: vi.fn(),
+  };
+  const reconnect = {
+    cancel: vi.fn(),
+    reset: vi.fn(),
+    schedule: vi.fn(() => 2000),
+    isPending: false,
+    attemptCount: 0,
+  };
+  const networkMonitor = { onRestore: vi.fn(), start: vi.fn(), stop: vi.fn() };
+
+  const deps = {
+    state: new TransportStateMachine(),
+    transport,
+    publisher,
+    repository,
+    streamPreferences,
+    reconnect,
+    networkMonitor,
+    ticker,
+  } as unknown as PlayerServiceDependencies;
+
+  return { deps, transport, publisher, repository, reconnect };
+};
+
+const wiredHandler = (transport: {
+  setStatusHandler: ReturnType<typeof vi.fn>;
+}): ((status: AudioStatus) => void) =>
+  transport.setStatusHandler.mock.calls[0][0] as (status: AudioStatus) => void;
+
+describe("PlayerService store emission", () => {
+  beforeEach(() => {
+    // Reset singletons between tests
+    playerStore.setSnapshot({ isPlaying: false, isInitialized: false });
+    progressStore.setSnapshot({
+      currentTrackProgress: null,
+      showProgress: false,
+    });
+  });
+
+  it("play() then pause() flips isPlaying in the player store", async () => {
+    const { deps } = makeDeps();
+    const service = new PlayerService(deps);
+    const seen: boolean[] = [];
+    const unsubscribe = playerStore.subscribe(() => {
+      seen.push(playerStore.getSnapshot().isPlaying);
+    });
+
+    await service.play();
+    await service.pause();
+    unsubscribe();
+
+    expect(playerStore.getSnapshot().isPlaying).toBe(false);
+    expect(seen).toContain(true);
+    expect(seen[seen.length - 1]).toBe(false);
+  });
+
+  it("pause() reaches the transport even without track data", async () => {
+    const { deps, repository, transport, publisher } = makeDeps();
+    repository.currentTrack = null;
+    repository.hasTrack = false;
+
+    const service = new PlayerService(deps);
+    await service.play();
+    await service.pause();
+
+    expect(transport.pause).toHaveBeenCalledTimes(1);
+    expect(deps.state.state).toBe("paused");
+    expect(publisher.pushStatus).toHaveBeenCalledWith("paused");
+  });
+
+  it("pause() is a no-op without a native player", async () => {
+    const { deps, transport } = makeDeps();
+    transport.hasPlayer = false;
+
+    const service = new PlayerService(deps);
+    await service.pause();
+
+    expect(transport.pause).not.toHaveBeenCalled();
+    expect(deps.state.state).toBe("idle");
+  });
+
+  it("pause() cancels pending reconnects before pausing", async () => {
+    const { deps, reconnect, transport } = makeDeps();
+    const service = new PlayerService(deps);
+
+    await service.play();
+    await service.pause();
+
+    expect(reconnect.cancel).toHaveBeenCalled();
+    expect(transport.pause).toHaveBeenCalled();
+  });
+});
+
+describe("PlayerService stream-loss handling", () => {
+  it("schedules a reconnect when the stream dies after the grace window", async () => {
+    vi.useFakeTimers();
+    try {
+      const { deps, transport, reconnect } = makeDeps();
+      const service = new PlayerService(deps);
+
+      // Intent chain: play() → connecting → native reports audio flowing
+      await service.play();
+      const handler = wiredHandler(transport);
+      handler({ playing: true } as AudioStatus);
+
+      // …then the stream dies after the 3s grace window
+      vi.advanceTimersByTime(4000);
+      handler({
+        playing: false,
+        isBuffering: false,
+        playbackState: "idle",
+      } as AudioStatus);
+
+      expect(reconnect.schedule).toHaveBeenCalledTimes(1);
+      expect(deps.state.state).toBe("reconnecting");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("ignores transient idle states inside the grace window", async () => {
+    vi.useFakeTimers();
+    try {
+      const { deps, transport } = makeDeps();
+      const service = new PlayerService(deps);
+
+      // replace() emits a brief "idle" right after play() — must NOT
+      // be treated as a dead stream
+      await service.play();
+      const handler = wiredHandler(transport);
+      handler({
+        playing: false,
+        isBuffering: false,
+        playbackState: "idle",
+      } as AudioStatus);
+
+      expect(deps.state.state).toBe("connecting");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});
+
+describe("PlayerService lifecycle", () => {
+  it("dedupes concurrent setupPlayer() calls into one native setup", async () => {
+    const { animuApi } = await import("../../../api/client");
+    const first = playerService();
+
+    await Promise.all([first.setupPlayer(), first.setupPlayer()]);
+
+    expect(animuApi.getStreams).toHaveBeenCalledTimes(1);
+    expect(setAudioModeAsync).toHaveBeenCalledTimes(1);
+    expect(playerStore.getSnapshot().isInitialized).toBe(true);
+
+    await first.destroy();
+    expect(playerStore.getSnapshot().isInitialized).toBe(false);
+  });
+
+  it("destroy() on a never-set-up instance still releases the singleton", async () => {
+    const first = playerService();
+    await first.destroy(); // never set up — must not early-return silently
+
+    const second = playerService();
+    expect(second).not.toBe(first);
+    expect(playerStore.getSnapshot().isInitialized).toBe(false);
+    await second.destroy();
+  });
+
+  it("destroy() during an in-flight setup prevents initialization", async () => {
+    const { animuApi } = await import("../../../api/client");
+    let resolveStreams!: (streams: Stream[]) => void;
+    vi.mocked(animuApi.getStreams).mockImplementationOnce(
+      () =>
+        new Promise<Stream[]>((resolve) => {
+          resolveStreams = resolve;
+        }),
+    );
+
+    const svc = playerService();
+    const setup = svc.setupPlayer();
+
+    // Unmount while Phase 1 is awaiting the streams fetch
+    await svc.destroy();
+    resolveStreams([]);
+    await setup;
+
+    // The orphaned bootstrap must never mark the app initialized
+    expect(playerStore.getSnapshot().isInitialized).toBe(false);
+  });
+
+  it("changeStream swaps the source without track data (hasPlayer, not isReady)", async () => {
+    const { deps, transport, repository } = makeDeps();
+    repository.hasTrack = false;
+    repository.currentTrack = null;
+
+    const service = new PlayerService(deps);
+    await service.play();
+    transport.load.mockClear();
+
+    await service.changeStream({
+      id: "high",
+      url: "https://stream-high",
+      bitrate: 256,
+      category: "aac",
+    } as Stream);
+
+    expect(transport.load).toHaveBeenCalledWith("https://stream-high");
+  });
+});
+
+describe("PlayerService heartbeat", () => {
+  const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
+
+  it("gates the two drivers into a 1 Hz heartbeat", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    try {
+      const { deps, transport } = makeDeps();
+      const service = new PlayerService(deps);
+      await service.play();
+      const handler = wiredHandler(transport);
+      const base = Date.now();
+
+      // Native event processed…
+      vi.setSystemTime(base + 10_000);
+      handler({ playing: true } as AudioStatus);
+      expect(deps.ticker.tick).toHaveBeenCalledTimes(1);
+
+      // …JS task 300ms later is gated (< 800ms since last tick)
+      service.tickProgress();
+      expect(deps.ticker.tick).toHaveBeenCalledTimes(1);
+
+      // …next native event a second later processes again
+      vi.setSystemTime(base + 11_200);
+      handler({ playing: true } as AudioStatus);
+      expect(deps.ticker.tick).toHaveBeenCalledTimes(2);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("runs the refresh watchdog on every processed heartbeat", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    try {
+      const { deps, transport, repository } = makeDeps();
+      const service = new PlayerService(deps);
+      await service.play();
+      const handler = wiredHandler(transport);
+      const base = Date.now();
+
+      vi.setSystemTime(base + 10_000);
+      handler({ playing: true } as AudioStatus);
+
+      expect(repository.expireStuckRefresh).toHaveBeenCalledTimes(1);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("drives the data poll from native heartbeats every 5s of audio", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    try {
+      const { deps, transport, repository } = makeDeps();
+      const service = new PlayerService(deps);
+      await service.play();
+      const pollsFromPlay = vi.mocked(repository.refresh).mock.calls.length;
+
+      const handler = wiredHandler(transport);
+      const base = Date.now();
+      // 10s of audio at 1 Hz → polls at heartbeat 5 and 10
+      for (let i = 1; i <= 10; i++) {
+        vi.setSystemTime(base + 10_000 + i * 1000);
+        handler({ playing: true } as AudioStatus);
+      }
+      await flush();
+
+      expect(vi.mocked(repository.refresh).mock.calls.length).toBe(
+        pollsFromPlay + 2,
+      );
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("stops heartbeat polling once destroyed", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    try {
+      const { deps, transport, repository } = makeDeps();
+      const service = new PlayerService(deps);
+      await service.play();
+      const pollsFromPlay = vi.mocked(repository.refresh).mock.calls.length;
+      await service.destroy();
+
+      const handler = wiredHandler(transport);
+      vi.setSystemTime(Date.now() + 60_000);
+      handler({ playing: true } as AudioStatus);
+
+      // No new polls or ticks may happen on a destroyed instance
+      expect(vi.mocked(repository.refresh).mock.calls.length).toBe(
+        pollsFromPlay,
+      );
+      expect(deps.ticker.tick).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});

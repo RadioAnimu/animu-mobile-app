@@ -169,7 +169,7 @@ export function HeaderBar({ navigation, openLiveRequestModal }: Props) {
         </TouchableOpacity>
       </View>
       {!currentProgram?.isLive &&
-        !currentTrack?.anime.toLocaleLowerCase().includes("passagem") && (
+        !currentTrack?.anime?.toLocaleLowerCase().includes("passagem") && (
           <Animated.View
             style={[
               styles.progressBarView,

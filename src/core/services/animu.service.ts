@@ -1,4 +1,5 @@
 import type { ArtworkQuality, HistoryType, Track, Listeners } from "animu-api";
+import { abortAllInFlightRequests } from "animu-api";
 import type { Program } from "../domain/program";
 import { DICT } from "../../i18n";
 import type { Program as ProgramDictionaryEntry } from "../../api";
@@ -32,6 +33,17 @@ class AnimuService {
 
   async getTrackHistory(type: HistoryType): Promise<Track[]> {
     return animuApi.getTrackHistory(type);
+  }
+
+  /**
+   * Watchdog hook — aborts every in-flight request (shared + per-call
+   * clients). Called by the player's native-driven heartbeat when a data
+   * refresh outlives its hard limit: in the background, the JS-timer
+   * abort inside HttpClient never fires, so stalled requests would hang
+   * forever and freeze the now-playing data.
+   */
+  abortInFlightRequests(): void {
+    abortAllInFlightRequests();
   }
 }
 

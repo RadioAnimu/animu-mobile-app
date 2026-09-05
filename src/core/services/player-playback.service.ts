@@ -1,4 +1,3 @@
-import { PermissionsAndroid, Platform } from "react-native";
 import {
   PlaybackControls,
   type CommandEvent,
@@ -67,25 +66,13 @@ const handleCommand = async (event: CommandEvent) => {
   }
 };
 
-const requestNotificationPermission = async (): Promise<void> => {
-  if (Platform.OS !== "android" || Platform.Version < 33) return;
-  try {
-    const result = await PermissionsAndroid.request(
-      PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS,
-    );
-    if (result !== PermissionsAndroid.RESULTS.GRANTED) {
-      console.warn(
-        "[PlaybackService] POST_NOTIFICATIONS denied — media notification will not show",
-      );
-    }
-  } catch (error) {
-    console.warn("[PlaybackService] Permission request failed:", error);
-  }
-};
-
 /**
  * Starts the app-wide "now playing" session and wires remote command
  * listeners. Idempotent — returns the existing session when active.
+ *
+ * No POST_NOTIFICATIONS request: like react-native-track-player, the media
+ * card renders from the MediaSession and works on Android 13+ without it —
+ * only the classic FGS notification is suppressed when it is denied.
  */
 export async function StartPlaybackSession(): Promise<PlaybackSession | null> {
   if (session && !session.isEnded) {
@@ -93,8 +80,6 @@ export async function StartPlaybackSession(): Promise<PlaybackSession | null> {
   }
 
   try {
-    await requestNotificationPermission();
-
     session = await PlaybackControls.startSession({
       commands: ["play", "pause", "toggle-play-pause", "stop"],
     });
@@ -114,10 +99,22 @@ export async function StartPlaybackSession(): Promise<PlaybackSession | null> {
 export const getPlaybackSession = (): PlaybackSession | null =>
   session && !session.isEnded ? session : null;
 
+/** Numbers the native media session can safely consume. Kotlin's
+ * `roundToLong()` throws on NaN — one bad position/duration crossing the
+ * bridge crashes the media-session pipeline (notification freezes until
+ * the app restarts), so non-finite values are dropped at the boundary. */
+const finiteOrUndefined = (
+  value: number | null | undefined,
+): number | undefined =>
+  value != null && Number.isFinite(value) ? value : undefined;
+
 /** Pushes now-playing metadata to the system media UI. Best-effort. */
 export const setNowPlayingMetadata = (metadata: NowPlayingMetadata): void => {
   try {
-    getPlaybackSession()?.setNowPlaying(metadata);
+    getPlaybackSession()?.setNowPlaying({
+      ...metadata,
+      durationSec: finiteOrUndefined(metadata.durationSec),
+    });
   } catch (error) {
     console.warn("[PlaybackService] setNowPlaying failed:", error);
   }
@@ -129,7 +126,10 @@ export const setRemotePlaybackStatus = (
   positionSec?: number,
 ): void => {
   try {
-    getPlaybackSession()?.setPlaybackState({ status, positionSec });
+    getPlaybackSession()?.setPlaybackState({
+      status,
+      positionSec: finiteOrUndefined(positionSec),
+    });
   } catch (error) {
     console.warn("[PlaybackService] setPlaybackState failed:", error);
   }

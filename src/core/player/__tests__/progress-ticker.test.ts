@@ -33,6 +33,7 @@ interface Fixture {
   ticker: ProgressTicker;
   track: Track | null;
   showProgress: boolean;
+  metadata: NowPlayingMetadata;
   setTrack: (track: Track | null) => void;
   setShowProgress: (value: boolean) => void;
   pushes: { metadata: NowPlayingMetadata; positionSec?: number }[];
@@ -42,6 +43,7 @@ const makeTicker = (): Fixture => {
   const fixture: Fixture = {
     track: null,
     showProgress: true,
+    metadata: METADATA,
     setTrack: (track) => {
       fixture.track = track;
     },
@@ -90,7 +92,7 @@ const makeTicker = (): Fixture => {
     state,
     transport,
     publisher,
-    buildMetadata: () => METADATA,
+    buildMetadata: () => fixture.metadata,
   });
 
   return fixture;
@@ -188,5 +190,51 @@ describe("ProgressTicker", () => {
 
     fixture.ticker.tick();
     expect(fixture.pushes).toHaveLength(1);
+  });
+
+  it("pushes metadata on live streams without a position", () => {
+    const fixture = makeTicker();
+    fixture.track = makeTrack({ duration: 0 }); // live metadata: no duration
+    fixture.showProgress = false;
+
+    fixture.ticker.tick();
+    fixture.ticker.tick();
+    fixture.ticker.tick();
+
+    expect(fixture.pushes).toEqual([
+      { metadata: METADATA, positionSec: undefined },
+    ]);
+    // No seek bar UI updates for live either — progress stays hidden
+    expect(progressStore.getSnapshot().showProgress).toBe(false);
+  });
+
+  it("skips redundant live pushes when the metadata is unchanged", () => {
+    const fixture = makeTicker();
+    fixture.track = makeTrack({ duration: 0 });
+    fixture.showProgress = false;
+
+    for (let i = 0; i < 9; i++) fixture.ticker.tick();
+
+    expect(fixture.pushes).toHaveLength(1); // 3rd tick pushes, then dedupe
+  });
+
+  it("pushes again on live when the song changes", () => {
+    const fixture = makeTicker();
+    fixture.track = makeTrack({ duration: 0 });
+    fixture.showProgress = false;
+
+    fixture.ticker.tick();
+    fixture.ticker.tick();
+    fixture.ticker.tick();
+    expect(fixture.pushes).toHaveLength(1);
+
+    // DJ drops the next song — repository updated, metadata rebuilt
+    fixture.metadata = { ...METADATA, title: "next song" };
+    fixture.ticker.tick();
+    fixture.ticker.tick();
+    fixture.ticker.tick();
+
+    expect(fixture.pushes).toHaveLength(2);
+    expect(fixture.pushes[1].metadata.title).toBe("next song");
   });
 });

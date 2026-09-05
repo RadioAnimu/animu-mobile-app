@@ -18,6 +18,16 @@ const BASE_RETRY_DELAY_MS = 2000;
 /** Max backoff delay on consecutive network errors (ms) */
 const MAX_RETRY_DELAY_MS = 30_000;
 const DAY_MS = 24 * 60 * 60 * 1000;
+/**
+ * Hard limit for a single refresh run (ms). Slightly above the HTTP abort
+ * timeout so foreground timeouts always win. In the BACKGROUND, RN JS
+ * timers freeze — the fetch's `setTimeout`-based abort never fires, a
+ * stalled fetch never settles and `refreshing` would latch forever (every
+ * later poll silently no-ops → the media session freezes on an old track).
+ * `expireStuckRefresh()` — driven by the native heartbeat — breaks the
+ * latch and invalidates the stuck run via the epoch guard.
+ */
+const REFRESH_STALE_MS = 30_000;
 
 /** What the repository needs from the network — injectable for tests. */
 export interface NowPlayingFetchers {
@@ -26,6 +36,12 @@ export interface NowPlayingFetchers {
   ): Promise<{ track: Track | null; listeners: Listeners }>;
   getCurrentProgram(): Promise<Program>;
   getTrackHistory(type: HistoryType): Promise<Track[]>;
+  /**
+   * Aborts every in-flight HTTP request. Called by `expireStuckRefresh()`:
+   * the native heartbeat drives the abort because the fetch's own
+   * JS-timer timeout freezes in the background.
+   */
+  abortInFlightRequests(): void;
 }
 
 export interface NowPlayingRepositoryOptions {
@@ -74,7 +90,11 @@ export class NowPlayingRepository {
   private requestedTracks: Track[] = [];
   private showProgressValue = false;
   private refreshing = false;
+  /** Bumped by every new run AND by the watchdog — late settlers compare. */
+  private refreshEpoch = 0;
+  private refreshStartedAt = 0;
   private trackEndTimerId: number | null = null;
+  private disposed = false;
   private readonly retryScheduler: BackoffScheduler;
 
   constructor(private readonly options: NowPlayingRepositoryOptions) {
@@ -126,12 +146,19 @@ export class NowPlayingRepository {
 
   /**
    * Fetches track + program + listeners + request history in parallel and
-   * merges with diffing. Failures schedule an exponential-backoff retry;
-   * successes reset it and re-arm the predictive track-end refresh.
+   * merges with diffing. Returns whether the *identity* of the broadcast
+   * changed (track or program) — listener counts and request lists are
+   * scalar churn that still flows to subscribers via {@link onChange} but
+   * must not re-push the media session or trip change logs. Failures
+   * schedule an exponential-backoff retry; successes reset it and re-arm
+   * the predictive track-end refresh.
    */
   async refresh(): Promise<boolean> {
+    if (this.disposed) return false;
     if (this.refreshing) return false;
     this.refreshing = true;
+    const epoch = ++this.refreshEpoch;
+    this.refreshStartedAt = Date.now();
 
     try {
       const [{ track, listeners }, program, newRequestedTracks] =
@@ -142,6 +169,11 @@ export class NowPlayingRepository {
           this.options.fetchers.getCurrentProgram(),
           this.options.fetchers.getTrackHistory("requests"),
         ]);
+
+      // Invalidated while in flight (watchdog expiry or dispose): the
+      // stuck run's late settler must not write state or re-arm timers —
+      // a newer run already owns the repository.
+      if (epoch !== this.refreshEpoch || this.disposed) return false;
 
       if (!track) {
         console.warn(
@@ -199,8 +231,14 @@ export class NowPlayingRepository {
       this.retryScheduler.reset();
       this.scheduleTrackEndRefresh();
 
-      return changed;
+      // Only identity changes count as "changed": listener/request ticks
+      // reach the badge UI through onChange but never re-push metadata.
+      return trackChanged || programChanged;
     } catch (error) {
+      // Invalidated run: its failure belongs to the past — no logging
+      // noise, no retry re-arming over a newer run's head.
+      if (epoch !== this.refreshEpoch || this.disposed) return false;
+
       console.error("[NowPlayingRepository] Error refreshing data:", error);
 
       // ── Network / API error: exponential backoff retry ──
@@ -210,8 +248,36 @@ export class NowPlayingRepository {
 
       return false;
     } finally {
-      this.refreshing = false;
+      // Only the current run may release the latch — an expired run's
+      // late settler must not unlock a newer run's single-flight guard.
+      if (epoch === this.refreshEpoch) this.refreshing = false;
     }
+  }
+
+  /**
+   * Heartbeat watchdog: expires a refresh run that has outlived
+   * `REFRESH_STALE_MS`. In the background, JS timers freeze — a stalled
+   * fetch's `setTimeout`-based abort never fires, the run never settles
+   * and `refreshing` would latch forever, freezing all now-playing data
+   * (media session + UI stuck on an old track). Called from the native
+   * 1 Hz heartbeat, which keeps ticking where JS timers don't.
+   */
+  expireStuckRefresh(): void {
+    if (!this.refreshing) return;
+    if (Date.now() - this.refreshStartedAt <= REFRESH_STALE_MS) return;
+    console.warn(
+      `[NowPlayingRepository] expired stuck refresh after ${
+        Date.now() - this.refreshStartedAt
+      }ms — releasing latch`,
+    );
+    // Invalidate the stuck run: its late settler is epoch-guarded and
+    // will discard its payload without writing state.
+    this.refreshEpoch++;
+    this.refreshing = false;
+    // Cut the hung sockets loose — the fetch's own abort timeout is a JS
+    // timer and never fires in the background. The rejected run is
+    // discarded by the epoch guard; the next poll opens fresh connections.
+    this.options.fetchers.abortInFlightRequests();
   }
 
   /**
@@ -225,6 +291,7 @@ export class NowPlayingRepository {
    * newest occurrence wins for repeats within one payload).
    */
   async refreshHistory(type: HistoryType): Promise<void> {
+    if (this.disposed) return;
     try {
       const tracks = await this.options.fetchers.getTrackHistory(type);
       if (!tracks || tracks.length === 0) return;
@@ -293,8 +360,14 @@ export class NowPlayingRepository {
     }, delay);
   }
 
-  /** Cancels the track-end timer and the retry chain (destroy path). */
-  cancelPending(): void {
+  /**
+   * Permanently stops the repository (destroy path): cancels every
+   * pending timer and makes all future fetches no-ops. This is what
+   * kills zombie chains — an in-flight `refresh()` whose catch fires
+   * AFTER teardown can no longer re-arm the retry scheduler or emit.
+   */
+  dispose(): void {
+    this.disposed = true;
     this.cancelTrackEndTimer();
     this.retryScheduler.reset();
   }

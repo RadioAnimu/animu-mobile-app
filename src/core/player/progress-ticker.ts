@@ -10,7 +10,7 @@ import type { TransportStateMachine } from "./transport-state";
 export const toSec = (ms: number | null | undefined): number | undefined =>
   ms != null && Number.isFinite(ms) ? ms / 1000 : undefined;
 
-/** Push the elapsed position to the native session every N ticks. */
+/** Push to the native session every N ticks. */
 const NATIVE_POSITION_PUSH_EVERY_TICKS = 3;
 
 export interface ProgressTickerOptions {
@@ -23,19 +23,30 @@ export interface ProgressTickerOptions {
 }
 
 /**
- * 1 Hz heartbeat, driven by the app-level poll task ("track-progress" in
- * `background.service.ts` — see `PlayerProvider` for the visibility gates).
+ * 1 Hz heartbeat. Driven by TWO sources that the orchestrator gates into
+ * at-most-one tick per second (see `PlayerService.tickProgress`):
  *
+ * - native `playbackStatusUpdate` events while PLAYING — these keep
+ *   firing in the background (foreground service on Android, background
+ *   audio on iOS), so the media session stays fresh where JS timers
+ *   freeze/throttle;
+ * - the JS "track-progress" task — covers paused-in-foreground, where
+ *   native events go silent but the radio keeps playing server-side.
+ *
+ * Per tick:
  * - Updates `progressStore` only when the value actually changed (avoids
  *   1/sec React re-renders).
  * - Detects track end (`getTrackProgress` → null while progress is shown)
  *   and clears the progress UI + native seek bar.
- * - Periodically pushes the elapsed position to the media session — the
- *   OS interpolates the seek bar between snapshots.
+ * - Every Nth tick pushes metadata + status to the media session. With a
+ *   seek bar (non-live) the position rides along so the OS can
+ *   interpolate it; on LIVE streams there is no bar, so redundant pushes
+ *   are skipped unless the metadata itself changed.
  */
 export class ProgressTicker {
   private ticks = 0;
   private lastShowProgress = false;
+  private lastPushedKey: string | null = null;
 
   constructor(private readonly options: ProgressTickerOptions) {}
 
@@ -64,9 +75,9 @@ export class ProgressTicker {
       });
     }
 
-    if (!showProgress) return;
-
-    if (elapsed == null) {
+    // Track end only applies to real, non-live tracks (live metadata has
+    // no reliable duration, and the radio keeps playing server-side).
+    if (showProgress && elapsed == null) {
       this.endProgress();
       return;
     }
@@ -76,17 +87,27 @@ export class ProgressTicker {
     this.ticks = 0;
 
     const { transport } = this.options;
-    if (transport.isSessionReady && transport.hasPlayer) {
-      this.options.publisher.push(
-        this.options.buildMetadata(),
-        this.options.state.remoteStatus,
-        toSec(elapsed),
-      );
-    }
+    if (!transport.isSessionReady || !transport.hasPlayer) return;
+
+    const metadata = this.options.buildMetadata();
+    const positionSec = showProgress ? toSec(elapsed) : undefined;
+
+    // No seek bar → the OS interpolates nothing → a push only matters
+    // when the metadata itself changed (song change on a live show).
+    const key = metadataKey(metadata);
+    if (positionSec === undefined && key === this.lastPushedKey) return;
+    this.lastPushedKey = key;
+
+    this.options.publisher.push(
+      metadata,
+      this.options.state.remoteStatus,
+      positionSec,
+    );
   }
 
   reset(): void {
     this.ticks = 0;
+    this.lastPushedKey = null;
   }
 
   private endProgress(): void {
@@ -98,10 +119,23 @@ export class ProgressTicker {
     });
 
     if (!this.options.transport.isSessionReady) return;
+    const metadata = this.options.buildMetadata();
+    this.lastPushedKey = metadataKey(metadata);
     this.options.publisher.push(
-      this.options.buildMetadata(),
+      metadata,
       this.options.state.remoteStatus,
       0,
     );
   }
 }
+
+/** Identity of a metadata payload — pushes are skipped when unchanged. */
+const metadataKey = (metadata: NowPlayingMetadata): string =>
+  [
+    metadata.title,
+    metadata.artist,
+    metadata.album,
+    metadata.artwork,
+    metadata.durationSec ?? "",
+    metadata.isLiveStream ? "live" : "",
+  ].join("|");
