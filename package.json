@@ -7,7 +7,7 @@
     "android": "expo run:android",
     "ios": "expo run:ios",
     "web": "expo start --web",
-    "postinstall": "patch-package || echo '[patch-package] skipped (patch target missing)'",
+    "postinstall": "patch-package || echo '[patch-package] skipped (patch target missing)'; if [ ! -f packages/animu-api/dist/esm/index.js ]; then npm install --prefix packages/animu-api --no-audit --no-fund && npm run build:api; fi",
     "install:apk": "adb uninstall com.nessjs.animu; adb install $(ls -t *.apk | head -1)",
     "lint": "expo lint",
     "build:api": "npm run build --prefix packages/animu-api",

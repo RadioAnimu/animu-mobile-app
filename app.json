@@ -1,6 +1,7 @@
 {
   "expo": {
     "name": "Rádio Animu",
+    "version": "2.0.2",
     "slug": "animu",
     "orientation": "portrait",
     "icon": "./assets/icon_top.png",
@@ -30,6 +31,7 @@
         "backgroundColor": "#270051"
       },
       "package": "com.nessjs.animu",
+      "versionCode": 8,
       "edgeToEdgeEnabled": true
     },
     "web": {
