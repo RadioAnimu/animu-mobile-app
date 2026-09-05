@@ -20,8 +20,8 @@ export function RequestTrack({ track, onTrackRequest }: Props) {
         styles.container,
         {
           backgroundColor: track.requestable
-            ? THEME.COLORS.PEDIDO_POSSIVEL
-            : THEME.COLORS.PEDIDO_IMPOSSIVEL,
+            ? THEME.COLORS.ROW_ACTIVE
+            : THEME.COLORS.ROW_INACTIVE,
         },
       ]}
     >

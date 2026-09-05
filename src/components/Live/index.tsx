@@ -8,6 +8,12 @@ import { usePlayer } from "../../contexts/player/PlayerProvider";
 
 // Base scroll speed in characters per second
 const BASE_SCROLL_SPEED = 15; // Adjust this value to match desired reading speed
+const MIN_SCROLL_DURATION = 3000;
+const MAX_SCROLL_DURATION = 15000;
+const FALLBACK_DURATION = 6000;
+const REPEAT_SPACER = 20;
+const MARQUEE_DELAY = 2500;
+const CONTAINER_WIDTH_PADDING = 40;
 
 export const Live = React.memo(function Live() {
   const { settings } = useUserSettings();
@@ -46,13 +52,13 @@ export const Live = React.memo(function Live() {
         return Math.min(
           Math.max(
             baseDuration * screenCount,
-            3000, // Minimum duration
+            MIN_SCROLL_DURATION,
           ),
-          15000,
+          MAX_SCROLL_DURATION,
         ); // Maximum duration
       } catch (error) {
         console.error("Error measuring text:", error);
-        return 6000; // Fallback duration
+        return FALLBACK_DURATION;
       }
     },
     [containerWidth, windowWidth],
@@ -81,7 +87,9 @@ export const Live = React.memo(function Live() {
   return (
     <View
       style={styles.track}
-      onLayout={(e) => setContainerWidth(e.nativeEvent.layout.width - 40)} // Adjust padding
+      onLayout={(e) =>
+        setContainerWidth(e.nativeEvent.layout.width - CONTAINER_WIDTH_PADDING)
+      }
     >
       <NoAr />
       <View style={styles.info}>
@@ -89,9 +97,9 @@ export const Live = React.memo(function Live() {
           style={styles.title}
           duration={durations.anime}
           loop={durations.anime > 0}
-          repeatSpacer={20}
+          repeatSpacer={REPEAT_SPACER}
           bounce={false}
-          marqueeDelay={2500}
+          marqueeDelay={MARQUEE_DELAY}
           shouldAnimateTreshold={1}
           isInteraction={false}
         >
@@ -103,8 +111,8 @@ export const Live = React.memo(function Live() {
           duration={durations.artist}
           loop={durations.artist > 0}
           bounce={false}
-          repeatSpacer={20}
-          marqueeDelay={2500}
+          repeatSpacer={REPEAT_SPACER}
+          marqueeDelay={MARQUEE_DELAY}
           shouldAnimateTreshold={1}
           isInteraction={false}
         >
@@ -116,8 +124,8 @@ export const Live = React.memo(function Live() {
           duration={durations.song}
           loop={durations.song > 0}
           bounce={false}
-          repeatSpacer={20}
-          marqueeDelay={2500}
+          repeatSpacer={REPEAT_SPACER}
+          marqueeDelay={MARQUEE_DELAY}
           shouldAnimateTreshold={1}
           isInteraction={false}
         >

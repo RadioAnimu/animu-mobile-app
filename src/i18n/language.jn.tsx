@@ -156,6 +156,8 @@ const DICT = {
   SETTINGS_COVER_REQUESTED_SWITCH: "カバーでリクエストする：",
   SETTINGS_LANGUAGE_SELECT_TITLE: "言語設定",
   SETTINGS_LANGUAGE_SELECT_PLACEHOLDER: "言語を選んでね",
+  SETTINGS_LANGUAGE_SEARCH_PLACEHOLDER: "言語を検索",
+  SETTINGS_LANGUAGE_NOT_FOUND: "言語が見つかりません",
   SETTINGS_MEMORY_TITLE: "メモリ",
   SETTINGS_MEMORY_CLEAR_CACHE_SWITCH: "キャッシュカバーをクリア：",
   TRACK_REQUEST: "リクエスト曲",
@@ -180,6 +182,19 @@ const DICT = {
   FORM_LABEL_REQUEST: "メッセージ",
   ERROR_STRIKE_AND_OUT:
     "エラーなのですっ！90分ごとにできるリクエストは3曲までだよっ！🎶💜",
+  LIVE_REQUEST_TITLE: "放送中のDJにリクエストを送ろう！",
+  OPTIONAL_LABEL: "任意",
+  FORM_PLACEHOLDER_NICK: "名前かニックネームを入力してね",
+  FORM_PLACEHOLDER_CITY: "住んでいる場所を入力してね",
+  FORM_PLACEHOLDER_ARTIST: "アーティスト名を入力してね",
+  FORM_PLACEHOLDER_MUSIC: "曲名を入力してね",
+  FORM_PLACEHOLDER_ANIME: "アニメ/ノベルゲー/ゲーム名を入力してね",
+  FORM_PLACEHOLDER_REQUEST: "DJへのメッセージを書いてね",
+  LOAD_MORE_RESULTS: "もっと読み込む",
+  OK_BUTTON: "OK",
+  ERROR_TITLE: "エラーが発生しちゃった💜",
+  ERROR_MESSAGE: "予期しないエラーが発生したよ。もう一度試してね。",
+  ERROR_RETRY: "もう一度試す",
 };
 
 const NoArLabel = (props: SvgProps) => (

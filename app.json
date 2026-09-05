@@ -55,9 +55,7 @@
         {
           "fonts": [
             "./src/assets/fonts/proximanova-reg.ttf",
-            "./src/assets/fonts/proximanova-light.ttf",
-            "./src/assets/fonts/proximanova-bold.ttf",
-            "./src/assets/fonts/ProximaNova-Black.ttf"
+            "./src/assets/fonts/proximanova-bold.ttf"
           ]
         }
       ],

@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";import { MaterialIcons } from "@expo/vector-icons";
+import { useEffect, useRef, useState } from "react";import { MaterialIcons } from "@expo/vector-icons";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 
 import {
@@ -8,25 +8,26 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import Svg, { Path, Rect, SvgProps } from "react-native-svg";
 import { Background } from "../../components/Background";
 import { LoginComponent } from "../../components/CustomDrawer";
+import { CoverQualitySheet } from "../../components/CoverQualitySheet";
+import { LanguageSelectSheet } from "../../components/LanguageSelectSheet";
 import { DICT, LANGS_KEY_VALUE_PAIRS } from "../../i18n";
 import { RootStackParamList } from "../../routes/app.routes";
 import { THEME } from "../../theme";
-import { styles, SWITCH } from "./styles";
+import { HEADER_HEIGHT, styles, SWITCH } from "./styles";
 import { DiscordProfile } from "../../components/DiscordProfile";
 import { useUserSettings } from "../../contexts/user/UserSettingsProvider";
 import { useAuth } from "../../contexts/auth/AuthProvider";
-import type { ArtworkQuality } from "../../@types/artwork-quality";
 
 export const BackArrow = (props: SvgProps) => (
   <Svg width="21" height="19" viewBox="0 0 21 19" fill="none">
-    <Rect x="6" y="6" width="15" height="7" rx="2" fill="#ffffff" />
+    <Rect x="6" y="6" width="15" height="7" rx="2" fill={THEME.COLORS.TEXT} />
     <Path
       d="M-4.15258e-07 9.5L11.25 17.7272L11.25 1.27276L-4.15258e-07 9.5Z"
-      fill="#ffffff"
+      fill={THEME.COLORS.TEXT}
     />
   </Svg>
 );
@@ -77,8 +78,8 @@ function Switch({ value }: SwitchProps) {
         styles.switchTrack,
         {
           backgroundColor: value
-            ? THEME.COLORS.SHAPE
-            : "rgba(255, 255, 255, 0.25)",
+            ? THEME.COLORS.BRAND
+            : THEME.COLORS.SWITCH_OFF,
         },
       ]}
     >
@@ -111,94 +112,21 @@ function SettingsRow({ label, value, onToggle, isLast }: SettingsRowProps) {
   );
 }
 
-interface SegmentedControlProps<T extends string> {
-  options: { value: T; label: string }[];
-  value: T;
-  onChange: (value: T) => void;
-}
-
-function SegmentedControl<T extends string>({
-  options,
-  value,
-  onChange,
-}: SegmentedControlProps<T>) {
-  return (
-    <View style={styles.segmented}>
-      {options.map((option) => {
-        const selected = option.value === value;
-        return (
-          <TouchableOpacity
-            key={option.value}
-            accessibilityRole="button"
-            accessibilityState={{ selected }}
-            activeOpacity={0.7}
-            onPress={() => {
-              onChange(option.value);
-            }}
-            style={[styles.segment, selected && styles.segmentActive]}
-          >
-            <Text
-              style={[
-                styles.segmentText,
-                selected && styles.segmentTextActive,
-              ]}
-            >
-              {option.label}
-            </Text>
-          </TouchableOpacity>
-        );
-      })}
-    </View>
-  );
-}
-
-function LanguageGrid() {
-  const { settings, updateSettings } = useUserSettings();
-
-  return (
-    <View style={styles.langGrid}>
-      {(Object.keys(LANGS_KEY_VALUE_PAIRS) as (keyof typeof LANGS_KEY_VALUE_PAIRS)[]).map(
-        (languageKey) => {
-          const selected = settings.selectedLanguage === languageKey;
-          return (
-            <TouchableOpacity
-              key={languageKey}
-              accessibilityRole="button"
-              accessibilityState={{ selected }}
-              activeOpacity={0.7}
-              onPress={() => {
-                updateSettings({ selectedLanguage: languageKey });
-                //! NEED TO REFRESH PLAYER
-              }}
-              style={[styles.langPill, selected && styles.langPillActive]}
-            >
-              <Text
-                style={[
-                  styles.langPillText,
-                  selected && styles.langPillTextActive,
-                ]}
-              >
-                {LANGS_KEY_VALUE_PAIRS[languageKey]}
-              </Text>
-            </TouchableOpacity>
-          );
-        },
-      )}
-    </View>
-  );
-}
-
 type Props = NativeStackScreenProps<RootStackParamList, "Settings">;
 
-const COVER_QUALITY_OPTIONS: { value: ArtworkQuality; label: string }[] = [
-  { value: "high", label: "HIGH" },
-  { value: "medium", label: "MEDIUM" },
-  { value: "low", label: "LOW" },
-];
+const COVER_QUALITY_LABEL_KEY = {
+  high: "SETTINGS_QUALITY_LIVE_LABEL_HIGH",
+  medium: "SETTINGS_QUALITY_LIVE_LABEL_MEDIUM",
+  low: "SETTINGS_QUALITY_LIVE_LABEL_LOW",
+} as const;
 
 export function Settings({ navigation }: Props) {
+  const insets = useSafeAreaInsets();
   const { settings, updateSettings } = useUserSettings();
   const { user, logout } = useAuth();
+  const [languageSheetVisible, setLanguageSheetVisible] = useState(false);
+  const [coverQualitySheetVisible, setCoverQualitySheetVisible] =
+    useState(false);
 
   const toggleLiveCovers = () => {
     updateSettings({
@@ -207,19 +135,18 @@ export function Settings({ navigation }: Props) {
     });
   };
 
-  const qualityOptions = COVER_QUALITY_OPTIONS.map((option) => ({
-    ...option,
-    label: option.label === "HIGH"
-      ? DICT[settings.selectedLanguage].SETTINGS_QUALITY_LIVE_LABEL_HIGH
-      : option.label === "MEDIUM"
-        ? DICT[settings.selectedLanguage].SETTINGS_QUALITY_LIVE_LABEL_MEDIUM
-        : DICT[settings.selectedLanguage].SETTINGS_QUALITY_LIVE_LABEL_LOW,
-  }));
-
   return (
     <Background>
-      <SafeAreaView style={styles.container}>
-        <View style={styles.header}>
+      <SafeAreaView style={styles.container} edges={["left", "right", "bottom"]}>
+        <View
+          style={[
+            styles.header,
+            {
+              height: HEADER_HEIGHT + insets.top,
+              paddingTop: insets.top,
+            },
+          ]}
+        >
           <TouchableOpacity
             accessibilityRole="button"
             onPress={() => {
@@ -254,8 +181,8 @@ export function Settings({ navigation }: Props) {
                 >
                   <MaterialIcons
                     name="logout"
-                    size={22}
-                    color={THEME.COLORS.WHITE_TEXT}
+                    size={THEME.ICON.MD}
+                    color={THEME.COLORS.TEXT}
                   />
                 </TouchableOpacity>
               </View>
@@ -270,16 +197,32 @@ export function Settings({ navigation }: Props) {
           <TitleSection
             title={DICT[settings.selectedLanguage].SETTINGS_SAVE_DATA_TITLE}
           />
-          <Text style={styles.sectionLabel}>
-            {DICT[settings.selectedLanguage].SETTINGS_QUALITY_LIVE_LABEL}
-          </Text>
-          <SegmentedControl
-            options={qualityOptions}
-            value={settings.liveQualityCover}
-            onChange={(value) => {
-              updateSettings({ liveQualityCover: value });
+          <TouchableOpacity
+            accessibilityRole="button"
+            activeOpacity={0.7}
+            onPress={() => {
+              setCoverQualitySheetVisible(true);
             }}
-          />
+            style={styles.row}
+          >
+            <Text style={styles.rowLabel}>
+              {DICT[settings.selectedLanguage].SETTINGS_QUALITY_LIVE_LABEL}
+            </Text>
+            <View style={styles.rowValue}>
+              <Text style={styles.rowValueText}>
+                {settings.liveQualityCover === "off"
+                  ? "—"
+                  : DICT[settings.selectedLanguage][
+                      COVER_QUALITY_LABEL_KEY[settings.liveQualityCover]
+                    ]}
+              </Text>
+              <MaterialIcons
+                name="chevron-right"
+                size={THEME.ICON.MD}
+                color={THEME.COLORS.TEXT_DIM}
+              />
+            </View>
+          </TouchableOpacity>
           <View style={styles.rowsGroup}>
             <SettingsRow
               label={
@@ -329,12 +272,40 @@ export function Settings({ navigation }: Props) {
           </View>
 
           <Splitter />
-          <TitleSection
-            title={
-              DICT[settings.selectedLanguage].SETTINGS_LANGUAGE_SELECT_TITLE
-            }
+          <TouchableOpacity
+            accessibilityRole="button"
+            activeOpacity={0.7}
+            onPress={() => {
+              setLanguageSheetVisible(true);
+            }}
+            style={[styles.row, styles.rowLast]}
+          >
+            <Text style={styles.rowLabel}>
+              {DICT[settings.selectedLanguage].SETTINGS_LANGUAGE_SELECT_TITLE}
+            </Text>
+            <View style={styles.rowValue}>
+              <Text style={styles.rowValueText}>
+                {LANGS_KEY_VALUE_PAIRS[settings.selectedLanguage]}
+              </Text>
+              <MaterialIcons
+                name="chevron-right"
+                size={THEME.ICON.MD}
+                color={THEME.COLORS.TEXT_DIM}
+              />
+            </View>
+          </TouchableOpacity>
+          <LanguageSelectSheet
+            visible={languageSheetVisible}
+            onClose={() => {
+              setLanguageSheetVisible(false);
+            }}
           />
-          <LanguageGrid />
+          <CoverQualitySheet
+            visible={coverQualitySheetVisible}
+            onClose={() => {
+              setCoverQualitySheetVisible(false);
+            }}
+          />
 
           <Splitter />
           <TitleSection

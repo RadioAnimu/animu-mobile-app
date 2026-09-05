@@ -24,10 +24,10 @@ export const Listeners = React.memo(function Listeners() {
         styles.container,
         {
           backgroundColor: track.isRequest
-            ? THEME.COLORS.REQUEST
+            ? THEME.COLORS.FRAME
             : program?.isLive
-              ? THEME.COLORS.LIVE_PROGRAM
-              : THEME.COLORS.SHAPE,
+              ? THEME.COLORS.LIVE
+              : THEME.COLORS.BRAND,
         },
       ]}
     >
@@ -37,8 +37,8 @@ export const Listeners = React.memo(function Listeners() {
           {
             color:
               track.isRequest || program?.isLive
-                ? THEME.COLORS.WHITE_TEXT
-                : THEME.COLORS.LISTENERS,
+                ? THEME.COLORS.TEXT
+                : THEME.COLORS.FRAME,
           },
         ]}
       >
@@ -54,16 +54,16 @@ export const Listeners = React.memo(function Listeners() {
           {
             color:
               track.isRequest || program?.isLive
-                ? THEME.COLORS.WHITE_TEXT
-                : THEME.COLORS.LISTENERS,
+                ? THEME.COLORS.TEXT
+                : THEME.COLORS.FRAME,
           },
           settings.selectedLanguage === "JN" && {
-            lineHeight: THEME.FONT_SIZE.MD + 7.5,
+            lineHeight: THEME.LINE_HEIGHT.HEADING,
             fontSize: (
               program?.isLive ? program.dj.toUpperCase() : track.isRequest
             )
-              ? THEME.FONT_SIZE.MD - 3.8
-              : THEME.FONT_SIZE.MD,
+              ? THEME.FONT_SIZE.HEADING - 3.8
+              : THEME.FONT_SIZE.HEADING,
             marginLeft: -1.2,
           },
         ]}

@@ -1,60 +1,35 @@
 import { StyleSheet } from "react-native";
 import { THEME } from "../../theme";
 
+const IMG_HEIGHT = 140;
+
 export const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    flexDirection: "column",
-    backgroundColor: THEME.COLORS.OVERLAY,
-  },
-  backdrop: {
-    flex: 1,
-  },
-  content: {
-    width: "100%",
-    backgroundColor: THEME.COLORS.PRIMARY,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    paddingBottom: 32,
-    maxHeight: "75%",
-  },
-  closeArea: {
-    width: "100%",
-    flexDirection: "row",
-    justifyContent: "center",
-    height: 35,
-    alignItems: "center",
-  },
-  dragIcon: {
-    height: 14,
-    resizeMode: "contain",
-  },
   scrollContent: {
     alignItems: "center",
-    paddingHorizontal: 16,
-    paddingBottom: 8,
-    gap: 12,
+    paddingHorizontal: THEME.SPACE.LG,
+    paddingBottom: THEME.SPACE.SM,
+    gap: THEME.SPACE.MD,
   },
   img: {
-    height: 140,
+    height: IMG_HEIGHT,
     width: "100%",
-    borderRadius: 8,
+    borderRadius: THEME.RADIUS.MD,
   },
   programName: {
-    color: THEME.COLORS.SHAPE,
-    fontSize: THEME.FONT_SIZE.MD,
+    color: THEME.COLORS.BRAND,
+    fontSize: THEME.FONT_SIZE.HEADING,
     fontFamily: THEME.FONT_FAMILY.BOLD,
     textAlign: "center",
   },
   informationBlock: {
     flexDirection: "column",
-    gap: 8,
+    gap: THEME.SPACE.SM,
     width: "100%",
-    paddingBottom: 4,
+    paddingBottom: THEME.SPACE.XS,
   },
   label: {
-    color: THEME.COLORS.WHITE_TEXT,
-    fontSize: THEME.FONT_SIZE.INFO_PROGRAM,
+    color: THEME.COLORS.TEXT,
+    fontSize: THEME.FONT_SIZE.LIST,
     fontFamily: THEME.FONT_FAMILY.BOLD,
   },
 });

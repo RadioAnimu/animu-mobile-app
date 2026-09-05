@@ -21,7 +21,6 @@ import { styles } from "./styles";
 
 export const MENU_ICON_SIZE = 22;
 const SECTION_ICON_SIZE = 18;
-const TEXT_MUTED = "rgba(255, 255, 255, 0.7)";
 
 type MaterialIconName = ComponentProps<typeof MaterialIcons>["name"];
 
@@ -34,7 +33,7 @@ interface DrawerIconProps {
 export function DrawerIcon({
   name,
   size = MENU_ICON_SIZE,
-  color = THEME.COLORS.WHITE_TEXT,
+  color = THEME.COLORS.TEXT,
 }: DrawerIconProps) {
   return (
     <View style={styles.iconBox}>
@@ -111,6 +110,7 @@ function NavItems({ state, descriptors, navigation }: DrawerContentComponentProp
           typeof options.drawerLabel === "string"
             ? options.drawerLabel
             : (options.title ?? route.name);
+        const accent = focused ? THEME.COLORS.SURFACE : THEME.COLORS.TEXT_SOFT;
 
         const onPress = () => {
           navigation.dispatch({
@@ -131,11 +131,15 @@ function NavItems({ state, descriptors, navigation }: DrawerContentComponentProp
             style={[styles.navItem, focused && styles.navItemFocused]}
           >
             {options.drawerIcon?.({
-              color: focused ? THEME.COLORS.WHITE_TEXT : TEXT_MUTED,
+              color: accent,
               focused,
               size: MENU_ICON_SIZE,
             })}
-            <Text style={styles.navItemText}>{label}</Text>
+            <Text
+              style={[styles.navItemText, focused && styles.navItemTextFocused]}
+            >
+              {label}
+            </Text>
           </TouchableOpacity>
         );
       })}

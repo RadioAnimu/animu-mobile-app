@@ -156,6 +156,8 @@ const DICT = {
   SETTINGS_COVER_REQUESTED_SWITCH: "Fazer pedidos com capas:",
   SETTINGS_LANGUAGE_SELECT_TITLE: "Seleção de idioma",
   SETTINGS_LANGUAGE_SELECT_PLACEHOLDER: "Selecione um idioma",
+  SETTINGS_LANGUAGE_SEARCH_PLACEHOLDER: "Buscar idioma",
+  SETTINGS_LANGUAGE_NOT_FOUND: "Nenhum idioma encontrado",
   SETTINGS_MEMORY_TITLE: "Mémoria",
   SETTINGS_MEMORY_CLEAR_CACHE_SWITCH: "Guardar capas em cache:",
   TRACK_REQUEST: "MÚSICA PEDIDA",
@@ -180,6 +182,19 @@ const DICT = {
   FORM_LABEL_REQUEST: "Recado",
   ERROR_STRIKE_AND_OUT:
     "Ooops.. Você só pode pedir 3 músicas a cada 90 minutos 💜🎶",
+  LIVE_REQUEST_TITLE: "Faça seu pedido para o Locutor ao vivo!",
+  OPTIONAL_LABEL: "opcional",
+  FORM_PLACEHOLDER_NICK: "Digite seu nome ou nick",
+  FORM_PLACEHOLDER_CITY: "Digite sua cidade/estado",
+  FORM_PLACEHOLDER_ARTIST: "Digite o nome do artista",
+  FORM_PLACEHOLDER_MUSIC: "Digite o nome da música",
+  FORM_PLACEHOLDER_ANIME: "Digite o nome do anime, visual novel ou jogo",
+  FORM_PLACEHOLDER_REQUEST: "Digite um recado para o locutor",
+  LOAD_MORE_RESULTS: "Carregar mais resultados",
+  OK_BUTTON: "OK",
+  ERROR_TITLE: "Algo deu errado 💜",
+  ERROR_MESSAGE: "O app encontrou um erro inesperado. Tente novamente.",
+  ERROR_RETRY: "Tentar de novo",
 };
 
 const NoArLabel = (props: SvgProps) => (

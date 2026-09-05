@@ -1,9 +1,9 @@
 import { StyleSheet } from "react-native";
-
 import { THEME } from "../../theme";
 
 const ICON_BOX_WIDTH = 32;
-const TEXT_MUTED = "rgba(255, 255, 255, 0.7)";
+const LOGO_HEIGHT = 90;
+const CARD_RADIUS = 14;
 
 export const DRAWER_GRID = {
   SCREEN_MARGIN: 12,
@@ -17,27 +17,27 @@ export const styles = StyleSheet.create({
   },
   header: {
     marginHorizontal: DRAWER_GRID.SCREEN_MARGIN,
-    marginTop: 12,
+    marginTop: THEME.SPACE.MD,
   },
   logoButton: {
     alignItems: "center",
     justifyContent: "center",
-    paddingVertical: 8,
-    marginBottom: 4,
+    paddingVertical: THEME.SPACE.SM,
+    marginBottom: THEME.SPACE.XS,
   },
   logo: {
-    height: 90,
+    height: LOGO_HEIGHT,
     width: "100%",
     resizeMode: "contain",
   },
   headerCard: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: THEME.COLORS.COVER,
-    borderRadius: 14,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    marginTop: 4,
+    backgroundColor: THEME.COLORS.FRAME,
+    borderRadius: CARD_RADIUS,
+    paddingHorizontal: THEME.SPACE.MD,
+    paddingVertical: THEME.SPACE.SM,
+    marginTop: THEME.SPACE.XS,
   },
   headerRow: {
     flex: 1,
@@ -49,63 +49,66 @@ export const styles = StyleSheet.create({
     height: 48,
     alignItems: "center",
     justifyContent: "center",
-    marginRight: -8,
+    marginRight: -THEME.SPACE.SM,
   },
   loginButton: {
     flex: 1,
     flexDirection: "row",
     alignItems: "center",
-    paddingVertical: 8,
+    paddingVertical: THEME.SPACE.SM,
   },
   section: {
     flexDirection: "row",
     alignItems: "center",
-    marginHorizontal: 8,
-    paddingHorizontal: 12,
+    marginHorizontal: THEME.SPACE.SM,
+    paddingHorizontal: THEME.SPACE.MD,
     marginTop: 18,
-    marginBottom: 6,
-    paddingBottom: 10,
+    marginBottom: THEME.SPACE.SM,
+    paddingBottom: THEME.SPACE.MD,
     borderBottomWidth: 1,
-    borderBottomColor: "rgba(255, 255, 255, 0.15)",
+    borderBottomColor: THEME.COLORS.HAIRLINE,
   },
   sectionText: {
     flex: 1,
-    color: TEXT_MUTED,
+    color: THEME.COLORS.TEXT_SOFT,
     fontFamily: THEME.FONT_FAMILY.BOLD,
-    fontSize: THEME.FONT_SIZE.SM,
+    fontSize: THEME.FONT_SIZE.BODY,
     letterSpacing: 1.2,
-    marginLeft: 8,
+    marginLeft: THEME.SPACE.SM,
   },
   navItem: {
     flexDirection: "row",
     alignItems: "center",
-    marginHorizontal: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    borderRadius: 12,
+    marginHorizontal: THEME.SPACE.SM,
+    paddingHorizontal: THEME.SPACE.MD,
+    paddingVertical: THEME.SPACE.MD,
+    borderRadius: THEME.RADIUS.MD,
   },
   navItemFocused: {
-    backgroundColor: "rgba(107, 219, 0, 0.15)",
+    backgroundColor: THEME.COLORS.BRAND,
   },
   navItemText: {
     flex: 1,
-    color: THEME.COLORS.WHITE_TEXT,
+    color: THEME.COLORS.TEXT,
     fontFamily: THEME.FONT_FAMILY.BOLD,
-    fontSize: 16,
-    marginLeft: 8,
+    fontSize: THEME.FONT_SIZE.LIST,
+    marginLeft: THEME.SPACE.SM,
+  },
+  navItemTextFocused: {
+    color: THEME.COLORS.SURFACE,
   },
   footer: {
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: 16,
-    marginTop: 20,
-    paddingHorizontal: 24,
+    marginBottom: THEME.SPACE.LG,
+    marginTop: THEME.SPACE.XL,
+    paddingHorizontal: THEME.SPACE.XXL,
   },
   footerText: {
-    color: TEXT_MUTED,
+    color: THEME.COLORS.TEXT_SOFT,
     textAlign: "center",
     fontFamily: THEME.FONT_FAMILY.BOLD,
-    fontSize: THEME.FONT_SIZE.FOOTER,
+    fontSize: THEME.FONT_SIZE.CAPTION,
   },
   footerAuthor: {
     textDecorationLine: "underline",

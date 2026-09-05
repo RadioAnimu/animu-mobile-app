@@ -1,85 +1,67 @@
 import { StyleSheet } from "react-native";
 import { THEME } from "../../theme";
 
+const COVER = 64;
+const AVATAR = 36;
+
 export const styles = StyleSheet.create({
-  overlay: {
-    flex: 1,
-    flexDirection: "column",
-    backgroundColor: THEME.COLORS.OVERLAY,
-  },
-  backdrop: {
-    flex: 1,
-  },
-  sheet: {
-    width: "100%",
-    backgroundColor: THEME.COLORS.PRIMARY,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    paddingBottom: 32,
-  },
-  closeArea: {
-    width: "100%",
-    flexDirection: "row",
-    justifyContent: "center",
-    height: 35,
-    alignItems: "center",
-  },
-  dragIcon: {
-    height: 14,
-    resizeMode: "contain",
+  scrollContent: {
+    gap: THEME.SPACE.LG,
+    paddingHorizontal: THEME.SPACE.LG,
+    paddingBottom: THEME.SPACE.SM,
   },
   trackRow: {
     flexDirection: "row",
-    gap: 12,
+    gap: THEME.SPACE.MD,
     alignItems: "center",
   },
   cover: {
-    width: 64,
-    height: 64,
-    borderRadius: 8,
+    width: COVER,
+    height: COVER,
+    borderRadius: THEME.RADIUS.MD,
     borderWidth: 2,
-    borderColor: THEME.COLORS.COVER,
+    borderColor: THEME.COLORS.FRAME,
   },
   trackInfo: {
     flex: 1,
-    gap: 3,
+    gap: THEME.SPACE.XS,
   },
   songName: {
-    color: THEME.COLORS.WHITE_TEXT,
+    color: THEME.COLORS.TEXT,
     fontFamily: THEME.FONT_FAMILY.BOLD,
-    fontSize: THEME.FONT_SIZE.SM,
+    fontSize: THEME.FONT_SIZE.BODY,
   },
   animeText: {
-    color: THEME.COLORS.CAPTION_500,
+    color: THEME.COLORS.BRAND,
     fontFamily: THEME.FONT_FAMILY.BOLD,
-    fontSize: THEME.FONT_SIZE.SM,
+    fontSize: THEME.FONT_SIZE.BODY,
   },
   artistText: {
-    color: THEME.COLORS.WHITE_TEXT,
+    color: THEME.COLORS.TEXT,
     fontFamily: THEME.FONT_FAMILY.REGULAR,
-    fontSize: THEME.FONT_SIZE.FOOTER,
-    opacity: 0.7,
+    fontSize: THEME.FONT_SIZE.CAPTION,
+    opacity: THEME.OPACITY.SOFT,
   },
   noteBox: {
     width: "100%",
   },
   noteText: {
-    color: THEME.COLORS.WHITE_TEXT,
+    color: THEME.COLORS.TEXT,
     fontFamily: THEME.FONT_FAMILY.REGULAR,
-    fontSize: THEME.FONT_SIZE.SM,
+    fontSize: THEME.FONT_SIZE.BODY,
     textAlign: "center",
   },
   input: {
-    color: THEME.COLORS.TEXT,
-    backgroundColor: THEME.COLORS.WHITE_TEXT,
+    color: THEME.COLORS.TEXT_ON_LIGHT,
+    backgroundColor: THEME.COLORS.TEXT,
     textAlign: "left",
-    paddingVertical: 5,
-    paddingHorizontal: 10,
+    paddingVertical: THEME.SPACE.XS,
+    paddingHorizontal: THEME.SPACE.MD,
     width: "100%",
-    borderRadius: 8,
+    borderRadius: THEME.RADIUS.MD,
   },
   inputDisabled: {
-    opacity: 0.5,
+    opacity: THEME.OPACITY.DISABLED,
   },
   bottomRow: {
     flexDirection: "row",
@@ -89,53 +71,53 @@ export const styles = StyleSheet.create({
   userRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
+    gap: THEME.SPACE.SM,
   },
   avatar: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: AVATAR,
+    height: AVATAR,
+    borderRadius: THEME.RADIUS.CIRCLE,
     borderWidth: 2,
-    borderColor: THEME.COLORS.SHAPE,
+    borderColor: THEME.COLORS.BRAND,
   },
   username: {
-    color: THEME.COLORS.WHITE_TEXT,
+    color: THEME.COLORS.TEXT,
     fontFamily: THEME.FONT_FAMILY.BOLD,
-    fontSize: THEME.FONT_SIZE.SM,
+    fontSize: THEME.FONT_SIZE.BODY,
   },
   okButton: {
-    marginVertical: 5,
-    backgroundColor: THEME.COLORS.SHAPE,
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    borderRadius: 8,
+    marginVertical: THEME.SPACE.XS,
+    backgroundColor: THEME.COLORS.BRAND,
+    paddingVertical: THEME.SPACE.MD,
+    paddingHorizontal: THEME.SPACE.XL,
+    borderRadius: THEME.RADIUS.MD,
     alignItems: "center",
   },
   okButtonError: {
-    backgroundColor: THEME.COLORS.ALERT,
+    backgroundColor: THEME.COLORS.ERROR,
   },
   okButtonDisabled: {
-    opacity: 0.5,
+    opacity: THEME.OPACITY.DISABLED,
   },
   okText: {
-    color: THEME.COLORS.WHITE_TEXT,
+    color: THEME.COLORS.TEXT,
     fontFamily: THEME.FONT_FAMILY.BOLD,
-    fontSize: THEME.FONT_SIZE.SM,
+    fontSize: THEME.FONT_SIZE.BODY,
   },
   statusBox: {
     alignItems: "center",
-    gap: 12,
-    paddingVertical: 8,
+    gap: THEME.SPACE.MD,
+    paddingVertical: THEME.SPACE.SM,
   },
   statusText: {
     fontFamily: THEME.FONT_FAMILY.BOLD,
-    fontSize: THEME.FONT_SIZE.SM,
+    fontSize: THEME.FONT_SIZE.BODY,
     textAlign: "center",
   },
   statusSuccess: {
-    color: THEME.COLORS.SHAPE,
+    color: THEME.COLORS.BRAND,
   },
   statusError: {
-    color: THEME.COLORS.ALERT,
+    color: THEME.COLORS.ERROR,
   },
 });

@@ -24,6 +24,8 @@ import { styles } from "./styles";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Home">;
 
+const LOGO_HEIGHT = 127;
+
 export const Home = ({ navigation }: Props) => {
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [isLiveRequestModalVisible, setIsLiveRequestModalVisible] =
@@ -44,7 +46,7 @@ export const Home = ({ navigation }: Props) => {
 
   return (
     <Background>
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={styles.container} edges={["left", "right", "bottom"]}>
         <ScrollView>
           <HeaderBar
             openLiveRequestModal={() => handleLiveRequestModal(true)}
@@ -52,7 +54,7 @@ export const Home = ({ navigation }: Props) => {
           />
 
           <View style={styles.containerApp}>
-            <Logo size={127} />
+            <Logo size={LOGO_HEIGHT} />
 
             <View style={styles.listenersWrapper}>
               <Listeners />

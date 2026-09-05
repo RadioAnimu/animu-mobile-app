@@ -20,17 +20,17 @@ export function CountdownTimerText({ startTime }: Props) {
   const { settings } = useUserSettings();
 
   return (
-    <Text
-      style={[
-        {
-          fontSize: THEME.FONT_SIZE.SM,
-          fontFamily: THEME.FONT_FAMILY.REGULAR,
-        },
-        settings.selectedLanguage === "JN" && {
-          lineHeight: THEME.FONT_SIZE.SM + 2,
-        },
-      ]}
-    >
+      <Text
+        style={[
+          {
+            fontSize: THEME.FONT_SIZE.BODY,
+            fontFamily: THEME.FONT_FAMILY.REGULAR,
+          },
+          settings.selectedLanguage === "JN" && {
+            lineHeight: THEME.LINE_HEIGHT.BODY,
+          },
+        ]}
+      >
       {formatTimer(startTime)}
     </Text>
   );

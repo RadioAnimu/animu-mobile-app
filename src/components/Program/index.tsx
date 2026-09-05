@@ -26,7 +26,7 @@ export const Program = React.memo(function Program({ handleClick }: Props) {
           styles.label,
 
           settings.selectedLanguage === "JN" && {
-            lineHeight: THEME.FONT_SIZE.PROGRAM_LABELS + 1,
+            lineHeight: THEME.LINE_HEIGHT.SUBHEAD,
           },
         ]}
       >

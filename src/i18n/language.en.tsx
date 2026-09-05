@@ -156,6 +156,8 @@ const DICT = {
   SETTINGS_COVER_REQUESTED_SWITCH: "Request with covers:",
   SETTINGS_LANGUAGE_SELECT_TITLE: "Language Selection",
   SETTINGS_LANGUAGE_SELECT_PLACEHOLDER: "Select a language",
+  SETTINGS_LANGUAGE_SEARCH_PLACEHOLDER: "Search language",
+  SETTINGS_LANGUAGE_NOT_FOUND: "No language found",
   SETTINGS_MEMORY_TITLE: "Memory",
   SETTINGS_MEMORY_CLEAR_CACHE_SWITCH: "Cache cover images:",
   TRACK_REQUEST: "REQUESTED SONG",
@@ -180,6 +182,19 @@ const DICT = {
   FORM_LABEL_REQUEST: "Message",
   ERROR_STRIKE_AND_OUT:
     "Oops! You can only request 3 songs every 90 minutes 💜🎶",
+  LIVE_REQUEST_TITLE: "Make your request to the live DJ!",
+  OPTIONAL_LABEL: "optional",
+  FORM_PLACEHOLDER_NICK: "Enter your name or nick",
+  FORM_PLACEHOLDER_CITY: "Enter your city/state",
+  FORM_PLACEHOLDER_ARTIST: "Enter the artist name",
+  FORM_PLACEHOLDER_MUSIC: "Enter the song name",
+  FORM_PLACEHOLDER_ANIME: "Enter the anime, visual novel or game",
+  FORM_PLACEHOLDER_REQUEST: "Leave a message for the DJ",
+  LOAD_MORE_RESULTS: "Load more results",
+  OK_BUTTON: "OK",
+  ERROR_TITLE: "Something went wrong 💜",
+  ERROR_MESSAGE: "The app ran into an unexpected error. Try again.",
+  ERROR_RETRY: "Try again",
 };
 
 const NoArLabel = (props: SvgProps) => (

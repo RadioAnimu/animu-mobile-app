@@ -31,7 +31,7 @@ export function Last({ route, navigation }: Props) {
 
   return (
     <Background>
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={styles.container} edges={["left", "right", "bottom"]}>
         <HeaderBar navigation={navigation} />
         <View style={styles.appContainer}>
           <Image
@@ -44,12 +44,7 @@ export function Last({ route, navigation }: Props) {
             contentFit="contain"
             cachePolicy={"none"}
           />
-          <View
-            style={{
-              width: "100%",
-              flex: 1,
-            }}
-          >
+          <View style={styles.listWrapper}>
             <FlatList
               data={
                 isUltimasPedidasScreen

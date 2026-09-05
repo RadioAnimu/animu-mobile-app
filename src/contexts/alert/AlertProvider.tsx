@@ -109,14 +109,14 @@ export const AlertProvider: React.FC<{ children: ReactNode }> = ({
         >
           <KeyboardAvoidingView
             behavior="padding"
-            style={[styles.container, { zIndex: 9999 }]}
+            style={styles.container}
           >
             <View style={styles.content}>
               <TouchableOpacity onPress={handleClose} style={styles.closeIcon}>
                 <MaterialIcons
                   name="close"
-                  size={20}
-                  color={THEME.COLORS.WHITE_TEXT}
+                  size={THEME.ICON.MD}
+                  color={THEME.COLORS.TEXT}
                 />
               </TouchableOpacity>
               <Image source={haruka} style={styles.img} />

@@ -1,25 +1,27 @@
 import { StyleSheet } from "react-native";
 import { THEME } from "../../theme";
 
+const IMAGE = 50;
+
 export const styles = StyleSheet.create({
   container: {
     flexDirection: "row",
     justifyContent: "flex-start",
     alignItems: "center",
-    gap: 5,
-    padding: 3,
+    gap: THEME.SPACE.XS,
+    padding: THEME.SPACE.XS,
     minWidth: "100%",
   },
   image: {
-    width: 50,
-    height: 50,
-    borderColor: THEME.COLORS.TEXT,
+    width: IMAGE,
+    height: IMAGE,
+    borderColor: THEME.COLORS.FRAME,
     borderWidth: 1,
   },
   text: {
-    color: THEME.COLORS.WHITE_TEXT,
+    color: THEME.COLORS.TEXT,
     fontFamily: THEME.FONT_FAMILY.BOLD,
-    fontSize: 16,
+    fontSize: THEME.FONT_SIZE.LIST,
     flex: 1,
   },
 });

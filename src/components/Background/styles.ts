@@ -4,7 +4,6 @@ import { THEME } from "../../theme";
 export const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: THEME.COLORS.BACKGROUND_800,
-    objectFit: "cover",
+    backgroundColor: THEME.COLORS.APP_BG,
   },
 });

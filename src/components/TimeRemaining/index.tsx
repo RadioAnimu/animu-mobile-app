@@ -36,9 +36,9 @@ export function TimeRemaining() {
 
 const styles = StyleSheet.create({
   timeLeft: {
-    fontSize: THEME.FONT_SIZE.SM,
+    fontSize: THEME.FONT_SIZE.BODY,
     fontFamily: THEME.FONT_FAMILY.REGULAR,
     textAlign: "center",
-    color: THEME.COLORS.WHITE_TEXT,
+    color: THEME.COLORS.TEXT,
   },
 });

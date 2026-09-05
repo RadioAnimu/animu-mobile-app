@@ -8,8 +8,9 @@ interface Props {
   img?: string;
 }
 
+const DEFAULT_SIZE = 100;
+
 export function Logo({ size, img }: Props) {
-  const defaultSize = 100;
   const { settings } = useUserSettings();
 
   const defaultImg = IMGS[settings.selectedLanguage].LOGO;
@@ -19,7 +20,7 @@ export function Logo({ size, img }: Props) {
       style={[
         styles.image,
         {
-          height: size ? size : defaultSize,
+          height: size ? size : DEFAULT_SIZE,
         },
       ]}
     />

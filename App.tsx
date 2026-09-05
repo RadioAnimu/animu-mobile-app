@@ -2,7 +2,6 @@ import { Background } from "./src/components/Background";
 import ErrorBoundary from "./src/components/ErrorBoundary";
 
 import { Routes } from "./src/routes";
-import { THEME } from "./src/theme";
 import { PlayerProvider } from "./src/contexts/player/PlayerProvider";
 import { UserSettingsProvider } from "./src/contexts/user/UserSettingsProvider";
 import { AlertProvider } from "./src/contexts/alert/AlertProvider";
@@ -13,7 +12,7 @@ import { MyStatusBar } from "./src/components/MyStatusBar";
 export default function App() {
   return (
     <ErrorBoundary>
-      <MyStatusBar backgroundColor={THEME.COLORS.PRIMARY} />
+      <MyStatusBar />
       <Background>
         <PortalProvider>
           <AlertProvider>

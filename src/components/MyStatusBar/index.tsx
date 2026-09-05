@@ -1,18 +1,16 @@
-import { StatusBar, StatusBarProps, View } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
-import { styles } from "./styles";
+import { StatusBar, StatusBarProps } from "react-native";
+import { THEME } from "../../theme";
 
-interface MyStatusBarProps extends StatusBarProps {
-  backgroundColor: string;
-}
-
-export const MyStatusBar = ({
-  backgroundColor,
-  ...props
-}: MyStatusBarProps) => (
-  <View style={[styles.statusBar, { backgroundColor }]}>
-    <SafeAreaView edges={["top"]}>
-      <StatusBar translucent backgroundColor={backgroundColor} {...props} />
-    </SafeAreaView>
-  </View>
+/**
+ * Edge-to-edge means no native status bar background: the color behind
+ * the system icons comes from the headers, which extend under the bar.
+ * This only centralizes the bar configuration.
+ */
+export const MyStatusBar = (props: StatusBarProps) => (
+  <StatusBar
+    translucent
+    backgroundColor={THEME.COLORS.SURFACE}
+    barStyle="light-content"
+    {...props}
+  />
 );

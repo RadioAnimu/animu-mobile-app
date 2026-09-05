@@ -2,10 +2,6 @@ import React, { useState } from "react";
 import { ValidationError } from "animu-api";
 import {
   ActivityIndicator,
-  Image,
-  KeyboardAvoidingView,
-  Modal,
-  ModalProps,
   Text,
   TextInput,
   TouchableOpacity,
@@ -14,15 +10,16 @@ import {
 import { DICT } from "../../i18n";
 import { THEME } from "../../theme";
 import { styles } from "./styles";
-import CloseIcon from "../../assets/icons/ArrastarParaBaixo.png";
-import { ScrollView } from "react-native-gesture-handler";
+import { ScrollView as GestureScrollView } from "react-native-gesture-handler";
 import { useUserSettings } from "../../contexts/user/UserSettingsProvider";
 import { useAlert } from "../../contexts/alert/AlertProvider";
 import { useAuth } from "../../contexts/auth/AuthProvider";
 import { useLiveRequestForm } from "../../hooks/useLiveRequestForm";
 import { liveRequestService } from "../../core/services/live-request.service";
+import { Sheet } from "../Sheet";
 
-interface Props extends ModalProps {
+interface Props {
+  visible: boolean;
   handleClose: () => void;
 }
 
@@ -32,10 +29,12 @@ interface LabelProps {
 }
 
 function Label({ text, optional }: LabelProps) {
+  const { settings } = useUserSettings();
+
   return (
     <Text style={styles.label}>
       {text}
-      {optional && " (opcional)"}:
+      {optional && ` (${DICT[settings.selectedLanguage].OPTIONAL_LABEL})`}:
     </Text>
   );
 }
@@ -69,7 +68,7 @@ function Input({
   );
 }
 
-export function LiveRequestModal({ handleClose, ...rest }: Props) {
+export function LiveRequestModal({ visible, handleClose }: Props) {
   const { success, error: showError } = useAlert();
   const { user } = useAuth();
   const { settings } = useUserSettings();
@@ -79,6 +78,8 @@ export function LiveRequestModal({ handleClose, ...rest }: Props) {
     useLiveRequestForm({
       name: user?.nickname || user?.username || "",
     });
+
+  const t = DICT[settings.selectedLanguage];
 
   const handleSubmit = async () => {
     if (isSubmitting) return;
@@ -90,19 +91,17 @@ export function LiveRequestModal({ handleClose, ...rest }: Props) {
       const result = await liveRequestService.submitRequest(getFormData());
 
       if (result.success) {
-        success(DICT[settings.selectedLanguage].REQUEST_SUCCESS);
+        success(t.REQUEST_SUCCESS);
         handleClose();
         reset();
       } else {
-        showError(
-          `${DICT[settings.selectedLanguage].REQUEST_ERROR}${result.error}`,
-        );
+        showError(`${t.REQUEST_ERROR}${result.error}`);
       }
     } catch (error) {
       if (error instanceof ValidationError) {
         showError(error.message);
       } else {
-        showError(DICT[settings.selectedLanguage].REQUEST_ERROR);
+        showError(t.REQUEST_ERROR);
       }
     } finally {
       setIsSubmitting(false);
@@ -111,58 +110,58 @@ export function LiveRequestModal({ handleClose, ...rest }: Props) {
 
   const FORM_BUILDER_MAPPER = [
     {
-      label: DICT[settings.selectedLanguage].FORM_LABEL_NICK,
+      label: t.FORM_LABEL_NICK,
       name: "name",
       input: {
         value: formData.name,
         onChangeText: setters.setName,
-        placeholder: "Digite seu nome ou nick",
+        placeholder: t.FORM_PLACEHOLDER_NICK,
       },
     },
     {
-      label: DICT[settings.selectedLanguage].FORM_LABEL_CITY,
+      label: t.FORM_LABEL_CITY,
       name: "city",
       input: {
         value: formData.city,
         onChangeText: setters.setCity,
-        placeholder: "Digite sua cidade/estado",
+        placeholder: t.FORM_PLACEHOLDER_CITY,
       },
     },
     {
-      label: DICT[settings.selectedLanguage].FORM_LABEL_ARTIST,
+      label: t.FORM_LABEL_ARTIST,
       name: "artist",
       input: {
         value: formData.artist,
         onChangeText: setters.setArtist,
-        placeholder: "Digite o nome do artista",
+        placeholder: t.FORM_PLACEHOLDER_ARTIST,
       },
     },
     {
-      label: DICT[settings.selectedLanguage].FORM_LABEL_MUSIC,
+      label: t.FORM_LABEL_MUSIC,
       name: "music",
       input: {
         value: formData.music,
         onChangeText: setters.setMusic,
-        placeholder: "Digite o nome da música",
+        placeholder: t.FORM_PLACEHOLDER_MUSIC,
       },
     },
     {
-      label: DICT[settings.selectedLanguage].FORM_LABEL_ANIME,
+      label: t.FORM_LABEL_ANIME,
       name: "anime",
       input: {
         value: formData.anime,
         onChangeText: setters.setAnime,
-        placeholder: "Digite o nome do anime, visual novel ou jogo",
+        placeholder: t.FORM_PLACEHOLDER_ANIME,
       },
     },
     {
-      label: DICT[settings.selectedLanguage].FORM_LABEL_REQUEST,
+      label: t.FORM_LABEL_REQUEST,
       optional: true,
       name: "request",
       input: {
         value: formData.request,
         onChangeText: setters.setRequest,
-        placeholder: "Digite um recado para o locutor",
+        placeholder: t.FORM_PLACEHOLDER_REQUEST,
         multiline: true,
         onEndEditing: handleSubmit,
       },
@@ -170,56 +169,30 @@ export function LiveRequestModal({ handleClose, ...rest }: Props) {
   ];
 
   return (
-    <Modal animationType="slide" statusBarTranslucent transparent {...rest}>
-      <KeyboardAvoidingView behavior="padding" style={styles.container}>
-        <TouchableOpacity
-          style={{
-            height: "100%",
-          }}
-          onPress={handleClose}
-        />
-        <View style={styles.content}>
-          <ScrollView
-            contentContainerStyle={{
-              alignItems: "center",
-            }}
-          >
-            <TouchableOpacity style={styles.closeArea} onPress={handleClose}>
-              <Image style={styles.closeAreaIcon} source={CloseIcon} />
-            </TouchableOpacity>
-            <Text style={styles.title}>
-              Faça seu pedido para o Locutor ao vivo!
-            </Text>
-            {FORM_BUILDER_MAPPER.map((item, index) => (
-              <View
-                style={{
-                  width: "85%",
-                }}
-                key={index}
-              >
-                <Label text={item.label} optional={item.optional} />
-                <Input
-                  value={formData[item.name as keyof typeof formData]}
-                  onChangeText={item.input.onChangeText}
-                  placeholder={item.input.placeholder}
-                  multiline={item.input.multiline}
-                  onEndEditing={item.input.onEndEditing}
-                  disabled={isSubmitting}
-                />
-              </View>
-            ))}
-            {isSubmitting ? (
-              <ActivityIndicator color={THEME.COLORS.WHITE_TEXT} />
-            ) : (
-              <TouchableOpacity onPress={handleSubmit} style={styles.okButton}>
-                <Text style={styles.okText}>
-                  {DICT[settings.selectedLanguage].SEND_REQUEST_BUTTON_TEXT}
-                </Text>
-              </TouchableOpacity>
-            )}
-          </ScrollView>
-        </View>
-      </KeyboardAvoidingView>
-    </Modal>
+    <Sheet visible={visible} onClose={handleClose} withKeyboard>
+      <GestureScrollView contentContainerStyle={styles.scrollContent}>
+        <Text style={styles.title}>{t.LIVE_REQUEST_TITLE}</Text>
+        {FORM_BUILDER_MAPPER.map((item, index) => (
+          <View style={styles.field} key={index}>
+            <Label text={item.label} optional={item.optional} />
+            <Input
+              value={formData[item.name as keyof typeof formData]}
+              onChangeText={item.input.onChangeText}
+              placeholder={item.input.placeholder}
+              multiline={item.input.multiline}
+              onEndEditing={item.input.onEndEditing}
+              disabled={isSubmitting}
+            />
+          </View>
+        ))}
+        {isSubmitting ? (
+          <ActivityIndicator color={THEME.COLORS.TEXT} />
+        ) : (
+          <TouchableOpacity onPress={handleSubmit} style={styles.okButton}>
+            <Text style={styles.okText}>{t.SEND_REQUEST_BUTTON_TEXT}</Text>
+          </TouchableOpacity>
+        )}
+      </GestureScrollView>
+    </Sheet>
   );
 }

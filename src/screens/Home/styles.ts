@@ -1,5 +1,15 @@
 import { StyleSheet } from "react-native";
 
+/** Designer's vertical rhythm between the player sections. */
+const RHYTHM = {
+  LISTENERS: 10,
+  COVER: 11,
+  TIME_TOP: 10,
+  TIME_BOTTOM: 8,
+  LIVE: 9,
+  PROGRAM: 9,
+};
+
 export const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -9,30 +19,20 @@ export const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
-  buttons: {
-    width: "100%",
-    flexDirection: "row",
-    justifyContent: "space-evenly",
-  },
   listenersWrapper: {
-    marginBottom: 10,
+    marginBottom: RHYTHM.LISTENERS,
   },
   coverWrapper: {
-    marginBottom: 11,
+    marginBottom: RHYTHM.COVER,
   },
   timeRemainingWrapper: {
-    marginTop: 10,
-    marginBottom: 8,
+    marginTop: RHYTHM.TIME_TOP,
+    marginBottom: RHYTHM.TIME_BOTTOM,
   },
   liveWrapper: {
-    marginBottom: 9,
+    marginBottom: RHYTHM.LIVE,
   },
   programWrapper: {
-    marginBottom: 9,
+    marginBottom: RHYTHM.PROGRAM,
   },
-  /*
-  oscilloscopeAndLogo: {
-    alignItems: "center",
-  },
-  */
 });

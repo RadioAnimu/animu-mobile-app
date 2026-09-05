@@ -22,8 +22,8 @@ export function ButtonKBPS({
         styles.container,
         {
           backgroundColor: !selected
-            ? THEME.COLORS.SHAPE
-            : THEME.COLORS.BITRATEBTNS,
+            ? THEME.COLORS.BRAND
+            : THEME.COLORS.FRAME,
         },
       ]}
     >
@@ -31,7 +31,7 @@ export function ButtonKBPS({
         style={[
           styles.category,
           {
-            color: selected ? THEME.COLORS.WHITE_TEXT : THEME.COLORS.PRIMARY,
+            color: selected ? THEME.COLORS.TEXT : THEME.COLORS.SURFACE,
           },
         ]}
       >
@@ -41,7 +41,7 @@ export function ButtonKBPS({
         style={[
           styles.kbps,
           {
-            color: selected ? THEME.COLORS.WHITE_TEXT : THEME.COLORS.PRIMARY,
+            color: selected ? THEME.COLORS.TEXT : THEME.COLORS.SURFACE,
           },
         ]}
       >

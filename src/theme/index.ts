@@ -1,48 +1,80 @@
 export const THEME = {
   COLORS: {
-    BACKGROUND_900: "#160135",
-    BACKGROUND_800: "#471654",
+    APP_BG: "#471654",
+    BG_DEEP: "#160135",
 
-    TEXT: "#000000",
-    WHITE_TEXT: "#FFFFFF",
+    SURFACE: "#270052",
+    BRAND: "#6BDB00",
+    FRAME: "#42008C",
+    LIVE: "#FF0000",
 
-    CAPTION_500: "#6bdb00",
+    TEXT: "#FFFFFF",
+    TEXT_ON_LIGHT: "#000000",
+    TEXT_SOFT: "rgba(255, 255, 255, 0.7)",
+    TEXT_DIM: "rgba(255, 255, 255, 0.5)",
+    SWITCH_OFF: "rgba(255, 255, 255, 0.25)",
+    HAIRLINE: "rgba(255, 255, 255, 0.15)",
+    SURFACE_SUBTLE: "rgba(255, 255, 255, 0.08)",
 
-    SHAPE: "#6BDB00",
+    SCRIM: "rgba(0, 0, 0, 0.6)",
 
-    PRIMARY: "#270052",
-    COVER: "#42008C",
-    SUCCESS: "#34D399",
-    ALERT: "#F87171",
-    LISTENERS: "#42008C",
-    BITRATEBTNS: "#42008C",
-    REQUEST: "#42008c",
-    LIVE_PROGRAM: "red",
-    OVERLAY: "rgba(0,0,0,0.6)",
-    FAZER_PEDIDO: "#5100A3",
-    FAZER_PEDIDO_BORDER: "#220056",
-    PEDIDO_POSSIVEL: "#5700B8",
-    PEDIDO_IMPOSSIVEL: "#24004D",
+    ERROR: "#F87171",
+
+    INPUT_BG: "#5100A3",
+    INPUT_BORDER: "#220056",
+    ROW_ACTIVE: "#5700B8",
+    ROW_INACTIVE: "#24004D",
+  },
+
+  OPACITY: {
+    DISABLED: 0.5,
+    SOFT: 0.7,
   },
 
   FONT_FAMILY: {
     REGULAR: "proximanova-reg",
-    LIGHT: "proximanova-light",
     BOLD: "proximanova-bold",
-    BLACK: "ProximaNova-Black",
   },
 
   FONT_SIZE: {
-    BITRATE_BTNS: 13,
-    BITRATE_LABEL: 16,
-    SM: 14,
-    MD: 20,
-    LG: 22,
-    MODAL_TITLE_LIVE_REQUEST: 16,
-    MENU_ITEM: 19,
-    PROGRAM_LABELS: 19,
-    FOOTER: 12,
-    ULTIMAS_PEDIDAS: 16,
-    INFO_PROGRAM: 16,
+    CAPTION: 12,
+    LABEL: 13,
+    BODY: 14,
+    LIST: 16,
+    SUBHEAD: 19,
+    HEADING: 20,
+    TITLE: 22,
+  },
+
+  LINE_HEIGHT: {
+    BODY: 16,
+    SUBHEAD: 20,
+    HEADING: 27.5,
+  },
+
+  ICON: {
+    MD: 22,
+    LG: 24,
+    XL: 40,
+  },
+
+  SPACE: {
+    XXS: 2,
+    XS: 4,
+    SM: 8,
+    MD: 12,
+    LG: 16,
+    XL: 20,
+    XXL: 24,
+    XXXL: 32,
+  },
+
+  RADIUS: {
+    SM: 6,
+    MD: 8,
+    LG: 10,
+    XL: 12,
+    SHEET: 20,
+    CIRCLE: 999,
   },
 };

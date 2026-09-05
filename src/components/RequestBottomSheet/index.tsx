@@ -3,10 +3,6 @@ import { Image } from "expo-image";
 import React, { useState } from "react";
 import {
   ActivityIndicator,
-  Image as RNImage,
-  KeyboardAvoidingView,
-  Modal,
-  Platform,
   ScrollView,
   Text,
   TextInput,
@@ -20,8 +16,8 @@ import { User } from "../../core/domain/user";
 import { DICT } from "../../i18n";
 import { THEME } from "../../theme";
 import { Cover } from "../Cover";
-import DragIcon from "../../assets/icons/ArrastarParaBaixo.png";
 import { styles } from "./styles";
+import { Sheet } from "../Sheet";
 
 type SubmitStatus = "idle" | "submitting" | "success" | "error";
 
@@ -87,42 +83,17 @@ export function RequestBottomSheet({
   const isDone = status === "success" || status === "error";
 
   return (
-    <Modal
+    <Sheet
       visible={visible}
-      animationType="slide"
-      transparent
-      statusBarTranslucent
-      onRequestClose={isDone || !isSubmitting ? onClose : undefined}
+      onClose={onClose}
+      closable={!isSubmitting}
+      withKeyboard
     >
-      <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
-        style={styles.overlay}
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        contentContainerStyle={styles.scrollContent}
       >
-        {/* Tap-outside only when not submitting */}
-        <TouchableOpacity
-          style={styles.backdrop}
-          activeOpacity={1}
-          onPress={!isSubmitting ? onClose : undefined}
-        />
-
-        <View style={styles.sheet}>
-          {/* Drag handle */}
-          <TouchableOpacity
-            style={styles.closeArea}
-            onPress={!isSubmitting ? onClose : undefined}
-          >
-            <RNImage source={DragIcon} style={styles.dragIcon} />
-          </TouchableOpacity>
-
-          <ScrollView
-            showsVerticalScrollIndicator={false}
-            keyboardShouldPersistTaps="handled"
-            contentContainerStyle={{
-              gap: 16,
-              paddingHorizontal: 16,
-              paddingBottom: 8,
-            }}
-          >
             {/* Track row */}
             {track && (
               <View style={styles.trackRow}>
@@ -160,14 +131,14 @@ export function RequestBottomSheet({
                 {status === "success" ? (
                   <MaterialIcons
                     name="check-circle"
-                    size={40}
-                    color={THEME.COLORS.SHAPE}
+                    size={THEME.ICON.XL}
+                    color={THEME.COLORS.BRAND}
                   />
                 ) : (
                   <MaterialIcons
                     name="error"
-                    size={40}
-                    color={THEME.COLORS.ALERT}
+                    size={THEME.ICON.XL}
+                    color={THEME.COLORS.ERROR}
                   />
                 )}
                 <Text
@@ -195,7 +166,7 @@ export function RequestBottomSheet({
                 <TextInput
                   style={[styles.input, isSubmitting && styles.inputDisabled]}
                   placeholder={DICT[lang].SEND_REQUEST_PLACEHOLDER}
-                  placeholderTextColor={THEME.COLORS.TEXT}
+                  placeholderTextColor={THEME.COLORS.TEXT_ON_LIGHT}
                   value={message}
                   onChangeText={setMessage}
                   editable={!isSubmitting}
@@ -216,16 +187,14 @@ export function RequestBottomSheet({
               ]}
             >
               {isSubmitting ? (
-                <ActivityIndicator color={THEME.COLORS.WHITE_TEXT} />
+                <ActivityIndicator color={THEME.COLORS.TEXT} />
               ) : (
                 <Text style={styles.okText}>
-                  {isDone ? "OK" : DICT[lang].SEND_REQUEST_BUTTON_TEXT}
+                  {isDone ? DICT[lang].OK_BUTTON : DICT[lang].SEND_REQUEST_BUTTON_TEXT}
                 </Text>
               )}
             </TouchableOpacity>
           </ScrollView>
-        </View>
-      </KeyboardAvoidingView>
-    </Modal>
+    </Sheet>
   );
 }

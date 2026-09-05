@@ -70,7 +70,7 @@ export function Cover({ cover, style, cachePolicy }: Props) {
   return (
     <Image
       source={showFallback ? DEFAULT_COVER : { uri: cover }}
-      style={[{ backgroundColor: THEME.COLORS.BACKGROUND_800 }, style ?? styles.image]}
+      style={[{ backgroundColor: THEME.COLORS.APP_BG }, style ?? styles.image]}
       placeholder={DEFAULT_COVER}
       placeholderContentFit="cover"
       onError={() =>

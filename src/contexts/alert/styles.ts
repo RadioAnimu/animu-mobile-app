@@ -1,56 +1,51 @@
 import { StyleSheet } from "react-native";
 import { THEME } from "../../theme";
 
+const CONTENT_WIDTH = 311;
+const IMG_HEIGHT = 140;
+const PORTAL_Z_INDEX = 9999;
+
 export const styles = StyleSheet.create({
   container: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: THEME.COLORS.OVERLAY,
+    backgroundColor: THEME.COLORS.SCRIM,
+    zIndex: PORTAL_Z_INDEX,
   },
   content: {
-    width: 311,
-    backgroundColor: THEME.COLORS.PRIMARY,
+    width: CONTENT_WIDTH,
+    backgroundColor: THEME.COLORS.SURFACE,
     alignItems: "center",
-    borderRadius: 8,
-    padding: 8,
+    borderRadius: THEME.RADIUS.MD,
+    padding: THEME.SPACE.SM,
   },
   closeIcon: {
     alignSelf: "flex-end",
   },
   img: {
-    height: 140,
+    height: IMG_HEIGHT,
     width: "100%",
-    borderRadius: 8,
+    borderRadius: THEME.RADIUS.MD,
     resizeMode: "contain",
-    marginBottom: 20,
+    marginBottom: THEME.SPACE.XL,
   },
   text: {
-    color: THEME.COLORS.WHITE_TEXT,
+    color: THEME.COLORS.TEXT,
     fontFamily: THEME.FONT_FAMILY.BOLD,
-    fontSize: THEME.FONT_SIZE.SM,
+    fontSize: THEME.FONT_SIZE.BODY,
     textAlign: "center",
-    marginBottom: 20,
+    marginBottom: THEME.SPACE.XL,
     width: "85%",
-  },
-  input: {
-    color: THEME.COLORS.WHITE_TEXT,
-    backgroundColor: THEME.COLORS.FAZER_PEDIDO,
-    textAlign: "center",
-    paddingVertical: 5,
-    paddingHorizontal: 10,
-    width: "85%",
-    borderRadius: 8,
-    marginBottom: 20,
   },
   okButton: {
-    backgroundColor: THEME.COLORS.SHAPE,
-    padding: 10,
-    borderRadius: 8,
+    backgroundColor: THEME.COLORS.BRAND,
+    padding: THEME.SPACE.MD,
+    borderRadius: THEME.RADIUS.MD,
   },
   okText: {
-    color: THEME.COLORS.WHITE_TEXT,
+    color: THEME.COLORS.TEXT,
     fontFamily: THEME.FONT_FAMILY.BOLD,
-    fontSize: THEME.FONT_SIZE.SM,
+    fontSize: THEME.FONT_SIZE.BODY,
   },
 });

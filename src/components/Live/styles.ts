@@ -1,35 +1,41 @@
 import { Dimensions, StyleSheet } from "react-native";
 import { THEME } from "../../theme";
 
+const TRACK_WIDTH = Dimensions.get("window").width;
+const INFO_MARGIN = 14;
+/** Designer-specified tight leading between the ticker lines. */
+const INFO_GAP = -3.823;
+const TITLE_MARGIN_TOP = 7;
+
 export const styles = StyleSheet.create({
   track: {
     flexDirection: "row",
-    width: Dimensions.get("window").width,
-    backgroundColor: "#270052",
+    width: TRACK_WIDTH,
+    backgroundColor: THEME.COLORS.SURFACE,
   },
   info: {
     flex: 1,
     flexDirection: "column",
     justifyContent: "center",
     overflow: "hidden",
-    marginHorizontal: 14,
-    gap: -3.823,
+    marginHorizontal: INFO_MARGIN,
+    gap: INFO_GAP,
   },
   title: {
-    color: THEME.COLORS.SHAPE,
-    fontSize: THEME.FONT_SIZE.LG,
+    color: THEME.COLORS.BRAND,
+    fontSize: THEME.FONT_SIZE.TITLE,
     fontFamily: THEME.FONT_FAMILY.BOLD,
     textAlign: "left",
-    marginTop: 7,
+    marginTop: TITLE_MARGIN_TOP,
   },
   song: {
-    color: THEME.COLORS.WHITE_TEXT,
-    fontSize: THEME.FONT_SIZE.MD,
+    color: THEME.COLORS.TEXT,
+    fontSize: THEME.FONT_SIZE.HEADING,
     fontFamily: THEME.FONT_FAMILY.REGULAR,
   },
   artist: {
-    color: THEME.COLORS.WHITE_TEXT,
-    fontSize: THEME.FONT_SIZE.MD,
+    color: THEME.COLORS.TEXT,
+    fontSize: THEME.FONT_SIZE.HEADING,
     fontFamily: THEME.FONT_FAMILY.BOLD,
   },
   hiddenMeasurement: {

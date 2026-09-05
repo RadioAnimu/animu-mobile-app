@@ -28,6 +28,8 @@ export type RootStackParamList = {
 
 const { Navigator, Screen } = createDrawerNavigator<RootStackParamList>();
 
+const DRAWER_WIDTH_RATIO = 0.8;
+
 export function AppRoutes() {
   const { settings } = useUserSettings();
 
@@ -35,10 +37,10 @@ export function AppRoutes() {
     <Navigator
       screenOptions={{
         headerShown: false,
-        overlayColor: THEME.COLORS.OVERLAY,
+        overlayColor: THEME.COLORS.SCRIM,
         drawerStyle: {
-          backgroundColor: THEME.COLORS.PRIMARY,
-          width: Dimensions.get("window").width * 0.8,
+          backgroundColor: THEME.COLORS.SURFACE,
+          width: Dimensions.get("window").width * DRAWER_WIDTH_RATIO,
         },
       }}
       drawerContent={(props) => <CustomDrawerContent {...props} />}

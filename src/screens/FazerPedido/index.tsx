@@ -37,6 +37,8 @@ import { styles } from "./styles";
 
 type Props = NativeStackScreenProps<RootStackParamList, "FazerPedido">;
 
+const LOGO_HEIGHT = 150;
+
 export function FazerPedido({ navigation }: Props) {
   const { user } = useAuth();
   const { settings } = useUserSettings();
@@ -148,13 +150,13 @@ export function FazerPedido({ navigation }: Props) {
 
   return (
     <Background>
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={styles.container} edges={["left", "right", "bottom"]}>
         <HeaderBar navigation={navigation} />
         <View style={styles.appContainer}>
-          <View style={{ marginVertical: 15 }}>
+          <View style={styles.logoWrapper}>
             <Logo
               img={IMGS[settings.selectedLanguage].MAKE_REQUEST}
-              size={150}
+              size={LOGO_HEIGHT}
             />
           </View>
 
@@ -164,7 +166,7 @@ export function FazerPedido({ navigation }: Props) {
               placeholder={
                 DICT[settings.selectedLanguage].REQUEST_SEARCH_PLACEHOLDER
               }
-              placeholderTextColor="#fff"
+              placeholderTextColor={THEME.COLORS.TEXT}
               value={searchState.query}
               onChangeText={(query) =>
                 setSearchState((prev) => ({ ...prev, query }))
@@ -174,25 +176,20 @@ export function FazerPedido({ navigation }: Props) {
             <TouchableOpacity onPress={handleSearch} style={styles.searchIcon}>
               <Ionicons
                 name="search-sharp"
-                size={24}
-                color={THEME.COLORS.WHITE_TEXT}
+                size={THEME.ICON.LG}
+                color={THEME.COLORS.TEXT}
               />
             </TouchableOpacity>
           </View>
 
-          <View
-            style={{
-              width: "100%",
-              flex: 1,
-            }}
-          >
+          <View style={styles.listWrapper}>
             {searchState.status === "loading" ? (
-              <ActivityIndicator color={THEME.COLORS.WHITE_TEXT} />
+              <ActivityIndicator color={THEME.COLORS.TEXT} />
             ) : (
               <FlatList
                 data={searchState.results}
                 keyExtractor={(item) => item.id}
-                contentContainerStyle={{ flexGrow: 1, gap: 10 }}
+                contentContainerStyle={styles.list}
                 renderItem={({ item }) => (
                   <RequestTrack
                     track={item}
@@ -211,10 +208,10 @@ export function FazerPedido({ navigation }: Props) {
                       disabled={searchState.status === "loadingMore"}
                     >
                       {searchState.status === "loadingMore" ? (
-                        <ActivityIndicator color={THEME.COLORS.WHITE_TEXT} />
+                        <ActivityIndicator color={THEME.COLORS.TEXT} />
                       ) : (
                         <Text style={styles.loadMoreText}>
-                          Load more results
+                          {DICT[settings.selectedLanguage].LOAD_MORE_RESULTS}
                         </Text>
                       )}
                     </TouchableOpacity>
