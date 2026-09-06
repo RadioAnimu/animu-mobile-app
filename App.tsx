@@ -3,6 +3,7 @@ import ErrorBoundary from "./src/components/ErrorBoundary";
 
 import { Routes } from "./src/routes";
 import { PlayerProvider } from "./src/contexts/player/PlayerProvider";
+import { LyricsProvider } from "./src/contexts/lyrics/LyricsProvider";
 import { UserSettingsProvider } from "./src/contexts/user/UserSettingsProvider";
 import { AlertProvider } from "./src/contexts/alert/AlertProvider";
 import { AuthProvider } from "./src/contexts/auth/AuthProvider";
@@ -19,11 +20,13 @@ export default function App() {
           <PortalProvider>
             <AlertProvider>
               <PlayerProvider>
-                <UserSettingsProvider>
-                  <AuthProvider>
-                    <Routes />
-                  </AuthProvider>
-                </UserSettingsProvider>
+                <LyricsProvider>
+                  <UserSettingsProvider>
+                    <AuthProvider>
+                      <Routes />
+                    </AuthProvider>
+                  </UserSettingsProvider>
+                </LyricsProvider>
               </PlayerProvider>
             </AlertProvider>
           </PortalProvider>

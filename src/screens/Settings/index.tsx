@@ -14,6 +14,7 @@ import { Background } from "../../components/Background";
 import { LoginComponent } from "../../components/CustomDrawer";
 import { CoverQualitySheet } from "../../components/CoverQualitySheet";
 import { LanguageSelectSheet } from "../../components/LanguageSelectSheet";
+import { JapaneseDictionarySection } from "./JapaneseDictionarySection";
 import { DICT, LANGS_KEY_VALUE_PAIRS } from "../../i18n";
 import { RootStackParamList } from "../../routes/app.routes";
 import { THEME } from "../../theme";
@@ -306,6 +307,12 @@ export function Settings({ navigation }: Props) {
               setCoverQualitySheetVisible(false);
             }}
           />
+
+          <Splitter />
+          <TitleSection
+            title={DICT[settings.selectedLanguage].SETTINGS_JP_TITLE}
+          />
+          <JapaneseDictionarySection />
 
           <Splitter />
           <TitleSection

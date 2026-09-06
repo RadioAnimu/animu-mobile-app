@@ -124,4 +124,23 @@ export const styles = StyleSheet.create({
     fontFamily: THEME.FONT_FAMILY.REGULAR,
     fontSize: THEME.FONT_SIZE.LIST,
   },
+  hintText: {
+    color: THEME.COLORS.TEXT_DIM,
+    fontFamily: THEME.FONT_FAMILY.REGULAR,
+    fontSize: THEME.FONT_SIZE.CAPTION,
+    marginTop: THEME.SPACE.XS,
+    paddingBottom: THEME.SPACE.SM,
+  },
+  progressTrack: {
+    height: 4,
+    borderRadius: THEME.RADIUS.SM,
+    backgroundColor: THEME.COLORS.SWITCH_OFF,
+    overflow: "hidden",
+    marginTop: THEME.SPACE.XS,
+  },
+  progressFill: {
+    height: "100%",
+    borderRadius: THEME.RADIUS.SM,
+    backgroundColor: THEME.COLORS.BRAND,
+  },
 });

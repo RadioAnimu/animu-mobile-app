@@ -55,7 +55,7 @@ function shallowEqual<T extends Record<string, unknown>>(a: T, b: T): boolean {
   return true;
 }
 
-function createStore<T extends Record<string, unknown>>(initialSnapshot: T) {
+export function createStore<T extends Record<string, unknown>>(initialSnapshot: T) {
   let snapshot = initialSnapshot;
   const listeners = new Set<Listener>();
 

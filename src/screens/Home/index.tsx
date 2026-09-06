@@ -12,6 +12,8 @@ import { Listeners } from "../../components/Listeners";
 import { Live } from "../../components/Live";
 import { LiveRequestModal } from "../../components/LiveRequestModal";
 import { Logo } from "../../components/Logo";
+import { LyricsButton } from "../../components/LyricsButton";
+import { LyricsSheet } from "../../components/LyricsSheet";
 import { PopUpProgram } from "../../components/PopUpProgram";
 import { Program } from "../../components/Program";
 import { TimeRemaining } from "../../components/TimeRemaining";
@@ -30,6 +32,7 @@ export const Home = ({ navigation }: Props) => {
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [isLiveRequestModalVisible, setIsLiveRequestModalVisible] =
     useState(false);
+  const [isLyricsVisible, setIsLyricsVisible] = useState(false);
 
   // UI Handlers
   const handleOpenProgramModal = useCallback(() => {
@@ -42,6 +45,14 @@ export const Home = ({ navigation }: Props) => {
 
   const handleLiveRequestModal = useCallback((state: boolean) => {
     setIsLiveRequestModalVisible(state);
+  }, []);
+
+  const handleOpenLyrics = useCallback(() => {
+    setIsLyricsVisible(true);
+  }, []);
+
+  const handleCloseLyrics = useCallback(() => {
+    setIsLyricsVisible(false);
   }, []);
 
   return (
@@ -61,8 +72,10 @@ export const Home = ({ navigation }: Props) => {
             </View>
 
             <View style={styles.coverWrapper}>
-              <TrackCover />
+              <TrackCover onPress={handleOpenLyrics} />
             </View>
+
+            <LyricsButton onPress={handleOpenLyrics} />
 
             <View style={styles.timeRemainingWrapper}>
               <TimeRemaining />
@@ -89,6 +102,8 @@ export const Home = ({ navigation }: Props) => {
           visible={isModalVisible}
           handleClose={handleCloseProgramModal}
         />
+
+        <LyricsSheet visible={isLyricsVisible} onClose={handleCloseLyrics} />
       </SafeAreaView>
     </Background>
   );

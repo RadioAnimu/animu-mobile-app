@@ -196,6 +196,24 @@ const DICT = {
   ERROR_MESSAGE: "O app encontrou um erro inesperado. Tente novamente.",
   ERROR_RETRY: "Tentar de novo",
   TEXT_COPIED: "Texto copiado!",
+  LYRICS: "Letras",
+  LYRICS_CLOSE: "Fechar letras",
+  LYRICS_NOT_FOUND: "Letra não encontrada",
+  LYRICS_NOT_FOUND_HINT:
+    "Ainda não encontramos uma correspondência confiável para esta música.",
+  LYRICS_INSTRUMENTAL: "Faixa instrumental — aproveite a música!",
+  LYRICS_ERROR: "Não foi possível carregar a letra",
+  LYRICS_RETRY: "Tentar novamente",
+  LYRICS_ROMAJI: "Romaji",
+  LYRICS_HIRAGANA: "Hiragana",
+  SETTINGS_JP_TITLE: "Japonês",
+  SETTINGS_JP_DICTIONARY_ROW: "Dicionário offline (romaji e furigana)",
+  SETTINGS_JP_DICTIONARY_HINT:
+    "Baixa ~17 MB uma vez. Libera leituras de kanji nas letras: modos romaji e hiragana.",
+  SETTINGS_JP_DICTIONARY_DOWNLOAD: "Baixar",
+  SETTINGS_JP_DICTIONARY_READY: "Pronto",
+  SETTINGS_JP_DICTIONARY_ERROR: "Falhou — tente novamente",
+  SETTINGS_JP_DICTIONARY_DELETE: "Excluir dicionário",
 };
 
 const NoArLabel = (props: SvgProps) => (

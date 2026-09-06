@@ -196,6 +196,23 @@ const DICT = {
   ERROR_MESSAGE: "予期しないエラーが発生したよ。もう一度試してね。",
   ERROR_RETRY: "もう一度試す",
   TEXT_COPIED: "コピーしました！",
+  LYRICS: "歌詞",
+  LYRICS_CLOSE: "歌詞を閉じる",
+  LYRICS_NOT_FOUND: "歌詞が見つかりません",
+  LYRICS_NOT_FOUND_HINT: "この曲の歌詞はまだ見つかっていません。",
+  LYRICS_INSTRUMENTAL: "インストゥルメンタル — 音楽をお楽しみください！",
+  LYRICS_ERROR: "歌詞を読み込めませんでした",
+  LYRICS_RETRY: "再試行",
+  LYRICS_ROMAJI: "ローマ字",
+  LYRICS_HIRAGANA: "ひらがな",
+  SETTINGS_JP_TITLE: "日本語",
+  SETTINGS_JP_DICTIONARY_ROW: "オフライン辞書（ローマ字・ふりがな）",
+  SETTINGS_JP_DICTIONARY_HINT:
+    "約17MBを一度だけダウンロードします。歌詞で漢字の読み方（ローマ字・ひらがな）が使えるようになります。",
+  SETTINGS_JP_DICTIONARY_DOWNLOAD: "ダウンロード",
+  SETTINGS_JP_DICTIONARY_READY: "準備完了",
+  SETTINGS_JP_DICTIONARY_ERROR: "失敗しました — 再試行",
+  SETTINGS_JP_DICTIONARY_DELETE: "辞書を削除",
 };
 
 const NoArLabel = (props: SvgProps) => (
