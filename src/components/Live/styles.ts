@@ -38,9 +38,4 @@ export const styles = StyleSheet.create({
     fontSize: THEME.FONT_SIZE.HEADING,
     fontFamily: THEME.FONT_FAMILY.BOLD,
   },
-  hiddenMeasurement: {
-    position: "absolute",
-    opacity: 0,
-    zIndex: -1,
-  },
 });
