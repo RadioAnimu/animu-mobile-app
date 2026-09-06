@@ -196,6 +196,7 @@ const DICT = {
   ERROR_TITLE: "Algo salió mal 💜",
   ERROR_MESSAGE: "La app encontró un error inesperado. Inténtalo de nuevo.",
   ERROR_RETRY: "Intentar de nuevo",
+  TEXT_COPIED: "¡Texto copiado!",
 };
 
 const NoArLabel = (props: SvgProps) => (

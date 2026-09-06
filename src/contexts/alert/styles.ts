@@ -48,4 +48,11 @@ export const styles = StyleSheet.create({
     fontFamily: THEME.FONT_FAMILY.BOLD,
     fontSize: THEME.FONT_SIZE.BODY,
   },
+  toastWrap: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    alignItems: "center",
+    zIndex: PORTAL_Z_INDEX,
+  },
 });

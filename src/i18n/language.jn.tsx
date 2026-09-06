@@ -195,6 +195,7 @@ const DICT = {
   ERROR_TITLE: "エラーが発生しちゃった💜",
   ERROR_MESSAGE: "予期しないエラーが発生したよ。もう一度試してね。",
   ERROR_RETRY: "もう一度試す",
+  TEXT_COPIED: "コピーしました！",
 };
 
 const NoArLabel = (props: SvgProps) => (

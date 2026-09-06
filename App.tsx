@@ -8,24 +8,27 @@ import { AlertProvider } from "./src/contexts/alert/AlertProvider";
 import { AuthProvider } from "./src/contexts/auth/AuthProvider";
 import { PortalProvider } from "./src/contexts/Portal";
 import { MyStatusBar } from "./src/components/MyStatusBar";
+import { SafeAreaProvider } from "react-native-safe-area-context";
 
 export default function App() {
   return (
     <ErrorBoundary>
-      <MyStatusBar />
-      <Background>
-        <PortalProvider>
-          <AlertProvider>
-            <PlayerProvider>
-              <UserSettingsProvider>
-                <AuthProvider>
-                  <Routes />
-                </AuthProvider>
-              </UserSettingsProvider>
-            </PlayerProvider>
-          </AlertProvider>
-        </PortalProvider>
-      </Background>
+      <SafeAreaProvider>
+        <MyStatusBar />
+        <Background>
+          <PortalProvider>
+            <AlertProvider>
+              <PlayerProvider>
+                <UserSettingsProvider>
+                  <AuthProvider>
+                    <Routes />
+                  </AuthProvider>
+                </UserSettingsProvider>
+              </PlayerProvider>
+            </AlertProvider>
+          </PortalProvider>
+        </Background>
+      </SafeAreaProvider>
     </ErrorBoundary>
   );
 }
