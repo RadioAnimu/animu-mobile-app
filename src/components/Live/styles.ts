@@ -5,7 +5,8 @@ const TRACK_WIDTH = Dimensions.get("window").width;
 const INFO_MARGIN = 14;
 /** Designer-specified tight leading between the ticker lines. */
 const INFO_GAP = -3.823;
-const TITLE_MARGIN_TOP = 7;
+/** Trims the font's descender space so the ink block centers vertically. */
+const INFO_PADDING_BOTTOM = 3;
 
 export const styles = StyleSheet.create({
   track: {
@@ -19,6 +20,7 @@ export const styles = StyleSheet.create({
     justifyContent: "center",
     overflow: "hidden",
     marginHorizontal: INFO_MARGIN,
+    paddingBottom: INFO_PADDING_BOTTOM,
     gap: INFO_GAP,
   },
   title: {
@@ -26,16 +28,18 @@ export const styles = StyleSheet.create({
     fontSize: THEME.FONT_SIZE.TITLE,
     fontFamily: THEME.FONT_FAMILY.BOLD,
     textAlign: "left",
-    marginTop: TITLE_MARGIN_TOP,
+    includeFontPadding: false,
   },
   song: {
     color: THEME.COLORS.TEXT,
     fontSize: THEME.FONT_SIZE.HEADING,
     fontFamily: THEME.FONT_FAMILY.REGULAR,
+    includeFontPadding: false,
   },
   artist: {
     color: THEME.COLORS.TEXT,
     fontSize: THEME.FONT_SIZE.HEADING,
     fontFamily: THEME.FONT_FAMILY.BOLD,
+    includeFontPadding: false,
   },
 });

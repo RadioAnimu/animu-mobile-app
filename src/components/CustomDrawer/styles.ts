@@ -2,7 +2,6 @@ import { StyleSheet } from "react-native";
 import { THEME } from "../../theme";
 
 const ICON_BOX_WIDTH = 32;
-const CARD_RADIUS = 14;
 
 export const DRAWER_GRID = {
   SCREEN_MARGIN: 12,
@@ -28,32 +27,41 @@ export const styles = StyleSheet.create({
     width: "100%",
     resizeMode: "contain",
   },
-  headerCard: {
+  bottom: {
+    marginTop: "auto",
+    minHeight: 76,
+    borderTopWidth: 1,
+    borderTopColor: THEME.COLORS.HAIRLINE,
+    paddingBottom: THEME.SPACE.LG,
+  },
+  accountRow: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: THEME.COLORS.FRAME,
-    borderRadius: CARD_RADIUS,
+    marginHorizontal: DRAWER_GRID.SCREEN_MARGIN,
     paddingHorizontal: THEME.SPACE.MD,
-    paddingVertical: THEME.SPACE.SM,
-    marginTop: THEME.SPACE.XS,
+    paddingVertical: THEME.SPACE.MD,
+    borderRadius: THEME.RADIUS.MD,
   },
-  headerRow: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
+  accountAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: THEME.RADIUS.CIRCLE,
+    borderWidth: 2,
+    borderColor: THEME.COLORS.BRAND,
+    backgroundColor: THEME.COLORS.APP_BG,
   },
-  settingsButton: {
-    width: 48,
-    height: 48,
+  accountIconBox: {
+    width: 40,
+    height: 40,
     alignItems: "center",
     justifyContent: "center",
-    marginRight: -THEME.SPACE.SM,
   },
-  loginButton: {
+  accountName: {
     flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    paddingVertical: THEME.SPACE.SM,
+    color: THEME.COLORS.TEXT,
+    fontFamily: THEME.FONT_FAMILY.BOLD,
+    fontSize: THEME.FONT_SIZE.LIST,
+    marginLeft: THEME.SPACE.MD,
   },
   section: {
     flexDirection: "row",

@@ -9,14 +9,13 @@ import {
   DrawerActions,
 } from "@react-navigation/native";
 import * as Linking from "expo-linking";
-import { Image, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { useState } from "react";
+import { Image, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { API } from "../../api";
 import { useAuth } from "../../contexts/auth/AuthProvider";
 import { useUserSettings } from "../../contexts/user/UserSettingsProvider";
 import { DICT, IMGS } from "../../i18n";
 import { THEME } from "../../theme";
-import { DiscordProfile } from "../DiscordProfile";
 import { styles } from "./styles";
 
 export const MENU_ICON_SIZE = 22;
@@ -87,24 +86,6 @@ export function LinkMenuItem({ Icon, title, url }: LinkMenuItemProps) {
   );
 }
 
-export function LoginComponent() {
-  const { settings } = useUserSettings();
-  const { login } = useAuth();
-
-  return (
-    <TouchableOpacity
-      activeOpacity={0.7}
-      onPress={login}
-      style={styles.loginButton}
-    >
-      <DrawerIcon name="discord" />
-      <Text style={styles.navItemText}>
-        {DICT[settings.selectedLanguage].LOGIN_WORD} Discord
-      </Text>
-    </TouchableOpacity>
-  );
-}
-
 function NavItems({ state, descriptors, navigation }: DrawerContentComponentProps) {
   return (
     <View>
@@ -155,9 +136,55 @@ function NavItems({ state, descriptors, navigation }: DrawerContentComponentProp
   );
 }
 
+/**
+ * State-of-the-art drawer pattern (YouTube Music / Telegram): identity lives
+ * at the bottom as a plain nav-grade row — avatar + name + chevron into
+ * Settings; before login it starts the Discord flow directly.
+ */
+function AccountRow({ onPress }: { onPress: () => void }) {
+  const { settings } = useUserSettings();
+  const { user, login } = useAuth();
+
+  return (
+    <View style={styles.bottom}>
+      <TouchableOpacity
+        accessibilityRole="button"
+        accessibilityHint="Opens settings"
+        activeOpacity={0.7}
+        onPress={user?.sessionId ? onPress : login}
+        style={styles.accountRow}
+      >
+        {user?.sessionId ? (
+          <Image
+            source={{ uri: user.avatarUrl }}
+            style={styles.accountAvatar}
+          />
+        ) : (
+          <View style={styles.accountIconBox}>
+            <MaterialIcons
+              name="discord"
+              size={THEME.ICON.MD}
+              color={THEME.COLORS.TEXT}
+            />
+          </View>
+        )}
+        <Text style={styles.accountName}>
+          {user?.sessionId
+            ? user.nickname || user.username
+            : `${DICT[settings.selectedLanguage].LOGIN_WORD} Discord`}
+        </Text>
+        <MaterialIcons
+          name="chevron-right"
+          size={THEME.ICON.MD}
+          color={THEME.COLORS.TEXT_DIM}
+        />
+      </TouchableOpacity>
+    </View>
+  );
+}
+
 export function CustomDrawerContent(props: DrawerContentComponentProps) {
   const { settings } = useUserSettings();
-  const { user } = useAuth();
   const { navigation } = props;
   const [logoWidth, setLogoWidth] = useState(0);
 
@@ -181,6 +208,7 @@ export function CustomDrawerContent(props: DrawerContentComponentProps) {
   return (
     <DrawerContentScrollView
       {...props}
+      contentContainerStyle={{ flexGrow: 1 }}
     >
       <View>
         <View style={styles.header}>
@@ -199,31 +227,6 @@ export function CustomDrawerContent(props: DrawerContentComponentProps) {
               style={[styles.logo, logoWidth > 0 && { height: logoWidth / LOGO_ASPECT_RATIO }]}
             />
           </TouchableOpacity>
-
-          {user?.sessionId ? (
-            <TouchableOpacity
-              activeOpacity={0.8}
-              onPress={goToSettings}
-              style={styles.headerCard}
-            >
-              <View style={styles.headerRow}>
-                <DiscordProfile user={user} />
-              </View>
-              <DrawerIcon name="settings" />
-            </TouchableOpacity>
-          ) : (
-            <View style={styles.headerCard}>
-              <LoginComponent />
-              <TouchableOpacity
-                accessibilityRole="button"
-                hitSlop={4}
-                onPress={goToSettings}
-                style={styles.settingsButton}
-              >
-                <DrawerIcon name="settings" />
-              </TouchableOpacity>
-            </View>
-          )}
         </View>
 
         <Separator
@@ -245,6 +248,8 @@ export function CustomDrawerContent(props: DrawerContentComponentProps) {
           />
         ))}
       </View>
+
+      <AccountRow onPress={goToSettings} />
     </DrawerContentScrollView>
   );
 }
