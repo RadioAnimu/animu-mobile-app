@@ -17,6 +17,7 @@ interface Props {
 }
 
 const QUALITY_LABEL_KEY = {
+  off: "SETTINGS_QUALITY_LIVE_LABEL_OFF",
   high: "SETTINGS_QUALITY_LIVE_LABEL_HIGH",
   medium: "SETTINGS_QUALITY_LIVE_LABEL_MEDIUM",
   low: "SETTINGS_QUALITY_LIVE_LABEL_LOW",
@@ -34,7 +35,10 @@ export function CoverQualitySheet({ visible, onClose }: Props) {
 
       <FlatList
         style={styles.list}
-        data={COVER_QUALITY_SAMPLES}
+        data={[
+          { key: "off" as const, pixelWidth: 0, pixelHeight: 0, sizeBytes: 0 },
+          ...COVER_QUALITY_SAMPLES,
+        ]}
         keyExtractor={(item) => item.key}
         renderItem={({ item }) => {
           const selected = settings.liveQualityCover === item.key;
@@ -49,15 +53,28 @@ export function CoverQualitySheet({ visible, onClose }: Props) {
               }}
               style={styles.row}
             >
-              <Image source={item.source} style={styles.preview} />
+              {item.key === "off" ? (
+                <Image
+                  source={require("../../../assets/default-cover.png")}
+                  style={styles.preview}
+                />
+              ) : (
+                <Image source={item.source} style={styles.preview} />
+              )}
               <View style={styles.info}>
                 <Text style={styles.qualityName}>
                   {DICT[settings.selectedLanguage][QUALITY_LABEL_KEY[item.key]]}
                 </Text>
-                <Text style={styles.qualityMeta}>
-                  {item.pixelWidth}×{item.pixelHeight} ·{" "}
-                  {formatBytes(item.sizeBytes)}
-                </Text>
+                {item.key === "off" ? (
+                  <Text style={styles.qualityMeta}>
+                    {DICT[settings.selectedLanguage].SETTINGS_QUALITY_LIVE_OFF_HINT}
+                  </Text>
+                ) : (
+                  <Text style={styles.qualityMeta}>
+                    {item.pixelWidth}×{item.pixelHeight} ·{" "}
+                    {formatBytes(item.sizeBytes)}
+                  </Text>
+                )}
               </View>
               {selected && (
                 <MaterialIcons

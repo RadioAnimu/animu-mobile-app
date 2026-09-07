@@ -1,7 +1,7 @@
 import type { ArtworkQuality } from "../../@types/artwork-quality";
 
-/** Cover quality the sheet previews (the "off" option lives in the toggle). */
-export type CoverQualityKey = Exclude<ArtworkQuality, "off">;
+/** Cover quality options shown in the selector, including disabling covers. */
+export type CoverQualityKey = ArtworkQuality;
 
 export interface CoverQualitySample {
   key: CoverQualityKey;

@@ -2,7 +2,6 @@ import { StyleSheet } from "react-native";
 import { THEME } from "../../theme";
 
 const ICON_BOX_WIDTH = 32;
-const LOGO_HEIGHT = 90;
 const CARD_RADIUS = 14;
 
 export const DRAWER_GRID = {
@@ -26,7 +25,6 @@ export const styles = StyleSheet.create({
     marginBottom: THEME.SPACE.XS,
   },
   logo: {
-    height: LOGO_HEIGHT,
     width: "100%",
     resizeMode: "contain",
   },
@@ -60,7 +58,7 @@ export const styles = StyleSheet.create({
   section: {
     flexDirection: "row",
     alignItems: "center",
-    marginHorizontal: THEME.SPACE.SM,
+    marginHorizontal: DRAWER_GRID.SCREEN_MARGIN,
     paddingHorizontal: THEME.SPACE.MD,
     marginTop: 18,
     marginBottom: THEME.SPACE.SM,
@@ -79,7 +77,7 @@ export const styles = StyleSheet.create({
   navItem: {
     flexDirection: "row",
     alignItems: "center",
-    marginHorizontal: THEME.SPACE.SM,
+    marginHorizontal: DRAWER_GRID.SCREEN_MARGIN,
     paddingHorizontal: THEME.SPACE.MD,
     paddingVertical: THEME.SPACE.MD,
     borderRadius: THEME.RADIUS.MD,
@@ -96,21 +94,5 @@ export const styles = StyleSheet.create({
   },
   navItemTextFocused: {
     color: THEME.COLORS.SURFACE,
-  },
-  footer: {
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: THEME.SPACE.LG,
-    marginTop: THEME.SPACE.XL,
-    paddingHorizontal: THEME.SPACE.XXL,
-  },
-  footerText: {
-    color: THEME.COLORS.TEXT_SOFT,
-    textAlign: "center",
-    fontFamily: THEME.FONT_FAMILY.BOLD,
-    fontSize: THEME.FONT_SIZE.CAPTION,
-  },
-  footerAuthor: {
-    textDecorationLine: "underline",
   },
 });

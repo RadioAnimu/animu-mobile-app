@@ -1,4 +1,7 @@
-import { useEffect, useRef, useState } from "react";import { MaterialIcons } from "@expo/vector-icons";
+import { useEffect, useRef, useState } from "react";
+import type { ComponentProps } from "react";
+import { MaterialIcons } from "@expo/vector-icons";
+import { Image } from "expo-image";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 
 import {
@@ -11,16 +14,19 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import Svg, { Path, Rect, SvgProps } from "react-native-svg";
 import { Background } from "../../components/Background";
-import { LoginComponent } from "../../components/CustomDrawer";
 import { CoverQualitySheet } from "../../components/CoverQualitySheet";
 import { LanguageSelectSheet } from "../../components/LanguageSelectSheet";
 import { DICT, LANGS_KEY_VALUE_PAIRS } from "../../i18n";
 import { RootStackParamList } from "../../routes/app.routes";
 import { THEME } from "../../theme";
-import { HEADER_HEIGHT, styles, SWITCH } from "./styles";
-import { DiscordProfile } from "../../components/DiscordProfile";
+import { HEADER_HEIGHT, SECTION_ICON_SIZE, styles, SWITCH } from "./styles";
 import { useUserSettings } from "../../contexts/user/UserSettingsProvider";
 import { useAuth } from "../../contexts/auth/AuthProvider";
+import { author } from "../../../package.json";
+import * as Linking from "expo-linking";
+
+/** Dev portfolio — the credits hyperlink target. */
+const PORTFOLIO_URL = "https://rmotafreitas.dev";
 
 export const BackArrow = (props: SvgProps) => (
   <Svg width="21" height="19" viewBox="0 0 21 19" fill="none">
@@ -32,20 +38,33 @@ export const BackArrow = (props: SvgProps) => (
   </Svg>
 );
 
+/** Labels carry a trailing colon for back-compat — row UI renders clean. */
+const cleanLabel = (label: string) => label.replace(/[:：]\s*$/, "");
+
+type MaterialIconName = ComponentProps<typeof MaterialIcons>["name"];
+
 interface TitleSectionProps {
   title: string;
+  icon: MaterialIconName;
 }
 
-export function TitleSection({ title }: TitleSectionProps) {
+function TitleSection({ title, icon }: TitleSectionProps) {
   return (
-    <View style={styles.titleSection}>
-      <Text style={styles.titleText}>{title}</Text>
+    <View style={styles.section}>
+      <View style={styles.iconBox}>
+        <MaterialIcons
+          name={icon}
+          size={SECTION_ICON_SIZE}
+          color={THEME.COLORS.TEXT_SOFT}
+        />
+      </View>
+      <Text style={styles.sectionText}>{title.toUpperCase()}</Text>
     </View>
   );
 }
 
-function Splitter() {
-  return <View style={styles.splitter} />;
+function Divider() {
+  return <View style={styles.divider} />;
 }
 
 interface SwitchProps {
@@ -94,20 +113,46 @@ interface SettingsRowProps {
   label: string;
   value: boolean;
   onToggle: () => void;
-  isLast?: boolean;
 }
 
-function SettingsRow({ label, value, onToggle, isLast }: SettingsRowProps) {
+function SettingsRow({ label, value, onToggle }: SettingsRowProps) {
   return (
     <TouchableOpacity
       accessibilityRole="switch"
       accessibilityState={{ checked: value }}
       activeOpacity={0.7}
       onPress={onToggle}
-      style={[styles.row, isLast && styles.rowLast]}
+      style={styles.row}
     >
       <Text style={styles.rowLabel}>{label}</Text>
       <Switch value={value} />
+    </TouchableOpacity>
+  );
+}
+
+interface ValueRowProps {
+  label: string;
+  value: string;
+  onPress: () => void;
+}
+
+function ValueRow({ label, value, onPress }: ValueRowProps) {
+  return (
+    <TouchableOpacity
+      accessibilityRole="button"
+      activeOpacity={0.7}
+      onPress={onPress}
+      style={styles.row}
+    >
+      <Text style={styles.rowLabel}>{label}</Text>
+      <View style={styles.rowValue}>
+        <Text style={styles.rowValueText}>{value}</Text>
+        <MaterialIcons
+          name="chevron-right"
+          size={THEME.ICON.MD}
+          color={THEME.COLORS.TEXT_DIM}
+        />
+      </View>
     </TouchableOpacity>
   );
 }
@@ -123,17 +168,17 @@ const COVER_QUALITY_LABEL_KEY = {
 export function Settings({ navigation }: Props) {
   const insets = useSafeAreaInsets();
   const { settings, updateSettings } = useUserSettings();
-  const { user, logout } = useAuth();
+  const { user, logout, login } = useAuth();
   const [languageSheetVisible, setLanguageSheetVisible] = useState(false);
   const [coverQualitySheetVisible, setCoverQualitySheetVisible] =
     useState(false);
 
-  const toggleLiveCovers = () => {
-    updateSettings({
-      liveQualityCover:
-        settings.liveQualityCover === "off" ? "low" : "off",
-    });
-  };
+  const dict = DICT[settings.selectedLanguage];
+
+  const qualityLabel =
+    settings.liveQualityCover === "off"
+      ? dict.SETTINGS_QUALITY_LIVE_LABEL_OFF
+      : dict[COVER_QUALITY_LABEL_KEY[settings.liveQualityCover]];
 
   return (
     <Background>
@@ -156,87 +201,95 @@ export function Settings({ navigation }: Props) {
           >
             <BackArrow />
           </TouchableOpacity>
-          <Text style={styles.settingsText}>
-            {DICT[settings.selectedLanguage].SETTINGS_TITLE}
-          </Text>
+          <Text style={styles.settingsText}>{dict.SETTINGS_TITLE}</Text>
           <View style={styles.headerButton} />
         </View>
         <ScrollView contentContainerStyle={styles.appContainer}>
-          <TitleSection
-            title={DICT[settings.selectedLanguage].SETTINGS_ACCOUNT_TITLE}
-          />
-          <View style={styles.card}>
-            {user?.sessionId ? (
-              <View style={styles.cardRow}>
-                <View style={styles.profile}>
-                  <DiscordProfile user={user} />
+          <TitleSection title={dict.SETTINGS_ACCOUNT_TITLE} icon="person" />
+          {user?.sessionId ? (
+            <View style={styles.group}>
+              <View style={[styles.row, styles.accountRow]}>
+                <Image
+                  source={{ uri: user.avatarUrl }}
+                  style={styles.accountAvatar}
+                />
+                <View style={styles.accountInfo}>
+                  <Text style={styles.accountName}>
+                    {user.nickname || user.username}
+                  </Text>
+                  <View style={styles.accountService}>
+                    <View style={styles.accountServiceIcon}>
+                      <MaterialIcons
+                        name="discord"
+                        size={THEME.ICON.MD}
+                        color={THEME.COLORS.TEXT_DIM}
+                      />
+                    </View>
+                    <Text style={styles.accountCaption}>
+                      {dict.SETTINGS_ACCOUNT_CONNECTED}
+                    </Text>
+                  </View>
                 </View>
-                <TouchableOpacity
-                  accessibilityRole="button"
-                  accessibilityLabel="logout"
-                  onPress={async () => {
-                    await logout();
-                  }}
-                  style={styles.iconButton}
-                >
+              </View>
+              <Divider />
+              <TouchableOpacity
+                accessibilityRole="button"
+                accessibilityLabel="logout"
+                activeOpacity={0.7}
+                onPress={async () => {
+                  await logout();
+                }}
+                style={styles.row}
+              >
+                <Text style={[styles.rowLabel, styles.rowLabelDanger]}>
+                  {dict.SETTINGS_ACCOUNT_LOGOUT}
+                </Text>
+                <MaterialIcons
+                  name="logout"
+                  size={THEME.ICON.MD}
+                  color={THEME.COLORS.ERROR}
+                />
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <View style={styles.group}>
+              <TouchableOpacity
+                accessibilityRole="button"
+                activeOpacity={0.7}
+                onPress={login}
+                style={styles.row}
+              >
+                <View style={styles.accountServiceIcon}>
                   <MaterialIcons
-                    name="logout"
+                    name="discord"
                     size={THEME.ICON.MD}
                     color={THEME.COLORS.TEXT}
                   />
-                </TouchableOpacity>
-              </View>
-            ) : (
-              <View style={styles.cardRow}>
-                <LoginComponent />
-              </View>
-            )}
-          </View>
-
-          <Splitter />
-          <TitleSection
-            title={DICT[settings.selectedLanguage].SETTINGS_SAVE_DATA_TITLE}
-          />
-          <TouchableOpacity
-            accessibilityRole="button"
-            activeOpacity={0.7}
-            onPress={() => {
-              setCoverQualitySheetVisible(true);
-            }}
-            style={styles.row}
-          >
-            <Text style={styles.rowLabel}>
-              {DICT[settings.selectedLanguage].SETTINGS_QUALITY_LIVE_LABEL}
-            </Text>
-            <View style={styles.rowValue}>
-              <Text style={styles.rowValueText}>
-                {settings.liveQualityCover === "off"
-                  ? "—"
-                  : DICT[settings.selectedLanguage][
-                      COVER_QUALITY_LABEL_KEY[settings.liveQualityCover]
-                    ]}
-              </Text>
-              <MaterialIcons
-                name="chevron-right"
-                size={THEME.ICON.MD}
-                color={THEME.COLORS.TEXT_DIM}
-              />
+                </View>
+                <Text style={styles.rowLabel}>
+                  {dict.LOGIN_WORD} Discord
+                </Text>
+                <MaterialIcons
+                  name="chevron-right"
+                  size={THEME.ICON.MD}
+                  color={THEME.COLORS.TEXT_DIM}
+                />
+              </TouchableOpacity>
             </View>
-          </TouchableOpacity>
-          <View style={styles.rowsGroup}>
-            <SettingsRow
-              label={
-                DICT[settings.selectedLanguage]
-                  .SETTINGS_COVER_LIVE_LABEL_SWITCH
-              }
-              value={settings.liveQualityCover !== "off"}
-              onToggle={toggleLiveCovers}
+          )}
+
+          <TitleSection title={dict.SETTINGS_SAVE_DATA_TITLE} icon="cloud-off" />
+          <View style={styles.group}>
+            <ValueRow
+              label={cleanLabel(dict.SETTINGS_QUALITY_LIVE_LABEL)}
+              value={qualityLabel}
+              onPress={() => {
+                setCoverQualitySheetVisible(true);
+              }}
             />
+            <Divider />
             <SettingsRow
-              label={
-                DICT[settings.selectedLanguage]
-                  .SETTINGS_COVER_LAST_REQUESTED_SWITCH
-              }
+              label={cleanLabel(dict.SETTINGS_COVER_LAST_REQUESTED_SWITCH)}
               value={settings.lastRequestedCovers}
               onToggle={() => {
                 updateSettings({
@@ -244,11 +297,9 @@ export function Settings({ navigation }: Props) {
                 });
               }}
             />
+            <Divider />
             <SettingsRow
-              label={
-                DICT[settings.selectedLanguage]
-                  .SETTINGS_COVER_LAST_PLAYED_SWITCH
-              }
+              label={cleanLabel(dict.SETTINGS_COVER_LAST_PLAYED_SWITCH)}
               value={settings.lastPlayedCovers}
               onToggle={() => {
                 updateSettings({
@@ -256,12 +307,9 @@ export function Settings({ navigation }: Props) {
                 });
               }}
             />
+            <Divider />
             <SettingsRow
-              isLast
-              label={
-                DICT[settings.selectedLanguage]
-                  .SETTINGS_COVER_REQUESTED_SWITCH
-              }
+              label={cleanLabel(dict.SETTINGS_COVER_REQUESTED_SWITCH)}
               value={settings.coversInRequestSearch}
               onToggle={() => {
                 updateSettings({
@@ -271,29 +319,44 @@ export function Settings({ navigation }: Props) {
             />
           </View>
 
-          <Splitter />
-          <TouchableOpacity
-            accessibilityRole="button"
-            activeOpacity={0.7}
-            onPress={() => {
-              setLanguageSheetVisible(true);
-            }}
-            style={[styles.row, styles.rowLast]}
-          >
-            <Text style={styles.rowLabel}>
-              {DICT[settings.selectedLanguage].SETTINGS_LANGUAGE_SELECT_TITLE}
-            </Text>
-            <View style={styles.rowValue}>
-              <Text style={styles.rowValueText}>
-                {LANGS_KEY_VALUE_PAIRS[settings.selectedLanguage]}
+          <TitleSection title={dict.SETTINGS_GENERAL_TITLE} icon="language" />
+          <View style={styles.group}>
+            <ValueRow
+              label={cleanLabel(dict.SETTINGS_LANGUAGE_SELECT_TITLE)}
+              value={LANGS_KEY_VALUE_PAIRS[settings.selectedLanguage]}
+              onPress={() => {
+                setLanguageSheetVisible(true);
+              }}
+            />
+          </View>
+
+          <TitleSection title={dict.SETTINGS_MEMORY_TITLE} icon="memory" />
+          <View style={styles.group}>
+            <SettingsRow
+              label={cleanLabel(dict.SETTINGS_MEMORY_CLEAR_CACHE_SWITCH)}
+              value={settings.cacheEnabled}
+              onToggle={() => {
+                updateSettings({
+                  cacheEnabled: !settings.cacheEnabled,
+                });
+              }}
+            />
+          </View>
+
+          <View style={styles.footer}>
+            <TouchableOpacity
+              accessibilityRole="link"
+              activeOpacity={0.7}
+              onPress={() => {
+                void Linking.openURL(PORTFOLIO_URL);
+              }}
+            >
+              <Text style={styles.footerText}>
+                {dict.VERSION_TEXT} <Text style={styles.footerAuthor}>@{author}</Text>
               </Text>
-              <MaterialIcons
-                name="chevron-right"
-                size={THEME.ICON.MD}
-                color={THEME.COLORS.TEXT_DIM}
-              />
-            </View>
-          </TouchableOpacity>
+            </TouchableOpacity>
+          </View>
+
           <LanguageSelectSheet
             visible={languageSheetVisible}
             onClose={() => {
@@ -306,26 +369,6 @@ export function Settings({ navigation }: Props) {
               setCoverQualitySheetVisible(false);
             }}
           />
-
-          <Splitter />
-          <TitleSection
-            title={DICT[settings.selectedLanguage].SETTINGS_MEMORY_TITLE}
-          />
-          <View style={styles.rowsGroup}>
-            <SettingsRow
-              isLast
-              label={
-                DICT[settings.selectedLanguage]
-                  .SETTINGS_MEMORY_CLEAR_CACHE_SWITCH
-              }
-              value={settings.cacheEnabled}
-              onToggle={() => {
-                updateSettings({
-                  cacheEnabled: !settings.cacheEnabled,
-                });
-              }}
-            />
-          </View>
         </ScrollView>
       </SafeAreaView>
     </Background>

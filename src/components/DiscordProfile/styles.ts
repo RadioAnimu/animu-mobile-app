@@ -7,8 +7,7 @@ export const styles = StyleSheet.create({
   container: {
     flexDirection: "row",
     alignItems: "center",
-    width: "90%",
-    alignSelf: "center",
+    flex: 1,
     gap: THEME.SPACE.MD,
   },
   avatar: {

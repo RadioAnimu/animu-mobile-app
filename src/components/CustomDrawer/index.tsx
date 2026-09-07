@@ -10,7 +10,7 @@ import {
 } from "@react-navigation/native";
 import * as Linking from "expo-linking";
 import { Image, StyleSheet, Text, TouchableOpacity, View } from "react-native";
-import { author } from "../../../package.json";
+import { useState } from "react";
 import { API } from "../../api";
 import { useAuth } from "../../contexts/auth/AuthProvider";
 import { useUserSettings } from "../../contexts/user/UserSettingsProvider";
@@ -21,6 +21,9 @@ import { styles } from "./styles";
 
 export const MENU_ICON_SIZE = 22;
 const SECTION_ICON_SIZE = 18;
+
+/** Intrinsic ratio of the logo assets (1200×630 px). */
+const LOGO_ASPECT_RATIO = 1200 / 630;
 
 type MaterialIconName = ComponentProps<typeof MaterialIcons>["name"];
 
@@ -69,12 +72,17 @@ export function LinkMenuItem({ Icon, title, url }: LinkMenuItemProps) {
     <TouchableOpacity
       activeOpacity={0.7}
       onPress={() => {
-        Linking.openURL(url);
+        void Linking.openURL(url);
       }}
       style={styles.navItem}
     >
       {Icon && <Icon />}
       <Text style={styles.navItemText}>{title}</Text>
+      <MaterialIcons
+        name="open-in-new"
+        size={16}
+        color={THEME.COLORS.TEXT_DIM}
+      />
     </TouchableOpacity>
   );
 }
@@ -151,6 +159,7 @@ export function CustomDrawerContent(props: DrawerContentComponentProps) {
   const { settings } = useUserSettings();
   const { user } = useAuth();
   const { navigation } = props;
+  const [logoWidth, setLogoWidth] = useState(0);
 
   const goToSettings = () => {
     navigation.navigate("Settings");
@@ -169,17 +178,9 @@ export function CustomDrawerContent(props: DrawerContentComponentProps) {
     },
   ];
 
-  const goToNessSocial = () => {
-    Linking.openURL("https://x.com/rmotafreitas");
-  };
-
   return (
     <DrawerContentScrollView
       {...props}
-      contentContainerStyle={{
-        flexGrow: 1,
-        justifyContent: "space-between",
-      }}
     >
       <View>
         <View style={styles.header}>
@@ -189,10 +190,13 @@ export function CustomDrawerContent(props: DrawerContentComponentProps) {
               navigation.navigate("Home");
             }}
             style={styles.logoButton}
+            onLayout={(event) => {
+              setLogoWidth(event.nativeEvent.layout.width);
+            }}
           >
             <Image
               source={IMGS[settings.selectedLanguage].LOGO}
-              style={styles.logo}
+              style={[styles.logo, logoWidth > 0 && { height: logoWidth / LOGO_ASPECT_RATIO }]}
             />
           </TouchableOpacity>
 
@@ -241,17 +245,6 @@ export function CustomDrawerContent(props: DrawerContentComponentProps) {
           />
         ))}
       </View>
-
-      <TouchableOpacity
-        activeOpacity={0.7}
-        onPress={goToNessSocial}
-        style={styles.footer}
-      >
-        <Text style={styles.footerText}>
-          {DICT[settings.selectedLanguage].VERSION_TEXT}{" "}
-          <Text style={styles.footerAuthor}>@{author}</Text>
-        </Text>
-      </TouchableOpacity>
     </DrawerContentScrollView>
   );
 }

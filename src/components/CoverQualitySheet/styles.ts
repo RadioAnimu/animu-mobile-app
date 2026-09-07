@@ -34,7 +34,7 @@ export const styles = StyleSheet.create({
     height: PREVIEW,
     borderRadius: THEME.RADIUS.XL,
     borderWidth: 2,
-    borderColor: THEME.COLORS.BRAND,
+    borderColor: THEME.COLORS.FRAME,
     backgroundColor: THEME.COLORS.SURFACE_SUBTLE,
   },
   info: {
