@@ -66,12 +66,6 @@
       "expo-web-browser",
       "expo-audio",
       [
-        "expo-image-picker",
-        {
-          "photosPermission": "Allow Rádio Animu to choose a photo for your profile avatar"
-        }
-      ],
-      [
         "@react-native-google-signin/google-signin",
         {
           "iosUrlScheme": "com.googleusercontent.apps.412051121290-gf5q1q83rg2mljcld4sudd65qbqk5o0p"
