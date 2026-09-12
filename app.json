@@ -21,7 +21,6 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.nessjs.animu",
-      "usesAppleSignIn": true,
       "infoPlist": {
         "UIBackgroundModes": [
           "audio",

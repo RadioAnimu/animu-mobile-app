@@ -1,6 +1,5 @@
 import { Platform } from "react-native";
 import * as AuthSession from "expo-auth-session";
-import * as AppleAuthentication from "expo-apple-authentication";
 import {
   GoogleSignin,
   isCancelledResponse,
@@ -55,29 +54,6 @@ async function authorizeGoogle(config: OauthProviderConfig): Promise<OAuthResult
   // No redirect URI: the backend redeems this server auth code with the web
   // client secret.
   return { code, omitRedirectUri: true };
-}
-
-// ─── Native Apple ───────────────────────────────────────────────────────
-
-async function authorizeApple(): Promise<OAuthResult> {
-  const available = await AppleAuthentication.isAvailableAsync();
-  if (!available) throw new Error("Apple sign-in is not available here");
-
-  const credential = await AppleAuthentication.signInAsync({
-    requestedScopes: [
-      AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
-      AppleAuthentication.AppleAuthenticationScope.EMAIL,
-    ],
-  });
-  if (!credential.authorizationCode) {
-    throw new Error("Apple did not return an authorization code");
-  }
-  // Apple only sends the name/email on first consent; forward them.
-  const user = JSON.stringify({
-    name: credential.fullName,
-    email: credential.email,
-  });
-  return { code: credential.authorizationCode, omitRedirectUri: true, user };
 }
 
 // ─── Browser (expo-auth-session) ────────────────────────────────────────
@@ -136,9 +112,11 @@ export class OAuthAdapter implements OAuthPort {
       throw new Error(`Provider "${provider}" is not available yet`);
     }
 
-    if (config.mode === "native") {
-      if (provider === "google") return authorizeGoogle(config);
-      if (provider === "apple") return authorizeApple();
+    // Native Apple is stubbed out until the backend can verify its identity
+    // token and the app has code signing configured (the `applesignin`
+    // entitlement requires it). It stays `comingSoon`, so this is unreachable.
+    if (config.mode === "native" && provider === "google") {
+      return authorizeGoogle(config);
     }
 
     return authorizeBrowser(provider, config);
