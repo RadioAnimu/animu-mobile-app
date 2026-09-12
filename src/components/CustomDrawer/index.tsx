@@ -12,8 +12,11 @@ import * as Linking from "expo-linking";
 import { useState } from "react";
 import { Image, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { API } from "../../api";
+import { Avatar } from "../Avatar";
 import { useAuth } from "../../contexts/auth/AuthProvider";
 import { useUserSettings } from "../../contexts/user/UserSettingsProvider";
+import { getUserName } from "../../core/domain/user";
+import { providerLabel } from "../../constants/auth";
 import { DICT, IMGS } from "../../i18n";
 import { THEME } from "../../theme";
 import { styles } from "./styles";
@@ -136,49 +139,85 @@ function NavItems({ state, descriptors, navigation }: DrawerContentComponentProp
   );
 }
 
+interface AccountRowProps {
+  onOpenLogin: () => void;
+  onOpenSettings: () => void;
+}
+
 /**
- * State-of-the-art drawer pattern (YouTube Music / Telegram): identity lives
- * at the bottom as a plain nav-grade row — avatar + name + chevron into
- * Settings; before login it starts the Discord flow directly.
+ * Bottom identity block — the richer "profile card" treatment.
+ *
+ * - Signed in: avatar (brand ring) + name + sign-in method + chevron; the
+ *   whole chip opens Settings.
+ * - Signed out: the chip opens Login and a gear on the same row opens
+ *   Settings.
  */
-function AccountRow({ onPress }: { onPress: () => void }) {
+function AccountRow({ onOpenLogin, onOpenSettings }: AccountRowProps) {
   const { settings } = useUserSettings();
-  const { user, login } = useAuth();
+  const { user, profile } = useAuth();
+  const dict = DICT[settings.selectedLanguage];
+  const loginProvider = profile?.session.loginProvider;
 
   return (
     <View style={styles.bottom}>
-      <TouchableOpacity
-        accessibilityRole="button"
-        accessibilityHint="Opens settings"
-        activeOpacity={0.7}
-        onPress={user?.sessionId ? onPress : login}
-        style={styles.accountRow}
-      >
-        {user?.sessionId ? (
-          <Image
-            source={{ uri: user.avatarUrl }}
-            style={styles.accountAvatar}
-          />
-        ) : (
-          <View style={styles.accountIconBox}>
+      <View style={styles.accountRow}>
+        <TouchableOpacity
+          accessibilityRole="button"
+          accessibilityHint={
+            user ? "Opens settings" : "Opens login"
+          }
+          activeOpacity={0.7}
+          onPress={user ? onOpenSettings : onOpenLogin}
+          style={[styles.accountIdentity, styles.accountIdentityGrow]}
+        >
+          {user ? (
+            <Avatar uri={user.avatarUrl} style={styles.accountAvatar} />
+          ) : (
+            <View style={styles.accountIconBox}>
+              <MaterialIcons
+                name="login"
+                size={THEME.ICON.MD}
+                color={THEME.COLORS.TEXT}
+              />
+            </View>
+          )}
+          <View style={styles.accountText}>
+            <Text style={styles.accountName} numberOfLines={1}>
+              {user ? getUserName(user) : dict.LOGIN_WORD}
+            </Text>
+            <Text style={styles.accountCaption} numberOfLines={1}>
+              {user
+                ? loginProvider
+                  ? `${dict.ACCOUNT_CONNECTED_VIA} ${providerLabel(loginProvider)}`
+                  : dict.ACCOUNT_TITLE
+                : dict.SETTINGS_ACCOUNT_SIGN_IN}
+            </Text>
+          </View>
+          {user && (
             <MaterialIcons
-              name="discord"
+              name="chevron-right"
+              size={THEME.ICON.MD}
+              color={THEME.COLORS.TEXT_DIM}
+            />
+          )}
+        </TouchableOpacity>
+
+        {!user && (
+          <TouchableOpacity
+            accessibilityRole="button"
+            accessibilityHint="Opens settings"
+            activeOpacity={0.7}
+            onPress={onOpenSettings}
+            style={styles.gearButton}
+          >
+            <MaterialIcons
+              name="settings"
               size={THEME.ICON.MD}
               color={THEME.COLORS.TEXT}
             />
-          </View>
+          </TouchableOpacity>
         )}
-        <Text style={styles.accountName}>
-          {user?.sessionId
-            ? user.nickname || user.username
-            : `${DICT[settings.selectedLanguage].LOGIN_WORD} Discord`}
-        </Text>
-        <MaterialIcons
-          name="chevron-right"
-          size={THEME.ICON.MD}
-          color={THEME.COLORS.TEXT_DIM}
-        />
-      </TouchableOpacity>
+      </View>
     </View>
   );
 }
@@ -190,6 +229,10 @@ export function CustomDrawerContent(props: DrawerContentComponentProps) {
 
   const goToSettings = () => {
     navigation.navigate("Settings");
+  };
+
+  const goToLogin = () => {
+    navigation.navigate("Login");
   };
 
   const LINKS: LinkMenuItemProps[] = [
@@ -249,7 +292,10 @@ export function CustomDrawerContent(props: DrawerContentComponentProps) {
         ))}
       </View>
 
-      <AccountRow onPress={goToSettings} />
+      <AccountRow
+        onOpenLogin={goToLogin}
+        onOpenSettings={goToSettings}
+      />
     </DrawerContentScrollView>
   );
 }

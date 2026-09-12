@@ -38,9 +38,23 @@ export const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     marginHorizontal: DRAWER_GRID.SCREEN_MARGIN,
-    paddingHorizontal: THEME.SPACE.MD,
-    paddingVertical: THEME.SPACE.MD,
     borderRadius: THEME.RADIUS.MD,
+  },
+  accountIdentity: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: THEME.SPACE.MD,
+    paddingVertical: THEME.SPACE.SM,
+    borderRadius: THEME.RADIUS.MD,
+  },
+  accountIdentityGrow: {
+    flex: 1,
+  },
+  gearButton: {
+    width: 40,
+    height: 40,
+    alignItems: "center",
+    justifyContent: "center",
   },
   accountAvatar: {
     width: 40,
@@ -56,12 +70,20 @@ export const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  accountName: {
+  accountText: {
     flex: 1,
+    gap: THEME.SPACE.XXS,
+    marginLeft: THEME.SPACE.MD,
+  },
+  accountName: {
     color: THEME.COLORS.TEXT,
     fontFamily: THEME.FONT_FAMILY.BOLD,
     fontSize: THEME.FONT_SIZE.LIST,
-    marginLeft: THEME.SPACE.MD,
+  },
+  accountCaption: {
+    color: THEME.COLORS.TEXT_DIM,
+    fontFamily: THEME.FONT_FAMILY.REGULAR,
+    fontSize: THEME.FONT_SIZE.CAPTION,
   },
   section: {
     flexDirection: "row",

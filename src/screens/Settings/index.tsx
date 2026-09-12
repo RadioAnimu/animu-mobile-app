@@ -1,7 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import type { ComponentProps } from "react";
 import { MaterialIcons } from "@expo/vector-icons";
-import { Image } from "expo-image";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 
 import {
@@ -12,56 +10,29 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
-import Svg, { Path, Rect, SvgProps } from "react-native-svg";
 import { Background } from "../../components/Background";
+import { Avatar } from "../../components/Avatar";
+import { BackArrow } from "../../components/BackArrow";
+import { ProviderIcon } from "../../components/ProviderIcon";
+import { SectionTitle } from "../../components/SectionTitle";
 import { CoverQualitySheet } from "../../components/CoverQualitySheet";
 import { LanguageSelectSheet } from "../../components/LanguageSelectSheet";
 import { DICT, LANGS_KEY_VALUE_PAIRS } from "../../i18n";
 import { RootStackParamList } from "../../routes/app.routes";
 import { THEME } from "../../theme";
-import { HEADER_HEIGHT, SECTION_ICON_SIZE, styles, SWITCH } from "./styles";
+import { HEADER_HEIGHT, styles, SWITCH } from "./styles";
 import { useUserSettings } from "../../contexts/user/UserSettingsProvider";
 import { useAuth } from "../../contexts/auth/AuthProvider";
+import { getUserName } from "../../core/domain/user";
+import { providerLabel } from "../../constants/auth";
 import { author } from "../../../package.json";
 import * as Linking from "expo-linking";
 
 /** Dev portfolio — the credits hyperlink target. */
 const PORTFOLIO_URL = "https://rmotafreitas.dev";
 
-export const BackArrow = (props: SvgProps) => (
-  <Svg width="21" height="19" viewBox="0 0 21 19" fill="none">
-    <Rect x="6" y="6" width="15" height="7" rx="2" fill={THEME.COLORS.TEXT} />
-    <Path
-      d="M-4.15258e-07 9.5L11.25 17.7272L11.25 1.27276L-4.15258e-07 9.5Z"
-      fill={THEME.COLORS.TEXT}
-    />
-  </Svg>
-);
-
 /** Labels carry a trailing colon for back-compat — row UI renders clean. */
 const cleanLabel = (label: string) => label.replace(/[:：]\s*$/, "");
-
-type MaterialIconName = ComponentProps<typeof MaterialIcons>["name"];
-
-interface TitleSectionProps {
-  title: string;
-  icon: MaterialIconName;
-}
-
-function TitleSection({ title, icon }: TitleSectionProps) {
-  return (
-    <View style={styles.section}>
-      <View style={styles.iconBox}>
-        <MaterialIcons
-          name={icon}
-          size={SECTION_ICON_SIZE}
-          color={THEME.COLORS.TEXT_SOFT}
-        />
-      </View>
-      <Text style={styles.sectionText}>{title.toUpperCase()}</Text>
-    </View>
-  );
-}
 
 function Divider() {
   return <View style={styles.divider} />;
@@ -168,7 +139,7 @@ const COVER_QUALITY_LABEL_KEY = {
 export function Settings({ navigation }: Props) {
   const insets = useSafeAreaInsets();
   const { settings, updateSettings } = useUserSettings();
-  const { user, logout, login } = useAuth();
+  const { user, profile } = useAuth();
   const [languageSheetVisible, setLanguageSheetVisible] = useState(false);
   const [coverQualitySheetVisible, setCoverQualitySheetVisible] =
     useState(false);
@@ -205,80 +176,80 @@ export function Settings({ navigation }: Props) {
           <View style={styles.headerButton} />
         </View>
         <ScrollView contentContainerStyle={styles.appContainer}>
-          <TitleSection title={dict.SETTINGS_ACCOUNT_TITLE} icon="person" />
-          {user?.sessionId ? (
-            <View style={styles.group}>
-              <View style={[styles.row, styles.accountRow]}>
-                <Image
-                  source={{ uri: user.avatarUrl }}
-                  style={styles.accountAvatar}
-                />
-                <View style={styles.accountInfo}>
-                  <Text style={styles.accountName}>
-                    {user.nickname || user.username}
-                  </Text>
-                  <View style={styles.accountService}>
-                    <View style={styles.accountServiceIcon}>
-                      <MaterialIcons
-                        name="discord"
-                        size={THEME.ICON.MD}
+          <SectionTitle title={dict.SETTINGS_ACCOUNT_TITLE} icon="person" />
+          <View style={styles.group}>
+            <TouchableOpacity
+              accessibilityRole="button"
+              activeOpacity={0.7}
+              onPress={() => {
+                if (user) {
+                  navigation.navigate("Account");
+                } else {
+                  navigation.navigate("Login");
+                }
+              }}
+              style={[styles.row, styles.accountRow]}
+            >
+              {user ? (
+                <>
+                  <Avatar uri={user.avatarUrl} style={styles.accountAvatar} />
+                  <View style={styles.accountInfo}>
+                    <View style={styles.accountNameRow}>
+                      <Text style={styles.accountName} numberOfLines={1}>
+                        {getUserName(user)}
+                      </Text>
+                      {profile?.user.verified && (
+                        <MaterialIcons
+                          name="verified"
+                          size={THEME.ICON.MD}
+                          color={THEME.COLORS.BRAND}
+                        />
+                      )}
+                    </View>
+                    <View style={styles.accountService}>
+                      <ProviderIcon
+                        provider={profile?.session.loginProvider ?? "animu"}
+                        size={14}
                         color={THEME.COLORS.TEXT_DIM}
                       />
+                      <Text style={styles.accountCaption}>
+                        {profile?.session.loginProvider
+                          ? `${dict.ACCOUNT_CONNECTED_VIA} ${providerLabel(
+                              profile.session.loginProvider,
+                            )}`
+                          : dict.ACCOUNT_TITLE}
+                      </Text>
                     </View>
-                    <Text style={styles.accountCaption}>
-                      {dict.SETTINGS_ACCOUNT_CONNECTED}
-                    </Text>
                   </View>
-                </View>
-              </View>
-              <Divider />
-              <TouchableOpacity
-                accessibilityRole="button"
-                accessibilityLabel="logout"
-                activeOpacity={0.7}
-                onPress={async () => {
-                  await logout();
-                }}
-                style={styles.row}
-              >
-                <Text style={[styles.rowLabel, styles.rowLabelDanger]}>
-                  {dict.SETTINGS_ACCOUNT_LOGOUT}
-                </Text>
-                <MaterialIcons
-                  name="logout"
-                  size={THEME.ICON.MD}
-                  color={THEME.COLORS.ERROR}
-                />
-              </TouchableOpacity>
-            </View>
-          ) : (
-            <View style={styles.group}>
-              <TouchableOpacity
-                accessibilityRole="button"
-                activeOpacity={0.7}
-                onPress={login}
-                style={styles.row}
-              >
-                <View style={styles.accountServiceIcon}>
                   <MaterialIcons
-                    name="discord"
+                    name="chevron-right"
                     size={THEME.ICON.MD}
-                    color={THEME.COLORS.TEXT}
+                    color={THEME.COLORS.TEXT_DIM}
                   />
-                </View>
-                <Text style={styles.rowLabel}>
-                  {dict.LOGIN_WORD} Discord
-                </Text>
-                <MaterialIcons
-                  name="chevron-right"
-                  size={THEME.ICON.MD}
-                  color={THEME.COLORS.TEXT_DIM}
-                />
-              </TouchableOpacity>
-            </View>
-          )}
+                </>
+              ) : (
+                <>
+                  <View style={styles.accountServiceIcon}>
+                    <MaterialIcons
+                      name="login"
+                      size={THEME.ICON.MD}
+                      color={THEME.COLORS.TEXT}
+                    />
+                  </View>
+                  <Text style={styles.rowLabel}>
+                    {dict.SETTINGS_ACCOUNT_SIGN_IN}
+                  </Text>
+                  <MaterialIcons
+                    name="chevron-right"
+                    size={THEME.ICON.MD}
+                    color={THEME.COLORS.TEXT_DIM}
+                  />
+                </>
+              )}
+            </TouchableOpacity>
+          </View>
 
-          <TitleSection title={dict.SETTINGS_SAVE_DATA_TITLE} icon="cloud-off" />
+          <SectionTitle title={dict.SETTINGS_SAVE_DATA_TITLE} icon="cloud-off" />
           <View style={styles.group}>
             <ValueRow
               label={cleanLabel(dict.SETTINGS_QUALITY_LIVE_LABEL)}
@@ -319,7 +290,7 @@ export function Settings({ navigation }: Props) {
             />
           </View>
 
-          <TitleSection title={dict.SETTINGS_GENERAL_TITLE} icon="language" />
+          <SectionTitle title={dict.SETTINGS_GENERAL_TITLE} icon="language" />
           <View style={styles.group}>
             <ValueRow
               label={cleanLabel(dict.SETTINGS_LANGUAGE_SELECT_TITLE)}
@@ -330,7 +301,7 @@ export function Settings({ navigation }: Props) {
             />
           </View>
 
-          <TitleSection title={dict.SETTINGS_MEMORY_TITLE} icon="memory" />
+          <SectionTitle title={dict.SETTINGS_MEMORY_TITLE} icon="memory" />
           <View style={styles.group}>
             <SettingsRow
               label={cleanLabel(dict.SETTINGS_MEMORY_CLEAR_CACHE_SWITCH)}

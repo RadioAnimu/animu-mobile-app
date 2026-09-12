@@ -7,16 +7,20 @@ import { Home } from "../screens/Home";
 import { Last } from "../screens/Ultimas";
 import { THEME } from "../theme";
 import { Settings } from "../screens/Settings";
+import { Login } from "../screens/Login";
+import { Account } from "../screens/Account";
 import { DICT } from "../i18n";
 import { useUserSettings } from "../contexts/user/UserSettingsProvider";
 import { HistoryType } from "../@types/history-type";
 
-type HomeProps = Record<string, never>;
+type HomeProps = undefined;
 interface LastProps {
   historyType: HistoryType;
 }
-type FazerPedidoProps = Record<string, never>;
-type SettingsProps = Record<string, never>;
+type FazerPedidoProps = undefined;
+type SettingsProps = undefined;
+type LoginProps = undefined;
+type AccountProps = undefined;
 
 export type RootStackParamList = {
   Home: HomeProps;
@@ -24,6 +28,8 @@ export type RootStackParamList = {
   LastPlayed: LastProps;
   FazerPedido: FazerPedidoProps;
   Settings: SettingsProps;
+  Login: LoginProps;
+  Account: AccountProps;
 };
 
 const { Navigator, Screen } = createDrawerNavigator<RootStackParamList>();
@@ -88,6 +94,24 @@ export function AppRoutes() {
         }}
         name="Settings"
         component={Settings}
+      />
+      <Screen
+        options={{
+          drawerItemStyle: {
+            display: "none",
+          },
+        }}
+        name="Login"
+        component={Login}
+      />
+      <Screen
+        options={{
+          drawerItemStyle: {
+            display: "none",
+          },
+        }}
+        name="Account"
+        component={Account}
       />
     </Navigator>
   );

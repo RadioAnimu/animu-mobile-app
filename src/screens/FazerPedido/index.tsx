@@ -98,7 +98,7 @@ export function FazerPedido({ navigation }: Props) {
 
   const handleSubmitRequest = useCallback(
     async (message: string): Promise<{ success: boolean; message: string }> => {
-      if (!user?.sessionId) {
+      if (!user?.sessionToken) {
         return {
           success: false,
           message: DICT[settings.selectedLanguage].LOGIN_ERROR,
@@ -115,7 +115,7 @@ export function FazerPedido({ navigation }: Props) {
       const submission: MusicRequestSubmission = {
         trackId: selectedTrack.id,
         message,
-        sessionId: user.sessionId,
+        sessionId: user.sessionToken,
       };
 
       const result = await musicRequestService.submitRequest(submission);

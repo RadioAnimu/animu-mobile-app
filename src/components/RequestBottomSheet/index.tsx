@@ -1,5 +1,4 @@
 import { MaterialIcons } from "@expo/vector-icons";
-import { Image } from "expo-image";
 import React, { useState } from "react";
 import {
   ActivityIndicator,
@@ -15,6 +14,7 @@ import { MusicRequest } from "../../core/domain/music-request";
 import { User } from "../../core/domain/user";
 import { DICT } from "../../i18n";
 import { THEME } from "../../theme";
+import { Avatar } from "../Avatar";
 import { Cover } from "../Cover";
 import { styles } from "./styles";
 import { Sheet } from "../Sheet";
@@ -114,11 +114,7 @@ export function RequestBottomSheet({
 
             {user && (
               <View style={styles.userRow}>
-                <Image
-                  source={{ uri: user.avatarUrl }}
-                  style={styles.avatar}
-                  contentFit="cover"
-                />
+                <Avatar uri={user.avatarUrl} style={styles.avatar} />
                 <Text style={styles.username}>
                   {user.nickname || user.username}
                 </Text>

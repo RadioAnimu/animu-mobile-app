@@ -97,6 +97,11 @@ export const styles = StyleSheet.create({
     marginLeft: THEME.SPACE.MD,
     paddingRight: THEME.SPACE.MD,
   },
+  accountNameRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: THEME.SPACE.XS,
+  },
   accountName: {
     color: THEME.COLORS.TEXT,
     fontFamily: THEME.FONT_FAMILY.BOLD,

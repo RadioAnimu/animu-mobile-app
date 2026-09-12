@@ -11,13 +11,17 @@
       "image": "./assets/splash_top.png",
       "backgroundColor": "#270051"
     },
-    "scheme": "animuapp",
+    "scheme": [
+      "animuapp",
+      "com.googleusercontent.apps.412051121290-gf5q1q83rg2mljcld4sudd65qbqk5o0p"
+    ],
     "assetBundlePatterns": [
       "**/*"
     ],
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.nessjs.animu",
+      "usesAppleSignIn": true,
       "infoPlist": {
         "UIBackgroundModes": [
           "audio",
@@ -61,7 +65,19 @@
       ],
       "expo-asset",
       "expo-web-browser",
-      "expo-audio"
+      "expo-audio",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow Rádio Animu to choose a photo for your profile avatar"
+        }
+      ],
+      [
+        "@react-native-google-signin/google-signin",
+        {
+          "iosUrlScheme": "com.googleusercontent.apps.412051121290-gf5q1q83rg2mljcld4sudd65qbqk5o0p"
+        }
+      ]
     ],
     "extra": {
       "eas": {
