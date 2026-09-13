@@ -12,7 +12,7 @@ import {
 } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { AnimuApiError } from "animu-api";
+import { AnimuApiError, type LinkedProvider } from "animu-api";
 import { Background } from "../../components/Background";
 import { Avatar } from "../../components/Avatar";
 import { BackArrow } from "../../components/BackArrow";
@@ -36,6 +36,27 @@ import { THEME } from "../../theme";
 import { AVATAR, HEADER_HEIGHT, styles } from "./styles";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Account">;
+
+/**
+ * Identity line for a linked provider: Discord shows its `@handle` (or the
+ * numeric id), Google/Apple show `name · email`. Falls back to whatever the
+ * server supplied, then the provider user id.
+ */
+function linkedProviderDetail(provider: LinkedProvider): string | null {
+  const handle = provider.providerUsername
+    ? `@${provider.providerUsername}`
+    : null;
+
+  if (provider.provider === "discord") {
+    return handle ?? (provider.providerUserId || null);
+  }
+
+  const parts = [provider.providerName, provider.providerEmail].filter(
+    (part): part is string => !!part,
+  );
+  if (parts.length > 0) return parts.join(" · ");
+  return handle ?? (provider.providerUserId || null);
+}
 
 export function Account({ navigation }: Props) {
   const insets = useSafeAreaInsets();
@@ -87,8 +108,6 @@ export function Account({ navigation }: Props) {
   // so unconfigured ones (Apple) render as "coming soon" here too.
   const availableProviders = providers;
 
-  const isLinked = (name: string) =>
-    linkedProviders.some((linked) => linked.provider === name);
   const canUnlink = linkedProviders.length > 1;
 
   const confirmDelete = () => {
@@ -287,7 +306,10 @@ export function Account({ navigation }: Props) {
           />
           <View style={styles.group}>
             {availableProviders.map((provider, index) => {
-              const linked = isLinked(provider.name);
+              const linkedInfo = linkedProviders.find(
+                (entry) => entry.provider === provider.name,
+              );
+              const linked = !!linkedInfo;
               const configured = isProviderConfigured(provider.name);
               const linkable = isProviderLinkable(provider.name);
               const rowBusy = busy === `link-${provider.name}`;
@@ -300,9 +322,10 @@ export function Account({ navigation }: Props) {
                     </View>
                     <View style={styles.rowBody}>
                       <Text style={styles.rowLabel}>{provider.label}</Text>
-                      <Text style={styles.rowCaption}>
-                        {linked
-                          ? dict.ACCOUNT_LINKED
+                      <Text style={styles.rowCaption} numberOfLines={1}>
+                        {linkedInfo
+                          ? linkedProviderDetail(linkedInfo) ??
+                            dict.ACCOUNT_LINKED
                           : dict.ACCOUNT_NOT_LINKED}
                       </Text>
                     </View>
