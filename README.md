@@ -2,7 +2,7 @@
 
 > The official mobile client for [Rádio Animu](https://www.animu.moe) — Brazil's most moe radio.
 
-[![Version](https://img.shields.io/badge/version-2.0.3-8A2BE2)](https://github.com/RadioAnimu/animu-mobile-app/releases)
+[![Version](https://img.shields.io/badge/version-2.0.4-8A2BE2)](https://github.com/RadioAnimu/animu-mobile-app/releases)
 [![React Native](https://img.shields.io/badge/React_Native-0.81-blue)](https://reactnative.dev)
 [![Expo SDK](https://img.shields.io/badge/Expo_SDK-54-000000)](https://expo.dev)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.9-3178C6)](https://www.typescriptlang.org)
