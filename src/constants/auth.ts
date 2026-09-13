@@ -27,11 +27,19 @@ export interface OauthProviderConfig {
   iosClientId?: string;
   androidClientId?: string;
   /**
-   * `"native"` uses the platform SDK (`GoogleSignin` /
-   * `AppleAuthentication`); `"browser"` (default) runs the OAuth redirect
-   * through `expo-auth-session`.
+   * `"browser"` (default) runs the OAuth redirect through
+   * `expo-auth-session`; `"server"` delegates the whole redirect to the
+   * backend (`loginWithProvider` opens its start URL in a browser session and
+   * adopts the session token from the deep-link bounce — no client id, SDK,
+   * package or SHA-1 registration); `"native"` uses the platform SDK
+   * (`AppleAuthentication`).
    */
-  mode?: "browser" | "native";
+  mode?: "browser" | "native" | "server";
+  /**
+   * Whether the provider can be linked from the Account screen. Defaults to
+   * `true`; set `false` for server-mode providers that only support login.
+   */
+  linkable?: boolean;
   /** Rendered as disabled/"coming soon" until the backend supports it. */
   comingSoon?: boolean;
   /**
@@ -61,19 +69,17 @@ export const OAUTH_PROVIDERS: Record<string, OauthProviderConfig> = {
   google: {
     name: "google",
     label: "Google",
-    authorizationEndpoint: "https://accounts.google.com/o/oauth2/v2/auth",
-    scopes: ["openid", "email", "profile"],
-    // The web client id — required by the native SDK as its `webClientId`,
-    // and the client the server uses to exchange the server auth code.
-    clientId:
-      "412051121290-m8cviuno5iurl93p82pj2l6e0iqkc4m1.apps.googleusercontent.com",
-    iosClientId:
-      "412051121290-gf5q1q83rg2mljcld4sudd65qbqk5o0p.apps.googleusercontent.com",
-    androidClientId:
-      "412051121290-g4sh8tl86uf43ooj879m8eum3g36k4os.apps.googleusercontent.com",
-    mode: "native",
-    usePKCE: true,
-    extraParams: { access_type: "online", prompt: "select_account" },
+    // Server-side flow: the backend owns the Google OAuth client, the PKCE
+    // verifier and the redirect, so the app carries no client id at all. It
+    // just opens `googleMobileStartUrl()` in a browser session and adopts the
+    // session token the server bounces to `animuapp://redirect`, which is why
+    // this works regardless of how the APK was signed (no SHA-1 registration).
+    // Linking reuses the same URL with the current token appended as `?sid=`.
+    authorizationEndpoint: "",
+    scopes: [],
+    clientId: "",
+    mode: "server",
+    linkable: true,
   },
   apple: {
     name: "apple",
@@ -124,7 +130,20 @@ export function resolveClientId(config: OauthProviderConfig): string {
 export function isProviderConfigured(name: string): boolean {
   const config = getProviderConfig(name);
   if (!config || config.comingSoon) return false;
+  // Server-mode providers need no client-side credentials.
+  if (config.mode === "server") return true;
   return !!resolveClientId(config);
+}
+
+/**
+ * `true` when the Account screen may offer to *link* the provider. Server-mode
+ * providers default to login-only unless they opt in with `linkable: true`.
+ */
+export function isProviderLinkable(name: string): boolean {
+  const config = getProviderConfig(name);
+  if (!config || config.comingSoon) return false;
+  if (config.mode === "server") return config.linkable === true;
+  return isProviderConfigured(name);
 }
 
 /**

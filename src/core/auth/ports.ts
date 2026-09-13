@@ -10,6 +10,7 @@ import type {
   AuthSessionStatus,
   AuthSetCredentialsParams,
   AuthUnlinkResult,
+  MobileGoogleRedirect,
   ProviderInfo,
 } from "animu-api";
 import type { User } from "../domain/user";
@@ -37,6 +38,13 @@ export interface OAuthPort {
    * @throws {AuthFlowCancelled} when the user dismisses it.
    */
   authorize(provider: string): Promise<OAuthResult>;
+
+  /**
+   * Opens `url` in a browser session (custom tab / ASWebAuthenticationSession)
+   * and resolves with the deep link it was redirected to — the transport for
+   * server-mode providers. Resolves `null` when the user dismisses it.
+   */
+  openSession(url: string, redirectUri: string): Promise<string | null>;
 }
 
 /**
@@ -45,7 +53,17 @@ export interface OAuthPort {
  */
 export interface AuthApiPort {
   setSessionToken(token: string | null): void;
+  /** The token currently held by the API client, if any. */
+  getSessionToken(): string | null;
   getProviders(): Promise<ProviderInfo[]>;
+  /**
+   * Start URL for the server-side mobile Google flow
+   * (`/mobile/google-start.php`). Pass a session token to link Google to that
+   * account (login when omitted).
+   */
+  googleMobileStartUrl(sessionId?: string): string;
+  /** Parses the server's deep-link bounce and adopts the session token. */
+  completeMobileGoogleLogin(callbackUrl: string): MobileGoogleRedirect;
   exchangeToken(params: AuthExchangeParams): Promise<AuthSession>;
   nativeLogin(params: AuthNativeLoginParams): Promise<AuthSession>;
   getSessionStatus(): Promise<AuthSessionStatus>;

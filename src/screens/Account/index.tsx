@@ -24,7 +24,11 @@ import { useAuth } from "../../contexts/auth/AuthProvider";
 import { useUserSettings } from "../../contexts/user/UserSettingsProvider";
 import { getUserName } from "../../core/domain/user";
 import { AuthFlowCancelled } from "../../core/auth";
-import { isProviderConfigured, providerLabel } from "../../constants/auth";
+import {
+  isProviderConfigured,
+  isProviderLinkable,
+  providerLabel,
+} from "../../constants/auth";
 import { buildAuthImageSource } from "../../utils/authImage";
 import { DICT } from "../../i18n";
 import { RootStackParamList } from "../../routes/app.routes";
@@ -285,6 +289,7 @@ export function Account({ navigation }: Props) {
             {availableProviders.map((provider, index) => {
               const linked = isLinked(provider.name);
               const configured = isProviderConfigured(provider.name);
+              const linkable = isProviderLinkable(provider.name);
               const rowBusy = busy === `link-${provider.name}`;
               return (
                 <View key={provider.name}>
@@ -324,7 +329,7 @@ export function Account({ navigation }: Props) {
                           {dict.ACCOUNT_UNLINK}
                         </Text>
                       </TouchableOpacity>
-                    ) : configured ? (
+                    ) : configured && linkable ? (
                       <TouchableOpacity
                         accessibilityRole="button"
                         disabled={!!busy}
@@ -340,11 +345,11 @@ export function Account({ navigation }: Props) {
                           {dict.ACCOUNT_LINK}
                         </Text>
                       </TouchableOpacity>
-                    ) : (
+                    ) : !configured ? (
                       <Text style={styles.soon}>
                         {dict.LOGIN_PROVIDER_UNAVAILABLE}
                       </Text>
-                    )}
+                    ) : null}
                   </View>
                 </View>
               );

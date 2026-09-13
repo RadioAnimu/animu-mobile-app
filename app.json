@@ -11,10 +11,7 @@
       "image": "./assets/splash_top.png",
       "backgroundColor": "#270051"
     },
-    "scheme": [
-      "animuapp",
-      "com.googleusercontent.apps.412051121290-gf5q1q83rg2mljcld4sudd65qbqk5o0p"
-    ],
+    "scheme": "animuapp",
     "assetBundlePatterns": [
       "**/*"
     ],
@@ -63,13 +60,7 @@
       ],
       "expo-asset",
       "expo-web-browser",
-      "expo-audio",
-      [
-        "@react-native-google-signin/google-signin",
-        {
-          "iosUrlScheme": "com.googleusercontent.apps.412051121290-gf5q1q83rg2mljcld4sudd65qbqk5o0p"
-        }
-      ]
+      "expo-audio"
     ],
     "extra": {
       "eas": {

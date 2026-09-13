@@ -11,6 +11,7 @@ import type {
   AuthSessionStatus,
   AuthSetCredentialsParams,
   AuthUnlinkResult,
+  MobileGoogleRedirect,
   ProviderInfo,
 } from "animu-api";
 import { animuApi } from "../../../api/client";
@@ -34,8 +35,20 @@ export class AnimuAuthAdapter implements AuthApiPort {
     this.client.setSessionToken(token);
   }
 
+  getSessionToken(): string | null {
+    return this.client.sessionToken;
+  }
+
   getProviders(): Promise<ProviderInfo[]> {
     return this.client.getProviders();
+  }
+
+  googleMobileStartUrl(sessionId?: string): string {
+    return this.client.googleMobileStartUrl(sessionId);
+  }
+
+  completeMobileGoogleLogin(callbackUrl: string): MobileGoogleRedirect {
+    return this.client.completeMobileGoogleLogin(callbackUrl);
   }
 
   exchangeToken(params: AuthExchangeParams): Promise<AuthSession> {

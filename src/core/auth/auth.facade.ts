@@ -6,11 +6,17 @@ import type {
   AuthUnlinkResult,
   ProviderInfo,
 } from "animu-api";
-import { DEFAULT_PROVIDERS, redirectUriForProvider } from "../../constants/auth";
+import {
+  AUTH_REDIRECT_URI,
+  DEFAULT_PROVIDERS,
+  getProviderConfig,
+  redirectUriForProvider,
+} from "../../constants/auth";
 import type { User } from "../domain/user";
 import { AsyncStorageSessionStore } from "./adapters/async-storage.adapter";
 import { AnimuAuthAdapter } from "./adapters/animu-auth.adapter";
 import { OAuthAdapter } from "./adapters/oauth.adapter";
+import { AuthFlowCancelled } from "./errors";
 import type { AuthApiPort, OAuthPort, SessionStorePort } from "./ports";
 
 /**
@@ -86,8 +92,11 @@ export class AuthFacade {
 
   // ─── Login ────────────────────────────────────────────────────────────
 
-  /** Provider OAuth login: authorize → exchange the code for a session. */
+  /** Provider login: server-side redirect for Google, authorize→exchange otherwise. */
   async loginWithProvider(provider: string): Promise<User> {
+    if (getProviderConfig(provider)?.mode === "server") {
+      return this.loginWithMobileGoogle();
+    }
     const oauth = await this.oauth.authorize(provider);
     const session = await this.api.exchangeToken({
       provider,
@@ -98,6 +107,37 @@ export class AuthFacade {
       codeVerifier: oauth.codeVerifier,
     });
     return this.adopt(session);
+  }
+
+  /**
+   * Server-side Google login: open the backend's start URL in a browser
+   * session and adopt the session token from the deep link it bounces back.
+   * The backend owns the Google OAuth client, PKCE and redirect, so no native
+   * SDK, client id or signing-certificate registration is involved.
+   */
+  private async loginWithMobileGoogle(): Promise<User> {
+    const callbackUrl = await this.oauth.openSession(
+      this.api.googleMobileStartUrl(),
+      AUTH_REDIRECT_URI,
+    );
+    if (!callbackUrl) throw new AuthFlowCancelled();
+
+    const result = this.api.completeMobileGoogleLogin(callbackUrl);
+    if (!result.ok) {
+      throw new Error(
+        result.message ? `${result.error}: ${result.message}` : result.error,
+      );
+    }
+
+    // completeMobileGoogleLogin already stored the token on the client; set it
+    // explicitly too so the port doesn't depend on that side effect.
+    this.api.setSessionToken(result.token);
+    const profile = await this.api.getProfile();
+    return this.adopt({
+      sessionToken: result.token,
+      action: result.action,
+      user: profile.user,
+    });
   }
 
   /** Animu Connect login (native username/password). */
@@ -111,8 +151,19 @@ export class AuthFacade {
 
   // ─── Account management ───────────────────────────────────────────────
 
-  /** Links an extra provider via its OAuth redirect. */
-  async linkProvider(provider: string): Promise<AuthLinkResult> {
+  /**
+   * Links an extra provider. Server-mode providers (Google) run the backend's
+   * browser flow with the current session token; the rest use the client-side
+   * OAuth redirect + code exchange.
+   */
+  async linkProvider(provider: string): Promise<AuthLinkResult | void> {
+    const config = getProviderConfig(provider);
+    if (!config || config.linkable === false) {
+      throw new Error(`Provider "${provider}" cannot be linked from the app`);
+    }
+    if (config.mode === "server") {
+      return this.linkWithMobileGoogle();
+    }
     const oauth = await this.oauth.authorize(provider);
     return this.api.linkProvider({
       provider,
@@ -123,6 +174,29 @@ export class AuthFacade {
       codeVerifier: oauth.codeVerifier,
       user: oauth.user,
     });
+  }
+
+  /**
+   * Server-side Google link: open the start URL with the current session
+   * token (`?sid=`) and adopt the bounce. The token is unchanged; the caller
+   * refreshes the profile so the new link shows up.
+   */
+  private async linkWithMobileGoogle(): Promise<void> {
+    const sessionToken = this.api.getSessionToken();
+    if (!sessionToken) throw new Error("Not authenticated");
+
+    const callbackUrl = await this.oauth.openSession(
+      this.api.googleMobileStartUrl(sessionToken),
+      AUTH_REDIRECT_URI,
+    );
+    if (!callbackUrl) throw new AuthFlowCancelled();
+
+    const result = this.api.completeMobileGoogleLogin(callbackUrl);
+    if (!result.ok) {
+      throw new Error(
+        result.message ? `${result.error}: ${result.message}` : result.error,
+      );
+    }
   }
 
   unlinkProvider(provider: string): Promise<AuthUnlinkResult> {

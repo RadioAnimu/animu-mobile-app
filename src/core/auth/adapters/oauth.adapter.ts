@@ -1,9 +1,5 @@
-import { Platform } from "react-native";
 import * as AuthSession from "expo-auth-session";
-import {
-  GoogleSignin,
-  isCancelledResponse,
-} from "@react-native-google-signin/google-signin";
+import * as WebBrowser from "expo-web-browser";
 import {
   getProviderConfig,
   redirectUriForProvider,
@@ -12,64 +8,6 @@ import {
 } from "../../../constants/auth";
 import { AuthFlowCancelled } from "../errors";
 import type { OAuthPort, OAuthResult } from "../ports";
-
-// ─── Native Google ──────────────────────────────────────────────────────
-
-let googleConfigured = false;
-
-function configureGoogle(config: OauthProviderConfig): void {
-  if (googleConfigured) return;
-  GoogleSignin.configure({
-    // The native SDK takes the *web* client id here; it's the "server
-    // client id" the returned server auth code is bound to.
-    webClientId: config.clientId,
-    iosClientId: config.iosClientId || undefined,
-    offlineAccess: true,
-    scopes: ["openid", "email", "profile"],
-  });
-  googleConfigured = true;
-}
-
-async function authorizeGoogle(config: OauthProviderConfig): Promise<OAuthResult> {
-  configureGoogle(config);
-
-  if (Platform.OS === "android") {
-    await GoogleSignin.hasPlayServices({
-      showPlayServicesUpdateDialog: true,
-    });
-  }
-
-  const response = await GoogleSignin.signIn().catch((error: unknown) => {
-    // `DEVELOPER_ERROR` (native code 10) on Android means the OAuth client's
-    // registered SHA-1 does not match the certificate this build was signed
-    // with. It is almost always a release/Play App Signing fingerprint that
-    // was never added to the Google Cloud console.
-    const code = (error as { code?: string | number } | undefined)?.code;
-    const message = (error as { message?: string } | undefined)?.message ?? "";
-    if (code === 10 || message.includes("DEVELOPER_ERROR")) {
-      throw new Error(
-        "Google sign-in misconfigured (DEVELOPER_ERROR): register this build's SHA-1 " +
-          "certificate for package com.nessjs.animu in the Google Cloud console. " +
-          "EAS release and Google Play App Signing keys are different from the local debug key.",
-      );
-    }
-    throw error;
-  });
-  if (isCancelledResponse(response)) throw new AuthFlowCancelled();
-  if (response.type !== "success") {
-    throw new Error("Google sign-in did not complete");
-  }
-
-  const code = response.data.serverAuthCode;
-  if (!code) {
-    throw new Error(
-      "Google did not return a server auth code — check the web client id",
-    );
-  }
-  // No redirect URI: the backend redeems this server auth code with the web
-  // client secret.
-  return { code, omitRedirectUri: true };
-}
 
 // ─── Browser (expo-auth-session) ────────────────────────────────────────
 
@@ -115,9 +53,10 @@ async function authorizeBrowser(
 }
 
 /**
- * Dispatches each provider to the right transport: the native SDKs for
- * Google/Apple (they return a server auth code / identity token) and
- * `expo-auth-session` for browser OAuth providers (Discord).
+ * Client-side OAuth transports. `"browser"` (Discord) runs the redirect itself
+ * via `expo-auth-session`; `"server"` (Google) defers to the backend, so here
+ * we only open its start URL and hand back the deep link the server bounces
+ * (`openSession`). Native SDKs are gone — Apple stays disabled for now.
  */
 export class OAuthAdapter implements OAuthPort {
   async authorize(provider: string): Promise<OAuthResult> {
@@ -126,14 +65,22 @@ export class OAuthAdapter implements OAuthPort {
     if (config.comingSoon) {
       throw new Error(`Provider "${provider}" is not available yet`);
     }
-
-    // Native Apple is stubbed out until the backend can verify its identity
-    // token and the app has code signing configured (the `applesignin`
-    // entitlement requires it). It stays `comingSoon`, so this is unreachable.
-    if (config.mode === "native" && provider === "google") {
-      return authorizeGoogle(config);
+    if (config.mode === "server") {
+      throw new Error(
+        `Provider "${provider}" runs server-side; use AuthFacade.loginWithProvider`,
+      );
+    }
+    if (config.mode === "native") {
+      throw new Error(`Provider "${provider}" is not available yet`);
     }
 
     return authorizeBrowser(provider, config);
+  }
+
+  async openSession(url: string, redirectUri: string): Promise<string | null> {
+    const result = await WebBrowser.openAuthSessionAsync(url, redirectUri);
+    if (result.type === "success") return result.url;
+    if (result.type === "cancel" || result.type === "dismiss") return null;
+    throw new Error(`Browser session ended unexpectedly (${result.type})`);
   }
 }
