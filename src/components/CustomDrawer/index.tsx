@@ -13,6 +13,7 @@ import { useState } from "react";
 import { Image, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { API } from "../../api";
 import { Avatar } from "../Avatar";
+import { ProviderIcon } from "../ProviderIcon";
 import { useAuth } from "../../contexts/auth/AuthProvider";
 import { useUserSettings } from "../../contexts/user/UserSettingsProvider";
 import { getUserName } from "../../core/domain/user";
@@ -185,13 +186,22 @@ function AccountRow({ onOpenLogin, onOpenSettings }: AccountRowProps) {
             <Text style={styles.accountName} numberOfLines={1}>
               {user ? getUserName(user) : dict.LOGIN_WORD}
             </Text>
-            <Text style={styles.accountCaption} numberOfLines={1}>
-              {user
-                ? loginProvider
-                  ? `${dict.ACCOUNT_CONNECTED_VIA} ${providerLabel(loginProvider)}`
-                  : dict.ACCOUNT_TITLE
-                : dict.SETTINGS_ACCOUNT_SIGN_IN}
-            </Text>
+            <View style={styles.accountService}>
+              {user && (
+                <ProviderIcon
+                  provider={loginProvider ?? "animu"}
+                  size={14}
+                  color={THEME.COLORS.TEXT_DIM}
+                />
+              )}
+              <Text style={styles.accountCaption} numberOfLines={1}>
+                {user
+                  ? loginProvider
+                    ? `${dict.ACCOUNT_CONNECTED_VIA} ${providerLabel(loginProvider)}`
+                    : dict.ACCOUNT_TITLE
+                  : dict.SETTINGS_ACCOUNT_SIGN_IN}
+              </Text>
+            </View>
           </View>
           {user && (
             <MaterialIcons

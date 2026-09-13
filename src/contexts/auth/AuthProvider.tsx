@@ -6,6 +6,7 @@ import React, {
   useCallback,
   useRef,
 } from "react";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import type {
   AuthProfile,
   AuthSetCredentialsParams,
@@ -48,6 +49,24 @@ const AuthContext = createContext<AuthContextType | null>(null);
 
 const SESSION_CHECK_INTERVAL = 60000; // 1 minute
 const SESSION_CHECK_TASK_ID = "session-check";
+/**
+ * The profile payload has no read endpoint for Animu Connect credential
+ * state, so the result of `setCredentials` is cached locally — otherwise
+ * every relaunch renders the "Set up" state for an already-configured
+ * account (and the update flow hides the current-password requirement).
+ */
+const CREDENTIALS_KEY = "animuConnectCredentials";
+
+type StoredCredentials = { userId: number; username: string; setUp: boolean };
+
+const readStoredCredentials = async (): Promise<StoredCredentials | null> => {
+  try {
+    const raw = await AsyncStorage.getItem(CREDENTIALS_KEY);
+    return raw ? (JSON.parse(raw) as StoredCredentials) : null;
+  } catch {
+    return null;
+  }
+};
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
@@ -141,15 +160,29 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   }, [clearSession]);
 
   const deleteAccount = useCallback(async () => {
-    await authFacade.deleteAccount();
-    await clearSession();
+    try {
+      await authFacade.deleteAccount();
+    } finally {
+      // The facade forgets the local session even when the API call fails;
+      // clear the React state too, or the app looks signed in over a dead
+      // token (every authenticated request would 401).
+      await clearSession();
+    }
   }, [clearSession]);
 
   useEffect(() => {
     const initializeAuth = async () => {
       try {
         void authFacade.getProviders().then(setProviders);
-        const storedUser = await authFacade.restore();
+        const [storedCredentials, storedUser] = await Promise.all([
+          readStoredCredentials(),
+          authFacade.restore(),
+        ]);
+        // Only surface cached credential state for the account it belongs to.
+        if (storedCredentials && storedCredentials.userId === storedUser?.id) {
+          setCredentialsSet(storedCredentials.setUp);
+          setCredentialsUsername(storedCredentials.username || null);
+        }
         if (storedUser) {
           userRef.current = storedUser;
           setUser(storedUser);
@@ -231,6 +264,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       const result = await authFacade.setCredentials(params);
       setCredentialsSet(result.setUp);
       if (result.username) setCredentialsUsername(result.username);
+      const userId = userRef.current?.id;
+      if (userId == null) return;
+      try {
+        await AsyncStorage.setItem(
+          CREDENTIALS_KEY,
+          JSON.stringify({
+            userId,
+            username: result.username,
+            setUp: result.setUp,
+          } satisfies StoredCredentials),
+        );
+      } catch (error) {
+        console.warn("[AuthProvider] Failed to cache credentials state:", error);
+      }
     },
     [],
   );

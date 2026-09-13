@@ -9,8 +9,13 @@ const PLAY_BTN_MARGIN = 47;
 const PROGRESS_HEIGHT = 5;
 const LIVE_BADGE_RIGHT = 25;
 const LIVE_BADGE_BOTTOM = 48;
+/**
+ * Expands the tap area of the 27px header icons to a comfortable ~55px
+ * target without changing layout (hitSlop is invisible to flex sizing).
+ */
+const ICON_HIT_SLOP = 14;
 
-export { CONTAINER_HEIGHT };
+export { CONTAINER_HEIGHT, ICON_HIT_SLOP };
 
 export const styles = StyleSheet.create({
   view: {

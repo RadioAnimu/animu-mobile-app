@@ -139,6 +139,7 @@ const DICT = {
   MENU_PLAYER: "プレーヤー",
   MENU_LAST_REQUESTED: "最後のリクエスト",
   MENU_LAST_PLAYED: "最後に流れた曲",
+  MENU_MAKE_REQUEST: "リクエストする",
   LINKS: "リンク",
   LINKS_DISCORD: "ディスコード",
   LINKS_WEBSITE: "ウェブサイト",
@@ -178,6 +179,19 @@ const DICT = {
   SELECT_ERROR: "選曲に失敗しちゃった",
   REQUEST_ERROR: "リクエスト失敗: ",
   REQUEST_ERROR_ALREADY_REQUESTED: "この曲はもうリクエストされているよ",
+  REQUEST_ERROR_PEDIBLOCK:
+    "この曲はもうリクエストされたよ。{time}のあとにまたリクエストできるよ。",
+  REQUEST_ERROR_PEDIBLOCK_RECENT: "この曲はさっきリクエストされたばかりだよ。",
+  REQUEST_ERROR_BLOCK_90:
+    "「{detail}」の曲が直近90分で多すぎるよ。",
+  REQUEST_ERROR_HARUBLOCK: "この曲はAutoDJでさっき流れたばかりだよ。",
+  REQUEST_ERROR_ONAIR: "DJが放送中のときはリクエストできないよ。",
+  REQUEST_ERROR_BLOCOBLOCK: "今はリクエストをお休みしているよ。",
+  REQUEST_ERROR_NOLOGIN: "セッションが切れちゃったよ。もう一度ログインしてね。",
+  REQUEST_ERROR_NO2FA:
+    "リクエストにはDiscordで2段階認証を有効にする必要があるよ。",
+  REQUEST_ERROR_PANEL:
+    "ラジオのパネルが一時的に利用できないよ。少ししてからもう一度試してね。",
   REQUEST_SUCCESS: "リクエスト成功！",
   REQUEST_SEARCH_PLACEHOLDER: "ローマ字で検索してね",
   REQUEST_SEARCH_BUTTON_TEXT: "検索",

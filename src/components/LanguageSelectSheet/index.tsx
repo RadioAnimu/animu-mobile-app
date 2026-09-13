@@ -38,14 +38,18 @@ export function LanguageSelectSheet({ visible, onClose }: Props) {
     return haystack.includes(normalize(query));
   });
 
-  const onSelect = (key: keyof typeof LANGS_KEY_VALUE_PAIRS) => {
-    updateSettings({ selectedLanguage: key });
-    //! NEED TO REFRESH PLAYER
+  const handleClose = () => {
+    setQuery("");
     onClose();
   };
 
+  const onSelect = (key: keyof typeof LANGS_KEY_VALUE_PAIRS) => {
+    updateSettings({ selectedLanguage: key });
+    handleClose();
+  };
+
   return (
-    <Sheet visible={visible} onClose={onClose} withKeyboard maxHeight="75%">
+    <Sheet visible={visible} onClose={handleClose} withKeyboard maxHeight="75%">
       <Text style={styles.title}>
         {DICT[settings.selectedLanguage].SETTINGS_LANGUAGE_SELECT_TITLE}
       </Text>

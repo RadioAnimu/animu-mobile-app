@@ -204,10 +204,6 @@ export class NowPlayingRepository {
         trackChanged = true;
 
         void this.refreshHistory("played");
-
-        // Enable progress for real, non-live tracks (radio keeps playing
-        // server-side so we always show progress).
-        this.showProgressValue = isRealTrack(track) && !program.isLive;
       }
 
       const programChanged =
@@ -215,6 +211,14 @@ export class NowPlayingRepository {
         this.currentProgramValue?.dj !== program.dj ||
         this.currentProgramValue?.isLive !== program.isLive;
       if (programChanged) this.currentProgramValue = program;
+
+      // Enable progress for real, non-live tracks (radio keeps playing
+      // server-side so we always show progress). Recompute on EITHER change:
+      // a live block starting/ending while the same track stays on air must
+      // still flip the seek bar off/on.
+      if (trackChanged || programChanged) {
+        this.showProgressValue = isRealTrack(track) && !program.isLive;
+      }
 
       const listenersChanged = this.listenersValue?.value !== listeners.value;
       if (listenersChanged) this.listenersValue = listeners;

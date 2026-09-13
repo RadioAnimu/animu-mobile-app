@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { ValidationError } from "animu-api";
 import {
   ActivityIndicator,
@@ -81,19 +81,40 @@ export function LiveRequestModal({ visible, handleClose }: Props) {
 
   const t = DICT[settings.selectedLanguage];
 
+  // The modal stays mounted with Home, so the hook's initial name is
+  // captured before the session is restored — prefill from the current
+  // user each time the sheet opens (and clear any previous session's form).
+  const settersRef = useRef(setters);
+  settersRef.current = setters;
+  const wasVisible = useRef(false);
+  useEffect(() => {
+    if (visible && !wasVisible.current) {
+      const defaultName = user?.nickname || user?.username || "";
+      if (defaultName) settersRef.current.setName(defaultName);
+    }
+    wasVisible.current = visible;
+  }, [visible, user]);
+
+  const closeAndReset = () => {
+    reset();
+    handleClose();
+  };
+
   const handleSubmit = async () => {
     if (isSubmitting) return;
 
-    try {
-      if (!isFormValid()) return;
+    if (!isFormValid()) {
+      showError(t.LOGIN_MISSING_FIELDS);
+      return;
+    }
 
+    try {
       setIsSubmitting(true);
       const result = await liveRequestService.submitRequest(getFormData());
 
       if (result.success) {
         success(t.REQUEST_SUCCESS);
-        handleClose();
-        reset();
+        closeAndReset();
       } else {
         showError(`${t.REQUEST_ERROR}${result.error}`);
       }
@@ -169,7 +190,7 @@ export function LiveRequestModal({ visible, handleClose }: Props) {
   ];
 
   return (
-    <Sheet visible={visible} onClose={handleClose} withKeyboard>
+    <Sheet visible={visible} onClose={closeAndReset} withKeyboard>
       <GestureScrollView
         contentContainerStyle={styles.scrollContent}
         keyboardShouldPersistTaps="handled"

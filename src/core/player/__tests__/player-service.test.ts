@@ -360,7 +360,7 @@ describe("PlayerService stream-loss handling", () => {
     }
   });
 
-  it("follows a native auto-resume after an interruption (call ended)", async () => {
+  it("re-opens the live edge on a native auto-resume after an interruption", async () => {
     vi.useFakeTimers();
     try {
       const { deps, transport, publisher } = makeDeps();
@@ -368,6 +368,7 @@ describe("PlayerService stream-loss handling", () => {
       await service.play();
       const handler = wiredHandler(transport);
       handler({ playing: true } as AudioStatus);
+      transport.play.mockClear();
 
       // Phone call: expo-audio pauses natively (not a user pause)
       handler({
@@ -378,12 +379,17 @@ describe("PlayerService stream-loss handling", () => {
       } as AudioStatus);
       expect(deps.state.state).toBe("paused");
 
-      // Call ends and the OS resumes the player on its own
+      // Call ends and the OS resumes the player on its own. The native
+      // player would continue from the paused point (stale audio on a live
+      // stream), so the orchestrator re-opens the source to land live.
       handler({ playing: true } as AudioStatus);
 
-      expect(deps.state.state).toBe("playing");
+      expect(transport.play).toHaveBeenCalledWith(
+        deps.streamPreferences.current.url,
+      );
+      expect(deps.state.state).toBe("connecting");
       expect(playerStore.getSnapshot().isPlaying).toBe(true);
-      expect(publisher.pushStatus).toHaveBeenLastCalledWith("playing");
+      expect(publisher.pushStatus).toHaveBeenLastCalledWith("buffering");
       // The transport was never told to pause — this was not the user.
       expect(transport.pause).not.toHaveBeenCalled();
     } finally {

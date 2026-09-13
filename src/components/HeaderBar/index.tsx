@@ -14,7 +14,7 @@ import playButtonImage from "../../assets/play_square_btn.png";
 import pauseButtonImage from "../../assets/play_triangle_btn.png";
 import { IMGS } from "../../i18n";
 import { THEME } from "../../theme";
-import { CONTAINER_HEIGHT, styles } from "./styles";
+import { CONTAINER_HEIGHT, ICON_HIT_SLOP, styles } from "./styles";
 import { useUserSettings } from "../../contexts/user/UserSettingsProvider";
 import {
   usePlayer,
@@ -129,6 +129,9 @@ export function HeaderBar({ navigation, openLiveRequestModal }: Props) {
         ]}
       >
         <TouchableOpacity
+          accessibilityRole="button"
+          accessibilityLabel="Open menu"
+          hitSlop={ICON_HIT_SLOP}
           onPress={() => {
             // @ts-ignore
             navigation.openDrawer();
@@ -161,6 +164,9 @@ export function HeaderBar({ navigation, openLiveRequestModal }: Props) {
         </TouchableOpacity>
 
         <TouchableOpacity
+          accessibilityRole="button"
+          accessibilityLabel="Make a request"
+          hitSlop={ICON_HIT_SLOP}
           onPress={() => {
             if (
               currentProgram?.isLive &&

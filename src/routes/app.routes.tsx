@@ -79,9 +79,10 @@ export function AppRoutes() {
       />
       <Screen
         options={{
-          drawerItemStyle: {
-            display: "none",
-          },
+          drawerLabel: DICT[settings.selectedLanguage].MENU_MAKE_REQUEST,
+          drawerIcon: ({ color }) => (
+            <DrawerIcon name="music-note" color={color} />
+          ),
         }}
         name="FazerPedido"
         component={FazerPedido}

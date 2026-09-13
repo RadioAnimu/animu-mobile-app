@@ -73,13 +73,19 @@ export const AlertProvider: React.FC<{ children: ReactNode }> = ({
 
   const setAlert = useCallback((message: string, type: AlertType) => {
     setAlertState({ message, type });
-    // Auto-dismiss after 3 seconds
+    // Auto-dismiss after 3 seconds. Clear the previous timer first — a
+    // second alert arriving within the window must not be dismissed by
+    // the first alert's pending timeout.
+    if (timeoutRef.current) clearTimeout(timeoutRef.current);
     timeoutRef.current = setTimeout(() => {
+      timeoutRef.current = null;
       setAlertState(null);
     }, 3000);
   }, []);
 
   const clearAlert = useCallback(() => {
+    if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    timeoutRef.current = null;
     setAlertState(null);
   }, []);
 

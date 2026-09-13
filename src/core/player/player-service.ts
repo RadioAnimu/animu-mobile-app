@@ -578,9 +578,18 @@ export class PlayerService {
           this.deps.transport.pause();
           return;
         }
-        // Otherwise the pause was native (focus loss, phone call) and the
-        // OS has just resumed on its own (Android AUDIOFOCUS_GAIN, iOS
-        // .shouldResume) — fall through and adopt the resumed audio.
+        // The pause was native (focus loss, phone call) and the OS has just
+        // resumed on its own (Android AUDIOFOCUS_GAIN, iOS .shouldResume).
+        // The native player continues from the point it was paused at —
+        // which on a live radio stream replays stale, already-played audio
+        // (and can sit behind the live edge for the rest of the session).
+        // Re-open the source instead of adopting the buffered position, so
+        // a call/interruption always drops the listener back at the live
+        // point.
+        this.deps.transport.play(this.deps.streamPreferences.current.url);
+        this.reconcile("connecting");
+        this.deps.heartbeat.beat();
+        return;
       }
 
       // Native 1 Hz heartbeat: drives progress + media-session pushes AND

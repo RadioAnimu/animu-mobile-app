@@ -50,33 +50,39 @@ export const getSubmissionErrorMessage = (
   detail?: string,
   lang: LanguageKey = "PT",
 ): string => {
+  const t = DICT[lang];
+  const withDetail = (template: string) =>
+    template.replace("{detail}", detail ?? "");
+
   // Server sends raw lowercase spellings (`erro: "harublock"`); the package
   // normalizes known blocks to uppercased codes — match both.
   switch (error?.toUpperCase()) {
     case "PEDIBLOCK":
       return detail
-        ? `This track was already requested. Available again after ${new Date(detail + "Z").toLocaleTimeString()}`
-        : "This track was requested too recently.";
+        ? t.REQUEST_ERROR_PEDIBLOCK.replace(
+            "{time}",
+            new Date(detail + "Z").toLocaleTimeString(),
+          )
+        : t.REQUEST_ERROR_PEDIBLOCK_RECENT;
     case "ANIBLOCK":
-      return `Too many songs from "${detail}" in the last 90 minutes.`;
     case "ARTISTBLOCK":
-      return `Too many songs from "${detail}" in the last 90 minutes.`;
+      return withDetail(t.REQUEST_ERROR_BLOCK_90);
     case "HARUBLOCK":
-      return "This track was played too recently by the AutoDJ.";
+      return t.REQUEST_ERROR_HARUBLOCK;
     case "STRIKE AND OUT":
     case "STRIKE_AND_OUT":
-      return "You've reached the request limit.";
+      return t.ERROR_STRIKE_AND_OUT;
     case "ONAIR":
-      return "Requests are disabled while a DJ is live.";
+      return t.REQUEST_ERROR_ONAIR;
     case "BLOCOBLOCK":
-      return "Requests are currently disabled.";
+      return t.REQUEST_ERROR_BLOCOBLOCK;
     case "NOLOGIN":
-      return "Your session expired. Please log in again.";
+      return t.REQUEST_ERROR_NOLOGIN;
     case "NO2FA":
-      return "You need 2FA enabled on Discord to make requests.";
+      return t.REQUEST_ERROR_NO2FA;
     case "PANEL_UNAVAILABLE":
-      return "The radio panel is temporarily unavailable. Try again in a moment.";
+      return t.REQUEST_ERROR_PANEL;
     default:
-      return DICT[lang].REQUEST_ERROR;
+      return t.REQUEST_ERROR;
   }
 };

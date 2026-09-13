@@ -139,6 +139,7 @@ const DICT = {
   MENU_PLAYER: "Reproductor",
   MENU_LAST_REQUESTED: "Últimas Solicitudes",
   MENU_LAST_PLAYED: "Últimas Reproducciones",
+  MENU_MAKE_REQUEST: "Hacer Pedido",
   LINKS: "Enlaces",
   LINKS_DISCORD: "Discord",
   LINKS_WEBSITE: "Sitio Web",
@@ -179,6 +180,20 @@ const DICT = {
   REQUEST_ERROR: "Error al hacer la solicitud: ",
   REQUEST_ERROR_ALREADY_REQUESTED:
     "La canción ya ha sido solicitada anteriormente",
+  REQUEST_ERROR_PEDIBLOCK:
+    "Esta canción ya fue solicitada. Disponible de nuevo después de {time}.",
+  REQUEST_ERROR_PEDIBLOCK_RECENT: "Esta canción fue solicitada hace muy poco.",
+  REQUEST_ERROR_BLOCK_90:
+    'Demasiadas canciones de "{detail}" en los últimos 90 minutos.',
+  REQUEST_ERROR_HARUBLOCK:
+    "Esta canción sonó hace muy poco en el AutoDJ.",
+  REQUEST_ERROR_ONAIR: "Las solicitudes están desactivadas mientras hay un DJ en vivo.",
+  REQUEST_ERROR_BLOCOBLOCK: "Las solicitudes están desactivadas por el momento.",
+  REQUEST_ERROR_NOLOGIN: "Tu sesión expiró. Inicia sesión de nuevo.",
+  REQUEST_ERROR_NO2FA:
+    "Necesitas tener la 2FA activada en Discord para hacer solicitudes.",
+  REQUEST_ERROR_PANEL:
+    "El panel de la radio está temporalmente no disponible. Inténtalo de nuevo en un momento.",
   REQUEST_SUCCESS: "¡Solicitud realizada con éxito!",
   REQUEST_SEARCH_PLACEHOLDER: "Escribe aquí para buscar",
   REQUEST_SEARCH_BUTTON_TEXT: "Buscar",

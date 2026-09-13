@@ -51,13 +51,10 @@ export function Last({ route, navigation }: Props) {
                   ? station.lastRequestedTracks
                   : station.lastPlayedTracks
               }
-              keyExtractor={(item, index) => item.raw + index}
-              contentContainerStyle={styles.containerList}
-              extraData={
-                isUltimasPedidasScreen
-                  ? station.lastRequestedTracks
-                  : station.lastPlayedTracks
+              keyExtractor={(item) =>
+                `${item.raw}-${new Date(item.startTime).getTime()}`
               }
+              contentContainerStyle={styles.containerList}
               renderItem={({ item }) => (
                 <View style={styles.metadata}>
                   {(isUltimasPedidasScreen && settings.lastRequestedCovers) ||

@@ -80,7 +80,13 @@ export const styles = StyleSheet.create({
     fontFamily: THEME.FONT_FAMILY.BOLD,
     fontSize: THEME.FONT_SIZE.LIST,
   },
+  accountService: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: THEME.SPACE.XXS,
+  },
   accountCaption: {
+    flexShrink: 1,
     color: THEME.COLORS.TEXT_DIM,
     fontFamily: THEME.FONT_FAMILY.REGULAR,
     fontSize: THEME.FONT_SIZE.CAPTION,

@@ -139,6 +139,7 @@ const DICT = {
   MENU_PLAYER: "Player",
   MENU_LAST_REQUESTED: "Last Requests",
   MENU_LAST_PLAYED: "Last Played",
+  MENU_MAKE_REQUEST: "Make a Request",
   LINKS: "Links",
   LINKS_DISCORD: "Discord",
   LINKS_WEBSITE: "Website",
@@ -178,6 +179,18 @@ const DICT = {
   SELECT_ERROR: "Error selecting the song",
   REQUEST_ERROR: "Error making request: ",
   REQUEST_ERROR_ALREADY_REQUESTED: "Song has already been requested before",
+  REQUEST_ERROR_PEDIBLOCK:
+    "This track was already requested. Available again after {time}.",
+  REQUEST_ERROR_PEDIBLOCK_RECENT: "This track was requested too recently.",
+  REQUEST_ERROR_BLOCK_90:
+    'Too many songs from "{detail}" in the last 90 minutes.',
+  REQUEST_ERROR_HARUBLOCK: "This track was played too recently by the AutoDJ.",
+  REQUEST_ERROR_ONAIR: "Requests are disabled while a DJ is live.",
+  REQUEST_ERROR_BLOCOBLOCK: "Requests are currently disabled.",
+  REQUEST_ERROR_NOLOGIN: "Your session expired. Please log in again.",
+  REQUEST_ERROR_NO2FA: "You need 2FA enabled on Discord to make requests.",
+  REQUEST_ERROR_PANEL:
+    "The radio panel is temporarily unavailable. Try again in a moment.",
   REQUEST_SUCCESS: "Request made successfully!",
   REQUEST_SEARCH_PLACEHOLDER: "Type here to search",
   REQUEST_SEARCH_BUTTON_TEXT: "Search",
