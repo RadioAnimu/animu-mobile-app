@@ -4,6 +4,7 @@ import { NativeStackScreenProps } from "@react-navigation/native-stack";
 
 import {
   Animated,
+  Platform,
   ScrollView,
   Text,
   TouchableOpacity,
@@ -13,6 +14,7 @@ import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context"
 import { Background } from "../../components/Background";
 import { Avatar } from "../../components/Avatar";
 import { BackArrow } from "../../components/BackArrow";
+import { FpsSlider } from "../../components/FpsSlider";
 import { ProviderIcon } from "../../components/ProviderIcon";
 import { SectionTitle } from "../../components/SectionTitle";
 import { CoverQualitySheet } from "../../components/CoverQualitySheet";
@@ -288,6 +290,39 @@ export function Settings({ navigation }: Props) {
                 });
               }}
             />
+          </View>
+
+          <SectionTitle title={dict.SETTINGS_OSCILLOSCOPE_TITLE} icon="graphic-eq" />
+          <View style={styles.group}>
+            {Platform.OS === "ios" ? (
+              <View style={styles.row}>
+                <Text style={styles.rowLabel}>
+                  {cleanLabel(dict.SETTINGS_VISUALIZER_SWITCH)}
+                </Text>
+                <Text style={styles.visualizerValue}>
+                  {dict.SETTINGS_VISUALIZER_COMING_SOON}
+                </Text>
+              </View>
+            ) : (
+              <>
+                <View style={styles.row}>
+                  <Text style={styles.rowLabel}>
+                    {cleanLabel(dict.SETTINGS_VISUALIZER_FPS_LABEL)}
+                  </Text>
+                  <Text style={styles.visualizerValue}>
+                    {settings.visualizerFps === 0
+                      ? dict.SETTINGS_VISUALIZER_OFF
+                      : `${settings.visualizerFps} FPS`}
+                  </Text>
+                </View>
+                <FpsSlider
+                  value={settings.visualizerFps}
+                  onChange={(visualizerFps) => {
+                    updateSettings({ visualizerFps });
+                  }}
+                />
+              </>
+            )}
           </View>
 
           <SectionTitle title={dict.SETTINGS_GENERAL_TITLE} icon="language" />

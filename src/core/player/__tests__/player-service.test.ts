@@ -130,10 +130,20 @@ const makeDeps = () => {
     stateLabel: () => state.state,
   });
   const artwork = new ArtworkResolver();
+  const sampler = {
+    isSupported: true,
+    isActive: false,
+    setFps: vi.fn(),
+    setForeground: vi.fn(),
+    setPlaying: vi.fn(),
+    subscribe: vi.fn(() => () => {}),
+    dispose: vi.fn(),
+  };
 
   const deps = {
     state,
     transport,
+    sampler,
     publisher,
     repository,
     streamPreferences,
@@ -144,7 +154,7 @@ const makeDeps = () => {
     artwork,
   } as unknown as PlayerServiceDependencies;
 
-  return { deps, transport, publisher, repository, reconnect };
+  return { deps, transport, publisher, repository, reconnect, sampler };
 };
 
 const wiredHandler = (transport: {

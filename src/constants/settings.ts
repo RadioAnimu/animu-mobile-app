@@ -7,4 +7,5 @@ export const DEFAULT_USER_SETTINGS: UserSettings = {
   coversInRequestSearch: true,
   selectedLanguage: "PT",
   cacheEnabled: true,
+  visualizerFps: 60,
 };

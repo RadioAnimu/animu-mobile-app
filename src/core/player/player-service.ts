@@ -36,6 +36,12 @@ import {
 } from "./store";
 import { StreamPreferences } from "./stream-preferences";
 import { AudioTransport } from "./transport";
+import { createVisualizerSampler } from "./visualizer";
+import type {
+  VisualizerFps,
+  VisualizerSampler,
+  WaveformFrame,
+} from "./visualizer.types";
 import {
   TransportStateMachine,
   isDeadPlaybackState,
@@ -60,6 +66,7 @@ const STREAM_DEATH_GRACE_MS = 3000;
 export interface PlayerServiceDependencies {
   state: TransportStateMachine;
   transport: AudioTransport;
+  sampler: VisualizerSampler;
   publisher: MediaSessionPublisher;
   repository: NowPlayingRepository;
   streamPreferences: StreamPreferences;
@@ -155,6 +162,29 @@ export class PlayerService {
     return buildNowPlayingMetadata(this.nowPlayingInput());
   }
 
+  // ── Visualizer ──
+
+  /** Whether the platform can sample the player for visualization. */
+  get isVisualizerSupported(): boolean {
+    return this.deps.sampler.isSupported;
+  }
+
+  /** Selected frame rate (`0` disables). */
+  setVisualizerFps(fps: VisualizerFps): void {
+    this.deps.sampler.setFps(fps);
+  }
+
+  /** Subscribes to display-ready waveform frames (hot path, not a store). */
+  subscribeVisualizer(listener: (frame: WaveformFrame) => void): () => void {
+    return this.deps.sampler.subscribe(listener);
+  }
+
+  private applyVisualizerSettings(): void {
+    this.deps.sampler.setFps(
+      userSettingsService.getCurrentSettings().visualizerFps,
+    );
+  }
+
   // ── Lifecycle ──
 
   /**
@@ -170,6 +200,7 @@ export class PlayerService {
     this.appActive = active;
     this.deps.ticker.setUiVisible(active);
     this.deps.heartbeat.setUiVisible(active);
+    this.deps.sampler.setForeground(active);
     if (active) {
       this.emitPlayer();
       this.emitStation();
@@ -218,6 +249,9 @@ export class PlayerService {
     // before touching any state or store.
     if (this.disposed) return;
     this.streamOptions = streams;
+
+    // Settings are now loaded — arm the visualizer with the stored preference.
+    this.applyVisualizerSettings();
 
     // Watch connectivity: instant reconnect + data refresh when back online
     this.deps.networkMonitor.start();
@@ -271,6 +305,7 @@ export class PlayerService {
       this.deps.networkMonitor.stop();
       this.deps.heartbeat.reset();
       this.deps.artwork.reset();
+      this.deps.sampler.dispose();
       if (this.deps.transport.hasPlayer) {
         this.deps.transport.dispose();
         this.deps.transport.markSessionDown();
@@ -296,6 +331,7 @@ export class PlayerService {
       this.deps.ticker.reset();
       this.deps.heartbeat.reset();
       this.deps.artwork.reset();
+      this.deps.sampler.dispose();
       this.deps.transport.markSessionDown();
       this.initialized = false;
       this.streamOptions = [];
@@ -510,6 +546,8 @@ export class PlayerService {
    */
   private reconcile(next: TransportState): void {
     if (!this.deps.state.transition(next)) return;
+    // Sampling follows play intent — the visualizer only runs with audio.
+    this.deps.sampler.setPlaying(this.deps.state.isPlayingIntent);
     // Any state change is UI-visible: isPlaying and playbackState derive
     // from the state machine.
     this.emitPlayer();
@@ -700,6 +738,7 @@ let playerServiceInstance: PlayerService | null = null;
 export const createPlayerService = (): PlayerService => {
   const state = new TransportStateMachine();
   const transport = new AudioTransport();
+  const sampler = createVisualizerSampler(transport);
   const publisher = new MediaSessionPublisher();
   const streamPreferences = new StreamPreferences();
   const reconnect = new BackoffScheduler({
@@ -741,6 +780,7 @@ export const createPlayerService = (): PlayerService => {
   return new PlayerService({
     state,
     transport,
+    sampler,
     publisher,
     repository,
     streamPreferences,

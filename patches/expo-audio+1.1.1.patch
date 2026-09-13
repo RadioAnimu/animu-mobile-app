@@ -1,0 +1,288 @@
+diff --git a/node_modules/expo-audio/android/src/main/AndroidManifest.xml b/node_modules/expo-audio/android/src/main/AndroidManifest.xml
+index 8c797aa..82cf539 100644
+--- a/node_modules/expo-audio/android/src/main/AndroidManifest.xml
++++ b/node_modules/expo-audio/android/src/main/AndroidManifest.xml
+@@ -1,5 +1,4 @@
+ <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+-  <uses-permission android:name="android.permission.RECORD_AUDIO" />
+   <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
+   <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+   <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
+diff --git a/node_modules/expo-audio/android/src/main/java/expo/modules/audio/AudioPlayer.kt b/node_modules/expo-audio/android/src/main/java/expo/modules/audio/AudioPlayer.kt
+index 320062e..f6b8628 100644
+--- a/node_modules/expo-audio/android/src/main/java/expo/modules/audio/AudioPlayer.kt
++++ b/node_modules/expo-audio/android/src/main/java/expo/modules/audio/AudioPlayer.kt
+@@ -1,17 +1,18 @@
+ package expo.modules.audio
+ 
+-import android.Manifest
+ import android.content.Context
+-import android.content.pm.PackageManager
+-import android.media.audiofx.Visualizer
+-import android.util.Log
+-import androidx.core.content.ContextCompat
+ import androidx.media3.common.AudioAttributes
+ import androidx.media3.common.C
+ import androidx.media3.common.MediaItem
+ import androidx.media3.common.Player
++import androidx.media3.common.audio.AudioProcessor
+ import androidx.media3.common.util.UnstableApi
++import androidx.media3.exoplayer.DefaultRenderersFactory
+ import androidx.media3.exoplayer.ExoPlayer
++import androidx.media3.exoplayer.RenderersFactory
++import androidx.media3.exoplayer.audio.AudioSink
++import androidx.media3.exoplayer.audio.DefaultAudioSink
++import androidx.media3.exoplayer.audio.TeeAudioProcessor
+ import androidx.media3.exoplayer.source.MediaSource
+ import expo.modules.audio.service.AudioControlsService
+ import expo.modules.kotlin.AppContext
+@@ -28,6 +29,8 @@ import kotlinx.coroutines.flow.onEach
+ import kotlinx.coroutines.flow.onStart
+ import kotlinx.coroutines.launch
+ import kotlinx.coroutines.withContext
++import java.nio.ByteBuffer
++import java.nio.ByteOrder
+ import java.util.UUID
+ 
+ private const val PLAYBACK_STATUS_UPDATE = "playbackStatusUpdate"
+@@ -39,9 +42,14 @@ class AudioPlayer(
+   context: Context,
+   appContext: AppContext,
+   source: MediaSource?,
+-  private val updateInterval: Double
++  private val updateInterval: Double,
++  // PATCH: decoded-PCM tap installed in the ExoPlayer pipeline. Replaces the
++  // `android.media.audiofx.Visualizer` sampler, which required RECORD_AUDIO.
++  // Reading the already-decoded playback PCM via an AudioProcessor needs no
++  // microphone permission. Defaulted so the AudioModule call site is unchanged.
++  private val samplingSink: SamplingAudioBufferSink = SamplingAudioBufferSink()
+ ) : SharedRef<ExoPlayer>(
+-  ExoPlayer.Builder(context)
++  ExoPlayer.Builder(context, buildSamplingRenderersFactory(context, samplingSink))
+     .setLooper(context.mainLooper)
+     .setAudioAttributes(AudioAttributes.DEFAULT, false)
+     .setSeekForwardIncrementMs(SEEK_JUMP_INTERVAL_MS)
+@@ -61,8 +69,6 @@ class AudioPlayer(
+   private var metadata: Metadata? = null
+ 
+   private var playerScope = CoroutineScope(Dispatchers.Default)
+-  private var samplingEnabled = false
+-  private var visualizer: Visualizer? = null
+   private var playing = false
+   private val context by lazy {
+     appContext.reactContext
+@@ -76,6 +82,12 @@ class AudioPlayer(
+ 
+   init {
+     addPlayerListeners()
++    // PATCH: the PCM tap runs on ExoPlayer's audio thread — it must not touch
++    // `ref` (wrong-thread access throws). `timestampMs` is derived from a frame
++    // counter by the sink, so this callback only forwards data to JS.
++    samplingSink.onSample = { channels, timestampMs ->
++      sendAudioSampleUpdate(channels, timestampMs)
++    }
+     source?.let {
+       setMediaSource(source)
+     }
+@@ -170,20 +182,10 @@ class AudioPlayer(
+   })
+ 
+   fun setSamplingEnabled(enabled: Boolean) {
+-    appContext?.reactContext?.let {
+-      if (ContextCompat.checkSelfPermission(it, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+-        Log.d(TAG, "\'android.permission.RECORD_AUDIO\' is required to use audio sampling. Please request this permission and try again.")
+-        return
+-      }
+-    }
+-
+-    samplingEnabled = enabled
+-    if (enabled) {
+-      createVisualizer()
+-    } else {
+-      visualizer?.release()
+-      visualizer = null
+-    }
++    // PATCH: no RECORD_AUDIO check. Sampling now reads decoded PCM from the
++    // ExoPlayer audio pipeline (an AudioProcessor tap), which the OS does not
++    // gate behind a recording permission — unlike the old Visualizer effect.
++    samplingSink.enabled = enabled
+   }
+ 
+   fun seekTo(seekTime: Double) {
+@@ -193,11 +195,6 @@ class AudioPlayer(
+     }
+   }
+ 
+-  private fun extractAmplitudes(chunk: ByteArray): List<Float> = chunk.map { byte ->
+-    val unsignedByte = byte.toInt() and 0xFF
+-    ((unsignedByte - 128).toDouble() / 128.0).toFloat()
+-  }
+-
+   fun currentStatus(): Map<String, Any?> {
+     val isMuted = ref.volume == 0f
+     val isLooping = ref.repeatMode == Player.REPEAT_MODE_ONE
+@@ -229,12 +226,10 @@ class AudioPlayer(
+       emit(PLAYBACK_STATUS_UPDATE, body)
+     }
+ 
+-  private fun sendAudioSampleUpdate(sample: List<Float>) {
++  private fun sendAudioSampleUpdate(channels: List<List<Float>>, timestampMs: Long) {
+     val body = mapOf(
+-      "channels" to listOf(
+-        mapOf("frames" to sample)
+-      ),
+-      "timestamp" to ref.currentPosition
++      "channels" to channels.map { mapOf("frames" to it) },
++      "timestamp" to timestampMs
+     )
+     emit(AUDIO_SAMPLE_UPDATE, body)
+   }
+@@ -249,33 +244,6 @@ class AudioPlayer(
+     }
+   }
+ 
+-  private fun createVisualizer() {
+-    // It must only be created once, otherwise the app will crash
+-    if (visualizer == null) {
+-      visualizer = Visualizer(ref.audioSessionId).apply {
+-        captureSize = Visualizer.getCaptureSizeRange()[1]
+-        setDataCaptureListener(
+-          object : Visualizer.OnDataCaptureListener {
+-            override fun onWaveFormDataCapture(visualizer: Visualizer?, waveform: ByteArray?, samplingRate: Int) {
+-              waveform?.let {
+-                if (samplingEnabled && ref.isPlaying) {
+-                  val data = extractAmplitudes(it)
+-                  sendAudioSampleUpdate(data)
+-                }
+-              }
+-            }
+-
+-            override fun onFftDataCapture(visualizer: Visualizer?, fft: ByteArray?, samplingRate: Int) = Unit
+-          },
+-          Visualizer.getMaxCaptureRate() / 2,
+-          true,
+-          false
+-        )
+-        enabled = true
+-      }
+-    }
+-  }
+-
+   override fun sharedObjectDidRelease() {
+     super.sharedObjectDidRelease()
+     appContext?.mainQueue?.launch {
+@@ -283,7 +251,8 @@ class AudioPlayer(
+         AudioControlsService.clearSession()
+       }
+       playerScope.cancel()
+-      visualizer?.release()
++      samplingSink.enabled = false
++      samplingSink.onSample = null
+       ref.release()
+     }
+   }
+@@ -292,3 +261,104 @@ class AudioPlayer(
+     val TAG = AudioPlayer::class.simpleName
+   }
+ }
++
++/**
++ * PATCH: builds a [RenderersFactory] whose audio sink carries [sink] as a
++ * [TeeAudioProcessor] tap. The tap sees the decoded PCM on its way to the
++ * speaker, so the visualizer can read the waveform WITHOUT the `RECORD_AUDIO`
++ * permission that `android.media.audiofx.Visualizer` requires. The tap is
++ * always present but silent until [SamplingAudioBufferSink.enabled] is set.
++ */
++@UnstableApi
++private fun buildSamplingRenderersFactory(
++  context: Context,
++  sink: SamplingAudioBufferSink
++): RenderersFactory {
++  val tee = TeeAudioProcessor(sink)
++  return object : DefaultRenderersFactory(context) {
++    override fun buildAudioSink(
++      context: Context,
++      enableFloatOutput: Boolean,
++      enableAudioTrackPlaybackParams: Boolean
++    ): AudioSink =
++      DefaultAudioSink.Builder(context)
++        .setEnableFloatOutput(enableFloatOutput)
++        .setEnableAudioTrackPlaybackParams(enableAudioTrackPlaybackParams)
++        .setAudioProcessors(arrayOf<AudioProcessor>(tee))
++        .build()
++  }
++}
++
++/**
++ * PATCH: a [TeeAudioProcessor.AudioBufferSink] that forwards decoded PCM windows
++ * to JS as normalized per-channel float frames. Lives in the ExoPlayer audio
++ * pipeline and is invoked on the playback thread, so it touches neither the
++ * React bridge nor the ExoPlayer instance directly — it only normalizes bytes
++ * and hands them to [onSample], which the player wires to its event emitter.
++ */
++@UnstableApi
++class SamplingAudioBufferSink : TeeAudioProcessor.AudioBufferSink {
++  /** Gate. The tap stays installed but emits nothing until armed. */
++  @Volatile
++  var enabled = false
++
++  /** `(channels, timestampMs) -> Unit`, set by the owning player. */
++  @Volatile
++  var onSample: ((List<List<Float>>, Long) -> Unit)? = null
++
++  private var sampleRateHz = 44_100
++  private var channelCount = 2
++  private var pcmEncoding = C.ENCODING_PCM_16BIT
++  private var framesEmittedTotal = 0L
++  private var lastEmitNanos = 0L
++
++  override fun flush(sampleRateHz: Int, channelCount: Int, encoding: Int) {
++    this.sampleRateHz = sampleRateHz
++    this.channelCount = if (channelCount > 0) channelCount else 1
++    this.pcmEncoding = encoding
++    this.framesEmittedTotal = 0L
++    this.lastEmitNanos = 0L
++  }
++
++  override fun handleBuffer(buffer: ByteBuffer) {
++    val cb = onSample
++    if (!enabled || cb == null || channelCount <= 0) return
++
++    // Throttle to ~60 Hz so the bridge isn't flooded at the audio-buffer rate.
++    val now = System.nanoTime()
++    if (now - lastEmitNanos < MIN_EMIT_INTERVAL_NANOS) return
++    lastEmitNanos = now
++
++    val pcm = buffer.order(ByteOrder.LITTLE_ENDIAN)
++    val channels = ArrayList<ArrayList<Float>>(channelCount).apply {
++      repeat(channelCount) { add(ArrayList(MAX_FRAMES_PER_CHANNEL)) }
++    }
++
++    var frames = 0
++    loop@ while (frames < MAX_FRAMES_PER_CHANNEL) {
++      for (ch in 0 until channelCount) {
++        val v = when (pcmEncoding) {
++          C.ENCODING_PCM_16BIT ->
++            if (pcm.remaining() >= 2) pcm.short / 32_768f else break@loop
++          C.ENCODING_PCM_FLOAT ->
++            if (pcm.remaining() >= 4) pcm.float else break@loop
++          C.ENCODING_PCM_8BIT ->
++            if (pcm.remaining() >= 1) ((pcm.get().toInt() and 0xFF) - 128) / 128f else break@loop
++          else -> return // unsupported encoding (e.g. 24/32-bit) — skip silently
++        }
++        channels[ch].add(v)
++      }
++      frames++
++    }
++    if (frames == 0) return
++
++    framesEmittedTotal += frames
++    val timestampMs = framesEmittedTotal * 1_000L / sampleRateHz
++    cb(channels, timestampMs)
++  }
++
++  private companion object {
++    const val MAX_FRAMES_PER_CHANNEL = 2048
++    const val MIN_EMIT_INTERVAL_NANOS = 16_000_000L // ~60 Hz
++  }
++}

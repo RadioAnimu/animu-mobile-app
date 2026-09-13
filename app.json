@@ -31,7 +31,10 @@
       },
       "package": "com.nessjs.animu",
       "versionCode": 9,
-      "edgeToEdgeEnabled": true
+      "edgeToEdgeEnabled": true,
+      "blockedPermissions": [
+        "android.permission.RECORD_AUDIO"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -60,7 +63,7 @@
       ],
       "expo-asset",
       "expo-web-browser",
-      "expo-audio",
+      ["expo-audio", { "recordAudioAndroid": false }],
       "expo-apple-authentication"
     ],
     "extra": {

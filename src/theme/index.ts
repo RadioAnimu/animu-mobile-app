@@ -20,6 +20,9 @@ export const THEME = {
 
     ERROR: "#F87171",
 
+    /** Oscilloscope stroke — preserved from the original visualizer. */
+    VISUALIZER: "#723eb2",
+
     INPUT_BG: "#5100A3",
     INPUT_BORDER: "#220056",
     ROW_ACTIVE: "#5700B8",

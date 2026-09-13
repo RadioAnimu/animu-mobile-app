@@ -5,6 +5,11 @@
 export { playerService, createPlayerService } from "./player-service";
 export type { PlayerServiceDependencies } from "./player-service";
 export type { TransportState } from "./transport-state";
+export type {
+  VisualizerFps,
+  VisualizerSampler,
+  WaveformFrame,
+} from "./visualizer.types";
 export {
   playerStore,
   progressStore,

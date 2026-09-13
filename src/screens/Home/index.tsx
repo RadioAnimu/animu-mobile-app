@@ -12,6 +12,7 @@ import { Listeners } from "../../components/Listeners";
 import { Live } from "../../components/Live";
 import { LiveRequestModal } from "../../components/LiveRequestModal";
 import { Logo } from "../../components/Logo";
+import { Oscilloscope } from "../../components/Oscilloscope";
 import { PopUpProgram } from "../../components/PopUpProgram";
 import { Program } from "../../components/Program";
 import { TimeRemaining } from "../../components/TimeRemaining";
@@ -54,7 +55,10 @@ export const Home = ({ navigation }: Props) => {
           />
 
           <View style={styles.containerApp}>
-            <Logo size={LOGO_HEIGHT} />
+            <View style={styles.logoAndOscilloscope}>
+              <Oscilloscope />
+              <Logo size={LOGO_HEIGHT} />
+            </View>
 
             <View style={styles.listenersWrapper}>
               <Listeners />

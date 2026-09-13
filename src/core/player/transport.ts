@@ -1,6 +1,7 @@
 import {
   createAudioPlayer,
   type AudioPlayer,
+  type AudioSample,
   type AudioStatus,
   type AudioSource,
 } from "expo-audio";
@@ -38,8 +39,19 @@ export class AudioTransport {
   private statusHandler: ((status: AudioStatus) => void) | null = null;
   private sessionReady = false;
 
+  /** Sampling seam (see `AudioSampler`). */
+  private sampleSubscription: { remove(): void } | null = null;
+  private sampleHandler: ((sample: AudioSample) => void) | null = null;
+  /** Desired sampling state, applied lazily once a player exists. */
+  private samplingRequested = false;
+
   get hasPlayer(): boolean {
     return this.player != null;
+  }
+
+  /** Whether the native player can provide decoded PCM on this platform. */
+  get isSamplingSupported(): boolean {
+    return this.player?.isAudioSamplingSupported ?? false;
   }
 
   /** Whether the audio mode + media session setup has completed. */
@@ -104,6 +116,9 @@ export class AudioTransport {
       keepAudioSessionActive: true,
     });
     this.attachStatusListener();
+    this.attachSampleListener();
+    // The visualizer may have been armed before the player existed.
+    if (this.samplingRequested) this.applySampling(true);
   }
 
   /** Resumes playback of the loaded source. */
@@ -115,10 +130,60 @@ export class AudioTransport {
     this.player?.pause();
   }
 
+  /**
+   * Enables/disables native PCM sampling (used by the visualizer). The
+   * request is remembered so it can be applied when the player is created
+   * later. Never throws: a failed toggle must not disturb playback.
+   */
+  setSamplingEnabled(enabled: boolean): void {
+    this.samplingRequested = enabled;
+    this.applySampling(enabled);
+  }
+
+  /**
+   * Registers a decoded-PCM handler and returns an unsubscribe function.
+   * Only one handler is supported (the visualizer); a new registration
+   * replaces the previous one.
+   */
+  onSample(handler: (sample: AudioSample) => void): () => void {
+    this.sampleHandler = handler;
+    this.attachSampleListener();
+    return () => {
+      if (this.sampleHandler === handler) {
+        this.sampleHandler = null;
+        this.sampleSubscription?.remove();
+        this.sampleSubscription = null;
+      }
+    };
+  }
+
+  private applySampling(enabled: boolean): void {
+    const player = this.player;
+    if (!player) return;
+    if (enabled && !player.isAudioSamplingSupported) return;
+    try {
+      player.setAudioSamplingEnabled(enabled);
+    } catch (error) {
+      console.warn("[AudioTransport] audio sampling toggle failed:", error);
+    }
+  }
+
+  private attachSampleListener(): void {
+    if (!this.player || !this.sampleHandler || this.sampleSubscription) return;
+    this.sampleSubscription = this.player.addListener(
+      "audioSampleUpdate",
+      (sample: AudioSample) => this.sampleHandler?.(sample),
+    );
+  }
+
   /** Removes the status listener and destroys the native player. */
   dispose(): void {
     this.statusSubscription?.remove();
     this.statusSubscription = null;
+    this.sampleSubscription?.remove();
+    this.sampleSubscription = null;
+    this.sampleHandler = null;
+    this.samplingRequested = false;
     this.player?.remove();
     this.player = null;
   }

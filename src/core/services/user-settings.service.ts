@@ -9,7 +9,9 @@ class UserSettingsService {
     try {
       const stored = await AsyncStorage.getItem("userSettings");
       if (stored) {
-        this.settings = JSON.parse(stored);
+        // Merge over defaults so settings added in later releases are present
+        // for users upgrading from an older build (stored JSON lacks them).
+        this.settings = { ...DEFAULT_USER_SETTINGS, ...JSON.parse(stored) };
       }
       return this.settings;
     } catch {

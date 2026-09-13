@@ -19,6 +19,9 @@ export const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
+  logoAndOscilloscope: {
+    alignItems: "center",
+  },
   listenersWrapper: {
     marginBottom: RHYTHM.LISTENERS,
   },

@@ -29,6 +29,7 @@ This repository is the official mobile application: a real-time internet-radio c
 - **Real-time station metadata** — the app polls the station API and keeps the UI in sync with the server-side track, cover artwork, live program, DJ, and live listener count.
 - **True now-playing in the system media session** — title, artist, anime, artwork, and *real track progress* are pushed to the native notification on both platforms, including for ICY/live streams where the player's internal position is stream-time rather than track-time (see [Engineering notes](#key-engineering-decisions)).
 - **Background playback** — audio continues with the screen locked via a foreground service (Android) and background audio mode (iOS).
+- **Live audio visualizer (Android)** — a Home-screen oscilloscope drawn with `react-native-svg`, fed by the player's own decoded PCM (no WebView). Android taps the ExoPlayer audio pipeline (no microphone permission). Frame rate is a fixed-stop setting (0 = off, 30/48/60); the line stays hidden while paused and reveals from the centre outwards when playback starts. iOS shows *coming soon* and the entire implementation is platform-split out of the iOS bundle — iOS cannot sample a live `AVPlayer` stream (`AVAudioMix` is not applied to indefinite streams).
 - **Multi-provider sign-in** — Discord (browser OAuth 2.0 + PKCE), Google (native SDK `serverAuthCode`), and **Animu Connect** username/password, all exchanging for a session on the Animu backend. Apple Sign-In is stubbed and advertised as *coming soon*.
 - **Account management** — profile view with banner, linked-provider icons, custom avatar upload/reset (cache-busted), provider linking/unlinking, Animu Connect credential setup, and account deletion.
 - **Music requests** — search a requestable catalog and submit a request to the station's queue, with a full form-feedback flow (success/error states) and duplicate-submission guards.
@@ -58,7 +59,8 @@ The player core (`src/core/player`) decomposes playback into small, testable uni
 
 | Unit | Responsibility |
 | --- | --- |
-| `AudioTransport` | Native player + audio-session lifecycle (create/replace/resume/pause, status events) |
+| `AudioTransport` | Native player + audio-session lifecycle (create/replace/resume/pause, status events, decoded-PCM sampling seam) |
+| `AudioSampler` | Android-only visualizer gate + DSP: turns native PCM events into throttled oscilloscope frames (not a React store — hot path). Platform-split so iOS bundles a no-op |
 | `TransportStateMachine` | Explicit play-intent lifecycle (`idle → connecting → playing/paused/reconnecting`) |
 | `BackoffScheduler` | Reusable exponential-backoff timer (stream reconnects + data retries) |
 | `NowPlayingRepository` | On-air data: parallel fetch, diffing merge, predictive track-end refresh, error backoff |
@@ -111,6 +113,7 @@ src/
 - **Native heartbeat while backgrounded.** A `playbackStatusUpdate` event beats the 1 Hz `HeartbeatScheduler` from the native player, driving progress, media-session pushes, and the data poll even when JS timers are frozen or throttled — so a live show's notification never keeps a stale title/cover.
 - **Provider-agnostic auth.** `AuthFacade` composes three ports (API, OAuth, session store). Provider quirks stay in the adapters: Discord runs browser OAuth with PKCE, Google uses the native SDK and exchanges a `serverAuthCode` (no redirect URI), and Apple is stubbed behind its `comingSoon` flag. Swapping the package, mocking auth in tests, or layering caching all happen behind one boundary.
 - **Auth that survives relaunch.** The OAuth/provider code is exchanged on the Animu backend for a session token, persisted to `AsyncStorage`, rehydrated on cold start, and re-checked every 60 s by a background task. A network hiccup never logs the user out; avatar changes bump an `imageVersion` to bust the image cache.
+- **WebView-free audio visualizer without microphone permission (Android).** The oscilloscope reads the player's own decoded PCM through expo-audio's `audioSampleUpdate` events. `expo-audio` is patched (`patches/expo-audio+*.patch`) to replace the `android.media.audiofx.Visualizer` sampler — which the OS gates behind `RECORD_AUDIO` — with an ExoPlayer `TeeAudioProcessor` tap on the decoded playback stream, so no permission is requested. Because Expo SDK 54 ships `expo-audio` as a precompiled AAR, `package.json` opts it into source builds (`expo.autolinking.buildFromSource: ["expo-audio"]`) so the patch is actually compiled. Sampling is gated by a dedicated `AudioSampler` unit (frame rate > 0 + foreground + playing + supported) and frames are decimated to the user's chosen 0/30/48/60 fps. On iOS `AVAudioMix`/`MTAudioProcessingTap` is not applied to indefinite (live) streams, so the visualizer is Android-only for now and the whole implementation is excluded from the iOS bundle via platform-suffixed modules.
 
 ## Tech stack
 
@@ -120,7 +123,8 @@ src/
 | Build tooling | Expo SDK 54 · EAS Build · Expo dev client |
 | Language | TypeScript 5.9 (strict) |
 | Navigation | React Navigation 7 (drawer + native stack) |
-| Audio | `expo-audio` · `react-native-playback-controls` (media session) |
+| Audio | `expo-audio` (patched on Android for permission-free sampling) · `react-native-playback-controls` (media session) |
+| Visualizer | `react-native-svg` · Android-only `AudioSampler` (ExoPlayer `TeeAudioProcessor`); platform-split (`.android`/`.ios`) so iOS ships nothing |
 | Auth | `animu-api` Auth v5 · `expo-auth-session` (Discord OAuth 2.0 + PKCE) · `@react-native-google-signin` |
 | State | React Context · custom external stores (`useSyncExternalStore`) |
 | Storage | `@react-native-async-storage/async-storage` |
@@ -152,7 +156,7 @@ npm test           # vitest
 npm run lint       # expo lint
 ```
 
-> This project uses a development client (`expo start --dev-client`) rather than Expo Go, because it depends on native modules (`react-native-playback-controls`, `@react-native-google-signin`) and a patched playback-controls build (`patches/`).
+> This project uses a development client (`expo start --dev-client`) rather than Expo Go, because it depends on native modules (`react-native-playback-controls`, `@react-native-google-signin`) and patched builds applied via `patch-package` (`patches/`): playback-controls (notification seekability/teardown) and expo-audio (permission-free Android PCM sampling for the visualizer). `expo-audio` is opted into source builds via `expo.autolinking.buildFromSource` in `package.json` — without it, Expo would link the precompiled AAR and the patch would be ignored.
 >
 > The `postinstall` script applies `patch-package` and builds the `animu-api` submodule if needed (`npm run build:api`).
 

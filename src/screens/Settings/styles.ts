@@ -148,6 +148,11 @@ export const styles = StyleSheet.create({
     fontFamily: THEME.FONT_FAMILY.REGULAR,
     fontSize: THEME.FONT_SIZE.LIST,
   },
+  visualizerValue: {
+    color: THEME.COLORS.TEXT_SOFT,
+    fontFamily: THEME.FONT_FAMILY.REGULAR,
+    fontSize: THEME.FONT_SIZE.LIST,
+  },
   switchTrack: {
     width: SWITCH.TRACK_WIDTH,
     height: SWITCH.TRACK_HEIGHT,

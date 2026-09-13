@@ -64,6 +64,11 @@
     },
     "install": {
       "exclude": []
+    },
+    "autolinking": {
+      "buildFromSource": [
+        "expo-audio"
+      ]
     }
   }
 }

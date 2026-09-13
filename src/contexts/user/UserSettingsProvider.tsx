@@ -1,7 +1,13 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { UserSettings } from "../../@types/user-settings";
 import { userSettingsService } from "../../core/services/user-settings.service";
+import { playerService } from "../../core/player";
 import { DEFAULT_USER_SETTINGS } from "../../constants/settings";
+
+/** Pushes visualizer-related settings to the player core (single owner). */
+const applyVisualizerSettings = (settings: UserSettings) => {
+  playerService().setVisualizerFps(settings.visualizerFps);
+};
 
 type UserSettingsContextType = {
   settings: UserSettings;
@@ -24,6 +30,7 @@ export const UserSettingsProvider: React.FC<{ children: React.ReactNode }> = ({
     const initializeSettings = async () => {
       const initialSettings = await userSettingsService.initialize();
       setSettings(initialSettings);
+      applyVisualizerSettings(initialSettings);
     };
 
     initializeSettings();
@@ -33,6 +40,7 @@ export const UserSettingsProvider: React.FC<{ children: React.ReactNode }> = ({
     const updatedSettings = { ...settings, ...newSettings };
     await userSettingsService.updateSettings(updatedSettings);
     setSettings(updatedSettings);
+    applyVisualizerSettings(updatedSettings);
   };
 
   const resetSettings = async () => {

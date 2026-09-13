@@ -20,6 +20,7 @@ import {
   type PlayerSnapshot,
   type ProgressSnapshot,
   type StationSnapshot,
+  type WaveformFrame,
 } from "../../core/player";
 import { Loading } from "../../screens/Loading";
 
@@ -39,6 +40,10 @@ type PlayerContextType = PlayerSnapshot & {
   pause: () => Promise<void>;
   changeStream: (stream: Stream) => Promise<void>;
   refreshData: () => Promise<void>;
+  /** Whether the platform can sample audio for the visualizer. */
+  visualizerSupported: boolean;
+  /** Hot-path subscription to display-ready waveform frames. */
+  subscribeVisualizer: (listener: (frame: WaveformFrame) => void) => () => void;
 };
 
 const PlayerContext = createContext<PlayerContextType>({
@@ -46,6 +51,8 @@ const PlayerContext = createContext<PlayerContextType>({
   pause: () => Promise.reject("Player not initialized"),
   changeStream: () => Promise.reject("Player not initialized"),
   refreshData: () => Promise.reject("Player not initialized"),
+  visualizerSupported: false,
+  subscribeVisualizer: () => () => {},
   isPlaying: false,
   playbackState: "idle",
   isInitialized: false,
@@ -237,6 +244,12 @@ export const PlayerProvider: React.FC<{
     }
   }, [playerServiceInstance]);
 
+  const subscribeVisualizer = useCallback(
+    (listener: (frame: WaveformFrame) => void) =>
+      playerServiceInstance.subscribeVisualizer(listener),
+    [playerServiceInstance],
+  );
+
   // ─── Context values ───
 
   const playerContextValue = useMemo<PlayerContextType>(
@@ -246,8 +259,20 @@ export const PlayerProvider: React.FC<{
       pause,
       changeStream,
       refreshData,
+      // Re-read on every snapshot change so it flips true once the native
+      // player exists (created on first play).
+      visualizerSupported: playerServiceInstance.isVisualizerSupported,
+      subscribeVisualizer,
     }),
-    [playerSnapshot, play, pause, changeStream, refreshData],
+    [
+      playerSnapshot,
+      play,
+      pause,
+      changeStream,
+      refreshData,
+      playerServiceInstance,
+      subscribeVisualizer,
+    ],
   );
 
   return (
