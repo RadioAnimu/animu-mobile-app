@@ -19,6 +19,7 @@ import {
   type StyleProp,
   type TextStyle,
 } from "react-native";
+import { useIsBackgrounded } from "../../contexts/app-state/AppStateProvider";
 
 type MarqueeProps = {
   text: string;
@@ -127,6 +128,7 @@ export const Marquee = React.memo(function Marquee({
   onPress,
 }: MarqueeProps) {
   const group = useContext(GroupContext);
+  const isBackgrounded = useIsBackgrounded();
   const [containerWidth, setContainerWidth] = useState(0);
   const [textWidth, setTextWidth] = useState(0);
   const translateX = useRef(new Animated.Value(0)).current;
@@ -164,7 +166,10 @@ export const Marquee = React.memo(function Marquee({
   const cycle = group ? group.cycle : overflows ? passDuration + holdDelay : null;
 
   useEffect(() => {
-    if (!overflows || cycle === null) return;
+    // Hidden app: stop scrolling entirely. Native-driven animations keep
+    // running in the background (Android especially), burning CPU on a
+    // marquee nobody can see.
+    if (!overflows || cycle === null || isBackgrounded) return;
 
     // Manual chaining (like react-native-text-ticker's animateScroll):
     // Animated.loop with a native-driven sequence(delay, timing) runs the
@@ -210,6 +215,7 @@ export const Marquee = React.memo(function Marquee({
     spacer,
     holdDelay,
     translateX,
+    isBackgrounded,
   ]);
 
   const content = (

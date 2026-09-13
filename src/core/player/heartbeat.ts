@@ -15,6 +15,14 @@ const PLAY_BEATS_PER_POLL = 5;
  * fresh for a user with the app open but paused (battery friendly).
  */
 const PAUSED_BEATS_PER_POLL = 30;
+/**
+ * Background cadence: the metadata poll is the only reason to keep hitting
+ * the API while hidden (so the lock-screen title/cover follow track
+ * changes). The UI is frozen and the progress store is not written, so
+ * polling every 5s is pure battery/radio waste — stretch it to ~30s.
+ */
+const BACKGROUND_PLAY_BEATS_PER_POLL = 30;
+const BACKGROUND_PAUSED_BEATS_PER_POLL = 60;
 /** Sampled debug diagnostics — one line every N processed beats (~30s). */
 const SAMPLED_LOG_EVERY_BEATS = 30;
 
@@ -62,8 +70,14 @@ export class HeartbeatScheduler {
   private beatsSincePoll = 0;
   /** Total processed beats — drives the sampled debug line. */
   private sampleCount = 0;
+  /** Whether the app UI is foregrounded; picks the fast vs background poll cadence. */
+  private uiVisible = true;
 
   constructor(private readonly options: HeartbeatSchedulerOptions) {}
+
+  setUiVisible(value: boolean): void {
+    this.uiVisible = value;
+  }
 
   /**
    * One tick from either driver. Ticks inside the gate window are dropped,
@@ -92,8 +106,12 @@ export class HeartbeatScheduler {
 
     this.beatsSincePoll++;
     const cadence = this.options.isPlayingIntent()
-      ? PLAY_BEATS_PER_POLL
-      : PAUSED_BEATS_PER_POLL;
+      ? this.uiVisible
+        ? PLAY_BEATS_PER_POLL
+        : BACKGROUND_PLAY_BEATS_PER_POLL
+      : this.uiVisible
+        ? PAUSED_BEATS_PER_POLL
+        : BACKGROUND_PAUSED_BEATS_PER_POLL;
     if (this.beatsSincePoll >= cadence) {
       this.beatsSincePoll = 0;
       this.onPoll();

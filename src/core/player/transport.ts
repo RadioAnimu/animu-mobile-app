@@ -96,6 +96,12 @@ export class AudioTransport {
     }
     this.player = createAudioPlayer(source, {
       updateInterval: PLAYER_TICK_INTERVAL_MS,
+      // A radio stream must never tear its audio session down. Without this,
+      // iOS deactivates the AVAudioSession whenever the player pauses or the
+      // item briefly ends — an inactive session in the background lets iOS
+      // suspend the app, which also freezes the JS reconnect path, so
+      // playback never comes back. (iOS-only; ignored on Android.)
+      keepAudioSessionActive: true,
     });
     this.attachStatusListener();
   }

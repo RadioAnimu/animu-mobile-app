@@ -42,10 +42,14 @@ export const styles = StyleSheet.create({
     objectFit: "contain",
   },
   progressBarView: {
+    width: "100%",
     height: PROGRESS_HEIGHT,
     margin: 0,
     padding: 0,
     backgroundColor: THEME.COLORS.BRAND,
+    // scaleX is driven natively; anchor at the left edge so the bar grows
+    // from 0 → full width instead of scaling about its center.
+    transformOrigin: "left",
   },
   noteWrapper: {
     position: "relative",

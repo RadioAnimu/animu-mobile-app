@@ -46,8 +46,18 @@ export class ProgressTicker {
   private ticks = 0;
   private lastShowProgress = false;
   private lastPushedKey: string | null = null;
+  /**
+   * Whether the UI is foregrounded. Backgrounded, the tick still pushes to
+   * the media session (track changes shown on the lock screen) but never
+   * writes the React progress store — the hidden tree must not reconcile.
+   */
+  private uiVisible = true;
 
   constructor(private readonly options: ProgressTickerOptions) {}
+
+  setUiVisible(value: boolean): void {
+    this.uiVisible = value;
+  }
 
   tick(): void {
     const track = this.options.repository.currentTrack;
@@ -65,8 +75,9 @@ export class ProgressTicker {
 
     // Only emit if the value actually changed (avoids 1/sec React re-render)
     if (
-      prev.currentTrackProgress !== elapsed ||
-      prev.showProgress !== showProgress
+      this.uiVisible &&
+      (prev.currentTrackProgress !== elapsed ||
+        prev.showProgress !== showProgress)
     ) {
       progressStore.setSnapshot({
         currentTrackProgress: elapsed,
@@ -113,10 +124,12 @@ export class ProgressTicker {
   private endProgress(): void {
     this.options.repository.setShowProgress(false);
     this.ticks = 0;
-    progressStore.setSnapshot({
-      currentTrackProgress: null,
-      showProgress: false,
-    });
+    if (this.uiVisible) {
+      progressStore.setSnapshot({
+        currentTrackProgress: null,
+        showProgress: false,
+      });
+    }
 
     if (!this.options.transport.isSessionReady) return;
     const metadata = this.options.buildMetadata();

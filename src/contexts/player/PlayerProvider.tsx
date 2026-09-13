@@ -12,6 +12,7 @@ import { Stream } from "../../core/domain/stream";
 import { playerService } from "../../core/player";
 import { setRemotePlaybackHandlers } from "../../core/services/player-playback.service";
 import { backgroundService } from "../../core/services/background.service";
+import { useIsBackgrounded } from "../app-state/AppStateProvider";
 import {
   playerStore,
   progressStore,
@@ -84,6 +85,15 @@ export const PlayerProvider: React.FC<{
   const [appState, setAppState] = useState<AppStateStatus>(
     AppState.currentState,
   );
+  const isBackgrounded = useIsBackgrounded();
+
+  // ─── Background UI freeze: stop store emissions while hidden ───
+  // The service keeps the native player + media session running; it just
+  // stops writing the React stores (and slows the metadata poll) until the
+  // app is foregrounded again, when it re-emits everything.
+  useEffect(() => {
+    playerServiceInstance.setAppActive(!isBackgrounded);
+  }, [isBackgrounded, playerServiceInstance]);
 
   // ─── Initialization & background tasks ───
   useEffect(() => {

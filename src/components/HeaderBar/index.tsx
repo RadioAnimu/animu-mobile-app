@@ -2,7 +2,6 @@ import { useNavigation } from "@react-navigation/native";
 import { useEffect, useMemo, useState } from "react";
 import {
   Animated,
-  Dimensions,
   Easing,
   Image,
   TouchableOpacity,
@@ -21,6 +20,7 @@ import {
   usePlayer,
   useTrackProgress,
 } from "../../contexts/player/PlayerProvider";
+import { useIsBackgrounded } from "../../contexts/app-state/AppStateProvider";
 
 interface Props {
   navigation: ReturnType<typeof useNavigation>;
@@ -33,69 +33,78 @@ const PULSE_OPACITY = 0.05;
 const PULSE_DURATION = 1750;
 const PULSE_TRAVEL = 50;
 const PROGRESS_ANIM_DURATION = 1000;
-const PROGRESS_RESET_DURATION = 300;
 
 export function HeaderBar({ navigation, openLiveRequestModal }: Props) {
   const insets = useSafeAreaInsets();
-  const progressAnim = useMemo(() => new Animated.Value(0), []); // Initial value for opacity: 0
+  const progressAnim = useMemo(() => new Animated.Value(0), []);
   const [status, setStatus] = useState<Status>("playing");
   const player = usePlayer();
   const { currentTrackProgress } = useTrackProgress();
   const currentTrack = player.currentTrack;
   const currentProgram = player.currentProgram;
+  const isBackgrounded = useIsBackgrounded();
 
   useEffect(() => {
-    if (
-      currentTrackProgress &&
-      currentTrack?.duration &&
-      !Number.isNaN(currentTrackProgress) &&
-      !Number.isNaN(currentTrack?.duration) &&
-      currentTrack?.duration > 0 &&
-      currentTrackProgress > 0 &&
-      !Number.isNaN(currentTrackProgress / currentTrack?.duration)
-    ) {
-      Animated.timing(progressAnim, {
-        toValue:
-          Dimensions.get("window").width *
-          (currentTrackProgress / currentTrack?.duration),
-        duration: PROGRESS_ANIM_DURATION,
-        useNativeDriver: false,
-      }).start();
-    } else {
-      Animated.timing(progressAnim, {
-        toValue: 0,
-        duration: PROGRESS_RESET_DURATION,
-        useNativeDriver: false,
-      }).start();
-    }
+    const duration = currentTrack?.duration;
+    const hasProgress =
+      currentTrackProgress != null &&
+      duration != null &&
+      Number.isFinite(currentTrackProgress) &&
+      Number.isFinite(duration) &&
+      duration > 0;
+
+    const target = hasProgress
+      ? Math.min(Math.max(currentTrackProgress / duration, 0), 1)
+      : 0;
+
+    // Native-driven `scaleX` (not `width`): the bar interpolates smoothly
+    // across each 1 Hz progress tick on the UI thread, so it never runs
+    // per-frame JS and pauses on its own when the app is backgrounded.
+    Animated.timing(progressAnim, {
+      toValue: target,
+      duration: PROGRESS_ANIM_DURATION,
+      easing: Easing.linear,
+      useNativeDriver: true,
+    }).start();
   }, [progressAnim, currentTrack, currentTrackProgress]);
 
   const [animation] = useState(() => new Animated.Value(0));
 
-  const startAnimation = () => {
-      Animated.loop(
-        Animated.sequence([
-          Animated.timing(animation, {
-            toValue: PULSE_OPACITY,
-            duration: PULSE_DURATION,
-            easing: Easing.linear,
-            useNativeDriver: true,
-          }),
-          Animated.timing(animation, {
-            toValue: 0,
-            duration: PULSE_DURATION,
-            easing: Easing.linear,
-            useNativeDriver: true,
-          }),
-        ]),
-      ).start();
-  };
+  const showLiveBadge = Boolean(currentProgram?.isLive && openLiveRequestModal);
 
   useEffect(() => {
-    startAnimation();
-    // Runs once on mount — the loop lives for the component's lifetime
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    // Only animate while the badge is actually rendered and visible.
+    // Previously the loop started on mount and ran for the component's
+    // whole lifetime, keeping the UI thread busy even when nothing was on
+    // screen (and while backgrounded).
+    if (!showLiveBadge || isBackgrounded) {
+      animation.setValue(0);
+      return;
+    }
+
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(animation, {
+          toValue: PULSE_OPACITY,
+          duration: PULSE_DURATION,
+          easing: Easing.linear,
+          useNativeDriver: true,
+        }),
+        Animated.timing(animation, {
+          toValue: 0,
+          duration: PULSE_DURATION,
+          easing: Easing.linear,
+          useNativeDriver: true,
+        }),
+      ]),
+    );
+    loop.start();
+
+    return () => {
+      loop.stop();
+      animation.setValue(0);
+    };
+  }, [showLiveBadge, isBackgrounded, animation]);
 
   const translateY = animation.interpolate({
     inputRange: [0, 1],
@@ -186,12 +195,9 @@ export function HeaderBar({ navigation, openLiveRequestModal }: Props) {
           <Animated.View
             style={[
               styles.progressBarView,
-              {
-                // width: Dimensions.get("window").width * currentTime,
-                width: progressAnim,
-              },
+              { transform: [{ scaleX: progressAnim }] },
             ]}
-          ></Animated.View>
+          />
         )}
     </View>
   );

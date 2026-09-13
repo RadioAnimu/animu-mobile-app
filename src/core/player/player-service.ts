@@ -102,6 +102,13 @@ export class PlayerService {
    * A real user pause sets it, and any native self-recovery is re-paused.
    */
   private userPaused = false;
+  /**
+   * Whether the app UI is foregrounded. While backgrounded, store emissions
+   * are suppressed so nothing reconciles in the hidden tree; the native
+   * player and media session keep running. Restored emissions happen on the
+   * way back to the foreground.
+   */
+  private appActive = true;
 
   constructor(private readonly deps: PlayerServiceDependencies) {
     // ── Wiring: this class owns every cross-unit connection ──
@@ -149,6 +156,26 @@ export class PlayerService {
   }
 
   // ── Lifecycle ──
+
+  /**
+   * App visibility gate (driven by AppState).
+   *
+   * Backgrounded: the progress ticker stops writing the UI store and the
+   * data-poll cadence slows, so the frozen tree does almost no work while
+   * audio + the media session keep going. Foregrounded: every surface is
+   * re-emitted so the thawed UI catches up on anything missed.
+   */
+  setAppActive(active: boolean): void {
+    if (this.appActive === active) return;
+    this.appActive = active;
+    this.deps.ticker.setUiVisible(active);
+    this.deps.heartbeat.setUiVisible(active);
+    if (active) {
+      this.emitPlayer();
+      this.emitStation();
+      this.emitProgress();
+    }
+  }
 
   /**
    * Single entry-point that bootstraps everything the player needs:
@@ -623,6 +650,7 @@ export class PlayerService {
 
   /** Now-playing snapshot — per song / program / stream / user action. */
   private emitPlayer(): void {
+    if (!this.appActive) return;
     const next: PlayerSnapshot = {
       currentTrack: this.deps.repository.currentTrack ?? undefined,
       currentProgram: this.deps.repository.currentProgram ?? undefined,
@@ -637,6 +665,7 @@ export class PlayerService {
 
   /** Poll-data snapshot — listeners + histories. */
   private emitStation(): void {
+    if (!this.appActive) return;
     const next: StationSnapshot = {
       currentListeners: this.deps.repository.listeners ?? undefined,
       lastPlayedTracks: this.deps.repository.lastPlayedTracks.length
@@ -650,6 +679,7 @@ export class PlayerService {
   }
 
   private emitProgress(): void {
+    if (!this.appActive) return;
     progressStore.setSnapshot({
       currentTrackProgress: getTrackProgress(
         this.deps.repository.currentTrack ?? undefined,
