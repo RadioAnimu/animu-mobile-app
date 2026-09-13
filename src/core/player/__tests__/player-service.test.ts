@@ -350,6 +350,37 @@ describe("PlayerService stream-loss handling", () => {
     }
   });
 
+  it("follows a native auto-resume after an interruption (call ended)", async () => {
+    vi.useFakeTimers();
+    try {
+      const { deps, transport, publisher } = makeDeps();
+      const service = new PlayerService(deps);
+      await service.play();
+      const handler = wiredHandler(transport);
+      handler({ playing: true } as AudioStatus);
+
+      // Phone call: expo-audio pauses natively (not a user pause)
+      handler({
+        playing: false,
+        isBuffering: false,
+        playbackState: "ready",
+        timeControlStatus: "paused",
+      } as AudioStatus);
+      expect(deps.state.state).toBe("paused");
+
+      // Call ends and the OS resumes the player on its own
+      handler({ playing: true } as AudioStatus);
+
+      expect(deps.state.state).toBe("playing");
+      expect(playerStore.getSnapshot().isPlaying).toBe(true);
+      expect(publisher.pushStatus).toHaveBeenLastCalledWith("playing");
+      // The transport was never told to pause — this was not the user.
+      expect(transport.pause).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("treats a cleanly ended live stream as a dead stream", async () => {
     vi.useFakeTimers();
     try {

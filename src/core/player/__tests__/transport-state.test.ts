@@ -50,8 +50,22 @@ describe("TransportStateMachine", () => {
     expect(state.remoteStatus).toBe("playing");
   });
 
-  it("maps every state to the right remote status", () => {
-    expect(toRemoteStatus("idle")).toBe("stopped");
+  it("lets a natively-paused stream follow the OS back to playing", () => {
+    // A native pause (phone call, focus loss) is adopted as "paused", and
+    // the OS may resume on its own — the transport must be able to follow.
+    const state = new TransportStateMachine();
+
+    state.transition("connecting");
+    state.transition("playing");
+    state.transition("paused"); // native interruption
+    state.transition("playing"); // OS auto-resumed
+
+    expect(state.state).toBe("playing");
+    expect(state.isPlayingIntent).toBe(true);
+    expect(state.remoteStatus).toBe("playing");
+  });
+
+  it("maps every state to the right remote status", () => {    expect(toRemoteStatus("idle")).toBe("stopped");
     expect(toRemoteStatus("connecting")).toBe("buffering");
     expect(toRemoteStatus("reconnecting")).toBe("buffering");
     expect(toRemoteStatus("playing")).toBe("playing");

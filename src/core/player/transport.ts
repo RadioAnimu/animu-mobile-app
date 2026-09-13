@@ -5,6 +5,7 @@ import {
   type AudioSource,
 } from "expo-audio";
 import { CONFIG } from "../../utils/player.config";
+import { getPlaybackSession } from "../services/player-playback.service";
 import { SetupService } from "../services/player-setup.service";
 
 /**
@@ -51,11 +52,24 @@ export class AudioTransport {
     this.statusHandler = handler;
   }
 
-  /** Runs the one-time native setup (idempotent). Throws on failure. */
+  /**
+   * Runs the one-time native setup (idempotent). Throws on failure.
+   *
+   * `SetupService` sets the audio mode AND starts the media session, but the
+   * session start is best-effort (the OS can refuse if the app isn't in the
+   * foreground yet). Marking `sessionReady` unconditionally used to be a
+   * one-way trap: the first failure meant no media session for the life of
+   * the app and no retry. We verify the session actually exists instead, so
+   * callers that await this can surface the failure and try again on the
+   * next `play()`.
+   */
   async ensureSession(): Promise<void> {
     if (this.sessionReady) return;
     await SetupService();
-    this.sessionReady = true;
+    this.sessionReady = getPlaybackSession() != null;
+    if (!this.sessionReady) {
+      throw new Error("[AudioTransport] Playback session unavailable");
+    }
   }
 
   /** Marks the native session as torn down (destroy path). */

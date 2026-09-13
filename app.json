@@ -23,8 +23,7 @@
       "bundleIdentifier": "com.nessjs.animu",
       "infoPlist": {
         "UIBackgroundModes": [
-          "audio",
-          "processing"
+          "audio"
         ]
       }
     },

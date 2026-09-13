@@ -70,9 +70,18 @@ const handleCommand = async (event: CommandEvent) => {
  * Starts the app-wide "now playing" session and wires remote command
  * listeners. Idempotent — returns the existing session when active.
  *
+ * Commands are deliberately limited to play/pause/toggle: the station is a
+ * continuous live radio stream, so there is nothing to seek, skip or stop
+ * to. Advertising a `stop` the player can't truly honour (it would just
+ * pause) left a lie in the notification shade.
+ *
  * No POST_NOTIFICATIONS request: like react-native-track-player, the media
  * card renders from the MediaSession and works on Android 13+ without it —
  * only the classic FGS notification is suppressed when it is denied.
+ *
+ * Returns `null` (after logging) when the native session can't be created;
+ * callers verify with {@link getPlaybackSession} and retry rather than
+ * treating the session as ready forever.
  */
 export async function StartPlaybackSession(): Promise<PlaybackSession | null> {
   if (session && !session.isEnded) {
@@ -81,7 +90,7 @@ export async function StartPlaybackSession(): Promise<PlaybackSession | null> {
 
   try {
     session = await PlaybackControls.startSession({
-      commands: ["play", "pause", "toggle-play-pause", "stop"],
+      commands: ["play", "pause", "toggle-play-pause"],
     });
 
     subscription?.remove();

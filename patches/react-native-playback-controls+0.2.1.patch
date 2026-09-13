@@ -1,5 +1,27 @@
+diff --git a/node_modules/react-native-playback-controls/android/src/main/java/com/playbackcontrols/ControlsPlayer.kt b/node_modules/react-native-playback-controls/android/src/main/java/com/playbackcontrols/ControlsPlayer.kt
+index 276f2ea..c1b96fb 100644
+--- a/node_modules/react-native-playback-controls/android/src/main/java/com/playbackcontrols/ControlsPlayer.kt
++++ b/node_modules/react-native-playback-controls/android/src/main/java/com/playbackcontrols/ControlsPlayer.kt
+@@ -168,6 +168,8 @@ class ControlsPlayer : SimpleBasePlayer(Looper.getMainLooper()) {
+       C.TIME_UNSET
+     }
+ 
++    // Live radio has nothing to seek: advertise the item as non-seekable so
++    // the OS never renders a scrubber that couldn't do anything.
+     return MediaItemData.Builder(MEDIA_ITEM_ID)
+       .setMediaItem(
+         MediaItem.Builder().setMediaId(MEDIA_ITEM_ID).setMediaMetadata(mediaMetadata).build()
+@@ -175,7 +177,7 @@ class ControlsPlayer : SimpleBasePlayer(Looper.getMainLooper()) {
+       .setMediaMetadata(mediaMetadata)
+       .setDurationUs(durationUs)
+       .setIsDynamic(metadata.isLiveStream)
+-      .setIsSeekable(true)
++      .setIsSeekable(false)
+       .build()
+   }
+ }
 diff --git a/node_modules/react-native-playback-controls/android/src/main/java/com/playbackcontrols/PlaybackControlsService.kt b/node_modules/react-native-playback-controls/android/src/main/java/com/playbackcontrols/PlaybackControlsService.kt
-index eaa0527..c0948e4 100644
+index eaa0527..beeacd4 100644
 --- a/node_modules/react-native-playback-controls/android/src/main/java/com/playbackcontrols/PlaybackControlsService.kt
 +++ b/node_modules/react-native-playback-controls/android/src/main/java/com/playbackcontrols/PlaybackControlsService.kt
 @@ -1,5 +1,6 @@
@@ -34,3 +56,18 @@ index eaa0527..c0948e4 100644
  
      player = controlsPlayer
      mediaSession = session
+@@ -46,6 +63,14 @@ class PlaybackControlsService : MediaSessionService() {
+   override fun onTaskRemoved(rootIntent: Intent?) {
+     super.onTaskRemoved(rootIntent)
+     releaseSessionAndStop()
++    // The media session is only a *facade*: the real audio lives in
++    // expo-audio's ExoPlayer in this same process and is not reachable from
++    // here. Tearing the session down stops the notification but leaves the
++    // audio decoding, so swiping the app away produced sound with no app and
++    // no controls. Terminate the process so removal deterministically ends
++    // playback, matching the session's "controls never outlive the JS"
++    // contract in the class comment above.
++    android.os.Process.killProcess(android.os.Process.myPid())
+   }
+ 
+   override fun onDestroy() {

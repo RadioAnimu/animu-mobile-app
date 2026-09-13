@@ -95,6 +95,13 @@ export class PlayerService {
   private setupPromise: Promise<void> | null = null;
   /** One-way: a destroyed instance must never touch stores/native again. */
   private disposed = false;
+  /**
+   * Whether the *user* explicitly paused. A native pause (audio focus loss,
+   * phone call, interruption) is adopted into the UI but leaves this false,
+   * so when the OS resumes playback on its own the transport follows it.
+   * A real user pause sets it, and any native self-recovery is re-paused.
+   */
+  private userPaused = false;
 
   constructor(private readonly deps: PlayerServiceDependencies) {
     // ── Wiring: this class owns every cross-unit connection ──
@@ -128,15 +135,13 @@ export class PlayerService {
   }
 
   /**
-   * Whether audio can actually be driven: native session done, player
-   * created and a track is on air. (Replaces the old async isPlayerSetup.)
+   * Whether audio can actually be driven: a native player exists and a
+   * track is on air. (The media session is intentionally *not* part of
+   * this: a failed/deferred notification must never block playback or the
+   * foreground data refresh.)
    */
   get isReady(): boolean {
-    return (
-      this.deps.transport.isSessionReady &&
-      this.deps.transport.hasPlayer &&
-      this.deps.repository.hasTrack
-    );
+    return this.deps.transport.hasPlayer && this.deps.repository.hasTrack;
   }
 
   getNowPlayingMetadata(): NowPlayingMetadata {
@@ -170,7 +175,15 @@ export class PlayerService {
     // cover resolve independently — run them all at once.
     const [streams] = await Promise.all([
       animuApi.getStreams(),
-      this.deps.transport.ensureSession(),
+      // Media-session start is best-effort: if the OS refuses it at boot
+      // (e.g. not foreground yet) playback must still come up and the
+      // session is retried on the next play(). Never let it wedge bootstrap.
+      this.deps.transport.ensureSession().catch((error) => {
+        console.warn(
+          "[PlayerService] media session deferred — will retry on play:",
+          error,
+        );
+      }),
       userSettingsService.initialize(), // pre-warm cache
       this.deps.artwork.init(), // pre-warm the local default cover
     ]);
@@ -221,6 +234,7 @@ export class PlayerService {
    */
   async destroy(): Promise<void> {
     this.disposed = true;
+    this.userPaused = false;
     this.setupPromise = null;
 
     if (!this.isReady) {
@@ -274,11 +288,24 @@ export class PlayerService {
   // ── Playback commands ──
 
   async play(): Promise<void> {
+    // The user is choosing to play — an interruption that happens later is
+    // no longer "resume the user's stream", it's a fresh intent.
+    this.userPaused = false;
+
     try {
       // Ensure audio mode + media session are set up, then resolve the
       // stored stream (setupPlayer already persisted a valid default).
       if (!this.deps.transport.isSessionReady) {
-        await this.deps.transport.ensureSession();
+        try {
+          await this.deps.transport.ensureSession();
+        } catch (error) {
+          // Audio still plays; only the OS controls are missing. The next
+          // play() retries the session.
+          console.warn(
+            "[PlayerService] playing without media session:",
+            error,
+          );
+        }
         await this.deps.streamPreferences.restore(this.streamOptions);
       }
 
@@ -306,13 +333,14 @@ export class PlayerService {
   }
 
   async pause(): Promise<void> {
+    // The user explicitly paused: latch it so native self-recovery (focus
+    // regain, interruption end) can never resurrect the stream.
+    this.userPaused = true;
+
     // Pausing only needs the audio transport — a failed/slow now-playing
-    // fetch must never make the audio unpausable.
-    if (
-      !this.deps.transport.isSessionReady ||
-      !this.deps.transport.hasPlayer ||
-      this.deps.state.state === "paused"
-    ) {
+    // fetch, or a media session that never started, must never make the
+    // audio unpausable.
+    if (!this.deps.transport.hasPlayer || this.deps.state.state === "paused") {
       return;
     }
 
@@ -478,12 +506,16 @@ export class PlayerService {
     if (status.playing) {
       this.deps.reconnect.reset();
 
-      // Native self-recovery while the user has paused (in-flight
-      // straggler event, rare interruption auto-resume) must not
-      // resurrect audio against the user's intent — re-assert the pause.
       if (this.deps.state.state === "paused") {
-        this.deps.transport.pause();
-        return;
+        // The user stopped this stream — an in-flight straggler event or a
+        // rare auto-resume must not resurrect audio against their intent.
+        if (this.userPaused) {
+          this.deps.transport.pause();
+          return;
+        }
+        // Otherwise the pause was native (focus loss, phone call) and the
+        // OS has just resumed on its own (Android AUDIOFOCUS_GAIN, iOS
+        // .shouldResume) — fall through and adopt the resumed audio.
       }
 
       // Native 1 Hz heartbeat: drives progress + media-session pushes AND

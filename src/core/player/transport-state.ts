@@ -17,7 +17,13 @@ const TRANSPORT_TRANSITIONS: Record<TransportState, readonly TransportState[]> =
     idle: ["connecting"],
     connecting: ["playing", "paused", "reconnecting", "idle"],
     playing: ["connecting", "paused", "reconnecting", "idle"],
-    paused: ["connecting", "idle"],
+    // "playing" is allowed: a *native* pause (audio focus loss, phone call,
+    // interruption) is adopted as "paused", and when the OS resumes the
+    // player on its own (Android AUDIOFOCUS_GAIN, iOS .shouldResume) the
+    // transport must be able to follow it back. An explicit user pause is
+    // guarded separately in PlayerService (userPaused) — the native event
+    // alone must never resurrect audio the user stopped.
+    paused: ["connecting", "playing", "idle"],
     // "playing" is allowed: the native layer may recover a stream on its
     // own (e.g. ExoPlayer re-buffering) without an explicit reconnect.
     reconnecting: ["connecting", "playing", "paused", "idle"],
