@@ -17,7 +17,12 @@ import { AsyncStorageSessionStore } from "./adapters/async-storage.adapter";
 import { AnimuAuthAdapter } from "./adapters/animu-auth.adapter";
 import { OAuthAdapter } from "./adapters/oauth.adapter";
 import { AuthFlowCancelled } from "./errors";
-import type { AuthApiPort, OAuthPort, SessionStorePort } from "./ports";
+import type {
+  AppleNativeCredential,
+  AuthApiPort,
+  OAuthPort,
+  SessionStorePort,
+} from "./ports";
 
 /**
  * Single entry point to authentication, composing three ports:
@@ -92,11 +97,27 @@ export class AuthFacade {
 
   // ─── Login ────────────────────────────────────────────────────────────
 
-  /** Provider login: server-side redirect for Google, authorize→exchange otherwise. */
+  /**
+   * Provider login. Apple tries the native iOS sheet first (falling back to
+   * the server flow on Android); server-mode providers (Discord/Google/Apple)
+   * delegate the redirect to the backend; anything else runs the app-driven
+   * OAuth redirect.
+   */
   async loginWithProvider(provider: string): Promise<User> {
-    if (getProviderConfig(provider)?.mode === "server") {
-      return this.loginWithMobileGoogle();
+    const config = getProviderConfig(provider);
+    if (!config) throw new Error(`Unknown provider: ${provider}`);
+
+    if (config.native === "apple") {
+      const credential = await this.oauth.authorizeAppleNative();
+      if (credential) {
+        return this.adopt(await this.exchangeAppleIdentity(credential));
+      }
+      // No native Apple here (e.g. Android) — fall through to the server flow.
     }
+    if (config.mode === "server") {
+      return this.loginWithMobileProvider(provider);
+    }
+
     const oauth = await this.oauth.authorize(provider);
     const session = await this.api.exchangeToken({
       provider,
@@ -110,26 +131,26 @@ export class AuthFacade {
   }
 
   /**
-   * Server-side Google login: open the backend's start URL in a browser
-   * session and adopt the session token from the deep link it bounces back.
-   * The backend owns the Google OAuth client, PKCE and redirect, so no native
-   * SDK, client id or signing-certificate registration is involved.
+   * Server-side login: open the backend's `/mobile/<provider>-start.php` in a
+   * browser session and adopt the session token from the deep-link bounce. The
+   * backend owns the provider's OAuth client, PKCE and redirect, so no client
+   * id, SDK or signing-certificate registration is involved.
    */
-  private async loginWithMobileGoogle(): Promise<User> {
+  private async loginWithMobileProvider(provider: string): Promise<User> {
     const callbackUrl = await this.oauth.openSession(
-      this.api.googleMobileStartUrl(),
+      this.api.mobileStartUrl(provider),
       AUTH_REDIRECT_URI,
     );
     if (!callbackUrl) throw new AuthFlowCancelled();
 
-    const result = this.api.completeMobileGoogleLogin(callbackUrl);
+    const result = this.api.completeMobileAuth(callbackUrl);
     if (!result.ok) {
       throw new Error(
         result.message ? `${result.error}: ${result.message}` : result.error,
       );
     }
 
-    // completeMobileGoogleLogin already stored the token on the client; set it
+    // completeMobileAuth already stored the token on the client; set it
     // explicitly too so the port doesn't depend on that side effect.
     this.api.setSessionToken(result.token);
     const profile = await this.api.getProfile();
@@ -137,6 +158,22 @@ export class AuthFacade {
       sessionToken: result.token,
       action: result.action,
       user: profile.user,
+    });
+  }
+
+  /**
+   * Native Apple login: hand the SDK's RS256 identity token to the server,
+   * which verifies it against Apple's JWKS (no redirect, PKCE or client id).
+   */
+  private async exchangeAppleIdentity(
+    credential: AppleNativeCredential,
+  ): Promise<AuthSession> {
+    return this.api.exchangeToken({
+      provider: "apple",
+      identityToken: credential.identityToken,
+      name: credential.name,
+      firstName: credential.firstName,
+      lastName: credential.lastName,
     });
   }
 
@@ -152,18 +189,32 @@ export class AuthFacade {
   // ─── Account management ───────────────────────────────────────────────
 
   /**
-   * Links an extra provider. Server-mode providers (Google) run the backend's
-   * browser flow with the current session token; the rest use the client-side
-   * OAuth redirect + code exchange.
+   * Links an extra provider. Apple tries the native iOS sheet first; server
+   * providers (Discord/Google/Apple) run the backend browser flow with the
+   * current session token; the rest use the app-driven OAuth redirect.
    */
   async linkProvider(provider: string): Promise<AuthLinkResult | void> {
     const config = getProviderConfig(provider);
     if (!config || config.linkable === false) {
       throw new Error(`Provider "${provider}" cannot be linked from the app`);
     }
-    if (config.mode === "server") {
-      return this.linkWithMobileGoogle();
+
+    if (config.native === "apple") {
+      const credential = await this.oauth.authorizeAppleNative();
+      if (credential) {
+        return this.api.linkProvider({
+          provider,
+          identityToken: credential.identityToken,
+          name: credential.name,
+          firstName: credential.firstName,
+          lastName: credential.lastName,
+        });
+      }
     }
+    if (config.mode === "server") {
+      return this.linkWithMobileProvider(provider);
+    }
+
     const oauth = await this.oauth.authorize(provider);
     return this.api.linkProvider({
       provider,
@@ -177,21 +228,21 @@ export class AuthFacade {
   }
 
   /**
-   * Server-side Google link: open the start URL with the current session
-   * token (`?sid=`) and adopt the bounce. The token is unchanged; the caller
+   * Server-side link: open the start URL with the current session token
+   * (`?sid=`) and adopt the bounce. The token is unchanged; the caller
    * refreshes the profile so the new link shows up.
    */
-  private async linkWithMobileGoogle(): Promise<void> {
+  private async linkWithMobileProvider(provider: string): Promise<void> {
     const sessionToken = this.api.getSessionToken();
     if (!sessionToken) throw new Error("Not authenticated");
 
     const callbackUrl = await this.oauth.openSession(
-      this.api.googleMobileStartUrl(sessionToken),
+      this.api.mobileStartUrl(provider, sessionToken),
       AUTH_REDIRECT_URI,
     );
     if (!callbackUrl) throw new AuthFlowCancelled();
 
-    const result = this.api.completeMobileGoogleLogin(callbackUrl);
+    const result = this.api.completeMobileAuth(callbackUrl);
     if (!result.ok) {
       throw new Error(
         result.message ? `${result.error}: ${result.message}` : result.error,

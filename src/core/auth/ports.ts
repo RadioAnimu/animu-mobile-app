@@ -10,7 +10,7 @@ import type {
   AuthSessionStatus,
   AuthSetCredentialsParams,
   AuthUnlinkResult,
-  MobileGoogleRedirect,
+  MobileAuthRedirect,
   ProviderInfo,
 } from "animu-api";
 import type { User } from "../domain/user";
@@ -26,6 +26,15 @@ export interface OAuthResult {
    * exchange entirely — the server redeems the code with its own client.
    */
   omitRedirectUri?: boolean;
+}
+
+/** Native Sign in with Apple credential, ready to post to the API. */
+export interface AppleNativeCredential {
+  identityToken: string;
+  /** Full name — Apple only sends it on the very first consent. */
+  name?: string;
+  firstName?: string;
+  lastName?: string;
 }
 
 /**
@@ -45,6 +54,15 @@ export interface OAuthPort {
    * server-mode providers. Resolves `null` when the user dismisses it.
    */
   openSession(url: string, redirectUri: string): Promise<string | null>;
+
+  /**
+   * Runs the native Sign in with Apple sheet. Resolves the credential, or
+   * `null` when the platform has no native Apple flow (Android) so callers can
+   * fall back to the server-side browser flow.
+   *
+   * @throws {AuthFlowCancelled} when the user dismisses the sheet.
+   */
+  authorizeAppleNative(): Promise<AppleNativeCredential | null>;
 }
 
 /**
@@ -57,13 +75,13 @@ export interface AuthApiPort {
   getSessionToken(): string | null;
   getProviders(): Promise<ProviderInfo[]>;
   /**
-   * Start URL for the server-side mobile Google flow
-   * (`/mobile/google-start.php`). Pass a session token to link Google to that
-   * account (login when omitted).
+   * Start URL for the server-side mobile auth flow
+   * (`/mobile/<provider>-start.php`). Pass a session token to link the
+   * provider to that account (login when omitted).
    */
-  googleMobileStartUrl(sessionId?: string): string;
+  mobileStartUrl(provider: string, sessionId?: string): string;
   /** Parses the server's deep-link bounce and adopts the session token. */
-  completeMobileGoogleLogin(callbackUrl: string): MobileGoogleRedirect;
+  completeMobileAuth(callbackUrl: string): MobileAuthRedirect;
   exchangeToken(params: AuthExchangeParams): Promise<AuthSession>;
   nativeLogin(params: AuthNativeLoginParams): Promise<AuthSession>;
   getSessionStatus(): Promise<AuthSessionStatus>;

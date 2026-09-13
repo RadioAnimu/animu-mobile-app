@@ -60,7 +60,8 @@
       ],
       "expo-asset",
       "expo-web-browser",
-      "expo-audio"
+      "expo-audio",
+      "expo-apple-authentication"
     ],
     "extra": {
       "eas": {

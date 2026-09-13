@@ -1,3 +1,5 @@
+import { Platform } from "react-native";
+import * as AppleAuthentication from "expo-apple-authentication";
 import * as AuthSession from "expo-auth-session";
 import * as WebBrowser from "expo-web-browser";
 import {
@@ -7,7 +9,11 @@ import {
   type OauthProviderConfig,
 } from "../../../constants/auth";
 import { AuthFlowCancelled } from "../errors";
-import type { OAuthPort, OAuthResult } from "../ports";
+import type {
+  AppleNativeCredential,
+  OAuthPort,
+  OAuthResult,
+} from "../ports";
 
 // ─── Browser (expo-auth-session) ────────────────────────────────────────
 
@@ -52,11 +58,27 @@ async function authorizeBrowser(
   };
 }
 
+// ─── Native Apple ───────────────────────────────────────────────────────
+
+/** Maps the native `fullName` object to the API's flat name fields. */
+function appleName(credential: AppleAuthentication.AppleAuthenticationCredential): {
+  name?: string;
+  firstName?: string;
+  lastName?: string;
+} {
+  const firstName = credential.fullName?.givenName ?? undefined;
+  const lastName = credential.fullName?.familyName ?? undefined;
+  const name = [firstName, lastName].filter(Boolean).join(" ") || undefined;
+  return { name, firstName, lastName };
+}
+
 /**
- * Client-side OAuth transports. `"browser"` (Discord) runs the redirect itself
- * via `expo-auth-session`; `"server"` (Google) defers to the backend, so here
- * we only open its start URL and hand back the deep link the server bounces
- * (`openSession`). Native SDKs are gone — Apple stays disabled for now.
+ * Client-side OAuth transports. `"server"` providers (Discord/Google/Apple)
+ * defer the redirect to the backend — `openSession` opens its start URL and
+ * returns the deep link the server bounces. Sign in with Apple also has a
+ * native iOS path (`authorizeAppleNative`); Android falls back to the server
+ * flow. `"browser"` (expo-auth-session) remains available for app-driven
+ * redirects.
  */
 export class OAuthAdapter implements OAuthPort {
   async authorize(provider: string): Promise<OAuthResult> {
@@ -82,5 +104,34 @@ export class OAuthAdapter implements OAuthPort {
     if (result.type === "success") return result.url;
     if (result.type === "cancel" || result.type === "dismiss") return null;
     throw new Error(`Browser session ended unexpectedly (${result.type})`);
+  }
+
+  async authorizeAppleNative(): Promise<AppleNativeCredential | null> {
+    if (Platform.OS !== "ios") return null;
+    if (!(await AppleAuthentication.isAvailableAsync())) return null;
+
+    const credential = await AppleAuthentication.signInAsync({
+      requestedScopes: [
+        AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
+        AppleAuthentication.AppleAuthenticationScope.EMAIL,
+      ],
+    }).catch((error: unknown) => {
+      if (
+        (error as { code?: string } | undefined)?.code ===
+        "ERR_REQUEST_CANCELED"
+      ) {
+        throw new AuthFlowCancelled();
+      }
+      throw error;
+    });
+
+    if (!credential.identityToken) {
+      throw new Error("Apple did not return an identity token");
+    }
+
+    return {
+      identityToken: credential.identityToken,
+      ...appleName(credential),
+    };
   }
 }

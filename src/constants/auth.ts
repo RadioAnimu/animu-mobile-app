@@ -27,14 +27,19 @@ export interface OauthProviderConfig {
   iosClientId?: string;
   androidClientId?: string;
   /**
-   * `"browser"` (default) runs the OAuth redirect through
-   * `expo-auth-session`; `"server"` delegates the whole redirect to the
-   * backend (`loginWithProvider` opens its start URL in a browser session and
-   * adopts the session token from the deep-link bounce — no client id, SDK,
-   * package or SHA-1 registration); `"native"` uses the platform SDK
-   * (`AppleAuthentication`).
+   * `"browser"` runs the OAuth redirect through `expo-auth-session`;
+   * `"server"` (default for our providers) delegates the whole redirect to the
+   * backend (`loginWithProvider` opens its `/mobile/<provider>-start.php` in a
+   * browser session and adopts the session token from the deep-link bounce —
+   * no client id, SDK, package or SHA-1 registration); `"native"` uses the
+   * platform SDK.
    */
   mode?: "browser" | "native" | "server";
+  /**
+   * Platform-native SDK to prefer when available. `"apple"` uses
+   * `expo-apple-authentication` on iOS and falls back to `mode` elsewhere.
+   */
+  native?: "apple";
   /**
    * Whether the provider can be linked from the Account screen. Defaults to
    * `true`; set `false` for server-mode providers that only support login.
@@ -53,25 +58,28 @@ export interface OauthProviderConfig {
 }
 
 /**
- * OAuth providers we can start a login for. `TODO(client-id)` entries need a
- * mobile client registered with the provider before that button can complete.
+ * OAuth providers we can start a login for. All three delegate to the backend
+ * (`/mobile/<provider>-start.php`), so no client ids or platform registration
+ * are needed on the app side.
  */
 export const OAUTH_PROVIDERS: Record<string, OauthProviderConfig> = {
   discord: {
     name: "discord",
     label: "Discord",
+    // Server-side flow (the backend owns the Discord OAuth client, PKCE and
+    // redirect). Fields below are kept only for reference / a browser fallback.
     authorizationEndpoint: "https://discord.com/api/oauth2/authorize",
     scopes: ["identify"],
     clientId: "1159273876732256266",
-    mode: "browser",
-    usePKCE: true,
+    mode: "server",
+    linkable: true,
   },
   google: {
     name: "google",
     label: "Google",
     // Server-side flow: the backend owns the Google OAuth client, the PKCE
     // verifier and the redirect, so the app carries no client id at all. It
-    // just opens `googleMobileStartUrl()` in a browser session and adopts the
+    // just opens `mobileStartUrl("google")` in a browser session and adopts the
     // session token the server bounces to `animuapp://redirect`, which is why
     // this works regardless of how the APK was signed (no SHA-1 registration).
     // Linking reuses the same URL with the current token appended as `?sid=`.
@@ -84,14 +92,14 @@ export const OAUTH_PROVIDERS: Record<string, OauthProviderConfig> = {
   apple: {
     name: "apple",
     label: "Apple",
-    authorizationEndpoint: "https://appleid.apple.com/auth/authorize",
+    authorizationEndpoint: "",
     scopes: ["name", "email"],
-    // Native `expo-apple-authentication` needs no client id; kept disabled
-    // until the backend can verify the Apple identity token.
     clientId: "",
-    mode: "native",
-    comingSoon: true,
-    usePKCE: true,
+    // Prefer the native iOS sheet (`expo-apple-authentication` identity token);
+    // Android has no native Apple flow, so it uses the server-side redirect.
+    mode: "server",
+    native: "apple",
+    linkable: true,
   },
 };
 
