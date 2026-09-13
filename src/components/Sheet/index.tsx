@@ -1,7 +1,8 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import {
   Image,
-  KeyboardAvoidingView,
+  Keyboard,
+  LayoutAnimation,
   Modal,
   ModalProps,
   Platform,
@@ -15,12 +16,60 @@ import { THEME } from "../../theme";
 const CLOSE_AREA_HEIGHT = 35;
 const DRAG_ICON_HEIGHT = 14;
 
+/**
+ * Bottom padding equal to the software keyboard height.
+ *
+ * We don't use RN's `KeyboardAvoidingView`: on Android edge-to-edge (SDK 54,
+ * targetSdk 36) it handles `keyboardDidHide` through `_onKeyboardChange`, so it
+ * recomputes padding from the hide event's `screenY` — which is reported wrong
+ * in edge-to-edge — and leaves a transparent gap behind after the keyboard
+ * closes (the sheet stays "floating"). Here the hide event is always ignored
+ * and the padding is reset to 0.
+ */
+function useKeyboardPadding(enabled: boolean): number {
+  const [padding, setPadding] = useState(0);
+
+  useEffect(() => {
+    if (!enabled) {
+      setPadding(0);
+      return;
+    }
+
+    const animate = () =>
+      LayoutAnimation.configureNext({
+        duration: 200,
+        update: { type: LayoutAnimation.Types.easeInEaseOut },
+      });
+
+    const subscriptions = [
+      Keyboard.addListener(
+        Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow",
+        (event) => {
+          animate();
+          setPadding(event.endCoordinates.height);
+        },
+      ),
+      Keyboard.addListener(
+        Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide",
+        () => {
+          animate();
+          setPadding(0);
+        },
+      ),
+    ];
+
+    return () => subscriptions.forEach((subscription) => subscription.remove());
+  }, [enabled]);
+
+  return enabled ? padding : 0;
+}
+
 interface Props extends ModalProps {
   visible: boolean;
   onClose: () => void;
   /** Blocks backdrop tap, drag handle and Android back while false. */
   closable?: boolean;
-  /** Wraps content in a KeyboardAvoidingView (ios: padding, android: height). */
+  /** Lifts the sheet above the software keyboard. */
   withKeyboard?: boolean;
   /** Max height of the sheet, e.g. "75%". */
   maxHeight?: `${number}%`;
@@ -36,16 +85,13 @@ export function Sheet({
   children,
   ...rest
 }: Props) {
-  const behavior = Platform.OS === "ios" ? "padding" : "height";
+  const keyboardPadding = useKeyboardPadding(withKeyboard && visible);
 
-  const body = (children: React.ReactNode) =>
-    withKeyboard ? (
-      <KeyboardAvoidingView behavior={behavior} style={styles.overlay}>
-        {children}
-      </KeyboardAvoidingView>
-    ) : (
-      <View style={styles.overlay}>{children}</View>
-    );
+  const body = (children: React.ReactNode) => (
+    <View style={[styles.overlay, { paddingBottom: keyboardPadding }]}>
+      {children}
+    </View>
+  );
 
   return (
     <Modal

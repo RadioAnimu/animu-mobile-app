@@ -39,7 +39,22 @@ async function authorizeGoogle(config: OauthProviderConfig): Promise<OAuthResult
     });
   }
 
-  const response = await GoogleSignin.signIn();
+  const response = await GoogleSignin.signIn().catch((error: unknown) => {
+    // `DEVELOPER_ERROR` (native code 10) on Android means the OAuth client's
+    // registered SHA-1 does not match the certificate this build was signed
+    // with. It is almost always a release/Play App Signing fingerprint that
+    // was never added to the Google Cloud console.
+    const code = (error as { code?: string | number } | undefined)?.code;
+    const message = (error as { message?: string } | undefined)?.message ?? "";
+    if (code === 10 || message.includes("DEVELOPER_ERROR")) {
+      throw new Error(
+        "Google sign-in misconfigured (DEVELOPER_ERROR): register this build's SHA-1 " +
+          "certificate for package com.nessjs.animu in the Google Cloud console. " +
+          "EAS release and Google Play App Signing keys are different from the local debug key.",
+      );
+    }
+    throw error;
+  });
   if (isCancelledResponse(response)) throw new AuthFlowCancelled();
   if (response.type !== "success") {
     throw new Error("Google sign-in did not complete");

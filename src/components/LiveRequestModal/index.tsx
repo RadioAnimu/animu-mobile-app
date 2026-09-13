@@ -170,7 +170,10 @@ export function LiveRequestModal({ visible, handleClose }: Props) {
 
   return (
     <Sheet visible={visible} onClose={handleClose} withKeyboard>
-      <GestureScrollView contentContainerStyle={styles.scrollContent}>
+      <GestureScrollView
+        contentContainerStyle={styles.scrollContent}
+        keyboardShouldPersistTaps="handled"
+      >
         <Text style={styles.title}>{t.LIVE_REQUEST_TITLE}</Text>
         {FORM_BUILDER_MAPPER.map((item, index) => (
           <View style={styles.field} key={index}>

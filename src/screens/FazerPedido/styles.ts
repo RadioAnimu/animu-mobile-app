@@ -43,8 +43,13 @@ export const styles = StyleSheet.create({
     borderColor: THEME.COLORS.INPUT_BORDER,
     backgroundColor: THEME.COLORS.INPUT_BG,
     color: THEME.COLORS.TEXT,
+    fontFamily: THEME.FONT_FAMILY.REGULAR,
+    fontSize: THEME.FONT_SIZE.LIST,
     textAlign: "left",
+    textAlignVertical: "center",
+    includeFontPadding: false,
     paddingLeft: THEME.SPACE.MD,
+    paddingVertical: 0,
     marginRight: THEME.SPACE.MD,
   },
   searchIcon: {
