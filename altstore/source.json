@@ -1,50 +1,68 @@
 {
   "name": "Rádio Animu",
   "subtitle": "A rádio mais moe do Brasil",
-  "description": "Downloads oficiais do app Rádio Animu para iOS.\n\nOuça a programação ao vivo, veja o que está tocando, os últimos pedidos e as últimas tocadas — e faça seus pedidos direto do celular.",
+  "description": "Downloads oficiais do app Rádio Animu para iOS.",
   "iconURL": "https://www.animu.moe/teste/altstore/icon.png",
-  "headerURL": "https://www.animu.moe/teste/altstore/header.png",
   "website": "https://www.animu.com.br/",
   "tintColor": "#6BDB00",
-  "featuredApps": ["com.nessjs.animu"],
+  "featuredApps": [
+    "com.nessjs.animu"
+  ],
   "apps": [
     {
       "name": "Rádio Animu",
       "bundleIdentifier": "com.nessjs.animu",
+      "marketplaceID": "6811728841",
       "developerName": "Rádio Animu",
       "subtitle": "A rádio mais moe do Brasil",
       "localizedDescription": "O app oficial da Rádio Animu.\n\n• Ouça ao vivo nos bitrates de 64, 192 e 320 kbps\n• Veja a capa, o anime, o artista e a música tocando agora\n• Programação com o DJ ao vivo e tempo restante da música\n• Últimos pedidos e últimas tocadas\n• Faça pedidos de música e pedidos ao vivo para o DJ\n• Login com Discord, Google, Apple ou Animu Connect\n• Visualizador de áudio, capas ao vivo e economia de dados",
       "iconURL": "https://www.animu.moe/teste/altstore/icon.png",
       "tintColor": "#6BDB00",
       "category": "entertainment",
-      "screenshots": ["https://www.animu.moe/teste/altstore/screenshots/1.png"],
+      "screenshots": [
+        "https://www.animu.moe/teste/altstore/screenshots/1.png"
+      ],
       "versions": [
         {
           "version": "2.0.5",
           "buildVersion": "2",
           "date": "2026-09-14T06:25:00+01:00",
-          "localizedDescription": "Novidades:\n• Visualizador acompanha a taxa de atualização da tela\n• Reconexão ao ponto ao vivo após ligações/interrupções\n• Tela de pedidos no menu lateral\n• Títulos completos e cópia ao tocar em Últimas Pedidas/Tocadas",
-          "downloadURL": "https://www.animu.moe/teste/altstore/animu-2.0.5.ipa",
-          "size": 22423568,
-          "sha256": "a8446afc4b1ea5af8b76081fdc95c0caf27a097b0031d4028d0b8d72029161af",
-          "minOSVersion": "15.1"
-        },
-        {
-          "version": "2.0.4",
-          "buildVersion": "1",
-          "date": "2026-09-14T00:00:00+01:00",
-          "localizedDescription": "Primeira versão para iOS.\n\n• Player ao vivo com capa e metadados\n• Programa e DJ ao vivo\n• Últimos pedidos e últimas tocadas\n• Pedidos de música e pedidos ao vivo\n• Tela de conta com login por provedor",
-          "downloadURL": "https://www.animu.moe/teste/altstore/animu-2.0.4.ipa",
-          "size": 22421968,
-          "sha256": "63e51a007a4a7fa7afda59331efd74dca92c10410e4ba4076b602ea053e53cb5",
-          "minOSVersion": "15.1"
+          "localizedDescription": "Visualizador acompanha a taxa de atualização da tela; reconexão ao ponto ao vivo após ligações; tela de pedidos no menu lateral; títulos completos e cópia ao tocar.",
+          "downloadURL": "https://github.com/RadioAnimu/animu-mobile-app/releases/download/v2.0.5/manifest.json",
+          "size": 16805416,
+          "minOSVersion": "15.1",
+          "assetURLs": {
+            "29e047e5-4a1c-3b73-a2b6-d1a5eefdc0b3": "https://github.com/RadioAnimu/animu-mobile-app/releases/download/v2.0.5/29e047e5-4a1c-3b73-a2b6-d1a5eefdc0b3.ipa",
+            "2c8a68a5-c9a9-3bf6-bb79-5bb9e31a8a9c": "https://github.com/RadioAnimu/animu-mobile-app/releases/download/v2.0.5/2c8a68a5-c9a9-3bf6-bb79-5bb9e31a8a9c.ipa",
+            "3989cea3-2569-36c5-a519-11cd10e68c91": "https://github.com/RadioAnimu/animu-mobile-app/releases/download/v2.0.5/3989cea3-2569-36c5-a519-11cd10e68c91.ipa",
+            "3f491a5c-03f3-33fc-aa79-bfba83c870be": "https://github.com/RadioAnimu/animu-mobile-app/releases/download/v2.0.5/3f491a5c-03f3-33fc-aa79-bfba83c870be.ipa",
+            "567e56d3-49d7-35c0-a075-1dc2b2fdf878": "https://github.com/RadioAnimu/animu-mobile-app/releases/download/v2.0.5/567e56d3-49d7-35c0-a075-1dc2b2fdf878.ipa",
+            "67b59a7a-1b5c-3378-a9bc-9c07df727f39": "https://github.com/RadioAnimu/animu-mobile-app/releases/download/v2.0.5/67b59a7a-1b5c-3378-a9bc-9c07df727f39.ipa",
+            "847cd3cd-359f-347b-9e86-fce54b544d88": "https://github.com/RadioAnimu/animu-mobile-app/releases/download/v2.0.5/847cd3cd-359f-347b-9e86-fce54b544d88.ipa",
+            "948dc53c-9b23-3692-af31-356b9cdca54f": "https://github.com/RadioAnimu/animu-mobile-app/releases/download/v2.0.5/948dc53c-9b23-3692-af31-356b9cdca54f.ipa",
+            "ad12b6e1-31ec-36f5-a73a-6999391d0645": "https://github.com/RadioAnimu/animu-mobile-app/releases/download/v2.0.5/ad12b6e1-31ec-36f5-a73a-6999391d0645.ipa",
+            "ba0f5841-9c14-35e0-9ebf-b039f775817c": "https://github.com/RadioAnimu/animu-mobile-app/releases/download/v2.0.5/ba0f5841-9c14-35e0-9ebf-b039f775817c.ipa",
+            "bcdbd81b-da3c-3aa3-92c1-11606af39fbd": "https://github.com/RadioAnimu/animu-mobile-app/releases/download/v2.0.5/bcdbd81b-da3c-3aa3-92c1-11606af39fbd.ipa",
+            "bf9f9fd6-22f8-35ed-af17-0829424c7834": "https://github.com/RadioAnimu/animu-mobile-app/releases/download/v2.0.5/bf9f9fd6-22f8-35ed-af17-0829424c7834.ipa",
+            "c1b93ed8-29b9-3fee-9bdb-e6360a83960f": "https://github.com/RadioAnimu/animu-mobile-app/releases/download/v2.0.5/c1b93ed8-29b9-3fee-9bdb-e6360a83960f.ipa",
+            "cfc533c0-b0d2-34a2-a396-230860943214": "https://github.com/RadioAnimu/animu-mobile-app/releases/download/v2.0.5/cfc533c0-b0d2-34a2-a396-230860943214.ipa",
+            "d41cc05f-9e6e-3274-89e7-81293e3ad2cf": "https://github.com/RadioAnimu/animu-mobile-app/releases/download/v2.0.5/d41cc05f-9e6e-3274-89e7-81293e3ad2cf.ipa",
+            "manifest": "https://github.com/RadioAnimu/animu-mobile-app/releases/download/v2.0.5/manifest.json",
+            "signature": "https://github.com/RadioAnimu/animu-mobile-app/releases/download/v2.0.5/signature"
+          }
         }
       ],
       "appPermissions": {
         "entitlements": [
-          { "name": "beta-reports-active" },
-          { "name": "com.apple.developer.applesignin" },
-          { "name": "get-task-allow" }
+          {
+            "name": "beta-reports-active"
+          },
+          {
+            "name": "com.apple.developer.applesignin"
+          },
+          {
+            "name": "get-task-allow"
+          }
         ],
         "privacy": []
       }
