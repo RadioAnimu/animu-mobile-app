@@ -22,6 +22,9 @@ export const styles = StyleSheet.create({
     height: HEADER_IMAGE_HEIGHT,
     marginVertical: THEME.SPACE.LG,
   },
+  nameTouchable: {
+    flex: 1,
+  },
   musicapedidaname: {
     color: THEME.COLORS.TEXT,
     fontSize: THEME.FONT_SIZE.LIST,

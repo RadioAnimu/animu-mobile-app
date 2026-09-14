@@ -267,7 +267,15 @@ export const Marquee = React.memo(function Marquee({
   };
 
   return onPress ? (
-    <Pressable {...lineProps} onPress={onPress}>
+    <Pressable
+      onLayout={lineProps.onLayout}
+      onPress={onPress}
+      // Subtle press feedback (dims like the history rows' TouchableOpacity).
+      style={({ pressed }) => [
+        styles.container,
+        pressed && styles.pressed,
+      ]}
+    >
       {content}
     </Pressable>
   ) : (
@@ -285,5 +293,8 @@ const styles = StyleSheet.create({
   },
   ghost: {
     opacity: 0,
+  },
+  pressed: {
+    opacity: 0.7,
   },
 });

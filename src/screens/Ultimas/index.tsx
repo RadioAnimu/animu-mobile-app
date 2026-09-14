@@ -1,5 +1,6 @@
 import React from "react";
-import { FlatList, Text, View } from "react-native";
+import { FlatList, Text, TouchableOpacity, View } from "react-native";
+import * as Clipboard from "expo-clipboard";
 
 import { Background } from "../../components/Background";
 import { styles } from "./styles";
@@ -12,9 +13,10 @@ import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../../routes/app.routes";
 
 import { Image } from "expo-image";
-import { IMGS } from "../../i18n";
+import { DICT, IMGS } from "../../i18n";
 import { useUserSettings } from "../../contexts/user/UserSettingsProvider";
 import { useStation } from "../../contexts/player/PlayerProvider";
+import { useAlert } from "../../contexts/alert/AlertProvider";
 
 type Props = NativeStackScreenProps<
   RootStackParamList,
@@ -26,8 +28,14 @@ export function Last({ route, navigation }: Props) {
   const isUltimasPedidasScreen = historyType === "requests";
 
   const station = useStation();
+  const { toast } = useAlert();
 
   const { settings } = useUserSettings();
+
+  const copyText = (text: string) => {
+    Clipboard.setStringAsync(text);
+    toast(DICT[settings.selectedLanguage].TEXT_COPIED);
+  };
 
   return (
     <Background>
@@ -63,7 +71,14 @@ export function Last({ route, navigation }: Props) {
                   ) : (
                     <></>
                   )}
-                  <Text style={styles.musicapedidaname}>{item.raw}</Text>
+                  <TouchableOpacity
+                    accessibilityRole="button"
+                    activeOpacity={0.7}
+                    onPress={() => copyText(item.raw)}
+                    style={styles.nameTouchable}
+                  >
+                    <Text style={styles.musicapedidaname}>{item.raw}</Text>
+                  </TouchableOpacity>
                   {isUltimasPedidasScreen && (
                     <Text style={styles.musicapedidatime}>
                       {new Date(item.startTime).toLocaleTimeString([], {
