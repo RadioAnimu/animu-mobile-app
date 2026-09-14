@@ -20,6 +20,16 @@
       "screenshots": ["https://www.animu.moe/teste/altstore/screenshots/1.png"],
       "versions": [
         {
+          "version": "2.0.5",
+          "buildVersion": "2",
+          "date": "2026-09-14T06:25:00+01:00",
+          "localizedDescription": "Novidades:\n• Visualizador acompanha a taxa de atualização da tela\n• Reconexão ao ponto ao vivo após ligações/interrupções\n• Tela de pedidos no menu lateral\n• Títulos completos e cópia ao tocar em Últimas Pedidas/Tocadas",
+          "downloadURL": "https://www.animu.moe/teste/altstore/animu-2.0.5.ipa",
+          "size": 22423568,
+          "sha256": "a8446afc4b1ea5af8b76081fdc95c0caf27a097b0031d4028d0b8d72029161af",
+          "minOSVersion": "15.1"
+        },
+        {
           "version": "2.0.4",
           "buildVersion": "1",
           "date": "2026-09-14T00:00:00+01:00",
