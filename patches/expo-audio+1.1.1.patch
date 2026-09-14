@@ -9,7 +9,7 @@ index 8c797aa..82cf539 100644
    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
 diff --git a/node_modules/expo-audio/android/src/main/java/expo/modules/audio/AudioPlayer.kt b/node_modules/expo-audio/android/src/main/java/expo/modules/audio/AudioPlayer.kt
-index 320062e..f6b8628 100644
+index 320062e..4c14e14 100644
 --- a/node_modules/expo-audio/android/src/main/java/expo/modules/audio/AudioPlayer.kt
 +++ b/node_modules/expo-audio/android/src/main/java/expo/modules/audio/AudioPlayer.kt
 @@ -1,17 +1,18 @@
@@ -181,7 +181,7 @@ index 320062e..f6b8628 100644
        ref.release()
      }
    }
-@@ -292,3 +261,104 @@ class AudioPlayer(
+@@ -292,3 +261,105 @@ class AudioPlayer(
      val TAG = AudioPlayer::class.simpleName
    }
  }
@@ -248,7 +248,8 @@ index 320062e..f6b8628 100644
 +    val cb = onSample
 +    if (!enabled || cb == null || channelCount <= 0) return
 +
-+    // Throttle to ~60 Hz so the bridge isn't flooded at the audio-buffer rate.
++    // Light guard only — let the ExoPlayer audio-buffer cadence drive the
++    // visualizer (~60+ Hz) instead of capping it below the frame rate.
 +    val now = System.nanoTime()
 +    if (now - lastEmitNanos < MIN_EMIT_INTERVAL_NANOS) return
 +    lastEmitNanos = now
@@ -283,6 +284,6 @@ index 320062e..f6b8628 100644
 +
 +  private companion object {
 +    const val MAX_FRAMES_PER_CHANNEL = 2048
-+    const val MIN_EMIT_INTERVAL_NANOS = 16_000_000L // ~60 Hz
++    const val MIN_EMIT_INTERVAL_NANOS = 4_000_000L // ~250 Hz ceiling
 +  }
 +}

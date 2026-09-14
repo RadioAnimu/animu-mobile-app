@@ -1,5 +1,5 @@
 import { LANGS_KEY_VALUE_PAIRS } from "../i18n";
-import type { VisualizerFps } from "../core/player/visualizer.types";
+import type { VisualizerHz } from "../core/player/visualizer.types";
 import { ArtworkQuality } from "./artwork-quality";
 
 export interface UserSettings {
@@ -9,6 +9,6 @@ export interface UserSettings {
   coversInRequestSearch: boolean;
   selectedLanguage: keyof typeof LANGS_KEY_VALUE_PAIRS;
   cacheEnabled: boolean;
-  /** Oscilloscope frame rate. `0` disables the visualizer. */
-  visualizerFps: VisualizerFps;
+  /** Oscilloscope render rate in Hz. `0` disables the visualizer. */
+  visualizerHz: VisualizerHz;
 }

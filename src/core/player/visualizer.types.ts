@@ -9,8 +9,11 @@ import type { AudioSample } from "expo-audio";
  * only by `visualizer.android.ts`; iOS uses `visualizer.ios.ts`.
  */
 
-/** Render frame rate. `0` means the visualizer is off. */
-export type VisualizerFps = 0 | 30 | 48 | 60;
+/**
+ * Target render rate in Hz, sourced from the device's refresh rate (the max
+ * stop is labelled "vsync"). `0` means the visualizer is off.
+ */
+export type VisualizerHz = number;
 
 /** One display-ready frame: a fixed-length oscilloscope line + loudness. */
 export interface WaveformFrame {
@@ -29,8 +32,8 @@ export interface VisualizerSampler {
   readonly isSupported: boolean;
   /** Whether sampling is currently running. */
   readonly isActive: boolean;
-  /** Target frame rate (`0` disables). */
-  setFps(fps: VisualizerFps): void;
+  /** Target rate in Hz (`0` disables). */
+  setHz(hz: VisualizerHz): void;
   /** App visibility — sampling never runs in the background. */
   setForeground(foreground: boolean): void;
   /** Transport state — sampling never runs while paused. */

@@ -1,58 +1,76 @@
 import type { AudioSample } from "expo-audio";
-import { resampleWaveform, rms, smoothWaveform } from "./waveform";
-import { CONFIG } from "../../utils/player.config";
+import { lerpWaveform, resampleWaveform, rms } from "./waveform";
 import type {
   SamplingTransport,
-  VisualizerFps,
+  VisualizerHz,
   VisualizerSampler,
   WaveformFrame,
 } from "./visualizer.types";
 
 /**
  * Oscilloscope sampler — turns the native player's decoded-PCM events into
- * compact, display-ready waveform frames.
+ * display-ready waveform frames at a steady target frame rate.
  *
- * Android-only. Owned by `PlayerService` and fed by `AudioTransport`. It is
- * the single gate for native sampling: sampling only runs while a non-zero
- * frame rate is selected, the app is foregrounded, and audio is playing. It
- * throttles the native ~60 Hz stream to the requested frame rate and smooths
- * between frames so motion stays fluid.
+ * Android-only. Owned by `PlayerService` and fed by `AudioTransport`.
  *
- * Deliberately not a React store: frames arrive up to 60 times a second and
- * must not re-render the app tree. The visualizer component subscribes to it
- * imperatively. The whole module tree is excluded from the iOS bundle by the
- * `visualizer.ios.ts` platform stub.
+ * The native PCM tap is bound to the ExoPlayer audio-buffer cadence, which can
+ * be as slow as ~40 Hz (stream/sample-rate dependent) — not enough for a fluid
+ * 60 hz trace. So the sampler keeps the last two native windows and emits
+ * interpolated frames on a timer at the requested hz. This mirrors what the
+ * browser's `AnalyserNode` + `requestAnimationFrame` does (a continuously
+ * advancing window) and keeps 30/48/60 visually distinct.
+ *
+ * Deliberately not a React store: frames must not re-render the app tree. The
+ * visualizer component subscribes imperatively. The module is excluded from the
+ * iOS bundle by the `visualizer.ios.ts` stub.
  */
 
 /** Points in the oscilloscope line. */
-const WAVE_POINTS = 128;
-/** Assumed native event rate until two samples are measured. */
-const DEFAULT_SOURCE_HZ = 60;
-/** Bounds for the measured native rate. */
-const MIN_SOURCE_HZ = 30;
-const MAX_SOURCE_HZ = 120;
-/** Intervals shorter than this are not used to measure the source rate. */
+const WAVE_POINTS = 256;
+/** Intervals shorter than this are not used to measure the native rate. */
 const MIN_SAMPLE_INTERVAL_MS = 4;
-/** Weight of the previous frame in the temporal smoothing blend. */
-const SMOOTHING = 0.45;
+/** Bounds for the measured native window interval (ms). */
+const MIN_NATIVE_INTERVAL_MS = 8;
+const MAX_NATIVE_INTERVAL_MS = 80;
+/** Fallback native interval until two windows are measured. */
+const DEFAULT_NATIVE_INTERVAL_MS = 16;
+
+/** Frame scheduler: `requestAnimationFrame` where available, else a timer. */
+type FrameHandle = { kind: "raf" | "timeout"; id: number };
+const requestFrame = (fn: () => void): FrameHandle => {
+  if (typeof requestAnimationFrame === "function") {
+    return { kind: "raf", id: requestAnimationFrame(fn) };
+  }
+  return { kind: "timeout", id: setTimeout(fn, 16) as unknown as number };
+};
+const cancelFrame = (handle: FrameHandle): void => {
+  if (handle.kind === "raf") {
+    cancelAnimationFrame(handle.id);
+  } else {
+    clearTimeout(handle.id);
+  }
+};
 
 export class AudioSampler implements VisualizerSampler {
-  private fps: VisualizerFps = 0;
+  private hz: VisualizerHz = 0;
   private foreground = true;
   private playing = false;
 
   private transportSubscription: (() => void) | null = null;
   private readonly listeners = new Set<(frame: WaveformFrame) => void>();
 
-  /** Fractional frame budget — drops frames to hit the target rate. */
-  private emitBudget = 0;
-  /** Measured native event rate, adapted per sample. */
-  private sourceHz = DEFAULT_SOURCE_HZ;
-  private lastSampleAt = 0;
-  /** Dev-only: count frames since the last activation. */
-  private framesSeen = 0;
-  /** Previous wave, used for temporal smoothing. */
-  private lastWave: number[] | null = null;
+  /** Interpolation endpoints and cadence. */
+  private previousWave: number[] | null = null;
+  private targetWave: number[] | null = null;
+  private targetLevel = 0;
+  private displayedWave: number[] | null = null;
+  /** Timestamp of the last native window; -1 until the first arrives. */
+  private nativeAt = -1;
+  private nativeIntervalMs = DEFAULT_NATIVE_INTERVAL_MS;
+
+  /** Display loop handle — runs at the requested frame rate while active. */
+  private frameHandle: FrameHandle | null = null;
+  private lastEmitAt = 0;
 
   constructor(private readonly transport: SamplingTransport) {}
 
@@ -61,14 +79,12 @@ export class AudioSampler implements VisualizerSampler {
   }
 
   get isActive(): boolean {
-    return (
-      this.fps > 0 && this.foreground && this.playing && this.isSupported
-    );
+    return this.hz > 0 && this.foreground && this.playing && this.isSupported;
   }
 
-  setFps(fps: VisualizerFps): void {
-    if (this.fps === fps) return;
-    this.fps = fps;
+  setHz(hz: VisualizerHz): void {
+    if (this.hz === hz) return;
+    this.hz = hz;
     this.apply();
   }
 
@@ -93,11 +109,10 @@ export class AudioSampler implements VisualizerSampler {
 
   /** Stops sampling and drops listeners. One-way. */
   dispose(): void {
-    this.fps = 0;
+    this.hz = 0;
     this.playing = false;
     this.apply();
     this.listeners.clear();
-    this.lastWave = null;
   }
 
   /** Reconciles the native sampling gate with the current flags. */
@@ -109,75 +124,87 @@ export class AudioSampler implements VisualizerSampler {
           this.handleSample(sample),
         );
       }
-      // Reset state so the first frame after resuming renders immediately.
-      this.emitBudget = 0;
-      this.framesSeen = 0;
-      this.lastWave = null;
+      this.reset();
       this.transport.setSamplingEnabled(true);
-      if (CONFIG.DEBUG) {
-        console.info(`[AudioSampler] sampling ON (fps=${this.fps})`);
-      }
+      this.startLoop();
       return;
     }
 
     this.transport.setSamplingEnabled(false);
     this.transportSubscription?.();
     this.transportSubscription = null;
-    if (CONFIG.DEBUG) console.info("[AudioSampler] sampling OFF");
+    this.stopLoop();
   }
 
+  private reset(): void {
+    this.previousWave = null;
+    this.targetWave = null;
+    this.targetLevel = 0;
+    this.displayedWave = null;
+    this.nativeAt = -1;
+    this.nativeIntervalMs = DEFAULT_NATIVE_INTERVAL_MS;
+  }
+
+  /** A new native PCM window arrived: retarget the interpolation. */
   private handleSample(sample: AudioSample): void {
     if (!this.isActive) return;
-    if (CONFIG.DEBUG && this.framesSeen === 0) {
-      console.info(
-        `[AudioSampler] first frame: channels=${sample.channels?.length ?? 0} frames=${sample.channels?.[0]?.frames?.length ?? 0}`,
-      );
-    }
-    this.framesSeen++;
-    this.measureSourceRate();
-    if (!this.shouldEmit()) return;
-
     const frames = sample.channels?.[0]?.frames ?? [];
-    const wave = smoothWaveform(
-      this.lastWave,
-      resampleWaveform(frames, WAVE_POINTS),
-      SMOOTHING,
-    );
-    this.lastWave = wave;
-    const frame: WaveformFrame = { wave, level: rms(frames) };
+    if (frames.length === 0) return;
 
+    const now = Date.now();
+    if (this.nativeAt >= 0) {
+      const delta = now - this.nativeAt;
+      if (delta >= MIN_SAMPLE_INTERVAL_MS) {
+        this.nativeIntervalMs = Math.min(
+          MAX_NATIVE_INTERVAL_MS,
+          Math.max(MIN_NATIVE_INTERVAL_MS, delta),
+        );
+      }
+    }
+    this.nativeAt = now;
+
+    // Interpolate from wherever the trace currently is to the new window.
+    this.previousWave = this.displayedWave ?? this.targetWave;
+    this.targetWave = resampleWaveform(frames, WAVE_POINTS);
+    this.targetLevel = rms(frames);
+  }
+
+  private startLoop(): void {
+    if (this.frameHandle) return;
+    this.lastEmitAt = 0;
+    const loop = () => {
+      if (!this.isActive) {
+        this.frameHandle = null;
+        return;
+      }
+      const now = Date.now();
+      const interval = 1000 / Math.max(1, this.hz);
+      if (this.lastEmitAt === 0 || now - this.lastEmitAt >= interval - 1) {
+        this.lastEmitAt = now;
+        this.emitFrame(now);
+      }
+      this.frameHandle = requestFrame(loop);
+    };
+    this.frameHandle = requestFrame(loop);
+  }
+
+  private emitFrame(now: number): void {
+    // Hold until the first real window arrives so the visualizer doesn't
+    // animate on empty data.
+    if (!this.targetWave) return;
+    const elapsed = this.nativeAt >= 0 ? now - this.nativeAt : 0;
+    const t = Math.min(1, elapsed / this.nativeIntervalMs);
+    const wave = lerpWaveform(this.previousWave, this.targetWave, t);
+    this.displayedWave = wave;
+    const frame: WaveformFrame = { wave, level: this.targetLevel };
     this.listeners.forEach((listener) => listener(frame));
   }
 
-  /** Tracks the native event cadence so decimation works on both platforms. */
-  private measureSourceRate(): void {
-    const now = Date.now();
-    if (this.lastSampleAt > 0) {
-      const delta = now - this.lastSampleAt;
-      // Ignore implausibly short intervals (two events in the same ms, a test
-      // burst) so a single outlier can't skew the measured rate.
-      if (delta >= MIN_SAMPLE_INTERVAL_MS) {
-        const instant = 1000 / delta;
-        const bounded = Math.min(MAX_SOURCE_HZ, Math.max(MIN_SOURCE_HZ, instant));
-        this.sourceHz = this.sourceHz * 0.9 + bounded * 0.1;
-      }
+  private stopLoop(): void {
+    if (this.frameHandle) {
+      cancelFrame(this.frameHandle);
+      this.frameHandle = null;
     }
-    this.lastSampleAt = now;
-  }
-
-  /**
-   * Decimates the native stream to the configured rate. Uses a fractional
-   * budget against the *measured* source rate rather than wall-clock
-   * throttling, so the target is respected regardless of native cadence.
-   */
-  private shouldEmit(): boolean {
-    const fps = this.fps;
-    if (fps <= 0) return false;
-    const ratio = fps / this.sourceHz;
-    if (ratio >= 1) return true;
-    this.emitBudget += ratio;
-    if (this.emitBudget < 1) return false;
-    this.emitBudget -= 1;
-    return true;
+    this.displayedWave = null;
   }
 }

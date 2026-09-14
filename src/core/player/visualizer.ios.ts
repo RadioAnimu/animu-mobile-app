@@ -1,6 +1,6 @@
 import type {
   SamplingTransport,
-  VisualizerFps,
+  VisualizerHz,
   VisualizerSampler,
   WaveformFrame,
 } from "./visualizer.types";
@@ -17,7 +17,7 @@ class NoopVisualizerSampler implements VisualizerSampler {
   readonly isSupported = false;
   readonly isActive = false;
 
-  setFps(_fps: VisualizerFps): void {}
+  setHz(_hz: VisualizerHz): void {}
   setForeground(_foreground: boolean): void {}
   setPlaying(_playing: boolean): void {}
   subscribe(_listener: (frame: WaveformFrame) => void): () => void {

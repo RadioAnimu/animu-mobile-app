@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { AudioSample } from "expo-audio";
 import { AudioSampler } from "../audio-sampler";
 
@@ -27,19 +27,27 @@ const sample = (frames: number[]): AudioSample => ({
   timestamp: 0,
 });
 
-const activeSampler = (fps: 0 | 30 | 48 | 60 = 60) => {
+const activeSampler = (hz = 60) => {
   const fake = makeTransport();
   const sampler = new AudioSampler(fake.transport);
-  sampler.setFps(fps);
+  sampler.setHz(hz);
   sampler.setPlaying(true);
   return { ...fake, sampler };
 };
 
+beforeEach(() => {
+  vi.useFakeTimers();
+});
+
+afterEach(() => {
+  vi.useRealTimers();
+});
+
 describe("AudioSampler gating", () => {
-  it("is inactive while the frame rate is zero", () => {
+  it("is inactive while the rate is zero", () => {
     const { transport } = makeTransport();
     const sampler = new AudioSampler(transport);
-    sampler.setFps(0);
+    sampler.setHz(0);
     sampler.setPlaying(true);
 
     expect(sampler.isActive).toBe(false);
@@ -52,7 +60,7 @@ describe("AudioSampler gating", () => {
     const sampler = new AudioSampler(transport);
 
     expect(sampler.isActive).toBe(false);
-    sampler.setFps(60);
+    sampler.setHz(60);
     expect(sampler.isActive).toBe(false);
     sampler.setPlaying(true);
     expect(sampler.isActive).toBe(true);
@@ -78,7 +86,7 @@ describe("AudioSampler gating", () => {
   it("never activates when the platform does not support sampling", () => {
     const { transport } = makeTransport(false);
     const sampler = new AudioSampler(transport);
-    sampler.setFps(60);
+    sampler.setHz(60);
     sampler.setPlaying(true);
 
     expect(sampler.isActive).toBe(false);
@@ -95,60 +103,57 @@ describe("AudioSampler gating", () => {
 });
 
 describe("AudioSampler frames", () => {
-  it("emits a fixed-length waveform and level", () => {
+  it("emits interpolated frames of the configured length", () => {
     const { sampler, emit } = activeSampler();
-    const frames: number[][] = [];
-    sampler.subscribe((frame) => frames.push(frame.wave));
+    const listener = vi.fn();
+    sampler.subscribe(listener);
 
     emit(sample(new Array(128).fill(0.5)));
+    vi.advanceTimersByTime(20);
 
-    expect(frames).toHaveLength(1);
-    expect(frames[0]).toHaveLength(128);
+    expect(listener).toHaveBeenCalled();
+    const frame = listener.mock.calls[listener.mock.calls.length - 1][0];
+    expect(frame.wave).toHaveLength(256);
   });
 
-  it("stops notifying unsubscribed listeners", () => {
-    const { sampler, emit } = activeSampler();
-    const listener = vi.fn();
-    const unsubscribe = sampler.subscribe(listener);
-
-    emit(sample(new Array(64).fill(0.1)));
-    unsubscribe();
-    emit(sample(new Array(64).fill(0.1)));
-
-    expect(listener).toHaveBeenCalledTimes(1);
-  });
-});
-
-describe("AudioSampler frame-rate decimation", () => {
-  it("passes every native frame through at 60 fps", () => {
-    const { sampler, emit } = activeSampler(60);
+  it("does not emit before the first native window arrives", () => {
+    const { sampler } = activeSampler();
     const listener = vi.fn();
     sampler.subscribe(listener);
 
-    for (let i = 0; i < 5; i++) emit(sample(new Array(64).fill(0.1)));
+    vi.advanceTimersByTime(200);
 
-    expect(listener).toHaveBeenCalledTimes(5);
+    expect(listener).not.toHaveBeenCalled();
   });
 
-  it("drops exactly one in five frames at 48 fps", () => {
-    const { sampler, emit } = activeSampler(48);
-    const listener = vi.fn();
-    sampler.subscribe(listener);
+  it("emits more frames at a higher rate", () => {
+    const low = activeSampler(30);
+    const lowListener = vi.fn();
+    low.sampler.subscribe(lowListener);
+    low.emit(sample(new Array(64).fill(0.1)));
+    vi.advanceTimersByTime(1000);
 
-    for (let i = 0; i < 5; i++) emit(sample(new Array(64).fill(0.1)));
+    const high = activeSampler(120);
+    const highListener = vi.fn();
+    high.sampler.subscribe(highListener);
+    high.emit(sample(new Array(64).fill(0.1)));
+    vi.advanceTimersByTime(1000);
 
-    expect(listener).toHaveBeenCalledTimes(4);
+    expect(highListener.mock.calls.length).toBeGreaterThan(
+      lowListener.mock.calls.length,
+    );
   });
 });
 
 describe("AudioSampler disposal", () => {
-  it("stops sampling and clears listeners", () => {
+  it("stops sampling, stops the loop and clears listeners", () => {
     const { sampler, transport, emit } = activeSampler();
     const listener = vi.fn();
     sampler.subscribe(listener);
 
-    sampler.dispose();
     emit(sample(new Array(64).fill(0.1)));
+    sampler.dispose();
+    vi.advanceTimersByTime(200);
 
     expect(listener).not.toHaveBeenCalled();
     expect(transport.setSamplingEnabled).toHaveBeenLastCalledWith(false);

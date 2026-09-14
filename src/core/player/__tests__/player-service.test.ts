@@ -133,7 +133,7 @@ const makeDeps = () => {
   const sampler = {
     isSupported: true,
     isActive: false,
-    setFps: vi.fn(),
+    setHz: vi.fn(),
     setForeground: vi.fn(),
     setPlaying: vi.fn(),
     subscribe: vi.fn(() => () => {}),
@@ -360,7 +360,7 @@ describe("PlayerService stream-loss handling", () => {
     }
   });
 
-  it("re-opens the live edge on a native auto-resume after an interruption", async () => {
+  it("re-opens the live edge on a native auto-resume after a real interruption", async () => {
     vi.useFakeTimers();
     try {
       const { deps, transport, publisher } = makeDeps();
@@ -370,7 +370,7 @@ describe("PlayerService stream-loss handling", () => {
       handler({ playing: true } as AudioStatus);
       transport.play.mockClear();
 
-      // Phone call: expo-audio pauses natively (not a user pause)
+      // Phone call: expo-audio pauses natively while audio is flowing.
       handler({
         playing: false,
         isBuffering: false,
@@ -379,9 +379,8 @@ describe("PlayerService stream-loss handling", () => {
       } as AudioStatus);
       expect(deps.state.state).toBe("paused");
 
-      // Call ends and the OS resumes the player on its own. The native
-      // player would continue from the paused point (stale audio on a live
-      // stream), so the orchestrator re-opens the source to land live.
+      // Call ends and the OS resumes on its own — re-open at the live edge
+      // instead of replaying the stale buffered position.
       handler({ playing: true } as AudioStatus);
 
       expect(transport.play).toHaveBeenCalledWith(
@@ -392,6 +391,40 @@ describe("PlayerService stream-loss handling", () => {
       expect(publisher.pushStatus).toHaveBeenLastCalledWith("buffering");
       // The transport was never told to pause — this was not the user.
       expect(transport.pause).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("does not re-open on the paused→playing transient of a stream change", async () => {
+    vi.useFakeTimers();
+    try {
+      const { deps, transport } = makeDeps();
+      const service = new PlayerService(deps);
+      await service.play();
+      const handler = wiredHandler(transport);
+      handler({ playing: true } as AudioStatus);
+
+      // Manual re-tune: state becomes "connecting" while replace() runs,
+      // then the native layer emits a transient paused frame + playing.
+      await service.changeStream({
+        id: "high",
+        url: "https://stream-high",
+        bitrate: 320,
+        category: "mp3",
+      } as unknown as Stream);
+      transport.play.mockClear();
+
+      handler({
+        playing: false,
+        isBuffering: false,
+        playbackState: "ready",
+        timeControlStatus: "paused",
+      } as AudioStatus);
+      handler({ playing: true } as AudioStatus);
+
+      expect(transport.play).not.toHaveBeenCalled();
+      expect(deps.state.state).toBe("playing");
     } finally {
       vi.useRealTimers();
     }

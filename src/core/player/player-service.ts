@@ -38,7 +38,7 @@ import { StreamPreferences } from "./stream-preferences";
 import { AudioTransport } from "./transport";
 import { createVisualizerSampler } from "./visualizer";
 import type {
-  VisualizerFps,
+  VisualizerHz,
   VisualizerSampler,
   WaveformFrame,
 } from "./visualizer.types";
@@ -110,6 +110,19 @@ export class PlayerService {
    */
   private userPaused = false;
   /**
+   * Set when the OS pauses playback on its own (audio-focus loss, phone
+   * call) *while audio was actually flowing*. The next self-resume then
+   * re-opens the source to land at the live edge instead of replaying the
+   * stale buffered position.
+   *
+   * It is set ONLY from a `playing` state — never from the transient paused
+   * frame that a source replace emits (our own live re-open, or
+   * `changeStream`'s replace, both of which run while the state is
+   * `connecting`). That is what stops the re-open from retriggering itself
+   * in a loop.
+   */
+  private interruptionPending = false;
+  /**
    * Whether the app UI is foregrounded. While backgrounded, store emissions
    * are suppressed so nothing reconciles in the hidden tree; the native
    * player and media session keep running. Restored emissions happen on the
@@ -170,8 +183,8 @@ export class PlayerService {
   }
 
   /** Selected frame rate (`0` disables). */
-  setVisualizerFps(fps: VisualizerFps): void {
-    this.deps.sampler.setFps(fps);
+  setVisualizerHz(hz: VisualizerHz): void {
+    this.deps.sampler.setHz(hz);
   }
 
   /** Subscribes to display-ready waveform frames (hot path, not a store). */
@@ -180,8 +193,8 @@ export class PlayerService {
   }
 
   private applyVisualizerSettings(): void {
-    this.deps.sampler.setFps(
-      userSettingsService.getCurrentSettings().visualizerFps,
+    this.deps.sampler.setHz(
+      userSettingsService.getCurrentSettings().visualizerHz,
     );
   }
 
@@ -296,6 +309,7 @@ export class PlayerService {
   async destroy(): Promise<void> {
     this.disposed = true;
     this.userPaused = false;
+    this.interruptionPending = false;
     this.setupPromise = null;
 
     if (!this.isReady) {
@@ -354,6 +368,7 @@ export class PlayerService {
     // The user is choosing to play — an interruption that happens later is
     // no longer "resume the user's stream", it's a fresh intent.
     this.userPaused = false;
+    this.interruptionPending = false;
 
     try {
       // Ensure audio mode + media session are set up, then resolve the
@@ -399,6 +414,7 @@ export class PlayerService {
     // The user explicitly paused: latch it so native self-recovery (focus
     // regain, interruption end) can never resurrect the stream.
     this.userPaused = true;
+    this.interruptionPending = false;
 
     // Pausing only needs the audio transport — a failed/slow now-playing
     // fetch, or a media session that never started, must never make the
@@ -437,6 +453,8 @@ export class PlayerService {
 
       // A pending reconnect would double-fire after the manual re-tune
       this.deps.reconnect.cancel();
+      // A manual re-tune is a fresh intent — no pending live-edge re-open.
+      this.interruptionPending = false;
 
       this.deps.transport.load(stream.url);
       if (wasPlaying) {
@@ -580,16 +598,19 @@ export class PlayerService {
         }
         // The pause was native (focus loss, phone call) and the OS has just
         // resumed on its own (Android AUDIOFOCUS_GAIN, iOS .shouldResume).
-        // The native player continues from the point it was paused at —
-        // which on a live radio stream replays stale, already-played audio
-        // (and can sit behind the live edge for the rest of the session).
-        // Re-open the source instead of adopting the buffered position, so
-        // a call/interruption always drops the listener back at the live
-        // point.
-        this.deps.transport.play(this.deps.streamPreferences.current.url);
-        this.reconcile("connecting");
-        this.deps.heartbeat.beat();
-        return;
+        // For a radio, the native player would continue from the paused
+        // position — stale, already-played audio — so a *genuine*
+        // interruption re-opens the source to land at the live edge. The
+        // one-shot flag is what keeps this from looping: the re-open's own
+        // transient paused→playing frame leaves it clear.
+        if (this.interruptionPending) {
+          this.interruptionPending = false;
+          this.deps.transport.play(this.deps.streamPreferences.current.url);
+          this.reconcile("connecting");
+          this.deps.heartbeat.beat();
+          return;
+        }
+        // Otherwise adopt the resumed audio as-is (transient flap).
       }
 
       // Native 1 Hz heartbeat: drives progress + media-session pushes AND
@@ -612,6 +633,13 @@ export class PlayerService {
       status.timeControlStatus === "paused" &&
       !isDeadPlaybackState(status.playbackState)
     ) {
+      // A pause while audio was actually flowing is a real interruption
+      // (call, focus loss). A paused frame while `connecting` is transient
+      // — e.g. the replace() of our own live re-open or a stream change —
+      // and must NOT arm the live-edge re-open.
+      if (this.deps.state.state === "playing") {
+        this.interruptionPending = true;
+      }
       this.reconcile("paused");
       return;
     }
@@ -673,6 +701,8 @@ export class PlayerService {
     }
 
     try {
+      // Reconnect re-opens live anyway — drop any pending interruption.
+      this.interruptionPending = false;
       this.deps.transport.play(this.deps.streamPreferences.current.url);
       // Reconcile pushes "buffering" — no manual pushStatus needed.
       this.reconcile("connecting");

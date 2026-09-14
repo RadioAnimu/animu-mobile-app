@@ -69,7 +69,7 @@ export const Oscilloscope = React.memo(function Oscilloscope() {
   const wantsOn =
     isPlaying &&
     visualizerSupported &&
-    settings.visualizerFps > 0 &&
+    settings.visualizerHz > 0 &&
     !isBackgrounded;
 
   // Subscribe only while we want a signal.

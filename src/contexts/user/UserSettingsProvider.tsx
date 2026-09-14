@@ -12,7 +12,7 @@ import { DEFAULT_USER_SETTINGS } from "../../constants/settings";
 
 /** Pushes visualizer-related settings to the player core (single owner). */
 const applyVisualizerSettings = (settings: UserSettings) => {
-  playerService().setVisualizerFps(settings.visualizerFps);
+  playerService().setVisualizerHz(settings.visualizerHz);
 };
 
 type UserSettingsContextType = {

@@ -38,22 +38,22 @@ export function resampleWaveform(frames: number[], points: number): number[] {
 }
 
 /**
- * Light temporal smoothing between frames. Blends the previous line into the
- * current one so motion stays fluid at lower frame rates without washing out
- * the signal. `amount` is the weight of the *previous* frame (0..1).
+ * Linear interpolation between two frames. Used to render intermediate frames
+ * between the (slower) native PCM windows so motion matches the display rate.
+ * `t` runs 0 (previous) → 1 (next).
  */
-export function smoothWaveform(
+export function lerpWaveform(
   previous: number[] | null,
   next: number[],
-  amount: number,
+  t: number,
 ): number[] {
-  if (!previous || previous.length !== next.length || amount <= 0) {
+  if (!previous || previous.length !== next.length) {
     return next;
   }
-  const keep = clamp01(amount);
+  const amount = clamp01(t);
   const out = new Array<number>(next.length);
   for (let i = 0; i < next.length; i++) {
-    out[i] = previous[i] * keep + next[i] * (1 - keep);
+    out[i] = previous[i] + (next[i] - previous[i]) * amount;
   }
   return out;
 }

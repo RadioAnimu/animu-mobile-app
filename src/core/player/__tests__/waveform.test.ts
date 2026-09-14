@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { resampleWaveform, rms, smoothWaveform } from "../waveform";
+import { lerpWaveform, resampleWaveform, rms } from "../waveform";
 
 describe("resampleWaveform", () => {
   it("returns the requested number of points", () => {
@@ -24,21 +24,25 @@ describe("resampleWaveform", () => {
   });
 });
 
-describe("smoothWaveform", () => {
-  it("returns the next frame unchanged without a previous frame", () => {
-    expect(smoothWaveform(null, [1, 0], 0.5)).toEqual([1, 0]);
+describe("lerpWaveform", () => {
+  it("returns the next frame without a previous frame", () => {
+    expect(lerpWaveform(null, [1, 0], 0.5)).toEqual([1, 0]);
   });
 
-  it("returns the next frame unchanged when the amount is zero", () => {
-    expect(smoothWaveform([0, 0], [1, 1], 0)).toEqual([1, 1]);
+  it("returns the next frame when lengths differ", () => {
+    expect(lerpWaveform([0], [1, 1], 0.5)).toEqual([1, 1]);
   });
 
-  it("blends the previous frame into the next", () => {
-    expect(smoothWaveform([0, 0], [1, 1], 0.5)).toEqual([0.5, 0.5]);
+  it("returns the previous frame at t=0", () => {
+    expect(lerpWaveform([0, 0], [1, 1], 0)).toEqual([0, 0]);
   });
 
-  it("ignores a previous frame of a different length", () => {
-    expect(smoothWaveform([0], [1, 1], 0.5)).toEqual([1, 1]);
+  it("returns the next frame at t=1", () => {
+    expect(lerpWaveform([0, 0], [1, 1], 1)).toEqual([1, 1]);
+  });
+
+  it("interpolates midway", () => {
+    expect(lerpWaveform([0, 0], [1, 1], 0.5)).toEqual([0.5, 0.5]);
   });
 });
 
