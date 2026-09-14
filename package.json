@@ -11,6 +11,7 @@
     "install:apk": "adb uninstall com.nessjs.animu; adb install $(ls -t *.apk | head -1)",
     "lint": "expo lint",
     "build:api": "npm run build --prefix packages/animu-api",
+    "splash": "node scripts/generate-splash.mjs",
     "test": "vitest run"
   },
   "dependencies": {
@@ -47,6 +48,7 @@
   },
   "devDependencies": {
     "@babel/core": "^7.20.0",
+    "@napi-rs/canvas": "^1.0.9",
     "@types/react": "~19.1.10",
     "babel-preset-expo": "~54.0.10",
     "eslint": "^9.39.5",
