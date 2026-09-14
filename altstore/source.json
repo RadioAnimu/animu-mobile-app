@@ -1,0 +1,44 @@
+{
+  "name": "Rádio Animu",
+  "subtitle": "A rádio mais moe do Brasil",
+  "description": "Downloads oficiais do app Rádio Animu para iOS.\n\nOuça a programação ao vivo, veja o que está tocando, os últimos pedidos e as últimas tocadas — e faça seus pedidos direto do celular.",
+  "iconURL": "https://www.animu.moe/teste/altstore/icon.png",
+  "headerURL": "https://www.animu.moe/teste/altstore/header.png",
+  "website": "https://www.animu.com.br/",
+  "tintColor": "#6BDB00",
+  "featuredApps": ["com.nessjs.animu"],
+  "apps": [
+    {
+      "name": "Rádio Animu",
+      "bundleIdentifier": "com.nessjs.animu",
+      "developerName": "Rádio Animu",
+      "subtitle": "A rádio mais moe do Brasil",
+      "localizedDescription": "O app oficial da Rádio Animu.\n\n• Ouça ao vivo nos bitrates de 64, 192 e 320 kbps\n• Veja a capa, o anime, o artista e a música tocando agora\n• Programação com o DJ ao vivo e tempo restante da música\n• Últimos pedidos e últimas tocadas\n• Faça pedidos de música e pedidos ao vivo para o DJ\n• Login com Discord, Google, Apple ou Animu Connect\n• Visualizador de áudio, capas ao vivo e economia de dados",
+      "iconURL": "https://www.animu.moe/teste/altstore/icon.png",
+      "tintColor": "#6BDB00",
+      "category": "entertainment",
+      "screenshots": ["https://www.animu.moe/teste/altstore/screenshots/1.png"],
+      "versions": [
+        {
+          "version": "2.0.4",
+          "buildVersion": "1",
+          "date": "2026-09-14T00:00:00+01:00",
+          "localizedDescription": "Primeira versão para iOS.\n\n• Player ao vivo com capa e metadados\n• Programa e DJ ao vivo\n• Últimos pedidos e últimas tocadas\n• Pedidos de música e pedidos ao vivo\n• Tela de conta com login por provedor",
+          "downloadURL": "https://www.animu.moe/teste/altstore/animu-2.0.4.ipa",
+          "size": 22421968,
+          "sha256": "63e51a007a4a7fa7afda59331efd74dca92c10410e4ba4076b602ea053e53cb5",
+          "minOSVersion": "15.1"
+        }
+      ],
+      "appPermissions": {
+        "entitlements": [
+          { "name": "beta-reports-active" },
+          { "name": "com.apple.developer.applesignin" },
+          { "name": "get-task-allow" }
+        ],
+        "privacy": []
+      }
+    }
+  ],
+  "news": []
+}

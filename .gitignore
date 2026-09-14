@@ -153,3 +153,5 @@ radioanimu-f57f5fb48b99.json
 .expo
 dist/
 web-build/
+# AltStore distribution artifacts (host on your server, not in git)
+altstore/*.ipa
