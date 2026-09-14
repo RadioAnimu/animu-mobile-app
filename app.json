@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "Rádio Animu",
-    "version": "2.0.4",
+    "version": "2.0.5",
     "slug": "animu",
     "orientation": "portrait",
     "icon": "./assets/icon_top.png",
@@ -21,8 +21,10 @@
       "infoPlist": {
         "UIBackgroundModes": [
           "audio"
-        ]
-      }
+        ],
+        "ITSAppUsesNonExemptEncryption": false
+      },
+      "buildNumber": "2"
     },
     "android": {
       "adaptiveIcon": {
@@ -30,7 +32,7 @@
         "backgroundColor": "#270051"
       },
       "package": "com.nessjs.animu",
-      "versionCode": 10,
+      "versionCode": 11,
       "edgeToEdgeEnabled": true,
       "blockedPermissions": [
         "android.permission.RECORD_AUDIO"
@@ -63,7 +65,13 @@
       ],
       "expo-asset",
       "expo-web-browser",
-      ["expo-audio", { "recordAudioAndroid": false }],
+      [
+        "expo-audio",
+        {
+          "recordAudioAndroid": false,
+          "microphonePermission": false
+        }
+      ],
       "expo-apple-authentication"
     ],
     "extra": {
