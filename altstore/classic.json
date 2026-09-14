@@ -19,7 +19,21 @@
       "tintColor": "#6BDB00",
       "category": "entertainment",
       "screenshots": [
-        "https://radioanimu.github.io/animu-mobile-app/screenshots/1.png"
+        {
+          "imageURL": "https://radioanimu.github.io/animu-mobile-app/screenshots/1-home.png",
+          "width": 1080,
+          "height": 2400
+        },
+        {
+          "imageURL": "https://radioanimu.github.io/animu-mobile-app/screenshots/2-drawer.png",
+          "width": 1080,
+          "height": 2400
+        },
+        {
+          "imageURL": "https://radioanimu.github.io/animu-mobile-app/screenshots/3-ultimas-pedidas.png",
+          "width": 1080,
+          "height": 2400
+        }
       ],
       "versions": [
         {
