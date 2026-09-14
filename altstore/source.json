@@ -2,7 +2,7 @@
   "name": "Rádio Animu",
   "subtitle": "A rádio mais moe do Brasil",
   "description": "Downloads oficiais do app Rádio Animu para iOS.",
-  "iconURL": "https://www.animu.moe/teste/altstore/icon.png",
+  "iconURL": "https://radioanimu.github.io/animu-mobile-app/icon.png",
   "website": "https://www.animu.com.br/",
   "tintColor": "#6BDB00",
   "featuredApps": [
@@ -16,11 +16,11 @@
       "developerName": "Rádio Animu",
       "subtitle": "A rádio mais moe do Brasil",
       "localizedDescription": "O app oficial da Rádio Animu.\n\n• Ouça ao vivo nos bitrates de 64, 192 e 320 kbps\n• Veja a capa, o anime, o artista e a música tocando agora\n• Programação com o DJ ao vivo e tempo restante da música\n• Últimos pedidos e últimas tocadas\n• Faça pedidos de música e pedidos ao vivo para o DJ\n• Login com Discord, Google, Apple ou Animu Connect\n• Visualizador de áudio, capas ao vivo e economia de dados",
-      "iconURL": "https://www.animu.moe/teste/altstore/icon.png",
+      "iconURL": "https://radioanimu.github.io/animu-mobile-app/icon.png",
       "tintColor": "#6BDB00",
       "category": "entertainment",
       "screenshots": [
-        "https://www.animu.moe/teste/altstore/screenshots/1.png"
+        "https://radioanimu.github.io/animu-mobile-app/screenshots/1.png"
       ],
       "versions": [
         {
@@ -68,5 +68,6 @@
       }
     }
   ],
-  "news": []
+  "news": [],
+  "headerURL": "https://radioanimu.github.io/animu-mobile-app/header.png"
 }
