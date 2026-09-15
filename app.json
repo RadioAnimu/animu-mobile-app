@@ -6,11 +6,8 @@
     "orientation": "portrait",
     "icon": "./assets/icon_top.png",
     "userInterfaceStyle": "automatic",
+    "backgroundColor": "#270051",
     "newArchEnabled": true,
-    "splash": {
-      "image": "./assets/splash_top.png",
-      "backgroundColor": "#270051"
-    },
     "scheme": "animuapp",
     "assetBundlePatterns": [
       "**/*"
@@ -42,6 +39,20 @@
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#270051",
+          "image": "./assets/splash_top.png",
+          "resizeMode": "contain",
+          "enableFullScreenImage_legacy": true,
+          "android": {
+            "drawable": {
+              "icon": "./assets/splash-android-blank.xml"
+            }
+          }
+        }
+      ],
       [
         "expo-build-properties",
         {

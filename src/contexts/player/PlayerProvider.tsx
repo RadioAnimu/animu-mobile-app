@@ -23,6 +23,7 @@ import {
   type WaveformFrame,
 } from "../../core/player";
 import { Loading } from "../../screens/Loading";
+import { hideSplashOnce } from "../../screens/Loading/splash";
 
 const HEARTBEAT_INTERVAL = 1000; // 1s fallback driver (see HeartbeatScheduler)
 
@@ -168,6 +169,11 @@ export const PlayerProvider: React.FC<{
       playerServiceInstance.destroy().catch(console.error);
     };
   }, [playerServiceInstance]);
+
+  // ─── Dismiss the native splash once the first real screen can render ───
+  useEffect(() => {
+    if (playerSnapshot.isInitialized) hideSplashOnce();
+  }, [playerSnapshot.isInitialized]);
 
   // ─── Heartbeat driver: while visible or playing, otherwise suspended ───
   //

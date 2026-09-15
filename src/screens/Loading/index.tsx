@@ -1,29 +1,28 @@
-import { ActivityIndicator, ImageBackground, StyleSheet } from "react-native";
+import { useEffect } from "react";
+import { ActivityIndicator, View } from "react-native";
+import { Image } from "expo-image";
 import { THEME } from "../../theme";
-import { styles } from "./styles";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { hideSplashOnce } from "./splash";
+import { FALLBACK_HIDE_MS, styles } from "./styles";
 import splashScreenImage from "../../../assets/splash_top.png";
 
-const BOTTOM_INSET = "40%";
-
-const splashStyles = StyleSheet.create({
-  background: {
-    flex: 1,
-    justifyContent: "flex-end",
-    paddingBottom: BOTTOM_INSET,
-  },
-});
-
 export function Loading() {
+  useEffect(() => {
+    const timeout = setTimeout(hideSplashOnce, FALLBACK_HIDE_MS);
+    return () => clearTimeout(timeout);
+  }, []);
+
   return (
-    <SafeAreaView style={styles.container} edges={["left", "right", "bottom"]}>
-      <ImageBackground
-        defaultSource={splashScreenImage}
+    <View style={styles.container}>
+      <Image
         source={splashScreenImage}
-        style={splashStyles.background}
-      >
+        style={styles.image}
+        contentFit="contain"
+        onLoad={hideSplashOnce}
+      />
+      <View style={styles.spinner}>
         <ActivityIndicator color={THEME.COLORS.TEXT} />
-      </ImageBackground>
-    </SafeAreaView>
+      </View>
+    </View>
   );
 }
