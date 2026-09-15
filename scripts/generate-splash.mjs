@@ -19,7 +19,12 @@ async function main() {
   const app = readJson(path.join(ROOT, "app.json")).expo;
   const pkg = readJson(path.join(ROOT, "package.json"));
   const version = app.version ?? pkg.version;
-  const background = app.splash?.backgroundColor ?? "#270051";
+  // The legacy top-level `splash` key was replaced by the `expo-splash-screen`
+  // config plugin in SDK 55+; read the background from there.
+  const splashPlugin = (app.plugins ?? []).find(
+    (plugin) => Array.isArray(plugin) && plugin[0] === "expo-splash-screen",
+  );
+  const background = splashPlugin?.[1]?.backgroundColor ?? "#270051";
   const label = process.env.SPLASH_LABEL ?? `v${version}`;
 
   if (!GlobalFonts.registerFromPath(FONT_FILE, "ProximaNovaBold")) {

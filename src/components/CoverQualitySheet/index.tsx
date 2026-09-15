@@ -1,4 +1,4 @@
-import { MaterialIcons } from "@expo/vector-icons";
+import MaterialIcons from "@react-native-vector-icons/material-icons/static";
 import { FlatList, Image, Text, TouchableOpacity, View } from "react-native";
 import { DICT } from "../../i18n";
 import { THEME } from "../../theme";

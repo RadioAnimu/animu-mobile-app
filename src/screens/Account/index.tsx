@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { MaterialIcons } from "@expo/vector-icons";
+import MaterialIcons from "@react-native-vector-icons/material-icons/static";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { Image } from "expo-image";
 import {

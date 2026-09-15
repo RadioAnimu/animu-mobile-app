@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { MaterialIcons } from "@expo/vector-icons";
+import MaterialIcons from "@react-native-vector-icons/material-icons/static";
 import {
   FlatList,
   Text,

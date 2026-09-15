@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Image, type ImageStyle } from "expo-image";
 import type { StyleProp } from "react-native";
-import { MaterialIcons } from "@expo/vector-icons";
+import MaterialIcons from "@react-native-vector-icons/material-icons/static";
 import { View } from "react-native";
 import { useAuth } from "../../contexts/auth/AuthProvider";
 import { buildAuthImageSource } from "../../utils/authImage";

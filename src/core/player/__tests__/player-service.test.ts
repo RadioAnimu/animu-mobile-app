@@ -279,6 +279,31 @@ describe("PlayerService stream-loss handling", () => {
     }
   });
 
+  it("does not claim 'playing' while the native player is buffering", async () => {
+    const { deps, transport, publisher } = makeDeps();
+    const service = new PlayerService(deps);
+    await service.play();
+    const handler = wiredHandler(transport);
+
+    // expo-audio 57 (Android) reports `playing: true` (the intended state)
+    // while buffering. Buffering is not audio flow: the service must stay in
+    // a buffering transport state and must never push "playing" to the OS.
+    handler({
+      playing: true,
+      isBuffering: true,
+      timeControlStatus: "playing",
+      playbackState: "buffering",
+    } as AudioStatus);
+
+    expect(deps.state.state).toBe("connecting");
+    const statuses = publisher.pushStatus.mock.calls.map((call) => call[0]);
+    expect(statuses).not.toContain("playing");
+
+    // …and once audio actually flows it adopts "playing" as usual.
+    handler({ playing: true, isBuffering: false } as AudioStatus);
+    expect(deps.state.state).toBe("playing");
+  });
+
   it("tells the media session 'playing' again right after a reconnect", async () => {
     vi.useFakeTimers();
     try {

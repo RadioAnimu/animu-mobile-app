@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { MaterialIcons } from "@expo/vector-icons";
+import MaterialIcons from "@react-native-vector-icons/material-icons/static";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 
 import {
@@ -370,7 +370,9 @@ export function Settings({ navigation }: Props) {
               accessibilityRole="link"
               activeOpacity={0.7}
               onPress={() => {
-                void Linking.openURL(PORTFOLIO_URL);
+                void Linking.openURL(PORTFOLIO_URL).catch((error) =>
+                  console.warn("[Links] openURL failed:", error),
+                );
               }}
             >
               <Text style={styles.footerText}>

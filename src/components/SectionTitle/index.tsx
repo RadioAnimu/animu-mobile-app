@@ -1,5 +1,5 @@
 import type { ComponentProps } from "react";
-import { MaterialIcons } from "@expo/vector-icons";
+import MaterialIcons from "@react-native-vector-icons/material-icons/static";
 import { Text, View } from "react-native";
 import { THEME } from "../../theme";
 import { SECTION_ICON_SIZE, styles } from "./styles";

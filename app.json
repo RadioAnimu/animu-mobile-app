@@ -7,11 +7,7 @@
     "icon": "./assets/icon_top.png",
     "userInterfaceStyle": "automatic",
     "backgroundColor": "#270051",
-    "newArchEnabled": true,
     "scheme": "animuapp",
-    "assetBundlePatterns": [
-      "**/*"
-    ],
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.nessjs.animu",
@@ -30,7 +26,6 @@
       },
       "package": "com.nessjs.animu",
       "versionCode": 11,
-      "edgeToEdgeEnabled": true,
       "blockedPermissions": [
         "android.permission.RECORD_AUDIO"
       ]
@@ -83,7 +78,11 @@
           "microphonePermission": false
         }
       ],
-      "expo-apple-authentication"
+      "expo-apple-authentication",
+      "expo-image",
+      "@react-native-vector-icons/ionicons",
+      "@react-native-vector-icons/material-design-icons",
+      "@react-native-vector-icons/material-icons"
     ],
     "extra": {
       "eas": {

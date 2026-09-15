@@ -585,6 +585,20 @@ export class PlayerService {
     // not tick, poll or transition.
     if (this.disposed) return;
 
+    // expo-audio 57 changed the Android status mapper: while buffering it now
+    // reports `playing: true` (the *intended* state) rather than the real
+    // ExoPlayer state. Buffering is not audio flow, so handle it before the
+    // "audio is flowing" branch: never claim "playing" while buffering (the
+    // media session would lie), reconcile to the buffering state instead, and
+    // keep the native 1 Hz heartbeat alive so polling continues during stalls.
+    if (status.isBuffering) {
+      if (this.deps.state.isPlayingIntent) {
+        this.reconcile("connecting");
+      }
+      this.deps.heartbeat.beat();
+      return;
+    }
+
     // Stream is actually producing audio — resets the backoff chain
     if (status.playing) {
       this.deps.reconnect.reset();

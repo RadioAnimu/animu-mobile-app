@@ -7,6 +7,7 @@ import React, {
   useRef,
 } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { Linking } from "react-native";
 import type {
   AuthProfile,
   AuthSetCredentialsParams,
@@ -178,6 +179,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
           readStoredCredentials(),
           authFacade.restore(),
         ]);
+
+        // Cold-start recovery: if the OS killed the app during a server
+        // provider's browser flow, the `animuapp://redirect` bounce arrives as
+        // the launch URL. Adopt it before falling back to the cached session.
+        const launchUrl = await Linking.getInitialURL().catch(() => null);
+        const resumedUser = await authFacade.resumeServerAuth(launchUrl);
+        if (resumedUser) {
+          await adoptUser(resumedUser);
+          return;
+        }
+
         // Only surface cached credential state for the account it belongs to.
         if (storedCredentials && storedCredentials.userId === storedUser?.id) {
           setCredentialsSet(storedCredentials.setUp);
@@ -210,7 +222,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     return () => {
       backgroundService.stopTask(SESSION_CHECK_TASK_ID);
     };
-  }, [clearSession, loadProfile, startSessionCheck]);
+  }, [adoptUser, clearSession, loadProfile, startSessionCheck]);
 
   const loginWithProvider = useCallback(
     async (provider: string) => {

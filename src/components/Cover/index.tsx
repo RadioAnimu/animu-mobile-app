@@ -26,6 +26,8 @@ interface Props {
   style?: StyleProp<ImageStyle>;
   /** Overrides the cacheEnabled setting when provided. */
   cachePolicy?: CachePolicy;
+  /** Stable per-item key so expo-image recycles the native view in lists. */
+  recyclingKey?: string;
 }
 
 /**
@@ -49,7 +51,7 @@ interface Props {
  * renders the bundled asset at intrinsic size inside a transparent
  * frame (small logo, background showing through).
  */
-export function Cover({ cover, style, cachePolicy }: Props) {
+export function Cover({ cover, style, cachePolicy, recyclingKey }: Props) {
   const { settings } = useUserSettings();
   const [failure, setFailure] = useState<{
     url: string;
@@ -82,6 +84,7 @@ export function Cover({ cover, style, cachePolicy }: Props) {
       }
       cachePolicy={cachePolicy ?? (settings.cacheEnabled ? "disk" : "none")}
       contentFit="cover"
+      recyclingKey={recyclingKey}
     />
   );
 }

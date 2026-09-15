@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { ValidationError } from "animu-api";
 import {
   ActivityIndicator,
+  ScrollView,
   Text,
   TextInput,
   TouchableOpacity,
@@ -10,7 +11,6 @@ import {
 import { DICT } from "../../i18n";
 import { THEME } from "../../theme";
 import { styles } from "./styles";
-import { ScrollView as GestureScrollView } from "react-native-gesture-handler";
 import { useUserSettings } from "../../contexts/user/UserSettingsProvider";
 import { useAlert } from "../../contexts/alert/AlertProvider";
 import { useAuth } from "../../contexts/auth/AuthProvider";
@@ -191,7 +191,7 @@ export function LiveRequestModal({ visible, handleClose }: Props) {
 
   return (
     <Sheet visible={visible} onClose={closeAndReset} withKeyboard>
-      <GestureScrollView
+      <ScrollView
         contentContainerStyle={styles.scrollContent}
         keyboardShouldPersistTaps="handled"
       >
@@ -216,7 +216,7 @@ export function LiveRequestModal({ visible, handleClose }: Props) {
             <Text style={styles.okText}>{t.SEND_REQUEST_BUTTON_TEXT}</Text>
           </TouchableOpacity>
         )}
-      </GestureScrollView>
+      </ScrollView>
     </Sheet>
   );
 }

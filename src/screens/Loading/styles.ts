@@ -8,7 +8,11 @@ export const styles = StyleSheet.create({
     backgroundColor: "#270051",
   },
   image: {
-    ...StyleSheet.absoluteFillObject,
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
   },
   spinner: {
     position: "absolute",

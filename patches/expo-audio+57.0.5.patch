@@ -1,18 +1,8 @@
-diff --git a/node_modules/expo-audio/android/src/main/AndroidManifest.xml b/node_modules/expo-audio/android/src/main/AndroidManifest.xml
-index 8c797aa..82cf539 100644
---- a/node_modules/expo-audio/android/src/main/AndroidManifest.xml
-+++ b/node_modules/expo-audio/android/src/main/AndroidManifest.xml
-@@ -1,5 +1,4 @@
- <manifest xmlns:android="http://schemas.android.com/apk/res/android">
--  <uses-permission android:name="android.permission.RECORD_AUDIO" />
-   <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
-   <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
-   <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
 diff --git a/node_modules/expo-audio/android/src/main/java/expo/modules/audio/AudioPlayer.kt b/node_modules/expo-audio/android/src/main/java/expo/modules/audio/AudioPlayer.kt
-index 320062e..4c14e14 100644
+index c76a9fd..60c36d8 100644
 --- a/node_modules/expo-audio/android/src/main/java/expo/modules/audio/AudioPlayer.kt
 +++ b/node_modules/expo-audio/android/src/main/java/expo/modules/audio/AudioPlayer.kt
-@@ -1,17 +1,18 @@
+@@ -1,19 +1,20 @@
  package expo.modules.audio
  
 -import android.Manifest
@@ -23,10 +13,12 @@ index 320062e..4c14e14 100644
 -import androidx.core.content.ContextCompat
  import androidx.media3.common.AudioAttributes
  import androidx.media3.common.C
- import androidx.media3.common.MediaItem
+ import androidx.media3.common.PlaybackException
+ import androidx.media3.common.PlaybackParameters
  import androidx.media3.common.Player
 +import androidx.media3.common.audio.AudioProcessor
  import androidx.media3.common.util.UnstableApi
+ import androidx.media3.exoplayer.DefaultLoadControl
 +import androidx.media3.exoplayer.DefaultRenderersFactory
  import androidx.media3.exoplayer.ExoPlayer
 +import androidx.media3.exoplayer.RenderersFactory
@@ -34,58 +26,58 @@ index 320062e..4c14e14 100644
 +import androidx.media3.exoplayer.audio.DefaultAudioSink
 +import androidx.media3.exoplayer.audio.TeeAudioProcessor
  import androidx.media3.exoplayer.source.MediaSource
- import expo.modules.audio.service.AudioControlsService
+ import androidx.media3.session.MediaSession
+ import expo.modules.audio.service.AudioPlaybackServiceConnection
+@@ -21,6 +22,8 @@ import expo.modules.audio.service.ServiceBindingState
  import expo.modules.kotlin.AppContext
-@@ -28,6 +29,8 @@ import kotlinx.coroutines.flow.onEach
- import kotlinx.coroutines.flow.onStart
- import kotlinx.coroutines.launch
- import kotlinx.coroutines.withContext
+ import expo.modules.kotlin.exception.Exceptions
+ import java.lang.ref.WeakReference
 +import java.nio.ByteBuffer
 +import java.nio.ByteOrder
- import java.util.UUID
  
  private const val PLAYBACK_STATUS_UPDATE = "playbackStatusUpdate"
-@@ -39,9 +42,14 @@ class AudioPlayer(
-   context: Context,
+ private const val AUDIO_SAMPLE_UPDATE = "audioSampleUpdate"
+@@ -32,9 +35,14 @@ class AudioPlayer(
    appContext: AppContext,
    source: MediaSource?,
--  private val updateInterval: Double
-+  private val updateInterval: Double,
+   updateInterval: Double,
+-  bufferDurationMs: Long = 0
++  bufferDurationMs: Long = 0,
 +  // PATCH: decoded-PCM tap installed in the ExoPlayer pipeline. Replaces the
 +  // `android.media.audiofx.Visualizer` sampler, which required RECORD_AUDIO.
 +  // Reading the already-decoded playback PCM via an AudioProcessor needs no
 +  // microphone permission. Defaulted so the AudioModule call site is unchanged.
 +  private val samplingSink: SamplingAudioBufferSink = SamplingAudioBufferSink()
- ) : SharedRef<ExoPlayer>(
--  ExoPlayer.Builder(context)
-+  ExoPlayer.Builder(context, buildSamplingRenderersFactory(context, samplingSink))
+ ) : BaseAudioPlayer(
+-  player = ExoPlayer.Builder(context)
++  player = ExoPlayer.Builder(context, buildSamplingRenderersFactory(context, samplingSink))
      .setLooper(context.mainLooper)
      .setAudioAttributes(AudioAttributes.DEFAULT, false)
      .setSeekForwardIncrementMs(SEEK_JUMP_INTERVAL_MS)
-@@ -61,8 +69,6 @@ class AudioPlayer(
-   private var metadata: Metadata? = null
+@@ -76,8 +84,6 @@ class AudioPlayer(
+       return if (offset == C.TIME_UNSET) null else offset / 1000.0
+     }
  
-   private var playerScope = CoroutineScope(Dispatchers.Default)
 -  private var samplingEnabled = false
 -  private var visualizer: Visualizer? = null
-   private var playing = false
    private val context by lazy {
      appContext.reactContext
-@@ -76,6 +82,12 @@ class AudioPlayer(
+       ?: throw Exceptions.ReactContextLost()
+@@ -85,6 +91,12 @@ class AudioPlayer(
  
    init {
-     addPlayerListeners()
+     installPlayerListeners()
 +    // PATCH: the PCM tap runs on ExoPlayer's audio thread — it must not touch
 +    // `ref` (wrong-thread access throws). `timestampMs` is derived from a frame
 +    // counter by the sink, so this callback only forwards data to JS.
-+    samplingSink.onSample = { channels, timestampMs ->
-+      sendAudioSampleUpdate(channels, timestampMs)
++    samplingSink.onSample = { channels, timestampSeconds ->
++      sendAudioSampleUpdate(channels, timestampSeconds)
 +    }
      source?.let {
        setMediaSource(source)
      }
-@@ -170,20 +182,10 @@ class AudioPlayer(
-   })
+@@ -164,20 +176,10 @@ class AudioPlayer(
+   }
  
    fun setSamplingEnabled(enabled: Boolean) {
 -    appContext?.reactContext?.let {
@@ -108,9 +100,9 @@ index 320062e..4c14e14 100644
 +    samplingSink.enabled = enabled
    }
  
-   fun seekTo(seekTime: Double) {
-@@ -193,11 +195,6 @@ class AudioPlayer(
-     }
+   override fun setPlaybackRate(rate: Float) {
+@@ -186,11 +188,6 @@ class AudioPlayer(
+     ref.playbackParameters = PlaybackParameters(playbackRate, pitch)
    }
  
 -  private fun extractAmplitudes(chunk: ByteArray): List<Float> = chunk.map { byte ->
@@ -118,26 +110,26 @@ index 320062e..4c14e14 100644
 -    ((unsignedByte - 128).toDouble() / 128.0).toFloat()
 -  }
 -
-   fun currentStatus(): Map<String, Any?> {
+   override fun currentStatus(): Map<String, Any?> {
      val isMuted = ref.volume == 0f
      val isLooping = ref.repeatMode == Player.REPEAT_MODE_ONE
-@@ -229,12 +226,10 @@ class AudioPlayer(
-       emit(PLAYBACK_STATUS_UPDATE, body)
-     }
+@@ -224,12 +221,10 @@ class AudioPlayer(
+     mediaSession = buildBasicMediaSession(context, ref)
+   }
  
 -  private fun sendAudioSampleUpdate(sample: List<Float>) {
-+  private fun sendAudioSampleUpdate(channels: List<List<Float>>, timestampMs: Long) {
++  private fun sendAudioSampleUpdate(channels: List<List<Float>>, timestampSeconds: Double) {
      val body = mapOf(
 -      "channels" to listOf(
 -        mapOf("frames" to sample)
 -      ),
 -      "timestamp" to ref.currentPosition
 +      "channels" to channels.map { mapOf("frames" to it) },
-+      "timestamp" to timestampMs
++      "timestamp" to timestampSeconds
      )
      emit(AUDIO_SAMPLE_UPDATE, body)
    }
-@@ -249,33 +244,6 @@ class AudioPlayer(
+@@ -244,33 +239,6 @@ class AudioPlayer(
      }
    }
  
@@ -169,19 +161,19 @@ index 320062e..4c14e14 100644
 -  }
 -
    override fun sharedObjectDidRelease() {
+     serviceConnection.release()
      super.sharedObjectDidRelease()
-     appContext?.mainQueue?.launch {
-@@ -283,7 +251,8 @@ class AudioPlayer(
-         AudioControlsService.clearSession()
-       }
-       playerScope.cancel()
--      visualizer?.release()
-+      samplingSink.enabled = false
-+      samplingSink.onSample = null
-       ref.release()
+@@ -282,7 +250,8 @@ class AudioPlayer(
+       serviceConnection.playbackServiceBinder?.service?.unregisterPlayer()
      }
+     serviceConnection.unbind()
+-    visualizer?.release()
++    samplingSink.enabled = false
++    samplingSink.onSample = null
+     super.releasePlayer()
    }
-@@ -292,3 +261,105 @@ class AudioPlayer(
+ 
+@@ -290,3 +259,107 @@ class AudioPlayer(
      val TAG = AudioPlayer::class.simpleName
    }
  }
@@ -226,9 +218,9 @@ index 320062e..4c14e14 100644
 +  @Volatile
 +  var enabled = false
 +
-+  /** `(channels, timestampMs) -> Unit`, set by the owning player. */
++  /** `(channels, timestampSeconds) -> Unit`, set by the owning player. */
 +  @Volatile
-+  var onSample: ((List<List<Float>>, Long) -> Unit)? = null
++  var onSample: ((List<List<Float>>, Double) -> Unit)? = null
 +
 +  private var sampleRateHz = 44_100
 +  private var channelCount = 2
@@ -278,8 +270,10 @@ index 320062e..4c14e14 100644
 +    if (frames == 0) return
 +
 +    framesEmittedTotal += frames
-+    val timestampMs = framesEmittedTotal * 1_000L / sampleRateHz
-+    cb(channels, timestampMs)
++    // Match the JS `AudioSample.timestamp` contract (and the iOS tap): seconds,
++    // not milliseconds.
++    val timestampSeconds = framesEmittedTotal.toDouble() / sampleRateHz.toDouble()
++    cb(channels, timestampSeconds)
 +  }
 +
 +  private companion object {

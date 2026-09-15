@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from "react";
 import { Animated, Easing, StyleSheet, Text } from "react-native";
-import { MaterialIcons } from "@expo/vector-icons";
+import MaterialIcons from "@react-native-vector-icons/material-icons/static";
 import { THEME } from "../../theme";
 
 /**

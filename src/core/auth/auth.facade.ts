@@ -142,7 +142,23 @@ export class AuthFacade {
       AUTH_REDIRECT_URI,
     );
     if (!callbackUrl) throw new AuthFlowCancelled();
+    return this.adoptMobileCallback(callbackUrl);
+  }
 
+  /**
+   * Cold-start recovery for the server-provider browser flow. If the OS killed
+   * the app while the auth browser was open, the `animuapp://redirect` bounce
+   * is delivered as the app's launch URL instead of resolving the in-flight
+   * `openSession` promise — without this the user lands on the login screen
+   * with no way to adopt the already-issued token. Guarded on the redirect
+   * prefix, so any other launch URL (or none) is a no-op.
+   */
+  async resumeServerAuth(url: string | null | undefined): Promise<User | null> {
+    if (!url || !url.startsWith("animuapp://redirect")) return null;
+    return this.adoptMobileCallback(url);
+  }
+
+  private async adoptMobileCallback(callbackUrl: string): Promise<User> {
     const result = this.api.completeMobileAuth(callbackUrl);
     if (!result.ok) {
       throw new Error(

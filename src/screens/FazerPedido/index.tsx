@@ -1,4 +1,4 @@
-import { Ionicons } from "@expo/vector-icons";
+import Ionicons from "@react-native-vector-icons/ionicons/static";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import React, { useCallback, useRef, useState } from "react";
 import {

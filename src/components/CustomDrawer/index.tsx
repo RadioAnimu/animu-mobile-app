@@ -1,5 +1,5 @@
 import type { ComponentProps, JSX } from "react";
-import { MaterialIcons } from "@expo/vector-icons";
+import MaterialIcons from "@react-native-vector-icons/material-icons/static";
 import {
   DrawerContentComponentProps,
   DrawerContentScrollView,
@@ -75,7 +75,9 @@ export function LinkMenuItem({ Icon, title, url }: LinkMenuItemProps) {
     <TouchableOpacity
       activeOpacity={0.7}
       onPress={() => {
-        void Linking.openURL(url);
+        void Linking.openURL(url).catch((error) =>
+          console.warn("[Links] openURL failed:", error),
+        );
       }}
       style={styles.navItem}
     >

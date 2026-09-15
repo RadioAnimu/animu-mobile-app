@@ -67,7 +67,11 @@ export function Last({ route, navigation }: Props) {
                 <View style={styles.metadata}>
                   {(isUltimasPedidasScreen && settings.lastRequestedCovers) ||
                   (!isUltimasPedidasScreen && settings.lastPlayedCovers) ? (
-                    <Cover cover={item.artwork} style={styles.image} />
+                    <Cover
+                      cover={item.artwork}
+                      style={styles.image}
+                      recyclingKey={`${item.raw}-${new Date(item.startTime).getTime()}`}
+                    />
                   ) : (
                     <></>
                   )}

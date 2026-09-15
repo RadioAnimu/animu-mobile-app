@@ -11,6 +11,7 @@ import {
   View,
 } from "react-native";
 import DragIcon from "../../assets/icons/ArrastarParaBaixo.png";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { THEME } from "../../theme";
 
 const CLOSE_AREA_HEIGHT = 35;
@@ -19,7 +20,7 @@ const DRAG_ICON_HEIGHT = 14;
 /**
  * Bottom padding equal to the software keyboard height.
  *
- * We don't use RN's `KeyboardAvoidingView`: on Android edge-to-edge (SDK 54,
+ * We don't use RN's `KeyboardAvoidingView`: on Android edge-to-edge (SDK 57,
  * targetSdk 36) it handles `keyboardDidHide` through `_onKeyboardChange`, so it
  * recomputes padding from the hide event's `screenY` — which is reported wrong
  * in edge-to-edge — and leaves a transparent gap behind after the keyboard
@@ -86,6 +87,7 @@ export function Sheet({
   ...rest
 }: Props) {
   const keyboardPadding = useKeyboardPadding(withKeyboard && visible);
+  const insets = useSafeAreaInsets();
 
   const body = (children: React.ReactNode) => (
     <View style={[styles.overlay, { paddingBottom: keyboardPadding }]}>
@@ -109,7 +111,16 @@ export function Sheet({
             activeOpacity={1}
             onPress={closable ? onClose : undefined}
           />
-          <View style={[styles.sheet, maxHeight != null && { maxHeight }]}>
+          {/* Bottom padding clears the system nav/home indicator bar: since
+              RN 0.86 Android Modals are always edge-to-edge, so a fixed pad
+              would sit the last row under the nav bar. */}
+          <View
+            style={[
+              styles.sheet,
+              maxHeight != null && { maxHeight },
+              { paddingBottom: insets.bottom + THEME.SPACE.XXXL },
+            ]}
+          >
             <TouchableOpacity
               style={styles.closeArea}
               onPress={closable ? onClose : undefined}
@@ -138,7 +149,6 @@ const styles = StyleSheet.create({
     backgroundColor: THEME.COLORS.SURFACE,
     borderTopLeftRadius: THEME.RADIUS.SHEET,
     borderTopRightRadius: THEME.RADIUS.SHEET,
-    paddingBottom: THEME.SPACE.XXXL,
   },
   closeArea: {
     width: "100%",

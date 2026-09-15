@@ -16,7 +16,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { MaterialIcons } from "@expo/vector-icons";
+import MaterialIcons from "@react-native-vector-icons/material-icons/static";
 import HarukaError from "../../assets/erro_haruka.png";
 import HarukaSuccess from "../../assets/success_haruka.png";
 import { THEME } from "../../theme";
