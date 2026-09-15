@@ -18,6 +18,33 @@ const clamp01 = (value: number): number =>
   value < 0 ? 0 : value > 1 ? 1 : value;
 
 /**
+ * Down-mixes native per-channel PCM to mono.
+ *
+ * The web player's `AnalyserNode` analyses a mono down-mix of the stream, so
+ * averaging the channels here keeps the oscilloscope's vertical amplitude
+ * identical to the website. Sampling a single channel (e.g. the left one)
+ * overstates the trace for stereo material, where the channels differ.
+ *
+ * Returns the sole channel unchanged when the signal is already mono.
+ */
+export function downmixChannels(channels: number[][]): number[] {
+  const loudest = channels.filter((channel) => channel.length > 0);
+  if (loudest.length === 0) return [];
+  if (loudest.length === 1) return loudest[0];
+
+  const length = Math.min(...loudest.map((channel) => channel.length));
+  const out = new Array<number>(length);
+  for (let i = 0; i < length; i++) {
+    let sum = 0;
+    for (const channel of loudest) {
+      sum += channel[i] ?? 0;
+    }
+    out[i] = sum / loudest.length;
+  }
+  return out;
+}
+
+/**
  * Down-samples a PCM window to a fixed number of points for an oscilloscope.
  *
  * Picks evenly spaced samples (rather than peak buckets) so the line keeps the

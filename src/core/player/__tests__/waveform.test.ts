@@ -1,5 +1,29 @@
 import { describe, expect, it } from "vitest";
-import { lerpWaveform, resampleWaveform, rms } from "../waveform";
+import {
+  downmixChannels,
+  lerpWaveform,
+  resampleWaveform,
+  rms,
+} from "../waveform";
+
+describe("downmixChannels", () => {
+  it("returns the sole channel unchanged for mono", () => {
+    expect(downmixChannels([[0.5, -0.5, 0.25]])).toEqual([0.5, -0.5, 0.25]);
+  });
+
+  it("averages the channels for stereo", () => {
+    expect(downmixChannels([[1, 0, -1], [0, 0, 0]])).toEqual([0.5, 0, -0.5]);
+  });
+
+  it("returns an empty array when there is no signal", () => {
+    expect(downmixChannels([])).toEqual([]);
+    expect(downmixChannels([[], []])).toEqual([]);
+  });
+
+  it("uses the shortest channel length", () => {
+    expect(downmixChannels([[1, 1, 1], [0, 0]])).toEqual([0.5, 0.5]);
+  });
+});
 
 describe("resampleWaveform", () => {
   it("returns the requested number of points", () => {

@@ -1,5 +1,5 @@
 import type { AudioSample } from "expo-audio";
-import { lerpWaveform, resampleWaveform, rms } from "./waveform";
+import { downmixChannels, lerpWaveform, resampleWaveform, rms } from "./waveform";
 import type {
   SamplingTransport,
   VisualizerHz,
@@ -25,8 +25,12 @@ import type {
  * iOS bundle by the `visualizer.ios.ts` stub.
  */
 
-/** Points in the oscilloscope line. */
-const WAVE_POINTS = 256;
+/**
+ * Points in the oscilloscope line. Mirrors the web player's analyser window
+ * (`AnalyserNode.frequencyBinCount` = 1024): the same number of audio samples
+ * per pixel keeps the trace's horizontal proportions identical to the website.
+ */
+const WAVE_POINTS = 1024;
 /** Intervals shorter than this are not used to measure the native rate. */
 const MIN_SAMPLE_INTERVAL_MS = 4;
 /** Bounds for the measured native window interval (ms). */
@@ -37,11 +41,22 @@ const DEFAULT_NATIVE_INTERVAL_MS = 16;
 
 /** Frame scheduler: `requestAnimationFrame` where available, else a timer. */
 type FrameHandle = { kind: "raf" | "timeout"; id: number };
-const requestFrame = (fn: () => void): FrameHandle => {
+/**
+ * Schedules `fn` on the next frame, passing a high-resolution timestamp.
+ *
+ * The timestamp matters: gating frame emission on `Date.now()` (integer ms)
+ * makes a 60 Hz loop look like 16/17 ms jitter, and a too-strict comparison
+ * then drops every other frame (30 fps). The rAF timestamp is sub-millisecond,
+ * so the configured rate is hit exactly when the display can deliver it.
+ */
+const requestFrame = (fn: (timestamp: number) => void): FrameHandle => {
   if (typeof requestAnimationFrame === "function") {
     return { kind: "raf", id: requestAnimationFrame(fn) };
   }
-  return { kind: "timeout", id: setTimeout(fn, 16) as unknown as number };
+  return {
+    kind: "timeout",
+    id: setTimeout(() => fn(Date.now()), 16) as unknown as number,
+  };
 };
 const cancelFrame = (handle: FrameHandle): void => {
   if (handle.kind === "raf") {
@@ -148,7 +163,12 @@ export class AudioSampler implements VisualizerSampler {
   /** A new native PCM window arrived: retarget the interpolation. */
   private handleSample(sample: AudioSample): void {
     if (!this.isActive) return;
-    const frames = sample.channels?.[0]?.frames ?? [];
+    // Mirror the web player's `AnalyserNode`, which analyses a mono down-mix
+    // of the stream. Tapping channel 0 alone makes the trace taller than the
+    // website whenever the left/right channels differ.
+    const frames = downmixChannels(
+      (sample.channels ?? []).map((channel) => channel.frames),
+    );
     if (frames.length === 0) return;
 
     const now = Date.now();
@@ -172,16 +192,19 @@ export class AudioSampler implements VisualizerSampler {
   private startLoop(): void {
     if (this.frameHandle) return;
     this.lastEmitAt = 0;
-    const loop = () => {
+    const interval = 1000 / Math.max(1, this.hz);
+    const loop = (timestamp: number) => {
       if (!this.isActive) {
         this.frameHandle = null;
         return;
       }
-      const now = Date.now();
-      const interval = 1000 / Math.max(1, this.hz);
-      if (this.lastEmitAt === 0 || now - this.lastEmitAt >= interval - 1) {
-        this.lastEmitAt = now;
-        this.emitFrame(now);
+      // Gate on the high-resolution frame timestamp (not `Date.now()`), so a
+      // 16.67 ms cadence is not mistaken for 15/16 ms jitter and skipped.
+      if (this.lastEmitAt === 0 || timestamp - this.lastEmitAt >= interval - 1) {
+        this.lastEmitAt = timestamp;
+        // `Date.now()` keeps the interpolation clock consistent with the
+        // native-window timestamps captured in `handleSample`.
+        this.emitFrame(Date.now());
       }
       this.frameHandle = requestFrame(loop);
     };

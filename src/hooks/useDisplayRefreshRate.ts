@@ -22,12 +22,24 @@ const snap = (measured: number): number => {
 };
 
 /**
+ * Highest rate the display has demonstrated this session. A display can run
+ * slower than its maximum at times (adaptive refresh, throttling, a busy JS
+ * thread), so a measurement is treated as a capability that only grows.
+ * Otherwise a single low reading permanently hides a supported rate — e.g.
+ * the 120 Hz stop vanishing after the user selects 60 Hz for testing.
+ */
+let maxObservedHz = 0;
+
+/**
  * Estimates the display refresh rate by measuring `requestAnimationFrame`
  * cadence — the actual vsync the app can render at. Snaps to a common rate
  * (60/90/120/144/165); falls back to 60 while measuring / when throttled.
+ *
+ * Measures once per mount and reports the highest rate seen this session, so
+ * the available stops never shrink once a faster mode has been observed.
  */
 export function useDisplayRefreshRate(): number {
-  const [hz, setHz] = useState(FALLBACK_HZ);
+  const [hz, setHz] = useState(maxObservedHz || FALLBACK_HZ);
 
   useEffect(() => {
     let frames = 0;
@@ -42,7 +54,11 @@ export function useDisplayRefreshRate(): number {
         frames += 1;
         const elapsed = timestamp - measuredStart;
         if (elapsed >= MEASURE_MS) {
-          setHz(snap((frames / elapsed) * 1000));
+          const measured = snap((frames / elapsed) * 1000);
+          if (measured > maxObservedHz) {
+            maxObservedHz = measured;
+            setHz(measured);
+          }
           return;
         }
       }

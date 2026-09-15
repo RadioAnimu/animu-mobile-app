@@ -113,7 +113,7 @@ describe("AudioSampler frames", () => {
 
     expect(listener).toHaveBeenCalled();
     const frame = listener.mock.calls[listener.mock.calls.length - 1][0];
-    expect(frame.wave).toHaveLength(256);
+    expect(frame.wave).toHaveLength(1024);
   });
 
   it("does not emit before the first native window arrives", () => {
@@ -124,6 +124,23 @@ describe("AudioSampler frames", () => {
     vi.advanceTimersByTime(200);
 
     expect(listener).not.toHaveBeenCalled();
+  });
+
+  it("down-mixes stereo channels like the web analyser", () => {
+    const { sampler, emit } = activeSampler();
+    const listener = vi.fn();
+    sampler.subscribe(listener);
+
+    emit({
+      channels: [{ frames: [1, 1] }, { frames: [-1, -1] }],
+      timestamp: 0,
+    });
+    vi.advanceTimersByTime(20);
+
+    const frame = listener.mock.calls[listener.mock.calls.length - 1][0];
+    expect(
+      frame.wave.every((value: number) => Math.abs(value) < 1e-6),
+    ).toBe(true);
   });
 
   it("emits more frames at a higher rate", () => {

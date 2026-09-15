@@ -9,10 +9,10 @@ index 8c797aa..82cf539 100644
    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
 diff --git a/node_modules/expo-audio/android/src/main/java/expo/modules/audio/AudioPlayer.kt b/node_modules/expo-audio/android/src/main/java/expo/modules/audio/AudioPlayer.kt
-index 320062e..4c14e14 100644
+index 320062e..4021bca 100644
 --- a/node_modules/expo-audio/android/src/main/java/expo/modules/audio/AudioPlayer.kt
 +++ b/node_modules/expo-audio/android/src/main/java/expo/modules/audio/AudioPlayer.kt
-@@ -1,17 +1,18 @@
+@@ -1,17 +1,19 @@
  package expo.modules.audio
  
 -import android.Manifest
@@ -27,6 +27,7 @@ index 320062e..4c14e14 100644
  import androidx.media3.common.Player
 +import androidx.media3.common.audio.AudioProcessor
  import androidx.media3.common.util.UnstableApi
++import androidx.media3.exoplayer.DefaultLoadControl
 +import androidx.media3.exoplayer.DefaultRenderersFactory
  import androidx.media3.exoplayer.ExoPlayer
 +import androidx.media3.exoplayer.RenderersFactory
@@ -36,7 +37,7 @@ index 320062e..4c14e14 100644
  import androidx.media3.exoplayer.source.MediaSource
  import expo.modules.audio.service.AudioControlsService
  import expo.modules.kotlin.AppContext
-@@ -28,6 +29,8 @@ import kotlinx.coroutines.flow.onEach
+@@ -28,24 +30,53 @@ import kotlinx.coroutines.flow.onEach
  import kotlinx.coroutines.flow.onStart
  import kotlinx.coroutines.launch
  import kotlinx.coroutines.withContext
@@ -45,7 +46,22 @@ index 320062e..4c14e14 100644
  import java.util.UUID
  
  private const val PLAYBACK_STATUS_UPDATE = "playbackStatusUpdate"
-@@ -39,9 +42,14 @@ class AudioPlayer(
+ private const val AUDIO_SAMPLE_UPDATE = "audioSampleUpdate"
+ private const val SEEK_JUMP_INTERVAL_MS: Long = 10_000
+ 
++// PATCH: low-latency live buffering. ExoPlayer's stock `DefaultLoadControl`
++// waits for `bufferForPlaybackMs = 2500` before starting and is willing to
++// buffer up to 50s, which leaves a live ICY/MP3 radio stream ~2.5s behind the
++// web player (a plain `<audio>` + Web Audio tap). These tighter, time-based
++// buffers cut that latency. `minBufferMs` must be >= both playback values and
++// <= `maxBufferMs` (enforced by the builder).
++private const val LIVE_MIN_BUFFER_MS = 2_000
++private const val LIVE_MAX_BUFFER_MS = 12_000
++private const val LIVE_BUFFER_FOR_PLAYBACK_MS = 1_000
++private const val LIVE_BUFFER_FOR_PLAYBACK_AFTER_REBUFFER_MS = 1_500
++
+ @UnstableApi
+ class AudioPlayer(
    context: Context,
    appContext: AppContext,
    source: MediaSource?,
@@ -62,7 +78,22 @@ index 320062e..4c14e14 100644
      .setLooper(context.mainLooper)
      .setAudioAttributes(AudioAttributes.DEFAULT, false)
      .setSeekForwardIncrementMs(SEEK_JUMP_INTERVAL_MS)
-@@ -61,8 +69,6 @@ class AudioPlayer(
+     .setSeekBackIncrementMs(SEEK_JUMP_INTERVAL_MS)
++    // PATCH: keep live radio close to the live edge (see LIVE_* constants).
++    .setLoadControl(
++      DefaultLoadControl.Builder()
++        .setBufferDurationsMs(
++          LIVE_MIN_BUFFER_MS,
++          LIVE_MAX_BUFFER_MS,
++          LIVE_BUFFER_FOR_PLAYBACK_MS,
++          LIVE_BUFFER_FOR_PLAYBACK_AFTER_REBUFFER_MS
++        )
++        .build()
++    )
+     .build(),
+   appContext
+ ) {
+@@ -61,8 +92,6 @@ class AudioPlayer(
    private var metadata: Metadata? = null
  
    private var playerScope = CoroutineScope(Dispatchers.Default)
@@ -71,7 +102,7 @@ index 320062e..4c14e14 100644
    private var playing = false
    private val context by lazy {
      appContext.reactContext
-@@ -76,6 +82,12 @@ class AudioPlayer(
+@@ -76,6 +105,12 @@ class AudioPlayer(
  
    init {
      addPlayerListeners()
@@ -84,7 +115,7 @@ index 320062e..4c14e14 100644
      source?.let {
        setMediaSource(source)
      }
-@@ -170,20 +182,10 @@ class AudioPlayer(
+@@ -170,20 +205,10 @@ class AudioPlayer(
    })
  
    fun setSamplingEnabled(enabled: Boolean) {
@@ -109,7 +140,7 @@ index 320062e..4c14e14 100644
    }
  
    fun seekTo(seekTime: Double) {
-@@ -193,11 +195,6 @@ class AudioPlayer(
+@@ -193,11 +218,6 @@ class AudioPlayer(
      }
    }
  
@@ -121,7 +152,7 @@ index 320062e..4c14e14 100644
    fun currentStatus(): Map<String, Any?> {
      val isMuted = ref.volume == 0f
      val isLooping = ref.repeatMode == Player.REPEAT_MODE_ONE
-@@ -229,12 +226,10 @@ class AudioPlayer(
+@@ -229,12 +249,10 @@ class AudioPlayer(
        emit(PLAYBACK_STATUS_UPDATE, body)
      }
  
@@ -137,7 +168,7 @@ index 320062e..4c14e14 100644
      )
      emit(AUDIO_SAMPLE_UPDATE, body)
    }
-@@ -249,33 +244,6 @@ class AudioPlayer(
+@@ -249,33 +267,6 @@ class AudioPlayer(
      }
    }
  
@@ -171,7 +202,7 @@ index 320062e..4c14e14 100644
    override fun sharedObjectDidRelease() {
      super.sharedObjectDidRelease()
      appContext?.mainQueue?.launch {
-@@ -283,7 +251,8 @@ class AudioPlayer(
+@@ -283,7 +274,8 @@ class AudioPlayer(
          AudioControlsService.clearSession()
        }
        playerScope.cancel()
@@ -181,7 +212,7 @@ index 320062e..4c14e14 100644
        ref.release()
      }
    }
-@@ -292,3 +261,105 @@ class AudioPlayer(
+@@ -292,3 +284,105 @@ class AudioPlayer(
      val TAG = AudioPlayer::class.simpleName
    }
  }
