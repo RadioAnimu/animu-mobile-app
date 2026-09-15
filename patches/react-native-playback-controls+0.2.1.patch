@@ -21,7 +21,7 @@ index 276f2ea..c1b96fb 100644
    }
  }
 diff --git a/node_modules/react-native-playback-controls/android/src/main/java/com/playbackcontrols/PlaybackControlsService.kt b/node_modules/react-native-playback-controls/android/src/main/java/com/playbackcontrols/PlaybackControlsService.kt
-index eaa0527..beeacd4 100644
+index eaa0527..8a1361c 100644
 --- a/node_modules/react-native-playback-controls/android/src/main/java/com/playbackcontrols/PlaybackControlsService.kt
 +++ b/node_modules/react-native-playback-controls/android/src/main/java/com/playbackcontrols/PlaybackControlsService.kt
 @@ -1,5 +1,6 @@
@@ -56,9 +56,23 @@ index eaa0527..beeacd4 100644
  
      player = controlsPlayer
      mediaSession = session
-@@ -46,6 +63,14 @@ class PlaybackControlsService : MediaSessionService() {
+@@ -45,7 +62,28 @@ class PlaybackControlsService : MediaSessionService() {
+ 
    override fun onTaskRemoved(rootIntent: Intent?) {
      super.onTaskRemoved(rootIntent)
++
++    // onTaskRemoved fires for ANY task belonging to this app — including
++    // auxiliary ones such as expo-web-browser's BrowserProxyActivity (SDK 55+
++    // runs the OAuth browser in a separate `.webContainer` task). Only the
++    // removal of the app's *own* task means the JS runtime is gone; acting on
++    // the others would tear down the media session (or kill the process) the
++    // moment the auth browser returns, closing the app mid-login.
++    val removedTask = rootIntent?.component
++    val appTask = packageManager.getLaunchIntentForPackage(packageName)?.component
++    if (removedTask == null || appTask == null || removedTask != appTask) {
++      return
++    }
++
      releaseSessionAndStop()
 +    // The media session is only a *facade*: the real audio lives in
 +    // expo-audio's ExoPlayer in this same process and is not reachable from
