@@ -33,6 +33,9 @@ vi.mock("expo-asset", () => ({
   },
 }));
 vi.mock("expo-web-browser", () => ({ openBrowserAsync: vi.fn() }));
+vi.mock("expo-image", () => ({
+  Image: { getCachePathAsync: vi.fn(), writeToCacheAsync: vi.fn() },
+}));
 vi.mock("@react-native-community/netinfo", () => ({
   default: { addEventListener: () => () => {} },
 }));

@@ -17,6 +17,7 @@ import { ProviderIcon } from "../../components/ProviderIcon";
 import { SectionTitle } from "../../components/SectionTitle";
 import { CoverQualitySheet } from "../../components/CoverQualitySheet";
 import { LanguageSelectSheet } from "../../components/LanguageSelectSheet";
+import { CoverStorageCard } from "../../components/CoverStorageCard";
 import { DICT, LANGS_KEY_VALUE_PAIRS } from "../../i18n";
 import { RootStackParamList } from "../../routes/app.routes";
 import { THEME } from "../../theme";
@@ -307,7 +308,7 @@ export function Settings({ navigation }: Props) {
             />
           </View>
 
-          <SectionTitle title={dict.SETTINGS_BATTERY_TITLE} icon="battery-charging-full" />
+          <SectionTitle title={dict.SETTINGS_BATTERY_TITLE} icon="wifi" />
           <View style={styles.group}>
             {/* Non-technical wording for the realtime-stream battery
                 policy: ON = the app instantly follows station song changes
@@ -348,6 +349,8 @@ export function Settings({ navigation }: Props) {
                 });
               }}
             />
+            <Divider />
+            <CoverStorageCard />
           </View>
 
           <View style={styles.footer}>

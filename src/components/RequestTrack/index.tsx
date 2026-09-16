@@ -43,6 +43,7 @@ export const RequestTrack = React.memo(function RequestTrack({ track }: Props) {
           cover={track.artwork}
           style={styles.image}
           recyclingKey={track.id}
+          category="search"
         />
       )}
       {/* Fixed height: getItemLayout needs every row at the same height. */}

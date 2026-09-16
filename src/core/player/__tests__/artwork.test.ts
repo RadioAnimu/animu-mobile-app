@@ -128,6 +128,83 @@ describe("ArtworkResolver", () => {
     });
   });
 
+  describe("resolve() — disk-cache ladder", () => {
+    it("reuses a cached copy from an earlier journey instead of downloading", async () => {
+      const resolver = new ArtworkResolver({
+        findCachedCoverFile: async () => "file://image-cache/same.png",
+      });
+
+      const local = await resolver.resolve("https://images.test/cover.png");
+
+      expect(local).toBe("file://image-cache/same.png");
+      expect(resolver.peek("https://images.test/cover.png")).toBe(
+        "file://image-cache/same.png",
+      );
+      expect(assetMocks.fromURI).not.toHaveBeenCalled();
+    });
+
+    it("shares one cache probe between concurrent callers (no double probe)", async () => {
+      const findCached = vi.fn(async () => "file://image-cache/slow.png");
+      const resolver = new ArtworkResolver({
+        findCachedCoverFile: findCached,
+      });
+
+      const [a, b] = await Promise.all([
+        resolver.resolve("https://images.test/cover.png"),
+        resolver.resolve("https://images.test/cover.png"),
+      ]);
+
+      expect(findCached).toHaveBeenCalledTimes(1);
+      expect(a).toBe("file://image-cache/slow.png");
+      expect(b).toBe("file://image-cache/slow.png");
+      expect(assetMocks.fromURI).not.toHaveBeenCalled();
+    });
+
+    it("seeds the downloaded file back into the image cache", async () => {
+      const onResolved = vi.fn(async () => {});
+      assetMocks.fromURI.mockReturnValueOnce({
+        localUri: "file://cache/cover.png",
+        downloadAsync: async () => ({ localUri: "file://cache/cover.png" }),
+      });
+
+      const resolver = new ArtworkResolver({ onResolved });
+      await resolver.resolve("https://images.test/cover.png");
+
+      expect(onResolved).toHaveBeenCalledWith(
+        "file://cache/cover.png",
+        "https://images.test/cover.png",
+      );
+    });
+
+    it("does not seed when the download degraded to the remote URL", async () => {
+      const onResolved = vi.fn(async () => {});
+      assetMocks.fromURI.mockReturnValueOnce({
+        localUri: null,
+        downloadAsync: async () => ({ localUri: null }),
+      });
+
+      const resolver = new ArtworkResolver({ onResolved });
+      await resolver.resolve("https://images.test/cover.png");
+
+      expect(onResolved).not.toHaveBeenCalled();
+    });
+
+    it("a failed cache probe degrades to the download path", async () => {
+      assetMocks.fromURI.mockReturnValueOnce({
+        localUri: "file://cache/cover.png",
+        downloadAsync: async () => ({ localUri: "file://cache/cover.png" }),
+      });
+
+      const resolver = new ArtworkResolver({
+        findCachedCoverFile: async () => null,
+      });
+      const local = await resolver.resolve("https://images.test/cover.png");
+
+      expect(local).toBe("file://cache/cover.png");
+      expect(assetMocks.fromURI).toHaveBeenCalledOnce();
+    });
+  });
+
   describe("apply()", () => {
     it("swaps the track artwork to the local file once resolved", async () => {
       assetMocks.fromURI.mockReturnValueOnce({

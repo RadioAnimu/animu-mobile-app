@@ -97,7 +97,7 @@ export function RequestBottomSheet({
             {/* Track row */}
             {track && (
               <View style={styles.trackRow}>
-                <Cover cover={track.artwork} style={styles.cover} />
+                <Cover cover={track.artwork} style={styles.cover} category="search" />
                 <View style={styles.trackInfo}>
                   <Text style={styles.songName} numberOfLines={2}>
                     {track.song}

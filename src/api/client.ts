@@ -59,3 +59,17 @@ export const createLiveClient = (
     artworkQuality,
     fetchImpl: expoFetch,
   });
+
+/**
+ * A search-only client. Search rows carry every size the station exposes
+ * (`image_large/medium/tiny`), and the mapper picks per `artworkQuality` —
+ * the SAME setting that selects the now-playing cover, so a searched and
+ * later-played song shares the same URL family (disk-cache life).
+ */
+export const createSearchClient = (artworkQuality: ArtworkQuality): AnimuApi =>
+  new AnimuApi({
+    userAgent: CONFIG.USER_AGENT,
+    defaultCover: CONFIG.DEFAULT_COVER,
+    artworkQuality,
+    fetchImpl: expoFetch,
+  });

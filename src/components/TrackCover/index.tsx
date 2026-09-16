@@ -9,5 +9,5 @@ export const TrackCover = React.memo(function TrackCover() {
     return null;
   }
 
-  return <Cover cover={player.currentTrack.artwork} />;
+  return <Cover cover={player.currentTrack.artwork} category="live" />;
 });

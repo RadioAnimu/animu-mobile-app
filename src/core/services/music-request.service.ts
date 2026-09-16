@@ -4,17 +4,31 @@ import type {
 } from "../domain/music-request";
 import type { MusicRequestSubmission } from "animu-api";
 import { DICT, type LanguageKey } from "../../i18n";
-import { animuApi } from "../../api/client";
+import {
+  animuApi,
+  createSearchClient,
+} from "../../api/client";
+import { userSettingsService } from "./user-settings.service";
 
 class MusicRequestService {
+  /**
+   * A fresh client per search carrying the user's cover-quality setting
+   * (same preference as now-playing) — mirrors the per-call metadata
+   * clients in `animu.service`.
+   */
+  private api() {
+    const settings = userSettingsService.getCurrentSettings();
+    return createSearchClient(settings.liveQualityCover);
+  }
+
   async searchTracksByQuery(
     params: MusicSearchParams,
   ): Promise<MusicRequestPagination> {
-    return animuApi.searchMusic(params);
+    return this.api().searchMusic(params);
   }
 
   async searchTracksByTitle(title: string): Promise<MusicRequestPagination> {
-    return animuApi.searchMusicByTitle(title);
+    return this.api().searchMusicByTitle(title);
   }
 
   /**

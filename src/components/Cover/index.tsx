@@ -4,6 +4,10 @@ import type { StyleProp } from "react-native";
 import { styles } from "./styles";
 import { THEME } from "../../theme";
 import { useUserSettings } from "../../contexts/user/UserSettingsProvider";
+import {
+  coverCacheRegistry,
+  type CoverCacheCategory,
+} from "../../core/services/cover-cache-registry.service";
 
 /** Bundled fallback — no network needed, always renders, instant placeholder. */
 const DEFAULT_COVER = require("../../../assets/default-cover.png");
@@ -28,6 +32,12 @@ interface Props {
   cachePolicy?: CachePolicy;
   /** Stable per-item key so expo-image recycles the native view in lists. */
   recyclingKey?: string;
+  /**
+   * Which surface this cover was displayed in (player live, last
+   * requests…) — feeds the Settings storage card's per-category sizes.
+   * Only meaningful while the disk cache is on.
+   */
+  category?: CoverCacheCategory;
 }
 
 /**
@@ -51,12 +61,19 @@ interface Props {
  * renders the bundled asset at intrinsic size inside a transparent
  * frame (small logo, background showing through).
  */
-export function Cover({ cover, style, cachePolicy, recyclingKey }: Props) {
+export function Cover({ cover, style, cachePolicy, recyclingKey, category }: Props) {
   const { settings } = useUserSettings();
   const [failure, setFailure] = useState<{
     url: string;
     attempts: number;
   } | null>(null);
+
+  // Attribute the cached file to this surface — what the storage card reports.
+  useEffect(() => {
+    if (category && settings.cacheEnabled) {
+      coverCacheRegistry.tag(cover, category);
+    }
+  }, [cover, category, settings.cacheEnabled]);
 
   const showFallback = failure?.url === cover;
 

@@ -2,13 +2,32 @@ import { Asset } from "expo-asset";
 import DEFAULT_COVER from "../../../assets/default-cover.png";
 import { CONFIG } from "../../utils/player.config";
 import type { Track } from "../domain/track";
+import type {
+  CoverFileCache,
+  FindCachedCoverFile,
+  SeedCoverCache,
+} from "./cover-ports";
+import { CoverFileHashMap } from "./cover-file-cache";
 
-/**
- * In-memory lookup cap for resolved covers. The underlying files live in
- * the OS-owned cache directory (expo-asset dedupes by URL, and the OS
- * evicts under storage pressure) — only the lookup map is bounded here.
- */
-const MAX_TRACKED_ARTWORKS = 64;
+export interface ArtworkResolverOptions {
+  /**
+   * The hashmap behind this resolver (port `CoverFileCache`). Defaults
+   * to a fresh `CoverFileHashMap` — inject a pre-loaded one to share
+   * state across resolver instances.
+   */
+  fileMap?: CoverFileCache;
+  /**
+   * Bridges a freshly downloaded cover file into the disk-image cache so
+   * the in-app view renders it instantly (see `cover-image-cache.ts`).
+   * Optional — pure-resolver callers skip it.
+   */
+  onResolved?: SeedCoverCache;
+  /**
+   * Disk-cache hit check: an already-cached copy (this URL or a larger
+   * sibling size) stands in for the download entirely.
+   */
+  findCachedCoverFile?: FindCachedCoverFile;
+}
 
 /**
  * Makes artwork bulletproof for the native media session.
@@ -26,13 +45,17 @@ const MAX_TRACKED_ARTWORKS = 64;
  * guaranteed to exist.
  */
 export class ArtworkResolver {
-  /** Remote URL → local `file://` URI (insertion-ordered LRU lookup). */
-  private resolved = new Map<string, string>();
+  /** Remote URL → local `file://` URI hashmap (port, LRU-capped impl below). */
+  private readonly fileMap: CoverFileCache;
   /** In-flight downloads — concurrent callers share one download per URL. */
-  private inFlight = new Map<string, Promise<string>>();
+  private readonly inFlight = new Map<string, Promise<string>>();
   /** Remote URL until the bundled default cover resolves (see `init`). */
   private defaultCoverValue = CONFIG.DEFAULT_COVER;
   private initPromise: Promise<void> | null = null;
+
+  constructor(private readonly options: ArtworkResolverOptions = {}) {
+    this.fileMap = options.fileMap ?? new CoverFileHashMap();
+  }
 
   /**
    * Resolves the bundled default cover to a loadable URI. Release builds
@@ -72,7 +95,7 @@ export class ArtworkResolver {
 
   /** Local URI for a previously resolved remote URL (sync lookup). */
   peek(url: string): string | undefined {
-    return this.resolved.get(url);
+    return this.fileMap.peek(url);
   }
 
   /**
@@ -82,12 +105,25 @@ export class ArtworkResolver {
    */
   apply(track: Track | null | undefined): Track | null | undefined {
     if (!track?.artwork) return track;
-    const local = this.resolved.get(track.artwork);
+    const local = this.fileMap.peek(track.artwork);
     return local ? { ...track, artwork: local } : track;
   }
 
   /**
-   * Downloads a remote cover and resolves to a local `file://` URI.
+   * Returns a local `file://` URI for a remote cover.
+   *
+   * Lookup ladder — past journeys may already have the bytes on disk:
+   *
+   * 1. this resolver's own lookup (previous media-session resolution);
+   * 2. an in-flight download shared with concurrent callers;
+   * 3. expo-image's disk cache — the in-app displays (search rows,
+   *    history, the player frame) cache every cover they render, and
+   *    `findCachedCoverFile` also swaps in a larger sibling when the CDN
+   *    scheme allows (e.g. the search-result `large` covering a
+   *    `medium` request);
+   * 4. a fresh download, seeded back into expo-image (option 3 above
+   *    makes the NEXT consumer a cache hit).
+   *
    * Failures degrade gracefully to the remote URL — the native loader's
    * best effort is preserved, just without its guarantees.
    */
@@ -95,19 +131,27 @@ export class ArtworkResolver {
     // Already local (bundled default, prior file URI) — nothing to do
     if (!this.isRemote(url)) return url;
 
-    const cached = this.resolved.get(url);
+    const cached = this.fileMap.peek(url);
     if (cached) return cached;
 
     const pending = this.inFlight.get(url);
     if (pending) return pending;
 
-    const promise = Asset.fromURI(url)
-      .downloadAsync()
-      .then((asset) => {
-        const local = asset.localUri ?? url;
-        this.track(url, local);
-        return local;
-      })
+    const promise = (async () => {
+      const cachedFile = await this.options?.findCachedCoverFile?.(url);
+      if (cachedFile) {
+        this.fileMap.track(url, cachedFile);
+        return cachedFile;
+      }
+      return Asset.fromURI(url)
+        .downloadAsync()
+        .then((asset) => {
+          const local = asset.localUri ?? url;
+          this.fileMap.track(url, local);
+          if (asset.localUri) void this.options?.onResolved?.(asset.localUri, url);
+          return local;
+        });
+    })()
       .catch((error) => {
         console.warn(`[ArtworkResolver] download failed (${url}):`, error);
         return url;
@@ -122,16 +166,7 @@ export class ArtworkResolver {
 
   /** Destroy path: drop the in-memory lookups (cache files are OS-owned). */
   reset(): void {
-    this.resolved.clear();
+    this.fileMap.clear();
     this.inFlight.clear();
-  }
-
-  private track(url: string, local: string): void {
-    this.resolved.delete(url);
-    this.resolved.set(url, local);
-    if (this.resolved.size > MAX_TRACKED_ARTWORKS) {
-      const oldest = this.resolved.keys().next().value;
-      if (oldest != null) this.resolved.delete(oldest);
-    }
   }
 }

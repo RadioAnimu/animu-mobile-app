@@ -17,6 +17,11 @@ import {
   type NowPlayingInput,
 } from "./now-playing.metadata";
 import { ArtworkResolver } from "./artwork";
+import {
+  CachedCoverLookup,
+  CoverCacheSeeder,
+  ExpoImageCoverDiskCache,
+} from "./cover-image-cache";
 import { HeartbeatScheduler } from "./heartbeat";
 import { MediaSessionPublisher } from "./media-session.publisher";
 import {
@@ -904,7 +909,17 @@ export const createPlayerService = (): PlayerService => {
     timer: jsTimer,
   });
   const networkMonitor = new NetworkMonitor(netInfoSubscribe);
-  const artwork = new ArtworkResolver();
+  // Bridges the media-session artwork with the in-app image cache: any
+  // surface (search row, history, player frame) that already has a cover
+  // on disk satisfies the resolver, and a fresh resolver download seeds
+  // back for the reverse journey.
+  const coverDiskCache = new ExpoImageCoverDiskCache();
+  const coverLookup = new CachedCoverLookup(coverDiskCache);
+  const coverSeeder = new CoverCacheSeeder(coverDiskCache);
+  const artwork = new ArtworkResolver({
+    onResolved: coverSeeder.seed.bind(coverSeeder),
+    findCachedCoverFile: coverLookup.find.bind(coverLookup),
+  });
   const ticker = new ProgressTicker({
     repository,
     state,

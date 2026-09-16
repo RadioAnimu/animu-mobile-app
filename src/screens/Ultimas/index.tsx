@@ -59,6 +59,7 @@ export function Last({ route, navigation }: Props) {
               cover={item.artwork}
               style={styles.image}
               recyclingKey={`${item.raw}-${new Date(item.startTime).getTime()}`}
+              category={isUltimasPedidasScreen ? "requested" : "played"}
             />
           ) : (
             <></>
