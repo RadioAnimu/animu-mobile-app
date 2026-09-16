@@ -131,6 +131,12 @@ export const styles = StyleSheet.create({
     minHeight: ROW_MIN_HEIGHT,
     paddingHorizontal: THEME.SPACE.MD,
   },
+  rowDisabled: {
+    opacity: 0.4,
+  },
+  switchDisabled: {
+    opacity: 0.4,
+  },
   rowLabel: {
     flex: 1,
     color: THEME.COLORS.TEXT,

@@ -20,10 +20,21 @@ import type { CoverDiskCache } from "./cover-ports";
  * races degrade to the caller's regular download/render path.
  */
 
+/**
+ * expo-image's Android impl returns Glide's `file.absolutePath` — a bare
+ * path with no scheme. Every consumer of these bridges treats the result
+ * as a loadable URI (media-session artwork, expo-file-system `File`),
+ * which require an absolute `file://` URI, so normalize here.
+ */
+function toFileUri(path: string): string {
+  return /^file:\/\//.test(path) ? path : `file://${path}`;
+}
+
 /** expo-image impl of the disk-cache port. */
 export class ExpoImageCoverDiskCache implements CoverDiskCache {
-  getCachePath(cacheKey: string): Promise<string | null> {
-    return Image.getCachePathAsync(cacheKey);
+  async getCachePath(cacheKey: string): Promise<string | null> {
+    const path = await Image.getCachePathAsync(cacheKey);
+    return path ? toFileUri(path) : null;
   }
 
   writeCache(source: string, cacheKey: string): Promise<void> {

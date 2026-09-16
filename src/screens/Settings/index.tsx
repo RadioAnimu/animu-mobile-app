@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import MaterialIcons from "@react-native-vector-icons/material-icons/static";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 
@@ -23,6 +23,7 @@ import { RootStackParamList } from "../../routes/app.routes";
 import { THEME } from "../../theme";
 import { HEADER_HEIGHT, styles, SWITCH } from "./styles";
 import { useUserSettings } from "../../contexts/user/UserSettingsProvider";
+import { coverDiskStorage } from "../../core/services/cover-disk-storage.service";
 import { useAuth } from "../../contexts/auth/AuthProvider";
 import { getUserName } from "../../core/domain/user";
 import { providerLabel } from "../../constants/auth";
@@ -41,9 +42,10 @@ function Divider() {
 
 interface SwitchProps {
   value: boolean;
+  disabled?: boolean;
 }
 
-function Switch({ value }: SwitchProps) {
+function Switch({ value, disabled }: SwitchProps) {
   const [position] = useState(() => new Animated.Value(value ? 1 : 0));
 
   useEffect(() => {
@@ -72,6 +74,7 @@ function Switch({ value }: SwitchProps) {
             ? THEME.COLORS.BRAND
             : THEME.COLORS.SWITCH_OFF,
         },
+        disabled && styles.switchDisabled,
       ]}
     >
       <Animated.View
@@ -85,19 +88,23 @@ interface SettingsRowProps {
   label: string;
   value: boolean;
   onToggle: () => void;
+  /** Blocks the toggle while a background transition runs (e.g. the cache
+      wipe after turning caching off) — shows the value is in flight. */
+  disabled?: boolean;
 }
 
-function SettingsRow({ label, value, onToggle }: SettingsRowProps) {
+function SettingsRow({ label, value, onToggle, disabled }: SettingsRowProps) {
   return (
     <TouchableOpacity
       accessibilityRole="switch"
-      accessibilityState={{ checked: value }}
+      accessibilityState={{ checked: value, disabled: disabled || undefined }}
       activeOpacity={0.7}
       onPress={onToggle}
-      style={styles.row}
+      disabled={disabled}
+      style={[styles.row, disabled && styles.rowDisabled]}
     >
       <Text style={styles.rowLabel}>{label}</Text>
-      <Switch value={value} />
+      <Switch value={value} disabled={disabled} />
     </TouchableOpacity>
   );
 }
@@ -144,6 +151,12 @@ export function Settings({ navigation }: Props) {
   const [languageSheetVisible, setLanguageSheetVisible] = useState(false);
   const [coverQualitySheetVisible, setCoverQualitySheetVisible] =
     useState(false);
+  // Wipe-in-progress from the storage service — disables the cache toggle
+  // (both tap paths: the clean button and the automatic cache-off wipe).
+  const cacheWiping = useSyncExternalStore(
+    (listener) => coverDiskStorage.subscribe(listener),
+    () => coverDiskStorage.isClearing,
+  );
 
   const dict = DICT[settings.selectedLanguage];
 
@@ -343,6 +356,7 @@ export function Settings({ navigation }: Props) {
             <SettingsRow
               label={cleanLabel(dict.SETTINGS_MEMORY_CLEAR_CACHE_SWITCH)}
               value={settings.cacheEnabled}
+              disabled={cacheWiping}
               onToggle={() => {
                 updateSettings({
                   cacheEnabled: !settings.cacheEnabled,

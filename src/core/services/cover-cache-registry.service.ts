@@ -43,7 +43,9 @@ export class CoverCacheRegistry {
           if (!raw) return;
           const parsed = JSON.parse(raw) as RegistryShape;
           for (const [url, entry] of Object.entries(parsed.entries ?? {})) {
-            this.entries.set(url, entry);
+            // A tag that fired while this AsyncStorage read was still in
+            // flight is newer than the stored state — never clobber it.
+            if (!this.entries.has(url)) this.entries.set(url, entry);
           }
         })
         .catch((error) => {
