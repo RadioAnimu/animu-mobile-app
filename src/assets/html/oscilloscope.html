@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <style>
+            html,
+            body {
+                margin: 0;
+                padding: 0;
+                background: transparent;
+                overflow: hidden;
+            }
+            #oscilloscope {
+                display: block;
+                position: absolute;
+                z-index: 0;
+                border: 0;
+                color: white;
+            }
+        </style>
+    </head>
+    <body>
+        <canvas id="oscilloscope" width="0" height="0"></canvas>
+        <script>
+            // Oscilloscope engine copied from the web player (player.animu.moe,
+            // playerfiles/main5.js — setupVisualfluff). Same code paths:
+            // WebAudio analyser + 2D canvas, one draw per requestAnimationFrame.
+            // The audio element runs the app's low-bitrate stream SILENTLY
+            // (gain 0) — the app's own player is the audible path, so this is
+            // only a data feed for the analyser.
+            var audioContext = null;
+            var masterGain = null;
+            var analyser = null;
+            var waveform = null;
+            var hasOsci = false;
+
+            function drawOscilloscope() {
+                requestAnimationFrame(drawOscilloscope);
+
+                var scopeCanvas = document.getElementById("oscilloscope");
+                var scopeContext = scopeCanvas.getContext("2d", { alpha: true });
+
+                scopeCanvas.width = window.innerWidth;
+                scopeCanvas.height = 75;
+
+                scopeContext.clearRect(0, 0, scopeCanvas.width, scopeCanvas.height);
+                scopeContext.beginPath();
+
+                for (var i = 0; i < waveform.length; i++) {
+                    var x = i * (scopeCanvas.width / 1000);
+                    var y = (0.5 + waveform[i] / 2) * scopeCanvas.height;
+
+                    if (i === 0) {
+                        scopeContext.moveTo(x, y);
+                    } else {
+                        scopeContext.lineTo(x, y);
+                    }
+                }
+
+                scopeContext.strokeStyle = "#723eb2";
+                scopeContext.lineWidth = 3;
+                scopeContext.stroke();
+            }
+
+            function updateWaveForm() {
+                requestAnimationFrame(updateWaveForm);
+                analyser.getFloatTimeDomainData(waveform);
+            }
+
+            function startOscilloscope(streamUrl) {
+                if (hasOsci) return;
+                try {
+                    audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                    audioContext.resume();
+
+                    masterGain = audioContext.createGain();
+                    masterGain.gain.value = 0;
+                    masterGain.connect(audioContext.destination);
+
+                    analyser = audioContext.createAnalyser();
+                    masterGain.connect(analyser);
+
+                    waveform = new Float32Array(analyser.frequencyBinCount);
+                    analyser.getFloatTimeDomainData(waveform);
+
+                    var song = new Audio(streamUrl);
+                    song.crossOrigin = "anonymous";
+                    song.volume = 0;
+
+                    var source = audioContext.createMediaElementSource(song);
+                    source.connect(masterGain);
+
+                    song.play();
+                    drawOscilloscope();
+                    updateWaveForm();
+                    hasOsci = true;
+                } catch (error) {
+                    if (window.ReactNativeWebView) {
+                        window.ReactNativeWebView.postMessage(
+                            JSON.stringify({ type: "Error", data: String(error) })
+                        );
+                    }
+                }
+            }
+
+            function stopOscilloscope() {
+                if (!hasOsci) return;
+                try {
+                    audioContext.close();
+                } catch (error) {}
+                var scopeCanvas = document.getElementById("oscilloscope");
+                scopeCanvas.width = 0;
+                scopeCanvas.height = 0;
+                hasOsci = false;
+            }
+
+            document.addEventListener("message", function (event) {
+                try {
+                    var data = JSON.parse(event.data);
+                    if (data.type === "start") startOscilloscope(data.url);
+                    if (data.type === "stop") stopOscilloscope();
+                } catch (error) {}
+            });
+        </script>
+    </body>
+</html>

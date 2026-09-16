@@ -10,11 +10,6 @@ import { userSettingsService } from "../../core/services/user-settings.service";
 import { playerService } from "../../core/player";
 import { DEFAULT_USER_SETTINGS } from "../../constants/settings";
 
-/** Pushes visualizer-related settings to the player core (single owner). */
-const applyVisualizerSettings = (settings: UserSettings) => {
-  playerService().setVisualizerHz(settings.visualizerHz);
-};
-
 type UserSettingsContextType = {
   settings: UserSettings;
   updateSettings: (settings: Partial<UserSettings>) => Promise<void>;
@@ -38,8 +33,15 @@ export const UserSettingsProvider: React.FC<{ children: React.ReactNode }> = ({
   const applySettings = (next: UserSettings) => {
     settingsRef.current = next;
     setSettings(next);
-    applyVisualizerSettings(next);
   };
+
+  // ── Visualizer wiring ──
+  // Uncapped, like the web player's rAF loop: emitting the trace runs without
+  // a rate cap and the visualizer commits each frame at the display's own
+  // vsync, self-adapting per device. `0` = off, `> 0` = on.
+  useEffect(() => {
+    playerService().setVisualizerEnabled(settings.visualizerHz > 0);
+  }, [settings.visualizerHz]);
 
   useEffect(() => {
     const initializeSettings = async () => {

@@ -27,32 +27,23 @@ const sample = (frames: number[]): AudioSample => ({
   timestamp: 0,
 });
 
-const activeSampler = (hz = 60) => {
+const activeSampler = () => {
   const fake = makeTransport();
   const sampler = new AudioSampler(fake.transport);
-  sampler.setHz(hz);
+  sampler.setEnabled(true);
   sampler.setPlaying(true);
   return { ...fake, sampler };
 };
 
-beforeEach(() => {
-  vi.useFakeTimers();
-});
-
-afterEach(() => {
-  vi.useRealTimers();
-});
-
 describe("AudioSampler gating", () => {
-  it("is inactive while the rate is zero", () => {
-    const { transport } = makeTransport();
+  it("is inactive while disabled", () => {
+    const { transport, hasHandler } = makeTransport();
     const sampler = new AudioSampler(transport);
-    sampler.setHz(0);
     sampler.setPlaying(true);
 
     expect(sampler.isActive).toBe(false);
     expect(transport.setSamplingEnabled).not.toHaveBeenCalledWith(true);
-    expect(transport.onSample).not.toHaveBeenCalled();
+    expect(hasHandler()).toBe(false);
   });
 
   it("is inactive until enabled, playing and supported", () => {
@@ -60,7 +51,7 @@ describe("AudioSampler gating", () => {
     const sampler = new AudioSampler(transport);
 
     expect(sampler.isActive).toBe(false);
-    sampler.setHz(60);
+    sampler.setEnabled(true);
     expect(sampler.isActive).toBe(false);
     sampler.setPlaying(true);
     expect(sampler.isActive).toBe(true);
@@ -84,14 +75,14 @@ describe("AudioSampler gating", () => {
   });
 
   it("never activates when the platform does not support sampling", () => {
-    const { transport } = makeTransport(false);
+    const { transport, hasHandler } = makeTransport(false);
     const sampler = new AudioSampler(transport);
-    sampler.setHz(60);
+    sampler.setEnabled(true);
     sampler.setPlaying(true);
 
     expect(sampler.isActive).toBe(false);
     expect(transport.setSamplingEnabled).not.toHaveBeenCalledWith(true);
-    expect(transport.onSample).not.toHaveBeenCalled();
+    expect(hasHandler()).toBe(false);
   });
 
   it("detaches the native handler when it becomes inactive", () => {
@@ -100,105 +91,176 @@ describe("AudioSampler gating", () => {
     sampler.setPlaying(false);
     expect(hasHandler()).toBe(false);
   });
+
+  it("does not re-toggle native sampling when re-enabled in place", () => {
+    const { sampler, transport } = activeSampler();
+    expect(transport.setSamplingEnabled).toHaveBeenCalledTimes(1);
+
+    sampler.setEnabled(true);
+
+    expect(transport.setSamplingEnabled).toHaveBeenCalledTimes(1);
+  });
 });
 
-describe("AudioSampler frames", () => {
-  it("emits interpolated frames of the configured length", () => {
+describe("AudioSampler windows", () => {
+  it("publishes one window per native sample with no emission loop", () => {
     const { sampler, emit } = activeSampler();
     const listener = vi.fn();
-    sampler.subscribe(listener);
+    sampler.subscribeWindows(listener);
 
     emit(sample(new Array(128).fill(0.5)));
-    vi.advanceTimersByTime(20);
+    emit(sample(new Array(128).fill(-0.5)));
 
-    expect(listener).toHaveBeenCalled();
-    const frame = listener.mock.calls[listener.mock.calls.length - 1][0];
-    expect(frame.wave).toHaveLength(1024);
+    expect(listener).toHaveBeenCalledTimes(2);
   });
 
-  it("does not emit before the first native window arrives", () => {
-    const { sampler } = activeSampler();
+  it("emits windows of the web player's point count", () => {
+    const { sampler, emit } = activeSampler();
     const listener = vi.fn();
-    sampler.subscribe(listener);
+    sampler.subscribeWindows(listener);
 
-    vi.advanceTimersByTime(200);
+    emit(sample(new Array(128).fill(0.5)));
 
-    expect(listener).not.toHaveBeenCalled();
+    const window = listener.mock.calls[0][0];
+    expect(window.targetWave).toHaveLength(1024);
+  });
+
+  it("interpolates from the previous window to the new one", () => {
+    const { sampler, emit } = activeSampler();
+    const listener = vi.fn();
+    sampler.subscribeWindows(listener);
+
+    emit(sample(new Array(128).fill(0)));
+    emit(sample(new Array(128).fill(1)));
+
+    const window = listener.mock.calls[1][0];
+    expect(window.previousWave.every((v: number) => v === 0)).toBe(true);
+    expect(window.targetWave.every((v: number) => v > 0.7)).toBe(true);
+  });
+
+  it("snaps to the target on the very first window", () => {
+    const { sampler, emit } = activeSampler();
+    const listener = vi.fn();
+    sampler.subscribeWindows(listener);
+
+    emit(sample(new Array(128).fill(0.5)));
+
+    const window = listener.mock.calls[0][0];
+    expect(window.previousWave).toBe(window.targetWave);
+  });
+
+  it("reuses two buffers across windows (no per-window allocation)", () => {
+    const { sampler, emit } = activeSampler();
+    const targets: number[][] = [];
+    sampler.subscribeWindows((window) => targets.push(window.targetWave));
+
+    for (let i = 0; i < 10; i++) {
+      emit(sample(new Array(64).fill(0.1)));
+    }
+
+    expect(new Set(targets).size).toBe(2);
   });
 
   it("down-mixes stereo channels like the web analyser", () => {
     const { sampler, emit } = activeSampler();
     const listener = vi.fn();
-    sampler.subscribe(listener);
+    sampler.subscribeWindows(listener);
 
     emit({
       channels: [{ frames: [1, 1] }, { frames: [-1, -1] }],
       timestamp: 0,
     });
-    vi.advanceTimersByTime(20);
 
-    const frame = listener.mock.calls[listener.mock.calls.length - 1][0];
-    expect(
-      frame.wave.every((value: number) => Math.abs(value) < 1e-6),
-    ).toBe(true);
-  });
-
-  it("changes rate in place without re-toggling native sampling", () => {
-    const { sampler, transport } = activeSampler(60);
-    expect(transport.setSamplingEnabled).toHaveBeenCalledTimes(1);
-
-    sampler.setHz(30);
-    sampler.setHz(90);
-
-    expect(transport.setSamplingEnabled).toHaveBeenCalledTimes(1);
-  });
-
-  it("applies a rate change without restarting the loop", () => {
-    const { sampler, emit } = activeSampler(30);
-    const listener = vi.fn();
-    sampler.subscribe(listener);
-    emit(sample(new Array(64).fill(0.1)));
-    vi.advanceTimersByTime(1000);
-    const low = listener.mock.calls.length;
-
-    sampler.setHz(120);
-    emit(sample(new Array(64).fill(0.1)));
-    vi.advanceTimersByTime(1000);
-    const high = listener.mock.calls.length - low;
-
-    expect(high).toBeGreaterThan(low);
-  });
-
-  it("emits more frames at a higher rate", () => {
-    const low = activeSampler(30);
-    const lowListener = vi.fn();
-    low.sampler.subscribe(lowListener);
-    low.emit(sample(new Array(64).fill(0.1)));
-    vi.advanceTimersByTime(1000);
-
-    const high = activeSampler(120);
-    const highListener = vi.fn();
-    high.sampler.subscribe(highListener);
-    high.emit(sample(new Array(64).fill(0.1)));
-    vi.advanceTimersByTime(1000);
-
-    expect(highListener.mock.calls.length).toBeGreaterThan(
-      lowListener.mock.calls.length,
+    const window = listener.mock.calls[0][0];
+    expect(window.targetWave.every((value: number) => Math.abs(value) < 1e-6)).toBe(
+      true,
     );
+  });
+
+  it("reports the measured interval between native windows", () => {
+    const { sampler, emit } = activeSampler();
+    const listener = vi.fn();
+    sampler.subscribeWindows(listener);
+
+    emit(sample(new Array(64).fill(0.1)));
+    emit(sample(new Array(64).fill(0.1)));
+
+    const window = listener.mock.calls[1][0];
+    // Fake-timer clock: the two windows land ~0-1 ms apart, which clamps to
+    // the minimum measured interval.
+    expect(window.nativeIntervalMs).toBeGreaterThanOrEqual(8);
+    expect(window.nativeIntervalMs).toBeLessThanOrEqual(80);
+  });
+
+  it("amplifies quiet material to keep the trace strong", () => {
+    const { sampler, emit } = activeSampler();
+    const listener = vi.fn();
+    sampler.subscribeWindows(listener);
+
+    // RMS 0.2 square: AGC pushes the gain up over consecutive windows; the
+    // drawn wave visibly strengthens without ever pinning at the edge.
+    emit(sample(new Array(128).fill(0.2)));
+    for (let i = 0; i < 5; i++) emit(sample(new Array(128).fill(0.2)));
+
+    const first = listener.mock.calls[0][0].targetWave;
+    const settled = listener.mock.calls[5][0].targetWave;
+    expect(settled.every((v: number) => v > 0.3)).toBe(true);
+    // Soft knee: nothing may pin against the canvas edge.
+    expect(settled.every((v: number) => v < 1)).toBe(true);
+    expect(Math.max(...settled)).toBeGreaterThan(Math.max(...first));
+  });
+
+  it("never amplifies silence", () => {
+    const { sampler, emit } = activeSampler();
+    const listener = vi.fn();
+    sampler.subscribeWindows(listener);
+
+    emit(sample(new Array(128).fill(0)));
+
+    const window = listener.mock.calls[0][0];
+    expect(window.targetWave.every((v: number) => v === 0)).toBe(true);
+  });
+
+  it("soft-limits loud passages instead of shaving them at the edge", () => {
+    const { sampler, emit } = activeSampler();
+    const listener = vi.fn();
+    sampler.subscribeWindows(listener);
+
+    // Full-scale window: the soft knee asymptotes just below the canvas
+    // edge — strong, but nothing gets flat-topped at ±1.
+    emit(sample(new Array(128).fill(1)));
+
+    const window = listener.mock.calls[0][0];
+    const values = window.targetWave;
+    expect(values.every((v: number) => Math.abs(v) < 1)).toBe(true);
+    expect(Math.max(...values)).toBeGreaterThan(0.6);
+  });
+
+  it("stops publishing once disabled", () => {
+    const { sampler, emit } = activeSampler();
+    const listener = vi.fn();
+    sampler.subscribeWindows(listener);
+
+    emit(sample(new Array(64).fill(0.1)));
+    sampler.setPlaying(false);
+    emit(sample(new Array(64).fill(0.1)));
+
+    expect(listener).toHaveBeenCalledTimes(1);
   });
 });
 
 describe("AudioSampler disposal", () => {
-  it("stops sampling, stops the loop and clears listeners", () => {
-    const { sampler, transport, emit } = activeSampler();
+  it("stops sampling, unsubscribes and clears listeners", () => {
+    const { sampler, transport, emit, hasHandler } = activeSampler();
     const listener = vi.fn();
-    sampler.subscribe(listener);
+    sampler.subscribeWindows(listener);
 
     emit(sample(new Array(64).fill(0.1)));
     sampler.dispose();
-    vi.advanceTimersByTime(200);
+    emit(sample(new Array(64).fill(0.1)));
 
-    expect(listener).not.toHaveBeenCalled();
+    expect(listener).toHaveBeenCalledTimes(1);
+    expect(hasHandler()).toBe(false);
     expect(transport.setSamplingEnabled).toHaveBeenLastCalledWith(false);
   });
 });

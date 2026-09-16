@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import MaterialIcons from "@react-native-vector-icons/material-icons/static";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 
@@ -14,7 +14,6 @@ import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context"
 import { Background } from "../../components/Background";
 import { Avatar } from "../../components/Avatar";
 import { BackArrow } from "../../components/BackArrow";
-import { HzSlider } from "../../components/HzSlider";
 import { ProviderIcon } from "../../components/ProviderIcon";
 import { SectionTitle } from "../../components/SectionTitle";
 import { CoverQualitySheet } from "../../components/CoverQualitySheet";
@@ -22,11 +21,6 @@ import { LanguageSelectSheet } from "../../components/LanguageSelectSheet";
 import { DICT, LANGS_KEY_VALUE_PAIRS } from "../../i18n";
 import { RootStackParamList } from "../../routes/app.routes";
 import { THEME } from "../../theme";
-import {
-  buildHzStops,
-  nearestHzStop,
-  useDisplayRefreshRate,
-} from "../../hooks/useDisplayRefreshRate";
 import { HEADER_HEIGHT, styles, SWITCH } from "./styles";
 import { useUserSettings } from "../../contexts/user/UserSettingsProvider";
 import { useAuth } from "../../contexts/auth/AuthProvider";
@@ -152,17 +146,6 @@ export function Settings({ navigation }: Props) {
     useState(false);
 
   const dict = DICT[settings.selectedLanguage];
-  const refreshRate = useDisplayRefreshRate();
-  const hzStops = useMemo(() => buildHzStops(refreshRate), [refreshRate]);
-  const hzValue = useMemo(
-    () => nearestHzStop(settings.visualizerHz, hzStops),
-    [settings.visualizerHz, hzStops],
-  );
-  const formatHz = (value: number): string => {
-    if (value === 0) return `0 (${dict.SETTINGS_VISUALIZER_OFF})`;
-    if (value === refreshRate) return `${value} (${dict.SETTINGS_VISUALIZER_VSYNC})`;
-    return `${value}`;
-  };
 
   const qualityLabel =
     settings.liveQualityCover === "off"
@@ -320,24 +303,18 @@ export function Settings({ navigation }: Props) {
                 </Text>
               </View>
             ) : (
-              <>
-                <View style={styles.row}>
-                  <Text style={styles.rowLabel}>
-                    {cleanLabel(dict.SETTINGS_VISUALIZER_HZ_LABEL)}
-                  </Text>
-                  <Text style={styles.visualizerValue}>
-                    {formatHz(hzValue)}
-                  </Text>
-                </View>
-                <HzSlider
-                  stops={hzStops}
-                  value={hzValue}
-                  formatLabel={formatHz}
-                  onChange={(visualizerHz) => {
-                    updateSettings({ visualizerHz });
-                  }}
-                />
-              </>
+              // Uncapped like the web player's rAF loop: on = render at the
+              // device's own max refresh rate, off = off. No stepped rate to
+              // pick, so a plain toggle replaces the old Hz slider.
+              <SettingsRow
+                label={cleanLabel(dict.SETTINGS_VISUALIZER_SWITCH)}
+                value={settings.visualizerHz > 0}
+                onToggle={() => {
+                  updateSettings({
+                    visualizerHz: settings.visualizerHz > 0 ? 0 : 1,
+                  });
+                }}
+              />
             )}
           </View>
 

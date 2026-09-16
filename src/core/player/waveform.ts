@@ -13,10 +13,6 @@
 const clampSample = (value: number): number =>
   value < -1 ? -1 : value > 1 ? 1 : value;
 
-/** Clamp a value into the normalized [0, 1] display range. */
-const clamp01 = (value: number): number =>
-  value < 0 ? 0 : value > 1 ? 1 : value;
-
 /**
  * Down-mixes native per-channel PCM to mono.
  *
@@ -51,11 +47,29 @@ export function downmixChannels(channels: number[][]): number[] {
  * signal's shape. Returns a zeroed array when there is no signal yet.
  */
 export function resampleWaveform(frames: number[], points: number): number[] {
-  const count = Math.max(0, Math.floor(points));
-  if (count === 0) return [];
-  if (frames.length === 0) return new Array<number>(count).fill(0);
+  return resampleWaveformInto(frames, points, []);
+}
 
-  const out = new Array<number>(count);
+/**
+ * Buffer-reusing variant of `resampleWaveform`.
+ *
+ * The sampler emits up to one frame per display refresh; allocating a fresh
+ * 1024-number array each time made the GC run hot on low-RAM devices. The
+ * caller owns `out` (the sampler uses a dedicated target buffer, never one of
+ * its ping-pong display buffers, so aliasing is impossible).
+ */
+export function resampleWaveformInto(
+  frames: number[],
+  points: number,
+  out: number[],
+): number[] {
+  const count = Math.max(0, Math.floor(points));
+  if (out.length !== count) out.length = count;
+  if (frames.length === 0) {
+    out.fill(0);
+    return out;
+  }
+
   const step = frames.length / count;
   for (let i = 0; i < count; i++) {
     const index = Math.min(frames.length - 1, Math.floor(i * step));
@@ -64,26 +78,6 @@ export function resampleWaveform(frames: number[], points: number): number[] {
   return out;
 }
 
-/**
- * Linear interpolation between two frames. Used to render intermediate frames
- * between the (slower) native PCM windows so motion matches the display rate.
- * `t` runs 0 (previous) → 1 (next).
- */
-export function lerpWaveform(
-  previous: number[] | null,
-  next: number[],
-  t: number,
-): number[] {
-  if (!previous || previous.length !== next.length) {
-    return next;
-  }
-  const amount = clamp01(t);
-  const out = new Array<number>(next.length);
-  for (let i = 0; i < next.length; i++) {
-    out[i] = previous[i] + (next[i] - previous[i]) * amount;
-  }
-  return out;
-}
 
 /** Root-mean-square loudness of a PCM window, normalized to [0, 1]. */
 export function rms(frames: number[]): number {
@@ -92,5 +86,5 @@ export function rms(frames: number[]): number {
   for (let i = 0; i < frames.length; i++) {
     sum += frames[i] * frames[i];
   }
-  return clamp01(Math.sqrt(sum / frames.length));
+  return Math.min(1, Math.max(0, Math.sqrt(sum / frames.length)));
 }

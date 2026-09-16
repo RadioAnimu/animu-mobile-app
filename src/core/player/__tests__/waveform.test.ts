@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   downmixChannels,
-  lerpWaveform,
   resampleWaveform,
+  resampleWaveformInto,
   rms,
 } from "../waveform";
 
@@ -48,25 +48,25 @@ describe("resampleWaveform", () => {
   });
 });
 
-describe("lerpWaveform", () => {
-  it("returns the next frame without a previous frame", () => {
-    expect(lerpWaveform(null, [1, 0], 0.5)).toEqual([1, 0]);
+describe("resampleWaveformInto", () => {
+  it("writes into the caller's buffer without allocating", () => {
+    const out: number[] = [];
+    const result = resampleWaveformInto([0, 1, 0, -1], 4, out);
+    expect(result).toBe(out);
+    expect(out).toEqual([0, 1, 0, -1]);
   });
 
-  it("returns the next frame when lengths differ", () => {
-    expect(lerpWaveform([0], [1, 1], 0.5)).toEqual([1, 1]);
+  it("reuses the same buffer across windows", () => {
+    const out = new Array<number>(4).fill(0);
+    resampleWaveformInto([1, 1, 1, 1], 4, out);
+    resampleWaveformInto([-1, -1, -1, -1], 4, out);
+    expect(out).toEqual([-1, -1, -1, -1]);
   });
 
-  it("returns the previous frame at t=0", () => {
-    expect(lerpWaveform([0, 0], [1, 1], 0)).toEqual([0, 0]);
-  });
-
-  it("returns the next frame at t=1", () => {
-    expect(lerpWaveform([0, 0], [1, 1], 1)).toEqual([1, 1]);
-  });
-
-  it("interpolates midway", () => {
-    expect(lerpWaveform([0, 0], [1, 1], 0.5)).toEqual([0.5, 0.5]);
+  it("resizes the buffer when the point count changes", () => {
+    const out = new Array<number>(8).fill(0);
+    expect(resampleWaveformInto([0, 1], 2, out)).toHaveLength(2);
+    expect(out).toEqual([0, 1]);
   });
 });
 

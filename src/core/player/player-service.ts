@@ -38,9 +38,8 @@ import { StreamPreferences } from "./stream-preferences";
 import { AudioTransport } from "./transport";
 import { createVisualizerSampler } from "./visualizer";
 import type {
-  VisualizerHz,
   VisualizerSampler,
-  WaveformFrame,
+  VisualizerWindow,
 } from "./visualizer.types";
 import {
   TransportStateMachine,
@@ -199,19 +198,29 @@ export class PlayerService {
     return this.deps.sampler.isSupported;
   }
 
-  /** Selected frame rate (`0` disables). */
-  setVisualizerHz(hz: VisualizerHz): void {
-    this.deps.sampler.setHz(hz);
+/**
+   * Enables/disables the oscilloscope. The emission rate is uncapped (the
+   * renderer paces itself at the display's vsync, like the web player).
+   */
+  setVisualizerEnabled(enabled: boolean): void {
+    this.deps.sampler.setEnabled(enabled);
   }
 
-  /** Subscribes to display-ready waveform frames (hot path, not a store). */
-  subscribeVisualizer(listener: (frame: WaveformFrame) => void): () => void {
-    return this.deps.sampler.subscribe(listener);
+  /**
+   * Subscribes to raw waveform windows (the WebView visualizer interpolates
+   * and draws them itself — no RN-side per-frame work).
+   */
+  subscribeVisualizerWindows(
+    listener: (window: VisualizerWindow) => void,
+  ): () => void {
+    return this.deps.sampler.subscribeWindows(listener);
   }
 
   private applyVisualizerSettings(): void {
-    this.deps.sampler.setHz(
-      userSettingsService.getCurrentSettings().visualizerHz,
+    // Uncapped, like the web player's rAF loop: the sampler emits without a
+    // rate cap and the visualizer commits at the display's own vsync.
+    this.deps.sampler.setEnabled(
+      userSettingsService.getCurrentSettings().visualizerHz > 0,
     );
   }
 

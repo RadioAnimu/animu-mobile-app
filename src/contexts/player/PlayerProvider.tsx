@@ -20,7 +20,7 @@ import {
   type PlayerSnapshot,
   type ProgressSnapshot,
   type StationSnapshot,
-  type WaveformFrame,
+  type VisualizerWindow,
 } from "../../core/player";
 import { Loading } from "../../screens/Loading";
 import { hideSplashOnce } from "../../screens/Loading/splash";
@@ -43,8 +43,13 @@ type PlayerContextType = PlayerSnapshot & {
   refreshData: () => Promise<void>;
   /** Whether the platform can sample audio for the visualizer. */
   visualizerSupported: boolean;
-  /** Hot-path subscription to display-ready waveform frames. */
-  subscribeVisualizer: (listener: (frame: WaveformFrame) => void) => () => void;
+  /**
+   * Hot-path subscription to raw waveform windows — the WebView visualizer
+   * interpolates and draws them itself (no RN-side per-frame work).
+   */
+  subscribeVisualizerWindows: (
+    listener: (window: VisualizerWindow) => void,
+  ) => () => void;
 };
 
 const PlayerContext = createContext<PlayerContextType>({
@@ -53,7 +58,7 @@ const PlayerContext = createContext<PlayerContextType>({
   changeStream: () => Promise.reject("Player not initialized"),
   refreshData: () => Promise.reject("Player not initialized"),
   visualizerSupported: false,
-  subscribeVisualizer: () => () => {},
+  subscribeVisualizerWindows: () => () => {},
   isPlaying: false,
   playbackState: "idle",
   isInitialized: false,
@@ -250,9 +255,9 @@ export const PlayerProvider: React.FC<{
     }
   }, [playerServiceInstance]);
 
-  const subscribeVisualizer = useCallback(
-    (listener: (frame: WaveformFrame) => void) =>
-      playerServiceInstance.subscribeVisualizer(listener),
+  const subscribeVisualizerWindows = useCallback(
+    (listener: (window: VisualizerWindow) => void) =>
+      playerServiceInstance.subscribeVisualizerWindows(listener),
     [playerServiceInstance],
   );
 
@@ -268,7 +273,7 @@ export const PlayerProvider: React.FC<{
       // Re-read on every snapshot change so it flips true once the native
       // player exists (created on first play).
       visualizerSupported: playerServiceInstance.isVisualizerSupported,
-      subscribeVisualizer,
+      subscribeVisualizerWindows,
     }),
     [
       playerSnapshot,
@@ -277,7 +282,7 @@ export const PlayerProvider: React.FC<{
       changeStream,
       refreshData,
       playerServiceInstance,
-      subscribeVisualizer,
+      subscribeVisualizerWindows,
     ],
   );
 

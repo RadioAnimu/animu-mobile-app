@@ -9,16 +9,28 @@ import type { AudioSample } from "expo-audio";
  * only by `visualizer.android.ts`; iOS uses `visualizer.ios.ts`.
  */
 
-/**
- * Target render rate in Hz, sourced from the device's refresh rate (the max
- * stop is labelled "vsync"). `0` means the visualizer is off.
- */
-export type VisualizerHz = number;
-
 /** One display-ready frame: a fixed-length oscilloscope line + loudness. */
 export interface WaveformFrame {
   /** Oscilloscope line, normalized -1..1, fixed length. */
   wave: number[];
+  /** Overall loudness, normalized 0..1. */
+  level: number;
+}
+
+/**
+ * One raw sampler window pair, published once per native PCM window. The
+ * visualizer interpolates `previousWave` → `targetWave` across
+ * `nativeIntervalMs` (measured real cadence between windows) at its own
+ * display rate — the web player's analyser behaves the same way, its window
+ * just advances continuously on the audio thread.
+ */
+export interface VisualizerWindow {
+  /** Ending window of the interpolation (equal to `targetWave` at first). */
+  previousWave: number[];
+  /** Newest window: the interpolation's destination. */
+  targetWave: number[];
+  /** Measured milliseconds between the last two native windows. */
+  nativeIntervalMs: number;
   /** Overall loudness, normalized 0..1. */
   level: number;
 }
@@ -32,14 +44,14 @@ export interface VisualizerSampler {
   readonly isSupported: boolean;
   /** Whether sampling is currently running. */
   readonly isActive: boolean;
-  /** Target rate in Hz (`0` disables). */
-  setHz(hz: VisualizerHz): void;
+  /** On/off. The render pace is decided by the consumer's own vsync loop. */
+  setEnabled(enabled: boolean): void;
   /** App visibility — sampling never runs in the background. */
   setForeground(foreground: boolean): void;
   /** Transport state — sampling never runs while paused. */
   setPlaying(playing: boolean): void;
-  /** Subscribes to frames; returns an unsubscribe function. */
-  subscribe(listener: (frame: WaveformFrame) => void): () => void;
+  /** Subscribes to raw waveform windows; returns an unsubscribe function. */
+  subscribeWindows(listener: (window: VisualizerWindow) => void): () => void;
   /** Stops sampling and drops listeners. One-way. */
   dispose(): void;
 }

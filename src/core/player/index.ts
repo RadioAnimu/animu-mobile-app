@@ -6,8 +6,8 @@ export { playerService, createPlayerService } from "./player-service";
 export type { PlayerServiceDependencies } from "./player-service";
 export type { TransportState } from "./transport-state";
 export type {
-  VisualizerHz,
   VisualizerSampler,
+  VisualizerWindow,
   WaveformFrame,
 } from "./visualizer.types";
 
