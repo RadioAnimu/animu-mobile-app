@@ -1,10 +1,26 @@
 export interface ConnectivityState {
   isConnected: boolean | null;
+  /**
+   * Whether the OS can actually reach the internet, not just associate with
+   * an access point. `null` means "not determined yet" and is treated as
+   * still-online so an unknown probe never flaps the stream.
+   */
+  isInternetReachable?: boolean | null;
 }
 
 export type ConnectivitySubscribe = (
   handler: (state: ConnectivityState) => void,
 ) => () => void;
+
+/**
+ * A link is only "online" when it is connected AND not known to be unable
+ * to reach the internet. Captive portals and "Wi-Fi with no internet"
+ * report `isConnected: true` with `isInternetReachable: false` — without
+ * this the monitor never sees a restore and a live stream stuck on a dead
+ * link never re-opens.
+ */
+const isOnline = (state: ConnectivityState): boolean =>
+  state.isConnected === true && state.isInternetReachable !== false;
 
 /**
  * Watches connectivity and fires `onRestore` exactly once per
@@ -25,11 +41,11 @@ export class NetworkMonitor {
     if (this.unsubscribe) return;
 
     this.unsubscribe = this.subscribe((state) => {
-      const isConnected = !!state.isConnected;
+      const online = isOnline(state);
       const wasConnected = this.wasConnected;
-      this.wasConnected = isConnected;
+      this.wasConnected = online;
 
-      if (wasConnected === false && isConnected) {
+      if (wasConnected === false && online) {
         console.info("[NetworkMonitor] Network restored");
         this.onRestore();
       }

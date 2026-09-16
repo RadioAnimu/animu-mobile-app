@@ -62,6 +62,15 @@ const MAX_RECONNECT_DELAY_MS = 30_000;
  * .failed) always arrive after their internal retry windows.
  */
 const STREAM_DEATH_GRACE_MS = 3000;
+/**
+ * Minimum stall (ms) after which resuming audio is treated as "fell behind
+ * the live point" and the source is re-opened. A live stream is realtime:
+ * every second spent buffering is a second behind live, and the native
+ * player drains that stale buffer on recovery instead of snapping back.
+ * Below this threshold the blip is left to the native player's own
+ * recovery so sub-second hiccups don't churn the connection.
+ */
+const LIVE_STALL_REOPEN_MS = 2000;
 
 export interface PlayerServiceDependencies {
   state: TransportStateMachine;
@@ -122,6 +131,14 @@ export class PlayerService {
    * in a loop.
    */
   private interruptionPending = false;
+  /**
+   * Date.now() when audio that WAS flowing fell into a buffering stall, or
+   * null. Set only from a `playing` state (a stall opened while connecting
+   * is our own source replace) and consumed on recovery. Mirrors
+   * `interruptionPending`: the one-shot marker is what stops the re-open's
+   * own transient buffering frame from retriggering itself into a loop.
+   */
+  private stalledSince: number | null = null;
   /**
    * Whether the app UI is foregrounded. While backgrounded, store emissions
    * are suppressed so nothing reconciles in the hidden tree; the native
@@ -310,6 +327,7 @@ export class PlayerService {
     this.disposed = true;
     this.userPaused = false;
     this.interruptionPending = false;
+    this.stalledSince = null;
     this.setupPromise = null;
 
     if (!this.isReady) {
@@ -369,6 +387,7 @@ export class PlayerService {
     // no longer "resume the user's stream", it's a fresh intent.
     this.userPaused = false;
     this.interruptionPending = false;
+    this.stalledSince = null;
 
     try {
       // Ensure audio mode + media session are set up, then resolve the
@@ -415,6 +434,7 @@ export class PlayerService {
     // regain, interruption end) can never resurrect the stream.
     this.userPaused = true;
     this.interruptionPending = false;
+    this.stalledSince = null;
 
     // Pausing only needs the audio transport — a failed/slow now-playing
     // fetch, or a media session that never started, must never make the
@@ -455,6 +475,7 @@ export class PlayerService {
       this.deps.reconnect.cancel();
       // A manual re-tune is a fresh intent — no pending live-edge re-open.
       this.interruptionPending = false;
+      this.stalledSince = null;
 
       this.deps.transport.load(stream.url);
       if (wasPlaying) {
@@ -593,6 +614,13 @@ export class PlayerService {
     // keep the native 1 Hz heartbeat alive so polling continues during stalls.
     if (status.isBuffering) {
       if (this.deps.state.isPlayingIntent) {
+        // Audio that was flowing just stalled — remember when, so a
+        // recovery after the drift threshold can re-open at the live edge.
+        // Only arm from `playing`: a stall while `connecting` is our own
+        // stream replace, not a link that fell behind.
+        if (this.deps.state.state === "playing") {
+          this.stalledSince = Date.now();
+        }
         this.reconcile("connecting");
       }
       this.deps.heartbeat.beat();
@@ -602,6 +630,21 @@ export class PlayerService {
     // Stream is actually producing audio — resets the backoff chain
     if (status.playing) {
       this.deps.reconnect.reset();
+
+      // Recovering from a stall long enough to have fallen behind: re-open
+      // the source so a radio lands on the live edge instead of draining
+      // the stale buffer it accumulated. Consume the marker first so the
+      // re-open's own buffering frame (state `connecting`) cannot loop.
+      if (this.stalledSince != null) {
+        const stalledFor = Date.now() - this.stalledSince;
+        this.stalledSince = null;
+        if (stalledFor >= LIVE_STALL_REOPEN_MS) {
+          this.deps.transport.play(this.deps.streamPreferences.current.url);
+          this.reconcile("connecting");
+          this.deps.heartbeat.beat();
+          return;
+        }
+      }
 
       if (this.deps.state.state === "paused") {
         // The user stopped this stream — an in-flight straggler event or a
@@ -676,6 +719,8 @@ export class PlayerService {
 
     // Instant reconnect instead of waiting the backoff out
     this.deps.reconnect.reset();
+    // The link came back — a stale stall marker must not double-re-open.
+    this.stalledSince = null;
 
     if (this.deps.state.isPlayingIntent) {
       void this.attemptReconnect();
@@ -717,6 +762,7 @@ export class PlayerService {
     try {
       // Reconnect re-opens live anyway — drop any pending interruption.
       this.interruptionPending = false;
+      this.stalledSince = null;
       this.deps.transport.play(this.deps.streamPreferences.current.url);
       // Reconcile pushes "buffering" — no manual pushStatus needed.
       this.reconcile("connecting");
@@ -783,7 +829,12 @@ export class PlayerService {
 // ─── Singleton factory ───
 
 const netInfoSubscribe: ConnectivitySubscribe = (handler) =>
-  NetInfo.addEventListener((state) => handler({ isConnected: state.isConnected }));
+  NetInfo.addEventListener((state) =>
+    handler({
+      isConnected: state.isConnected,
+      isInternetReachable: state.isInternetReachable,
+    }),
+  );
 
 let playerServiceInstance: PlayerService | null = null;
 

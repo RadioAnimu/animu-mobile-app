@@ -143,6 +143,32 @@ describe("AudioSampler frames", () => {
     ).toBe(true);
   });
 
+  it("changes rate in place without re-toggling native sampling", () => {
+    const { sampler, transport } = activeSampler(60);
+    expect(transport.setSamplingEnabled).toHaveBeenCalledTimes(1);
+
+    sampler.setHz(30);
+    sampler.setHz(90);
+
+    expect(transport.setSamplingEnabled).toHaveBeenCalledTimes(1);
+  });
+
+  it("applies a rate change without restarting the loop", () => {
+    const { sampler, emit } = activeSampler(30);
+    const listener = vi.fn();
+    sampler.subscribe(listener);
+    emit(sample(new Array(64).fill(0.1)));
+    vi.advanceTimersByTime(1000);
+    const low = listener.mock.calls.length;
+
+    sampler.setHz(120);
+    emit(sample(new Array(64).fill(0.1)));
+    vi.advanceTimersByTime(1000);
+    const high = listener.mock.calls.length - low;
+
+    expect(high).toBeGreaterThan(low);
+  });
+
   it("emits more frames at a higher rate", () => {
     const low = activeSampler(30);
     const lowListener = vi.fn();

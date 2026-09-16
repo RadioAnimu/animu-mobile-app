@@ -1,12 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { NetworkMonitor } from "../network-monitor";
+import { NetworkMonitor, type ConnectivityState } from "../network-monitor";
 
 const makeMonitor = () => {
-  let handler: ((state: { isConnected: boolean | null }) => void) | null = null;
+  let handler: ((state: ConnectivityState) => void) | null = null;
   let unsubscribed = 0;
   let restores = 0;
 
-  const subscribe = (next: (state: { isConnected: boolean | null }) => void) => {
+  const subscribe = (next: (state: ConnectivityState) => void) => {
     handler = next;
     return () => {
       unsubscribed++;
@@ -20,6 +20,7 @@ const makeMonitor = () => {
   return {
     monitor,
     emit: (isConnected: boolean | null) => handler?.({ isConnected }),
+    emitState: (state: ConnectivityState) => handler?.(state),
     get restores() {
       return restores;
     },
@@ -60,6 +61,35 @@ describe("NetworkMonitor", () => {
     f.emit(null); // baseline
     f.emit(true); // first known-online transition counts as a restore
     expect(f.restores).toBe(1);
+  });
+
+  it("fires a restore when Wi-Fi stays associated but internet returns", () => {
+    const f = makeMonitor();
+
+    f.monitor.start();
+    // Wi-Fi with no internet: connected, but the OS cannot reach the
+    // internet — this must NOT count as online.
+    f.emitState({ isConnected: true, isInternetReachable: false });
+    expect(f.restores).toBe(0);
+
+    // Internet finally comes back on the same link → restore.
+    f.emitState({ isConnected: true, isInternetReachable: true });
+    expect(f.restores).toBe(1);
+  });
+
+  it("treats unknown reachability as still-online", () => {
+    const f = makeMonitor();
+
+    f.monitor.start();
+    f.emitState({ isConnected: false }); // baseline offline
+    f.emitState({ isConnected: true, isInternetReachable: null });
+    expect(f.restores).toBe(1);
+
+    // A later probe resolving to unreachable does not count as a second
+    // restore when it comes back (single offline → online transition).
+    f.emitState({ isConnected: true, isInternetReachable: false });
+    f.emitState({ isConnected: true, isInternetReachable: true });
+    expect(f.restores).toBe(2);
   });
 
   it("is idempotent on start and resets on stop", () => {

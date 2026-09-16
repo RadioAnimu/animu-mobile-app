@@ -478,6 +478,60 @@ describe("PlayerService stream-loss handling", () => {
       vi.useRealTimers();
     }
   });
+
+  it("re-opens the live edge when a long buffering stall recovers", async () => {
+    vi.useFakeTimers();
+    try {
+      const { deps, transport, publisher } = makeDeps();
+      const service = new PlayerService(deps);
+      await service.play();
+      const handler = wiredHandler(transport);
+      handler({ playing: true } as AudioStatus);
+      transport.play.mockClear();
+
+      // The link degrades but Wi-Fi stays associated: the native player
+      // stalls (buffering) without the stream ever dying.
+      handler({ playing: true, isBuffering: true } as AudioStatus);
+      expect(deps.state.state).toBe("connecting");
+
+      // 4s behind live — longer than the drift threshold.
+      vi.advanceTimersByTime(4000);
+
+      // The link recovers. The native player would drain its stale buffer
+      // and stay behind live; the service must re-open at the live edge.
+      handler({ playing: true, isBuffering: false } as AudioStatus);
+
+      expect(transport.play).toHaveBeenCalledWith(
+        deps.streamPreferences.current.url,
+      );
+      expect(deps.state.state).toBe("connecting");
+      expect(publisher.pushStatus).toHaveBeenLastCalledWith("buffering");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("keeps the buffered position when a short stall recovers", async () => {
+    vi.useFakeTimers();
+    try {
+      const { deps, transport } = makeDeps();
+      const service = new PlayerService(deps);
+      await service.play();
+      const handler = wiredHandler(transport);
+      handler({ playing: true } as AudioStatus);
+      transport.play.mockClear();
+
+      // A sub-threshold blip: no re-open, the native player catches up.
+      handler({ playing: true, isBuffering: true } as AudioStatus);
+      vi.advanceTimersByTime(500);
+      handler({ playing: true, isBuffering: false } as AudioStatus);
+
+      expect(transport.play).not.toHaveBeenCalled();
+      expect(deps.state.state).toBe("playing");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 });
 
 describe("PlayerService lifecycle", () => {

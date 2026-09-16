@@ -39,32 +39,24 @@ const MAX_NATIVE_INTERVAL_MS = 80;
 /** Fallback native interval until two windows are measured. */
 const DEFAULT_NATIVE_INTERVAL_MS = 16;
 
-/** Frame scheduler: `requestAnimationFrame` where available, else a timer. */
-type FrameHandle = { kind: "raf" | "timeout"; id: number };
 /**
- * Schedules `fn` on the next frame, passing a high-resolution timestamp.
- *
- * The timestamp matters: gating frame emission on `Date.now()` (integer ms)
- * makes a 60 Hz loop look like 16/17 ms jitter, and a too-strict comparison
- * then drops every other frame (30 fps). The rAF timestamp is sub-millisecond,
- * so the configured rate is hit exactly when the display can deliver it.
+ * Emission-loop tick (ms). The loop runs on a **recurring timer** rather than
+ * `requestAnimationFrame`: React Native schedules a recurring timer's next
+ * deadline natively, so it keeps cadence even when the JS thread is busy. A
+ * self-re-scheduled rAF/`setTimeout` does not — under load the Choreographer
+ * services it every *other* frame, which silently halves a 60 Hz display to
+ * ~30 fps (measured on device: rAF/setTimeout ≈ 33 ms, recurring timer ≈
+ * 16.7 ms). The loop still gates actual emission on the configured `hz`, so
+ * this only removes the artificial ceiling.
  */
-const requestFrame = (fn: (timestamp: number) => void): FrameHandle => {
-  if (typeof requestAnimationFrame === "function") {
-    return { kind: "raf", id: requestAnimationFrame(fn) };
-  }
-  return {
-    kind: "timeout",
-    id: setTimeout(() => fn(Date.now()), 16) as unknown as number,
-  };
-};
-const cancelFrame = (handle: FrameHandle): void => {
-  if (handle.kind === "raf") {
-    cancelAnimationFrame(handle.id);
-  } else {
-    clearTimeout(handle.id);
-  }
-};
+const LOOP_TICK_MS = 4;
+/**
+ * Gate tolerance (ms). Emission fires when the elapsed time since the last
+ * frame is within this much of the target interval. It absorbs the
+ * whole-millisecond rounding of `Date.now()` (e.g. 32 ms vs a 33.3 ms target)
+ * without letting a lower rate slip onto the next tick.
+ */
+const EMIT_TOLERANCE_MS = 2;
 
 export class AudioSampler implements VisualizerSampler {
   private hz: VisualizerHz = 0;
@@ -83,8 +75,8 @@ export class AudioSampler implements VisualizerSampler {
   private nativeAt = -1;
   private nativeIntervalMs = DEFAULT_NATIVE_INTERVAL_MS;
 
-  /** Display loop handle — runs at the requested frame rate while active. */
-  private frameHandle: FrameHandle | null = null;
+  /** Emission-loop interval id — runs at the requested frame rate while active. */
+  private loopId: number | null = null;
   private lastEmitAt = 0;
 
   constructor(private readonly transport: SamplingTransport) {}
@@ -132,21 +124,24 @@ export class AudioSampler implements VisualizerSampler {
 
   /** Reconciles the native sampling gate with the current flags. */
   private apply(): void {
-    const active = this.isActive;
-    if (active) {
-      if (!this.transportSubscription) {
-        this.transportSubscription = this.transport.onSample((sample) =>
-          this.handleSample(sample),
-        );
-      }
+    if (this.isActive) {
+      // Already sampling? Nothing to do: the loop reads `hz` live, so a rate
+      // change just takes effect on the next frame. Resetting the trace or
+      // re-toggling the native tap here used to freeze the visualizer (and
+      // could flush the audio pipeline) every time the user moved the slider.
+      if (this.transportSubscription) return;
+      this.transportSubscription = this.transport.onSample((sample) =>
+        this.handleSample(sample),
+      );
       this.reset();
       this.transport.setSamplingEnabled(true);
       this.startLoop();
       return;
     }
 
+    if (!this.transportSubscription) return;
     this.transport.setSamplingEnabled(false);
-    this.transportSubscription?.();
+    this.transportSubscription();
     this.transportSubscription = null;
     this.stopLoop();
   }
@@ -190,25 +185,25 @@ export class AudioSampler implements VisualizerSampler {
   }
 
   private startLoop(): void {
-    if (this.frameHandle) return;
+    if (this.loopId !== null) return;
     this.lastEmitAt = 0;
-    const interval = 1000 / Math.max(1, this.hz);
-    const loop = (timestamp: number) => {
+    this.loopId = setInterval(() => {
       if (!this.isActive) {
-        this.frameHandle = null;
+        this.stopLoop();
         return;
       }
-      // Gate on the high-resolution frame timestamp (not `Date.now()`), so a
-      // 16.67 ms cadence is not mistaken for 15/16 ms jitter and skipped.
-      if (this.lastEmitAt === 0 || timestamp - this.lastEmitAt >= interval - 1) {
-        this.lastEmitAt = timestamp;
-        // `Date.now()` keeps the interpolation clock consistent with the
-        // native-window timestamps captured in `handleSample`.
-        this.emitFrame(Date.now());
+      const now = Date.now();
+      // Read `hz` every tick (not once at start) so a rate change takes effect
+      // immediately, without restarting the loop or resetting the trace.
+      const interval = 1000 / Math.max(1, this.hz);
+      if (
+        this.lastEmitAt === 0 ||
+        now - this.lastEmitAt >= interval - EMIT_TOLERANCE_MS
+      ) {
+        this.lastEmitAt = now;
+        this.emitFrame(now);
       }
-      this.frameHandle = requestFrame(loop);
-    };
-    this.frameHandle = requestFrame(loop);
+    }, LOOP_TICK_MS) as unknown as number;
   }
 
   private emitFrame(now: number): void {
@@ -224,9 +219,9 @@ export class AudioSampler implements VisualizerSampler {
   }
 
   private stopLoop(): void {
-    if (this.frameHandle) {
-      cancelFrame(this.frameHandle);
-      this.frameHandle = null;
+    if (this.loopId !== null) {
+      clearInterval(this.loopId);
+      this.loopId = null;
     }
     this.displayedWave = null;
   }
