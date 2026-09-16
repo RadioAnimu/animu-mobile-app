@@ -89,6 +89,18 @@ export const OAUTH_PROVIDERS: Record<string, OauthProviderConfig> = {
     mode: "server",
     linkable: true,
   },
+  fluxer: {
+    name: "fluxer",
+    label: "Fluxer",
+    // Mirrors Discord's contract: server-side browser flow
+    // (`/mobile/fluxer-start.php`); the backend owns the Fluxer OAuth client
+    // and redirect, so nothing is configured app-side.
+    authorizationEndpoint: "",
+    scopes: [],
+    clientId: "",
+    mode: "server",
+    linkable: true,
+  },
   apple: {
     name: "apple",
     label: "Apple",
