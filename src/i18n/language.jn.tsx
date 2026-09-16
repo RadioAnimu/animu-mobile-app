@@ -177,6 +177,13 @@ const DICT = {
   SETTINGS_STORAGE_HINT_OFF: "カバーのキャッシュは無効です",
   SETTINGS_STORAGE_CLEAN: "キャッシュされたカバーを削除",
   SETTINGS_STORAGE_CLEANING: "削除中…",
+  SETTINGS_STORAGE_LIMIT_LABEL: "キャッシュサイズの上限：",
+  SETTINGS_STORAGE_LIMIT_TITLE: "キャッシュサイズの上限",
+  SETTINGS_STORAGE_LIMIT_CAPTION:
+    "キャッシュされたカバーが上限に達すると、古いものから自動的に削除されます。",
+  SETTINGS_STORAGE_LIMIT_UNLIMITED: "無制限",
+  SETTINGS_STORAGE_LIMIT_ADVANCED: "詳細：セクションごとの上限",
+  SETTINGS_STORAGE_LIMIT_AUTOMATIC: "自動（合計から按分）",
   TRACK_REQUEST: "リクエスト曲",
   INFO_REQUEST: `こんにちは！私は春香、ブラジルで最も萌えのラジオのDJだよ！${"\n"}もう選曲はバッチリかな？${"\n"}その前に、私やチームのみんなにメッセージを残してみない？君からのメッセージは、みんなが見れるようにディスコードのメインチャットに流すね！💜${"\n"}`,
   SEND_REQUEST_BUTTON_TEXT: "リクエストを送る",

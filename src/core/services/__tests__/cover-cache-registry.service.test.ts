@@ -114,6 +114,18 @@ describe("CoverCacheRegistry", () => {
     expect(setItem.mock.calls.length).toBe(afterFirstStable);
   });
 
+  it("urlsByRecency() walks the FIFO ring oldest-first (re-tag moves to the tail)", () => {
+    const registry = freshRegistry();
+    registry.tag(URLS.live, "live");
+    registry.tag(URLS.search, "search");
+    registry.tag(URLS.played, "played");
+    expect(registry.urlsByRecency()).toEqual([URLS.live, URLS.search, URLS.played]);
+
+    // Re-displaying the oldest cover moves it to the ring's tail.
+    registry.tag(URLS.live, "live");
+    expect(registry.urlsByRecency()).toEqual([URLS.search, URLS.played, URLS.live]);
+  });
+
   it("prune() drops evicted URLs from memory and storage", async () => {
     const registry = freshRegistry();
     registry.tag(URLS.played, "played");

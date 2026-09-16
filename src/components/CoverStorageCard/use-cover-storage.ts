@@ -28,10 +28,17 @@ export function useCoverStorageSnapshot(): {
   /** Unmount guard — the async measure must not touch a dead component. */
   const aliveRef = useRef(true);
 
+  const maxBytes = settings.coverCacheLimitBytes;
+  const partitions = settings.coverCachePartitionBytes;
+
   const measure = useCallback(async () => {
     setMeasuring(true);
     try {
-      const next = await coverDiskStorage.computeSnapshot();
+      // The limit rides along the same serialized pass: an over-budget
+      // partition is trimmed (oldest FIFO) before the slices are built,
+      // so the card reports the POST-trim truth, never a number the user
+      // has just paid to get rid of.
+      const next = await coverDiskStorage.computeSnapshot(maxBytes, partitions);
       if (aliveRef.current) setSnapshot(next);
     } catch (error) {
       console.warn("[CoverStorageCard] measure failed:", error);
@@ -39,17 +46,39 @@ export function useCoverStorageSnapshot(): {
     } finally {
       if (aliveRef.current) setMeasuring(false);
     }
-  }, []);
+  }, [maxBytes, partitions]);
+
+  // Stable focus handler: the measure identity changes with the limit
+  // shape, but a re-created focus effect would re-fire MOUNT while the
+  // screen stays focused (double pass on every limit/partition change —
+  // serialized, but a wasted full stat). The ref indirection keeps the
+  // focus effect mount-only; the shape effect below owns re-measures.
+  const measureRef = useRef(measure);
+  useEffect(() => {
+    measureRef.current = measure;
+  }, [measure]);
 
   useFocusEffect(
     useCallback(() => {
       aliveRef.current = true;
-      void measure();
+      void measureRef.current();
       return () => {
         aliveRef.current = false;
       };
-    }, [measure]),
+    }, []),
   );
+
+  // Re-measure right after a limit or partition change (the provider's
+  // trim runs in its own settings chain — measure queued behind it shows
+  // the result on the card immediately, without leaving the screen).
+  const lastShape = useRef(`${maxBytes}|${JSON.stringify(partitions)}`);
+  useEffect(() => {
+    const shape = `${maxBytes}|${JSON.stringify(partitions)}`;
+    if (lastShape.current === shape) return;
+    lastShape.current = shape;
+    if (!settings.cacheEnabled) return;
+    void measure();
+  }, [maxBytes, partitions, measure, settings.cacheEnabled]);
 
   const lastCache = useRef(settings.cacheEnabled);
   useEffect(() => {

@@ -1,4 +1,5 @@
 import { Stream } from "../core/domain/stream";
+import { DEFAULT_COVER as API_DEFAULT_COVER } from "animu-api";
 
 /**
  * React Native's dev flag — Metro defines it in every bundle (and inlines
@@ -10,8 +11,14 @@ declare const __DEV__: boolean | undefined;
 
 const DEBUG: boolean = typeof __DEV__ !== "undefined" ? __DEV__ : false;
 
-const DEFAULT_COVER: string =
-  "https://www.animu.com.br/wp-content/uploads/2022/11/Animu-icon-para-OC.png";
+/**
+ * Single source of truth: the API package's default cover (animu.moe —
+ * the same host every other remote URL comes from). Reusing one URL keeps
+ * the fallback artwork a single cache entry: an image sourced from a
+ * second host (the old .com.br copy here) would cache under a different
+ * key and could be downloaded alongside.
+ */
+const DEFAULT_COVER: string = API_DEFAULT_COVER;
 
 /**
  * Hardcoded fallback streams used when the remote endpoint

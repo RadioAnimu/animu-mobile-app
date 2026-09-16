@@ -177,6 +177,13 @@ const DICT = {
   SETTINGS_STORAGE_HINT_OFF: "El guardado de portadas está desactivado",
   SETTINGS_STORAGE_CLEAN: "Borrar portadas guardadas",
   SETTINGS_STORAGE_CLEANING: "Borrando…",
+  SETTINGS_STORAGE_LIMIT_LABEL: "Límite de tamaño de la caché:",
+  SETTINGS_STORAGE_LIMIT_TITLE: "Límite de tamaño de la caché",
+  SETTINGS_STORAGE_LIMIT_CAPTION:
+    "Cuando las portadas guardadas alcanzan el límite, las más antiguas se borran automáticamente.",
+  SETTINGS_STORAGE_LIMIT_UNLIMITED: "Ilimitado",
+  SETTINGS_STORAGE_LIMIT_ADVANCED: "Avanzado: límites por sección",
+  SETTINGS_STORAGE_LIMIT_AUTOMATIC: "Automático (reparte el total)",
   TRACK_REQUEST: "MÚSICA SOLICITADA",
   INFO_REQUEST: `¡Hola! ¡Soy Haruka, la DJ de la radio más moe de Brasil!${"\n"}¡Veamos que ya has hecho tu elección!${"\n"}Pero antes, ¿te gustaría dejar un mensaje para mí o para nuestro equipo? Este mensaje se entregará en el chat principal de nuestro servidor de Discord para que todos lo vean${"\n"}💜 No es necesario que dejes un mensaje si no quieres.`,
   SEND_REQUEST_BUTTON_TEXT: "Enviar",

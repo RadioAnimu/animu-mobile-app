@@ -1,5 +1,6 @@
 import { LANGS_KEY_VALUE_PAIRS } from "../i18n";
 import { ArtworkQuality } from "./artwork-quality";
+import type { CoverCacheCategory } from "../core/services/cover-cache-registry.service";
 
 export interface UserSettings {
   liveQualityCover: ArtworkQuality;
@@ -8,6 +9,25 @@ export interface UserSettings {
   coversInRequestSearch: boolean;
   selectedLanguage: keyof typeof LANGS_KEY_VALUE_PAIRS;
   cacheEnabled: boolean;
+  /**
+   * Total FIFO byte ceiling for the cover cache. `0` (default) = uncapped —
+   * expo-image/Glide keeps evicting at its own discretion. `> 0` = the
+   * storage service splits this total into per-category PARTITIONS
+   * (weighted: live 30% / requested 15% / played 25% / search 30%) and
+   * each partition trims its own FIFO ring independently — a request
+   * search flood can never evict a live cover.
+   */
+  coverCacheLimitBytes: number;
+  /**
+   * Advanced per-partition overrides, `undefined` in each slot = use the
+   * weighted share of the total limit. Customized values take their
+   * absolute bytes off the top; the rest share the remaining budget
+   * proportionally, so the total the user defined never grows. Only
+   * reachable behind the "advanced" toggle in the limit sheet.
+   */
+  coverCachePartitionBytes: Partial<
+    Record<CoverCacheCategory, number>
+  > | null;
   /**
    * Oscilloscope on/off — stored as `0` (off) or `> 0` (on). The emission
    * rate is uncapped (self-adapting at the display's vsync), so the stored

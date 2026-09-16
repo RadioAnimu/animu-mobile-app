@@ -18,6 +18,8 @@ import { SectionTitle } from "../../components/SectionTitle";
 import { CoverQualitySheet } from "../../components/CoverQualitySheet";
 import { LanguageSelectSheet } from "../../components/LanguageSelectSheet";
 import { CoverStorageCard } from "../../components/CoverStorageCard";
+import { CacheLimitSheet } from "../../components/CacheLimitSheet";
+import { formatBytes } from "../../components/CoverQualitySheet/qualities";
 import { DICT, LANGS_KEY_VALUE_PAIRS } from "../../i18n";
 import { RootStackParamList } from "../../routes/app.routes";
 import { THEME } from "../../theme";
@@ -151,6 +153,7 @@ export function Settings({ navigation }: Props) {
   const [languageSheetVisible, setLanguageSheetVisible] = useState(false);
   const [coverQualitySheetVisible, setCoverQualitySheetVisible] =
     useState(false);
+  const [cacheLimitSheetVisible, setCacheLimitSheetVisible] = useState(false);
   // Wipe-in-progress from the storage service — disables the cache toggle
   // (both tap paths: the clean button and the automatic cache-off wipe).
   const cacheWiping = useSyncExternalStore(
@@ -364,6 +367,20 @@ export function Settings({ navigation }: Props) {
               }}
             />
             <Divider />
+            <View style={!settings.cacheEnabled && styles.rowDisabled}>
+              <ValueRow
+                label={cleanLabel(dict.SETTINGS_STORAGE_LIMIT_LABEL)}
+                value={
+                  settings.coverCacheLimitBytes > 0
+                    ? formatBytes(settings.coverCacheLimitBytes)
+                    : dict.SETTINGS_STORAGE_LIMIT_UNLIMITED
+                }
+                onPress={() => {
+                  if (settings.cacheEnabled) setCacheLimitSheetVisible(true);
+                }}
+              />
+            </View>
+            <Divider />
             <CoverStorageCard />
           </View>
 
@@ -393,6 +410,12 @@ export function Settings({ navigation }: Props) {
             visible={coverQualitySheetVisible}
             onClose={() => {
               setCoverQualitySheetVisible(false);
+            }}
+          />
+          <CacheLimitSheet
+            visible={cacheLimitSheetVisible}
+            onClose={() => {
+              setCacheLimitSheetVisible(false);
             }}
           />
         </ScrollView>

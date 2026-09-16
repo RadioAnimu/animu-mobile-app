@@ -88,8 +88,50 @@ export const UserSettingsProvider: React.FC<{ children: React.ReactNode }> = ({
       });
     };
 
+    // A NEW or LOWERED limit — or a partition customization — trims right
+    // away: picking "250 MB" with 800 MB cached must not wait for the
+    // next screen focus. A raised limit needs no pass (under budget
+    // already). Cache-off turns take the wipe path above instead —
+    // trimming into a wipe is meaningless.
+    const limitChanged =
+      previous.cacheEnabled &&
+      updatedSettings.cacheEnabled &&
+      (previous.coverCacheLimitBytes !== updatedSettings.coverCacheLimitBytes ||
+        previous.coverCachePartitionBytes !==
+          updatedSettings.coverCachePartitionBytes);
+    const trimIfNeeded = async () => {
+      if (!limitChanged) return;
+      await coverDiskStorage
+        .trim(
+          updatedSettings.coverCacheLimitBytes,
+          updatedSettings.coverCachePartitionBytes,
+        )
+        .catch((error) => {
+          console.warn("[UserSettings] cache trim on limit change failed:", error);
+        });
+    };
+
+    // Changing the artwork quality invalidates every cached cover URL:
+    // each tier caches under its own URL key, so switching high→low (or
+    // any) without a wipe would leave a mix of old-tier files around.
+    // The wipe is full clearAll (memory + disk + registry) — the exact
+    // "clear cached covers" path. Non-fatal: the new tier still applies
+    // and surfaces just re-download what they miss. Runs in the SAME
+    // chain as every other cache mutation, and the quality sheet stays
+    // open on screen until this prompt resolves.
+    const qualityChanged =
+      previous.liveQualityCover !== updatedSettings.liveQualityCover;
+    const wipeOnQualityChange = async () => {
+      if (!qualityChanged) return;
+      await coverDiskStorage.clearAll().catch((error) => {
+        console.warn("[UserSettings] cache wipe on quality change failed:", error);
+      });
+    };
+
     const run = (updateChainRef.current ?? Promise.resolve()).then(async () => {
       await wipeIfNeeded();
+      await trimIfNeeded();
+      await wipeOnQualityChange();
       await userSettingsService.updateSettings(updatedSettings);
       applySettings(updatedSettings);
     });

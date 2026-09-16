@@ -1,5 +1,5 @@
 import MaterialIcons from "@react-native-vector-icons/material-icons/static";
-import { useCallback } from "react";
+import { useCallback, useState } from "react";
 import {
   FlatList,
   Image,
@@ -43,18 +43,43 @@ const QUALITY_ROWS: QualityRow[] = [
 export function CoverQualitySheet({ visible, onClose }: Props) {
   const { settings, updateSettings } = useUserSettings();
   const dict = DICT[settings.selectedLanguage];
+  // The wipe gate: a quality change clears the whole cover cache, and
+  // this sheet must stay open (blocking: no backdrop close, no re-press)
+  // until the provider's chained wipe resolves — closing early would let
+  // the user see stale-tier covers with no feedback for the clear.
+  const [applyingKey, setApplyingKey] = useState<QualityRow["key"] | null>(
+    null,
+  );
 
   const renderItem: ListRenderItem<QualityRow> = useCallback(
     ({ item }) => {
       const selected = settings.liveQualityCover === item.key;
+      const applying = applyingKey === item.key;
       return (
         <TouchableOpacity
           accessibilityRole="button"
-          accessibilityState={{ selected }}
+          accessibilityState={{ selected, disabled: (applyingKey != null) || undefined }}
           activeOpacity={0.7}
-          onPress={() => {
-            updateSettings({ liveQualityCover: item.key });
-            onClose();
+          disabled={applyingKey != null}
+          onPress={async () => {
+            if (applyingKey != null) return;
+            // Re-pressing the already-selected tier mutates nothing —
+            // close without a wipe round-trip.
+            if (selected) {
+              onClose();
+              return;
+            }
+            setApplyingKey(item.key);
+            try {
+              // Resolves ONLY after the provider's chain has wiped the
+              // caches (quality change) and persisted the setting.
+              await updateSettings({ liveQualityCover: item.key });
+              onClose();
+            } catch (error) {
+              console.warn("[CoverQualitySheet] apply failed:", error);
+            } finally {
+              setApplyingKey(null);
+            }
           }}
           style={styles.row}
         >
@@ -86,14 +111,26 @@ export function CoverQualitySheet({ visible, onClose }: Props) {
               color={THEME.COLORS.BRAND}
             />
           )}
+          {applying && !selected && (
+            <MaterialIcons
+              name="hourglass-top"
+              size={THEME.ICON.MD}
+              color={THEME.COLORS.TEXT_DIM}
+            />
+          )}
         </TouchableOpacity>
       );
     },
-    [dict, onClose, settings.liveQualityCover, updateSettings],
+    [applyingKey, dict, onClose, settings.liveQualityCover, updateSettings],
   );
 
   return (
-    <Sheet visible={visible} onClose={onClose} maxHeight="75%">
+    <Sheet
+      visible={visible}
+      closable={applyingKey == null}
+      onClose={onClose}
+      maxHeight="75%"
+    >
       <Text style={styles.title}>{dict.SETTINGS_QUALITY_LIVE_LABEL}</Text>
       <Text style={styles.caption}>{SAMPLE_TRACK_LABEL}</Text>
 

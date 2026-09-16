@@ -7,6 +7,8 @@ export const DEFAULT_USER_SETTINGS: UserSettings = {
   coversInRequestSearch: true,
   selectedLanguage: "PT",
   cacheEnabled: true,
+  coverCacheLimitBytes: 0,
+  coverCachePartitionBytes: null,
   visualizerHz: 60,
   liveUpdatesInBackground: true,
 };

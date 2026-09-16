@@ -177,6 +177,13 @@ const DICT = {
   SETTINGS_STORAGE_HINT_OFF: "Cover caching is off",
   SETTINGS_STORAGE_CLEAN: "Clear cached covers",
   SETTINGS_STORAGE_CLEANING: "Clearing…",
+  SETTINGS_STORAGE_LIMIT_LABEL: "Cache size limit:",
+  SETTINGS_STORAGE_LIMIT_TITLE: "Cache size limit",
+  SETTINGS_STORAGE_LIMIT_CAPTION:
+    "Once cached covers reach the limit, the oldest ones are removed automatically.",
+  SETTINGS_STORAGE_LIMIT_UNLIMITED: "Unlimited",
+  SETTINGS_STORAGE_LIMIT_ADVANCED: "Advanced: per-section limits",
+  SETTINGS_STORAGE_LIMIT_AUTOMATIC: "Automatic (shares the total)",
   TRACK_REQUEST: "REQUESTED SONG",
   INFO_REQUEST: `Hi! I'm Haruka, the DJ of the most moe in Brazil!${"\n"}I see you've made your choice!${"\n"}But before that, would you like to leave a message for me or for our team? This message will be delivered in the main chat of our Discord server for everyone to see${"\n"}💜 You don't have to leave a message if you don't want to.`,
   SEND_REQUEST_BUTTON_TEXT: "Send",

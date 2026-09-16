@@ -177,6 +177,13 @@ const DICT = {
   SETTINGS_STORAGE_HINT_OFF: "Guardar capas está desativado",
   SETTINGS_STORAGE_CLEAN: "Apagar capas guardadas",
   SETTINGS_STORAGE_CLEANING: "Apagando…",
+  SETTINGS_STORAGE_LIMIT_LABEL: "Limite de tamanho do cache:",
+  SETTINGS_STORAGE_LIMIT_TITLE: "Limite de tamanho do cache",
+  SETTINGS_STORAGE_LIMIT_CAPTION:
+    "Quando as capas guardadas atingem o limite, as mais antigas são apagadas automaticamente.",
+  SETTINGS_STORAGE_LIMIT_UNLIMITED: "Ilimitado",
+  SETTINGS_STORAGE_LIMIT_ADVANCED: "Avançado: limites por seção",
+  SETTINGS_STORAGE_LIMIT_AUTOMATIC: "Automático (divide o total)",
   TRACK_REQUEST: "MÚSICA PEDIDA",
   INFO_REQUEST: `Oii! Sou a Haruka, a DJ da mais moe do Brasil!${"\n"}Vi que já fez a sua escolha!${"\n"}Mas antes não quer deixar um recadinho para mim ou para nossa equipe? Este recado será entregue no chat principal do nosso servidor discord para todo mundo ver${"\n"}💜 Você não precisa deixar recado se não quiser.`,
   SEND_REQUEST_BUTTON_TEXT: "Enviar",

@@ -65,9 +65,13 @@ export class CoverCacheRegistry {
    * newer one — each queued persist serializes the exact map state at
    * its write time.
    *
-   * Re-tagging an identical (url, category) pair is a no-op: list
-   * recycling remounts the same rows while scrolling, and a write per
-   * remount would churn AsyncStorage for zero information.
+   * Re-tagging an identical (url, category) pair is a persist no-op:
+   * list recycling remounts the same rows while scrolling, and a write
+   * per remount would churn AsyncStorage for zero information — but the
+   * in-memory Map re-insert still runs, so the entry lands back at the
+   * ring's TAIL. This is what keeps the byte-limit trimmer's FIFO walk
+   * honest: a cover on screen right now is the ring's freshest member
+   * and can never be picked as its oldest victim.
    */
   tag(url: string, category: CoverCacheCategory): void {
     if (this.clearing) return;
@@ -75,15 +79,24 @@ export class CoverCacheRegistry {
     if (!this.loaded) this.load();
 
     const existing = this.entries.get(url);
-    if (existing && existing.category === category) return;
-
+    const identical = existing && existing.category === category;
     this.entries.delete(url);
     this.entries.set(url, { category, at: Date.now() });
     if (this.entries.size > MAX_ENTRIES) {
       const oldest = this.entries.keys().next().value;
       if (oldest != null) this.entries.delete(oldest);
     }
-    void this.softPersist();
+    if (!identical) void this.softPersist();
+  }
+
+  /**
+   * Every tracked URL, oldest display first. The Map re-inserts on each
+   * tag (delete + set), so plain key iteration order IS the FIFO ring
+   * the byte-limit trimmer walks: evicting from the front frees the
+   * least-recently displayed covers first.
+   */
+  urlsByRecency(): string[] {
+    return [...this.entries.keys()];
   }
 
   /** URLs grouped by category, in tag order (oldest first per group). */
