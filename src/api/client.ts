@@ -39,3 +39,23 @@ export const createMetadataClient = (
     artworkQuality,
     fetchImpl: expoFetch,
   });
+
+/**
+ * Realtime SSE source for the now-playing stream (`song_change` +
+ * `listeners`). Quality/cover are runtime settings, so each configured
+ * live surface gets its own lazily-created client; the SSE connection is
+ * long-lived (no request timeout) and survives backgrounding via
+ * `expo/fetch`'s native OkHttp stack — the same reason the HTTP client
+ * uses it. Live track events carry uses one cover per constructor quality;
+ * the caller rebuilds when the user changes the setting.
+ */
+export const createLiveClient = (
+  artworkQuality: ArtworkQuality,
+  defaultCover: string = CONFIG.DEFAULT_COVER,
+): AnimuApi =>
+  new AnimuApi({
+    userAgent: CONFIG.USER_AGENT,
+    defaultCover,
+    artworkQuality,
+    fetchImpl: expoFetch,
+  });

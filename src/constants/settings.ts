@@ -8,4 +8,5 @@ export const DEFAULT_USER_SETTINGS: UserSettings = {
   selectedLanguage: "PT",
   cacheEnabled: true,
   visualizerHz: 60,
+  liveUpdatesInBackground: true,
 };

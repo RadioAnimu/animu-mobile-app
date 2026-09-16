@@ -1,5 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
-import type { Listeners, Track } from "animu-api";
+import type {
+  ArtworkQuality,
+  Listeners,
+  LiveNowPlaying,
+  Track,
+} from "animu-api";
 import type { Program } from "../../domain/program";
 import {
   NowPlayingRepository,
@@ -573,6 +578,225 @@ describe("NowPlayingRepository", () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+});
+
+// ─── Live SSE ingestion ───
+
+describe("NowPlayingRepository — live SSE ingestion", () => {
+  const makeLiveNowPlaying = (
+    track: Track | null,
+    listeners = 10,
+  ): LiveNowPlaying => ({
+    track,
+    listeners: { value: listeners },
+    serverName: "Animu FM",
+    status: "autodj",
+    rawTitle: track?.raw ?? "Rádio Animu - Offline | Voltamos já!",
+    album: "",
+    offlineSince: null,
+    message: null,
+    receivedAt: new Date(),
+  });
+
+  interface LiveHandlers {
+    onSongChange: (song: LiveNowPlaying) => void;
+    onListeners: (listeners: Listeners) => void;
+    // Optional exactly like the fetcher surface; the repository always
+    // registers both.
+    onOpen?: () => void;
+    onError?: (error: Error) => void;
+  }
+
+  interface LiveFixture extends Fixture {
+    pushSong: (track: Track | null, listeners?: number) => void;
+    pushListeners: (value: number) => void;
+    pushOpen: () => void;
+    getStreamMetadataSpy: ReturnType<typeof vi.fn>;
+    unsubscribe: ReturnType<typeof vi.fn>;
+  }
+
+  const withLive = (): LiveFixture => {
+    let captured: LiveHandlers | null = null;
+    const unsubscribe = vi.fn();
+    const getStreamMetadataSpy = vi.fn(async () => ({
+      track: makeTrack({ raw: "Http - Fallback", duration: 300_000 }),
+      listeners: { value: 77 },
+    }));
+
+    const fixture = makeRepository({
+      getStreamMetadata: getStreamMetadataSpy,
+      subscribeLive: (
+        _quality: ArtworkQuality,
+        _cover: string,
+        handlers: LiveHandlers,
+      ) => {
+        captured = handlers;
+        return unsubscribe;
+      },
+    });
+    fixture.repository.startLive();
+    if (!captured) throw new Error("startLive() did not subscribe");
+
+    const handlers: LiveHandlers = captured;
+    return {
+      ...fixture,
+      getStreamMetadataSpy,
+      unsubscribe,
+      pushSong: (track, listeners = 10) =>
+        handlers.onSongChange(makeLiveNowPlaying(track, listeners)),
+      pushListeners: (value) => handlers.onListeners({ value }),
+      pushOpen: () => handlers.onOpen?.(),
+    };
+  };
+
+  it("ingests a song_change push immediately, without an HTTP round-trip", () => {
+    const fixture = withLive();
+    const onLiveTrackChange = vi.fn();
+    fixture.repository.onLiveTrackChange = onLiveTrackChange;
+
+    fixture.pushSong(makeTrack({ raw: "Live - Song" }), 12);
+
+    expect(fixture.repository.currentTrack?.raw).toBe("Live - Song");
+    expect(fixture.repository.listeners?.value).toBe(12);
+    expect(fixture.changes).toEqual([
+      {
+        trackChanged: true,
+        listenersChanged: true,
+        programChanged: false,
+        playedChanged: false,
+        requestedChanged: false,
+      },
+    ]);
+    expect(onLiveTrackChange).toHaveBeenCalledTimes(1);
+    expect(fixture.getStreamMetadataSpy).not.toHaveBeenCalled();
+  });
+
+  it("drops filler and offline placeholder pushes", () => {
+    const fixture = withLive();
+
+    // Jingle/placeholder excluded by isRealTrack → state untouched
+    fixture.pushSong(makeTrack({ raw: "Passagem - Jingle", anime: "Passagem" }));
+    fixture.pushSong(null); // offline payload with track: null
+
+    expect(fixture.repository.currentTrack).toBeNull();
+    expect(fixture.changes).toEqual([]);
+  });
+
+  it("lets refresh() skip the HTTP metadata leg while the stream is fresh", async () => {
+    const fixture = withLive();
+
+    fixture.pushSong(makeTrack({ raw: "Live - Song" }), 12);
+    await fixture.repository.refresh();
+
+    // The live source was healthy for the whole polling leg: metadata
+    // never fetched, track still the live one, program/history merged.
+    expect(fixture.getStreamMetadataSpy).not.toHaveBeenCalled();
+    expect(fixture.repository.currentTrack?.raw).toBe("Live - Song");
+    expect(fixture.repository.currentProgram?.name).toBe("AutoDJ");
+    expect(fixture.repository.lastRequestedTracks).toHaveLength(1);
+  });
+
+  it("falls back to the HTTP metadata leg past the staleness window", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    try {
+      const fixture = withLive();
+
+      fixture.pushSong(makeTrack({ raw: "Live - Song" }), 12); // stamps Date.now()
+      vi.setSystemTime(Date.now() + 16_000); // past LIVE_STALE_MS (15s)
+
+      await fixture.repository.refresh();
+
+      // The stream went quiet → the poll reverts to HTTP and the HTTP
+      // track replaces the (now stale) live one.
+      expect(fixture.getStreamMetadataSpy).toHaveBeenCalledTimes(1);
+      expect(fixture.repository.currentTrack?.raw).toBe("Http - Fallback");
+      expect(fixture.repository.listeners?.value).toBe(77);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("receives an onOpen stamp so a reconnect re-arms the live source", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    try {
+      const fixture = withLive();
+      fixture.pushSong(makeTrack({ raw: "Live - Song" }), 12);
+      vi.setSystemTime(Date.now() + 16_000); // stale
+
+      // The surface reconnects and re-seeds its state — the poll must
+      // trust live again.
+      fixture.pushOpen();
+      await fixture.repository.refresh();
+
+      expect(fixture.getStreamMetadataSpy).not.toHaveBeenCalled();
+      expect(fixture.repository.currentTrack?.raw).toBe("Live - Song");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("dispose() detaches the subscription exactly once", () => {
+    const fixture = withLive();
+
+    fixture.repository.dispose();
+    fixture.repository.dispose(); // second call is a no-op
+
+    expect(fixture.unsubscribe).toHaveBeenCalledTimes(1);
+  });
+
+  it("listener pushes emit listenersChanged and dedupe repeats", () => {
+    const fixture = withLive();
+
+    fixture.pushListeners(42);
+    expect(fixture.repository.listeners?.value).toBe(42);
+    expect(fixture.changes).toEqual([
+      {
+        trackChanged: false,
+        listenersChanged: true,
+        programChanged: false,
+        playedChanged: false,
+        requestedChanged: false,
+      },
+    ]);
+
+    // Same value again → deduped, no event
+    fixture.pushListeners(42);
+    expect(fixture.changes).toHaveLength(1);
+  });
+
+  it("a live push landing mid-flight cannot be regressed by the settling HTTP run", async () => {
+    const fixture = withLive();
+    const { repository } = fixture;
+
+    let release!: (v: { track: Track | null; listeners: Listeners }) => void;
+    const gate = new Promise<{ track: Track | null; listeners: Listeners }>(
+      (resolve) => {
+        release = resolve;
+      },
+    );
+    repository["options"].fetchers.getStreamMetadata = vi.fn(
+      () => gate,
+    ) as unknown as NowPlayingFetchers["getStreamMetadata"];
+
+    // Poll starts on a quiet stream → HTTP metadata leg runs (hangs on gate)
+    const poll = repository.refresh();
+    await tick();
+
+    // …and the SSE stream connects and pushes current state mid-flight.
+    fixture.pushOpen();
+    fixture.pushSong(makeTrack({ raw: "Live - Song" }), 12);
+
+    // The HTTP leg finally answers with OLDER data.
+    release({
+      track: makeTrack({ raw: "Stale - Http" }),
+      listeners: { value: 1 },
+    });
+    await poll;
+
+    // The live push wins: no regression, no spurious change events.
+    expect(repository.currentTrack?.raw).toBe("Live - Song");
+    expect(repository.listeners?.value).toBe(12);
   });
 });
 

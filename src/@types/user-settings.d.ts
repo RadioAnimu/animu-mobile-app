@@ -14,4 +14,12 @@ export interface UserSettings {
    * value no longer encodes a rate; it only encodes the toggle.
    */
   visualizerHz: number;
+  /**
+   * Realtime station surface (SSE) battery policy. `true` (default) keeps
+   * the live connection open whenever the player runs — instant song-change
+   * lock-screen updates even in the background. `false` drops the live
+   * connection whenever the app is paused AND backgrounded (the HTTP poll
+   * plus the staleness fallback still cover freshness on return).
+   */
+  liveUpdatesInBackground: boolean;
 }

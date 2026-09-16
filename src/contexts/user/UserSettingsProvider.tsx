@@ -35,6 +35,14 @@ export const UserSettingsProvider: React.FC<{ children: React.ReactNode }> = ({
     setSettings(next);
   };
 
+  // ── Live-station (SSE) wiring ──
+  // The realtime surface follows the battery policy: on / off + visibility +
+  // play intent. Route the toggle through the service so it rebuilds the
+  // connection immediately — not on the next appState transition.
+  useEffect(() => {
+    playerService().updateLiveStreamLifecycle();
+  }, [settings.liveUpdatesInBackground]);
+
   // ── Visualizer wiring ──
   // Uncapped, like the web player's rAF loop: emitting the trace runs without
   // a rate cap and the visualizer commits each frame at the display's own

@@ -107,6 +107,9 @@ const makeDeps = () => {
     dispose: vi.fn(),
     clear: vi.fn(),
     setShowProgress: vi.fn(),
+    startLive: vi.fn(),
+    stopLive: vi.fn(),
+    setLiveStreamActive: vi.fn(),
   };
   const streamPreferences = {
     current: { id: "low", url: "https://stream", label: "Low" },

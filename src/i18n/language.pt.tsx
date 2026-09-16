@@ -163,6 +163,8 @@ const DICT = {
   SETTINGS_LANGUAGE_SELECT_PLACEHOLDER: "Selecione um idioma",
   SETTINGS_LANGUAGE_SEARCH_PLACEHOLDER: "Buscar idioma",
   SETTINGS_LANGUAGE_NOT_FOUND: "Nenhum idioma encontrado",
+  SETTINGS_BATTERY_TITLE: "Bateria e dados",
+  SETTINGS_LIVE_UPDATES_SWITCH: "Atualizações da rádio ao vivo:",
   SETTINGS_MEMORY_TITLE: "Mémoria",
   SETTINGS_GENERAL_TITLE: "Geral",
   SETTINGS_OSCILLOSCOPE_TITLE: "Osciloscópio",

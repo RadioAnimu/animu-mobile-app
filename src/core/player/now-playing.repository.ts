@@ -2,6 +2,7 @@ import type {
   ArtworkQuality,
   HistoryType,
   Listeners,
+  LiveNowPlaying,
   Track,
 } from "animu-api";
 import type { Program } from "../domain/program";
@@ -28,8 +29,16 @@ const DAY_MS = 24 * 60 * 60 * 1000;
  * latch and invalidates the stuck run via the epoch guard.
  */
 const REFRESH_STALE_MS = 30_000;
+/**
+ * How long after the last SSE event the live stream is considered a
+ * trustworthy source for track/listeners. The daemon pushes at ~1 Hz and
+ * reconnects on its own; past this gap the repository silently reverts the
+ * metadata part of the poll to HTTP until the stream talks again.
+ */
+const LIVE_STALE_MS = 15_000;
 
-/** What the repository needs from the network — injectable for tests. */
+/**
+ * What the repository needs from the network — injectable for tests. */
 export interface NowPlayingFetchers {
   getStreamMetadata(
     artworkQuality?: ArtworkQuality,
@@ -41,6 +50,20 @@ export interface NowPlayingFetchers {
     artworkQuality?: ArtworkQuality,
     defaultCover?: string,
   ): Promise<Track[]>;
+  /**
+   * Realtime now-playing source (SSE). Optional — when absent the
+   * repository falls back to pure HTTP polling.
+   */
+  subscribeLive?(
+    quality: ArtworkQuality,
+    defaultCover: string,
+    handlers: {
+      onSongChange: (song: LiveNowPlaying) => void;
+      onListeners: (listeners: Listeners) => void;
+      onOpen?: () => void;
+      onError?: (error: Error) => void;
+    },
+  ): () => void;
   /**
    * Aborts every in-flight HTTP request. Called by `expireStuckRefresh()`:
    * the native heartbeat drives the abort because the fetch's own
@@ -89,6 +112,11 @@ const NO_CHANGE: NowPlayingChange = {
 export class NowPlayingRepository {
   /** Fired whenever merged data actually changed. Wired by the orchestrator. */
   onChange: (change: NowPlayingChange) => void = () => {};
+  /**
+   * Wired by the orchestrator: a LIVE track change must reach the media
+   * session without waiting for the next poll round-trip.
+   */
+  onLiveTrackChange: () => void = () => {};
 
   private currentTrackValue: Track | null = null;
   private currentProgramValue: Program | null = null;
@@ -103,6 +131,12 @@ export class NowPlayingRepository {
   private trackEndTimerId: number | null = null;
   private disposed = false;
   private readonly retryScheduler: BackoffScheduler;
+  /** Live SSE unsubscribe handle; null = HTTP-only mode. */
+  private liveSubscription: (() => void) | null = null;
+  /** Quality the live client was built with — rebuilt when the setting changes. */
+  private liveQuality: ArtworkQuality | null = null;
+  /** Date.now() of the last SSE event (song or listeners); null = no data yet. */
+  private lastLiveEventAt: number | null = null;
 
   constructor(private readonly options: NowPlayingRepositoryOptions) {
     this.retryScheduler = new BackoffScheduler({
@@ -149,17 +183,136 @@ export class NowPlayingRepository {
     this.showProgressValue = value;
   }
 
-  // ── Commands ──
+  // ── Realtime stream (SSE) ──
 
   /**
-   * Fetches track + program + listeners + request history in parallel and
-   * merges with diffing. Returns whether the *identity* of the broadcast
-   * changed (track or program) — listener counts and request lists are
-   * scalar churn that still flows to subscribers via {@link onChange} but
-   * must not re-push the media session or trip change logs. Failures
-   * schedule an exponential-backoff retry; successes reset it and re-arm
-   * the predictive track-end refresh.
+   * Attaches the SSE now-playing stream, replacing the HTTP metadata poll
+   * while it is healthy. The daemon seeds a new connection with the current
+   * state, so no one-shot fetch is needed; the poll keeps running for
+   * program/history and silently re-covers track/listeners whenever the
+   * stream goes quiet past {@link LIVE_STALE_MS}.
    */
+  startLive(): void {
+    if (
+      !this.options.fetchers.subscribeLive ||
+      this.disposed ||
+      this.liveSubscription
+    ) {
+      return;
+    }
+    this.liveQuality = this.options.getCoverQuality();
+    this.liveSubscription = this.options.fetchers.subscribeLive(
+      this.liveQuality,
+      this.options.getDefaultCover(),
+      {
+        onSongChange: (song) => this.ingestSong(song),
+        onListeners: (listeners) => this.ingestListeners(listeners),
+        onOpen: () => {
+          // Fresh connection (or reconnect) — drop the stale marker so the
+          // next poll trusts the live source again.
+          this.lastLiveEventAt = Date.now();
+        },
+        onError: (error) => {
+          // The client reconnects with its own backoff; this only logs.
+          // The stale marker below is what re-routes the poll to HTTP.
+          console.warn("[NowPlayingRepository] live stream error:", error);
+          this.lastLiveEventAt = null;
+        },
+      },
+    );
+  }
+
+  /**
+   * Rebuilds the live surface when the cover-quality setting changed (the
+   * quality is baked into the SSE client's track mapper). Idempotent.
+   */
+  private ensureLiveCurrent(): void {
+    if (this.disposed || !this.liveSubscription) return;
+    const quality = this.options.getCoverQuality();
+    if (quality === this.liveQuality) return;
+    this.stopLive();
+    this.startLive();
+  }
+
+  /**
+   * Battery-policy toggle for the realtime surface (see the settings
+   * screen's "live station updates" row). Safe on any lifecycle stage and
+   * idempotent in both directions.
+   */
+  setLiveStreamActive(active: boolean): void {
+    if (active) {
+      this.startLive();
+      return;
+    }
+    this.stopLive();
+  }
+
+  private stopLive(): void {
+    const unsubscribe = this.liveSubscription;
+    this.liveSubscription = null;
+    this.lastLiveEventAt = null;
+    unsubscribe?.();
+  }
+
+  /**
+   * Realtime ingestion of a `song_change` push. Semantically the merge half
+   * of `refresh()` — same diffing, same change events — just driven by the
+   * stream instead of the poll. Runs synchronously (no epoch guard: the
+   * source is a push, not a fetch).
+   */
+  private ingestSong(song: LiveNowPlaying): void {
+    if (this.disposed) return;
+    this.lastLiveEventAt = Date.now();
+
+    const track = song.track;
+    if (!track || !isRealTrack(track)) {
+      // Offline placeholder (or jingle) — keep the current state; the UI
+      // shows the old track until the station returns with real data.
+      return;
+    }
+
+    const trackChanged =
+      this.currentTrackValue?.raw !== track.raw ||
+      this.currentTrackValue?.artwork !== track.artwork;
+    if (trackChanged) {
+      this.currentTrackValue = track;
+      void this.refreshHistory("played");
+    }
+
+    const listenersChanged = this.listenersValue?.value !== song.listeners.value;
+    if (listenersChanged) this.listenersValue = song.listeners;
+
+    if (trackChanged || listenersChanged) {
+      this.onChange({
+        trackChanged,
+        programChanged: false,
+        listenersChanged,
+        playedChanged: false,
+        requestedChanged: false,
+      });
+    }
+    if (trackChanged) this.onLiveTrackChange();
+    this.scheduleTrackEndRefresh();
+  }
+
+  /** Realtime ingestion of a deduped `listeners` push. */
+  private ingestListeners(listeners: Listeners): void {
+    if (this.disposed) return;
+    this.lastLiveEventAt = Date.now();
+    if (this.listenersValue?.value === listeners.value) return;
+    this.listenersValue = listeners;
+    this.onChange({
+      ...{
+        trackChanged: false,
+        programChanged: false,
+        playedChanged: false,
+        requestedChanged: false,
+      },
+      listenersChanged: true,
+    });
+  }
+
+  /** ── HTTP poll, invalidated by live data past the staleness window ── */
   async refresh(): Promise<boolean> {
     if (this.disposed) return false;
     if (this.refreshing) return false;
@@ -167,27 +320,57 @@ export class NowPlayingRepository {
     const epoch = ++this.refreshEpoch;
     this.refreshStartedAt = Date.now();
 
+    // Live healthy → skip the HTTP metadata leg; ingest already owns
+    // track/listeners and re-writes them on the next push. A live track is
+    // required for the skip: while the stream only pushed placeholders
+    // (offline station), the HTTP leg must still have its chance to fill
+    // state exactly like it did before SSE existed.
+    this.ensureLiveCurrent();
+    const liveFresh =
+      this.liveSubscription != null &&
+      this.currentTrackValue != null &&
+      this.lastLiveEventAt != null &&
+      Date.now() - this.lastLiveEventAt <= LIVE_STALE_MS;
+
     try {
-      const [{ track, listeners }, program, newRequestedTracks] =
-        await Promise.all([
-          this.options.fetchers.getStreamMetadata(
-            this.options.getCoverQuality(),
-            this.options.getDefaultCover(),
-          ),
-          this.options.fetchers.getCurrentProgram(),
-          this.options.fetchers.getTrackHistory(
-            "requests",
-            this.options.getCoverQuality(),
-            this.options.getDefaultCover(),
-          ),
-        ]);
+      const [metadata, program, newRequestedTracks] = await Promise.all([
+        liveFresh
+          ? Promise.resolve({
+              track: this.currentTrackValue,
+              listeners: this.listenersValue,
+            })
+          : this.options.fetchers.getStreamMetadata(
+              this.options.getCoverQuality(),
+              this.options.getDefaultCover(),
+            ),
+        this.options.fetchers.getCurrentProgram(),
+        this.options.fetchers.getTrackHistory(
+          "requests",
+          this.options.getCoverQuality(),
+          this.options.getDefaultCover(),
+        ),
+      ]);
+
+      const { track, listeners } = metadata;
 
       // Invalidated while in flight (watchdog expiry or dispose): the
       // stuck run's late settler must not write state or re-arm timers —
       // a newer run already owns the repository.
       if (epoch !== this.refreshEpoch || this.disposed) return false;
 
-      if (!track) {
+      // Same protection against the LIVE source: this HTTP run started on
+      // a stale stream, but a song_change push may have landed while it
+      // was in flight — pushing authoritative state. The stale HTTP
+      // payload must not walk the live data backwards.
+      const liveOwns =
+        this.liveSubscription != null &&
+        this.currentTrackValue != null &&
+        this.lastLiveEventAt != null &&
+        Date.now() - this.lastLiveEventAt <= LIVE_STALE_MS;
+
+      // HTTP fetched invalid track data (and live is not authoritative to
+      // rescue us) → skip the update; keep the tests' intent unchanged.
+      if (!liveOwns && !track) {
         console.warn(
           "[NowPlayingRepository] API returned invalid track data, skipping update",
         );
@@ -197,8 +380,10 @@ export class NowPlayingRepository {
       let trackChanged = false;
 
       if (
-        this.currentTrackValue?.raw !== track.raw ||
-        this.currentTrackValue?.artwork !== track.artwork
+        track &&
+        !liveOwns &&
+        (this.currentTrackValue?.raw !== track.raw ||
+          this.currentTrackValue?.artwork !== track.artwork)
       ) {
         this.currentTrackValue = track;
         trackChanged = true;
@@ -217,10 +402,17 @@ export class NowPlayingRepository {
       // a live block starting/ending while the same track stays on air must
       // still flip the seek bar off/on.
       if (trackChanged || programChanged) {
-        this.showProgressValue = isRealTrack(track) && !program.isLive;
+        this.showProgressValue =
+          isRealTrack(this.currentTrackValue) && !program.isLive;
       }
 
-      const listenersChanged = this.listenersValue?.value !== listeners.value;
+      // Same live-authority rule for the listener count: on a skip leg it
+      // is the snapshot we just installed out of (never differs); after a
+      // mid-flight push, the HTTP count is stale and must not regress it.
+      const listenersChanged =
+        !liveOwns &&
+        listeners != null &&
+        this.listenersValue?.value !== listeners.value;
       if (listenersChanged) this.listenersValue = listeners;
 
       const requestedChanged =
@@ -388,6 +580,7 @@ export class NowPlayingRepository {
    */
   dispose(): void {
     this.disposed = true;
+    this.stopLive();
     this.cancelTrackEndTimer();
     this.retryScheduler.reset();
   }

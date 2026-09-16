@@ -168,6 +168,11 @@ export class PlayerService {
     this.deps.heartbeat.onPoll = () => {
       void this.refreshData().catch(console.error);
     };
+    // Live SSE track change → push the media session immediately instead
+    // of riding the next poll's round-trip.
+    this.deps.repository.onLiveTrackChange = () => {
+      void this.updateMetadata();
+    };
   }
 
   // ── Queries ──
@@ -224,6 +229,24 @@ export class PlayerService {
     );
   }
 
+  // ── Realtime stream battery policy ──
+
+  /**
+   * Keeps the realtime (SSE) surface aligned with where the user is:
+   * keep it open while the app is visible, while the user wants audio, or
+   * when they opted to always keep live updates running. A paused app in
+   * the background with the setting off drops the connection — nothing a
+   * user notices immediately (the HTTP poll + staleness fallback cover
+   * freshness on the way back), but a real battery win for the idle case.
+   * Also the hook that re-evaluates when the user toggles the setting.
+   */
+  updateLiveStreamLifecycle(): void {
+    const enabled = userSettingsService.getCurrentSettings().liveUpdatesInBackground;
+    const wanted =
+      enabled || this.appActive || this.deps.state.isPlayingIntent;
+    this.deps.repository.setLiveStreamActive(wanted);
+  }
+
   // ── Lifecycle ──
 
   /**
@@ -240,6 +263,9 @@ export class PlayerService {
     this.deps.ticker.setUiVisible(active);
     this.deps.heartbeat.setUiVisible(active);
     this.deps.sampler.setForeground(active);
+    // Visibility is part of the realtime-surface battery policy: once
+    // paused, backgrounding may drop the connection (see the setting).
+    this.updateLiveStreamLifecycle();
     if (active) {
       this.emitPlayer();
       this.emitStation();
@@ -291,6 +317,12 @@ export class PlayerService {
 
     // Settings are now loaded — arm the visualizer with the stored preference.
     this.applyVisualizerSettings();
+
+    // Realtime now-playing (SSE). The first push carries the current state,
+    // so a poll is not needed to know what's on air; the HTTP metadata leg
+    // stays available as fallback behind LIVE_STALE_MS. The settings are
+    // loaded, so the battery policy consults the stored preference.
+    this.updateLiveStreamLifecycle();
 
     // Watch connectivity: instant reconnect + data refresh when back online
     this.deps.networkMonitor.start();
@@ -596,6 +628,10 @@ export class PlayerService {
     if (!this.deps.state.transition(next)) return;
     // Sampling follows play intent — the visualizer only runs with audio.
     this.deps.sampler.setPlaying(this.deps.state.isPlayingIntent);
+    // The playing/paused intent is also part of the realtime-surface
+    // battery policy: resuming playback re-opens the connection even when
+    // the app stays hidden behind the lock screen.
+    this.updateLiveStreamLifecycle();
     // Any state change is UI-visible: isPlaying and playbackState derive
     // from the state machine.
     this.emitPlayer();

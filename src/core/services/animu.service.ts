@@ -1,11 +1,39 @@
-import type { ArtworkQuality, HistoryType, Track, Listeners } from "animu-api";
-import { abortAllInFlightRequests } from "animu-api";
+import {
+  abortAllInFlightRequests,
+  type AnimuLive,
+  type ArtworkQuality,
+  type HistoryType,
+  type Listeners,
+  type LiveNowPlaying,
+  type Track,
+} from "animu-api";
 import type { Program } from "../domain/program";
 import { DICT } from "../../i18n";
 import type { Program as ProgramDictionaryEntry } from "../../api";
-import { animuApi, createMetadataClient } from "../../api/client";
+import { animuApi, createMetadataClient, createLiveClient } from "../../api/client";
+
+/**
+ * Realtime now-playing surface the repository subscribes to. Each
+ * configured key (cover quality + default cover) owns its own lazily
+ * created SSE client; switching the key tears the previous one down.
+ */
+export interface LiveNowPlayingSource {
+  subscribe(
+    quality: ArtworkQuality,
+    defaultCover: string,
+    handlers: {
+      onSongChange: (song: LiveNowPlaying) => void;
+      onListeners: (listeners: Listeners) => void;
+      onOpen?: () => void;
+      onError?: (error: Error) => void;
+    },
+  ): () => void;
+}
 
 class AnimuService {
+  /** Lazily-created SSE surface, keyed by `quality|cover` (constructor state). */
+  private liveClient: AnimuLive | null = null;
+  private liveKey = "";
   /**
    * Fetches track + listeners from a single API call.
    *
@@ -59,6 +87,49 @@ class AnimuService {
    */
   abortInFlightRequests(): void {
     abortAllInFlightRequests();
+  }
+
+  /**
+   * Realtime now-playing (`song_change` + `listeners`) via the station's
+   * SSE daemon. Quality/cover are captured per client (constructor state),
+   * so a changed key rebuilds the surface — the daemon seeds every new
+   * connection with the current state, making the rebuild seamless.
+   *
+   * The SSE connection is deliberately NOT covered by
+   * {@link abortAllInFlightRequests}: its AbortController lives inside
+   * `AnimuLive` and must survive the watchdog, which exists to cut stale
+   * one-shot fetches only.
+   */
+  subscribeLive(
+    quality: ArtworkQuality,
+    defaultCover: string,
+    handlers: {
+      onSongChange: (song: LiveNowPlaying) => void;
+      onListeners: (listeners: Listeners) => void;
+      onOpen?: () => void;
+      onError?: (error: Error) => void;
+    },
+  ): () => void {
+    const key = `${quality}|${defaultCover}`;
+    if (this.liveKey !== key || !this.liveClient) {
+      this.liveKey = key;
+      this.liveClient = createLiveClient(quality, defaultCover).live;
+    }
+    const client = this.liveClient;
+    const subscription = client.subscribe({
+      ...(handlers.onOpen ? { onOpen: handlers.onOpen } : {}),
+      onSongChange: (song) => handlers.onSongChange(song),
+      onListeners: (listeners) => handlers.onListeners(listeners),
+      ...(handlers.onError ? { onError: handlers.onError } : {}),
+    });
+    return () => {
+      if (this.liveClient !== client) return;
+      subscription.close();
+      // Session stops with no subscribers; drop the handle so a later
+      // quality-keyed subscribe() rebuilds from a clean state.
+      this.liveClient = null;
+      this.liveKey = "";
+    };
   }
 }
 

@@ -307,6 +307,25 @@ export function Settings({ navigation }: Props) {
             />
           </View>
 
+          <SectionTitle title={dict.SETTINGS_BATTERY_TITLE} icon="battery-charging-full" />
+          <View style={styles.group}>
+            {/* Non-technical wording for the realtime-stream battery
+                policy: ON = the app instantly follows station song changes
+                (and a live lock screen) via a persistent, lightweight
+                connection; OFF = the connection pauses when the app is
+                paused in the background (big battery saver, freshness
+                covered by the HTTP poll on the way back). */}
+            <SettingsRow
+              label={cleanLabel(dict.SETTINGS_LIVE_UPDATES_SWITCH)}
+              value={settings.liveUpdatesInBackground}
+              onToggle={() => {
+                updateSettings({
+                  liveUpdatesInBackground: !settings.liveUpdatesInBackground,
+                });
+              }}
+            />
+          </View>
+
           <SectionTitle title={dict.SETTINGS_GENERAL_TITLE} icon="language" />
           <View style={styles.group}>
             <ValueRow
