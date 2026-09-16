@@ -1,10 +1,11 @@
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import MaterialIcons from "@react-native-vector-icons/material-icons/static";
 import {
   FlatList,
   Text,
   TextInput,
   TouchableOpacity,
+  type ListRenderItem,
 } from "react-native";
 import { DICT, LANGS_KEY_VALUE_PAIRS } from "../../i18n";
 import { THEME } from "../../theme";
@@ -33,20 +34,61 @@ export function LanguageSelectSheet({ visible, onClose }: Props) {
     [],
   );
 
-  const filtered = languages.filter(({ key, name }) => {
-    const haystack = normalize(`${name} ${key}`);
-    return haystack.includes(normalize(query));
-  });
+  const filtered = useMemo(
+    () =>
+      languages.filter(({ key, name }) => {
+        const haystack = normalize(`${name} ${key}`);
+        return haystack.includes(normalize(query));
+      }),
+    [languages, query],
+  );
 
-  const handleClose = () => {
+  const handleClose = useCallback(() => {
     setQuery("");
     onClose();
-  };
+  }, [onClose]);
 
-  const onSelect = (key: keyof typeof LANGS_KEY_VALUE_PAIRS) => {
-    updateSettings({ selectedLanguage: key });
-    handleClose();
-  };
+  const onSelect = useCallback(
+    (key: keyof typeof LANGS_KEY_VALUE_PAIRS) => {
+      updateSettings({ selectedLanguage: key });
+      handleClose();
+    },
+    [updateSettings, handleClose],
+  );
+
+  const renderItem: ListRenderItem<(typeof filtered)[number]> = useCallback(
+    ({ item }) => {
+      const selected = settings.selectedLanguage === item.key;
+      return (
+        <TouchableOpacity
+          accessibilityRole="button"
+          accessibilityState={{ selected }}
+          activeOpacity={0.7}
+          onPress={() => {
+            onSelect(item.key as keyof typeof LANGS_KEY_VALUE_PAIRS);
+          }}
+          style={styles.langRow}
+        >
+          <Text
+            style={[
+              styles.langName,
+              selected && styles.langNameSelected,
+            ]}
+          >
+            {item.name}
+          </Text>
+          {selected && (
+            <MaterialIcons
+              name="check"
+              size={THEME.ICON.MD}
+              color={THEME.COLORS.BRAND}
+            />
+          )}
+        </TouchableOpacity>
+      );
+    },
+    [settings.selectedLanguage, onSelect],
+  );
 
   return (
     <Sheet visible={visible} onClose={handleClose} withKeyboard maxHeight="75%">
@@ -71,36 +113,7 @@ export function LanguageSelectSheet({ visible, onClose }: Props) {
         data={filtered}
         keyboardShouldPersistTaps="handled"
         keyExtractor={(item) => item.key}
-        renderItem={({ item }) => {
-          const selected = settings.selectedLanguage === item.key;
-          return (
-            <TouchableOpacity
-              accessibilityRole="button"
-              accessibilityState={{ selected }}
-              activeOpacity={0.7}
-              onPress={() => {
-                onSelect(item.key as keyof typeof LANGS_KEY_VALUE_PAIRS);
-              }}
-              style={styles.langRow}
-            >
-              <Text
-                style={[
-                  styles.langName,
-                  selected && styles.langNameSelected,
-                ]}
-              >
-                {item.name}
-              </Text>
-              {selected && (
-                <MaterialIcons
-                  name="check"
-                  size={THEME.ICON.MD}
-                  color={THEME.COLORS.BRAND}
-                />
-              )}
-            </TouchableOpacity>
-          );
-        }}
+        renderItem={renderItem}
         ListEmptyComponent={
           <Text style={styles.emptyText}>
             {DICT[settings.selectedLanguage].SETTINGS_LANGUAGE_NOT_FOUND}

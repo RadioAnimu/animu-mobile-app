@@ -167,7 +167,6 @@ const DICT = {
   SETTINGS_GENERAL_TITLE: "Geral",
   SETTINGS_OSCILLOSCOPE_TITLE: "Osciloscópio",
   SETTINGS_VISUALIZER_SWITCH: "Visualizador de áudio:",
-  SETTINGS_VISUALIZER_COMING_SOON: "Em breve (iOS)",
   SETTINGS_MEMORY_CLEAR_CACHE_SWITCH: "Guardar capas em cache:",
   TRACK_REQUEST: "MÚSICA PEDIDA",
   INFO_REQUEST: `Oii! Sou a Haruka, a DJ da mais moe do Brasil!${"\n"}Vi que já fez a sua escolha!${"\n"}Mas antes não quer deixar um recadinho para mim ou para nossa equipe? Este recado será entregue no chat principal do nosso servidor discord para todo mundo ver${"\n"}💜 Você não precisa deixar recado se não quiser.`,

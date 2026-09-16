@@ -294,9 +294,9 @@ export function CustomDrawerContent(props: DrawerContentComponentProps) {
           Icon={() => <DrawerIcon name="link" size={SECTION_ICON_SIZE} />}
           sectionTile={DICT[settings.selectedLanguage].LINKS}
         />
-        {LINKS.map((link, index) => (
+        {LINKS.map((link) => (
           <LinkMenuItem
-            key={index}
+            key={link.title}
             Icon={link.Icon}
             title={link.title}
             url={link.url}

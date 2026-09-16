@@ -1,9 +1,15 @@
-import React from "react";
-import { FlatList, Text, TouchableOpacity, View } from "react-native";
+import React, { useCallback, useMemo } from "react";
+import {
+  FlatList,
+  Text,
+  TouchableOpacity,
+  View,
+  type ListRenderItem,
+} from "react-native";
 import * as Clipboard from "expo-clipboard";
 
 import { Background } from "../../components/Background";
-import { styles } from "./styles";
+import { ROW_HEIGHT, ROW_GAP, styles } from "./styles";
 
 import { SafeAreaView } from "react-native-safe-area-context";
 import { HeaderBar } from "../../components/HeaderBar";
@@ -16,6 +22,7 @@ import { Image } from "expo-image";
 import { DICT, IMGS } from "../../i18n";
 import { useUserSettings } from "../../contexts/user/UserSettingsProvider";
 import { useStation } from "../../contexts/player/PlayerProvider";
+import type { StationSnapshot } from "../../core/player";
 import { useAlert } from "../../contexts/alert/AlertProvider";
 
 type Props = NativeStackScreenProps<
@@ -32,10 +39,66 @@ export function Last({ route, navigation }: Props) {
 
   const { settings } = useUserSettings();
 
-  const copyText = (text: string) => {
-    Clipboard.setStringAsync(text);
-    toast(DICT[settings.selectedLanguage].TEXT_COPIED);
-  };
+  const copyText = useCallback(
+    (text: string) => {
+      Clipboard.setStringAsync(text);
+      toast(DICT[settings.selectedLanguage].TEXT_COPIED);
+    },
+    [toast, settings.selectedLanguage],
+  );
+
+  const renderItem: ListRenderItem<
+    NonNullable<StationSnapshot["lastRequestedTracks"]>[number]
+  > = useCallback(
+    ({ item }) =>
+      (
+        <View style={styles.metadata}>
+          {(isUltimasPedidasScreen && settings.lastRequestedCovers) ||
+          (!isUltimasPedidasScreen && settings.lastPlayedCovers) ? (
+            <Cover
+              cover={item.artwork}
+              style={styles.image}
+              recyclingKey={`${item.raw}-${new Date(item.startTime).getTime()}`}
+            />
+          ) : (
+            <></>
+          )}
+          <TouchableOpacity
+            accessibilityRole="button"
+            activeOpacity={0.7}
+            onPress={() => copyText(item.raw)}
+            style={styles.nameTouchable}
+          >
+                <Text style={styles.musicapedidaname} numberOfLines={1}>
+                  {item.raw}
+                </Text>
+          </TouchableOpacity>
+          {isUltimasPedidasScreen && (
+            <Text style={styles.musicapedidatime}>
+              {new Date(item.startTime).toLocaleTimeString([], {
+                hour: "2-digit",
+                minute: "2-digit",
+                hour12: false,
+              })}
+            </Text>
+          )}
+        </View>
+      ),
+    [
+      copyText,
+      isUltimasPedidasScreen,
+      settings.lastRequestedCovers,
+      settings.lastPlayedCovers,
+    ],
+  );
+
+  const listData = useMemo(
+    () =>
+      isUltimasPedidasScreen
+        ? station.lastRequestedTracks
+        : station.lastPlayedTracks,
+    [isUltimasPedidasScreen, station.lastRequestedTracks, station.lastPlayedTracks],
+  );
 
   return (
     <Background>
@@ -54,46 +117,22 @@ export function Last({ route, navigation }: Props) {
           />
           <View style={styles.listWrapper}>
             <FlatList
-              data={
-                isUltimasPedidasScreen
-                  ? station.lastRequestedTracks
-                  : station.lastPlayedTracks
-              }
+              data={listData}
               keyExtractor={(item) =>
                 `${item.raw}-${new Date(item.startTime).getTime()}`
               }
               contentContainerStyle={styles.containerList}
-              renderItem={({ item }) => (
-                <View style={styles.metadata}>
-                  {(isUltimasPedidasScreen && settings.lastRequestedCovers) ||
-                  (!isUltimasPedidasScreen && settings.lastPlayedCovers) ? (
-                    <Cover
-                      cover={item.artwork}
-                      style={styles.image}
-                      recyclingKey={`${item.raw}-${new Date(item.startTime).getTime()}`}
-                    />
-                  ) : (
-                    <></>
-                  )}
-                  <TouchableOpacity
-                    accessibilityRole="button"
-                    activeOpacity={0.7}
-                    onPress={() => copyText(item.raw)}
-                    style={styles.nameTouchable}
-                  >
-                    <Text style={styles.musicapedidaname}>{item.raw}</Text>
-                  </TouchableOpacity>
-                  {isUltimasPedidasScreen && (
-                    <Text style={styles.musicapedidatime}>
-                      {new Date(item.startTime).toLocaleTimeString([], {
-                        hour: "2-digit",
-                        minute: "2-digit",
-                        hour12: false,
-                      })}
-                    </Text>
-                  )}
-                </View>
-              )}
+              renderItem={renderItem}
+              // Fixed-height rows → O(1) offset math, instant scroll setup
+              getItemLayout={(_, index) => ({
+                length: ROW_HEIGHT,
+                offset: (ROW_HEIGHT + ROW_GAP) * index,
+                index,
+              })}
+              // Lists hold ~dozens of rows; render a tight window
+              initialNumToRender={10}
+              maxToRenderPerBatch={10}
+              windowSize={7}
             />
           </View>
         </View>

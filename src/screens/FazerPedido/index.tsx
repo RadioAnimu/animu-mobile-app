@@ -16,7 +16,8 @@ import { Background } from "../../components/Background";
 import { HeaderBar } from "../../components/HeaderBar";
 import { Logo } from "../../components/Logo";
 import { RequestBottomSheet } from "../../components/RequestBottomSheet";
-import { RequestTrack } from "../../components/RequestTrack";
+import { RequestTrack, TrackRequestContext } from "../../components/RequestTrack";
+import { ROW_HEIGHT as REQUEST_ROW_HEIGHT } from "../../components/RequestTrack/styles";
 
 // Core
 import { useAuth } from "../../contexts/auth/AuthProvider";
@@ -154,11 +155,26 @@ export function FazerPedido({ navigation }: Props) {
   const handleRequestSuccess = useCallback((trackId: string) => {
     setSearchState((prev) => ({
       ...prev,
+      // Only the submitted row's object identity changes — every memoized
+      // `RequestTrack` row survives `results` re-renders untouched, so one
+      // submission repaints one row of a 200-row list, not all of them.
       results: prev.results.map((item) =>
         item.id === trackId ? { ...item, requestable: false } : item,
       ),
     }));
   }, []);
+
+  /** Stable row-action handler, handed to rows via `TrackRequestContext`. */
+  const handleRequestTrack = useCallback((track: MusicRequest) => {
+    if (track.requestable) setSelectedTrack(track);
+  }, []);
+
+  const renderRequestTrack = useCallback(
+    ({ item }: { item: MusicRequest & { requestable: boolean } }) => (
+      <RequestTrack track={item} />
+    ),
+    [],
+  );
 
   return (
     <Background>
@@ -198,38 +214,42 @@ export function FazerPedido({ navigation }: Props) {
             {searchState.status === "loading" ? (
               <ActivityIndicator color={THEME.COLORS.TEXT} />
             ) : (
-              <FlatList
-                data={searchState.results}
-                keyExtractor={(item) => item.id}
-                contentContainerStyle={styles.list}
-                renderItem={({ item }) => (
-                  <RequestTrack
-                    track={item}
-                    onTrackRequest={() => {
-                      if (item.requestable) {
-                        setSelectedTrack(item);
-                      }
-                    }}
-                  />
-                )}
-                ListFooterComponent={
-                  searchState.pagination?.nextPageParams ? (
-                    <TouchableOpacity
-                      style={styles.loadMoreBtn}
-                      onPress={handleLoadMore}
-                      disabled={searchState.status === "loadingMore"}
-                    >
-                      {searchState.status === "loadingMore" ? (
-                        <ActivityIndicator color={THEME.COLORS.TEXT} />
-                      ) : (
-                        <Text style={styles.loadMoreText}>
-                          {DICT[settings.selectedLanguage].LOAD_MORE_RESULTS}
-                        </Text>
-                      )}
-                    </TouchableOpacity>
-                  ) : null
-                }
-              />
+              <TrackRequestContext.Provider value={handleRequestTrack}>
+                <FlatList
+                  data={searchState.results}
+                  keyExtractor={(item) => item.id}
+                  contentContainerStyle={styles.list}
+                  renderItem={renderRequestTrack}
+                  // Fixed-height rows: O(1) offset math on 200+ rows
+                  getItemLayout={(_, index) => ({
+                    length: REQUEST_ROW_HEIGHT,
+                    offset: REQUEST_ROW_HEIGHT * index,
+                    index,
+                  })}
+                  // Virtualization tuning for long searches: render only
+                  // what is on screen plus a short lead in/out.
+                  initialNumToRender={10}
+                  maxToRenderPerBatch={10}
+                  windowSize={7}
+                  ListFooterComponent={
+                    searchState.pagination?.nextPageParams ? (
+                      <TouchableOpacity
+                        style={styles.loadMoreBtn}
+                        onPress={handleLoadMore}
+                        disabled={searchState.status === "loadingMore"}
+                      >
+                        {searchState.status === "loadingMore" ? (
+                          <ActivityIndicator color={THEME.COLORS.TEXT} />
+                        ) : (
+                          <Text style={styles.loadMoreText}>
+                            {DICT[settings.selectedLanguage].LOAD_MORE_RESULTS}
+                          </Text>
+                        )}
+                      </TouchableOpacity>
+                    ) : null
+                  }
+                />
+              </TrackRequestContext.Provider>
             )}
           </View>
         </View>

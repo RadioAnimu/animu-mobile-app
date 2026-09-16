@@ -85,7 +85,11 @@ export function LiveRequestModal({ visible, handleClose }: Props) {
   // captured before the session is restored — prefill from the current
   // user each time the sheet opens (and clear any previous session's form).
   const settersRef = useRef(setters);
-  settersRef.current = setters;
+  // Latest-ref pattern in an effect, never in render — a discarded
+  // concurrent render must not leave a stale setter behind.
+  useEffect(() => {
+    settersRef.current = setters;
+  });
   const wasVisible = useRef(false);
   useEffect(() => {
     if (visible && !wasVisible.current) {
@@ -196,8 +200,8 @@ export function LiveRequestModal({ visible, handleClose }: Props) {
         keyboardShouldPersistTaps="handled"
       >
         <Text style={styles.title}>{t.LIVE_REQUEST_TITLE}</Text>
-        {FORM_BUILDER_MAPPER.map((item, index) => (
-          <View style={styles.field} key={index}>
+        {FORM_BUILDER_MAPPER.map((item) => (
+          <View style={styles.field} key={item.name}>
             <Label text={item.label} optional={item.optional} />
             <Input
               value={formData[item.name as keyof typeof formData]}

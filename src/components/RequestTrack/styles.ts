@@ -3,6 +3,9 @@ import { THEME } from "../../theme";
 
 const IMAGE = 50;
 
+/** Fixed row height (image + vertical padding) — `getItemLayout` depends on it. */
+export const ROW_HEIGHT = IMAGE + THEME.SPACE.XS * 2;
+
 export const styles = StyleSheet.create({
   container: {
     flexDirection: "row",

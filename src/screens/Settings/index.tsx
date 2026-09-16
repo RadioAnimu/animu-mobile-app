@@ -1,10 +1,9 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import MaterialIcons from "@react-native-vector-icons/material-icons/static";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 
 import {
   Animated,
-  Platform,
   ScrollView,
   Text,
   TouchableOpacity,
@@ -44,7 +43,7 @@ interface SwitchProps {
 }
 
 function Switch({ value }: SwitchProps) {
-  const position = useRef(new Animated.Value(value ? 1 : 0)).current;
+  const [position] = useState(() => new Animated.Value(value ? 1 : 0));
 
   useEffect(() => {
     Animated.spring(position, {

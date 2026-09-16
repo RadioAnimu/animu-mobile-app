@@ -1,6 +1,6 @@
 import { createDrawerNavigator } from "@react-navigation/drawer";
 
-import { Dimensions } from "react-native";
+import { useWindowDimensions } from "react-native";
 import { CustomDrawerContent, DrawerIcon } from "../components/CustomDrawer";
 import { FazerPedido } from "../screens/FazerPedido";
 import { Home } from "../screens/Home";
@@ -38,6 +38,7 @@ const DRAWER_WIDTH_RATIO = 0.8;
 
 export function AppRoutes() {
   const { settings } = useUserSettings();
+  const { width } = useWindowDimensions();
 
   return (
     <Navigator
@@ -46,7 +47,7 @@ export function AppRoutes() {
         overlayColor: THEME.COLORS.SCRIM,
         drawerStyle: {
           backgroundColor: THEME.COLORS.SURFACE,
-          width: Dimensions.get("window").width * DRAWER_WIDTH_RATIO,
+          width: width * DRAWER_WIDTH_RATIO,
         },
       }}
       drawerContent={(props) => <CustomDrawerContent {...props} />}

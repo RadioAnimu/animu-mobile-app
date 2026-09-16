@@ -172,9 +172,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   }, [clearSession]);
 
   useEffect(() => {
+    // StrictMode/remount guard: a finished initialization must not set
+    // state on a discarded provider instance.
+    let cancelled = false;
     const initializeAuth = async () => {
       try {
-        void authFacade.getProviders().then(setProviders);
+        void authFacade.getProviders().then((list) => {
+          if (!cancelled) setProviders(list);
+        });
         const [storedCredentials, storedUser] = await Promise.all([
           readStoredCredentials(),
           authFacade.restore(),
@@ -186,9 +191,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         const launchUrl = await Linking.getInitialURL().catch(() => null);
         const resumedUser = await authFacade.resumeServerAuth(launchUrl);
         if (resumedUser) {
-          await adoptUser(resumedUser);
+          if (!cancelled) await adoptUser(resumedUser);
           return;
         }
+
+        if (cancelled) return;
 
         // Only surface cached credential state for the account it belongs to.
         if (storedCredentials && storedCredentials.userId === storedUser?.id) {
@@ -213,13 +220,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       } catch (error) {
         console.error("[AuthProvider] Initialization failed:", error);
       } finally {
-        setIsLoading(false);
+        if (!cancelled) setIsLoading(false);
       }
     };
 
     initializeAuth();
 
     return () => {
+      cancelled = true;
       backgroundService.stopTask(SESSION_CHECK_TASK_ID);
     };
   }, [adoptUser, clearSession, loadProfile, startSessionCheck]);

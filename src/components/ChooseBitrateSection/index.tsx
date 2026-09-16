@@ -1,10 +1,27 @@
-import { FlatList } from "react-native";
+import { useCallback } from "react";
+import { FlatList, type ListRenderItem } from "react-native";
+import type { Stream } from "../../core/domain/stream";
 import { ButtonKBPS } from "../ButtonKBPS";
 import { styles } from "./styles";
 import { usePlayer } from "../../contexts/player/PlayerProvider";
 
 export function ChooseBitrateSection() {
   const { changeStream, currentStream, streamOptions } = usePlayer();
+
+  const renderItem: ListRenderItem<Stream> =
+    useCallback(
+      ({ item }) => (
+        <ButtonKBPS
+          handleChangeStream={() => {
+            changeStream(item);
+          }}
+          selected={item.url === currentStream?.url || false}
+          category={item.category}
+          kbps={item.bitrate}
+        />
+      ),
+      [changeStream, currentStream?.url],
+    );
 
   return (
     <FlatList
@@ -14,18 +31,7 @@ export function ChooseBitrateSection() {
       showsHorizontalScrollIndicator={false}
       data={streamOptions}
       keyExtractor={(item) => item.url}
-      renderItem={({ item }) => {
-        return (
-          <ButtonKBPS
-            handleChangeStream={() => {
-              changeStream(item);
-            }}
-            selected={item.url === currentStream?.url || false}
-            category={item.category}
-            kbps={item.bitrate}
-          />
-        );
-      }}
-    ></FlatList>
+      renderItem={renderItem}
+    />
   );
 }

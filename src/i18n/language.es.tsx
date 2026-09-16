@@ -167,7 +167,6 @@ const DICT = {
   SETTINGS_GENERAL_TITLE: "General",
   SETTINGS_OSCILLOSCOPE_TITLE: "Osciloscopio",
   SETTINGS_VISUALIZER_SWITCH: "Visualizador de audio:",
-  SETTINGS_VISUALIZER_COMING_SOON: "Próximamente (iOS)",
   SETTINGS_MEMORY_CLEAR_CACHE_SWITCH: "Limpiar caché de portadas:",
   TRACK_REQUEST: "MÚSICA SOLICITADA",
   INFO_REQUEST: `¡Hola! ¡Soy Haruka, la DJ de la radio más moe de Brasil!${"\n"}¡Veamos que ya has hecho tu elección!${"\n"}Pero antes, ¿te gustaría dejar un mensaje para mí o para nuestro equipo? Este mensaje se entregará en el chat principal de nuestro servidor de Discord para que todos lo vean${"\n"}💜 No es necesario que dejes un mensaje si no quieres.`,

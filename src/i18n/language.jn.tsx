@@ -167,7 +167,6 @@ const DICT = {
   SETTINGS_GENERAL_TITLE: "一般",
   SETTINGS_OSCILLOSCOPE_TITLE: "オシロスコープ",
   SETTINGS_VISUALIZER_SWITCH: "オーディオビジュアライザー：",
-  SETTINGS_VISUALIZER_COMING_SOON: "近日公開（iOS）",
   SETTINGS_MEMORY_CLEAR_CACHE_SWITCH: "キャッシュカバーをクリア：",
   TRACK_REQUEST: "リクエスト曲",
   INFO_REQUEST: `こんにちは！私は春香、ブラジルで最も萌えのラジオのDJだよ！${"\n"}もう選曲はバッチリかな？${"\n"}その前に、私やチームのみんなにメッセージを残してみない？君からのメッセージは、みんなが見れるようにディスコードのメインチャットに流すね！💜${"\n"}`,

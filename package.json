@@ -12,7 +12,8 @@
     "lint": "expo lint",
     "build:api": "npm run build --prefix packages/animu-api",
     "splash": "node scripts/generate-splash.mjs",
-    "test": "vitest run"
+    "test": "vitest run",
+    "doctor": "npx react-doctor@latest"
   },
   "dependencies": {
     "@react-native-async-storage/async-storage": "2.2.0",
@@ -29,7 +30,7 @@
     "expo-asset": "~57.0.17",
     "expo-audio": "57.0.5",
     "expo-auth-session": "~57.0.12",
-    "expo-build-properties": "~57.0.19",
+    "expo-build-properties": "~57.0.20",
     "expo-clipboard": "~57.0.2",
     "expo-dev-client": "~57.0.19",
     "expo-font": "~57.0.4",
@@ -59,6 +60,7 @@
     "eslint": "^9.39.5",
     "eslint-config-expo": "~57.0.2",
     "patch-package": "^8.0.1",
+    "react-doctor": "^0.9.14",
     "typescript": "~6.0.3",
     "vitest": "^5.0.0"
   },
@@ -71,6 +73,7 @@
     },
     "install": {
       "exclude": [
+        "react-native-webview",
         "expo-audio"
       ]
     },

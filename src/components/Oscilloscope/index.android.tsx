@@ -5,17 +5,14 @@ import type { VisualizerWindow } from "../../core/player";
 import { useIsBackgrounded } from "../../contexts/app-state/AppStateProvider";
 import { usePlayer } from "../../contexts/player/PlayerProvider";
 import { useUserSettings } from "../../contexts/user/UserSettingsProvider";
+import { THEME } from "../../theme";
 import { styles } from "./styles";
 
-/** Wave canvas height — the web player draws its trace at 75px. */
-const WAVE_HEIGHT = 75;
 /**
  * Full strip the native container reserves for the scope (logo renders
  * around it) — the canvas is absolutely pinned to its vertical centre.
  */
 const STRIP_HEIGHT = 127;
-/** (STRIP_HEIGHT - WAVE_HEIGHT) / 2 — canvas offset from the strip's top. */
-const WAVE_TOP_PX = 26;
 
 type WebViewHandle = React.ComponentRef<typeof WebView>;
 
@@ -45,6 +42,10 @@ function encodeWave(points: number[]): string {
  * interpolation between windows (over their measured cadence) and one
  * canvas `stroke()` per `requestAnimationFrame` (device vsync).
  */
+// Trace stroke color — single source of truth in the theme (the web player
+// hardcodes the same hex in `player.animu.moe`'s stylesheet).
+const STROKE_COLOR = THEME.COLORS.VISUALIZER;
+
 const PAGE_HTML = `<!DOCTYPE html>
 <html>
   <head>
@@ -121,7 +122,7 @@ const PAGE_HTML = `<!DOCTYPE html>
           }
         }
 
-        scopeContext.strokeStyle = '#723eb2';
+        scopeContext.strokeStyle = '${STROKE_COLOR}';
         scopeContext.lineWidth = 3;
         scopeContext.lineJoin = 'round';
         scopeContext.lineCap = 'round';

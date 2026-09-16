@@ -131,7 +131,7 @@ export const Marquee = React.memo(function Marquee({
   const isBackgrounded = useIsBackgrounded();
   const [containerWidth, setContainerWidth] = useState(0);
   const [textWidth, setTextWidth] = useState(0);
-  const translateX = useRef(new Animated.Value(0)).current;
+  const translateX = useMemo(() => new Animated.Value(0), []);
 
   const holdDelay = group ? group.delay : (delay ?? 2500);
 

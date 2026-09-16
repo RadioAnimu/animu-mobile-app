@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useMemo } from "react";
 import { Animated, Easing, StyleSheet, Text } from "react-native";
 import MaterialIcons from "@react-native-vector-icons/material-icons/static";
 import { THEME } from "../../theme";
@@ -17,7 +17,7 @@ export const Toast = React.memo(function Toast({
   duration?: number;
   onDone?: () => void;
 }) {
-  const progress = useRef(new Animated.Value(0)).current;
+  const progress = useMemo(() => new Animated.Value(0), []);
 
   useEffect(() => {
     const animation = Animated.sequence([
@@ -75,11 +75,7 @@ const styles = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: THEME.COLORS.HAIRLINE,
     maxWidth: "86%",
-    shadowColor: "#000",
-    shadowOpacity: 0.35,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 6,
+    boxShadow: "0px 4px 8px rgba(0, 0, 0, 0.35)",
   },
   text: {
     color: THEME.COLORS.TEXT,

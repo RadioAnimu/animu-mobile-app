@@ -3,6 +3,10 @@ import { THEME } from "../../theme";
 
 const HEADER_IMAGE_HEIGHT = 127;
 const ROW_COVER = 50;
+/** Fixed row height for `getItemLayout` (cover 50px dominates the row). */
+export const ROW_HEIGHT = ROW_COVER;
+/** Vertical rhythm: the row container gap lives IN the list, spacing rows. */
+export const ROW_GAP = THEME.SPACE.MD;
 
 export const styles = StyleSheet.create({
   container: {
@@ -50,6 +54,9 @@ export const styles = StyleSheet.create({
     gap: THEME.SPACE.MD,
     alignItems: "center",
     minWidth: "100%",
+    // Fixed geometry — rows must keep the same height whether the cover
+    // setting is on or off, or getItemLayout's offsets drift by theme.
+    height: ROW_COVER,
   },
   image: {
     width: ROW_COVER,
