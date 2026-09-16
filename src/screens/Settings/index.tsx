@@ -293,29 +293,19 @@ export function Settings({ navigation }: Props) {
 
           <SectionTitle title={dict.SETTINGS_OSCILLOSCOPE_TITLE} icon="graphic-eq" />
           <View style={styles.group}>
-            {Platform.OS === "ios" ? (
-              <View style={styles.row}>
-                <Text style={styles.rowLabel}>
-                  {cleanLabel(dict.SETTINGS_VISUALIZER_SWITCH)}
-                </Text>
-                <Text style={styles.visualizerValue}>
-                  {dict.SETTINGS_VISUALIZER_COMING_SOON}
-                </Text>
-              </View>
-            ) : (
-              // Uncapped like the web player's rAF loop: on = render at the
-              // device's own max refresh rate, off = off. No stepped rate to
-              // pick, so a plain toggle replaces the old Hz slider.
-              <SettingsRow
-                label={cleanLabel(dict.SETTINGS_VISUALIZER_SWITCH)}
-                value={settings.visualizerHz > 0}
-                onToggle={() => {
-                  updateSettings({
-                    visualizerHz: settings.visualizerHz > 0 ? 0 : 1,
-                  });
-                }}
-              />
-            )}
+            {/* Uncapped like the web player's rAF loop: on = render at the
+                device's own vsync, off = off. No stepped rate to pick, so a
+                plain toggle replaces the old Hz slider. Works on both
+                platforms — expo-audio ships the sampling tap on iOS too. */}
+            <SettingsRow
+              label={cleanLabel(dict.SETTINGS_VISUALIZER_SWITCH)}
+              value={settings.visualizerHz > 0}
+              onToggle={() => {
+                updateSettings({
+                  visualizerHz: settings.visualizerHz > 0 ? 0 : 1,
+                });
+              }}
+            />
           </View>
 
           <SectionTitle title={dict.SETTINGS_GENERAL_TITLE} icon="language" />

@@ -1,10 +1,10 @@
 /**
- * iOS oscilloscope stub.
+ * iOS entry — the same passthrough engine as Android.
  *
- * iOS cannot sample a live `AVPlayer` stream, so the visualizer is Android-only
- * for now. This renders nothing and deliberately imports nothing, keeping the
- * entire oscilloscope implementation out of the iOS bundle.
+ * expo-audio 57 ships the AVPlayer sampling tap (`audioSampleUpdate`) on
+ * iOS too, so the WebView canvas engine is fully cross-platform: the shared
+ * WebAudio/canvas page, the hex bridge, rAF draw loop. Rendered nothing
+ * only when the platform reports sampling unsupported (the React context
+ * gates it through `visualizerSupported`).
  */
-export function Oscilloscope() {
-  return null;
-}
+export { Oscilloscope } from "./index.android";

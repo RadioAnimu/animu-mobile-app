@@ -1,34 +1,20 @@
-import type {
-  SamplingTransport,
-  VisualizerSampler,
-  VisualizerWindow,
-} from "./visualizer.types";
+import { AudioSampler } from "./audio-sampler";
+import type { SamplingTransport, VisualizerSampler } from "./visualizer.types";
 
 /**
- * iOS sampler stub.
+ * iOS sampler factory.
  *
- * iOS cannot sample a live `AVPlayer` stream (`AVAudioMix` is not applied to
- * indefinite streams), so the visualizer ships Android-only for now. This
- * no-op keeps the player core platform-agnostic while ensuring the entire
- * oscilloscope implementation is absent from the iOS bundle.
+ * expo-audio 57 ships the whole iOS sampling chain out of the box: an
+ * MTAudioProcessingTap (`AudioTapProcessor`) attached to the AVPlayer item,
+ * decoding windows emitted through the shared `audioSampleUpdate` bridge —
+ * the same surface the Android patch implements. The old assumption that a
+ * live `AVPlayer` stream cannot be tapped no longer holds at this SDK
+ * version, so iOS consumes the exact same `AudioSampler` pipeline as
+ * Android: down-mix → resample → publish raw windows; the WebView engine
+ * does all the per-frame work.
  */
-class NoopVisualizerSampler implements VisualizerSampler {
-  readonly isSupported = false;
-  readonly isActive = false;
-
-  setEnabled(_enabled: boolean): void {}
-  setForeground(_foreground: boolean): void {}
-  setPlaying(_playing: boolean): void {}
-  subscribeWindows(
-    _listener: (window: VisualizerWindow) => void,
-  ): () => void {
-    return () => {};
-  }
-  dispose(): void {}
-}
-
 export function createVisualizerSampler(
-  _transport: SamplingTransport,
+  transport: SamplingTransport,
 ): VisualizerSampler {
-  return new NoopVisualizerSampler();
+  return new AudioSampler(transport);
 }

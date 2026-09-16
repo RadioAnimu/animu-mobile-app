@@ -3,10 +3,10 @@ import type { AudioSample } from "expo-audio";
 /**
  * Visualizer contracts shared by both platforms.
  *
- * Kept free of any DSP / native imports so the iOS bundle can reference the
- * types without pulling the oscilloscope implementation into its Hermes
- * bytecode. The real implementation lives in `audio-sampler.ts` and is wired
- * only by `visualizer.android.ts`; iOS uses `visualizer.ios.ts`.
+ * Kept free of any DSP / native imports so both platform bundles can
+ * reference the types cheaply. Both platforms consume the same real
+ * implementation (`audio-sampler.ts` + `waveform.ts`), wired by
+ * `visualizer.android.ts` / `visualizer.ios.ts`.
  */
 
 /** One display-ready frame: a fixed-length oscilloscope line + loudness. */
