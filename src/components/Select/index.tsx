@@ -2,10 +2,12 @@ import MaterialIcons from "@react-native-vector-icons/material-icons/static";
 import { useState } from "react";
 import {
   ActivityIndicator,
+  Image,
   LayoutAnimation,
   Text,
   TouchableOpacity,
   View,
+  type ImageSourcePropType,
 } from "react-native";
 
 import { THEME } from "../../theme";
@@ -16,6 +18,8 @@ export interface SelectOption<T extends string> {
   label: string;
   /** Optional supporting line rendered under the label once expanded. */
   meta?: string;
+  /** Optional leading preview (e.g. a cover sample) once expanded. */
+  thumb?: ImageSourcePropType;
 }
 
 interface Props<T extends string> {
@@ -32,10 +36,9 @@ interface Props<T extends string> {
 }
 
 /**
- * Inline dropdown: a plain settings row that unfolds its options in place.
- * No modal, no portal — the list pushes the rows below it down and closes
- * on pick. Replaces the bottom sheets that used to own Settings' selects so
- * every surface shares one simple, consistent interaction.
+ * Inline dropdown: a plain settings row that unfolds its options in place,
+ * as more rows of the same card. No modal, no portal. Options can carry a
+ * preview thumbnail so a choice like cover quality reads at a glance.
  */
 export function Select<T extends string>({
   label,
@@ -94,6 +97,9 @@ export function Select<T extends string>({
       >
         <Text style={styles.label}>{label}</Text>
         <View style={styles.value}>
+          {selected?.thumb != null && (
+            <Image source={selected.thumb} style={styles.rowThumb} />
+          )}
           <Text style={styles.valueText} numberOfLines={1}>
             {selected?.label ?? ""}
           </Text>
@@ -106,54 +112,56 @@ export function Select<T extends string>({
       </TouchableOpacity>
 
       {expanded && (
-        <View style={styles.options}>
-          {options.map((option) => {
+        <View>
+          {options.map((option, index) => {
             const isSelected = option.key === value;
             const isApplying = option.key === applyingKey;
             return (
-              <TouchableOpacity
-                key={option.key}
-                accessibilityRole="button"
-                accessibilityState={{
-                  selected: isSelected,
-                  disabled: applying || undefined,
-                }}
-                activeOpacity={0.7}
-                disabled={applying}
-                onPress={() => void choose(option.key)}
-                style={[
-                  styles.option,
-                  applying && !isApplying && styles.disabled,
-                ]}
-              >
-                <View style={styles.optionBody}>
-                  <Text
-                    style={[
-                      styles.optionLabel,
-                      isSelected && styles.optionLabelSelected,
-                    ]}
-                  >
-                    {option.label}
-                  </Text>
-                  {option.meta != null && (
-                    <Text style={styles.optionMeta} numberOfLines={2}>
-                      {option.meta}
-                    </Text>
+              <View key={option.key}>
+                {index > 0 && <View style={styles.separator} />}
+                <TouchableOpacity
+                  accessibilityRole="button"
+                  accessibilityState={{
+                    selected: isSelected,
+                    disabled: applying || undefined,
+                  }}
+                  activeOpacity={0.7}
+                  disabled={applying}
+                  onPress={() => void choose(option.key)}
+                  style={[styles.option, applying && !isApplying && styles.disabled]}
+                >
+                  {option.thumb != null && (
+                    <Image source={option.thumb} style={styles.optionThumb} />
                   )}
-                </View>
-                {isApplying ? (
-                  <ActivityIndicator
-                    size="small"
-                    color={THEME.COLORS.TEXT_DIM}
-                  />
-                ) : isSelected ? (
-                  <MaterialIcons
-                    name="check"
-                    size={THEME.ICON.MD}
-                    color={THEME.COLORS.BRAND}
-                  />
-                ) : null}
-              </TouchableOpacity>
+                  <View style={styles.optionBody}>
+                    <Text
+                      style={[
+                        styles.optionLabel,
+                        isSelected && styles.optionLabelSelected,
+                      ]}
+                    >
+                      {option.label}
+                    </Text>
+                    {option.meta != null && (
+                      <Text style={styles.optionMeta} numberOfLines={2}>
+                        {option.meta}
+                      </Text>
+                    )}
+                  </View>
+                  {isApplying ? (
+                    <ActivityIndicator
+                      size="small"
+                      color={THEME.COLORS.TEXT_DIM}
+                    />
+                  ) : isSelected ? (
+                    <MaterialIcons
+                      name="check"
+                      size={THEME.ICON.MD}
+                      color={THEME.COLORS.BRAND}
+                    />
+                  ) : null}
+                </TouchableOpacity>
+              </View>
             );
           })}
         </View>

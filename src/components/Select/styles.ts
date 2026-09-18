@@ -3,12 +3,14 @@ import { StyleSheet } from "react-native";
 import { THEME } from "../../theme";
 
 const ROW_MIN_HEIGHT = 52;
-const OPTION_MIN_HEIGHT = 48;
+const THUMB = 44;
+const ROW_THUMB = 28;
 
 /**
- * Row visuals mirror the Settings/Storage group rows so a dropdown reads as
- * the same control language; the unfolded options sit on the quieter surface
- * to signal they belong to the row above.
+ * The control row and its unfolded options share the exact row metrics the
+ * Settings/Storage groups use (52 tall, 12 horizontal padding, 16 bold label
+ * / soft value). The list reads as more rows of the same card — only the
+ * inset hairline separators and the flipping chevron mark it as expanded.
  */
 export const styles = StyleSheet.create({
   row: {
@@ -38,18 +40,32 @@ export const styles = StyleSheet.create({
     fontSize: THEME.FONT_SIZE.LIST,
     textAlign: "right",
   },
-  options: {
+  rowThumb: {
+    width: ROW_THUMB,
+    height: ROW_THUMB,
+    borderRadius: THEME.RADIUS.MD,
     backgroundColor: THEME.COLORS.SURFACE_SUBTLE,
+  },
+  separator: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: THEME.COLORS.HAIRLINE,
+    marginLeft: THEME.SPACE.MD,
   },
   option: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
-    minHeight: OPTION_MIN_HEIGHT,
-    paddingHorizontal: THEME.SPACE.LG,
+    minHeight: ROW_MIN_HEIGHT,
+    paddingHorizontal: THEME.SPACE.MD,
+    paddingVertical: THEME.SPACE.SM,
     gap: THEME.SPACE.MD,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: THEME.COLORS.HAIRLINE,
+  },
+  optionThumb: {
+    width: THUMB,
+    height: THUMB,
+    borderRadius: THEME.RADIUS.LG,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: THEME.COLORS.HAIRLINE,
+    backgroundColor: THEME.COLORS.SURFACE_SUBTLE,
   },
   optionBody: {
     flex: 1,
@@ -57,12 +73,12 @@ export const styles = StyleSheet.create({
     gap: THEME.SPACE.XXS,
   },
   optionLabel: {
-    color: THEME.COLORS.TEXT,
+    color: THEME.COLORS.TEXT_SOFT,
     fontFamily: THEME.FONT_FAMILY.REGULAR,
     fontSize: THEME.FONT_SIZE.LIST,
   },
   optionLabelSelected: {
-    color: THEME.COLORS.BRAND,
+    color: THEME.COLORS.TEXT,
     fontFamily: THEME.FONT_FAMILY.BOLD,
   },
   optionMeta: {

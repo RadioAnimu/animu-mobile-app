@@ -14,6 +14,9 @@ export interface CoverQualitySample {
 /** Now-playing track the bundled samples were captured from. */
 export const SAMPLE_TRACK_LABEL = "Sora no Hikari — Chata";
 
+/** Placeholder artwork shown for the "off" tier (nothing is downloaded). */
+export const DEFAULT_COVER_SOURCE = require("../../assets/default-cover.png");
+
 export const COVER_QUALITY_SAMPLES: CoverQualitySample[] = [
   {
     key: "high",

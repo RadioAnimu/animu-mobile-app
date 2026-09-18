@@ -29,6 +29,7 @@ import { getUserName } from "../../core/domain/user";
 import { providerLabel } from "../../constants/auth";
 import {
   COVER_QUALITY_SAMPLES,
+  DEFAULT_COVER_SOURCE,
   type CoverQualityKey,
 } from "../../constants/artwork-quality";
 import { author } from "../../../package.json";
@@ -174,11 +175,13 @@ export function Settings({ navigation }: Props) {
         meta: `${sample.pixelWidth}×${sample.pixelHeight} · ${formatBytes(
           sample.sizeBytes,
         )}`,
+        thumb: sample.source,
       })),
       {
         key: "off" as const,
         label: dict.SETTINGS_QUALITY_LIVE_LABEL_OFF,
         meta: dict.SETTINGS_QUALITY_LIVE_OFF_HINT,
+        thumb: DEFAULT_COVER_SOURCE,
       },
     ],
     [dict],
