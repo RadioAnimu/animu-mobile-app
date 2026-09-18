@@ -1,20 +1,36 @@
-import { AudioSampler } from "./audio-sampler";
-import type { SamplingTransport, VisualizerSampler } from "./visualizer.types";
+import type {
+  SamplingTransport,
+  VisualizerSampler,
+  VisualizerWindow,
+} from "./visualizer.types";
 
 /**
- * iOS sampler factory.
+ * iOS sampler factory — no-op.
  *
- * expo-audio 57 ships the whole iOS sampling chain out of the box: an
- * MTAudioProcessingTap (`AudioTapProcessor`) attached to the AVPlayer item,
- * decoding windows emitted through the shared `audioSampleUpdate` bridge —
- * the same surface the Android patch implements. The old assumption that a
- * live `AVPlayer` stream cannot be tapped no longer holds at this SDK
- * version, so iOS consumes the exact same `AudioSampler` pipeline as
- * Android: down-mix → resample → publish raw windows; the WebView engine
- * does all the per-frame work.
+ * expo-audio 57 ships an `MTAudioProcessingTap` sampling hook that installs
+ * fine on a live `AVPlayer` item (`installTap` succeeds) but its render
+ * callback **never fires for indefinite HTTP audio** (verified natively:
+ * the tap attached, then `tapProcess` was never invoked). Until expo-audio
+ * changes how the feed leaves the player, iOS cannot tap the decoded
+ * stream, so the sampler stays a stub and the entire oscilloscope
+ * implementation stays out of the iOS bundle (type-only references here —
+ * the superset `VisualizerWindow` type keeps the shared pipeline ready).
  */
+class NoopVisualizerSampler implements VisualizerSampler {
+  readonly isSupported = false;
+  readonly isActive = false;
+
+  setEnabled(_enabled: boolean): void {}
+  setForeground(_foreground: boolean): void {}
+  setPlaying(_playing: boolean): void {}
+  subscribeWindows(_listener: (window: VisualizerWindow) => void): () => void {
+    return () => {};
+  }
+  dispose(): void {}
+}
+
 export function createVisualizerSampler(
-  transport: SamplingTransport,
+  _transport: SamplingTransport,
 ): VisualizerSampler {
-  return new AudioSampler(transport);
+  return new NoopVisualizerSampler();
 }

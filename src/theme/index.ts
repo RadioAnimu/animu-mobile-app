@@ -77,6 +77,8 @@ export const THEME = {
     MD: 8,
     LG: 10,
     XL: 12,
+    /** Grouped settings/profile card — the established surface radius. */
+    CARD: 14,
     SHEET: 20,
     CIRCLE: 999,
   },

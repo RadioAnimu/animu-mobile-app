@@ -17,6 +17,7 @@ import { Background } from "../../components/Background";
 import { Avatar } from "../../components/Avatar";
 import { BackArrow } from "../../components/BackArrow";
 import { AnimuConnectSheet } from "../../components/AnimuConnectSheet";
+import { MaskedValue } from "../../components/MaskedValue";
 import { ProviderIcon } from "../../components/ProviderIcon";
 import { SectionTitle } from "../../components/SectionTitle";
 import { useAlert } from "../../contexts/alert/AlertProvider";
@@ -30,6 +31,7 @@ import {
   providerLabel,
 } from "../../constants/auth";
 import { buildAuthImageSource } from "../../utils/authImage";
+import { maskEmail, maskHandle, maskIdentifier } from "../../utils/mask";
 import { DICT } from "../../i18n";
 import { RootStackParamList } from "../../routes/app.routes";
 import { THEME } from "../../theme";
@@ -37,25 +39,53 @@ import { AVATAR, HEADER_HEIGHT, styles } from "./styles";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Account">;
 
+interface ProviderDisplay {
+  /** The real detail line, shown while revealed. */
+  value: string;
+  /** The same line with the personal half masked. */
+  masked: string;
+}
+
 /**
- * Identity line for a linked provider: Discord shows its `@handle` (or the
- * numeric id), Google/Apple show `name · email`. Falls back to whatever the
- * server supplied, then the provider user id.
+ * Identity line for a linked provider. Discord shows its `@handle` (or the
+ * numeric id); Google/Apple show `name · email`. Each variant carries a
+ * masked twin so the row protects the personal half by default.
  */
-function linkedProviderDetail(provider: LinkedProvider): string | null {
-  const handle = provider.providerUsername
-    ? `@${provider.providerUsername}`
-    : null;
+function providerDisplay(provider: LinkedProvider): ProviderDisplay | null {
+  const handle = provider.providerUsername;
 
   if (provider.provider === "discord") {
-    return handle ?? (provider.providerUserId || null);
+    if (handle) return { value: `@${handle}`, masked: maskHandle(handle) };
+    if (provider.providerUserId) {
+      return {
+        value: provider.providerUserId,
+        masked: maskIdentifier(provider.providerUserId),
+      };
+    }
+    return null;
   }
 
-  const parts = [provider.providerName, provider.providerEmail].filter(
-    (part): part is string => !!part,
-  );
-  if (parts.length > 0) return parts.join(" · ");
-  return handle ?? (provider.providerUserId || null);
+  const parts: string[] = [];
+  const maskedParts: string[] = [];
+  if (provider.providerName) {
+    parts.push(provider.providerName);
+    maskedParts.push(provider.providerName);
+  }
+  if (provider.providerEmail) {
+    parts.push(provider.providerEmail);
+    maskedParts.push(maskEmail(provider.providerEmail));
+  }
+  if (parts.length > 0) {
+    return { value: parts.join(" · "), masked: maskedParts.join(" · ") };
+  }
+  if (handle) return { value: `@${handle}`, masked: maskHandle(handle) };
+  if (provider.providerUserId) {
+    return {
+      value: provider.providerUserId,
+      masked: maskIdentifier(provider.providerUserId),
+    };
+  }
+  return null;
 }
 
 export function Account({ navigation }: Props) {
@@ -216,9 +246,13 @@ export function Account({ navigation }: Props) {
                   {name}
                 </Text>
                 {profileUser.email && (
-                  <Text style={styles.caption} numberOfLines={1}>
-                    {profileUser.email}
-                  </Text>
+                  <MaskedValue
+                    value={profileUser.email}
+                    mask={maskEmail}
+                    textStyle={styles.caption}
+                    showLabel={dict.ACCOUNT_SHOW}
+                    hideLabel={dict.ACCOUNT_HIDE}
+                  />
                 )}
                 <View style={styles.badges}>
                   <View
@@ -300,10 +334,7 @@ export function Account({ navigation }: Props) {
             <Text style={styles.refreshText}>{dict.ACCOUNT_REFRESH}</Text>
           </TouchableOpacity>
 
-          <SectionTitle
-            title={dict.ACCOUNT_LINKED_ACCOUNTS}
-            icon="link"
-          />
+          <SectionTitle title={dict.ACCOUNT_LINKED_ACCOUNTS} icon="link" />
           <View style={styles.group}>
             {availableProviders.map((provider, index) => {
               const linkedInfo = linkedProviders.find(
@@ -313,6 +344,7 @@ export function Account({ navigation }: Props) {
               const configured = isProviderConfigured(provider.name);
               const linkable = isProviderLinkable(provider.name);
               const rowBusy = busy === `link-${provider.name}`;
+              const display = linkedInfo ? providerDisplay(linkedInfo) : null;
               return (
                 <View key={provider.name}>
                   {index > 0 && <View style={styles.divider} />}
@@ -322,12 +354,22 @@ export function Account({ navigation }: Props) {
                     </View>
                     <View style={styles.rowBody}>
                       <Text style={styles.rowLabel}>{provider.label}</Text>
-                      <Text style={styles.rowCaption} numberOfLines={1}>
-                        {linkedInfo
-                          ? linkedProviderDetail(linkedInfo) ??
-                            dict.ACCOUNT_LINKED
-                          : dict.ACCOUNT_NOT_LINKED}
-                      </Text>
+                      {linked && display ? (
+                        <MaskedValue
+                          value={display.value}
+                          mask={() => display.masked}
+                          textStyle={styles.rowCaption}
+                          showLabel={dict.ACCOUNT_SHOW}
+                          hideLabel={dict.ACCOUNT_HIDE}
+                          iconSize={14}
+                        />
+                      ) : (
+                        <Text style={styles.rowCaption} numberOfLines={1}>
+                          {linked
+                            ? dict.ACCOUNT_LINKED
+                            : dict.ACCOUNT_NOT_LINKED}
+                        </Text>
+                      )}
                     </View>
                     {rowBusy ? (
                       <ActivityIndicator color={THEME.COLORS.TEXT} />

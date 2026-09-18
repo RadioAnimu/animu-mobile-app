@@ -7,6 +7,7 @@ import { Home } from "../screens/Home";
 import { Last } from "../screens/Ultimas";
 import { THEME } from "../theme";
 import { Settings } from "../screens/Settings";
+import { Storage } from "../screens/Storage";
 import { Login } from "../screens/Login";
 import { Account } from "../screens/Account";
 import { DICT } from "../i18n";
@@ -19,6 +20,7 @@ interface LastProps {
 }
 type FazerPedidoProps = undefined;
 type SettingsProps = undefined;
+type StorageProps = undefined;
 type LoginProps = undefined;
 type AccountProps = undefined;
 
@@ -28,6 +30,7 @@ export type RootStackParamList = {
   LastPlayed: LastProps;
   FazerPedido: FazerPedidoProps;
   Settings: SettingsProps;
+  Storage: StorageProps;
   Login: LoginProps;
   Account: AccountProps;
 };
@@ -96,6 +99,15 @@ export function AppRoutes() {
         }}
         name="Settings"
         component={Settings}
+      />
+      <Screen
+        options={{
+          drawerItemStyle: {
+            display: "none",
+          },
+        }}
+        name="Storage"
+        component={Storage}
       />
       <Screen
         options={{

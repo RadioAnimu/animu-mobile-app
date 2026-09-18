@@ -2,36 +2,53 @@ import { StyleSheet } from "react-native";
 
 import { THEME } from "../../theme";
 
-const CARD_RADIUS = 14;
-
 export const styles = StyleSheet.create({
   card: {
-    paddingHorizontal: THEME.SPACE.MD,
-    paddingVertical: THEME.SPACE.MD,
-    rowGap: 10,
+    backgroundColor: THEME.COLORS.SURFACE,
+    borderRadius: THEME.RADIUS.CARD,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: THEME.COLORS.HAIRLINE,
+    padding: THEME.SPACE.LG,
+    gap: THEME.SPACE.MD,
   },
-  totalRow: {
+  summary: {
     flexDirection: "row",
-    alignItems: "center",
+    alignItems: "flex-end",
     justifyContent: "space-between",
+    gap: THEME.SPACE.MD,
   },
-  totalLabel: {
+  summaryText: {
+    flexShrink: 1,
+    gap: THEME.SPACE.XXS,
+  },
+  totalValue: {
     color: THEME.COLORS.TEXT,
     fontFamily: THEME.FONT_FAMILY.BOLD,
-    fontSize: THEME.FONT_SIZE.LIST,
+    fontSize: THEME.FONT_SIZE.TITLE,
   },
-  totalMeta: {
+  totalLabel: {
+    color: THEME.COLORS.TEXT_SOFT,
+    fontFamily: THEME.FONT_FAMILY.REGULAR,
+    fontSize: THEME.FONT_SIZE.BODY,
+  },
+  totalCount: {
     color: THEME.COLORS.TEXT_DIM,
     fontFamily: THEME.FONT_FAMILY.REGULAR,
     fontSize: THEME.FONT_SIZE.CAPTION,
   },
-  barRow: {
+  explain: {
+    color: THEME.COLORS.TEXT_SOFT,
+    fontFamily: THEME.FONT_FAMILY.REGULAR,
+    fontSize: THEME.FONT_SIZE.BODY,
+    lineHeight: THEME.LINE_HEIGHT.SUBHEAD,
+  },
+  barTrack: {
     flexDirection: "row",
-    height: 12,
-    borderRadius: 6,
+    height: 14,
+    borderRadius: 7,
     overflow: "hidden",
     gap: 2,
-    marginVertical: 2,
+    backgroundColor: THEME.COLORS.SURFACE_SUBTLE,
   },
   barSegment: {
     height: "100%",
@@ -49,7 +66,7 @@ export const styles = StyleSheet.create({
   legendRow: {
     flexDirection: "row",
     alignItems: "center",
-    minHeight: 28,
+    minHeight: 26,
     gap: THEME.SPACE.XS,
   },
   dot: {
@@ -64,7 +81,7 @@ export const styles = StyleSheet.create({
     fontFamily: THEME.FONT_FAMILY.REGULAR,
     fontSize: THEME.FONT_SIZE.LABEL,
   },
-  legendMeta: {
+  legendValue: {
     color: THEME.COLORS.TEXT_SOFT,
     fontFamily: THEME.FONT_FAMILY.REGULAR,
     fontSize: THEME.FONT_SIZE.LABEL,
@@ -74,18 +91,21 @@ export const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    gap: THEME.SPACE.XS,
-    minHeight: 44,
+    gap: THEME.SPACE.SM,
+    minHeight: 48,
     marginTop: THEME.SPACE.XS,
-    borderRadius: CARD_RADIUS - 6,
-    backgroundColor: THEME.COLORS.INPUT_BG,
+    borderRadius: THEME.RADIUS.XL,
+    backgroundColor: THEME.COLORS.BRAND,
+  },
+  cleanBusy: {
+    opacity: THEME.OPACITY.SOFT,
   },
   cleanDisabled: {
     opacity: THEME.OPACITY.DISABLED,
   },
   cleanLabel: {
-    color: THEME.COLORS.TEXT,
+    color: THEME.COLORS.SURFACE,
     fontFamily: THEME.FONT_FAMILY.BOLD,
-    fontSize: THEME.FONT_SIZE.LABEL,
+    fontSize: THEME.FONT_SIZE.LIST,
   },
 });

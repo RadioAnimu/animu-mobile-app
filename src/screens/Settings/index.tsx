@@ -1,4 +1,4 @@
-import { useEffect, useState, useSyncExternalStore } from "react";
+import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import MaterialIcons from "@react-native-vector-icons/material-icons/static";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 
@@ -15,11 +15,9 @@ import { Avatar } from "../../components/Avatar";
 import { BackArrow } from "../../components/BackArrow";
 import { ProviderIcon } from "../../components/ProviderIcon";
 import { SectionTitle } from "../../components/SectionTitle";
-import { CoverQualitySheet } from "../../components/CoverQualitySheet";
-import { LanguageSelectSheet } from "../../components/LanguageSelectSheet";
-import { CoverStorageCard } from "../../components/CoverStorageCard";
-import { CacheLimitSheet } from "../../components/CacheLimitSheet";
-import { formatBytes } from "../../components/CoverQualitySheet/qualities";
+import { Select, type SelectOption } from "../../components/Select";
+import { useCoverStorageSnapshot } from "../../hooks/useCoverStorage";
+import { formatBytes } from "../../utils/format";
 import { DICT, LANGS_KEY_VALUE_PAIRS } from "../../i18n";
 import { RootStackParamList } from "../../routes/app.routes";
 import { THEME } from "../../theme";
@@ -29,6 +27,10 @@ import { coverDiskStorage } from "../../core/services/cover-disk-storage.service
 import { useAuth } from "../../contexts/auth/AuthProvider";
 import { getUserName } from "../../core/domain/user";
 import { providerLabel } from "../../constants/auth";
+import {
+  COVER_QUALITY_SAMPLES,
+  type CoverQualityKey,
+} from "../../constants/artwork-quality";
 import { author } from "../../../package.json";
 import * as Linking from "expo-linking";
 
@@ -127,7 +129,9 @@ function ValueRow({ label, value, onPress }: ValueRowProps) {
     >
       <Text style={styles.rowLabel}>{label}</Text>
       <View style={styles.rowValue}>
-        <Text style={styles.rowValueText}>{value}</Text>
+        <Text style={styles.rowValueText} numberOfLines={1}>
+          {value}
+        </Text>
         <MaterialIcons
           name="chevron-right"
           size={THEME.ICON.MD}
@@ -140,7 +144,7 @@ function ValueRow({ label, value, onPress }: ValueRowProps) {
 
 type Props = NativeStackScreenProps<RootStackParamList, "Settings">;
 
-const COVER_QUALITY_LABEL_KEY = {
+const QUALITY_LABEL_KEY = {
   high: "SETTINGS_QUALITY_LIVE_LABEL_HIGH",
   medium: "SETTINGS_QUALITY_LIVE_LABEL_MEDIUM",
   low: "SETTINGS_QUALITY_LIVE_LABEL_LOW",
@@ -150,23 +154,45 @@ export function Settings({ navigation }: Props) {
   const insets = useSafeAreaInsets();
   const { settings, updateSettings } = useUserSettings();
   const { user, profile } = useAuth();
-  const [languageSheetVisible, setLanguageSheetVisible] = useState(false);
-  const [coverQualitySheetVisible, setCoverQualitySheetVisible] =
-    useState(false);
-  const [cacheLimitSheetVisible, setCacheLimitSheetVisible] = useState(false);
   // Wipe-in-progress from the storage service — disables the cache toggle
   // (both tap paths: the clean button and the automatic cache-off wipe).
   const cacheWiping = useSyncExternalStore(
     (listener) => coverDiskStorage.subscribe(listener),
     () => coverDiskStorage.isClearing,
   );
+  const { snapshot, measuring } = useCoverStorageSnapshot();
 
   const dict = DICT[settings.selectedLanguage];
 
-  const qualityLabel =
-    settings.liveQualityCover === "off"
-      ? dict.SETTINGS_QUALITY_LIVE_LABEL_OFF
-      : dict[COVER_QUALITY_LABEL_KEY[settings.liveQualityCover]];
+  // Inline dropdown options. Cover tiers carry their real pixel size, so the
+  // choice stays informed without opening a preview sheet.
+  const qualityOptions = useMemo<SelectOption<CoverQualityKey | "off">[]>(
+    () => [
+      ...COVER_QUALITY_SAMPLES.map((sample) => ({
+        key: sample.key,
+        label: dict[QUALITY_LABEL_KEY[sample.key as CoverQualityKey]],
+        meta: `${sample.pixelWidth}×${sample.pixelHeight} · ${formatBytes(
+          sample.sizeBytes,
+        )}`,
+      })),
+      {
+        key: "off" as const,
+        label: dict.SETTINGS_QUALITY_LIVE_LABEL_OFF,
+        meta: dict.SETTINGS_QUALITY_LIVE_OFF_HINT,
+      },
+    ],
+    [dict],
+  );
+
+  const languageOptions = useMemo<
+    SelectOption<keyof typeof LANGS_KEY_VALUE_PAIRS>[]
+  >(
+    () =>
+      (
+        Object.keys(LANGS_KEY_VALUE_PAIRS) as (keyof typeof LANGS_KEY_VALUE_PAIRS)[]
+      ).map((key) => ({ key, label: LANGS_KEY_VALUE_PAIRS[key] })),
+    [],
+  );
 
   return (
     <Background>
@@ -268,12 +294,11 @@ export function Settings({ navigation }: Props) {
 
           <SectionTitle title={dict.SETTINGS_SAVE_DATA_TITLE} icon="cloud-off" />
           <View style={styles.group}>
-            <ValueRow
-              label={cleanLabel(dict.SETTINGS_QUALITY_LIVE_LABEL)}
-              value={qualityLabel}
-              onPress={() => {
-                setCoverQualitySheetVisible(true);
-              }}
+            <Select
+              label={dict.SETTINGS_QUALITY_ROW}
+              options={qualityOptions}
+              value={settings.liveQualityCover}
+              onChange={(key) => updateSettings({ liveQualityCover: key })}
             />
             <Divider />
             <SettingsRow
@@ -307,7 +332,10 @@ export function Settings({ navigation }: Props) {
             />
           </View>
 
-          <SectionTitle title={dict.SETTINGS_OSCILLOSCOPE_TITLE} icon="graphic-eq" />
+          <SectionTitle
+            title={dict.SETTINGS_OSCILLOSCOPE_TITLE}
+            icon="graphic-eq"
+          />
           <View style={styles.group}>
             {/* Uncapped like the web player's rAF loop: on = render at the
                 device's own vsync, off = off. No stepped rate to pick, so a
@@ -345,12 +373,11 @@ export function Settings({ navigation }: Props) {
 
           <SectionTitle title={dict.SETTINGS_GENERAL_TITLE} icon="language" />
           <View style={styles.group}>
-            <ValueRow
+            <Select
               label={cleanLabel(dict.SETTINGS_LANGUAGE_SELECT_TITLE)}
-              value={LANGS_KEY_VALUE_PAIRS[settings.selectedLanguage]}
-              onPress={() => {
-                setLanguageSheetVisible(true);
-              }}
+              options={languageOptions}
+              value={settings.selectedLanguage}
+              onChange={(key) => updateSettings({ selectedLanguage: key })}
             />
           </View>
 
@@ -367,21 +394,15 @@ export function Settings({ navigation }: Props) {
               }}
             />
             <Divider />
-            <View style={!settings.cacheEnabled && styles.rowDisabled}>
-              <ValueRow
-                label={cleanLabel(dict.SETTINGS_STORAGE_LIMIT_LABEL)}
-                value={
-                  settings.coverCacheLimitBytes > 0
-                    ? formatBytes(settings.coverCacheLimitBytes)
-                    : dict.SETTINGS_STORAGE_LIMIT_UNLIMITED
-                }
-                onPress={() => {
-                  if (settings.cacheEnabled) setCacheLimitSheetVisible(true);
-                }}
-              />
-            </View>
-            <Divider />
-            <CoverStorageCard />
+            <ValueRow
+              label={dict.SETTINGS_STORAGE_MANAGE}
+              value={
+                measuring ? "· · ·" : formatBytes(snapshot?.totalBytes ?? 0)
+              }
+              onPress={() => {
+                navigation.navigate("Storage");
+              }}
+            />
           </View>
 
           <View style={styles.footer}>
@@ -395,29 +416,11 @@ export function Settings({ navigation }: Props) {
               }}
             >
               <Text style={styles.footerText}>
-                {dict.VERSION_TEXT} <Text style={styles.footerAuthor}>@{author}</Text>
+                {dict.VERSION_TEXT}{" "}
+                <Text style={styles.footerAuthor}>@{author}</Text>
               </Text>
             </TouchableOpacity>
           </View>
-
-          <LanguageSelectSheet
-            visible={languageSheetVisible}
-            onClose={() => {
-              setLanguageSheetVisible(false);
-            }}
-          />
-          <CoverQualitySheet
-            visible={coverQualitySheetVisible}
-            onClose={() => {
-              setCoverQualitySheetVisible(false);
-            }}
-          />
-          <CacheLimitSheet
-            visible={cacheLimitSheetVisible}
-            onClose={() => {
-              setCacheLimitSheetVisible(false);
-            }}
-          />
         </ScrollView>
       </SafeAreaView>
     </Background>

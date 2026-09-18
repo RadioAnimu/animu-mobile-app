@@ -103,6 +103,7 @@ export const styles = StyleSheet.create({
     gap: THEME.SPACE.XS,
   },
   accountName: {
+    flexShrink: 1,
     color: THEME.COLORS.TEXT,
     fontFamily: THEME.FONT_FAMILY.BOLD,
     fontSize: THEME.FONT_SIZE.SUBHEAD,
@@ -147,9 +148,11 @@ export const styles = StyleSheet.create({
   rowValue: {
     flexDirection: "row",
     alignItems: "center",
+    flexShrink: 1,
     gap: THEME.SPACE.XS,
   },
   rowValueText: {
+    flexShrink: 1,
     color: THEME.COLORS.TEXT_SOFT,
     fontFamily: THEME.FONT_FAMILY.REGULAR,
     fontSize: THEME.FONT_SIZE.LIST,

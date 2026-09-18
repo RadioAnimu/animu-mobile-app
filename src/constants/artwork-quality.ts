@@ -1,7 +1,7 @@
-import type { ArtworkQuality } from "../../@types/artwork-quality";
+import type { ArtworkQuality } from "../@types/artwork-quality";
 
-/** Cover quality options shown in the selector, including disabling covers. */
-export type CoverQualityKey = ArtworkQuality;
+/** Quality tiers that ship a bundled preview (everything but "off"). */
+export type CoverQualityKey = Exclude<ArtworkQuality, "off">;
 
 export interface CoverQualitySample {
   key: CoverQualityKey;
@@ -17,29 +17,23 @@ export const SAMPLE_TRACK_LABEL = "Sora no Hikari — Chata";
 export const COVER_QUALITY_SAMPLES: CoverQualitySample[] = [
   {
     key: "high",
-    source: require("../../assets/covers/sample-cover-large.jpg"),
+    source: require("../assets/covers/sample-cover-large.jpg"),
     pixelWidth: 1500,
     pixelHeight: 1391,
     sizeBytes: 253960,
   },
   {
     key: "medium",
-    source: require("../../assets/covers/sample-cover-medium.jpg"),
+    source: require("../assets/covers/sample-cover-medium.jpg"),
     pixelWidth: 500,
     pixelHeight: 464,
     sizeBytes: 52551,
   },
   {
     key: "low",
-    source: require("../../assets/covers/sample-cover-tiny.jpg"),
+    source: require("../assets/covers/sample-cover-tiny.jpg"),
     pixelWidth: 100,
     pixelHeight: 93,
     sizeBytes: 4045,
   },
 ];
-
-export function formatBytes(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
-  return `${Math.round(bytes / (1024 * 1024))} MB`;
-}

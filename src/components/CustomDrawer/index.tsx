@@ -143,6 +143,7 @@ function NavItems({ state, descriptors, navigation }: DrawerContentComponentProp
 }
 
 interface AccountRowProps {
+  onOpenAccount: () => void;
   onOpenLogin: () => void;
   onOpenSettings: () => void;
 }
@@ -151,11 +152,17 @@ interface AccountRowProps {
  * Bottom identity block — the richer "profile card" treatment.
  *
  * - Signed in: avatar (brand ring) + name + sign-in method + chevron; the
- *   whole chip opens Settings.
- * - Signed out: the chip opens Login and a gear on the same row opens
- *   Settings.
+ *   whole chip opens Account.
+ * - Signed out: the chip opens Login.
+ *
+ * The gear sits on the right either way, so Settings is always one tap away
+ * without hiding behind the profile chip.
  */
-function AccountRow({ onOpenLogin, onOpenSettings }: AccountRowProps) {
+function AccountRow({
+  onOpenAccount,
+  onOpenLogin,
+  onOpenSettings,
+}: AccountRowProps) {
   const { settings } = useUserSettings();
   const { user, profile } = useAuth();
   const dict = DICT[settings.selectedLanguage];
@@ -166,11 +173,9 @@ function AccountRow({ onOpenLogin, onOpenSettings }: AccountRowProps) {
       <View style={styles.accountRow}>
         <TouchableOpacity
           accessibilityRole="button"
-          accessibilityHint={
-            user ? "Opens settings" : "Opens login"
-          }
+          accessibilityHint={user ? "Opens your account" : "Opens login"}
           activeOpacity={0.7}
-          onPress={user ? onOpenSettings : onOpenLogin}
+          onPress={user ? onOpenAccount : onOpenLogin}
           style={[styles.accountIdentity, styles.accountIdentityGrow]}
         >
           {user ? (
@@ -214,21 +219,19 @@ function AccountRow({ onOpenLogin, onOpenSettings }: AccountRowProps) {
           )}
         </TouchableOpacity>
 
-        {!user && (
-          <TouchableOpacity
-            accessibilityRole="button"
-            accessibilityHint="Opens settings"
-            activeOpacity={0.7}
-            onPress={onOpenSettings}
-            style={styles.gearButton}
-          >
-            <MaterialIcons
-              name="settings"
-              size={THEME.ICON.MD}
-              color={THEME.COLORS.TEXT}
-            />
-          </TouchableOpacity>
-        )}
+        <TouchableOpacity
+          accessibilityRole="button"
+          accessibilityHint="Opens settings"
+          activeOpacity={0.7}
+          onPress={onOpenSettings}
+          style={styles.gearButton}
+        >
+          <MaterialIcons
+            name="settings"
+            size={THEME.ICON.MD}
+            color={THEME.COLORS.TEXT}
+          />
+        </TouchableOpacity>
       </View>
     </View>
   );
@@ -245,6 +248,10 @@ export function CustomDrawerContent(props: DrawerContentComponentProps) {
 
   const goToLogin = () => {
     navigation.navigate("Login");
+  };
+
+  const goToAccount = () => {
+    navigation.navigate("Account");
   };
 
   const LINKS: LinkMenuItemProps[] = [
@@ -305,6 +312,7 @@ export function CustomDrawerContent(props: DrawerContentComponentProps) {
       </View>
 
       <AccountRow
+        onOpenAccount={goToAccount}
         onOpenLogin={goToLogin}
         onOpenSettings={goToSettings}
       />

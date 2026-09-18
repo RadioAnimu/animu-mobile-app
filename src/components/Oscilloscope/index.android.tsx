@@ -75,9 +75,20 @@ const PAGE_HTML = `<!DOCTYPE html>
         return wave;
       }
 
+      // RN webview delivers ref.postMessage per platform: on iOS it fires on
+      // the window, on Android on the document. Listen on both; the seq
+      // guard makes a double delivery a no-op.
+      var lastSeq = 0;
+      function onBridgeEvent(event) {
+        receiveWindow(event.data);
+      }
       function receiveWindow(message) {
         var payload;
         try { payload = JSON.parse(message); } catch (error) { return; }
+        if (payload.seq !== undefined) {
+          if (payload.seq <= lastSeq) return;
+          lastSeq = payload.seq;
+        }
         if (payload.type === 'wave') {
           var next = decode(payload.wave);
           previousWave = targetWave;
@@ -91,10 +102,10 @@ const PAGE_HTML = `<!DOCTYPE html>
           windowAt = 0;
         }
       }
-      // Android WebView delivers RN postMessage as a document 'message' event.
-      document.addEventListener('message', function (event) {
-        receiveWindow(event.data);
-      });
+      // Android WebView delivers RN postMessage on the document; iOS on
+      // window — the seq guard above makes the overlap harmless.
+      document.addEventListener('message', onBridgeEvent);
+      window.addEventListener('message', onBridgeEvent);
       window.postMessage(JSON.stringify({ type: 'ready' }), '*');
 
       function drawOscilloscope() {
@@ -127,6 +138,7 @@ const PAGE_HTML = `<!DOCTYPE html>
         scopeContext.lineJoin = 'round';
         scopeContext.lineCap = 'round';
         scopeContext.stroke();
+
       }
       drawOscilloscope();
     </script>
@@ -159,15 +171,26 @@ export const Oscilloscope = React.memo(function Oscilloscope() {
   const webviewRef = useRef<WebViewHandle | null>(null);
   /** Whether the embedded page has announced itself through the bridge. */
   const pageReadyRef = useRef(false);
+  /** Monotonic bridge message counter (dedupe guard across platforms). */
+  const bridgeSeqRef = useRef(0);
   const wantsOn =
     isPlaying &&
     visualizerSupported &&
     settings.visualizerHz > 0 &&
     !isBackgrounded;
 
-  const post = useCallback((payload: object) => {
-    webviewRef.current?.postMessage(JSON.stringify(payload));
-  }, []);
+
+  const post = useCallback(
+    (payload: object) => {
+      // Each bridge message carries a monotonic seq — the embedded page
+      // ignores replays (some platforms deliver to both window and document).
+      bridgeSeqRef.current += 1;
+      webviewRef.current?.postMessage(
+        JSON.stringify({ ...payload, seq: bridgeSeqRef.current }),
+      );
+    },
+    [],
+  );
 
   const receiveWindow = useCallback(
     (window: VisualizerWindow) => {
@@ -202,21 +225,23 @@ export const Oscilloscope = React.memo(function Oscilloscope() {
 
   return (
     <View style={styles.container} pointerEvents="none">
-      <WebView
-        ref={webviewRef}
-        source={{ html: PAGE_HTML }}
-        onMessage={onMessage}
-        javaScriptEnabled
-        domStorageEnabled={false}
-        originWhitelist={["*"]}
-        mediaPlaybackRequiresUserAction={false}
-        mixedContentMode="always"
-        androidLayerType="hardware"
-        scrollEnabled={false}
-        showsHorizontalScrollIndicator={false}
-        showsVerticalScrollIndicator={false}
-        style={{ width, height: STRIP_HEIGHT, backgroundColor: "transparent" }}
-      />
+      <View style={styles.canvas}>
+        <WebView
+          ref={webviewRef}
+          source={{ html: PAGE_HTML }}
+          onMessage={onMessage}
+          javaScriptEnabled
+          domStorageEnabled={false}
+          originWhitelist={["*"]}
+          mediaPlaybackRequiresUserAction={false}
+          mixedContentMode="always"
+          androidLayerType="hardware"
+          scrollEnabled={false}
+          showsHorizontalScrollIndicator={false}
+          showsVerticalScrollIndicator={false}
+          style={{ width, height: STRIP_HEIGHT, backgroundColor: "transparent" }}
+        />
+      </View>
     </View>
   );
 });
