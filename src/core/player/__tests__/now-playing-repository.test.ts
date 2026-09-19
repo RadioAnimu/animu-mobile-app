@@ -642,6 +642,15 @@ describe("NowPlayingRepository — live SSE ingestion", () => {
     const handlers: LiveHandlers = captured;
     return {
       ...fixture,
+      // Spread flattens the base getter/setter into a data property, so
+      // forward them explicitly to keep `fixture.program = …` wired to the
+      // fetcher closure.
+      get program() {
+        return fixture.program;
+      },
+      set program(value: Program) {
+        fixture.program = value;
+      },
       getStreamMetadataSpy,
       unsubscribe,
       pushSong: (track, listeners = 10) =>
@@ -673,15 +682,57 @@ describe("NowPlayingRepository — live SSE ingestion", () => {
     expect(fixture.getStreamMetadataSpy).not.toHaveBeenCalled();
   });
 
-  it("drops filler and offline placeholder pushes", () => {
+  it("tracks filler pushes but ignores the offline placeholder", () => {
     const fixture = withLive();
+    const onLiveTrackChange = vi.fn();
+    fixture.repository.onLiveTrackChange = onLiveTrackChange;
 
-    // Jingle/placeholder excluded by isRealTrack → state untouched
+    // Filler (jingle/ident/transition) is still the on-air item — the UI
+    // and media session must follow it, exactly like the HTTP poll did.
     fixture.pushSong(makeTrack({ raw: "Passagem - Jingle", anime: "Passagem" }));
     fixture.pushSong(null); // offline payload with track: null
 
-    expect(fixture.repository.currentTrack).toBeNull();
-    expect(fixture.changes).toEqual([]);
+    expect(fixture.repository.currentTrack?.raw).toBe("Passagem - Jingle");
+    expect(fixture.repository.showProgress).toBe(false);
+    expect(fixture.changes).toEqual([
+      {
+        trackChanged: true,
+        listenersChanged: true,
+        programChanged: false,
+        playedChanged: false,
+        requestedChanged: false,
+      },
+    ]);
+    expect(onLiveTrackChange).toHaveBeenCalledTimes(1);
+  });
+
+  it("recomputes the media-session progress flag on every live track change", () => {
+    const fixture = withLive();
+
+    // Real track, AutoDJ program → seek bar on.
+    fixture.pushSong(makeTrack({ raw: "Live - Song" }), 10);
+    expect(fixture.repository.showProgress).toBe(true);
+
+    // Filler → seek bar off…
+    fixture.pushSong(makeTrack({ raw: "Passagem - Jingle", anime: "Passagem" }));
+    expect(fixture.repository.showProgress).toBe(false);
+
+    // …and the next real song turns it back on without waiting for a poll.
+    fixture.pushSong(makeTrack({ raw: "Live - Song 2" }));
+    expect(fixture.repository.showProgress).toBe(true);
+  });
+
+  it("keeps the seek bar off while the program is live", async () => {
+    const fixture = withLive();
+    fixture.program = makeProgram({ name: "Live Show", isLive: true });
+
+    // The program reaches the repository through the poll first…
+    await fixture.repository.refresh();
+    // …then a real song arrives over SSE while the show is live.
+    fixture.pushSong(makeTrack({ raw: "Live - Song" }), 10);
+
+    expect(fixture.repository.currentTrack?.raw).toBe("Live - Song");
+    expect(fixture.repository.showProgress).toBe(false);
   });
 
   it("lets refresh() skip the HTTP metadata leg while the stream is fresh", async () => {

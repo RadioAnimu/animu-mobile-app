@@ -252,7 +252,7 @@ const DICT = {
   LOGIN_OR: "ou",
   LOGIN_WITH_ANIMU_CONNECT: "Continuar com Animu Connect",
   LOGIN_ANIMU_CONNECT_HINT:
-    "Use um e-mail vinculado à sua conta Animu.",
+    "Qualquer e-mail vinculado à sua conta Animu funciona. E-mails de provedores são automáticos; você pode adicionar um e-mail extra no perfil.",
   LOGIN_CONNECT_SUBTITLE: "Vamos enviar um código de 4 dígitos por e-mail",
   LOGIN_EMAIL: "E-mail",
   LOGIN_EMAIL_PLACEHOLDER: "voce@exemplo.com",
@@ -281,13 +281,15 @@ const DICT = {
   ACCOUNT_NOT_LINKED: "Não vinculada",
   ACCOUNT_UNLINK: "Desvincular",
   ACCOUNT_LINK: "Vincular",
-  ACCOUNT_LAST_PROVIDER: "Mantenha pelo menos uma conta vinculada.",
+  ACCOUNT_LAST_PROVIDER:
+    "Mantenha pelo menos uma conta vinculada. Para sair, exclua sua conta.",
   ACCOUNT_LINK_SUCCESS: "Conta vinculada",
   ACCOUNT_UNLINK_SUCCESS: "Conta desvinculada",
   ACCOUNT_ANIMU_CONNECT: "Animu Connect",
   ACCOUNT_ANIMU_CONNECT_DESC: "Entre com um código por e-mail.",
+  ACCOUNT_ANIMU_CONNECT_READY_AS: "Configurado como {email}",
   ACCOUNT_ANIMU_CONNECT_FORM_HINT:
-    "E-mails vinculados à sua conta Animu. Adicione um e-mail extra para entrar com ele.",
+    "E-mails vinculados à sua conta Animu. E-mails de provedores são automáticos; você pode definir um e-mail extra.",
   ACCOUNT_DANGER: "Zona de perigo",
   ACCOUNT_LOGOUT: "Sair da conta",
   ACCOUNT_DELETE: "Excluir conta",

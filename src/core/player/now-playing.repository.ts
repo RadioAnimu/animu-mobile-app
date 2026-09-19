@@ -264,19 +264,29 @@ export class NowPlayingRepository {
     if (this.disposed) return;
     this.lastLiveEventAt = Date.now();
 
+    // Follow the station's on-air item exactly like the HTTP leg did: real
+    // songs AND filler (jingles/idents/transitions) both become current, so
+    // the UI and the media session track the broadcast instead of freezing
+    // on the previous song. Only a payload with no track at all (offline
+    // placeholder) leaves the current state untouched.
     const track = song.track;
-    if (!track || !isRealTrack(track)) {
-      // Offline placeholder (or jingle) — keep the current state; the UI
-      // shows the old track until the station returns with real data.
-      return;
-    }
-
-    const trackChanged =
-      this.currentTrackValue?.raw !== track.raw ||
-      this.currentTrackValue?.artwork !== track.artwork;
-    if (trackChanged) {
-      this.currentTrackValue = track;
-      void this.refreshHistory("played");
+    let trackChanged = false;
+    if (track) {
+      trackChanged =
+        this.currentTrackValue?.raw !== track.raw ||
+        this.currentTrackValue?.artwork !== track.artwork;
+      if (trackChanged) {
+        this.currentTrackValue = track;
+        // Filler is never added to the played history (same rule as the
+        // poll's `refreshHistory`).
+        if (isRealTrack(track)) void this.refreshHistory("played");
+        // Progress follows the poll's rule: a seek bar only for real,
+        // non-live tracks. Recomputing here is what keeps the media
+        // session's bar from staying stuck off after a live push (filler
+        // or a live block can flip it off before the next poll lands).
+        this.showProgressValue =
+          isRealTrack(track) && !(this.currentProgramValue?.isLive ?? false);
+      }
     }
 
     const listenersChanged = this.listenersValue?.value !== song.listeners.value;

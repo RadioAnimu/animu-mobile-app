@@ -27,12 +27,12 @@ type Mode = "list" | "add" | "verify";
 
 /** Manages the account's Animu Connect emails (provider + extra). */
 export function AnimuConnectSheet({ visible, onClose }: Props) {
-  const { getEmails, requestAddEmail, verifyAddEmail, removeEmail } = useAuth();
+  const { emails, refreshEmails, requestAddEmail, verifyAddEmail, removeEmail } =
+    useAuth();
   const { settings } = useUserSettings();
   const { toast, error: showError } = useAlert();
   const dict = DICT[settings.selectedLanguage];
 
-  const [emails, setEmails] = useState<AuthAccountEmail[]>([]);
   const [loading, setLoading] = useState(false);
   const [mode, setMode] = useState<Mode>("list");
   const [email, setEmail] = useState("");
@@ -45,22 +45,18 @@ export function AnimuConnectSheet({ visible, onClose }: Props) {
     let cancelled = false;
     setLoading(true);
     setError(null);
-    void getEmails()
-      .then((result) => {
-        if (!cancelled) setEmails(result.emails);
-      })
-      .catch((err) => {
-        console.error("[AnimuConnectSheet] Failed to load emails:", err);
-        if (!cancelled) setError(dict.ACCOUNT_ACTION_FAILED);
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
+    void refreshEmails().finally(() => {
+      if (!cancelled) setLoading(false);
+    });
     return () => {
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible]);
+
+  // There is at most ONE extra `animu` email — when it exists the action
+  // replaces it rather than adding another.
+  const extraEmail = emails.find((item) => item.source === "animu") ?? null;
 
   const reset = () => {
     setMode("list");
@@ -110,8 +106,7 @@ export function AnimuConnectSheet({ visible, onClose }: Props) {
     setBusy(true);
     setError(null);
     try {
-      const result = await verifyAddEmail(email.trim(), value);
-      setEmails(result.emails);
+      await verifyAddEmail(email.trim(), value);
       toast(dict.ACCOUNT_EMAIL_SAVED);
       reset();
     } catch (err) {
@@ -141,8 +136,7 @@ export function AnimuConnectSheet({ visible, onClose }: Props) {
               setBusy(true);
               setError(null);
               try {
-                const result = await removeEmail(target.id);
-                setEmails(result.emails);
+                await removeEmail(target.id);
                 toast(dict.ACCOUNT_EMAIL_REMOVED);
               } catch (err) {
                 console.error("[AnimuConnectSheet] Remove email failed:", err);
@@ -230,18 +224,28 @@ export function AnimuConnectSheet({ visible, onClose }: Props) {
 
             {error && <Text style={styles.error}>{error}</Text>}
 
-            <TouchableOpacity
-              accessibilityRole="button"
-              activeOpacity={0.7}
-              disabled={busy || loading}
-              onPress={() => {
-                setError(null);
-                setMode("add");
-              }}
-              style={[styles.submit, (busy || loading) && styles.submitDisabled]}
-            >
-              <Text style={styles.submitText}>{dict.ACCOUNT_EMAIL_ADD}</Text>
-            </TouchableOpacity>
+            {/*
+              The server allows only ONE extra email and rejects a new add
+              while it exists, so the action is hidden until the current one
+              is removed (the row above carries the Remove button).
+            */}
+            {!extraEmail && (
+              <TouchableOpacity
+                accessibilityRole="button"
+                activeOpacity={0.7}
+                disabled={busy || loading}
+                onPress={() => {
+                  setError(null);
+                  setMode("add");
+                }}
+                style={[
+                  styles.submit,
+                  (busy || loading) && styles.submitDisabled,
+                ]}
+              >
+                <Text style={styles.submitText}>{dict.ACCOUNT_EMAIL_ADD}</Text>
+              </TouchableOpacity>
+            )}
           </>
         ) : (
           <>

@@ -249,7 +249,8 @@ const DICT = {
   LOGIN_PROVIDER_UNAVAILABLE: "Soon",
   LOGIN_OR: "or",
   LOGIN_WITH_ANIMU_CONNECT: "Continue with Animu Connect",
-  LOGIN_ANIMU_CONNECT_HINT: "Use an email linked to your Animu account.",
+  LOGIN_ANIMU_CONNECT_HINT:
+    "Any email linked to your Animu account works. Provider emails are automatic; you can add one extra email in your profile.",
   LOGIN_CONNECT_SUBTITLE: "We'll email you a 4-digit sign-in code",
   LOGIN_EMAIL: "Email",
   LOGIN_EMAIL_PLACEHOLDER: "you@example.com",
@@ -278,13 +279,15 @@ const DICT = {
   ACCOUNT_NOT_LINKED: "Not linked",
   ACCOUNT_UNLINK: "Unlink",
   ACCOUNT_LINK: "Link",
-  ACCOUNT_LAST_PROVIDER: "Keep at least one linked account.",
+  ACCOUNT_LAST_PROVIDER:
+    "Keep at least one linked account. To leave, delete your account.",
   ACCOUNT_LINK_SUCCESS: "Account linked",
   ACCOUNT_UNLINK_SUCCESS: "Account unlinked",
   ACCOUNT_ANIMU_CONNECT: "Animu Connect",
   ACCOUNT_ANIMU_CONNECT_DESC: "Sign in with an email code.",
+  ACCOUNT_ANIMU_CONNECT_READY_AS: "Configured as {email}",
   ACCOUNT_ANIMU_CONNECT_FORM_HINT:
-    "Emails linked to your Animu account. Add an extra email to sign in with it.",
+    "Emails linked to your Animu account. Provider emails are automatic; you can set one extra email.",
   ACCOUNT_DANGER: "Danger zone",
   ACCOUNT_LOGOUT: "Log out",
   ACCOUNT_DELETE: "Delete account",

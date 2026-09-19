@@ -250,7 +250,8 @@ const DICT = {
   LOGIN_PROVIDER_UNAVAILABLE: "準備中",
   LOGIN_OR: "または",
   LOGIN_WITH_ANIMU_CONNECT: "Animu Connect で続ける",
-  LOGIN_ANIMU_CONNECT_HINT: "Animu アカウントに登録したメールを使ってね。",
+  LOGIN_ANIMU_CONNECT_HINT:
+    "Animu アカウントに登録したメールが使えるよ。プロバイダーのメールは自動だよ。追加のメールはプロフィールで登録できるよ。",
   LOGIN_CONNECT_SUBTITLE: "4桁のコードをメールで送るよ",
   LOGIN_EMAIL: "メール",
   LOGIN_EMAIL_PLACEHOLDER: "you@example.com",
@@ -279,13 +280,15 @@ const DICT = {
   ACCOUNT_NOT_LINKED: "未連携",
   ACCOUNT_UNLINK: "連携解除",
   ACCOUNT_LINK: "連携",
-  ACCOUNT_LAST_PROVIDER: "アカウントを1つ以上残してね。",
+  ACCOUNT_LAST_PROVIDER:
+    "アカウントを1つ以上残してね。退会したい場合はアカウントを削除してね。",
   ACCOUNT_LINK_SUCCESS: "連携したよ",
   ACCOUNT_UNLINK_SUCCESS: "連携を解除したよ",
   ACCOUNT_ANIMU_CONNECT: "Animu Connect",
   ACCOUNT_ANIMU_CONNECT_DESC: "メールコードでログイン。",
+  ACCOUNT_ANIMU_CONNECT_READY_AS: "{email} で設定済み",
   ACCOUNT_ANIMU_CONNECT_FORM_HINT:
-    "Animu アカウントに登録したメールだよ。追加のメールを登録するとそれでもログインできるよ。",
+    "Animu アカウントに登録したメールだよ。プロバイダーのメールは自動で、追加のメールを1つ設定できるよ。",
   ACCOUNT_DANGER: "危険な操作",
   ACCOUNT_LOGOUT: "ログアウト",
   ACCOUNT_DELETE: "アカウントを削除",

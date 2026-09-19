@@ -8,6 +8,7 @@ import React, {
 } from "react";
 import { Linking } from "react-native";
 import type {
+  AuthAccountEmail,
   AuthEmailRequestResult,
   AuthEmailsResult,
   AuthProfile,
@@ -41,7 +42,13 @@ interface AuthContextType {
   refreshProfile: () => Promise<void>;
   linkProvider: (provider: string) => Promise<void>;
   unlinkProvider: (provider: string) => Promise<void>;
-  getEmails: () => Promise<AuthEmailsResult>;
+  /**
+   * The account's Animu Connect emails: provider emails (auto-registered at
+   * login/link, never removable) plus the optional single extra
+   * `source: "animu"` email.
+   */
+  emails: AuthAccountEmail[];
+  refreshEmails: () => Promise<void>;
   requestAddEmail: (email: string) => Promise<AuthEmailRequestResult>;
   verifyAddEmail: (email: string, code: string) => Promise<AuthEmailsResult>;
   removeEmail: (emailId: number) => Promise<AuthRemoveEmailResult>;
@@ -62,6 +69,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const [providers, setProviders] = useState<ProviderInfo[]>(
     DEFAULT_PROVIDERS,
   );
+  const [emails, setEmails] = useState<AuthAccountEmail[]>([]);
   const [imageVersion, setImageVersion] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [isAuthenticating, setIsAuthenticating] = useState(false);
@@ -79,6 +87,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     userRef.current = null;
     setUser(null);
     setProfile(null);
+    setEmails([]);
   }, []);
 
   const loadProfile = useCallback(async () => {
@@ -86,6 +95,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       setProfile(await authFacade.getProfile());
     } catch (error) {
       console.error("[AuthProvider] Failed to load profile:", error);
+    }
+  }, []);
+
+  const refreshEmails = useCallback(async () => {
+    try {
+      setEmails((await authFacade.getEmails()).emails);
+    } catch (error) {
+      console.error("[AuthProvider] Failed to load emails:", error);
     }
   }, []);
 
@@ -116,8 +133,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       setUser(nextUser);
       startSessionCheck();
       void loadProfile();
+      void refreshEmails();
     },
-    [loadProfile, startSessionCheck],
+    [loadProfile, refreshEmails, startSessionCheck],
   );
 
   const refreshProfile = useCallback(async () => {
@@ -127,7 +145,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     userRef.current = result.user;
     setUser(result.user);
     setProfile(result.profile);
-  }, []);
+    // The provider refresh can rename/verify the auto-registered emails.
+    await refreshEmails();
+  }, [refreshEmails]);
 
   const logout = useCallback(async () => {
     try {
@@ -180,6 +200,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
             if (await authFacade.getSessionStatus()) {
               startSessionCheck();
               void loadProfile();
+              void refreshEmails();
             } else {
               await clearSession();
             }
@@ -201,7 +222,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       cancelled = true;
       backgroundService.stopTask(SESSION_CHECK_TASK_ID);
     };
-  }, [adoptUser, clearSession, loadProfile, startSessionCheck]);
+  }, [
+    adoptUser,
+    clearSession,
+    loadProfile,
+    refreshEmails,
+    startSessionCheck,
+  ]);
 
   const loginWithProvider = useCallback(
     async (provider: string) => {
@@ -238,22 +265,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       try {
         await authFacade.linkProvider(provider);
         await loadProfile();
+        // Linking auto-registers the provider's email on Animu Connect.
+        await refreshEmails();
       } finally {
         setIsAuthenticating(false);
       }
     },
-    [loadProfile],
+    [loadProfile, refreshEmails],
   );
 
   const unlinkProvider = useCallback(
     async (provider: string) => {
       await authFacade.unlinkProvider(provider);
       await loadProfile();
+      // Unlinking drops the provider's auto-registered email.
+      await refreshEmails();
     },
-    [loadProfile],
+    [loadProfile, refreshEmails],
   );
-
-  const getEmails = useCallback(() => authFacade.getEmails(), []);
 
   const requestAddEmail = useCallback(
     (email: string) => authFacade.requestAddEmail(email),
@@ -261,12 +290,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   );
 
   const verifyAddEmail = useCallback(
-    (email: string, code: string) => authFacade.verifyAddEmail({ email, code }),
+    async (email: string, code: string) => {
+      const result = await authFacade.verifyAddEmail({ email, code });
+      setEmails(result.emails);
+      return result;
+    },
     [],
   );
 
   const removeEmail = useCallback(
-    (emailId: number) => authFacade.removeEmail(emailId),
+    async (emailId: number) => {
+      const result = await authFacade.removeEmail(emailId);
+      setEmails(result.emails);
+      return result;
+    },
     [],
   );
 
@@ -303,7 +340,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         refreshProfile,
         linkProvider,
         unlinkProvider,
-        getEmails,
+        emails,
+        refreshEmails,
         requestAddEmail,
         verifyAddEmail,
         removeEmail,

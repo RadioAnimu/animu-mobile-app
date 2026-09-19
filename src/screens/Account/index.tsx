@@ -156,6 +156,7 @@ export function Account({ navigation }: Props) {
     profile,
     providers,
     isAuthenticated,
+    emails,
     imageVersion,
     logout,
     deleteAccount,
@@ -195,7 +196,12 @@ export function Account({ navigation }: Props) {
   // so unconfigured ones (Apple) render as "coming soon" here too.
   const availableProviders = providers;
 
+  // At least one social provider must always remain (Animu Connect does not
+  // replace it) — the server refuses the last unlink with `last_provider`.
   const canUnlink = linkedProviders.length > 1;
+
+  const animuConnectEmail =
+    emails.find((email) => email.source === "animu")?.email ?? null;
 
   const confirmDelete = () => {
     Alert.alert(
@@ -508,8 +514,12 @@ export function Account({ navigation }: Props) {
                   {dict.ACCOUNT_ANIMU_CONNECT}
                 </Text>
                 <Text style={styles.rowCaption}>
-                  {profile?.user.email ??
-                    dict.ACCOUNT_ANIMU_CONNECT_DESC}
+                  {animuConnectEmail
+                    ? dict.ACCOUNT_ANIMU_CONNECT_READY_AS.replace(
+                        "{email}",
+                        animuConnectEmail,
+                      )
+                    : dict.ACCOUNT_ANIMU_CONNECT_DESC}
                 </Text>
               </View>
               <MaterialIcons
