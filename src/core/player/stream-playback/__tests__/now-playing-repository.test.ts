@@ -10,7 +10,7 @@ import {
   NowPlayingRepository,
   type NowPlayingChange,
   type NowPlayingFetchers,
-} from "@/core/player/now-playing.repository";
+} from "@/core/player/stream-playback/now-playing.repository";
 import { createFakeTimer, type FakeTimer } from "@/core/player/__tests__/fake-timer";
 
 const BASE_RETRY_MS = 2000;

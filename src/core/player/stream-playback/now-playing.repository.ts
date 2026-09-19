@@ -7,7 +7,7 @@ import type {
 } from "animu-api";
 import type { Program } from "@/core/domain/program";
 import { isRealTrack } from "@/core/domain/track";
-import { BackoffScheduler } from "@/core/player/backoff";
+import { BackoffScheduler } from "@/core/player/stream-playback/backoff";
 import type { Timer } from "@/core/player/timer";
 
 /** Buffer after expected track end before fetching (ms) */

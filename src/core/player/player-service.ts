@@ -11,27 +11,27 @@ import { EndPlaybackSession } from "@/core/services/player-playback.service";
 import { API } from "@/api";
 import { animuApi } from "@/api/client";
 import { CONFIG } from "@/utils/player.config";
-import { BackoffScheduler } from "@/core/player/backoff";
+import { BackoffScheduler } from "@/core/player/stream-playback/backoff";
 import {
   buildNowPlayingMetadata,
   type NowPlayingInput,
-} from "@/core/player/now-playing.metadata";
-import { ArtworkResolver } from "@/core/player/artwork";
+} from "@/core/player/media-session/now-playing.metadata";
+import { ArtworkResolver } from "@/core/player/storage/artwork";
 import {
   CachedCoverLookup,
   CoverCacheSeeder,
   ExpoImageCoverDiskCache,
-} from "@/core/player/cover-image-cache";
-import { HeartbeatScheduler } from "@/core/player/heartbeat";
-import { MediaSessionPublisher } from "@/core/player/media-session.publisher";
+} from "@/core/player/storage/cover-image-cache";
+import { HeartbeatScheduler } from "@/core/player/stream-playback/heartbeat";
+import { MediaSessionPublisher } from "@/core/player/media-session/media-session.publisher";
 import {
   NetworkMonitor,
   type ConnectivitySubscribe,
-} from "@/core/player/network-monitor";
+} from "@/core/player/stream-playback/network-monitor";
 import {
   NowPlayingRepository,
-} from "@/core/player/now-playing.repository";
-import { ProgressTicker, toSec } from "@/core/player/progress-ticker";
+} from "@/core/player/stream-playback/now-playing.repository";
+import { ProgressTicker, toSec } from "@/core/player/stream-playback/progress-ticker";
 import {
   playerStore,
   progressStore,
@@ -39,18 +39,18 @@ import {
   type PlayerSnapshot,
   type StationSnapshot,
 } from "@/core/player/store";
-import { StreamPreferences } from "@/core/player/stream-preferences";
-import { AudioTransport } from "@/core/player/transport";
+import { StreamPreferences } from "@/core/player/stream-playback/stream-preferences";
+import { AudioTransport } from "@/core/player/stream-playback/transport";
 import { createVisualizerSampler } from "@/core/player/visualizer";
 import type {
   VisualizerSampler,
   VisualizerWindow,
-} from "@/core/player/visualizer.types";
+} from "@/core/player/visualizer/types";
 import {
   TransportStateMachine,
   isDeadPlaybackState,
   type TransportState,
-} from "@/core/player/transport-state";
+} from "@/core/player/stream-playback/transport-state";
 import { jsTimer } from "@/core/player/timer";
 
 // ── Stream reconnect backoff ──

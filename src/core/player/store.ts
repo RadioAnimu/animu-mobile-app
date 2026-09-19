@@ -2,7 +2,7 @@ import { Track } from "@/core/domain/track";
 import { Stream } from "@/core/domain/stream";
 import { Listeners } from "@/core/domain/listeners";
 import { Program } from "@/core/domain/program";
-import type { TransportState } from "@/core/player/transport-state";
+import type { TransportState } from "@/core/player/stream-playback/transport-state";
 
 // ─── Snapshot types ───
 //

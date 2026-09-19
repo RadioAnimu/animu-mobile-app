@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import type { AudioSample } from "expo-audio";
-import { AudioSampler } from "@/core/player/audio-sampler";
+import { AudioSampler } from "@/core/player/visualizer/audio-sampler";
 
 /** Fake transport exposing the captured native sample handler. */
 const makeTransport = (supported = true) => {

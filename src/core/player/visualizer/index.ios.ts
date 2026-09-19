@@ -2,7 +2,7 @@ import type {
   SamplingTransport,
   VisualizerSampler,
   VisualizerWindow,
-} from "@/core/player/visualizer.types";
+} from "@/core/player/visualizer/types";
 
 /**
  * iOS sampler factory — no-op.

@@ -4,10 +4,10 @@ import type {
   PlaybackStatus,
 } from "react-native-playback-controls";
 import { progressStore } from "@/core/player/store";
-import type { MediaSessionPublisher } from "@/core/player/media-session.publisher";
-import type { NowPlayingRepository } from "@/core/player/now-playing.repository";
-import type { AudioTransport } from "@/core/player/transport";
-import type { TransportStateMachine } from "@/core/player/transport-state";
+import type { MediaSessionPublisher } from "@/core/player/media-session/media-session.publisher";
+import type { NowPlayingRepository } from "@/core/player/stream-playback/now-playing.repository";
+import type { AudioTransport } from "@/core/player/stream-playback/transport";
+import type { TransportStateMachine } from "@/core/player/stream-playback/transport-state";
 
 /** ms → seconds for the native media session, rejecting NaN/Infinity */
 export const toSec = (ms: number | null | undefined): number | undefined =>

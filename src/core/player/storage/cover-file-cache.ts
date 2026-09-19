@@ -1,4 +1,4 @@
-import type { CoverFileCache } from "@/core/player/cover-ports";
+import type { CoverFileCache } from "@/core/player/storage/cover-ports";
 
 /** In-memory lookup cap. The underlying files live in OS/SDK-owned cache
  * directories — only this lookup map is bounded here. */

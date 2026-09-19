@@ -3,8 +3,8 @@ import { describe, expect, it, vi } from "vitest";
 import {
   CachedCoverLookup,
   CoverCacheSeeder,
-} from "@/core/player/cover-image-cache";
-import type { CoverDiskCache } from "@/core/player/cover-ports";
+} from "@/core/player/storage/cover-image-cache";
+import type { CoverDiskCache } from "@/core/player/storage/cover-ports";
 
 // expo-image reaches the expo package (unparseable in node) — mocked at
 // hoist time (vitest hoists vi.mock above the imports); the adapters are

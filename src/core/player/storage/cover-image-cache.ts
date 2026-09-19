@@ -1,7 +1,7 @@
 import { Image } from "expo-image";
 import { artworkSizeRank, deriveArtworkVariants } from "animu-api";
 
-import type { CoverDiskCache } from "@/core/player/cover-ports";
+import type { CoverDiskCache } from "@/core/player/storage/cover-ports";
 
 /**
  * Adapters over expo-image's own disk cache, implementing the ports in

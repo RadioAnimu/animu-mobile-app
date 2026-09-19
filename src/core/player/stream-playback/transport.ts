@@ -6,7 +6,7 @@ import {
   type AudioSource,
 } from "expo-audio";
 import { CONFIG } from "@/utils/player.config";
-import { LIVE_FORWARD_BUFFER_SECONDS } from "@/core/player/live-buffer";
+import { LIVE_FORWARD_BUFFER_SECONDS } from "@/core/player/stream-playback/live-buffer";
 import { getPlaybackSession } from "@/core/services/player-playback.service";
 import { SetupService } from "@/core/services/player-setup.service";
 

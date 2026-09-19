@@ -6,8 +6,8 @@ import type {
   CoverFileCache,
   FindCachedCoverFile,
   SeedCoverCache,
-} from "@/core/player/cover-ports";
-import { CoverFileHashMap } from "@/core/player/cover-file-cache";
+} from "@/core/player/storage/cover-ports";
+import { CoverFileHashMap } from "@/core/player/storage/cover-file-cache";
 
 export interface ArtworkResolverOptions {
   /**

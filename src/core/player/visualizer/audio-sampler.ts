@@ -1,10 +1,10 @@
 import type { AudioSample } from "expo-audio";
-import { downmixChannels, resampleWaveformInto, rms } from "@/core/player/waveform";
+import { downmixChannels, resampleWaveformInto, rms } from "@/core/player/visualizer/waveform";
 import type {
   SamplingTransport,
   VisualizerSampler,
   VisualizerWindow,
-} from "@/core/player/visualizer.types";
+} from "@/core/player/visualizer/types";
 
 /**
  * Oscilloscope sampler — turns the native player's decoded-PCM events into

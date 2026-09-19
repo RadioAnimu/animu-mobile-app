@@ -3,4 +3,4 @@
  * their platform-suffixed files; this keeps TypeScript and any other platform
  * resolving a real implementation.
  */
-export { createVisualizerSampler } from "@/core/player/visualizer.android";
+export { createVisualizerSampler } from "@/core/player/visualizer/index.android";

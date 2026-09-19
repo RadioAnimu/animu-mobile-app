@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { BackoffScheduler } from "@/core/player/backoff";
+import { BackoffScheduler } from "@/core/player/stream-playback/backoff";
 import { createFakeTimer } from "@/core/player/__tests__/fake-timer";
 
 const BASE_MS = 2000;

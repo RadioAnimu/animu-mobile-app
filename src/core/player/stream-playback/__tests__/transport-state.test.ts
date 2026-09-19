@@ -4,7 +4,7 @@ import {
   isDeadPlaybackState,
   isPlayingIntentState,
   toRemoteStatus,
-} from "@/core/player/transport-state";
+} from "@/core/player/stream-playback/transport-state";
 
 describe("TransportStateMachine", () => {
   it("starts idle", () => {
