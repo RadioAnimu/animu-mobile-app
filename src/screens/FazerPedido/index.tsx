@@ -1,5 +1,5 @@
 import Ionicons from "@react-native-vector-icons/ionicons/static";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -22,6 +22,7 @@ import { TrackRequestContext } from "@/components/RequestTrack/context";
 import { useAuth } from "@/contexts/auth/AuthProvider";
 import { useUserSettings } from "@/contexts/user/UserSettingsProvider";
 import { useDict } from "@/hooks/useDict";
+import { useLatestRequest } from "@/hooks/useLatestRequest";
 import {
   MusicRequest,
   MusicRequestPagination,
@@ -57,19 +58,17 @@ export function FazerPedido() {
     undefined,
   );
 
-  // Monotonic token: only the newest search/load-more may write results, so
-  // an out-of-order response (e.g. a slow first page landing after a fast
-  // second) can never clobber the current list.
-  const requestIdRef = useRef(0);
+  // Only the newest search/load-more may write results.
+  const { begin, isCurrent } = useLatestRequest();
 
   const handleSearch = useCallback(async () => {
     const query = searchState.query;
     if (!query) return;
-    const requestId = ++requestIdRef.current;
+    const requestId = begin();
     setSearchState((prev) => ({ ...prev, status: "loading" }));
     try {
       const response = await musicRequestService.searchTracksByTitle(query);
-      if (requestId !== requestIdRef.current) return;
+      if (!isCurrent(requestId)) return;
       setSearchState({
         query,
         results: response.results,
@@ -78,22 +77,22 @@ export function FazerPedido() {
       });
     } catch (err) {
       console.error(err);
-      if (requestId !== requestIdRef.current) return;
+      if (!isCurrent(requestId)) return;
       setSearchState((prev) => ({ ...prev, status: "idle" }));
     }
-  }, [searchState.query]);
+  }, [begin, isCurrent, searchState.query]);
 
   const handleLoadMore = useCallback(async () => {
     if (searchState.status !== "idle") return;
     const nextPageParams = searchState.pagination?.nextPageParams;
     if (!nextPageParams) return;
-    const requestId = ++requestIdRef.current;
+    const requestId = begin();
     setSearchState((prev) => ({ ...prev, status: "loadingMore" }));
     try {
       const response = await musicRequestService.searchTracksByQuery(
         nextPageParams,
       );
-      if (requestId !== requestIdRef.current) return;
+      if (!isCurrent(requestId)) return;
       setSearchState((prev) => ({
         ...prev,
         results: [...prev.results, ...response.results],
@@ -102,10 +101,10 @@ export function FazerPedido() {
       }));
     } catch (err) {
       console.error(err);
-      if (requestId !== requestIdRef.current) return;
+      if (!isCurrent(requestId)) return;
       setSearchState((prev) => ({ ...prev, status: "idle" }));
     }
-  }, [searchState.pagination, searchState.status]);
+  }, [begin, isCurrent, searchState.pagination, searchState.status]);
 
   const handleSubmitRequest = useCallback(
     async (message: string): Promise<{ success: boolean; message: string }> => {
