@@ -32,3 +32,17 @@ jobs:
 
       - name: Lint
         run: npx expo lint
+
+      - name: Test
+        run: npm test
+
+      # Fails the build if the React Doctor health score drops below the floor.
+      # Advisory PR feedback lives in react-doctor.yml; this is the hard gate.
+      - name: React Doctor score gate
+        run: |
+          score=$(npx --yes react-doctor@latest --score)
+          echo "React Doctor score: $score"
+          if [ "$score" -lt 85 ]; then
+            echo "::error::React Doctor score $score is below the required minimum of 85"
+            exit 1
+          fi
