@@ -7,6 +7,7 @@ import { useUserSettings } from "@/contexts/user/UserSettingsProvider";
 import { useDict } from "@/hooks/useDict";
 import { styles } from "@/screens/Settings/styles";
 import { THEME } from "@/theme";
+import { haptics } from "@/utils/haptics";
 
 /** Dev portfolio — the credits hyperlink target. */
 const PORTFOLIO_URL = "https://rmotafreitas.dev";
@@ -27,6 +28,7 @@ export function FooterSection() {
           text: dict.SETTINGS_RESET_CONFIRM,
           style: "destructive",
           onPress: () => {
+            haptics.warning();
             void (async () => {
               setResetting(true);
               try {

@@ -17,6 +17,7 @@ import { THEME } from "@/theme";
 import { Avatar } from "@/components/Avatar";
 import { Cover } from "@/components/Cover";
 import { styles } from "@/components/RequestBottomSheet/styles";
+import { haptics } from "@/utils/haptics";
 import { Sheet } from "@/components/Sheet";
 
 type SubmitStatus = "idle" | "submitting" | "success" | "error";
@@ -66,14 +67,17 @@ export function RequestBottomSheet({
     try {
       const result = await onSubmit(message);
       if (result.success) {
+        haptics.success();
         setStatus("success");
         setStatusMessage(result.message);
         if (track) onRequestSuccess(track.id);
       } else {
+        haptics.error();
         setStatus("error");
         setStatusMessage(result.message);
       }
     } catch {
+      haptics.error();
       setStatus("error");
       setStatusMessage(DICT[lang].REQUEST_ERROR);
     }

@@ -42,4 +42,9 @@ export interface UserSettings {
    * plus the staleness fallback still cover freshness on return).
    */
   liveUpdatesInBackground: boolean;
+  /**
+   * Tactile feedback on taps, toggles and outcomes. `true` (default). No-op
+   * on devices/platforms without haptics support.
+   */
+  hapticsEnabled: boolean;
 }

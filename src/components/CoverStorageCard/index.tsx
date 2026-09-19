@@ -13,6 +13,7 @@ import { formatBytes, percentOf } from "@/utils/format";
 import { THEME } from "@/theme";
 import { useCoverStorageSnapshot } from "@/hooks/useCoverStorage";
 import { useDict } from "@/hooks/useDict";
+import { haptics } from "@/utils/haptics";
 import { styles } from "@/components/CoverStorageCard/styles";
 
 function LegendRow({
@@ -152,12 +153,14 @@ function CleanButton({
     try {
       await coverDiskStorage.clearAll();
       await measure();
+      haptics.success();
     } catch (error) {
       console.warn("[CoverStorageCard] clear failed:", error);
     }
   };
 
   const confirm = () => {
+    haptics.warning();
     Alert.alert(
       dict.STORAGE_CLEAR_CONFIRM_TITLE,
       dict.STORAGE_CLEAR_CONFIRM_MSG,

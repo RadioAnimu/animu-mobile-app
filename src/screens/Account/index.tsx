@@ -21,6 +21,7 @@ import { useAlert } from "@/contexts/alert/AlertProvider";
 import { useAuth } from "@/contexts/auth/AuthProvider";
 import { useDict } from "@/hooks/useDict";
 import { AuthFlowCancelled } from "@/core/auth";
+import { haptics } from "@/utils/haptics";
 import { RootStackParamList } from "@/routes/app.routes";
 import { THEME } from "@/theme";
 import { styles } from "@/screens/Account/styles";
@@ -90,6 +91,7 @@ export function Account({ navigation }: Props) {
           text: dict.ACCOUNT_DELETE,
           style: "destructive",
           onPress: () => {
+            haptics.warning();
             void handle("delete", async () => {
               await deleteAccount();
               navigation.navigate("Home");

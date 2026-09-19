@@ -15,6 +15,7 @@ import { useAuth } from "@/contexts/auth/AuthProvider";
 import { useLiveRequestForm } from "@/hooks/useLiveRequestForm";
 import { liveRequestService } from "@/core/services/live-request.service";
 import type { LiveRequest } from "@/core/domain/live-request";
+import { haptics } from "@/utils/haptics";
 import { Sheet } from "@/components/Sheet";
 
 interface Props {
@@ -127,12 +128,15 @@ export function LiveRequestModal({ visible, handleClose }: Props) {
       const result = await liveRequestService.submitRequest(getFormData());
 
       if (result.success) {
+        haptics.success();
         success(t.REQUEST_SUCCESS);
         closeAndReset();
       } else {
+        haptics.error();
         showError(t.REQUEST_ERROR);
       }
     } catch (error) {
+      haptics.error();
       console.error("[LiveRequestModal] Submit failed:", error);
       showError(t.REQUEST_ERROR);
     } finally {

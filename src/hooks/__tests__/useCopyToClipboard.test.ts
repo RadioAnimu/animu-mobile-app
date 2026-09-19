@@ -10,6 +10,7 @@ const { toast, setStringAsync } = vi.hoisted(() => ({
 }));
 
 vi.mock("expo-clipboard", () => ({ setStringAsync }));
+vi.mock("@/utils/haptics", () => ({ haptics: { select: vi.fn() } }));
 vi.mock("@/contexts/alert/AlertProvider", () => ({
   useAlert: () => ({ toast }),
 }));

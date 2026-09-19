@@ -10,6 +10,7 @@ import { getUserName } from "@/core/domain/user";
 import type { AuthProfile, User } from "@/core/domain/user";
 import { providerLabel } from "@/constants/auth";
 import { styles, SWITCH } from "@/screens/Settings/styles";
+import { haptics } from "@/utils/haptics";
 
 export function Divider() {
   return <View style={styles.divider} />;
@@ -159,7 +160,10 @@ export function SettingsRow({
       accessibilityRole="switch"
       accessibilityState={{ checked: value, disabled: disabled || undefined }}
       activeOpacity={0.7}
-      onPress={onToggle}
+      onPress={() => {
+        haptics.select();
+        onToggle();
+      }}
       disabled={disabled}
       style={[styles.row, disabled && styles.rowDisabled]}
     >

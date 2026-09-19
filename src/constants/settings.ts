@@ -11,4 +11,5 @@ export const DEFAULT_USER_SETTINGS: UserSettings = {
   coverCachePartitionBytes: null,
   visualizerHz: 60,
   liveUpdatesInBackground: true,
+  hapticsEnabled: true,
 };

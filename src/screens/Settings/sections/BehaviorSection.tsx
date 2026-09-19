@@ -66,6 +66,18 @@ export function BehaviorSection() {
         />
       </View>
 
+      <SectionTitle title={dict.SETTINGS_FEEDBACK_TITLE} icon="vibration" />
+      <View style={styles.group}>
+        <SettingsRow
+          label={cleanLabel(dict.SETTINGS_HAPTICS_SWITCH)}
+          description={dict.SETTINGS_HAPTICS_DESC}
+          value={settings.hapticsEnabled}
+          onToggle={() =>
+            updateSettings({ hapticsEnabled: !settings.hapticsEnabled })
+          }
+        />
+      </View>
+
       <View style={styles.group}>
         <InfoRow
           label={dict.SETTINGS_ASSISTANT_TITLE}

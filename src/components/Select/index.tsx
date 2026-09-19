@@ -12,6 +12,7 @@ import {
 
 import { THEME } from "@/theme";
 import { styles } from "@/components/Select/styles";
+import { haptics } from "@/utils/haptics";
 
 export interface SelectOption<T extends string> {
   key: T;
@@ -72,6 +73,7 @@ export function Select<T extends string>({
 
   const choose = async (key: T) => {
     if (applying) return;
+    haptics.select();
     // Re-pressing the current value mutates nothing — just fold the list.
     if (key === value) {
       animate();

@@ -23,6 +23,7 @@ import {
 } from "@/contexts/player/PlayerProvider";
 import { useIsBackgrounded } from "@/contexts/app-state/AppStateProvider";
 import type { RootStackParamList } from "@/routes/app.routes";
+import { haptics } from "@/utils/haptics";
 
 interface Props {
   openLiveRequestModal?: () => void;
@@ -144,6 +145,7 @@ export function HeaderBar({ openLiveRequestModal }: Props) {
           onPress={async () => {
             if (status === "changing") return;
             setStatus("changing");
+            haptics.tap();
             if (!player.isPlaying) {
               await player.play();
               setStatus("playing");
