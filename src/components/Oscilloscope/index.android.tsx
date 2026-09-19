@@ -225,23 +225,24 @@ export const Oscilloscope = React.memo(function Oscilloscope() {
 
   return (
     <View style={styles.container} pointerEvents="none">
-      <View style={styles.canvas}>
-        <WebView
-          ref={webviewRef}
-          source={{ html: PAGE_HTML }}
-          onMessage={onMessage}
-          javaScriptEnabled
-          domStorageEnabled={false}
-          originWhitelist={["*"]}
-          mediaPlaybackRequiresUserAction={false}
-          mixedContentMode="always"
-          androidLayerType="hardware"
-          scrollEnabled={false}
-          showsHorizontalScrollIndicator={false}
-          showsVerticalScrollIndicator={false}
-          style={{ width, height: STRIP_HEIGHT, backgroundColor: "transparent" }}
-        />
-      </View>
+      {/* The WebView *is* the 127px strip: nesting it inside the old 75px
+          `canvas` view double-offset the trace (wrapper centred the 127px
+          viewport 26px down, then the page offset the canvas another 26px). */}
+      <WebView
+        ref={webviewRef}
+        source={{ html: PAGE_HTML }}
+        onMessage={onMessage}
+        javaScriptEnabled
+        domStorageEnabled={false}
+        originWhitelist={["*"]}
+        mediaPlaybackRequiresUserAction={false}
+        mixedContentMode="always"
+        androidLayerType="hardware"
+        scrollEnabled={false}
+        showsHorizontalScrollIndicator={false}
+        showsVerticalScrollIndicator={false}
+        style={{ width, height: STRIP_HEIGHT, backgroundColor: "transparent" }}
+      />
     </View>
   );
 });

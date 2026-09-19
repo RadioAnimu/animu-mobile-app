@@ -13,8 +13,4 @@ export const styles = StyleSheet.create({
     top: 0,
     justifyContent: "center",
   },
-  canvas: {
-    width: "100%",
-    height: 75,
-  },
 });
