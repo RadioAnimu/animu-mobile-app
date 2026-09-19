@@ -29,7 +29,7 @@ type Props = NativeStackScreenProps<
   "LastRequested" | "LastPlayed"
 >;
 
-export function Last({ route, navigation }: Props) {
+export function Last({ route }: Props) {
   const { historyType } = route.params;
   const isUltimasPedidasScreen = historyType === "requests";
 
@@ -92,7 +92,7 @@ export function Last({ route, navigation }: Props) {
   return (
     <Background>
       <SafeAreaView style={styles.container} edges={["left", "right", "bottom"]}>
-        <HeaderBar navigation={navigation} />
+        <HeaderBar />
         <View style={styles.appContainer}>
           <Image
             source={

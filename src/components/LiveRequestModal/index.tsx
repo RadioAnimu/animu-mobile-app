@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from "react";
-import { ValidationError } from "animu-api";
 import {
   ActivityIndicator,
   ScrollView,
@@ -131,14 +130,11 @@ export function LiveRequestModal({ visible, handleClose }: Props) {
         success(t.REQUEST_SUCCESS);
         closeAndReset();
       } else {
-        showError(`${t.REQUEST_ERROR}${result.error}`);
-      }
-    } catch (error) {
-      if (error instanceof ValidationError) {
-        showError(error.message);
-      } else {
         showError(t.REQUEST_ERROR);
       }
+    } catch (error) {
+      console.error("[LiveRequestModal] Submit failed:", error);
+      showError(t.REQUEST_ERROR);
     } finally {
       setIsSubmitting(false);
     }

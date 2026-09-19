@@ -2,6 +2,7 @@ import type {
   MusicRequestPagination,
   MusicSearchParams,
 } from "@/core/domain/music-request";
+import type { RequestSubmitResult } from "@/core/domain/request-result";
 import type { MusicRequestSubmission } from "animu-api";
 import { DICT, type LanguageKey } from "@/i18n";
 import { animuApi, createApiClient } from "@/api/client";
@@ -33,11 +34,9 @@ class MusicRequestService {
    * sessions) come back as structured data — only network failures throw,
    * and those are normalized to `REQUEST_ERROR`.
    */
-  async submitRequest(submission: MusicRequestSubmission): Promise<{
-    success: boolean;
-    detail?: string;
-    error?: string;
-  }> {
+  async submitRequest(
+    submission: MusicRequestSubmission,
+  ): Promise<RequestSubmitResult> {
     try {
       return await animuApi.submitMusicRequest(submission);
     } catch (error) {

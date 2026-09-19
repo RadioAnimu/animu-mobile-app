@@ -1,4 +1,5 @@
 import { useNavigation } from "@react-navigation/native";
+import type { DrawerNavigationProp } from "@react-navigation/drawer";
 import { useEffect, useMemo, useState } from "react";
 import {
   Animated,
@@ -21,9 +22,9 @@ import {
   useTrackProgress,
 } from "@/contexts/player/PlayerProvider";
 import { useIsBackgrounded } from "@/contexts/app-state/AppStateProvider";
+import type { RootStackParamList } from "@/routes/app.routes";
 
 interface Props {
-  navigation: ReturnType<typeof useNavigation>;
   openLiveRequestModal?: () => void;
 }
 
@@ -34,7 +35,9 @@ const PULSE_DURATION = 1750;
 const PULSE_TRAVEL = 50;
 const PROGRESS_ANIM_DURATION = 1000;
 
-export function HeaderBar({ navigation, openLiveRequestModal }: Props) {
+export function HeaderBar({ openLiveRequestModal }: Props) {
+  const navigation =
+    useNavigation<DrawerNavigationProp<RootStackParamList>>();
   const insets = useSafeAreaInsets();
   const progressAnim = useMemo(() => new Animated.Value(0), []);
   const [status, setStatus] = useState<Status>("playing");
@@ -133,7 +136,6 @@ export function HeaderBar({ navigation, openLiveRequestModal }: Props) {
           accessibilityLabel="Open menu"
           hitSlop={ICON_HIT_SLOP}
           onPress={() => {
-            // @ts-ignore
             navigation.openDrawer();
           }}
         >
@@ -178,7 +180,6 @@ export function HeaderBar({ navigation, openLiveRequestModal }: Props) {
             } else if (currentProgram?.isLive) {
               return;
             }
-            // @ts-ignore
             navigation.navigate("FazerPedido");
           }}
           style={styles.noteWrapper}

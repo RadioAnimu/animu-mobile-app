@@ -1,4 +1,3 @@
-import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { useCallback, useState } from "react";
 import { ScrollView, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -17,17 +16,12 @@ import { PopUpProgram } from "@/components/PopUpProgram";
 import { Program } from "@/components/Program";
 import { TimeRemaining } from "@/components/TimeRemaining";
 
-// Routes
-import { RootStackParamList } from "@/routes/app.routes";
-
 // Styles
 import { styles } from "@/screens/Home/styles";
 
-type Props = NativeStackScreenProps<RootStackParamList, "Home">;
-
 const LOGO_HEIGHT = 127;
 
-export const Home = ({ navigation }: Props) => {
+export const Home = () => {
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [isLiveRequestModalVisible, setIsLiveRequestModalVisible] =
     useState(false);
@@ -51,7 +45,6 @@ export const Home = ({ navigation }: Props) => {
         <ScrollView>
           <HeaderBar
             openLiveRequestModal={() => handleLiveRequestModal(true)}
-            navigation={navigation}
           />
 
           <View style={styles.containerApp}>

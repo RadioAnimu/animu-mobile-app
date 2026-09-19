@@ -1,5 +1,4 @@
 import Ionicons from "@react-native-vector-icons/ionicons/static";
-import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { useCallback, useRef, useState } from "react";
 import {
   ActivityIndicator,
@@ -33,15 +32,12 @@ import {
   musicRequestService,
 } from "@/core/services/music-request.service";
 import { IMGS } from "@/i18n";
-import { RootStackParamList } from "@/routes/app.routes";
 import { THEME } from "@/theme";
 import { styles } from "@/screens/FazerPedido/styles";
 
-type Props = NativeStackScreenProps<RootStackParamList, "FazerPedido">;
-
 const LOGO_HEIGHT = 150;
 
-export function FazerPedido({ navigation }: Props) {
+export function FazerPedido() {
   const { user } = useAuth();
   const { settings } = useUserSettings();
   const dict = useDict();
@@ -181,7 +177,7 @@ export function FazerPedido({ navigation }: Props) {
   return (
     <Background>
       <SafeAreaView style={styles.container} edges={["left", "right", "bottom"]}>
-        <HeaderBar navigation={navigation} />
+        <HeaderBar />
         <View style={styles.appContainer}>
           <View style={styles.logoWrapper}>
             <Logo
