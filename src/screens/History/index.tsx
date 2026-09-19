@@ -1,6 +1,7 @@
-import { useCallback, useMemo } from "react";
+import { useCallback, useMemo, useState } from "react";
 import {
   FlatList,
+  RefreshControl,
   Text,
   TouchableOpacity,
   View,
@@ -19,9 +20,10 @@ import { RootStackParamList } from "@/routes/app.routes";
 
 import { Image } from "expo-image";
 import { IMGS } from "@/i18n";
+import { THEME } from "@/theme";
 import { useUserSettings } from "@/contexts/user/UserSettingsProvider";
 import { useCopyToClipboard } from "@/hooks/useCopyToClipboard";
-import { useStation } from "@/contexts/player/PlayerProvider";
+import { usePlayer, useStation } from "@/contexts/player/PlayerProvider";
 import type { StationSnapshot } from "@/core/player";
 
 type Props = DrawerScreenProps<
@@ -34,8 +36,19 @@ export function History({ route }: Props) {
   const isRequestHistory = historyType === "requests";
 
   const station = useStation();
+  const player = usePlayer();
   const { settings } = useUserSettings();
   const copyText = useCopyToClipboard();
+  const [refreshing, setRefreshing] = useState(false);
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      await player.refreshData();
+    } finally {
+      setRefreshing(false);
+    }
+  }, [player]);
 
   const renderItem: ListRenderItem<
     NonNullable<StationSnapshot["lastRequestedTracks"]>[number]
@@ -118,6 +131,15 @@ export function History({ route }: Props) {
               initialNumToRender={10}
               maxToRenderPerBatch={10}
               windowSize={7}
+              refreshControl={
+                <RefreshControl
+                  refreshing={refreshing}
+                  onRefresh={onRefresh}
+                  tintColor={THEME.COLORS.TEXT}
+                  colors={[THEME.COLORS.BRAND]}
+                  progressBackgroundColor={THEME.COLORS.SURFACE}
+                />
+              }
             />
           </View>
         </View>

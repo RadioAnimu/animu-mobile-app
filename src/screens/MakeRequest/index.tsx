@@ -3,6 +3,7 @@ import { useCallback, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
+  RefreshControl,
   Text,
   TextInput,
   TouchableOpacity,
@@ -105,6 +106,29 @@ export function MakeRequest() {
       setSearchState((prev) => ({ ...prev, status: "idle" }));
     }
   }, [begin, isCurrent, searchState.pagination, searchState.status]);
+
+  const [refreshing, setRefreshing] = useState(false);
+
+  const handleRefresh = useCallback(async () => {
+    const query = searchState.query;
+    if (!query) return;
+    const requestId = begin();
+    setRefreshing(true);
+    try {
+      const response = await musicRequestService.searchTracksByTitle(query);
+      if (!isCurrent(requestId)) return;
+      setSearchState({
+        query,
+        results: response.results,
+        pagination: response,
+        status: "idle",
+      });
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setRefreshing(false);
+    }
+  }, [begin, isCurrent, searchState.query]);
 
   const handleSubmitRequest = useCallback(
     async (message: string): Promise<{ success: boolean; message: string }> => {
@@ -229,6 +253,15 @@ export function MakeRequest() {
                   initialNumToRender={10}
                   maxToRenderPerBatch={10}
                   windowSize={7}
+                  refreshControl={
+                    <RefreshControl
+                      refreshing={refreshing}
+                      onRefresh={handleRefresh}
+                      tintColor={THEME.COLORS.TEXT}
+                      colors={[THEME.COLORS.BRAND]}
+                      progressBackgroundColor={THEME.COLORS.SURFACE}
+                    />
+                  }
                   ListFooterComponent={
                     searchState.pagination?.nextPageParams ? (
                       <TouchableOpacity
