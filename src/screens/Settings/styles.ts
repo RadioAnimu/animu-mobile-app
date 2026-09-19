@@ -3,9 +3,6 @@ import { StyleSheet } from "react-native";
 import { THEME } from "@/theme";
 
 const CARD_RADIUS = THEME.RADIUS.CARD;
-// Row rhythm shared with Account — labels get room to breathe.
-const ROW_MIN_HEIGHT = 64;
-const ICON_BOX_WIDTH = 32;
 const CONTENT_PADDING = THEME.SPACE.LG;
 
 export const SWITCH = {
@@ -24,8 +21,8 @@ export const styles = StyleSheet.create({
   // content breathes.
   appContainer: {
     flexGrow: 1,
-    width: "88%",
-    maxWidth: 560,
+    width: THEME.LAYOUT.CONTENT_WIDTH,
+    maxWidth: THEME.LAYOUT.CONTENT_MAX_WIDTH,
     paddingTop: THEME.SPACE.MD,
     paddingBottom: THEME.SPACE.XXXL,
     alignSelf: "center",
@@ -77,7 +74,7 @@ export const styles = StyleSheet.create({
     gap: THEME.SPACE.XS,
   },
   accountServiceIcon: {
-    width: ICON_BOX_WIDTH,
+    width: THEME.LAYOUT.ICON_BOX_WIDTH,
     alignItems: "flex-start",
   },
   accountCaption: {
@@ -89,7 +86,7 @@ export const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    minHeight: ROW_MIN_HEIGHT,
+    minHeight: THEME.LAYOUT.ROW_MIN_HEIGHT,
     paddingHorizontal: CONTENT_PADDING,
   },
   rowDisabled: {
@@ -133,7 +130,7 @@ export const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    minHeight: ROW_MIN_HEIGHT,
+    minHeight: THEME.LAYOUT.ROW_MIN_HEIGHT,
     paddingHorizontal: CONTENT_PADDING,
     gap: THEME.SPACE.SM,
   },
@@ -163,7 +160,7 @@ export const styles = StyleSheet.create({
     borderRadius: SWITCH.TRACK_HEIGHT / 2,
     justifyContent: "center",
     borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.1)",
+    borderColor: THEME.COLORS.HAIRLINE_SOFT,
   },
   switchThumb: {
     width: SWITCH.THUMB,

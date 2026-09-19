@@ -21,7 +21,7 @@ export const styles = StyleSheet.create({
     textAlign: "center",
     marginTop: THEME.SPACE.XS,
     marginBottom: THEME.SPACE.SM,
-    lineHeight: 19,
+    lineHeight: THEME.LINE_HEIGHT.RELAXED,
   },
   error: {
     color: THEME.COLORS.ERROR,

@@ -3,12 +3,10 @@ import { StyleSheet } from "react-native";
 import { THEME } from "@/theme";
 
 const CARD_RADIUS = THEME.RADIUS.CARD;
-const ICON_BOX_WIDTH = 32;
 const BANNER_HEIGHT = 96;
 const AVATAR = 84;
 // Shared content inset + row rhythm with Settings.
 const CONTENT_PADDING = THEME.SPACE.LG;
-const ROW_MIN_HEIGHT = 64;
 
 export { AVATAR };
 
@@ -19,8 +17,8 @@ export const styles = StyleSheet.create({
   },
   content: {
     flexGrow: 1,
-    width: "88%",
-    maxWidth: 560,
+    width: THEME.LAYOUT.CONTENT_WIDTH,
+    maxWidth: THEME.LAYOUT.CONTENT_MAX_WIDTH,
     alignSelf: "center",
     paddingBottom: THEME.SPACE.XXXL,
   },
@@ -85,7 +83,7 @@ export const styles = StyleSheet.create({
     color: THEME.COLORS.TEXT_SOFT,
     fontFamily: THEME.FONT_FAMILY.REGULAR,
     fontSize: THEME.FONT_SIZE.BODY,
-    lineHeight: 19,
+    lineHeight: THEME.LINE_HEIGHT.RELAXED,
     paddingHorizontal: CONTENT_PADDING,
     paddingTop: THEME.SPACE.MD,
   },
@@ -122,7 +120,7 @@ export const styles = StyleSheet.create({
     borderRadius: THEME.RADIUS.CIRCLE,
   },
   badgeSuccess: {
-    backgroundColor: "rgba(107, 219, 0, 0.15)",
+    backgroundColor: THEME.COLORS.BRAND_SUBTLE,
   },
   badgeMuted: {
     backgroundColor: THEME.COLORS.SURFACE_SUBTLE,
@@ -178,12 +176,12 @@ export const styles = StyleSheet.create({
   row: {
     flexDirection: "row",
     alignItems: "center",
-    minHeight: ROW_MIN_HEIGHT,
+    minHeight: THEME.LAYOUT.ROW_MIN_HEIGHT,
     paddingHorizontal: CONTENT_PADDING,
     paddingVertical: THEME.SPACE.SM,
   },
   rowIcon: {
-    width: ICON_BOX_WIDTH,
+    width: THEME.LAYOUT.ICON_BOX_WIDTH,
     alignItems: "flex-start",
   },
   rowBody: {

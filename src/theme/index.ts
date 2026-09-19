@@ -5,6 +5,8 @@ export const THEME = {
 
     SURFACE: "#270052",
     BRAND: "#6BDB00",
+    /** Brand at 15% — success badges and the selected select option. */
+    BRAND_SUBTLE: "rgba(107, 219, 0, 0.15)",
     FRAME: "#42008C",
     LIVE: "#FF0000",
 
@@ -14,6 +16,8 @@ export const THEME = {
     TEXT_DIM: "rgba(255, 255, 255, 0.5)",
     SWITCH_OFF: "rgba(255, 255, 255, 0.25)",
     HAIRLINE: "rgba(255, 255, 255, 0.15)",
+    /** Fainter hairline for switch tracks and outlines. */
+    HAIRLINE_SOFT: "rgba(255, 255, 255, 0.1)",
     SURFACE_SUBTLE: "rgba(255, 255, 255, 0.08)",
 
     SCRIM: "rgba(0, 0, 0, 0.6)",
@@ -51,6 +55,8 @@ export const THEME = {
 
   LINE_HEIGHT: {
     BODY: 16,
+    /** Body copy with a little more air (profile info, sheet subtitles). */
+    RELAXED: 19,
     SUBHEAD: 20,
     HEADING: 27.5,
   },
@@ -81,5 +87,15 @@ export const THEME = {
     CARD: 14,
     SHEET: 20,
     CIRCLE: 999,
+  },
+
+  LAYOUT: {
+    /** Fixed leading-icon column shared by settings/profile rows. */
+    ICON_BOX_WIDTH: 32,
+    /** Minimum height of a settings/profile row. */
+    ROW_MIN_HEIGHT: 64,
+    /** Centered content column shared by the full-screen pages. */
+    CONTENT_WIDTH: "88%" as const,
+    CONTENT_MAX_WIDTH: 560,
   },
 };

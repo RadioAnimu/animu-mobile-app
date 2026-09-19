@@ -2,7 +2,6 @@ import { StyleSheet } from "react-native";
 import { THEME } from "@/theme";
 
 export const SECTION_ICON_SIZE = 18;
-const ICON_BOX_WIDTH = 32;
 
 export const styles = StyleSheet.create({
   section: {
@@ -16,7 +15,7 @@ export const styles = StyleSheet.create({
     borderBottomColor: THEME.COLORS.HAIRLINE,
   },
   iconBox: {
-    width: ICON_BOX_WIDTH,
+    width: THEME.LAYOUT.ICON_BOX_WIDTH,
     alignItems: "center",
   },
   sectionText: {

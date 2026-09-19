@@ -1,8 +1,6 @@
 import { StyleSheet } from "react-native";
 import { THEME } from "@/theme";
 
-const ICON_BOX_WIDTH = 32;
-
 export const DRAWER_GRID = {
   SCREEN_MARGIN: 12,
   CONTENT_INSET: 20,
@@ -10,7 +8,7 @@ export const DRAWER_GRID = {
 
 export const styles = StyleSheet.create({
   iconBox: {
-    width: ICON_BOX_WIDTH,
+    width: THEME.LAYOUT.ICON_BOX_WIDTH,
     alignItems: "center",
   },
   header: {

@@ -2,7 +2,6 @@ import { StyleSheet } from "react-native";
 
 import { THEME } from "@/theme";
 
-const ROW_MIN_HEIGHT = 64;
 // Big enough to actually judge a quality tier at a glance (the old 52 read
 // as a tiny swatch). The option row grows around it.
 const THUMB = 76;
@@ -19,7 +18,7 @@ export const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    minHeight: ROW_MIN_HEIGHT,
+    minHeight: THEME.LAYOUT.ROW_MIN_HEIGHT,
     paddingHorizontal: THEME.SPACE.LG,
   },
   body: {
@@ -73,7 +72,7 @@ export const styles = StyleSheet.create({
   option: {
     flexDirection: "row",
     alignItems: "center",
-    minHeight: ROW_MIN_HEIGHT,
+    minHeight: THEME.LAYOUT.ROW_MIN_HEIGHT,
     paddingHorizontal: THEME.SPACE.MD,
     paddingVertical: THEME.SPACE.MD,
     gap: THEME.SPACE.MD,
@@ -121,7 +120,7 @@ export const styles = StyleSheet.create({
     paddingHorizontal: THEME.SPACE.SM,
     paddingVertical: 2,
     borderRadius: THEME.RADIUS.CIRCLE,
-    backgroundColor: "rgba(107, 219, 0, 0.15)",
+    backgroundColor: THEME.COLORS.BRAND_SUBTLE,
   },
   badgeText: {
     color: THEME.COLORS.BRAND,
