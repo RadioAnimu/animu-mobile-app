@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   CoverCacheRegistry,
   type CoverCacheCategory,
-} from "../cover-cache-registry.service";
+} from "@/core/services/cover-cache-registry.service";
 
 const memory = new Map<string, string>();
 
@@ -166,7 +166,7 @@ describe("CoverCacheRegistry", () => {
 
     try {
       const { CoverCacheRegistry: Fresh } = await import(
-        "../cover-cache-registry.service"
+        "@/core/services/cover-cache-registry.service"
       );
       const registry = new Fresh();
       for (let i = 0; i < 12; i++) {

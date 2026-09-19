@@ -14,7 +14,7 @@ import type {
   MobileAuthRedirect,
   ProviderInfo,
 } from "animu-api";
-import type { User } from "../domain/user";
+import type { User } from "@/core/domain/user";
 
 /** Normalized OAuth hand-off: the code plus any provider-specific extras. */
 export interface OAuthResult {

@@ -1,16 +1,16 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { Image, type ImageStyle } from "expo-image";
 import type { StyleProp } from "react-native";
-import { styles } from "./styles";
-import { THEME } from "../../theme";
-import { useUserSettings } from "../../contexts/user/UserSettingsProvider";
+import { styles } from "@/components/Cover/styles";
+import { THEME } from "@/theme";
+import { useUserSettings } from "@/contexts/user/UserSettingsProvider";
 import {
   coverCacheRegistry,
   type CoverCacheCategory,
-} from "../../core/services/cover-cache-registry.service";
+} from "@/core/services/cover-cache-registry.service";
 
 /** Bundled fallback — no network needed, always renders, instant placeholder. */
-const DEFAULT_COVER = require("../../../assets/default-cover.png");
+const DEFAULT_COVER = require("@app/assets/default-cover.png");
 
 /**
  * A transient failure self-heals: after a failed load, retry after a
@@ -30,7 +30,13 @@ interface Props {
   style?: StyleProp<ImageStyle>;
   /** Overrides the cacheEnabled setting when provided. */
   cachePolicy?: CachePolicy;
-  /** Stable per-item key so expo-image recycles the native view in lists. */
+  /**
+   * Stable per-item key so expo-image recycles the native view in lists.
+   * Falls back to the cover URL: expo-image deliberately keeps the previous
+   * drawable until the next source finishes loading, so without a key that
+   * changes with the URL a track change can keep showing the old artwork
+   * (especially once the disk cache/seed path delays the new load).
+   */
   recyclingKey?: string;
   /**
    * Which surface this cover was displayed in (player live, last
@@ -101,7 +107,7 @@ export function Cover({ cover, style, cachePolicy, recyclingKey, category }: Pro
       }
       cachePolicy={cachePolicy ?? (settings.cacheEnabled ? "disk" : "none")}
       contentFit="cover"
-      recyclingKey={recyclingKey}
+      recyclingKey={recyclingKey ?? cover}
     />
   );
 }

@@ -1,5 +1,5 @@
 import { StyleSheet } from "react-native";
-import { THEME } from "../../theme";
+import { THEME } from "@/theme";
 
 const BTN_WIDTH = 91;
 const BTN_HEIGHT = 41;

@@ -4,12 +4,12 @@ import { File } from "expo-file-system";
 import {
   coverCacheRegistry,
   type CoverCacheCategory,
-} from "./cover-cache-registry.service";
+} from "@/core/services/cover-cache-registry.service";
 import {
   CATEGORY_ORDER,
   resolvePartitionCaps,
   type CoverCachePartitions,
-} from "./cover-cache-partitions";
+} from "@/core/services/cover-cache-partitions";
 
 export type { CoverCachePartitions };
 

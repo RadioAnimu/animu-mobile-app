@@ -1,5 +1,5 @@
 import { StyleSheet } from "react-native";
-import { THEME } from "../../theme";
+import { THEME } from "@/theme";
 
 const INPUT_HEIGHT = 40;
 const SEARCH_ICON = 37;

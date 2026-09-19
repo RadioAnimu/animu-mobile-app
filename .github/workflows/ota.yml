@@ -1,0 +1,124 @@
+name: Publish OTA bundle
+
+# Publishes an over-the-air JS bundle to the rolling `ota` GitHub Release:
+#   - main.jsbundle.zip / index.android.bundle.zip  (Hermes bytecode + assets)
+#   - update.json                                   (version + runtime guards)
+#
+# The app polls `releases/download/ota/update.json` (see src/constants/ota.ts)
+# and installs a bundle only when the runtime version matches the native binary.
+#
+# Trigger after a native release when you only changed JS/TS/assets — never when
+# native code changed (that needs a new store build with a bumped version).
+
+on:
+  workflow_dispatch:
+    inputs:
+      notes:
+        description: "Release notes shown in the manifest (optional)"
+        required: false
+        type: string
+        default: ""
+  push:
+    tags:
+      - "ota-v*"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: ota-publish
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    env:
+      OTA_TAG: ota
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install animu-api dependencies
+        run: npm ci --prefix packages/animu-api
+
+      - name: Build animu-api
+        run: npm run build --prefix packages/animu-api
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Read runtime versions from app.json
+        id: runtime
+        run: |
+          node -e '
+            const app = require("./app.json").expo;
+            const version = app.version;
+            const ios = `${version}+${app.ios.buildNumber}`;
+            const android = `${version}+${app.android.versionCode}`;
+            const fs = require("fs");
+            fs.appendFileSync(process.env.GITHUB_OUTPUT, `ios=${ios}\n`);
+            fs.appendFileSync(process.env.GITHUB_OUTPUT, `android=${android}\n`);
+          '
+
+      - name: Export Hermes bytecode bundles
+        run: |
+          mkdir -p dist/ios dist/android
+          npx expo export:embed --platform ios \
+            --entry-file index.js \
+            --bundle-output dist/ios/main.jsbundle \
+            --assets-dest dist/ios \
+            --dev false --minify --bytecode
+          npx expo export:embed --platform android \
+            --entry-file index.js \
+            --bundle-output dist/android/index.android.bundle \
+            --assets-dest dist/android \
+            --dev false --minify --bytecode
+
+      - name: Package bundles (each with a parent folder, as the client expects)
+        run: |
+          mkdir -p ota
+          (cd dist && zip -r "$GITHUB_WORKSPACE/ota/main.jsbundle.zip" ios)
+          (cd dist && zip -r "$GITHUB_WORKSPACE/ota/index.android.bundle.zip" android)
+
+      - name: Write update manifest
+        run: |
+          node -e '
+            const fs = require("fs");
+            const repo = process.env.GITHUB_REPOSITORY;
+            const tag = process.env.OTA_TAG;
+            const base = `https://github.com/${repo}/releases/download/${tag}`;
+            const manifest = {
+              version: Number(process.env.GITHUB_RUN_NUMBER),
+              iosRuntimeVersion: process.env.IOS_RUNTIME,
+              androidRuntimeVersion: process.env.ANDROID_RUNTIME,
+              downloadIosUrl: `${base}/main.jsbundle.zip`,
+              downloadAndroidUrl: `${base}/index.android.bundle.zip`,
+              notes: process.env.OTA_NOTES || undefined,
+            };
+            fs.writeFileSync("ota/update.json", JSON.stringify(manifest, null, 2));
+          '
+        env:
+          IOS_RUNTIME: ${{ steps.runtime.outputs.ios }}
+          ANDROID_RUNTIME: ${{ steps.runtime.outputs.android }}
+          OTA_NOTES: ${{ inputs.notes }}
+
+      - name: Publish to the rolling release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release view "$OTA_TAG" >/dev/null 2>&1 || \
+            gh release create "$OTA_TAG" \
+              --prerelease \
+              --title "OTA bundles" \
+              --notes "Rolling over-the-air JS bundle feed. Assets are overwritten on every publish."
+          gh release upload "$OTA_TAG" \
+            ota/main.jsbundle.zip \
+            ota/index.android.bundle.zip \
+            ota/update.json \
+            --clobber

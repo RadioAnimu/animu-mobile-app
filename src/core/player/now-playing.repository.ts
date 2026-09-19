@@ -5,10 +5,10 @@ import type {
   LiveNowPlaying,
   Track,
 } from "animu-api";
-import type { Program } from "../domain/program";
-import { isRealTrack } from "../domain/track";
-import { BackoffScheduler } from "./backoff";
-import type { Timer } from "./timer";
+import type { Program } from "@/core/domain/program";
+import { isRealTrack } from "@/core/domain/track";
+import { BackoffScheduler } from "@/core/player/backoff";
+import type { Timer } from "@/core/player/timer";
 
 /** Buffer after expected track end before fetching (ms) */
 const TRACK_END_BUFFER_MS = 500;

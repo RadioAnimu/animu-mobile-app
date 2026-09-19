@@ -1,15 +1,12 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
 import { Image, type ImageStyle } from "expo-image";
 import type { StyleProp } from "react-native";
 import MaterialIcons from "@react-native-vector-icons/material-icons/static";
 import { View } from "react-native";
-import { useAuth } from "../../contexts/auth/AuthProvider";
-import { buildAuthImageSource } from "../../utils/authImage";
-import { THEME } from "../../theme";
-
-/** Transient failures self-heal, mirroring the `Cover` component. */
-const RETRY_DELAY_MS = 3000;
-const MAX_RETRIES = 2;
+import { useAuth } from "@/contexts/auth/AuthProvider";
+import { useBoundedRetry } from "@/hooks/useBoundedRetry";
+import { buildAuthImageSource } from "@/utils/authImage";
+import { THEME } from "@/theme";
 
 interface Props {
   uri?: string | null;
@@ -26,16 +23,7 @@ interface Props {
  */
 export function Avatar({ uri, size = 40, style, iconSize }: Props) {
   const { user, imageVersion } = useAuth();
-  const [retry, setRetry] = useState(0);
-  const [failed, setFailed] = useState(false);
-
-  // Adjust state during render so a new URL never flashes the fallback.
-  const [trackedUri, setTrackedUri] = useState(uri);
-  if (trackedUri !== uri) {
-    setTrackedUri(uri);
-    setFailed(false);
-    setRetry(0);
-  }
+  const { failed, retry, fail } = useBoundedRetry(uri ?? "");
 
   const source = useMemo(
     () =>
@@ -46,16 +34,6 @@ export function Avatar({ uri, size = 40, style, iconSize }: Props) {
       ),
     [uri, user?.sessionToken, imageVersion, retry],
   );
-
-  // A superseded/failed load must not pin the fallback forever.
-  useEffect(() => {
-    if (!failed || retry >= MAX_RETRIES) return;
-    const timer = setTimeout(() => {
-      setFailed(false);
-      setRetry((value) => value + 1);
-    }, RETRY_DELAY_MS);
-    return () => clearTimeout(timer);
-  }, [failed, retry]);
 
   const dimensions = {
     width: size,
@@ -88,7 +66,7 @@ export function Avatar({ uri, size = 40, style, iconSize }: Props) {
       style={[dimensions, style]}
       contentFit="cover"
       transition={150}
-      onError={() => setFailed(true)}
+      onError={fail}
     />
   );
 }

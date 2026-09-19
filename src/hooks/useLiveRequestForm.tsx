@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { LiveRequest, validateLiveRequest } from "../core/domain/live-request";
+import { LiveRequest, validateLiveRequest } from "@/core/domain/live-request";
 
 export function useLiveRequestForm(initialData?: Partial<LiveRequest>) {
   const [name, setName] = useState(initialData?.name || "");

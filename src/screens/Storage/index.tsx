@@ -1,20 +1,20 @@
 import { useMemo } from "react";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
-import { ScrollView, Text, TouchableOpacity, View } from "react-native";
-import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
+import { ScrollView, Text, View } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 
-import { Background } from "../../components/Background";
-import { BackArrow } from "../../components/BackArrow";
-import { SectionTitle } from "../../components/SectionTitle";
-import { Select } from "../../components/Select";
-import { CoverStorageCard } from "../../components/CoverStorageCard";
-import { useUserSettings } from "../../contexts/user/UserSettingsProvider";
-import { useDeviceStorage } from "../../hooks/useDeviceStorage";
-import { maxSelectableLimitBytes } from "../../core/services/device-storage.service";
-import { DICT } from "../../i18n";
-import { RootStackParamList } from "../../routes/app.routes";
-import { formatBytes, interpolate } from "../../utils/format";
-import { HEADER_HEIGHT, styles } from "./styles";
+import { Background } from "@/components/Background";
+import { SectionTitle } from "@/components/SectionTitle";
+import { Select } from "@/components/Select";
+import { ScreenHeader } from "@/components/ScreenHeader";
+import { CoverStorageCard } from "@/components/CoverStorageCard";
+import { useUserSettings } from "@/contexts/user/UserSettingsProvider";
+import { useDeviceStorage } from "@/hooks/useDeviceStorage";
+import { useDict } from "@/hooks/useDict";
+import { maxSelectableLimitBytes } from "@/core/services/device-storage.service";
+import { RootStackParamList } from "@/routes/app.routes";
+import { formatBytes, interpolate } from "@/utils/format";
+import { styles } from "@/screens/Storage/styles";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Storage">;
 
@@ -30,11 +30,10 @@ const LIMIT_TIERS = [0, 50 * MB, 100 * MB, 250 * MB, 500 * MB, 1024 * MB];
  * listener should have to reason about.
  */
 export function Storage({ navigation }: Props) {
-  const insets = useSafeAreaInsets();
   const { settings, updateSettings } = useUserSettings();
   const { capacity } = useDeviceStorage();
 
-  const dict = DICT[settings.selectedLanguage];
+  const dict = useDict();
 
   const limitOptions = useMemo(() => {
     const maxSelectable = maxSelectableLimitBytes(capacity.availableBytes);
@@ -59,22 +58,10 @@ export function Storage({ navigation }: Props) {
   return (
     <Background>
       <SafeAreaView style={styles.container} edges={["left", "right", "bottom"]}>
-        <View
-          style={[
-            styles.header,
-            { height: HEADER_HEIGHT + insets.top, paddingTop: insets.top },
-          ]}
-        >
-          <TouchableOpacity
-            accessibilityRole="button"
-            onPress={() => navigation.goBack()}
-            style={styles.headerButton}
-          >
-            <BackArrow />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>{dict.STORAGE_TITLE}</Text>
-          <View style={styles.headerButton} />
-        </View>
+        <ScreenHeader
+          title={dict.STORAGE_TITLE}
+          onBack={() => navigation.goBack()}
+        />
 
         <ScrollView contentContainerStyle={styles.appContainer}>
           <CoverStorageCard />

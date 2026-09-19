@@ -8,19 +8,19 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import menuIcon from "../../assets/icons/menu.png";
-import noteIcon from "../../assets/icons/note.png";
-import playButtonImage from "../../assets/play_square_btn.png";
-import pauseButtonImage from "../../assets/play_triangle_btn.png";
-import { IMGS } from "../../i18n";
-import { THEME } from "../../theme";
-import { CONTAINER_HEIGHT, ICON_HIT_SLOP, styles } from "./styles";
-import { useUserSettings } from "../../contexts/user/UserSettingsProvider";
+import menuIcon from "@/assets/icons/menu.png";
+import noteIcon from "@/assets/icons/note.png";
+import playButtonImage from "@/assets/play_square_btn.png";
+import pauseButtonImage from "@/assets/play_triangle_btn.png";
+import { IMGS } from "@/i18n";
+import { THEME } from "@/theme";
+import { CONTAINER_HEIGHT, ICON_HIT_SLOP, styles } from "@/components/HeaderBar/styles";
+import { useUserSettings } from "@/contexts/user/UserSettingsProvider";
 import {
   usePlayer,
   useTrackProgress,
-} from "../../contexts/player/PlayerProvider";
-import { useIsBackgrounded } from "../../contexts/app-state/AppStateProvider";
+} from "@/contexts/player/PlayerProvider";
+import { useIsBackgrounded } from "@/contexts/app-state/AppStateProvider";
 
 interface Props {
   navigation: ReturnType<typeof useNavigation>;

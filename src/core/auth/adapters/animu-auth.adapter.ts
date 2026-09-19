@@ -15,8 +15,8 @@ import type {
   MobileAuthRedirect,
   ProviderInfo,
 } from "animu-api";
-import { animuApi } from "../../../api/client";
-import type { AuthApiPort } from "../ports";
+import { animuApi } from "@/api/client";
+import type { AuthApiPort } from "@/core/auth/ports";
 
 /**
  * Adapter over the `animu-api` package's `AnimuAuth` client.

@@ -2,16 +2,15 @@ import { Text, StyleSheet } from "react-native";
 import {
   usePlayer,
   useTrackProgress,
-} from "../../contexts/player/PlayerProvider";
-import { useUserSettings } from "../../contexts/user/UserSettingsProvider";
-import { CountdownTimerText } from "../CountdownTimerText";
-import { DICT } from "../../i18n";
-import { THEME } from "../../theme";
+} from "@/contexts/player/PlayerProvider";
+import { useDict } from "@/hooks/useDict";
+import { CountdownTimerText } from "@/components/CountdownTimerText";
+import { THEME } from "@/theme";
 
 export function TimeRemaining() {
   const player = usePlayer();
   const { currentTrackProgress } = useTrackProgress();
-  const { settings } = useUserSettings();
+  const dict = useDict();
 
   // Don't show if it's a live program or if it's a transition track
   const shouldShow =
@@ -24,7 +23,7 @@ export function TimeRemaining() {
 
   return (
     <Text style={styles.timeLeft}>
-      {DICT[settings.selectedLanguage].TIME_REMAINING}:{" "}
+      {dict.TIME_REMAINING}:{" "}
       <CountdownTimerText
         startTime={
           (player.currentTrack?.duration || 0) - (currentTrackProgress || 0)

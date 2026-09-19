@@ -7,11 +7,11 @@ import React, {
   useRef,
   useState,
 } from "react";
-import { UserSettings } from "../../@types/user-settings";
-import { userSettingsService } from "../../core/services/user-settings.service";
-import { coverDiskStorage } from "../../core/services/cover-disk-storage.service";
-import { playerService } from "../../core/player";
-import { DEFAULT_USER_SETTINGS } from "../../constants/settings";
+import { UserSettings } from "@/@types/user-settings";
+import { userSettingsService } from "@/core/services/user-settings.service";
+import { coverDiskStorage } from "@/core/services/cover-disk-storage.service";
+import { playerService } from "@/core/player";
+import { DEFAULT_USER_SETTINGS } from "@/constants/settings";
 
 type UserSettingsContextType = {
   settings: UserSettings;

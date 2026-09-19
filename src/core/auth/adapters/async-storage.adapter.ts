@@ -1,5 +1,5 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import type { SessionStorePort, StoredSession } from "../ports";
+import type { SessionStorePort, StoredSession } from "@/core/auth/ports";
 
 const STORAGE_KEY = "auth.session";
 

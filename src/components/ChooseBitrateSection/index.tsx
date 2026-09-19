@@ -1,9 +1,9 @@
 import { useCallback } from "react";
 import { FlatList, type ListRenderItem } from "react-native";
-import type { Stream } from "../../core/domain/stream";
-import { ButtonKBPS } from "../ButtonKBPS";
-import { styles } from "./styles";
-import { usePlayer } from "../../contexts/player/PlayerProvider";
+import type { Stream } from "@/core/domain/stream";
+import { ButtonKBPS } from "@/components/ButtonKBPS";
+import { styles } from "@/components/ChooseBitrateSection/styles";
+import { usePlayer } from "@/contexts/player/PlayerProvider";
 
 export function ChooseBitrateSection() {
   const { changeStream, currentStream, streamOptions } = usePlayer();

@@ -1,5 +1,5 @@
 import type { NowPlayingMetadata } from "react-native-playback-controls";
-import type { Track } from "../domain/track";
+import type { Track } from "@/core/domain/track";
 
 export interface NowPlayingInput {
   track?: Track | null;

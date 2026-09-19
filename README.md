@@ -172,6 +172,33 @@ eas build --profile production    # Play Store AAB (version pinned in app.json/e
 
 Release artifacts are submitted through `eas submit` and published to the Google Play Store (`com.nessjs.animu`).
 
+### Over-the-air updates
+
+JS/TS/asset-only changes ship without a store review through
+[`react-native-ota-hot-update`](https://github.com/vantuan88291/react-native-ota-hot-update).
+The `.github/workflows/ota.yml` workflow exports Hermes bytecode bundles for both
+platforms and overwrites the rolling `ota` GitHub Release
+(`main.jsbundle.zip`, `index.android.bundle.zip`, `update.json`). The app polls
+`releases/download/ota/update.json` (`src/constants/ota.ts`), downloads on Wi-Fi,
+and applies the bundle on the next cold start.
+
+Publish with **Actions → Publish OTA bundle → Run workflow** (or push an
+`ota-v*` tag). The manifest carries the native runtime version
+(`<version>+<build>`); a bundle is ignored on a binary with a different runtime,
+so **native changes always require a new store build**. `AppDelegate.swift` /
+`MainApplication.kt` load the staged bundle at startup via the library's Expo
+config plugin.
+
+### Voice assistants
+
+Siri (App Intents / App Shortcuts) and Google Assistant (App Actions) both open
+the `animuapp://assistant/play` deep link, handled in
+`src/core/assistant/assistant.service.ts`. The native entry points are generated
+by `plugins/withIOSAppIntents.js` and `plugins/withAndroidAppActions.js`;
+localized Siri phrases live in `AppShortcuts.strings` (PT/EN/ES/JA). Google App
+Actions are ingested from `res/xml/shortcuts.xml` when a release is uploaded to
+the Play Console.
+
 ## API surface
 
 All station endpoints are wrapped by the [`animu-api`](https://github.com/RadioAnimu/animu-api) client submodule — full schemas and business rules in its [API reference](https://github.com/RadioAnimu/animu-api/blob/main/API.md):

@@ -3,8 +3,8 @@ import { describe, expect, it, vi } from "vitest";
 import {
   CachedCoverLookup,
   CoverCacheSeeder,
-} from "../cover-image-cache";
-import type { CoverDiskCache } from "../cover-ports";
+} from "@/core/player/cover-image-cache";
+import type { CoverDiskCache } from "@/core/player/cover-ports";
 
 // expo-image reaches the expo package (unparseable in node) — mocked at
 // hoist time (vitest hoists vi.mock above the imports); the adapters are
@@ -100,6 +100,18 @@ describe("CoverCacheSeeder", () => {
       URL_MEDIUM,
     );
     expect(disk.disk.get(URL_MEDIUM)).toBe("file://image-cache/cover.png");
+  });
+
+  it("never overwrites an entry another load already cached", async () => {
+    const disk = new FakeDiskCache();
+    disk.disk.set(URL_MEDIUM, "file://image-cache/existing.jpg");
+
+    await new CoverCacheSeeder(disk).seed(
+      "file://image-cache/fresh.jpg",
+      URL_MEDIUM,
+    );
+
+    expect(disk.disk.get(URL_MEDIUM)).toBe("file://image-cache/existing.jpg");
   });
 
   it("never seeds with a non-file URI (download degraded to the remote URL)", async () => {

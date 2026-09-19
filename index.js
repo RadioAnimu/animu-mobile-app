@@ -1,6 +1,6 @@
 import { registerRootComponent } from "expo";
 import * as SplashScreen from "expo-splash-screen";
-import App from "./App";
+import App from "@app/App";
 
 // Keep the native splash up until the JS splash (same artwork) has painted,
 // so the handoff is seamless — no gray flash and no double splash.

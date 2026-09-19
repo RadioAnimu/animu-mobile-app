@@ -1,5 +1,5 @@
-import { AudioSampler } from "./audio-sampler";
-import type { SamplingTransport, VisualizerSampler } from "./visualizer.types";
+import { AudioSampler } from "@/core/player/audio-sampler";
+import type { SamplingTransport, VisualizerSampler } from "@/core/player/visualizer.types";
 
 /**
  * Android sampler factory. Kept in a platform file so the oscilloscope DSP

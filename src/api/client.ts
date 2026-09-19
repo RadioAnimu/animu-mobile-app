@@ -1,7 +1,7 @@
 import { AnimuApi, type ArtworkQuality } from "animu-api";
 import { fetch as expoFetch } from "expo/fetch";
-import { CONFIG } from "../utils/player.config";
-import { CLIENT_INFO } from "../utils/client-context";
+import { CONFIG } from "@/utils/player.config";
+import { CLIENT_INFO } from "@/utils/client-context";
 
 /**
  * Shared client for everything whose settings don't change per call:
@@ -24,53 +24,28 @@ export const animuApi = new AnimuApi({
 });
 
 /**
- * Now-playing metadata is the only call whose options (artwork quality,
- * default cover) are runtime user/resolver state, so it gets a lightweight
- * dedicated client per call. The client is stateless apart from a
- * short-lived HTTP micro-cache, which the player's 5s polling doesn't
- * depend on.
+ * Builds a client whose per-call options (artwork quality, default cover) are
+ * runtime user/resolver state rather than the shared client's module-load
+ * defaults. Callers that need them — now-playing metadata, history rows, the
+ * live SSE surface, and request search — each get their own lightweight,
+ * otherwise-stateless instance (the package keeps only a short-lived HTTP
+ * micro-cache, which the player's 5s polling doesn't depend on).
+ *
+ * The SSE surface is reached through the returned client's `.live` accessor;
+ * it is long-lived (no request timeout) and survives backgrounding via
+ * `expo/fetch`'s native OkHttp stack, the same reason the shared client uses
+ * it. Search rows carry every size the station exposes and the mapper picks
+ * per `artworkQuality` — the SAME setting that selects the now-playing cover,
+ * so a searched and later-played song shares the same URL family (disk-cache
+ * life).
  */
-export const createMetadataClient = (
+export const createApiClient = (
   artworkQuality: ArtworkQuality,
   defaultCover: string = CONFIG.DEFAULT_COVER,
 ): AnimuApi =>
   new AnimuApi({
     clientInfo: CLIENT_INFO,
     defaultCover,
-    artworkQuality,
-    fetchImpl: expoFetch,
-  });
-
-/**
- * Realtime SSE source for the now-playing stream (`song_change` +
- * `listeners`). Quality/cover are runtime settings, so each configured
- * live surface gets its own lazily-created client; the SSE connection is
- * long-lived (no request timeout) and survives backgrounding via
- * `expo/fetch`'s native OkHttp stack — the same reason the HTTP client
- * uses it. Live track events carry uses one cover per constructor quality;
- * the caller rebuilds when the user changes the setting.
- */
-export const createLiveClient = (
-  artworkQuality: ArtworkQuality,
-  defaultCover: string = CONFIG.DEFAULT_COVER,
-): AnimuApi =>
-  new AnimuApi({
-    clientInfo: CLIENT_INFO,
-    defaultCover,
-    artworkQuality,
-    fetchImpl: expoFetch,
-  });
-
-/**
- * A search-only client. Search rows carry every size the station exposes
- * (`image_large/medium/tiny`), and the mapper picks per `artworkQuality` —
- * the SAME setting that selects the now-playing cover, so a searched and
- * later-played song shares the same URL family (disk-cache life).
- */
-export const createSearchClient = (artworkQuality: ArtworkQuality): AnimuApi =>
-  new AnimuApi({
-    clientInfo: CLIENT_INFO,
-    defaultCover: CONFIG.DEFAULT_COVER,
     artworkQuality,
     fetchImpl: expoFetch,
   });

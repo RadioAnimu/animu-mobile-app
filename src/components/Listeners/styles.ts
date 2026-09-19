@@ -1,5 +1,5 @@
 import { StyleSheet } from "react-native";
-import { THEME } from "../../theme";
+import { THEME } from "@/theme";
 
 const FONINHO = 20;
 

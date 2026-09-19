@@ -1,5 +1,5 @@
 import React, { useContext, useEffect } from "react";
-import PortalContext from "./PortalContext";
+import PortalContext from "@/contexts/Portal/PortalContext";
 
 interface PortalProps {
   children: React.ReactNode;

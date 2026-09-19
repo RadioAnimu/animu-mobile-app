@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   automaticSharePercent,
   resolvePartitionCaps,
-} from "../cover-cache-partitions";
+} from "@/core/services/cover-cache-partitions";
 
 const MB = 1024 * 1024;
 

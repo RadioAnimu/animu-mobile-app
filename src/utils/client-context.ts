@@ -4,7 +4,7 @@ import * as Device from "expo-device";
 import { getLocales } from "expo-localization";
 import Constants from "expo-constants";
 import { clientUserAgent, type ClientInfo } from "animu-api";
-import { setUserAgent } from "./player.config";
+import { setUserAgent } from "@/utils/player.config";
 
 /**
  * Single source of truth for "who is the client".

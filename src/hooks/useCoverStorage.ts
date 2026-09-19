@@ -1,11 +1,11 @@
 import { useFocusEffect } from "@react-navigation/native";
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import { useUserSettings } from "../contexts/user/UserSettingsProvider";
+import { useUserSettings } from "@/contexts/user/UserSettingsProvider";
 import {
   coverDiskStorage,
   type CoverStorageSnapshot,
-} from "../core/services/cover-disk-storage.service";
+} from "@/core/services/cover-disk-storage.service";
 
 /**
  * Liveness + measurement for the storage card. Owns the unmount guard

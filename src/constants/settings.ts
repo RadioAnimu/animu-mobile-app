@@ -1,4 +1,4 @@
-import { UserSettings } from "../@types/user-settings";
+import { UserSettings } from "@/@types/user-settings";
 
 export const DEFAULT_USER_SETTINGS: UserSettings = {
   liveQualityCover: "high",

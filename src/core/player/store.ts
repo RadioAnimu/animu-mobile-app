@@ -1,8 +1,8 @@
-import { Track } from "../domain/track";
-import { Stream } from "../domain/stream";
-import { Listeners } from "../domain/listeners";
-import { Program } from "../domain/program";
-import type { TransportState } from "./transport-state";
+import { Track } from "@/core/domain/track";
+import { Stream } from "@/core/domain/stream";
+import { Listeners } from "@/core/domain/listeners";
+import { Program } from "@/core/domain/program";
+import type { TransportState } from "@/core/player/transport-state";
 
 // ─── Snapshot types ───
 //

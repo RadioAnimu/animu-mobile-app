@@ -1,6 +1,6 @@
-import React, { type ReactNode } from "react";
+import { type ReactNode } from "react";
 import { Freeze } from "react-freeze";
-import { useIsBackgrounded } from "../../contexts/app-state/AppStateProvider";
+import { useIsBackgrounded } from "@/contexts/app-state/AppStateProvider";
 
 /**
  * Suspends rendering of the UI subtree while the app is backgrounded.

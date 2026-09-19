@@ -1,5 +1,5 @@
-import type { CoverCacheCategory } from "../core/services/cover-cache-registry.service";
-import { THEME } from "../theme";
+import type { CoverCacheCategory } from "@/core/services/cover-cache-registry.service";
+import { THEME } from "@/theme";
 
 /**
  * One color per cached-cover category — visually distinct on the deep

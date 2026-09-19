@@ -1,9 +1,7 @@
 import { StyleSheet } from "react-native";
 
-import { THEME } from "../../theme";
+import { THEME } from "@/theme";
 
-const HEADER_HEIGHT = 72;
-const HEADER_BUTTON = 44;
 const CARD_RADIUS = THEME.RADIUS.CARD;
 const ICON_BOX_WIDTH = 32;
 const BANNER_HEIGHT = 96;
@@ -12,30 +10,12 @@ const AVATAR = 84;
 const CONTENT_PADDING = THEME.SPACE.LG;
 const ROW_MIN_HEIGHT = 64;
 
-export { HEADER_HEIGHT, AVATAR };
+export { AVATAR };
 
 export const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: THEME.COLORS.BG_DEEP,
-  },
-  header: {
-    width: "100%",
-    backgroundColor: THEME.COLORS.SURFACE,
-    justifyContent: "space-around",
-    alignItems: "center",
-    flexDirection: "row",
-  },
-  headerButton: {
-    width: HEADER_BUTTON,
-    height: HEADER_BUTTON,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  headerTitle: {
-    color: THEME.COLORS.TEXT,
-    fontFamily: THEME.FONT_FAMILY.BOLD,
-    fontSize: THEME.FONT_SIZE.TITLE,
   },
   content: {
     flexGrow: 1,

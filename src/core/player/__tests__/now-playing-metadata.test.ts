@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import type { Track } from "../../domain/track";
-import { buildNowPlayingMetadata } from "../now-playing.metadata";
+import type { Track } from "@/core/domain/track";
+import { buildNowPlayingMetadata } from "@/core/player/now-playing.metadata";
 
 const makeTrack = (overrides: Partial<Track> = {}): Track => ({
   id: "1",

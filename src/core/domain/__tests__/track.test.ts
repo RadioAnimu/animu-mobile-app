@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import type { Track } from "../track";
-import { getTrackProgress, isRealTrack } from "../track";
+import type { Track } from "@/core/domain/track";
+import { getTrackProgress, isRealTrack } from "@/core/domain/track";
 
 const makeTrack = (overrides: Partial<Track> = {}): Track => ({
   id: "1",

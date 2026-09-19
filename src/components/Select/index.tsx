@@ -10,8 +10,8 @@ import {
   type ImageSourcePropType,
 } from "react-native";
 
-import { THEME } from "../../theme";
-import { styles } from "./styles";
+import { THEME } from "@/theme";
+import { styles } from "@/components/Select/styles";
 
 export interface SelectOption<T extends string> {
   key: T;

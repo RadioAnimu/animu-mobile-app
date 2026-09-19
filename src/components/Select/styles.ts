@@ -1,6 +1,6 @@
 import { StyleSheet } from "react-native";
 
-import { THEME } from "../../theme";
+import { THEME } from "@/theme";
 
 const ROW_MIN_HEIGHT = 64;
 // Big enough to actually judge a quality tier at a glance (the old 52 read

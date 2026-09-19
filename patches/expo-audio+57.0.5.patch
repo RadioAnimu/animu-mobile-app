@@ -1,8 +1,8 @@
 diff --git a/node_modules/expo-audio/android/src/main/java/expo/modules/audio/AudioPlayer.kt b/node_modules/expo-audio/android/src/main/java/expo/modules/audio/AudioPlayer.kt
-index c76a9fd..60c36d8 100644
+index c76a9fd..606168f 100644
 --- a/node_modules/expo-audio/android/src/main/java/expo/modules/audio/AudioPlayer.kt
 +++ b/node_modules/expo-audio/android/src/main/java/expo/modules/audio/AudioPlayer.kt
-@@ -1,19 +1,20 @@
+@@ -1,19 +1,21 @@
  package expo.modules.audio
  
 -import android.Manifest
@@ -11,6 +11,7 @@ index c76a9fd..60c36d8 100644
 -import android.media.audiofx.Visualizer
 -import android.util.Log
 -import androidx.core.content.ContextCompat
++import android.media.AudioManager
  import androidx.media3.common.AudioAttributes
  import androidx.media3.common.C
  import androidx.media3.common.PlaybackException
@@ -28,7 +29,7 @@ index c76a9fd..60c36d8 100644
  import androidx.media3.exoplayer.source.MediaSource
  import androidx.media3.session.MediaSession
  import expo.modules.audio.service.AudioPlaybackServiceConnection
-@@ -21,6 +22,8 @@ import expo.modules.audio.service.ServiceBindingState
+@@ -21,10 +23,14 @@ import expo.modules.audio.service.ServiceBindingState
  import expo.modules.kotlin.AppContext
  import expo.modules.kotlin.exception.Exceptions
  import java.lang.ref.WeakReference
@@ -37,7 +38,13 @@ index c76a9fd..60c36d8 100644
  
  private const val PLAYBACK_STATUS_UPDATE = "playbackStatusUpdate"
  private const val AUDIO_SAMPLE_UPDATE = "audioSampleUpdate"
-@@ -32,9 +35,14 @@ class AudioPlayer(
+ private const val SEEK_JUMP_INTERVAL_MS: Long = 10_000
++// PATCH: upper bound for the visualizer's measured output latency.
++private const val MAX_OUTPUT_LATENCY_SECONDS = 0.75
+ 
+ @UnstableApi
+ class AudioPlayer(
+@@ -32,9 +38,14 @@ class AudioPlayer(
    appContext: AppContext,
    source: MediaSource?,
    updateInterval: Double,
@@ -54,7 +61,7 @@ index c76a9fd..60c36d8 100644
      .setLooper(context.mainLooper)
      .setAudioAttributes(AudioAttributes.DEFAULT, false)
      .setSeekForwardIncrementMs(SEEK_JUMP_INTERVAL_MS)
-@@ -76,8 +84,6 @@ class AudioPlayer(
+@@ -76,8 +87,6 @@ class AudioPlayer(
        return if (offset == C.TIME_UNSET) null else offset / 1000.0
      }
  
@@ -63,20 +70,21 @@ index c76a9fd..60c36d8 100644
    private val context by lazy {
      appContext.reactContext
        ?: throw Exceptions.ReactContextLost()
-@@ -85,6 +91,12 @@ class AudioPlayer(
+@@ -85,6 +94,13 @@ class AudioPlayer(
  
    init {
      installPlayerListeners()
 +    // PATCH: the PCM tap runs on ExoPlayer's audio thread — it must not touch
-+    // `ref` (wrong-thread access throws). `timestampMs` is derived from a frame
-+    // counter by the sink, so this callback only forwards data to JS.
-+    samplingSink.onSample = { channels, timestampSeconds ->
-+      sendAudioSampleUpdate(channels, timestampSeconds)
++    // `ref` (wrong-thread access throws). `timestampSeconds` is derived from a
++    // frame counter by the sink and `outputLatencySeconds` from the sink's
++    // playback head, so this callback only forwards data to JS.
++    samplingSink.onSample = { channels, timestampSeconds, outputLatencySeconds ->
++      sendAudioSampleUpdate(channels, timestampSeconds, outputLatencySeconds)
 +    }
      source?.let {
        setMediaSource(source)
      }
-@@ -164,20 +176,10 @@ class AudioPlayer(
+@@ -164,20 +180,10 @@ class AudioPlayer(
    }
  
    fun setSamplingEnabled(enabled: Boolean) {
@@ -101,7 +109,7 @@ index c76a9fd..60c36d8 100644
    }
  
    override fun setPlaybackRate(rate: Float) {
-@@ -186,11 +188,6 @@ class AudioPlayer(
+@@ -186,11 +192,6 @@ class AudioPlayer(
      ref.playbackParameters = PlaybackParameters(playbackRate, pitch)
    }
  
@@ -113,23 +121,31 @@ index c76a9fd..60c36d8 100644
    override fun currentStatus(): Map<String, Any?> {
      val isMuted = ref.volume == 0f
      val isLooping = ref.repeatMode == Player.REPEAT_MODE_ONE
-@@ -224,12 +221,10 @@ class AudioPlayer(
+@@ -224,12 +225,18 @@ class AudioPlayer(
      mediaSession = buildBasicMediaSession(context, ref)
    }
  
 -  private fun sendAudioSampleUpdate(sample: List<Float>) {
-+  private fun sendAudioSampleUpdate(channels: List<List<Float>>, timestampSeconds: Double) {
++  private fun sendAudioSampleUpdate(
++    channels: List<List<Float>>,
++    timestampSeconds: Double,
++    outputLatencySeconds: Double
++  ) {
      val body = mapOf(
 -      "channels" to listOf(
 -        mapOf("frames" to sample)
 -      ),
 -      "timestamp" to ref.currentPosition
 +      "channels" to channels.map { mapOf("frames" to it) },
-+      "timestamp" to timestampSeconds
++      "timestamp" to timestampSeconds,
++      // PATCH: how far ahead of the speaker this decoded buffer is. The
++      // visualizer delays its trace by this much so the oscilloscope shows
++      // what is being *heard*, not what was just decoded.
++      "outputLatencySeconds" to outputLatencySeconds
      )
      emit(AUDIO_SAMPLE_UPDATE, body)
    }
-@@ -244,33 +239,6 @@ class AudioPlayer(
+@@ -244,33 +251,6 @@ class AudioPlayer(
      }
    }
  
@@ -163,7 +179,7 @@ index c76a9fd..60c36d8 100644
    override fun sharedObjectDidRelease() {
      serviceConnection.release()
      super.sharedObjectDidRelease()
-@@ -282,7 +250,8 @@ class AudioPlayer(
+@@ -282,7 +262,8 @@ class AudioPlayer(
        serviceConnection.playbackServiceBinder?.service?.unregisterPlayer()
      }
      serviceConnection.unbind()
@@ -173,7 +189,7 @@ index c76a9fd..60c36d8 100644
      super.releasePlayer()
    }
  
-@@ -290,3 +259,107 @@ class AudioPlayer(
+@@ -290,3 +271,191 @@ class AudioPlayer(
      val TAG = AudioPlayer::class.simpleName
    }
  }
@@ -191,18 +207,44 @@ index c76a9fd..60c36d8 100644
 +  sink: SamplingAudioBufferSink
 +): RenderersFactory {
 +  val tee = TeeAudioProcessor(sink)
++  // PATCH: rough output-latency fallback (~3 hardware buffers) used until the
++  // sink's own playback head starts reporting a timestamp.
++  sink.fallbackLatencySeconds = estimateOutputLatencySeconds(context)
 +  return object : DefaultRenderersFactory(context) {
 +    override fun buildAudioSink(
 +      context: Context,
 +      enableFloatOutput: Boolean,
 +      enableAudioTrackPlaybackParams: Boolean
-+    ): AudioSink =
-+      DefaultAudioSink.Builder(context)
++    ): AudioSink {
++      val audioSink = DefaultAudioSink.Builder(context)
 +        .setEnableFloatOutput(enableFloatOutput)
 +        .setEnableAudioTrackPlaybackParams(enableAudioTrackPlaybackParams)
 +        .setAudioProcessors(arrayOf<AudioProcessor>(tee))
 +        .build()
++      // PATCH: give the tap a handle to the sink so it can measure how far the
++      // just-decoded buffer is ahead of what the AudioTrack has actually played.
++      sink.audioSink = audioSink
++      return audioSink
++    }
 +  }
++}
++
++/**
++ * PATCH: best-effort output latency from the device's reported hardware
++ * buffer size and sample rate (a small multiple of one buffer). Used as the
++ * visualizer sync fallback until `AudioSink.getAudioTrackBufferSizeUs` starts
++ * reporting the real queue depth (the first few buffers after a stream opens).
++ */
++@UnstableApi
++private fun estimateOutputLatencySeconds(context: Context): Double {
++  val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as? AudioManager
++    ?: return 0.15
++  val framesPerBuffer = audioManager
++    .getProperty(AudioManager.PROPERTY_OUTPUT_FRAMES_PER_BUFFER)?.toDoubleOrNull() ?: 0.0
++  val outputSampleRate = audioManager
++    .getProperty(AudioManager.PROPERTY_OUTPUT_SAMPLE_RATE)?.toDoubleOrNull() ?: 0.0
++  if (framesPerBuffer <= 0.0 || outputSampleRate <= 0.0) return 0.15
++  return (framesPerBuffer / outputSampleRate * 3.0).coerceIn(0.0, MAX_OUTPUT_LATENCY_SECONDS)
 +}
 +
 +/**
@@ -218,15 +260,29 @@ index c76a9fd..60c36d8 100644
 +  @Volatile
 +  var enabled = false
 +
-+  /** `(channels, timestampSeconds) -> Unit`, set by the owning player. */
++  /**
++   * `(channels, timestampSeconds, outputLatencySeconds) -> Unit`, set by the
++   * owning player. `outputLatencySeconds` is how far the newest decoded buffer
++   * is ahead of the audio the speaker is currently producing.
++   */
 +  @Volatile
-+  var onSample: ((List<List<Float>>, Double) -> Unit)? = null
++  var onSample: ((List<List<Float>>, Double, Double) -> Unit)? = null
++
++  /** The sink the tap feeds, used to read the real playback head. */
++  @Volatile
++  var audioSink: AudioSink? = null
++
++  /** Latency used while [audioSink] cannot report a position yet. */
++  @Volatile
++  var fallbackLatencySeconds = 0.15
 +
 +  private var sampleRateHz = 44_100
 +  private var channelCount = 2
 +  private var pcmEncoding = C.ENCODING_PCM_16BIT
 +  private var framesEmittedTotal = 0L
 +  private var lastEmitNanos = 0L
++  /** Smoothed latency so the visualizer's delay line does not jitter. */
++  private var smoothedLatencySeconds = -1.0
 +
 +  override fun flush(sampleRateHz: Int, channelCount: Int, encoding: Int) {
 +    this.sampleRateHz = sampleRateHz
@@ -234,6 +290,7 @@ index c76a9fd..60c36d8 100644
 +    this.pcmEncoding = encoding
 +    this.framesEmittedTotal = 0L
 +    this.lastEmitNanos = 0L
++    this.smoothedLatencySeconds = -1.0
 +  }
 +
 +  override fun handleBuffer(buffer: ByteBuffer) {
@@ -272,12 +329,177 @@ index c76a9fd..60c36d8 100644
 +    framesEmittedTotal += frames
 +    // Match the JS `AudioSample.timestamp` contract (and the iOS tap): seconds,
 +    // not milliseconds.
-+    val timestampSeconds = framesEmittedTotal.toDouble() / sampleRateHz.toDouble()
-+    cb(channels, timestampSeconds)
++    val writtenSeconds = framesEmittedTotal.toDouble() / sampleRateHz.toDouble()
++    cb(channels, writtenSeconds, measureOutputLatencySeconds())
++  }
++
++  /**
++   * How far the buffer just handed to the sink leads the audio the hardware is
++   * currently producing.
++   *
++   * `AudioSink.getAudioTrackBufferSizeUs()` is the sink's own measure of how
++   * many microseconds of audio are queued in the `AudioTrack` right now — it
++   * is the exact lead of the newest written samples over the speaker, in the
++   * sink's clock domain (which is why it is used instead of comparing
++   * `getCurrentPositionUs` against this tap's own frame counter: the tee is
++   * upstream of the sink, so those two timelines are not comparable). It
++   * already includes the device pipeline latency the platform reports.
++   *
++   * Falls back to a hardware-buffer estimate before the sink is ready, and is
++   * IIR-smoothed so the visualizer's delay line never jitters.
++   */
++  private fun measureOutputLatencySeconds(): Double {
++    val sink = audioSink
++    val bufferUs = if (sink != null) {
++      try {
++        sink.audioTrackBufferSizeUs
++      } catch (_: Throwable) {
++        C.TIME_UNSET
++      }
++    } else {
++      C.TIME_UNSET
++    }
++
++    val raw = if (bufferUs == C.TIME_UNSET || bufferUs < 0) {
++      fallbackLatencySeconds
++    } else {
++      (bufferUs / 1_000_000.0).coerceIn(0.0, MAX_OUTPUT_LATENCY_SECONDS)
++    }
++
++    val next = if (smoothedLatencySeconds < 0.0) {
++      raw
++    } else {
++      smoothedLatencySeconds * LATENCY_SMOOTHING + raw * (1.0 - LATENCY_SMOOTHING)
++    }
++    smoothedLatencySeconds = next.coerceIn(0.0, MAX_OUTPUT_LATENCY_SECONDS)
++    return smoothedLatencySeconds
 +  }
 +
 +  private companion object {
 +    const val MAX_FRAMES_PER_CHANNEL = 2048
 +    const val MIN_EMIT_INTERVAL_NANOS = 4_000_000L // ~250 Hz ceiling
++    const val LATENCY_SMOOTHING = 0.85
 +  }
 +}
+diff --git a/node_modules/expo-audio/ios/AudioModule.swift b/node_modules/expo-audio/ios/AudioModule.swift
+index d265606..4ff7bdb 100644
+--- a/node_modules/expo-audio/ios/AudioModule.swift
++++ b/node_modules/expo-audio/ios/AudioModule.swift
+@@ -132,6 +132,10 @@ public class AudioModule: Module {
+         let player = AudioPlayer(avPlayer, interval: updateInterval, source: source)
+         player.owningRegistry = self.registry
+         player.keepAudioSessionActive = keepAudioSessionActive
++        // PATCH: keep the buffer preference on the player so every later
++        // `replace()` (live reconnect / stream change) re-applies it.
++        player.preferredForwardBufferDuration = preferredForwardBufferDuration
++        player.applyStreamingPlaybackPreferences()
+         player.onPlaybackComplete = { [weak self] in
+           if !keepAudioSessionActive {
+             self?.deactivateSession()
+diff --git a/node_modules/expo-audio/ios/AudioPlayer.swift b/node_modules/expo-audio/ios/AudioPlayer.swift
+index 0742943..a69a730 100644
+--- a/node_modules/expo-audio/ios/AudioPlayer.swift
++++ b/node_modules/expo-audio/ios/AudioPlayer.swift
+@@ -24,6 +24,12 @@ public class AudioPlayer: SharedRef<AVPlayer>, Playable {
+   }
+   var samplingEnabled = false
+   var keepAudioSessionActive = false
++  /// PATCH: preferred forward buffer for live streams (0 = system default).
++  var preferredForwardBufferDuration: TimeInterval = 0
++  /// PATCH: whether the user wants playback. A radio stream must (re)start the
++  /// moment AVPlayer is able to play, even if `play()` was called before the
++  /// item reached `readyToPlay` (which `playImmediately` refuses to do).
++  private var playWanted = false
+ 
+   var isLooping = false {
+     didSet {
+@@ -81,6 +87,32 @@ public class AudioPlayer: SharedRef<AVPlayer>, Playable {
+     super.init(ref)
+ 
+     setupPublisher()
++    // PATCH: a radio stream must start as soon as it has audio, not after
++    // AVPlayer has buffered enough to minimise stalling.
++    ref.automaticallyWaitsToMinimizeStalling = false
++    // PATCH: a live item may reach `readyToPlay` *after* `play()` was called.
++    // `playImmediately` before readiness is ignored by AVPlayer, which used to
++    // leave the app silent until the system self-resumed. Start as soon as the
++    // item is ready (and keep the session alive so it is not deactivated while
++    // this brief wait happens).
++    ref.publisher(for: \.currentItem?.status)
++      .sink { [weak self] status in
++        guard let self, status == .readyToPlay, self.playWanted, !self.isPlaying else {
++          return
++        }
++        self.play(at: self.effectiveRate)
++      }
++      .store(in: &cancellables)
++  }
++
++  /// PATCH: live-radio streaming preferences, re-applied to every new item
++  /// (initial load, `replace()` reconnects and stream changes). Without this
++  /// the preferred buffer only ever reached the very first item.
++  func applyStreamingPlaybackPreferences() {
++    ref.automaticallyWaitsToMinimizeStalling = false
++    if preferredForwardBufferDuration > 0 {
++      ref.currentItem?.preferredForwardBufferDuration = preferredForwardBufferDuration
++    }
+   }
+ 
+   var isLoaded: Bool {
+@@ -100,13 +132,20 @@ public class AudioPlayer: SharedRef<AVPlayer>, Playable {
+   }
+ 
+   func play(at rate: Float) {
++    // PATCH: remember the user intent so readiness can start playback even if
++    // the item was still loading when this was called.
++    playWanted = true
+     ref.actionAtItemEnd = isLooping ? .advance : .pause
+     if isLooping {
+       enqueueNextLoopItem()
+     }
+     addPlaybackEndNotification()
+     registerTimeObserver()
+-    ref.playImmediately(atRate: rate)
++    if isLoaded {
++      ref.playImmediately(atRate: rate)
++    }
++    // If the item is not ready yet, the readiness observer installed in
++    // `setupPublisher()` starts it the moment it becomes playable.
+ 
+     if isActiveForLockScreen {
+       MediaController.shared.updateNowPlayingInfo(for: self)
+@@ -228,6 +267,9 @@ public class AudioPlayer: SharedRef<AVPlayer>, Playable {
+         guard let self else {
+           return
+         }
++        // PATCH: every new item (reconnect / stream change) inherits the
++        // live-stream buffer preference.
++        self.applyStreamingPlaybackPreferences()
+         if self.isLooping {
+           self.enqueueNextLoopItem()
+           self.addPlaybackEndNotification()
+@@ -413,6 +455,8 @@ public class AudioPlayer: SharedRef<AVPlayer>, Playable {
+     } else {
+       ref.replaceCurrentItem(with: item)
+     }
++    // PATCH: the freshly inserted item needs the live-stream buffer cap too.
++    applyStreamingPlaybackPreferences()
+   }
+ 
+   private func enqueueNextLoopItem() {
+@@ -496,10 +540,15 @@ public class AudioPlayer: SharedRef<AVPlayer>, Playable {
+   }
+ 
+   func pause() {
++    // PATCH: an explicit pause clears the intent so a late item readiness does
++    // not resurrect audio against the user's wish.
++    playWanted = false
+     ref.pause()
+   }
+ 
+   func resumePlayback() {
++    // PATCH: the OS resuming on its own is still an intent to play.
++    playWanted = true
+     ref.play()
+   }
+ 

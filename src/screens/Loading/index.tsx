@@ -1,10 +1,10 @@
 import { useEffect } from "react";
 import { ActivityIndicator, View } from "react-native";
 import { Image } from "expo-image";
-import { THEME } from "../../theme";
-import { hideSplashOnce } from "./splash";
-import { FALLBACK_HIDE_MS, styles } from "./styles";
-import splashScreenImage from "../../../assets/splash_top.png";
+import { THEME } from "@/theme";
+import { hideSplashOnce } from "@/screens/Loading/splash";
+import { FALLBACK_HIDE_MS, styles } from "@/screens/Loading/styles";
+import splashScreenImage from "@app/assets/splash_top.png";
 
 export function Loading() {
   useEffect(() => {

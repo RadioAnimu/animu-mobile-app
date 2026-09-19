@@ -9,21 +9,20 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 import { AnimuApiError } from "animu-api";
-import { Background } from "../../components/Background";
-import { BackArrow } from "../../components/BackArrow";
-import { ProviderIcon } from "../../components/ProviderIcon";
-import { useAlert } from "../../contexts/alert/AlertProvider";
-import { useAuth } from "../../contexts/auth/AuthProvider";
-import { useUserSettings } from "../../contexts/user/UserSettingsProvider";
-import { AuthFlowCancelled } from "../../core/auth";
-import { isProviderConfigured } from "../../constants/auth";
-import { DICT } from "../../i18n";
-import { RootStackParamList } from "../../routes/app.routes";
-import { THEME } from "../../theme";
-import { HEADER_HEIGHT, styles } from "./styles";
+import { Background } from "@/components/Background";
+import { ProviderIcon } from "@/components/ProviderIcon";
+import { ScreenHeader } from "@/components/ScreenHeader";
+import { useAlert } from "@/contexts/alert/AlertProvider";
+import { useAuth } from "@/contexts/auth/AuthProvider";
+import { AuthFlowCancelled } from "@/core/auth";
+import { isProviderConfigured } from "@/constants/auth";
+import { useDict } from "@/hooks/useDict";
+import { RootStackParamList } from "@/routes/app.routes";
+import { THEME } from "@/theme";
+import { styles } from "@/screens/Login/styles";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Login">;
 type Step = "method" | "connect";
@@ -32,8 +31,6 @@ type ConnectStep = "email" | "code";
 const TOTAL_STEPS = 2;
 
 export function Login({ navigation }: Props) {
-  const insets = useSafeAreaInsets();
-  const { settings } = useUserSettings();
   const { toast, error: showError } = useAlert();
   const {
     providers,
@@ -42,7 +39,7 @@ export function Login({ navigation }: Props) {
     loginWithEmailCode,
     isAuthenticating,
   } = useAuth();
-  const dict = DICT[settings.selectedLanguage];
+  const dict = useDict();
 
   const [step, setStep] = useState<Step>("method");
   const [connectStep, setConnectStep] = useState<ConnectStep>("email");
@@ -145,23 +142,7 @@ export function Login({ navigation }: Props) {
   return (
     <Background>
       <SafeAreaView style={styles.container} edges={["left", "right", "bottom"]}>
-        <View
-          style={[
-            styles.header,
-            { height: HEADER_HEIGHT + insets.top, paddingTop: insets.top },
-          ]}
-        >
-          <TouchableOpacity
-            accessibilityRole="button"
-            accessibilityLabel="Back"
-            onPress={goBack}
-            style={styles.headerButton}
-          >
-            <BackArrow />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>{dict.LOGIN_TITLE}</Text>
-          <View style={styles.headerButton} />
-        </View>
+        <ScreenHeader title={dict.LOGIN_TITLE} onBack={goBack} />
 
         <ScrollView
           contentContainerStyle={styles.content}

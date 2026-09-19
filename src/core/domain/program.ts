@@ -1,5 +1,5 @@
 import type { Program as AnimuProgram } from "animu-api";
-import { Program as ProgramDictionaryEntry } from "../../api";
+import { Program as ProgramDictionaryEntry } from "@/api";
 
 /**
  * The package's mapped program, enriched with the matching i18n dictionary

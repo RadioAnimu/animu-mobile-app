@@ -1,12 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { NowPlayingMetadata } from "react-native-playback-controls";
-import type { Track } from "../../domain/track";
-import type { MediaSessionPublisher } from "../media-session.publisher";
-import type { NowPlayingRepository } from "../now-playing.repository";
-import { ProgressTicker } from "../progress-ticker";
-import { progressStore } from "../store";
-import type { AudioTransport } from "../transport";
-import type { TransportStateMachine } from "../transport-state";
+import type { Track } from "@/core/domain/track";
+import type { MediaSessionPublisher } from "@/core/player/media-session.publisher";
+import type { NowPlayingRepository } from "@/core/player/now-playing.repository";
+import { ProgressTicker } from "@/core/player/progress-ticker";
+import { progressStore } from "@/core/player/store";
+import type { AudioTransport } from "@/core/player/transport";
+import type { TransportStateMachine } from "@/core/player/transport-state";
 
 const METADATA: NowPlayingMetadata = {
   title: "t",

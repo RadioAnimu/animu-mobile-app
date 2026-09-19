@@ -7,13 +7,13 @@ import {
   redirectUriForProvider,
   resolveClientId,
   type OauthProviderConfig,
-} from "../../../constants/auth";
-import { AuthFlowCancelled } from "../errors";
+} from "@/constants/auth";
+import { AuthFlowCancelled } from "@/core/auth/errors";
 import type {
   AppleNativeCredential,
   OAuthPort,
   OAuthResult,
-} from "../ports";
+} from "@/core/auth/ports";
 
 // ─── Browser (expo-auth-session) ────────────────────────────────────────
 

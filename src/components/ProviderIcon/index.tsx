@@ -1,6 +1,6 @@
 import MaterialCommunityIcons from "@react-native-vector-icons/material-design-icons/static";
 import MaterialIcons from "@react-native-vector-icons/material-icons/static";
-import { THEME } from "../../theme";
+import { THEME } from "@/theme";
 
 interface Props {
   provider: string;

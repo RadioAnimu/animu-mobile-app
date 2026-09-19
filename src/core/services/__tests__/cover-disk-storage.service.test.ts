@@ -3,8 +3,8 @@ import { describe, expect, it, vi } from "vitest";
 import {
   coverDiskStorage,
   type CoverCacheTrimResult,
-} from "../cover-disk-storage.service";
-import { coverCacheRegistry } from "../cover-cache-registry.service";
+} from "@/core/services/cover-disk-storage.service";
+import { coverCacheRegistry } from "@/core/services/cover-cache-registry.service";
 
 const { getCachePathAsync, files, failDeleteUris } = vi.hoisted(() => {
   const getCachePathAsync = vi.fn<(key: string) => Promise<string | null>>();

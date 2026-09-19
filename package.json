@@ -12,6 +12,8 @@
     "lint": "expo lint",
     "build:api": "npm run build --prefix packages/animu-api",
     "splash": "node scripts/generate-splash.mjs",
+    "ota:ios": "npx expo export:embed --platform ios --entry-file index.js --bundle-output dist/ios/main.jsbundle --assets-dest dist/ios --dev false --minify --bytecode",
+    "ota:android": "npx expo export:embed --platform android --entry-file index.js --bundle-output dist/android/index.android.bundle --assets-dest dist/android --dev false --minify --bytecode",
     "test": "vitest run",
     "doctor": "npx react-doctor@latest"
   },
@@ -46,7 +48,9 @@
     "react": "19.2.3",
     "react-freeze": "^1.0.4",
     "react-native": "0.86.3",
+    "react-native-blob-util": "^0.25.0",
     "react-native-gesture-handler": "~2.32.0",
+    "react-native-ota-hot-update": "^2.4.7",
     "react-native-playback-controls": "0.2.1",
     "react-native-reanimated": "4.5.1",
     "react-native-safe-area-context": "~5.7.0",
@@ -72,7 +76,10 @@
   "expo": {
     "doctor": {
       "reactNativeDirectoryCheck": {
-        "listUnknownPackages": false
+        "listUnknownPackages": false,
+        "exclude": [
+          "react-native-fs"
+        ]
       }
     },
     "install": {
@@ -84,6 +91,9 @@
     "autolinking": {
       "buildFromSource": [
         "expo-audio"
+      ],
+      "exclude": [
+        "react-native-fs"
       ]
     }
   }

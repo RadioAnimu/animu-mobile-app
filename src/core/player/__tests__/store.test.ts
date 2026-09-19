@@ -3,7 +3,7 @@ import {
   playerStore,
   progressStore,
   stationStore,
-} from "../store";
+} from "@/core/player/store";
 
 describe("player stores", () => {
   it("notify only when the snapshot actually changed", () => {

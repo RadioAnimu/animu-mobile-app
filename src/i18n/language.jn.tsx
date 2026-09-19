@@ -1,15 +1,11 @@
 import Svg, { Path, Rect, SvgProps } from "react-native-svg";
-import { version } from "../../package.json";
-import { Program } from "../api";
-import logo from "../assets/logo_JP.png";
-import fazer_pedido from "../assets/pedidos_harukinha_jn.png";
-import ultimas_tocadas from "../assets/ultimas_tocadas-haru_jn.png";
-import ultimas_pedidas from "../assets/ultimos_pedidas-haru_jn.png";
-
-const LANG = {
-  key: "JP",
-  value: "日本語",
-};
+import { version } from "@app/package.json";
+import { Program } from "@/api";
+import type { Dict } from "@/i18n/language.en";
+import logo from "@/assets/logo_JP.png";
+import fazer_pedido from "@/assets/pedidos_harukinha_jn.png";
+import ultimas_tocadas from "@/assets/ultimas_tocadas-haru_jn.png";
+import ultimas_pedidas from "@/assets/ultimos_pedidas-haru_jn.png";
 
 const PROGRAMS: Program[] = [
   {
@@ -131,7 +127,7 @@ const PROGRAMS: Program[] = [
   },
 ];
 
-const DICT = {
+const DICT: Dict = {
   PROGRAMS,
   TIME_REMAINING: "のこり時間",
   WITH_DJ: "DJ",
@@ -182,6 +178,22 @@ const DICT = {
   SETTINGS_VISUALIZER_DESC: "再生中に波形を表示します",
   SETTINGS_LIVE_UPDATES_DESC: "バックグラウンドでも曲情報を更新します",
   SETTINGS_MEMORY_CLEAR_CACHE_DESC: "カバーを保存して表示を速くします",
+  SETTINGS_UPDATES_TITLE: "アプリの更新",
+  SETTINGS_UPDATES_ROW: "更新を確認",
+  SETTINGS_UPDATES_DESC: "再インストールせずに最新の変更を受け取れます",
+  SETTINGS_ASSISTANT_TITLE: "音声アシスタント",
+  SETTINGS_ASSISTANT_HINT:
+    "「Hey Siri、Rádio Animuを再生」「Ok Google、Rádio Animuを再生」と話しかけてください",
+  SETTINGS_UPDATES_CHECKING: "確認中…",
+  SETTINGS_UPDATES_DOWNLOADING: "ダウンロード中…",
+  SETTINGS_UPDATES_UP_TO_DATE: "最新です",
+  SETTINGS_UPDATES_DOWNLOADED: "更新をダウンロードしました — 再起動で適用",
+  SETTINGS_UPDATES_READY: "更新の準備完了",
+  SETTINGS_UPDATES_ERROR: "更新を確認できませんでした",
+  SETTINGS_UPDATES_RESTART_TITLE: "今すぐ再起動しますか？",
+  SETTINGS_UPDATES_RESTART_MSG:
+    "ダウンロードした更新はアプリの再起動後に適用されます。",
+  SETTINGS_UPDATES_RESTART_CONFIRM: "再起動",
   SETTINGS_RESET_ROW: "初期設定に戻す",
   SETTINGS_RESET_CONFIRM_TITLE: "設定をリセットしますか？",
   SETTINGS_RESET_CONFIRM_MSG: "すべての設定が初期状態に戻ります。",
@@ -366,4 +378,4 @@ const IMGS = {
   LIVE_REQUEST_DISABLED: PedidosAoVivoDesativados,
 };
 
-export { DICT, IMGS, LANG };
+export { DICT, IMGS };

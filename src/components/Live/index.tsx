@@ -1,15 +1,17 @@
 import React from "react";
 import { View } from "react-native";
 import * as Clipboard from "expo-clipboard";
-import { Marquee, MarqueeGroup } from "../Marquee";
-import { DICT, IMGS } from "../../i18n";
-import { styles } from "./styles";
-import { useUserSettings } from "../../contexts/user/UserSettingsProvider";
-import { usePlayer } from "../../contexts/player/PlayerProvider";
-import { useAlert } from "../../contexts/alert/AlertProvider";
+import { Marquee, MarqueeGroup } from "@/components/Marquee";
+import { IMGS } from "@/i18n";
+import { styles } from "@/components/Live/styles";
+import { useUserSettings } from "@/contexts/user/UserSettingsProvider";
+import { useDict } from "@/hooks/useDict";
+import { usePlayer } from "@/contexts/player/PlayerProvider";
+import { useAlert } from "@/contexts/alert/AlertProvider";
 
 export const Live = React.memo(function Live() {
   const { settings } = useUserSettings();
+  const dict = useDict();
   const player = usePlayer();
   const alert = useAlert();
   const NoAr = IMGS[settings.selectedLanguage].LIVE_LABEL;
@@ -20,7 +22,7 @@ export const Live = React.memo(function Live() {
 
   const copy = (text: string) => {
     Clipboard.setStringAsync(text);
-    alert.toast(DICT[settings.selectedLanguage].TEXT_COPIED);
+    alert.toast(dict.TEXT_COPIED);
   };
 
   return (

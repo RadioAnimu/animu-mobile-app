@@ -1,6 +1,6 @@
 import { Text, TouchableOpacity } from "react-native";
-import { THEME } from "../../theme";
-import { styles } from "./styles";
+import { THEME } from "@/theme";
+import { styles } from "@/components/ButtonKBPS/styles";
 
 interface Props {
   selected: boolean;

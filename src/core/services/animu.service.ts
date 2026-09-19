@@ -7,28 +7,10 @@ import {
   type LiveNowPlaying,
   type Track,
 } from "animu-api";
-import type { Program } from "../domain/program";
-import { DICT } from "../../i18n";
-import type { Program as ProgramDictionaryEntry } from "../../api";
-import { animuApi, createMetadataClient, createLiveClient } from "../../api/client";
-
-/**
- * Realtime now-playing surface the repository subscribes to. Each
- * configured key (cover quality + default cover) owns its own lazily
- * created SSE client; switching the key tears the previous one down.
- */
-export interface LiveNowPlayingSource {
-  subscribe(
-    quality: ArtworkQuality,
-    defaultCover: string,
-    handlers: {
-      onSongChange: (song: LiveNowPlaying) => void;
-      onListeners: (listeners: Listeners) => void;
-      onOpen?: () => void;
-      onError?: (error: Error) => void;
-    },
-  ): () => void;
-}
+import type { Program } from "@/core/domain/program";
+import { DICT } from "@/i18n";
+import type { Program as ProgramDictionaryEntry } from "@/api";
+import { animuApi, createApiClient } from "@/api/client";
 
 class AnimuService {
   /** Lazily-created SSE surface, keyed by `quality|cover` (constructor state). */
@@ -45,7 +27,7 @@ class AnimuService {
     artworkQuality?: ArtworkQuality,
     defaultCover?: string,
   ): Promise<{ track: Track | null; listeners: Listeners }> {
-    const client = createMetadataClient(artworkQuality ?? "medium", defaultCover);
+    const client = createApiClient(artworkQuality ?? "medium", defaultCover);
     return client.getStreamMetadata();
   }
 
@@ -74,7 +56,7 @@ class AnimuService {
     artworkQuality?: ArtworkQuality,
     defaultCover?: string,
   ): Promise<Track[]> {
-    const client = createMetadataClient(artworkQuality ?? "medium", defaultCover);
+    const client = createApiClient(artworkQuality ?? "medium", defaultCover);
     return client.getTrackHistory(type);
   }
 
@@ -113,7 +95,7 @@ class AnimuService {
     const key = `${quality}|${defaultCover}`;
     if (this.liveKey !== key || !this.liveClient) {
       this.liveKey = key;
-      this.liveClient = createLiveClient(quality, defaultCover).live;
+      this.liveClient = createApiClient(quality, defaultCover).live;
     }
     const client = this.liveClient;
     const subscription = client.subscribe({

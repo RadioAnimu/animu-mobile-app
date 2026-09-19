@@ -9,7 +9,7 @@ import {
   View,
 } from "react-native";
 
-import { THEME } from "../../theme";
+import { THEME } from "@/theme";
 
 interface Props {
   /** The real value — shown only while revealed. */

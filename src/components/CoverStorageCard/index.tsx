@@ -2,18 +2,18 @@ import { useSyncExternalStore } from "react";
 import MaterialIcons from "@react-native-vector-icons/material-icons/static";
 import { Alert, Text, TouchableOpacity, View } from "react-native";
 
-import { DICT } from "../../i18n";
-import { useUserSettings } from "../../contexts/user/UserSettingsProvider";
+import { useUserSettings } from "@/contexts/user/UserSettingsProvider";
 import {
   coverDiskStorage,
   type CoverStorageKey,
   type CoverStorageSlice,
-} from "../../core/services/cover-disk-storage.service";
-import { COVER_CATEGORY_COLORS } from "../../constants/covers";
-import { formatBytes, percentOf } from "../../utils/format";
-import { THEME } from "../../theme";
-import { useCoverStorageSnapshot } from "../../hooks/useCoverStorage";
-import { styles } from "./styles";
+} from "@/core/services/cover-disk-storage.service";
+import { COVER_CATEGORY_COLORS } from "@/constants/covers";
+import { formatBytes, percentOf } from "@/utils/format";
+import { THEME } from "@/theme";
+import { useCoverStorageSnapshot } from "@/hooks/useCoverStorage";
+import { useDict } from "@/hooks/useDict";
+import { styles } from "@/components/CoverStorageCard/styles";
 
 function LegendRow({
   slice,
@@ -22,8 +22,7 @@ function LegendRow({
   slice: CoverStorageSlice;
   totalBytes: number;
 }) {
-  const { settings } = useUserSettings();
-  const dict = DICT[settings.selectedLanguage];
+  const dict = useDict();
   return (
     <View style={styles.legendRow} accessibilityRole="text">
       <View
@@ -75,7 +74,7 @@ function legendLabel(dict: StorageDicts, key: CoverStorageKey): string {
 export function CoverStorageCard() {
   const { settings } = useUserSettings();
   const { snapshot, measuring, measure } = useCoverStorageSnapshot();
-  const dict = DICT[settings.selectedLanguage];
+  const dict = useDict();
   const totalBytes = snapshot?.totalBytes ?? 0;
   const hasData = totalBytes > 0;
 
@@ -139,8 +138,7 @@ function CleanButton({
   hasData: boolean;
   measure: () => Promise<void>;
 }) {
-  const { settings } = useUserSettings();
-  const dict = DICT[settings.selectedLanguage];
+  const dict = useDict();
   // One store-wide wipe flag — drives both the clean button and the
   // Settings toggle (the provider's automatic wipe is included).
   const clearing = useSyncExternalStore(

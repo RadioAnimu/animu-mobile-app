@@ -1,5 +1,5 @@
 import MaterialIcons from "@react-native-vector-icons/material-icons/static";
-import React, { useState } from "react";
+import { useState } from "react";
 import {
   ActivityIndicator,
   ScrollView,
@@ -9,15 +9,15 @@ import {
   View,
 } from "react-native";
 
-import { useUserSettings } from "../../contexts/user/UserSettingsProvider";
-import { MusicRequest } from "../../core/domain/music-request";
-import { User } from "../../core/domain/user";
-import { DICT } from "../../i18n";
-import { THEME } from "../../theme";
-import { Avatar } from "../Avatar";
-import { Cover } from "../Cover";
-import { styles } from "./styles";
-import { Sheet } from "../Sheet";
+import { useUserSettings } from "@/contexts/user/UserSettingsProvider";
+import { MusicRequest } from "@/core/domain/music-request";
+import { User } from "@/core/domain/user";
+import { DICT } from "@/i18n";
+import { THEME } from "@/theme";
+import { Avatar } from "@/components/Avatar";
+import { Cover } from "@/components/Cover";
+import { styles } from "@/components/RequestBottomSheet/styles";
+import { Sheet } from "@/components/Sheet";
 
 type SubmitStatus = "idle" | "submitting" | "success" | "error";
 

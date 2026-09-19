@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import MaterialIcons from "@react-native-vector-icons/material-icons/static";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { Image, type ImageSource } from "expo-image";
@@ -10,32 +10,32 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 import { AnimuApiError, type LinkedProvider } from "animu-api";
-import { Background } from "../../components/Background";
-import { Avatar } from "../../components/Avatar";
-import { BackArrow } from "../../components/BackArrow";
-import { AnimuConnectSheet } from "../../components/AnimuConnectSheet";
-import { MaskedValue } from "../../components/MaskedValue";
-import { ProviderIcon } from "../../components/ProviderIcon";
-import { SectionTitle } from "../../components/SectionTitle";
-import { useAlert } from "../../contexts/alert/AlertProvider";
-import { useAuth } from "../../contexts/auth/AuthProvider";
-import { useUserSettings } from "../../contexts/user/UserSettingsProvider";
-import { getUserName } from "../../core/domain/user";
-import { AuthFlowCancelled } from "../../core/auth";
+import { Background } from "@/components/Background";
+import { Avatar } from "@/components/Avatar";
+import { AnimuConnectSheet } from "@/components/AnimuConnectSheet";
+import { MaskedValue } from "@/components/MaskedValue";
+import { ProviderIcon } from "@/components/ProviderIcon";
+import { ScreenHeader } from "@/components/ScreenHeader";
+import { SectionTitle } from "@/components/SectionTitle";
+import { useAlert } from "@/contexts/alert/AlertProvider";
+import { useAuth } from "@/contexts/auth/AuthProvider";
+import { useBoundedRetry } from "@/hooks/useBoundedRetry";
+import { useDict } from "@/hooks/useDict";
+import { getUserName } from "@/core/domain/user";
+import { AuthFlowCancelled } from "@/core/auth";
 import {
   isProviderConfigured,
   isProviderLinkable,
   providerLabel,
-} from "../../constants/auth";
-import { buildAuthImageSource } from "../../utils/authImage";
-import { maskEmail, maskHandle, maskIdentifier } from "../../utils/mask";
-import { DICT } from "../../i18n";
-import { RootStackParamList } from "../../routes/app.routes";
-import { THEME } from "../../theme";
-import { AVATAR, HEADER_HEIGHT, styles } from "./styles";
+} from "@/constants/auth";
+import { buildAuthImageSource } from "@/utils/authImage";
+import { maskEmail, maskHandle, maskIdentifier } from "@/utils/mask";
+import { RootStackParamList } from "@/routes/app.routes";
+import { THEME } from "@/theme";
+import { AVATAR, styles } from "@/screens/Account/styles";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Account">;
 
@@ -88,10 +88,6 @@ function providerDisplay(provider: LinkedProvider): ProviderDisplay | null {
   return null;
 }
 
-/** Transient banner failures self-heal, mirroring the `Avatar` component. */
-const BANNER_RETRY_DELAY_MS = 3000;
-const BANNER_MAX_RETRIES = 2;
-
 interface ProfileBannerProps {
   source: ImageSource | undefined;
   /** The provider accent shown while the image loads or after it fails. */
@@ -112,25 +108,7 @@ interface ProfileBannerProps {
  * simply stays the accent color — the layout never collapses.
  */
 function ProfileBanner({ source, fallbackColor, revision }: ProfileBannerProps) {
-  const [retry, setRetry] = useState(0);
-  const [failed, setFailed] = useState(false);
-
-  // Adjust state during render so a new image never flashes a stale frame.
-  const [trackedRevision, setTrackedRevision] = useState(revision);
-  if (trackedRevision !== revision) {
-    setTrackedRevision(revision);
-    setFailed(false);
-    setRetry(0);
-  }
-
-  useEffect(() => {
-    if (!failed || retry >= BANNER_MAX_RETRIES) return;
-    const timer = setTimeout(() => {
-      setFailed(false);
-      setRetry((value) => value + 1);
-    }, BANNER_RETRY_DELAY_MS);
-    return () => clearTimeout(timer);
-  }, [failed, retry]);
+  const { failed, fail } = useBoundedRetry(revision);
 
   return (
     <View style={[styles.banner, { backgroundColor: fallbackColor }]}>
@@ -140,7 +118,7 @@ function ProfileBanner({ source, fallbackColor, revision }: ProfileBannerProps) 
           style={styles.bannerImage}
           contentFit="cover"
           transition={150}
-          onError={() => setFailed(true)}
+          onError={fail}
         />
       )}
     </View>
@@ -148,8 +126,6 @@ function ProfileBanner({ source, fallbackColor, revision }: ProfileBannerProps) 
 }
 
 export function Account({ navigation }: Props) {
-  const insets = useSafeAreaInsets();
-  const { settings } = useUserSettings();
   const { toast, error: showError } = useAlert();
   const {
     user,
@@ -164,7 +140,7 @@ export function Account({ navigation }: Props) {
     linkProvider,
     unlinkProvider,
   } = useAuth();
-  const dict = DICT[settings.selectedLanguage];
+  const dict = useDict();
 
   const [busy, setBusy] = useState<string | null>(null);
   const [connectVisible, setConnectVisible] = useState(false);
@@ -224,23 +200,10 @@ export function Account({ navigation }: Props) {
   };
 
   const renderHeader = () => (
-    <View
-      style={[
-        styles.header,
-        { height: HEADER_HEIGHT + insets.top, paddingTop: insets.top },
-      ]}
-    >
-      <TouchableOpacity
-        accessibilityRole="button"
-        accessibilityLabel="Back"
-        onPress={() => navigation.goBack()}
-        style={styles.headerButton}
-      >
-        <BackArrow />
-      </TouchableOpacity>
-      <Text style={styles.headerTitle}>{dict.ACCOUNT_TITLE}</Text>
-      <View style={styles.headerButton} />
-    </View>
+    <ScreenHeader
+      title={dict.ACCOUNT_TITLE}
+      onBack={() => navigation.goBack()}
+    />
   );
 
   if (!isAuthenticated || !user) {

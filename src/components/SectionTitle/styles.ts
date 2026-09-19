@@ -1,5 +1,5 @@
 import { StyleSheet } from "react-native";
-import { THEME } from "../../theme";
+import { THEME } from "@/theme";
 
 export const SECTION_ICON_SIZE = 18;
 const ICON_BOX_WIDTH = 32;

@@ -6,5 +6,5 @@
  * This file stays as the app-side import path so call sites keep reading
  * `core/domain/track` (thin re-export, no logic here).
  */
-export type { Track, Artworks } from "animu-api";
+export type { Track } from "animu-api";
 export { getTrackProgress, isRealTrack } from "animu-api";

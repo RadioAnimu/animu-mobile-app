@@ -1,6 +1,6 @@
 import Ionicons from "@react-native-vector-icons/ionicons/static";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
-import React, { useCallback, useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -12,29 +12,29 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 
 // Components
-import { Background } from "../../components/Background";
-import { HeaderBar } from "../../components/HeaderBar";
-import { Logo } from "../../components/Logo";
-import { RequestBottomSheet } from "../../components/RequestBottomSheet";
-import { RequestTrack, TrackRequestContext } from "../../components/RequestTrack";
-import { ROW_HEIGHT as REQUEST_ROW_HEIGHT } from "../../components/RequestTrack/styles";
+import { Background } from "@/components/Background";
+import { HeaderBar } from "@/components/HeaderBar";
+import { Logo } from "@/components/Logo";
+import { RequestBottomSheet } from "@/components/RequestBottomSheet";
+import { RequestTrack, TrackRequestContext } from "@/components/RequestTrack";
 
 // Core
-import { useAuth } from "../../contexts/auth/AuthProvider";
-import { useUserSettings } from "../../contexts/user/UserSettingsProvider";
+import { useAuth } from "@/contexts/auth/AuthProvider";
+import { useUserSettings } from "@/contexts/user/UserSettingsProvider";
+import { useDict } from "@/hooks/useDict";
 import {
   MusicRequest,
   MusicRequestPagination,
   MusicRequestSubmission,
-} from "../../core/domain/music-request";
+} from "@/core/domain/music-request";
 import {
   getSubmissionErrorMessage,
   musicRequestService,
-} from "../../core/services/music-request.service";
-import { DICT, IMGS } from "../../i18n";
-import { RootStackParamList } from "../../routes/app.routes";
-import { THEME } from "../../theme";
-import { styles } from "./styles";
+} from "@/core/services/music-request.service";
+import { IMGS } from "@/i18n";
+import { RootStackParamList } from "@/routes/app.routes";
+import { THEME } from "@/theme";
+import { styles } from "@/screens/FazerPedido/styles";
 
 type Props = NativeStackScreenProps<RootStackParamList, "FazerPedido">;
 
@@ -43,6 +43,7 @@ const LOGO_HEIGHT = 150;
 export function FazerPedido({ navigation }: Props) {
   const { user } = useAuth();
   const { settings } = useUserSettings();
+  const dict = useDict();
 
   const [searchState, setSearchState] = useState<{
     query: string;
@@ -114,14 +115,14 @@ export function FazerPedido({ navigation }: Props) {
       if (!user?.sessionToken) {
         return {
           success: false,
-          message: DICT[settings.selectedLanguage].LOGIN_ERROR,
+          message: dict.LOGIN_ERROR,
         };
       }
 
       if (!selectedTrack) {
         return {
           success: false,
-          message: DICT[settings.selectedLanguage].SELECT_ERROR,
+          message: dict.SELECT_ERROR,
         };
       }
 
@@ -146,10 +147,10 @@ export function FazerPedido({ navigation }: Props) {
 
       return {
         success: true,
-        message: DICT[settings.selectedLanguage].REQUEST_SUCCESS,
+        message: dict.REQUEST_SUCCESS,
       };
     },
-    [selectedTrack, user, settings.selectedLanguage],
+    [selectedTrack, user, dict, settings.selectedLanguage],
   );
 
   const handleRequestSuccess = useCallback((trackId: string) => {
@@ -192,7 +193,7 @@ export function FazerPedido({ navigation }: Props) {
             <TextInput
               style={styles.input}
               placeholder={
-                DICT[settings.selectedLanguage].REQUEST_SEARCH_PLACEHOLDER
+                dict.REQUEST_SEARCH_PLACEHOLDER
               }
               placeholderTextColor={THEME.COLORS.TEXT}
               value={searchState.query}
@@ -220,12 +221,8 @@ export function FazerPedido({ navigation }: Props) {
                   keyExtractor={(item) => item.id}
                   contentContainerStyle={styles.list}
                   renderItem={renderRequestTrack}
-                  // Fixed-height rows: O(1) offset math on 200+ rows
-                  getItemLayout={(_, index) => ({
-                    length: REQUEST_ROW_HEIGHT,
-                    offset: REQUEST_ROW_HEIGHT * index,
-                    index,
-                  })}
+                  // Rows wrap to show the full title, so they vary in height
+                  // and cannot be described by `getItemLayout`.
                   // Virtualization tuning for long searches: render only
                   // what is on screen plus a short lead in/out.
                   initialNumToRender={10}
@@ -242,7 +239,7 @@ export function FazerPedido({ navigation }: Props) {
                           <ActivityIndicator color={THEME.COLORS.TEXT} />
                         ) : (
                           <Text style={styles.loadMoreText}>
-                            {DICT[settings.selectedLanguage].LOAD_MORE_RESULTS}
+                            {dict.LOAD_MORE_RESULTS}
                           </Text>
                         )}
                       </TouchableOpacity>

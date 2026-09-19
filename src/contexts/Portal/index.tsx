@@ -1,2 +1,2 @@
-export { default as PortalProvider } from "./PortalProvider";
-export { default as Portal } from "./Portal";
+export { default as PortalProvider } from "@/contexts/Portal/PortalProvider";
+export { default as Portal } from "@/contexts/Portal/Portal";

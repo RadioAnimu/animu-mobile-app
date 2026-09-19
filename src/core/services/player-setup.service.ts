@@ -1,5 +1,5 @@
 import { setAudioModeAsync } from "expo-audio";
-import { StartPlaybackSession } from "./player-playback.service";
+import { StartPlaybackSession } from "@/core/services/player-playback.service";
 
 export const SetupService = async () => {
   try {

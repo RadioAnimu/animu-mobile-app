@@ -1,13 +1,13 @@
 import { Asset } from "expo-asset";
-import DEFAULT_COVER from "../../../assets/default-cover.png";
-import { CONFIG } from "../../utils/player.config";
-import type { Track } from "../domain/track";
+import DEFAULT_COVER from "@app/assets/default-cover.png";
+import { CONFIG } from "@/utils/player.config";
+import type { Track } from "@/core/domain/track";
 import type {
   CoverFileCache,
   FindCachedCoverFile,
   SeedCoverCache,
-} from "./cover-ports";
-import { CoverFileHashMap } from "./cover-file-cache";
+} from "@/core/player/cover-ports";
+import { CoverFileHashMap } from "@/core/player/cover-file-cache";
 
 export interface ArtworkResolverOptions {
   /**

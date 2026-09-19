@@ -1,11 +1,11 @@
 import { Image } from "expo-image";
 import React from "react";
 import { ScrollView, Text, View } from "react-native";
-import { usePlayer } from "../../contexts/player/PlayerProvider";
-import { useUserSettings } from "../../contexts/user/UserSettingsProvider";
-import { DICT } from "../../i18n";
-import { styles } from "./styles";
-import { Sheet } from "../Sheet";
+import { usePlayer } from "@/contexts/player/PlayerProvider";
+import { DICT } from "@/i18n";
+import { useDict } from "@/hooks/useDict";
+import { styles } from "@/components/PopUpProgram/styles";
+import { Sheet } from "@/components/Sheet";
 
 interface Props {
   visible: boolean;
@@ -16,7 +16,7 @@ export const PopUpProgram = React.memo(function PopUpProgram({
   handleClose,
   visible,
 }: Props) {
-  const { settings } = useUserSettings();
+  const dict = useDict();
   const player = usePlayer();
 
   const _program = player.currentProgram;
@@ -30,7 +30,7 @@ export const PopUpProgram = React.memo(function PopUpProgram({
       (p) => p.name === _program.raw!.name,
     );
     return ptIndex >= 0
-      ? DICT[settings.selectedLanguage].PROGRAMS[ptIndex]
+      ? dict.PROGRAMS[ptIndex]
       : undefined;
   })();
 
@@ -60,7 +60,7 @@ export const PopUpProgram = React.memo(function PopUpProgram({
             )}
             {!!programTheme && (
               <Text style={styles.label}>
-                {DICT[settings.selectedLanguage].THEME_WORD}: {programTheme}
+                {dict.THEME_WORD}: {programTheme}
               </Text>
             )}
             {!!programDayTime && (

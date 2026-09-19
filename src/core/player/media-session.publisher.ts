@@ -5,7 +5,7 @@ import type {
 import {
   setNowPlayingMetadata,
   setRemotePlaybackStatus,
-} from "../services/player-playback.service";
+} from "@/core/services/player-playback.service";
 
 /**
  * Thin push facade over the native media session. Everything the app

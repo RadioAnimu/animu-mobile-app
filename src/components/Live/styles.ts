@@ -1,5 +1,5 @@
 import { Dimensions, StyleSheet } from "react-native";
-import { THEME } from "../../theme";
+import { THEME } from "@/theme";
 
 const TRACK_WIDTH = Dimensions.get("window").width;
 const INFO_MARGIN = 14;

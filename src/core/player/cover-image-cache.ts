@@ -1,7 +1,7 @@
 import { Image } from "expo-image";
 import { artworkSizeRank, deriveArtworkVariants } from "animu-api";
 
-import type { CoverDiskCache } from "./cover-ports";
+import type { CoverDiskCache } from "@/core/player/cover-ports";
 
 /**
  * Adapters over expo-image's own disk cache, implementing the ports in
@@ -101,6 +101,15 @@ export class CoverCacheSeeder {
   async seed(localUri: string, remoteUrl: string): Promise<void> {
     try {
       if (!localUri?.startsWith?.("file://")) return;
+      // Never overwrite an entry that another load already cached. On
+      // Android the write goes through Glide's delete-before-write disk
+      // cache, so seeding over an entry the in-app `Cover` is displaying or
+      // loading can evict the file it is reading and leave the view stuck
+      // on the previous artwork.
+      const existing = await this.diskCache
+        .getCachePath(remoteUrl)
+        .catch(() => null);
+      if (existing) return;
       await this.diskCache.writeCache(localUri, remoteUrl);
     } catch (error) {
       console.warn("[CoverImageCache] seed failed:", error);

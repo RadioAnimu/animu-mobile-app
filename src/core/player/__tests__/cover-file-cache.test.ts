@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { CoverFileHashMap } from "../cover-file-cache";
+import { CoverFileHashMap } from "@/core/player/cover-file-cache";
 
 const A = "https://cdn/trackImage1_large.jpg";
 const B = "https://cdn/trackImage2_large.jpg";

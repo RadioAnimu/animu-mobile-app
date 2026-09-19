@@ -1,7 +1,7 @@
 import React from "react";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
-import { DICT, selectedLanguage } from "../../i18n";
-import { THEME } from "../../theme";
+import { DICT, selectedLanguage } from "@/i18n";
+import { THEME } from "@/theme";
 
 interface Props {
   children: React.ReactNode;

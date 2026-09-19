@@ -1,15 +1,10 @@
 import Svg, { Path, Rect, SvgProps } from "react-native-svg";
-import { version } from "../../package.json";
-import { Program } from "../api";
-import logo from "../assets/logo_EN.png";
-import fazer_pedido from "../assets/pedidos_harukinha_en.png";
-import ultimas_tocadas from "../assets/ultimas_tocadas-haru_en.png";
-import ultimas_pedidas from "../assets/ultimos_pedidas-haru_en.png";
-
-const LANG = {
-  key: "EN",
-  value: "English",
-};
+import { version } from "@app/package.json";
+import { Program } from "@/api";
+import logo from "@/assets/logo_EN.png";
+import fazer_pedido from "@/assets/pedidos_harukinha_en.png";
+import ultimas_tocadas from "@/assets/ultimas_tocadas-haru_en.png";
+import ultimas_pedidas from "@/assets/ultimos_pedidas-haru_en.png";
 
 const PROGRAMS: Program[] = [
   {
@@ -182,6 +177,22 @@ const DICT = {
   SETTINGS_VISUALIZER_DESC: "Sound wave while a song is playing",
   SETTINGS_LIVE_UPDATES_DESC: "Song updates while the app is in the background",
   SETTINGS_MEMORY_CLEAR_CACHE_DESC: "Covers are saved so they load faster",
+  SETTINGS_UPDATES_TITLE: "App updates",
+  SETTINGS_UPDATES_ROW: "Check for updates",
+  SETTINGS_UPDATES_DESC: "Get the latest changes without reinstalling",
+  SETTINGS_ASSISTANT_TITLE: "Voice assistant",
+  SETTINGS_ASSISTANT_HINT:
+    'Ask "Hey Siri, play Rádio Animu" or "Ok Google, play Rádio Animu"',
+  SETTINGS_UPDATES_CHECKING: "Checking…",
+  SETTINGS_UPDATES_DOWNLOADING: "Downloading…",
+  SETTINGS_UPDATES_UP_TO_DATE: "You're up to date",
+  SETTINGS_UPDATES_DOWNLOADED: "Update downloaded — restart to apply",
+  SETTINGS_UPDATES_READY: "Update ready",
+  SETTINGS_UPDATES_ERROR: "Couldn't check for updates",
+  SETTINGS_UPDATES_RESTART_TITLE: "Restart now?",
+  SETTINGS_UPDATES_RESTART_MSG:
+    "The downloaded update is applied after the app restarts.",
+  SETTINGS_UPDATES_RESTART_CONFIRM: "Restart",
   SETTINGS_RESET_ROW: "Reset to default",
   SETTINGS_RESET_CONFIRM_TITLE: "Reset settings?",
   SETTINGS_RESET_CONFIRM_MSG: "All settings go back to their defaults.",
@@ -358,4 +369,11 @@ const IMGS = {
   LIVE_REQUEST_DISABLED: PedidosAoVivoDesativados,
 };
 
-export { DICT, IMGS, LANG };
+export { DICT, IMGS };
+
+/**
+ * Canonical dictionary shape. Every language's `DICT` is annotated with it,
+ * so a missing/extra/renamed key is a compile error rather than a runtime
+ * blank or crash. Add new strings to EN first.
+ */
+export type Dict = typeof DICT;

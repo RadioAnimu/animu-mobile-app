@@ -19,7 +19,7 @@ import {
   type StyleProp,
   type TextStyle,
 } from "react-native";
-import { useIsBackgrounded } from "../../contexts/app-state/AppStateProvider";
+import { useIsBackgrounded } from "@/contexts/app-state/AppStateProvider";
 
 type MarqueeProps = {
   text: string;

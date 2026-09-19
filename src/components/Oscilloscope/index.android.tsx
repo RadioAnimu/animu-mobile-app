@@ -1,12 +1,12 @@
 import React, { useCallback, useEffect, useRef } from "react";
 import { View, useWindowDimensions } from "react-native";
 import { WebView } from "react-native-webview";
-import type { VisualizerWindow } from "../../core/player";
-import { useIsBackgrounded } from "../../contexts/app-state/AppStateProvider";
-import { usePlayer } from "../../contexts/player/PlayerProvider";
-import { useUserSettings } from "../../contexts/user/UserSettingsProvider";
-import { THEME } from "../../theme";
-import { styles } from "./styles";
+import type { VisualizerWindow } from "@/core/player";
+import { useIsBackgrounded } from "@/contexts/app-state/AppStateProvider";
+import { usePlayer } from "@/contexts/player/PlayerProvider";
+import { useUserSettings } from "@/contexts/user/UserSettingsProvider";
+import { THEME } from "@/theme";
+import { styles } from "@/components/Oscilloscope/styles";
 
 /**
  * Full strip the native container reserves for the scope (logo renders
@@ -66,6 +66,25 @@ const PAGE_HTML = `<!DOCTYPE html>
       var targetWave = new Float32Array(1024);
       var windowAt = 0;
       var intervalMs = 16;
+      // Decoded PCM reaches the bridge before the speaker has played it, so
+      // the trace is delayed back through this queue by the measured output
+      // latency (payload.delay). That keeps the scope on the audio the
+      // listener is actually hearing.
+      var waveQueue = [];
+      var MAX_QUEUE = 80;
+      // Delay actually applied to the newest window, reported back to the
+      // sampler so it can auto-calibrate the residual sync error.
+      var appliedDelayMs = 0;
+
+      // Send the applied delay back to RN, but at most ~2x/second — the
+      // calibration is slow-moving and the bridge is the expensive part.
+      var lastReportAt = 0;
+      function reportAppliedDelay() {
+        var now = performance.now();
+        if (now - lastReportAt < 500) return;
+        lastReportAt = now;
+        postToNative({ type: 'applied', delay: appliedDelayMs });
+      }
 
       function decode(hex) {
         var wave = new Float32Array(hex.length / 2);
@@ -91,12 +110,28 @@ const PAGE_HTML = `<!DOCTYPE html>
         }
         if (payload.type === 'wave') {
           var next = decode(payload.wave);
-          previousWave = targetWave;
-          targetWave = next;
+          waveQueue.push(next);
+          if (waveQueue.length > MAX_QUEUE) waveQueue.shift();
           intervalMs = payload.interval || intervalMs;
+          var delayMs = payload.delay || 0;
+          // Step delayMs back through the queue. One frame is subtracted
+          // because the previous -> target interpolation already trails the
+          // newest window by one interval. Clamp so a bad measurement can
+          // neither skip ahead nor blank the trace.
+          var delayFrames = Math.round(delayMs / intervalMs) - 1;
+          if (delayFrames < 0) delayFrames = 0;
+          if (delayFrames > waveQueue.length - 1) delayFrames = waveQueue.length - 1;
+          var targetIndex = waveQueue.length - 1 - delayFrames;
+          targetWave = waveQueue[targetIndex];
+          previousWave = targetIndex > 0 ? waveQueue[targetIndex - 1] : targetWave;
           windowAt = performance.now();
+          // Quantised delay we truly applied; JS compares it with the
+          // measured latency and trims the difference automatically.
+          appliedDelayMs = (delayFrames + 1) * intervalMs;
+          reportAppliedDelay();
         }
         if (payload.type === 'stop') {
+          waveQueue = [];
           previousWave = new Float32Array(1024);
           targetWave = new Float32Array(1024);
           windowAt = 0;
@@ -106,7 +141,14 @@ const PAGE_HTML = `<!DOCTYPE html>
       // window — the seq guard above makes the overlap harmless.
       document.addEventListener('message', onBridgeEvent);
       window.addEventListener('message', onBridgeEvent);
-      window.postMessage(JSON.stringify({ type: 'ready' }), '*');
+      // Announce readiness to RN (the injectable bridge object), not to the
+      // page itself — RN onMessage only sees ReactNativeWebView messages.
+      function postToNative(payload) {
+        if (window.ReactNativeWebView) {
+          window.ReactNativeWebView.postMessage(JSON.stringify(payload));
+        }
+      }
+      postToNative({ type: 'ready' });
 
       function drawOscilloscope() {
         requestAnimationFrame(drawOscilloscope);
@@ -162,8 +204,12 @@ const PAGE_HTML = `<!DOCTYPE html>
  * pauses it while backgrounded.
  */
 export const Oscilloscope = React.memo(function Oscilloscope() {
-  const { subscribeVisualizerWindows, isPlaying, visualizerSupported } =
-    usePlayer();
+  const {
+    subscribeVisualizerWindows,
+    reportVisualizerDelay,
+    isPlaying,
+    visualizerSupported,
+  } = usePlayer();
   const { settings } = useUserSettings();
   const isBackgrounded = useIsBackgrounded();
   const { width } = useWindowDimensions();
@@ -198,6 +244,7 @@ export const Oscilloscope = React.memo(function Oscilloscope() {
         type: "wave",
         wave: encodeWave(window.targetWave),
         interval: window.nativeIntervalMs,
+        delay: window.outputLatencyMs,
       });
     },
     [post],
@@ -217,9 +264,24 @@ export const Oscilloscope = React.memo(function Oscilloscope() {
     };
   }, [wantsOn, subscribeVisualizerWindows, receiveWindow, post]);
 
-  const onMessage = useCallback(() => {
-    pageReadyRef.current = true;
-  }, []);
+  const onMessage = useCallback(
+    (event: { nativeEvent: { data: string } }) => {
+      // Auto-sync feedback + readiness announcement from the embedded page.
+      try {
+        const payload = JSON.parse(event.nativeEvent.data);
+        if (payload?.type === "ready") {
+          pageReadyRef.current = true;
+          return;
+        }
+        if (payload?.type === "applied" && typeof payload.delay === "number") {
+          reportVisualizerDelay(payload.delay);
+        }
+      } catch {
+        // Non-JSON bridge chatter — ignore.
+      }
+    },
+    [reportVisualizerDelay],
+  );
 
   if (!wantsOn) return null;
 

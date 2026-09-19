@@ -1,10 +1,11 @@
 import { Path, Rect, Svg, SvgProps } from "react-native-svg";
-import { version } from "../../package.json";
-import { Program } from "../api";
-import logo from "../assets/logo_PT.png";
-import fazer_pedido from "../assets/pedidos_harukinha_pt.png";
-import ultimas_tocadas from "../assets/ultimas_tocadas-haru_pt.png";
-import ultimas_pedidas from "../assets/ultimos_pedidas-haru_pt.png";
+import { version } from "@app/package.json";
+import { Program } from "@/api";
+import type { Dict } from "@/i18n/language.en";
+import logo from "@/assets/logo_PT.png";
+import fazer_pedido from "@/assets/pedidos_harukinha_pt.png";
+import ultimas_tocadas from "@/assets/ultimas_tocadas-haru_pt.png";
+import ultimas_pedidas from "@/assets/ultimos_pedidas-haru_pt.png";
 
 const PROGRAMS: Program[] = [
   {
@@ -126,12 +127,7 @@ const PROGRAMS: Program[] = [
   },
 ];
 
-const LANG = {
-  key: "PT",
-  value: "Português",
-};
-
-const DICT = {
+const DICT: Dict = {
   PROGRAMS,
   TIME_REMAINING: "Tempo restante",
   WITH_DJ: "COM",
@@ -182,6 +178,22 @@ const DICT = {
   SETTINGS_VISUALIZER_DESC: "Onda sonora enquanto uma música toca",
   SETTINGS_LIVE_UPDATES_DESC: "Atualizações da música com o app em segundo plano",
   SETTINGS_MEMORY_CLEAR_CACHE_DESC: "Capas são guardadas para carregar mais rápido",
+  SETTINGS_UPDATES_TITLE: "Atualizações do app",
+  SETTINGS_UPDATES_ROW: "Verificar atualizações",
+  SETTINGS_UPDATES_DESC: "Receba as novidades sem reinstalar",
+  SETTINGS_ASSISTANT_TITLE: "Assistente de voz",
+  SETTINGS_ASSISTANT_HINT:
+    'Peça "Hey Siri, tocar Rádio Animu" ou "Ok Google, tocar Rádio Animu"',
+  SETTINGS_UPDATES_CHECKING: "Verificando…",
+  SETTINGS_UPDATES_DOWNLOADING: "Baixando…",
+  SETTINGS_UPDATES_UP_TO_DATE: "Você está atualizado",
+  SETTINGS_UPDATES_DOWNLOADED: "Atualização baixada — reinicie para aplicar",
+  SETTINGS_UPDATES_READY: "Atualização pronta",
+  SETTINGS_UPDATES_ERROR: "Não foi possível verificar atualizações",
+  SETTINGS_UPDATES_RESTART_TITLE: "Reiniciar agora?",
+  SETTINGS_UPDATES_RESTART_MSG:
+    "A atualização baixada é aplicada após reiniciar o app.",
+  SETTINGS_UPDATES_RESTART_CONFIRM: "Reiniciar",
   SETTINGS_RESET_ROW: "Redefinir para o padrão",
   SETTINGS_RESET_CONFIRM_TITLE: "Redefinir configurações?",
   SETTINGS_RESET_CONFIRM_MSG: "Todas as configurações voltam ao padrão.",
@@ -363,4 +375,4 @@ const IMGS = {
   LIVE_REQUEST_DISABLED: PedidosAoVivoDesativados,
 };
 
-export { DICT, IMGS, LANG };
+export { DICT, IMGS };

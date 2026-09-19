@@ -1,15 +1,16 @@
 import React from "react";
 import { Image, Text, View } from "react-native";
-import foninho from "../../assets/icons/foninho.png";
-import foninho_branco from "../../assets/icons/foninho_branco.png";
-import { DICT } from "../../i18n";
-import { THEME } from "../../theme";
-import { styles } from "./styles";
-import { useUserSettings } from "../../contexts/user/UserSettingsProvider";
-import { usePlayer, useStation } from "../../contexts/player/PlayerProvider";
+import foninho from "@/assets/icons/foninho.png";
+import foninho_branco from "@/assets/icons/foninho_branco.png";
+import { THEME } from "@/theme";
+import { styles } from "@/components/Listeners/styles";
+import { useUserSettings } from "@/contexts/user/UserSettingsProvider";
+import { useDict } from "@/hooks/useDict";
+import { usePlayer, useStation } from "@/contexts/player/PlayerProvider";
 
 export const Listeners = React.memo(function Listeners() {
   const { settings } = useUserSettings();
+  const dict = useDict();
   const { currentListeners } = useStation();
   const { currentTrack, currentProgram } = usePlayer();
 
@@ -71,8 +72,8 @@ export const Listeners = React.memo(function Listeners() {
         {program?.isLive
           ? program.dj.toUpperCase()
           : track.isRequest
-            ? DICT[settings.selectedLanguage].TRACK_REQUEST
-            : DICT[settings.selectedLanguage].HARU_CHAN_TEXT}
+            ? dict.TRACK_REQUEST
+            : dict.HARU_CHAN_TEXT}
       </Text>
     </View>
   );

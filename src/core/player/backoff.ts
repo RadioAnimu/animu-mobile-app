@@ -1,4 +1,4 @@
-import type { Timer } from "./timer";
+import type { Timer } from "@/core/player/timer";
 
 /** Exponential backoff delay for a (0-based) attempt: base → 2× → 4× … capped */
 export const backoffDelay = (

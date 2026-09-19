@@ -1,10 +1,10 @@
 import React from "react";
 import { Text, TouchableOpacity } from "react-native";
-import { DICT } from "../../i18n";
-import { THEME } from "../../theme";
-import { styles } from "./styles";
-import { useUserSettings } from "../../contexts/user/UserSettingsProvider";
-import { usePlayer } from "../../contexts/player/PlayerProvider";
+import { THEME } from "@/theme";
+import { styles } from "@/components/Program/styles";
+import { useUserSettings } from "@/contexts/user/UserSettingsProvider";
+import { useDict } from "@/hooks/useDict";
+import { usePlayer } from "@/contexts/player/PlayerProvider";
 
 interface Props {
   handleClick: () => void;
@@ -12,6 +12,7 @@ interface Props {
 
 export const Program = React.memo(function Program({ handleClick }: Props) {
   const { settings } = useUserSettings();
+  const dict = useDict();
   const player = usePlayer();
 
   const program = player.currentProgram;
@@ -30,7 +31,7 @@ export const Program = React.memo(function Program({ handleClick }: Props) {
           },
         ]}
       >
-        {DICT[settings.selectedLanguage].WITH_DJ}:{" "}
+        {dict.WITH_DJ}:{" "}
         <Text style={styles.green}>{program?.dj}</Text>
       </Text>
     </TouchableOpacity>

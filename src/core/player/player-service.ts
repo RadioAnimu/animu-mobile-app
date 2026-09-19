@@ -2,56 +2,56 @@ import type { AudioStatus } from "expo-audio";
 import type { NowPlayingMetadata } from "react-native-playback-controls";
 import NetInfo from "@react-native-community/netinfo";
 import { openBrowserAsync } from "expo-web-browser";
-import type { HistoryType } from "./../../@types/history-type.d";
-import type { Stream } from "../domain/stream";
-import { getTrackProgress } from "../domain/track";
-import { animuService } from "../services/animu.service";
-import { userSettingsService } from "../services/user-settings.service";
-import { EndPlaybackSession } from "../services/player-playback.service";
-import { API } from "../../api";
-import { animuApi } from "../../api/client";
-import { CONFIG } from "../../utils/player.config";
-import { BackoffScheduler } from "./backoff";
+import type { HistoryType } from "@/@types/history-type.d";
+import type { Stream } from "@/core/domain/stream";
+import { getTrackProgress } from "@/core/domain/track";
+import { animuService } from "@/core/services/animu.service";
+import { userSettingsService } from "@/core/services/user-settings.service";
+import { EndPlaybackSession } from "@/core/services/player-playback.service";
+import { API } from "@/api";
+import { animuApi } from "@/api/client";
+import { CONFIG } from "@/utils/player.config";
+import { BackoffScheduler } from "@/core/player/backoff";
 import {
   buildNowPlayingMetadata,
   type NowPlayingInput,
-} from "./now-playing.metadata";
-import { ArtworkResolver } from "./artwork";
+} from "@/core/player/now-playing.metadata";
+import { ArtworkResolver } from "@/core/player/artwork";
 import {
   CachedCoverLookup,
   CoverCacheSeeder,
   ExpoImageCoverDiskCache,
-} from "./cover-image-cache";
-import { HeartbeatScheduler } from "./heartbeat";
-import { MediaSessionPublisher } from "./media-session.publisher";
+} from "@/core/player/cover-image-cache";
+import { HeartbeatScheduler } from "@/core/player/heartbeat";
+import { MediaSessionPublisher } from "@/core/player/media-session.publisher";
 import {
   NetworkMonitor,
   type ConnectivitySubscribe,
-} from "./network-monitor";
+} from "@/core/player/network-monitor";
 import {
   NowPlayingRepository,
-} from "./now-playing.repository";
-import { ProgressTicker, toSec } from "./progress-ticker";
+} from "@/core/player/now-playing.repository";
+import { ProgressTicker, toSec } from "@/core/player/progress-ticker";
 import {
   playerStore,
   progressStore,
   stationStore,
   type PlayerSnapshot,
   type StationSnapshot,
-} from "./store";
-import { StreamPreferences } from "./stream-preferences";
-import { AudioTransport } from "./transport";
-import { createVisualizerSampler } from "./visualizer";
+} from "@/core/player/store";
+import { StreamPreferences } from "@/core/player/stream-preferences";
+import { AudioTransport } from "@/core/player/transport";
+import { createVisualizerSampler } from "@/core/player/visualizer";
 import type {
   VisualizerSampler,
   VisualizerWindow,
-} from "./visualizer.types";
+} from "@/core/player/visualizer.types";
 import {
   TransportStateMachine,
   isDeadPlaybackState,
   type TransportState,
-} from "./transport-state";
-import { jsTimer } from "./timer";
+} from "@/core/player/transport-state";
+import { jsTimer } from "@/core/player/timer";
 
 // ── Stream reconnect backoff ──
 /** Base delay between stream reconnect attempts (ms) — doubles each retry */
@@ -75,6 +75,13 @@ const STREAM_DEATH_GRACE_MS = 3000;
  * recovery so sub-second hiccups don't churn the connection.
  */
 const LIVE_STALL_REOPEN_MS = 2000;
+/**
+ * Maximum time (ms) the transport may stay in `connecting` before a fresh
+ * native start is forced. A radio must never sit silently (iOS `AVPlayer`
+ * can ignore a start issued before its item is ready, and a lost
+ * ready-notification would otherwise leave the UI on "paused" forever).
+ */
+const CONNECTING_WATCHDOG_MS = 4000;
 
 export interface PlayerServiceDependencies {
   state: TransportStateMachine;
@@ -143,6 +150,12 @@ export class PlayerService {
    * own transient buffering frame from retriggering itself into a loop.
    */
   private stalledSince: number | null = null;
+  /**
+   * Date.now() when the transport entered `connecting`, or null. Powers the
+   * `CONNECTING_WATCHDOG_MS` safety net so a start that native ignored cannot
+   * leave the app silently "paused".
+   */
+  private connectingSince: number | null = null;
   /**
    * Whether the app UI is foregrounded. While backgrounded, store emissions
    * are suppressed so nothing reconciles in the hidden tree; the native
@@ -224,6 +237,19 @@ export class PlayerService {
     listener: (window: VisualizerWindow) => void,
   ): () => void {
     return this.deps.sampler.subscribeWindows(listener);
+  }
+
+  /**
+   * Feedback from the WebView visualizer: the delay it actually applied for
+   * the last window. Powers the sampler's auto-sync calibration.
+   */
+  reportVisualizerDelay(appliedMs: number): void {
+    this.deps.sampler.reportAppliedDelay?.(appliedMs);
+  }
+
+  /** Manual sync bias (ms) for the oscilloscope; positive = later. */
+  setVisualizerSyncTrim(trimMs: number): void {
+    this.deps.sampler.setSyncTrim?.(trimMs);
   }
 
   private applyVisualizerSettings(): void {
@@ -631,6 +657,12 @@ export class PlayerService {
    */
   private reconcile(next: TransportState): void {
     if (!this.deps.state.transition(next)) return;
+    // Arm/disarm the "connecting" watchdog on the effective state.
+    if (this.deps.state.state === "connecting") {
+      if (this.connectingSince == null) this.connectingSince = Date.now();
+    } else {
+      this.connectingSince = null;
+    }
     // Sampling follows play intent — the visualizer only runs with audio.
     this.deps.sampler.setPlaying(this.deps.state.isPlayingIntent);
     // The playing/paused intent is also part of the realtime-surface
@@ -656,12 +688,14 @@ export class PlayerService {
     // not tick, poll or transition.
     if (this.disposed) return;
 
-    // expo-audio 57 changed the Android status mapper: while buffering it now
-    // reports `playing: true` (the *intended* state) rather than the real
-    // ExoPlayer state. Buffering is not audio flow, so handle it before the
-    // "audio is flowing" branch: never claim "playing" while buffering (the
-    // media session would lie), reconcile to the buffering state instead, and
-    // keep the native 1 Hz heartbeat alive so polling continues during stalls.
+    // Android's status mapper reports `playing: true` (the *intended* state)
+    // while still buffering. Buffering is not audio flow, so it is handled
+    // before the "audio is flowing" branch — but a transient buffer frame
+    // while we are already `connecting` (opening / reconnecting / a stream
+    // swap) must not knock the state machine back into `connecting` every
+    // tick. On iOS `playImmediately` briefly reports a waiting (buffering)
+    // time-control; without this guard the state machine is held in
+    // `connecting` and the player looks permanently paused.
     if (status.isBuffering) {
       if (this.deps.state.isPlayingIntent) {
         // Audio that was flowing just stalled — remember when, so a
@@ -670,8 +704,9 @@ export class PlayerService {
         // stream replace, not a link that fell behind.
         if (this.deps.state.state === "playing") {
           this.stalledSince = Date.now();
+          this.reconcile("connecting");
         }
-        this.reconcile("connecting");
+        this.enforceConnectingWatchdog();
       }
       this.deps.heartbeat.beat();
       return;
@@ -740,10 +775,17 @@ export class PlayerService {
       status.timeControlStatus === "paused" &&
       !isDeadPlaybackState(status.playbackState)
     ) {
+      // A paused time-control while the state machine is still `connecting`
+      // means a start was issued but native never began (typical when iOS
+      // `playImmediately` ran before the item was ready). Don't latch a
+      // user-visible pause — force a fresh native start until it takes.
+      if (this.deps.state.state === "connecting") {
+        this.enforceConnectingWatchdog();
+        this.deps.heartbeat.beat();
+        return;
+      }
       // A pause while audio was actually flowing is a real interruption
-      // (call, focus loss). A paused frame while `connecting` is transient
-      // — e.g. the replace() of our own live re-open or a stream change —
-      // and must NOT arm the live-edge re-open.
+      // (call, focus loss) and must arm the live-edge re-open.
       if (this.deps.state.state === "playing") {
         this.interruptionPending = true;
       }
@@ -762,6 +804,29 @@ export class PlayerService {
     if (streamLost) {
       this.scheduleReconnect();
     }
+  }
+
+  /**
+   * Safety net for a native start that did not take (see
+   * `CONNECTING_WATCHDOG_MS`). Re-issues the start while playback is wanted
+   * and we are still `connecting`; a no-op before the deadline or after the
+   * transport left `connecting`.
+   */
+  private enforceConnectingWatchdog(): void {
+    if (
+      this.connectingSince == null ||
+      !this.deps.state.isPlayingIntent ||
+      this.deps.state.state !== "connecting" ||
+      Date.now() - this.connectingSince < CONNECTING_WATCHDOG_MS
+    ) {
+      return;
+    }
+    console.warn(
+      "[PlayerService] transport stuck connecting — forcing native start",
+    );
+    // Restart the clock so a failed retry waits another full window.
+    this.connectingSince = Date.now();
+    this.deps.transport.resume();
   }
 
   private handleNetworkRestore(): void {

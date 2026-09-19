@@ -10,13 +10,12 @@ import {
   View,
 } from "react-native";
 
-import { useAlert } from "../../contexts/alert/AlertProvider";
-import { useAuth } from "../../contexts/auth/AuthProvider";
-import { useUserSettings } from "../../contexts/user/UserSettingsProvider";
-import { DICT } from "../../i18n";
-import { THEME } from "../../theme";
-import { Sheet } from "../Sheet";
-import { styles } from "./styles";
+import { useAlert } from "@/contexts/alert/AlertProvider";
+import { useAuth } from "@/contexts/auth/AuthProvider";
+import { useDict } from "@/hooks/useDict";
+import { THEME } from "@/theme";
+import { Sheet } from "@/components/Sheet";
+import { styles } from "@/components/AnimuConnectSheet/styles";
 
 interface Props {
   visible: boolean;
@@ -29,9 +28,8 @@ type Mode = "list" | "add" | "verify";
 export function AnimuConnectSheet({ visible, onClose }: Props) {
   const { emails, refreshEmails, requestAddEmail, verifyAddEmail, removeEmail } =
     useAuth();
-  const { settings } = useUserSettings();
   const { toast, error: showError } = useAlert();
-  const dict = DICT[settings.selectedLanguage];
+  const dict = useDict();
 
   const [loading, setLoading] = useState(false);
   const [mode, setMode] = useState<Mode>("list");

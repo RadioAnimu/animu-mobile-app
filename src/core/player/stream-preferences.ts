@@ -1,6 +1,6 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import type { Stream } from "../domain/stream";
-import { CONFIG } from "../../utils/player.config";
+import type { Stream } from "@/core/domain/stream";
+import { CONFIG } from "@/utils/player.config";
 
 export const CURRENT_STREAM_KEY = "currentStream";
 

@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ValidationError } from "animu-api";
 import {
   ActivityIndicator,
@@ -8,15 +8,14 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { DICT } from "../../i18n";
-import { THEME } from "../../theme";
-import { styles } from "./styles";
-import { useUserSettings } from "../../contexts/user/UserSettingsProvider";
-import { useAlert } from "../../contexts/alert/AlertProvider";
-import { useAuth } from "../../contexts/auth/AuthProvider";
-import { useLiveRequestForm } from "../../hooks/useLiveRequestForm";
-import { liveRequestService } from "../../core/services/live-request.service";
-import { Sheet } from "../Sheet";
+import { THEME } from "@/theme";
+import { styles } from "@/components/LiveRequestModal/styles";
+import { useDict } from "@/hooks/useDict";
+import { useAlert } from "@/contexts/alert/AlertProvider";
+import { useAuth } from "@/contexts/auth/AuthProvider";
+import { useLiveRequestForm } from "@/hooks/useLiveRequestForm";
+import { liveRequestService } from "@/core/services/live-request.service";
+import { Sheet } from "@/components/Sheet";
 
 interface Props {
   visible: boolean;
@@ -29,12 +28,12 @@ interface LabelProps {
 }
 
 function Label({ text, optional }: LabelProps) {
-  const { settings } = useUserSettings();
+  const dict = useDict();
 
   return (
     <Text style={styles.label}>
       {text}
-      {optional && ` (${DICT[settings.selectedLanguage].OPTIONAL_LABEL})`}:
+      {optional && ` (${dict.OPTIONAL_LABEL})`}:
     </Text>
   );
 }
@@ -71,7 +70,6 @@ function Input({
 export function LiveRequestModal({ visible, handleClose }: Props) {
   const { success, error: showError } = useAlert();
   const { user } = useAuth();
-  const { settings } = useUserSettings();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const { formData, setters, reset, getFormData, isFormValid } =
@@ -79,7 +77,7 @@ export function LiveRequestModal({ visible, handleClose }: Props) {
       name: user?.nickname || user?.username || "",
     });
 
-  const t = DICT[settings.selectedLanguage];
+  const t = useDict();
 
   // The modal stays mounted with Home, so the hook's initial name is
   // captured before the session is restored — prefill from the current

@@ -4,7 +4,7 @@ import { useCallback, useState } from "react";
 import {
   readDiskCapacity,
   type DiskCapacity,
-} from "../core/services/device-storage.service";
+} from "@/core/services/device-storage.service";
 
 export interface DeviceStorageState {
   capacity: DiskCapacity;

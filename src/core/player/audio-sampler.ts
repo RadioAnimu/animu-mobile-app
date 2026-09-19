@@ -1,10 +1,10 @@
 import type { AudioSample } from "expo-audio";
-import { downmixChannels, resampleWaveformInto, rms } from "./waveform";
+import { downmixChannels, resampleWaveformInto, rms } from "@/core/player/waveform";
 import type {
   SamplingTransport,
   VisualizerSampler,
   VisualizerWindow,
-} from "./visualizer.types";
+} from "@/core/player/visualizer.types";
 
 /**
  * Oscilloscope sampler — turns the native player's decoded-PCM events into
@@ -48,6 +48,34 @@ const DEFAULT_NATIVE_INTERVAL_MS = 16;
 const CADENCE_BUFFER = 8;
 const MIN_NATIVE_INTERVAL_MS = 8;
 const MAX_NATIVE_INTERVAL_MS = 80;
+
+/**
+ * Decoded PCM leaves the native tap *before* the sink writes it to the
+ * speaker, so the scope would otherwise run ahead of the audible audio by the
+ * device's output latency. The Android tap measures that lead per window; it
+ * is clamped and IIR-smoothed here so the visualizer's delay line never
+ * jitters. iOS cannot sample, so this stays 0 there.
+ */
+const MAX_OUTPUT_LATENCY_MS = 600;
+const OUTPUT_LATENCY_SMOOTH = 0.85;
+
+/**
+ * Auto-sync calibration.
+ *
+ * The native lead is authoritative but arrives quantised to the audio buffer
+ * cadence and, on some devices, lags the true speaker timing by the hardware
+ * pipeline. The visualizer reports back the delay it *actually applied* per
+ * window; the sampler compares that against native and nudges a residual
+ * offset so the two converge. The offset is bounded and slow-moving, so a
+ * noisy measurement can never shove the trace out of sync, while a genuinely
+ * wrong bias is erased within a few seconds. Users can still add a manual
+ * trim on top (a positive `syncTrimMs` delays the trace further).
+ */
+const SYNC_TRIM_LIMIT_MS = 150;
+const SYNC_CALIBRATION_STEP = 0.08;
+
+/** Native `AudioSample` plus the Android tap's measured output latency. */
+type LatencySample = AudioSample & { outputLatencySeconds?: number };
 
 /**
  * Median of the recent inter-window deltas, clamped to the plausible cadence
@@ -111,6 +139,14 @@ export class AudioSampler implements VisualizerSampler {
   private nativeIntervalMs = DEFAULT_NATIVE_INTERVAL_MS;
   /** Recent inter-window deltas for the median cadence filter. */
   private readonly nativeDeltas: number[] = [];
+  /** Smoothed output latency (see `MAX_OUTPUT_LATENCY_MS`). */
+  private outputLatencyMs = 0;
+  /** Whether a first latency measurement has seeded the smoother. */
+  private latencyInitialized = false;
+  /** Residual auto-sync correction, bounded by `SYNC_TRIM_LIMIT_MS`. */
+  private syncTrimMs = 0;
+  /** Manual bias (ms) applied on top of the measured latency; >0 = later. */
+  private manualTrimMs = 0;
 
   constructor(private readonly transport: SamplingTransport) {}
 
@@ -195,6 +231,26 @@ export class AudioSampler implements VisualizerSampler {
     }
     this.nativeAt = now;
 
+    // The native tap reports how far this window leads the speaker. Track it
+    // smoothly; the visualizer uses it to delay the trace into sync.
+    const latencySeconds = (sample as LatencySample).outputLatencySeconds;
+    if (typeof latencySeconds === "number" && Number.isFinite(latencySeconds)) {
+      const measuredMs = Math.min(
+        MAX_OUTPUT_LATENCY_MS,
+        Math.max(0, latencySeconds * 1000),
+      );
+      if (!this.latencyInitialized) {
+        // Seed with the first measurement so the scope is in sync from the
+        // first frames instead of ramping up from zero.
+        this.outputLatencyMs = measuredMs;
+        this.latencyInitialized = true;
+      } else {
+        this.outputLatencyMs =
+          this.outputLatencyMs * OUTPUT_LATENCY_SMOOTH +
+          measuredMs * (1 - OUTPUT_LATENCY_SMOOTH);
+      }
+    }
+
     // Publish the previous window + the new one; the visualizer interpolates
     // between them across `nativeIntervalMs` at its own rAF rate.
     const nextIndex = 1 - this.targetIndex;
@@ -231,7 +287,40 @@ export class AudioSampler implements VisualizerSampler {
       targetWave: target,
       nativeIntervalMs: this.nativeIntervalMs,
       level: this.targetLevel,
+      outputLatencyMs: this.appliedDelayMs(),
     };
     this.windowListeners.forEach((listener) => listener(payload));
+  }
+
+  /**
+   * The delay the visualizer should apply for the next window: the smoothed
+   * native lead plus the residual auto-sync correction and the manual bias,
+   * never negative.
+   */
+  private appliedDelayMs(): number {
+    return Math.max(0, this.outputLatencyMs + this.syncTrimMs + this.manualTrimMs);
+  }
+
+  /**
+   * Feedback from the visualizer: it actually applied `appliedMs` for a
+   * window, while the measured native lead was `outputLatencyMs`. Any
+   * persistent difference is the residual error; move the correction toward
+   * it (bounded and slow) so the scope converges on the audible audio even
+   * when the native lead is quantised or slightly stale.
+   */
+  reportAppliedDelay(appliedMs: number): void {
+    if (!Number.isFinite(appliedMs)) return;
+    const error = appliedMs - this.appliedDelayMs();
+    // Ignore noise-level differences; they are below one visible frame.
+    if (Math.abs(error) < 4) return;
+    this.syncTrimMs = Math.min(
+      SYNC_TRIM_LIMIT_MS,
+      Math.max(-SYNC_TRIM_LIMIT_MS, this.syncTrimMs + error * SYNC_CALIBRATION_STEP),
+    );
+  }
+
+  /** Manual sync bias (ms); positive makes the trace later than the audio. */
+  setSyncTrim(trimMs: number): void {
+    this.manualTrimMs = Number.isFinite(trimMs) ? trimMs : 0;
   }
 }

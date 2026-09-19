@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { BackoffScheduler } from "../backoff";
-import { createFakeTimer } from "./fake-timer";
+import { BackoffScheduler } from "@/core/player/backoff";
+import { createFakeTimer } from "@/core/player/__tests__/fake-timer";
 
 const BASE_MS = 2000;
 const MAX_MS = 30_000;

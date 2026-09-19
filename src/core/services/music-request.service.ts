@@ -1,14 +1,11 @@
 import type {
   MusicRequestPagination,
   MusicSearchParams,
-} from "../domain/music-request";
+} from "@/core/domain/music-request";
 import type { MusicRequestSubmission } from "animu-api";
-import { DICT, type LanguageKey } from "../../i18n";
-import {
-  animuApi,
-  createSearchClient,
-} from "../../api/client";
-import { userSettingsService } from "./user-settings.service";
+import { DICT, type LanguageKey } from "@/i18n";
+import { animuApi, createApiClient } from "@/api/client";
+import { userSettingsService } from "@/core/services/user-settings.service";
 
 class MusicRequestService {
   /**
@@ -18,7 +15,7 @@ class MusicRequestService {
    */
   private api() {
     const settings = userSettingsService.getCurrentSettings();
-    return createSearchClient(settings.liveQualityCover);
+    return createApiClient(settings.liveQualityCover);
   }
 
   async searchTracksByQuery(

@@ -1,6 +1,6 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { UserSettings } from "../../@types/user-settings";
-import { DEFAULT_USER_SETTINGS } from "../../constants/settings";
+import { UserSettings } from "@/@types/user-settings";
+import { DEFAULT_USER_SETTINGS } from "@/constants/settings";
 
 class UserSettingsService {
   private settings: UserSettings = DEFAULT_USER_SETTINGS;

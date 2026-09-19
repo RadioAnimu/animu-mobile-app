@@ -1,16 +1,12 @@
 import { StyleSheet } from "react-native";
 
-import { THEME } from "../../theme";
+import { THEME } from "@/theme";
 
 const CARD_RADIUS = THEME.RADIUS.CARD;
-const HEADER_HEIGHT = 72;
-const HEADER_BUTTON = 44;
 // Row rhythm shared with Account — labels get room to breathe.
 const ROW_MIN_HEIGHT = 64;
 const ICON_BOX_WIDTH = 32;
 const CONTENT_PADDING = THEME.SPACE.LG;
-
-export { HEADER_HEIGHT };
 
 export const SWITCH = {
   TRACK_WIDTH: 50,
@@ -23,29 +19,6 @@ export const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: THEME.COLORS.BG_DEEP,
-  },
-  // Identical to Account's header — a clean SURFACE bar, arrow + centered
-  // title via flex (no absolute positioning, no hairline). `space-around`
-  // (not `space-between`) keeps the arrow off the screen edge, matching
-  // Account's inset.
-  header: {
-    height: HEADER_HEIGHT,
-    width: "100%",
-    backgroundColor: THEME.COLORS.SURFACE,
-    justifyContent: "space-around",
-    alignItems: "center",
-    flexDirection: "row",
-  },
-  headerButton: {
-    width: HEADER_BUTTON,
-    height: HEADER_BUTTON,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  headerTitle: {
-    color: THEME.COLORS.TEXT,
-    fontFamily: THEME.FONT_FAMILY.BOLD,
-    fontSize: THEME.FONT_SIZE.TITLE,
   },
   // 88% column like Account — keeps groups off the screen edges so the
   // content breathes.

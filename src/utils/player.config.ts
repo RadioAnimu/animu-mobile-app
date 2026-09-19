@@ -1,4 +1,4 @@
-import { Stream } from "../core/domain/stream";
+import { Stream } from "@/core/domain/stream";
 import { DEFAULT_COVER as API_DEFAULT_COVER } from "animu-api";
 
 /**

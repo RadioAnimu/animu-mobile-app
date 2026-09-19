@@ -1,0 +1,48 @@
+diff --git a/node_modules/react-native-ota-hot-update/lib/commonjs/index.js b/node_modules/react-native-ota-hot-update/lib/commonjs/index.js
+index 8067282..71ead0a 100644
+--- a/node_modules/react-native-ota-hot-update/lib/commonjs/index.js
++++ b/node_modules/react-native-ota-hot-update/lib/commonjs/index.js
+@@ -5,7 +5,19 @@ Object.defineProperty(exports, "__esModule", {
+ });
+ exports.default = void 0;
+ var _reactNative = require("react-native");
+-var _index = _interopRequireDefault(require("./gits/index.js"));
++// Git-hosted OTA is intentionally disabled: it pulls in react-native-fs +
++// isomorphic-git, which this project does not use (bundles are served over
++// HTTPS from GitHub Releases). See patches/react-native-ota-hot-update+*.patch.
++var _index = {
++  default: {
++    getConfig: async () => null,
++    getBranchName: async () => null,
++    setConfig: async () => {},
++    pullUpdate: async () => ({ success: false, msg: "Git OTA disabled" }),
++    cloneRepo: async () => ({ success: false, bundle: null, msg: "Git OTA disabled" }),
++    removeGitUpdate: () => {}
++  }
++};
+ function _interopRequireDefault(e) { return e && e.__esModule ? e : { default: e }; }
+ const LINKING_ERROR = `The package 'react-native-ota-hot-update' doesn't seem to be linked. Make sure: \n\n` + _reactNative.Platform.select({
+   ios: "- You have run 'pod install'\n",
+diff --git a/node_modules/react-native-ota-hot-update/lib/module/index.js b/node_modules/react-native-ota-hot-update/lib/module/index.js
+index fbd1a0e..435324c 100644
+--- a/node_modules/react-native-ota-hot-update/lib/module/index.js
++++ b/node_modules/react-native-ota-hot-update/lib/module/index.js
+@@ -1,7 +1,17 @@
+ "use strict";
+ 
+ import { NativeModules, Platform } from 'react-native';
+-import git from "./gits/index.js";
++// Git-hosted OTA is intentionally disabled: it pulls in react-native-fs +
++// isomorphic-git, which this project does not use (bundles are served over
++// HTTPS from GitHub Releases). See patches/react-native-ota-hot-update+*.patch.
++const git = {
++  getConfig: async () => null,
++  getBranchName: async () => null,
++  setConfig: async () => {},
++  pullUpdate: async () => ({ success: false, msg: "Git OTA disabled" }),
++  cloneRepo: async () => ({ success: false, bundle: null, msg: "Git OTA disabled" }),
++  removeGitUpdate: () => {}
++};
+ const LINKING_ERROR = `The package 'react-native-ota-hot-update' doesn't seem to be linked. Make sure: \n\n` + Platform.select({
+   ios: "- You have run 'pod install'\n",
+   default: ''

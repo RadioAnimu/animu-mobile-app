@@ -5,9 +5,10 @@ import {
   type AudioStatus,
   type AudioSource,
 } from "expo-audio";
-import { CONFIG } from "../../utils/player.config";
-import { getPlaybackSession } from "../services/player-playback.service";
-import { SetupService } from "../services/player-setup.service";
+import { CONFIG } from "@/utils/player.config";
+import { LIVE_FORWARD_BUFFER_SECONDS } from "@/core/player/live-buffer";
+import { getPlaybackSession } from "@/core/services/player-playback.service";
+import { SetupService } from "@/core/services/player-setup.service";
 
 /**
  * Native-driven tick interval (ms). expo-audio emits playbackStatusUpdate
@@ -114,6 +115,9 @@ export class AudioTransport {
       // suspend the app, which also freezes the JS reconnect path, so
       // playback never comes back. (iOS-only; ignored on Android.)
       keepAudioSessionActive: true,
+      // Start the stream ASAP (see `live-buffer.*`). On Android the native
+      // tap applies this as an ExoPlayer buffer cap only when > 0.
+      preferredForwardBufferDuration: LIVE_FORWARD_BUFFER_SECONDS,
     });
     this.attachStatusListener();
     this.attachSampleListener();

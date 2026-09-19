@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { HeartbeatScheduler } from "../heartbeat";
+import { HeartbeatScheduler } from "@/core/player/heartbeat";
 
 const makeScheduler = (debug = false) => {
   const expireStuckRefresh = vi.fn((): void => {});

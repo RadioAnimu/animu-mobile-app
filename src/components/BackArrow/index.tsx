@@ -1,5 +1,5 @@
 import Svg, { Path, Rect, SvgProps } from "react-native-svg";
-import { THEME } from "../../theme";
+import { THEME } from "@/theme";
 
 /** Header back chevron shared by the full-screen settings-style pages. */
 export const BackArrow = (props: SvgProps) => (

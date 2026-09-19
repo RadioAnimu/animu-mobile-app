@@ -14,18 +14,18 @@ import {
   DEFAULT_PROVIDERS,
   getProviderConfig,
   redirectUriForProvider,
-} from "../../constants/auth";
-import type { User } from "../domain/user";
-import { AsyncStorageSessionStore } from "./adapters/async-storage.adapter";
-import { AnimuAuthAdapter } from "./adapters/animu-auth.adapter";
-import { OAuthAdapter } from "./adapters/oauth.adapter";
-import { AuthFlowCancelled } from "./errors";
+} from "@/constants/auth";
+import type { User } from "@/core/domain/user";
+import { AsyncStorageSessionStore } from "@/core/auth/adapters/async-storage.adapter";
+import { AnimuAuthAdapter } from "@/core/auth/adapters/animu-auth.adapter";
+import { OAuthAdapter } from "@/core/auth/adapters/oauth.adapter";
+import { AuthFlowCancelled } from "@/core/auth/errors";
 import type {
   AppleNativeCredential,
   AuthApiPort,
   OAuthPort,
   SessionStorePort,
-} from "./ports";
+} from "@/core/auth/ports";
 
 /**
  * Single entry point to authentication, composing three ports:

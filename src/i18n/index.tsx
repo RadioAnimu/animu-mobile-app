@@ -1,7 +1,7 @@
-import { DICT as DICT_EN, IMGS as IMGS_EN } from "./language.en";
-import { DICT as DICT_ES, IMGS as IMGS_ES } from "./language.es";
-import { DICT as DICT_JP, IMGS as IMGS_JP } from "./language.jn";
-import { DICT as DICT_PT, IMGS as IMGS_PT } from "./language.pt";
+import { DICT as DICT_EN, IMGS as IMGS_EN } from "@/i18n/language.en";
+import { DICT as DICT_ES, IMGS as IMGS_ES } from "@/i18n/language.es";
+import { DICT as DICT_JP, IMGS as IMGS_JP } from "@/i18n/language.jn";
+import { DICT as DICT_PT, IMGS as IMGS_PT } from "@/i18n/language.pt";
 
 export const DICT = {
   PT: DICT_PT,
@@ -25,5 +25,7 @@ export const LANGS_KEY_VALUE_PAIRS = {
 };
 
 export type LanguageKey = keyof typeof DICT;
+
+export type { Dict } from "@/i18n/language.en";
 
 export const selectedLanguage: keyof typeof DICT = "EN";

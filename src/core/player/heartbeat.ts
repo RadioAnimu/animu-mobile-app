@@ -1,5 +1,5 @@
-import type { NowPlayingRepository } from "./now-playing.repository";
-import type { ProgressTicker } from "./progress-ticker";
+import type { NowPlayingRepository } from "@/core/player/now-playing.repository";
+import type { ProgressTicker } from "@/core/player/progress-ticker";
 
 /** Minimum spacing between processed beats (ms) — collapses the drivers to ≤1 Hz. */
 const MIN_BEAT_INTERVAL_MS = 800;

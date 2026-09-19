@@ -1,5 +1,5 @@
 import { Dimensions, StyleSheet } from "react-native";
-import { THEME } from "../../theme";
+import { THEME } from "@/theme";
 
 const CONTAINER_HEIGHT = 67;
 const VIEW_MIN_HEIGHT = 72;

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { NetworkMonitor, type ConnectivityState } from "../network-monitor";
+import { NetworkMonitor, type ConnectivityState } from "@/core/player/network-monitor";
 
 const makeMonitor = () => {
   let handler: ((state: ConnectivityState) => void) | null = null;

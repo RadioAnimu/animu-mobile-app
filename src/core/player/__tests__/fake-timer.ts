@@ -1,4 +1,4 @@
-import type { Timer } from "../timer";
+import type { Timer } from "@/core/player/timer";
 
 export interface ScheduledCall {
   id: number;

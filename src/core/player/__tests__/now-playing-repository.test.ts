@@ -5,13 +5,13 @@ import type {
   LiveNowPlaying,
   Track,
 } from "animu-api";
-import type { Program } from "../../domain/program";
+import type { Program } from "@/core/domain/program";
 import {
   NowPlayingRepository,
   type NowPlayingChange,
   type NowPlayingFetchers,
-} from "../now-playing.repository";
-import { createFakeTimer, type FakeTimer } from "./fake-timer";
+} from "@/core/player/now-playing.repository";
+import { createFakeTimer, type FakeTimer } from "@/core/player/__tests__/fake-timer";
 
 const BASE_RETRY_MS = 2000;
 

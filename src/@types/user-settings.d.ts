@@ -1,6 +1,6 @@
-import { LANGS_KEY_VALUE_PAIRS } from "../i18n";
-import { ArtworkQuality } from "./artwork-quality";
-import type { CoverCacheCategory } from "../core/services/cover-cache-registry.service";
+import { LANGS_KEY_VALUE_PAIRS } from "@/i18n";
+import { ArtworkQuality } from "@/@types/artwork-quality";
+import type { CoverCacheCategory } from "@/core/services/cover-cache-registry.service";
 
 export interface UserSettings {
   liveQualityCover: ArtworkQuality;

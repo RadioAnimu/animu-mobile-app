@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import type { AudioSample } from "expo-audio";
-import { AudioSampler } from "../audio-sampler";
+import { AudioSampler } from "@/core/player/audio-sampler";
 
 /** Fake transport exposing the captured native sample handler. */
 const makeTransport = (supported = true) => {
@@ -190,6 +190,59 @@ describe("AudioSampler windows", () => {
     // the minimum measured interval.
     expect(window.nativeIntervalMs).toBeGreaterThanOrEqual(8);
     expect(window.nativeIntervalMs).toBeLessThanOrEqual(80);
+  });
+
+  it("carries the measured output latency into the window", () => {
+    const { sampler, emit } = activeSampler();
+    const listener = vi.fn();
+    sampler.subscribeWindows(listener);
+
+    emit({
+      channels: [{ frames: [0.5, 0.5] }],
+      timestamp: 0,
+      outputLatencySeconds: 0.12,
+    } as AudioSample & { outputLatencySeconds: number });
+
+    const window = listener.mock.calls[0][0];
+    expect(window.outputLatencyMs).toBeGreaterThan(0);
+    expect(window.outputLatencyMs).toBeLessThanOrEqual(600);
+  });
+
+  it("defaults output latency to zero when the tap cannot measure it", () => {
+    const { sampler, emit } = activeSampler();
+    const listener = vi.fn();
+    sampler.subscribeWindows(listener);
+
+    emit(sample(new Array(64).fill(0.1)));
+
+    expect(listener.mock.calls[0][0].outputLatencyMs).toBe(0);
+  });
+
+  it("auto-trims the applied delay toward what the visualizer reports", () => {
+    const { sampler, emit } = activeSampler();
+    const listener = vi.fn();
+    sampler.subscribeWindows(listener);
+
+    const withLatency = (seconds: number) => ({
+      channels: [{ frames: [0.3, 0.3] }],
+      timestamp: 0,
+      outputLatencySeconds: seconds,
+    }) as AudioSample & { outputLatencySeconds: number };
+
+    emit(withLatency(0.1));
+    const initial = listener.mock.calls[0][0].outputLatencyMs;
+    expect(initial).toBeGreaterThan(0);
+
+    // The visualizer applies 60 ms MORE than the native lead, repeatedly.
+    for (let i = 0; i < 40; i++) {
+      sampler.reportAppliedDelay(initial + 60);
+      emit(withLatency(0.1));
+    }
+
+    const settled = listener.mock.calls[listener.mock.calls.length - 1][0];
+    // The correction converges toward the reported excess but stays bounded.
+    expect(settled.outputLatencyMs).toBeGreaterThan(initial);
+    expect(settled.outputLatencyMs).toBeLessThanOrEqual(initial + 150);
   });
 
   it("amplifies quiet material to keep the trace strong", () => {

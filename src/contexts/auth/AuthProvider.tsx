@@ -15,10 +15,10 @@ import type {
   AuthRemoveEmailResult,
   ProviderInfo,
 } from "animu-api";
-import { User } from "../../core/domain/user";
-import { authFacade } from "../../core/auth";
-import { backgroundService } from "../../core/services/background.service";
-import { DEFAULT_PROVIDERS } from "../../constants/auth";
+import { User } from "@/core/domain/user";
+import { authFacade } from "@/core/auth";
+import { backgroundService } from "@/core/services/background.service";
+import { DEFAULT_PROVIDERS } from "@/constants/auth";
 
 interface AuthContextType {
   user: User | null;

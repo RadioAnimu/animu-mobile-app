@@ -8,11 +8,12 @@ import React, {
   useSyncExternalStore,
 } from "react";
 import { AppState, type AppStateStatus } from "react-native";
-import { Stream } from "../../core/domain/stream";
-import { playerService } from "../../core/player";
-import { setRemotePlaybackHandlers } from "../../core/services/player-playback.service";
-import { backgroundService } from "../../core/services/background.service";
-import { useIsBackgrounded } from "../app-state/AppStateProvider";
+import { Stream } from "@/core/domain/stream";
+import { playerService } from "@/core/player";
+import { setRemotePlaybackHandlers } from "@/core/services/player-playback.service";
+import { backgroundService } from "@/core/services/background.service";
+import { subscribeAssistantActions } from "@/core/assistant";
+import { useIsBackgrounded } from "@/contexts/app-state/AppStateProvider";
 import {
   playerStore,
   progressStore,
@@ -21,9 +22,9 @@ import {
   type ProgressSnapshot,
   type StationSnapshot,
   type VisualizerWindow,
-} from "../../core/player";
-import { Loading } from "../../screens/Loading";
-import { hideSplashOnce } from "../../screens/Loading/splash";
+} from "@/core/player";
+import { Loading } from "@/screens/Loading";
+import { hideSplashOnce } from "@/screens/Loading/splash";
 
 const HEARTBEAT_INTERVAL = 1000; // 1s fallback driver (see HeartbeatScheduler)
 
@@ -50,6 +51,11 @@ type PlayerContextType = PlayerSnapshot & {
   subscribeVisualizerWindows: (
     listener: (window: VisualizerWindow) => void,
   ) => () => void;
+  /**
+   * Reports the delay (ms) the visualizer actually applied for the last
+   * window, so the native sampler can auto-calibrate its sync offset.
+   */
+  reportVisualizerDelay: (appliedMs: number) => void;
 };
 
 const PlayerContext = createContext<PlayerContextType>({
@@ -59,6 +65,7 @@ const PlayerContext = createContext<PlayerContextType>({
   refreshData: () => Promise.reject("Player not initialized"),
   visualizerSupported: false,
   subscribeVisualizerWindows: () => () => {},
+  reportVisualizerDelay: () => {},
   isPlaying: false,
   playbackState: "idle",
   isInitialized: false,
@@ -111,6 +118,7 @@ export const PlayerProvider: React.FC<{
   // ─── Initialization & background tasks ───
   useEffect(() => {
     let cancelled = false;
+    let unsubscribeAssistant: (() => void) | null = null;
 
     const initializePlayer = async () => {
       try {
@@ -137,6 +145,18 @@ export const PlayerProvider: React.FC<{
 
         // Single call: streams + stored pref + native setup + settings + data fetch
         await playerServiceInstance.setupPlayer();
+
+        if (cancelled) return;
+
+        // Phone assistants (Siri / Google) deep-link into playback. Subscribed
+        // only after setup so `play()` always has a stream to resolve.
+        unsubscribeAssistant = subscribeAssistantActions((action) => {
+          if (action === "play") {
+            playerServiceInstance.play().catch((error) => {
+              console.warn("[PlayerProvider] Assistant play failed:", error);
+            });
+          }
+        });
       } catch (error) {
         console.error("[PlayerProvider] Player initialization failed:", error);
         // The service never flipped its initialized flag, so the store
@@ -162,6 +182,7 @@ export const PlayerProvider: React.FC<{
     return () => {
       cancelled = true;
 
+      unsubscribeAssistant?.();
       appStateSubscription?.remove();
       backgroundService.stopTask("heartbeat");
       setRemotePlaybackHandlers({
@@ -261,6 +282,12 @@ export const PlayerProvider: React.FC<{
     [playerServiceInstance],
   );
 
+  const reportVisualizerDelay = useCallback(
+    (appliedMs: number) =>
+      playerServiceInstance.reportVisualizerDelay(appliedMs),
+    [playerServiceInstance],
+  );
+
   // ─── Context values ───
 
   const playerContextValue = useMemo<PlayerContextType>(
@@ -274,6 +301,7 @@ export const PlayerProvider: React.FC<{
       // player exists (created on first play).
       visualizerSupported: playerServiceInstance.isVisualizerSupported,
       subscribeVisualizerWindows,
+      reportVisualizerDelay,
     }),
     [
       playerSnapshot,
@@ -283,6 +311,7 @@ export const PlayerProvider: React.FC<{
       refreshData,
       playerServiceInstance,
       subscribeVisualizerWindows,
+      reportVisualizerDelay,
     ],
   );
 

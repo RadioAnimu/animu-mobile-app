@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { ArtworkResolver } from "../artwork";
-import type { Track } from "../../domain/track";
+import { ArtworkResolver } from "@/core/player/artwork";
+import type { Track } from "@/core/domain/track";
 
 // expo-asset reaches react-native (unparseable in node) — mock it entirely.
 // The bundled png is stubbed too; both are hoisted above the imports.

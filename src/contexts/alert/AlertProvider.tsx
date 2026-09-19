@@ -17,12 +17,12 @@ import {
   View,
 } from "react-native";
 import MaterialIcons from "@react-native-vector-icons/material-icons/static";
-import HarukaError from "../../assets/erro_haruka.png";
-import HarukaSuccess from "../../assets/success_haruka.png";
-import { THEME } from "../../theme";
-import { styles } from "./styles";
-import { Portal } from "../Portal";
-import { Toast } from "../../components/Toast";
+import HarukaError from "@/assets/erro_haruka.png";
+import HarukaSuccess from "@/assets/success_haruka.png";
+import { THEME } from "@/theme";
+import { styles } from "@/contexts/alert/styles";
+import { Portal } from "@/contexts/Portal";
+import { Toast } from "@/components/Toast";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export type AlertType = "success" | "error" | null;

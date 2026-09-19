@@ -11,16 +11,17 @@ import {
 import * as Linking from "expo-linking";
 import { useState } from "react";
 import { Image, StyleSheet, Text, TouchableOpacity, View } from "react-native";
-import { API } from "../../api";
-import { Avatar } from "../Avatar";
-import { ProviderIcon } from "../ProviderIcon";
-import { useAuth } from "../../contexts/auth/AuthProvider";
-import { useUserSettings } from "../../contexts/user/UserSettingsProvider";
-import { getUserName } from "../../core/domain/user";
-import { providerLabel } from "../../constants/auth";
-import { DICT, IMGS } from "../../i18n";
-import { THEME } from "../../theme";
-import { styles } from "./styles";
+import { API } from "@/api";
+import { Avatar } from "@/components/Avatar";
+import { ProviderIcon } from "@/components/ProviderIcon";
+import { useAuth } from "@/contexts/auth/AuthProvider";
+import { useUserSettings } from "@/contexts/user/UserSettingsProvider";
+import { useDict } from "@/hooks/useDict";
+import { getUserName } from "@/core/domain/user";
+import { providerLabel } from "@/constants/auth";
+import { IMGS } from "@/i18n";
+import { THEME } from "@/theme";
+import { styles } from "@/components/CustomDrawer/styles";
 
 export const MENU_ICON_SIZE = 22;
 const SECTION_ICON_SIZE = 18;
@@ -155,9 +156,8 @@ interface AccountRowProps {
  * - Signed out: the chip opens Login and a separate gear opens Settings.
  */
 function AccountRow({ onOpenLogin, onOpenSettings }: AccountRowProps) {
-  const { settings } = useUserSettings();
   const { user, profile } = useAuth();
-  const dict = DICT[settings.selectedLanguage];
+  const dict = useDict();
   const loginProvider = profile?.session.loginProvider;
 
   return (
@@ -238,6 +238,7 @@ function AccountRow({ onOpenLogin, onOpenSettings }: AccountRowProps) {
 
 export function CustomDrawerContent(props: DrawerContentComponentProps) {
   const { settings } = useUserSettings();
+  const dict = useDict();
   const { navigation } = props;
   const [logoWidth, setLogoWidth] = useState(0);
 
@@ -251,12 +252,12 @@ export function CustomDrawerContent(props: DrawerContentComponentProps) {
 
   const LINKS: LinkMenuItemProps[] = [
     {
-      title: DICT[settings.selectedLanguage].LINKS_WEBSITE,
+      title: dict.LINKS_WEBSITE,
       url: API.WEB_URL,
       Icon: () => <DrawerIcon name="web" />,
     },
     {
-      title: DICT[settings.selectedLanguage].LINKS_DISCORD,
+      title: dict.LINKS_DISCORD,
       url: API.DISCORD_URL,
       Icon: () => <DrawerIcon name="discord" />,
     },
@@ -288,13 +289,13 @@ export function CustomDrawerContent(props: DrawerContentComponentProps) {
 
         <Separator
           Icon={() => <DrawerIcon name="queue-music" size={SECTION_ICON_SIZE} />}
-          sectionTile={DICT[settings.selectedLanguage].MENU}
+          sectionTile={dict.MENU}
         />
         <NavItems {...props} />
 
         <Separator
           Icon={() => <DrawerIcon name="link" size={SECTION_ICON_SIZE} />}
-          sectionTile={DICT[settings.selectedLanguage].LINKS}
+          sectionTile={dict.LINKS}
         />
         {LINKS.map((link) => (
           <LinkMenuItem

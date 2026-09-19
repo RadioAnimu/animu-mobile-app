@@ -2,16 +2,14 @@ import { useEffect, useState } from "react";
 import MaterialIcons from "@react-native-vector-icons/material-icons/static";
 import { Animated, Text, TouchableOpacity, View } from "react-native";
 
-import { Avatar } from "../../components/Avatar";
-import { ProviderIcon } from "../../components/ProviderIcon";
-import { THEME } from "../../theme";
-import { DICT } from "../../i18n";
-import { getUserName } from "../../core/domain/user";
-import type { AuthProfile, User } from "../../core/domain/user";
-import { providerLabel } from "../../constants/auth";
-import { styles, SWITCH } from "./styles";
-
-type Dict = (typeof DICT)[keyof typeof DICT];
+import { Avatar } from "@/components/Avatar";
+import { ProviderIcon } from "@/components/ProviderIcon";
+import { THEME } from "@/theme";
+import type { Dict } from "@/i18n";
+import { getUserName } from "@/core/domain/user";
+import type { AuthProfile, User } from "@/core/domain/user";
+import { providerLabel } from "@/constants/auth";
+import { styles, SWITCH } from "@/screens/Settings/styles";
 
 /** Labels carry a trailing colon for back-compat — row UI renders clean. */
 export const cleanLabel = (label: string) =>
@@ -183,10 +181,11 @@ export function SettingsRow({
 interface ValueRowProps {
   label: string;
   value: string;
+  description?: string;
   onPress: () => void;
 }
 
-export function ValueRow({ label, value, onPress }: ValueRowProps) {
+export function ValueRow({ label, value, description, onPress }: ValueRowProps) {
   return (
     <TouchableOpacity
       accessibilityRole="button"
@@ -194,7 +193,12 @@ export function ValueRow({ label, value, onPress }: ValueRowProps) {
       onPress={onPress}
       style={styles.row}
     >
-      <Text style={styles.rowLabel}>{label}</Text>
+      <View style={description != null ? styles.rowBody : undefined}>
+        <Text style={styles.rowLabel}>{label}</Text>
+        {description != null && (
+          <Text style={styles.rowDescription}>{description}</Text>
+        )}
+      </View>
       <View style={styles.rowValue}>
         <Text style={styles.rowValueText} numberOfLines={1}>
           {value}
@@ -206,5 +210,30 @@ export function ValueRow({ label, value, onPress }: ValueRowProps) {
         />
       </View>
     </TouchableOpacity>
+  );
+}
+
+interface InfoRowProps {
+  label: string;
+  description?: string;
+  icon: React.ComponentProps<typeof MaterialIcons>["name"];
+}
+
+/** Non-interactive row that explains a capability (e.g. voice commands). */
+export function InfoRow({ label, description, icon }: InfoRowProps) {
+  return (
+    <View style={styles.row}>
+      <View style={styles.rowBody}>
+        <Text style={styles.rowLabel}>{label}</Text>
+        {description != null && (
+          <Text style={styles.rowDescription}>{description}</Text>
+        )}
+      </View>
+      <MaterialIcons
+        name={icon}
+        size={THEME.ICON.MD}
+        color={THEME.COLORS.TEXT_DIM}
+      />
+    </View>
   );
 }

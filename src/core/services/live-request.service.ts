@@ -1,6 +1,6 @@
-import type { LiveRequest } from "../domain/live-request";
+import type { LiveRequest } from "@/core/domain/live-request";
 import { ValidationError } from "animu-api";
-import { animuApi } from "../../api/client";
+import { animuApi } from "@/api/client";
 
 class LiveRequestService {
   private isSubmitting = false;

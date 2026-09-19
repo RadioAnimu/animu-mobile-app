@@ -1,14 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { AudioStatus } from "expo-audio";
 import { setAudioModeAsync } from "expo-audio";
-import { PlayerService, playerService } from "../player-service";
-import { ArtworkResolver } from "../artwork";
-import { HeartbeatScheduler } from "../heartbeat";
-import { TransportStateMachine } from "../transport-state";
-import { playerStore, progressStore } from "../store";
-import type { PlayerServiceDependencies } from "../player-service";
-import type { Track } from "../../domain/track";
-import type { Stream } from "../../domain/stream";
+import { PlayerService, playerService } from "@/core/player/player-service";
+import { ArtworkResolver } from "@/core/player/artwork";
+import { HeartbeatScheduler } from "@/core/player/heartbeat";
+import { TransportStateMachine } from "@/core/player/transport-state";
+import { playerStore, progressStore } from "@/core/player/store";
+import type { PlayerServiceDependencies } from "@/core/player/player-service";
+import type { Track } from "@/core/domain/track";
+import type { Stream } from "@/core/domain/stream";
 
 // The orchestrator's module graph reaches react-native / expo native
 // modules — stub them so the class under test can load in node. (vi.mock
@@ -58,12 +58,6 @@ vi.mock("../../../api/client", () => ({
       { id: "low", url: "https://stream-low", bitrate: 64, category: "aac" },
     ]),
   },
-  createMetadataClient: vi.fn(() => ({
-    getStreamMetadata: async () => ({
-      track: null,
-      listeners: { value: 0 },
-    }),
-  })),
 }));
 
 const makeTrack = (): Track =>
@@ -542,7 +536,7 @@ describe("PlayerService stream-loss handling", () => {
 
 describe("PlayerService lifecycle", () => {
   it("dedupes concurrent setupPlayer() calls into one native setup", async () => {
-    const { animuApi } = await import("../../../api/client");
+    const { animuApi } = await import("@/api/client");
     const first = playerService();
 
     await Promise.all([first.setupPlayer(), first.setupPlayer()]);
@@ -566,7 +560,7 @@ describe("PlayerService lifecycle", () => {
   });
 
   it("destroy() during an in-flight setup prevents initialization", async () => {
-    const { animuApi } = await import("../../../api/client");
+    const { animuApi } = await import("@/api/client");
     let resolveStreams!: (streams: Stream[]) => void;
     vi.mocked(animuApi.getStreams).mockImplementationOnce(
       () =>

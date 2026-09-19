@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo } from "react";
+import { useCallback, useMemo } from "react";
 import {
   FlatList,
   Text,
@@ -8,22 +8,23 @@ import {
 } from "react-native";
 import * as Clipboard from "expo-clipboard";
 
-import { Background } from "../../components/Background";
-import { ROW_HEIGHT, ROW_GAP, styles } from "./styles";
+import { Background } from "@/components/Background";
+import { styles } from "@/screens/Ultimas/styles";
 
 import { SafeAreaView } from "react-native-safe-area-context";
-import { HeaderBar } from "../../components/HeaderBar";
-import { Cover } from "../../components/Cover";
+import { HeaderBar } from "@/components/HeaderBar";
+import { Cover } from "@/components/Cover";
 
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
-import { RootStackParamList } from "../../routes/app.routes";
+import { RootStackParamList } from "@/routes/app.routes";
 
 import { Image } from "expo-image";
-import { DICT, IMGS } from "../../i18n";
-import { useUserSettings } from "../../contexts/user/UserSettingsProvider";
-import { useStation } from "../../contexts/player/PlayerProvider";
-import type { StationSnapshot } from "../../core/player";
-import { useAlert } from "../../contexts/alert/AlertProvider";
+import { IMGS } from "@/i18n";
+import { useUserSettings } from "@/contexts/user/UserSettingsProvider";
+import { useDict } from "@/hooks/useDict";
+import { useStation } from "@/contexts/player/PlayerProvider";
+import type { StationSnapshot } from "@/core/player";
+import { useAlert } from "@/contexts/alert/AlertProvider";
 
 type Props = NativeStackScreenProps<
   RootStackParamList,
@@ -38,13 +39,14 @@ export function Last({ route, navigation }: Props) {
   const { toast } = useAlert();
 
   const { settings } = useUserSettings();
+  const dict = useDict();
 
   const copyText = useCallback(
     (text: string) => {
       Clipboard.setStringAsync(text);
-      toast(DICT[settings.selectedLanguage].TEXT_COPIED);
+      toast(dict.TEXT_COPIED);
     },
-    [toast, settings.selectedLanguage],
+    [toast, dict],
   );
 
   const renderItem: ListRenderItem<
@@ -70,9 +72,7 @@ export function Last({ route, navigation }: Props) {
             onPress={() => copyText(item.raw)}
             style={styles.nameTouchable}
           >
-                <Text style={styles.musicapedidaname} numberOfLines={1}>
-                  {item.raw}
-                </Text>
+                <Text style={styles.musicapedidaname}>{item.raw}</Text>
           </TouchableOpacity>
           {isUltimasPedidasScreen && (
             <Text style={styles.musicapedidatime}>
@@ -124,12 +124,8 @@ export function Last({ route, navigation }: Props) {
               }
               contentContainerStyle={styles.containerList}
               renderItem={renderItem}
-              // Fixed-height rows → O(1) offset math, instant scroll setup
-              getItemLayout={(_, index) => ({
-                length: ROW_HEIGHT,
-                offset: (ROW_HEIGHT + ROW_GAP) * index,
-                index,
-              })}
+              // Rows wrap to show the full title, so they vary in height and
+              // cannot be described by `getItemLayout`.
               // Lists hold ~dozens of rows; render a tight window
               initialNumToRender={10}
               maxToRenderPerBatch={10}

@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   maxSelectableLimitBytes,
   readDiskCapacity,
-} from "../device-storage.service";
+} from "@/core/services/device-storage.service";
 
 const state = vi.hoisted(() => ({
   total: 64 * 1024 * 1024 * 1024,

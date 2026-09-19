@@ -1,10 +1,10 @@
 import React, { createContext, useContext } from "react";
 import { Text, TouchableOpacity } from "react-native";
-import { styles } from "./styles";
-import { THEME } from "../../theme";
-import { Cover } from "../Cover";
-import { useUserSettings } from "../../contexts/user/UserSettingsProvider";
-import { MusicRequest } from "../../core/domain/music-request";
+import { styles } from "@/components/RequestTrack/styles";
+import { THEME } from "@/theme";
+import { Cover } from "@/components/Cover";
+import { useUserSettings } from "@/contexts/user/UserSettingsProvider";
+import { MusicRequest } from "@/core/domain/music-request";
 
 /**
  * Per-row action context. Lets the row fire its parent's stable handler
@@ -46,10 +46,8 @@ export const RequestTrack = React.memo(function RequestTrack({ track }: Props) {
           category="search"
         />
       )}
-      {/* Fixed height: getItemLayout needs every row at the same height. */}
-      <Text style={styles.text} numberOfLines={1}>
-        {track.artist} | {track.raw}
-      </Text>
+      {/* Wraps to as many lines as the title needs. */}
+      <Text style={styles.text}>{track.artist} | {track.raw}</Text>
     </TouchableOpacity>
   );
 });

@@ -1,27 +1,27 @@
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
-import React, { useCallback, useState } from "react";
+import { useCallback, useState } from "react";
 import { ScrollView, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 // Components
-import { Background } from "../../components/Background";
-import { ChooseBitrateSection } from "../../components/ChooseBitrateSection";
-import { TrackCover } from "../../components/TrackCover";
-import { HeaderBar } from "../../components/HeaderBar";
-import { Listeners } from "../../components/Listeners";
-import { Live } from "../../components/Live";
-import { LiveRequestModal } from "../../components/LiveRequestModal";
-import { Logo } from "../../components/Logo";
-import { Oscilloscope } from "../../components/Oscilloscope";
-import { PopUpProgram } from "../../components/PopUpProgram";
-import { Program } from "../../components/Program";
-import { TimeRemaining } from "../../components/TimeRemaining";
+import { Background } from "@/components/Background";
+import { ChooseBitrateSection } from "@/components/ChooseBitrateSection";
+import { TrackCover } from "@/components/TrackCover";
+import { HeaderBar } from "@/components/HeaderBar";
+import { Listeners } from "@/components/Listeners";
+import { Live } from "@/components/Live";
+import { LiveRequestModal } from "@/components/LiveRequestModal";
+import { Logo } from "@/components/Logo";
+import { Oscilloscope } from "@/components/Oscilloscope";
+import { PopUpProgram } from "@/components/PopUpProgram";
+import { Program } from "@/components/Program";
+import { TimeRemaining } from "@/components/TimeRemaining";
 
 // Routes
-import { RootStackParamList } from "../../routes/app.routes";
+import { RootStackParamList } from "@/routes/app.routes";
 
 // Styles
-import { styles } from "./styles";
+import { styles } from "@/screens/Home/styles";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Home">;
 

@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo } from "react";
 import { Animated, Easing, StyleSheet, Text } from "react-native";
 import MaterialIcons from "@react-native-vector-icons/material-icons/static";
-import { THEME } from "../../theme";
+import { THEME } from "@/theme";
 
 /**
  * Minimalist flash card: fades in at the bottom of the screen, holds for a

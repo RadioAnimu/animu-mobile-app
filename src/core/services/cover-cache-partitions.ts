@@ -1,4 +1,4 @@
-import type { CoverCacheCategory } from "./cover-cache-registry.service";
+import type { CoverCacheCategory } from "@/core/services/cover-cache-registry.service";
 
 /** Stable display / iteration order for the four cover-cache partitions. */
 export const CATEGORY_ORDER: CoverCacheCategory[] = [

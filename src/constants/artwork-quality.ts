@@ -1,4 +1,4 @@
-import type { ArtworkQuality } from "../@types/artwork-quality";
+import type { ArtworkQuality } from "@/@types/artwork-quality";
 
 /** Quality tiers that ship a bundled preview (everything but "off"). */
 export type CoverQualityKey = Exclude<ArtworkQuality, "off">;
@@ -10,22 +10,22 @@ export interface CoverQualitySample {
 }
 
 /** Placeholder artwork shown for the "off" tier (nothing is downloaded). */
-export const DEFAULT_COVER_SOURCE = require("../../assets/default-cover.png");
+export const DEFAULT_COVER_SOURCE = require("@app/assets/default-cover.png");
 
 export const COVER_QUALITY_SAMPLES: CoverQualitySample[] = [
   {
     key: "high",
-    source: require("../assets/covers/sample-cover-large.jpg"),
-    sizeBytes: 253960,
+    source: require("@/assets/covers/sample-cover-large.jpg"),
+    sizeBytes: 250121,
   },
   {
     key: "medium",
-    source: require("../assets/covers/sample-cover-medium.jpg"),
-    sizeBytes: 52551,
+    source: require("@/assets/covers/sample-cover-medium.jpg"),
+    sizeBytes: 53202,
   },
   {
     key: "low",
-    source: require("../assets/covers/sample-cover-tiny.jpg"),
-    sizeBytes: 4045,
+    source: require("@/assets/covers/sample-cover-tiny.jpg"),
+    sizeBytes: 3961,
   },
 ];

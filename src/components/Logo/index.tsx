@@ -1,7 +1,7 @@
 import { Image } from "react-native";
-import { styles } from "./styles";
-import { IMGS } from "../../i18n";
-import { useUserSettings } from "../../contexts/user/UserSettingsProvider";
+import { styles } from "@/components/Logo/styles";
+import { IMGS } from "@/i18n";
+import { useUserSettings } from "@/contexts/user/UserSettingsProvider";
 
 interface Props {
   size?: number;

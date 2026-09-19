@@ -1,6 +1,6 @@
 import { Text } from "react-native";
-import { THEME } from "../../theme";
-import { useUserSettings } from "../../contexts/user/UserSettingsProvider";
+import { THEME } from "@/theme";
+import { useUserSettings } from "@/contexts/user/UserSettingsProvider";
 
 interface Props {
   startTime: number;

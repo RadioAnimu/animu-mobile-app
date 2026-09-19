@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { formatBytes, interpolate, percentOf } from "../format";
+import { formatBytes, interpolate, percentOf } from "@/utils/format";
 
 describe("formatBytes", () => {
   it("returns 0 MB for zero and non-finite input", () => {

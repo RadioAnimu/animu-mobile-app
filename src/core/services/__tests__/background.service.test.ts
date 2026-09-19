@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { backgroundService } from "../background.service";
+import { backgroundService } from "@/core/services/background.service";
 
 beforeEach(() => {
   vi.useFakeTimers();

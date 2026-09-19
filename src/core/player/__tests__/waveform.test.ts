@@ -4,7 +4,7 @@ import {
   resampleWaveform,
   resampleWaveformInto,
   rms,
-} from "../waveform";
+} from "@/core/player/waveform";
 
 describe("downmixChannels", () => {
   it("returns the sole channel unchanged for mono", () => {

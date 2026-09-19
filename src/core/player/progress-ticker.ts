@@ -1,13 +1,13 @@
-import { getTrackProgress } from "../domain/track";
+import { getTrackProgress } from "@/core/domain/track";
 import type {
   NowPlayingMetadata,
   PlaybackStatus,
 } from "react-native-playback-controls";
-import { progressStore } from "./store";
-import type { MediaSessionPublisher } from "./media-session.publisher";
-import type { NowPlayingRepository } from "./now-playing.repository";
-import type { AudioTransport } from "./transport";
-import type { TransportStateMachine } from "./transport-state";
+import { progressStore } from "@/core/player/store";
+import type { MediaSessionPublisher } from "@/core/player/media-session.publisher";
+import type { NowPlayingRepository } from "@/core/player/now-playing.repository";
+import type { AudioTransport } from "@/core/player/transport";
+import type { TransportStateMachine } from "@/core/player/transport-state";
 
 /** ms → seconds for the native media session, rejecting NaN/Infinity */
 export const toSec = (ms: number | null | undefined): number | undefined =>
