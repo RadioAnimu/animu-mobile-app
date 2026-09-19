@@ -1,7 +1,6 @@
 import { useState } from "react";
 import MaterialIcons from "@react-native-vector-icons/material-icons/static";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
-import { Image, type ImageSource } from "expo-image";
 import {
   ActivityIndicator,
   Alert,
@@ -12,118 +11,23 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-import { AnimuApiError, type LinkedProvider } from "animu-api";
+import { AnimuApiError } from "animu-api";
 import { Background } from "@/components/Background";
-import { Avatar } from "@/components/Avatar";
 import { AnimuConnectSheet } from "@/components/AnimuConnectSheet";
-import { MaskedValue } from "@/components/MaskedValue";
 import { ProviderIcon } from "@/components/ProviderIcon";
 import { ScreenHeader } from "@/components/ScreenHeader";
 import { SectionTitle } from "@/components/SectionTitle";
 import { useAlert } from "@/contexts/alert/AlertProvider";
 import { useAuth } from "@/contexts/auth/AuthProvider";
-import { useBoundedRetry } from "@/hooks/useBoundedRetry";
 import { useDict } from "@/hooks/useDict";
-import { getUserName } from "@/core/domain/user";
 import { AuthFlowCancelled } from "@/core/auth";
-import {
-  isProviderConfigured,
-  isProviderLinkable,
-  providerLabel,
-} from "@/constants/auth";
-import { buildAuthImageSource } from "@/utils/authImage";
-import { maskEmail, maskHandle, maskIdentifier } from "@/utils/mask";
 import { RootStackParamList } from "@/routes/app.routes";
 import { THEME } from "@/theme";
-import { AVATAR, styles } from "@/screens/Account/styles";
+import { styles } from "@/screens/Account/styles";
+import { LinkedAccounts } from "@/screens/Account/LinkedAccounts";
+import { ProfileCard } from "@/screens/Account/ProfileCard";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Account">;
-
-interface ProviderDisplay {
-  /** The real detail line, shown while revealed. */
-  value: string;
-  /** The same line with the personal half masked. */
-  masked: string;
-}
-
-/**
- * Identity line for a linked provider. Discord shows its `@handle` (or the
- * numeric id); Google/Apple show `name · email`. Each variant carries a
- * masked twin so the row protects the personal half by default.
- */
-function providerDisplay(provider: LinkedProvider): ProviderDisplay | null {
-  const handle = provider.providerUsername;
-
-  if (provider.provider === "discord") {
-    if (handle) return { value: `@${handle}`, masked: maskHandle(handle) };
-    if (provider.providerUserId) {
-      return {
-        value: provider.providerUserId,
-        masked: maskIdentifier(provider.providerUserId),
-      };
-    }
-    return null;
-  }
-
-  const parts: string[] = [];
-  const maskedParts: string[] = [];
-  if (provider.providerName) {
-    parts.push(provider.providerName);
-    maskedParts.push(provider.providerName);
-  }
-  if (provider.providerEmail) {
-    parts.push(provider.providerEmail);
-    maskedParts.push(maskEmail(provider.providerEmail));
-  }
-  if (parts.length > 0) {
-    return { value: parts.join(" · "), masked: maskedParts.join(" · ") };
-  }
-  if (handle) return { value: `@${handle}`, masked: maskHandle(handle) };
-  if (provider.providerUserId) {
-    return {
-      value: provider.providerUserId,
-      masked: maskIdentifier(provider.providerUserId),
-    };
-  }
-  return null;
-}
-
-interface ProfileBannerProps {
-  source: ImageSource | undefined;
-  /** The provider accent shown while the image loads or after it fails. */
-  fallbackColor: string;
-  /**
-   * Bumped when the underlying profile media changes (imageVersion), so a
-   * fresh banner re-enters the retry loop instead of sticking on a failed
-   * frame.
-   */
-  revision: string | number;
-}
-
-/**
- * The profile banner, with the same never-blank contract as `Avatar`:
- * the colored fallback always renders underneath, the image fades in on
- * top, and a bounded retry loop re-attempts transient network/401 failures
- * instead of leaving an empty strip. If every attempt fails the strip
- * simply stays the accent color — the layout never collapses.
- */
-function ProfileBanner({ source, fallbackColor, revision }: ProfileBannerProps) {
-  const { failed, fail } = useBoundedRetry(revision);
-
-  return (
-    <View style={[styles.banner, { backgroundColor: fallbackColor }]}>
-      {source && !failed && (
-        <Image
-          source={source}
-          style={styles.bannerImage}
-          contentFit="cover"
-          transition={150}
-          onError={fail}
-        />
-      )}
-    </View>
-  );
-}
 
 export function Account({ navigation }: Props) {
   const { toast, error: showError } = useAlert();
@@ -168,9 +72,6 @@ export function Account({ navigation }: Props) {
   };
 
   const linkedProviders = profile?.linkedProviders ?? [];
-  // `providers` is already the server list merged with the known providers,
-  // so unconfigured ones (Apple) render as "coming soon" here too.
-  const availableProviders = providers;
 
   // At least one social provider must always remain (Animu Connect does not
   // replace it) — the server refuses the last unlink with `last_provider`.
@@ -237,99 +138,16 @@ export function Account({ navigation }: Props) {
     );
   }
 
-  const profileUser = profile?.user ?? user;
-  const name = getUserName(profileUser);
-  const banner = profile?.banner;
-  const loginProvider = profile?.session.loginProvider;
-  const bannerSource = buildAuthImageSource(
-    banner?.url,
-    user.sessionToken,
-    `banner-${imageVersion}`,
-  );
-
   return (
     <Background>
       <SafeAreaView style={styles.container} edges={["left", "right", "bottom"]}>
         {renderHeader()}
         <ScrollView contentContainerStyle={styles.content}>
-          <View style={styles.card}>
-            <ProfileBanner
-              source={bannerSource}
-              fallbackColor={banner?.color ?? THEME.COLORS.FRAME}
-              revision={imageVersion}
-            />
-            <View style={styles.identity}>
-              <View style={styles.avatarWrap}>
-                <Avatar uri={user.avatarUrl} size={AVATAR} />
-              </View>
-              <View style={styles.identityInfo}>
-                <Text style={styles.name} numberOfLines={1}>
-                  {name}
-                </Text>
-                {profileUser.email && (
-                  <MaskedValue
-                    value={profileUser.email}
-                    mask={maskEmail}
-                    textStyle={styles.caption}
-                    showLabel={dict.ACCOUNT_SHOW}
-                    hideLabel={dict.ACCOUNT_HIDE}
-                  />
-                )}
-                <View style={styles.badges}>
-                  <View
-                    style={[
-                      styles.badge,
-                      profileUser.verified
-                        ? styles.badgeSuccess
-                        : styles.badgeMuted,
-                    ]}
-                  >
-                    <MaterialIcons
-                      name={profileUser.verified ? "verified" : "info"}
-                      size={13}
-                      color={
-                        profileUser.verified
-                          ? THEME.COLORS.BRAND
-                          : THEME.COLORS.TEXT_DIM
-                      }
-                    />
-                    <Text
-                      style={[
-                        styles.badgeText,
-                        profileUser.verified && styles.badgeTextSuccess,
-                      ]}
-                    >
-                      {profileUser.verified
-                        ? dict.ACCOUNT_VERIFIED
-                        : dict.ACCOUNT_NOT_VERIFIED}
-                    </Text>
-                  </View>
-                </View>
-              </View>
-            </View>
-
-            <Text style={styles.verifiedInfo}>
-              {profileUser.verified
-                ? dict.ACCOUNT_VERIFIED_INFO_OK
-                : dict.ACCOUNT_VERIFIED_INFO}
-            </Text>
-
-            <View style={styles.meta}>
-              {loginProvider && (
-                <View style={styles.metaRow}>
-                  <ProviderIcon
-                    provider={loginProvider}
-                    size={16}
-                    color={THEME.COLORS.TEXT_DIM}
-                  />
-                  <Text style={styles.metaText}>
-                    {dict.ACCOUNT_CONNECTED_VIA}{" "}
-                    {providerLabel(loginProvider)}
-                  </Text>
-                </View>
-              )}
-            </View>
-          </View>
+          <ProfileCard
+            user={user}
+            profile={profile}
+            imageVersion={imageVersion}
+          />
 
           <TouchableOpacity
             accessibilityRole="button"
@@ -355,111 +173,24 @@ export function Account({ navigation }: Props) {
             <Text style={styles.refreshText}>{dict.ACCOUNT_REFRESH}</Text>
           </TouchableOpacity>
 
-          <SectionTitle title={dict.ACCOUNT_LINKED_ACCOUNTS} icon="link" />
-          <View style={styles.group}>
-            {availableProviders.map((provider, index) => {
-              const linkedInfo = linkedProviders.find(
-                (entry) => entry.provider === provider.name,
-              );
-              const linked = !!linkedInfo;
-              const configured = isProviderConfigured(provider.name);
-              const linkable = isProviderLinkable(provider.name);
-              const rowBusy = busy === `link-${provider.name}`;
-              const display = linkedInfo ? providerDisplay(linkedInfo) : null;
-              return (
-                <View key={provider.name}>
-                  {index > 0 && <View style={styles.divider} />}
-                  <View style={styles.row}>
-                    <View style={styles.rowIcon}>
-                      <ProviderIcon provider={provider.name} />
-                    </View>
-                    <View style={styles.rowBody}>
-                      <Text style={styles.rowLabel}>{provider.label}</Text>
-                      {linked && display ? (
-                        <MaskedValue
-                          value={display.value}
-                          mask={() => display.masked}
-                          textStyle={styles.rowCaption}
-                          showLabel={dict.ACCOUNT_SHOW}
-                          hideLabel={dict.ACCOUNT_HIDE}
-                          iconSize={14}
-                        />
-                      ) : (
-                        <Text style={styles.rowCaption} numberOfLines={1}>
-                          {linked
-                            ? dict.ACCOUNT_LINKED
-                            : dict.ACCOUNT_NOT_LINKED}
-                        </Text>
-                      )}
-                    </View>
-                    {rowBusy ? (
-                      <ActivityIndicator
-                        size="small"
-                        color={THEME.COLORS.TEXT_DIM}
-                        style={styles.rowActionBusy}
-                      />
-                    ) : linked ? (
-                      <TouchableOpacity
-                        accessibilityRole="button"
-                        accessibilityLabel={`${dict.ACCOUNT_UNLINK} ${provider.label}`}
-                        disabled={!canUnlink || !!busy}
-                        activeOpacity={0.7}
-                        hitSlop={8}
-                        style={[
-                          styles.rowIconAction,
-                          (!canUnlink || !!busy) && styles.rowActionDisabled,
-                        ]}
-                        onPress={() =>
-                          handle(`link-${provider.name}`, async () => {
-                            await unlinkProvider(provider.name);
-                            toast(dict.ACCOUNT_UNLINK_SUCCESS);
-                          })
-                        }
-                      >
-                        <MaterialIcons
-                          name="link-off"
-                          size={THEME.ICON.MD}
-                          color={
-                            !canUnlink || !!busy
-                              ? THEME.COLORS.TEXT_DIM
-                              : THEME.COLORS.TEXT_SOFT
-                          }
-                        />
-                      </TouchableOpacity>
-                    ) : configured && linkable ? (
-                      <TouchableOpacity
-                        accessibilityRole="button"
-                        accessibilityLabel={`${dict.ACCOUNT_LINK} ${provider.label}`}
-                        disabled={!!busy}
-                        activeOpacity={0.7}
-                        hitSlop={8}
-                        style={[
-                          styles.rowIconAction,
-                          !!busy && styles.rowActionDisabled,
-                        ]}
-                        onPress={() =>
-                          handle(`link-${provider.name}`, async () => {
-                            await linkProvider(provider.name);
-                            toast(dict.ACCOUNT_LINK_SUCCESS);
-                          })
-                        }
-                      >
-                        <MaterialIcons
-                          name="add-link"
-                          size={THEME.ICON.MD}
-                          color={THEME.COLORS.BRAND}
-                        />
-                      </TouchableOpacity>
-                    ) : !configured ? (
-                      <Text style={styles.soon}>
-                        {dict.LOGIN_PROVIDER_UNAVAILABLE}
-                      </Text>
-                    ) : null}
-                  </View>
-                </View>
-              );
-            })}
-          </View>
+          <LinkedAccounts
+            providers={providers}
+            linkedProviders={linkedProviders}
+            canUnlink={canUnlink}
+            busy={busy}
+            onLink={(provider) =>
+              handle(`link-${provider}`, async () => {
+                await linkProvider(provider);
+                toast(dict.ACCOUNT_LINK_SUCCESS);
+              })
+            }
+            onUnlink={(provider) =>
+              handle(`link-${provider}`, async () => {
+                await unlinkProvider(provider);
+                toast(dict.ACCOUNT_UNLINK_SUCCESS);
+              })
+            }
+          />
 
           <SectionTitle title={dict.ACCOUNT_ANIMU_CONNECT} icon="vpn-key" />
           <View style={styles.group}>
