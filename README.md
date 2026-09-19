@@ -102,6 +102,8 @@ src/
 └── @types/               # Ambient type declarations
 ```
 
+**Path aliases.** App code imports through `@/*` (→ `src/*`) and `@app/*` (→ project root) instead of relative paths. They are declared in `tsconfig.json`, consumed by Metro through Expo's built-in tsconfig-paths support, and mirrored in `vitest.config.mts` for the test runner. An ESLint rule (`no-restricted-imports` + a relative-`require` selector) enforces this for `src/`, `App.tsx`, and `index.js`; Node-loaded tooling (`babel`/`metro`/`eslint` configs, `scripts/`) keeps using relative requires.
+
 ## Key engineering decisions
 
 - **Custom HTTP layer instead of a third-party client.** The `animu-api` package ships a small `fetch`-based client with `AbortController` timeouts, an in-memory GET micro-cache, structured request logging, and typed errors. Removing Axios eliminated a dependency while keeping a familiar request API.
