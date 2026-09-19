@@ -31,6 +31,92 @@ interface Props {
   onRequestSuccess: (trackId: string) => void;
 }
 
+function TrackSummary({ track }: { track: MusicRequest }) {
+  return (
+    <View style={styles.trackRow}>
+      <Cover cover={track.artwork} style={styles.cover} category="search" />
+      <View style={styles.trackInfo}>
+        <Text style={styles.songName} numberOfLines={2}>
+          {track.song}
+        </Text>
+        <Text style={styles.animeText} numberOfLines={1}>
+          {track.anime}
+        </Text>
+        <Text style={styles.artistText} numberOfLines={1}>
+          {track.artist}
+        </Text>
+      </View>
+    </View>
+  );
+}
+
+function RequesterRow({ user }: { user: User }) {
+  return (
+    <View style={styles.userRow}>
+      <Avatar uri={user.avatarUrl} style={styles.avatar} />
+      <Text style={styles.username}>{user.nickname || user.username}</Text>
+    </View>
+  );
+}
+
+function RequestStatus({
+  success,
+  message,
+}: {
+  success: boolean;
+  message: string;
+}) {
+  return (
+    <View style={styles.statusBox}>
+      <MaterialIcons
+        name={success ? "check-circle" : "error"}
+        size={THEME.ICON.XL}
+        color={success ? THEME.COLORS.BRAND : THEME.COLORS.ERROR}
+      />
+      <Text
+        style={[
+          styles.statusText,
+          success ? styles.statusSuccess : styles.statusError,
+        ]}
+      >
+        {message}
+      </Text>
+    </View>
+  );
+}
+
+function RequestActionButton({
+  submitting,
+  error,
+  label,
+  onPress,
+}: {
+  submitting: boolean;
+  error: boolean;
+  label: string;
+  onPress: () => void;
+}) {
+  return (
+    <TouchableOpacity
+      accessibilityRole="button"
+      accessibilityState={{ disabled: submitting, busy: submitting }}
+      onPress={onPress}
+      disabled={submitting}
+      style={[
+        styles.okButton,
+        error && styles.okButtonError,
+        submitting && styles.okButtonDisabled,
+      ]}
+    >
+      {submitting ? (
+        <ActivityIndicator color={THEME.COLORS.TEXT} />
+      ) : (
+        <Text style={styles.okText}>{label}</Text>
+      )}
+    </TouchableOpacity>
+  );
+}
+
 export function RequestBottomSheet({
   visible,
   track,
@@ -98,105 +184,39 @@ export function RequestBottomSheet({
         keyboardShouldPersistTaps="handled"
         contentContainerStyle={styles.scrollContent}
       >
-            {/* Track row */}
-            {track && (
-              <View style={styles.trackRow}>
-                <Cover cover={track.artwork} style={styles.cover} category="search" />
-                <View style={styles.trackInfo}>
-                  <Text style={styles.songName} numberOfLines={2}>
-                    {track.song}
-                  </Text>
-                  <Text style={styles.animeText} numberOfLines={1}>
-                    {track.anime}
-                  </Text>
-                  <Text style={styles.artistText} numberOfLines={1}>
-                    {track.artist}
-                  </Text>
-                </View>
-              </View>
-            )}
+        {track && <TrackSummary track={track} />}
+        {user && <RequesterRow user={user} />}
 
-            {user && (
-              <View style={styles.userRow}>
-                <Avatar uri={user.avatarUrl} style={styles.avatar} />
-                <Text style={styles.username}>
-                  {user.nickname || user.username}
-                </Text>
-              </View>
-            )}
+        {isDone ? (
+          <RequestStatus
+            success={status === "success"}
+            message={statusMessage}
+          />
+        ) : (
+          <>
+            <View style={styles.noteBox}>
+              <Text style={styles.noteText}>{DICT[lang].INFO_REQUEST}</Text>
+            </View>
+            <TextInput
+              style={[styles.input, isSubmitting && styles.inputDisabled]}
+              placeholder={DICT[lang].SEND_REQUEST_PLACEHOLDER}
+              placeholderTextColor={THEME.COLORS.TEXT_ON_LIGHT}
+              value={message}
+              onChangeText={setMessage}
+              editable={!isSubmitting}
+              returnKeyType="send"
+              onSubmitEditing={handleSubmit}
+            />
+          </>
+        )}
 
-            {/* Status feedback */}
-            {isDone && (
-              <View style={styles.statusBox}>
-                {status === "success" ? (
-                  <MaterialIcons
-                    name="check-circle"
-                    size={THEME.ICON.XL}
-                    color={THEME.COLORS.BRAND}
-                  />
-                ) : (
-                  <MaterialIcons
-                    name="error"
-                    size={THEME.ICON.XL}
-                    color={THEME.COLORS.ERROR}
-                  />
-                )}
-                <Text
-                  style={[
-                    styles.statusText,
-                    status === "success"
-                      ? styles.statusSuccess
-                      : styles.statusError,
-                  ]}
-                >
-                  {statusMessage}
-                </Text>
-              </View>
-            )}
-
-            {/* Form — hidden once done */}
-            {!isDone && (
-              <>
-                {/* Note */}
-                <View style={styles.noteBox}>
-                  <Text style={styles.noteText}>{DICT[lang].INFO_REQUEST}</Text>
-                </View>
-
-                {/* Message input */}
-                <TextInput
-                  style={[styles.input, isSubmitting && styles.inputDisabled]}
-                  placeholder={DICT[lang].SEND_REQUEST_PLACEHOLDER}
-                  placeholderTextColor={THEME.COLORS.TEXT_ON_LIGHT}
-                  value={message}
-                  onChangeText={setMessage}
-                  editable={!isSubmitting}
-                  returnKeyType="send"
-                  onSubmitEditing={handleSubmit}
-                />
-              </>
-            )}
-
-            {/* Action button — always visible */}
-            <TouchableOpacity
-              accessibilityRole="button"
-              accessibilityState={{ disabled: isSubmitting, busy: isSubmitting }}
-              onPress={isDone ? onClose : handleSubmit}
-              disabled={isSubmitting}
-              style={[
-                styles.okButton,
-                status === "error" && styles.okButtonError,
-                isSubmitting && styles.okButtonDisabled,
-              ]}
-            >
-              {isSubmitting ? (
-                <ActivityIndicator color={THEME.COLORS.TEXT} />
-              ) : (
-                <Text style={styles.okText}>
-                  {isDone ? DICT[lang].OK_BUTTON : DICT[lang].SEND_REQUEST_BUTTON_TEXT}
-                </Text>
-              )}
-            </TouchableOpacity>
-          </ScrollView>
+        <RequestActionButton
+          submitting={isSubmitting}
+          error={status === "error"}
+          label={isDone ? DICT[lang].OK_BUTTON : DICT[lang].SEND_REQUEST_BUTTON_TEXT}
+          onPress={isDone ? onClose : handleSubmit}
+        />
+      </ScrollView>
     </Sheet>
   );
 }

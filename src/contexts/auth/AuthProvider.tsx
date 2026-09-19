@@ -62,9 +62,11 @@ const AuthContext = createContext<AuthContextType | null>(null);
 const SESSION_CHECK_INTERVAL = 60000; // 1 minute
 const SESSION_CHECK_TASK_ID = "session-check";
 
-export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
-  children,
-}) => {
+/**
+ * Owns all auth state and side effects. Kept separate from the provider so the
+ * component stays a thin shell and this logic is testable in isolation.
+ */
+function useAuthProviderValue(): AuthContextType {
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<AuthProfile | null>(null);
   const [providers, setProviders] = useState<ProviderInfo[]>(
@@ -323,7 +325,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     await loadProfile();
   }, [loadProfile]);
 
-  const value = useMemo<AuthContextType>(
+  return useMemo<AuthContextType>(
     () => ({
       user,
       profile,
@@ -372,11 +374,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       resetAvatar,
     ],
   );
+}
 
+export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
+  children,
+}) => {
+  const value = useAuthProviderValue();
   return (
-    <AuthContext.Provider value={value}>
-      {children}
-    </AuthContext.Provider>
+    <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
   );
 };
 
