@@ -48,10 +48,9 @@ export function HeaderBar({ openLiveRequestModal }: Props) {
   const isBackgrounded = useIsBackgrounded();
 
   useEffect(() => {
-    const duration = currentTrack?.duration;
+    const duration = currentTrack?.duration ?? 0;
     const hasProgress =
       currentTrackProgress != null &&
-      duration != null &&
       Number.isFinite(currentTrackProgress) &&
       Number.isFinite(duration) &&
       duration > 0;

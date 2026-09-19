@@ -291,17 +291,13 @@ export class CoverDiskStorage {
         // Walk the partition's ring up to (but excluding) its newest
         // entry — index 0 is the oldest end of the buffer, the read
         // pointer advances one slot per eviction.
-        // NOTE: the awaits below are DELIBERATELY sequential. Each
-        // deletion decides whether the next one is needed at all
-        // (budget-progressive); parallelizing would pre-delete MORE
-        // covers than the cap requires. Evictions are per-slot on a
-        // FIFO walk, not a batch operation — that is the ring contract.
-        for (
-          let index = 0;
-          index < partition.length - 1 && partitionBytes > cap;
-          index++
-        ) {
-          const url = partition[index];
+        // NOTE: the awaits are DELIBERATELY sequential. Each deletion
+        // decides whether the next one is needed at all (budget-progressive);
+        // parallelizing would pre-delete MORE covers than the cap requires.
+        // Evictions are per-slot on a FIFO walk, not a batch operation — that
+        // is the ring contract, so `for await` (not `Promise.all`).
+        for await (const url of partition.slice(0, -1)) {
+          if (partitionBytes <= cap) break;
           const stat = statByUrl.get(url);
           if (stat?.state !== "found") continue;
           if (!(await deleteCachedFile(url))) continue;
