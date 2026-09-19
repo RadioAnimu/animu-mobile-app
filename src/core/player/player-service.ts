@@ -688,113 +688,145 @@ export class PlayerService {
     // not tick, poll or transition.
     if (this.disposed) return;
 
-    // Android's status mapper reports `playing: true` (the *intended* state)
-    // while still buffering. Buffering is not audio flow, so it is handled
-    // before the "audio is flowing" branch — but a transient buffer frame
-    // while we are already `connecting` (opening / reconnecting / a stream
-    // swap) must not knock the state machine back into `connecting` every
-    // tick. On iOS `playImmediately` briefly reports a waiting (buffering)
-    // time-control; without this guard the state machine is held in
-    // `connecting` and the player looks permanently paused.
-    if (status.isBuffering) {
-      if (this.deps.state.isPlayingIntent) {
-        // Audio that was flowing just stalled — remember when, so a
-        // recovery after the drift threshold can re-open at the live edge.
-        // Only arm from `playing`: a stall while `connecting` is our own
-        // stream replace, not a link that fell behind.
-        if (this.deps.state.state === "playing") {
-          this.stalledSince = Date.now();
-          this.reconcile("connecting");
-        }
-        this.enforceConnectingWatchdog();
-      }
-      this.deps.heartbeat.beat();
-      return;
-    }
+    if (this.handleBuffering(status)) return;
+    if (this.handlePlaying(status)) return;
+    if (this.handleNativelyPaused(status)) return;
+    this.handleStreamLost(status);
+  }
 
-    // Stream is actually producing audio — resets the backoff chain
-    if (status.playing) {
-      this.deps.reconnect.reset();
+  /**
+   * Android's status mapper reports `playing: true` (the *intended* state)
+   * while still buffering. Buffering is not audio flow, so it is handled
+   * before the "audio is flowing" branch — but a transient buffer frame
+   * while we are already `connecting` (opening / reconnecting / a stream
+   * swap) must not knock the state machine back into `connecting` every
+   * tick. On iOS `playImmediately` briefly reports a waiting (buffering)
+   * time-control; without this guard the state machine is held in
+   * `connecting` and the player looks permanently paused.
+   *
+   * @returns true when the event was a buffering frame (handled here).
+   */
+  private handleBuffering(status: AudioStatus): boolean {
+    if (!status.isBuffering) return false;
 
-      // Recovering from a stall long enough to have fallen behind: re-open
-      // the source so a radio lands on the live edge instead of draining
-      // the stale buffer it accumulated. Consume the marker first so the
-      // re-open's own buffering frame (state `connecting`) cannot loop.
-      if (this.stalledSince != null) {
-        const stalledFor = Date.now() - this.stalledSince;
-        this.stalledSince = null;
-        if (stalledFor >= LIVE_STALL_REOPEN_MS) {
-          this.deps.transport.play(this.deps.streamPreferences.current.url);
-          this.reconcile("connecting");
-          this.deps.heartbeat.beat();
-          return;
-        }
-      }
-
-      if (this.deps.state.state === "paused") {
-        // The user stopped this stream — an in-flight straggler event or a
-        // rare auto-resume must not resurrect audio against their intent.
-        if (this.userPaused) {
-          this.deps.transport.pause();
-          return;
-        }
-        // The pause was native (focus loss, phone call) and the OS has just
-        // resumed on its own (Android AUDIOFOCUS_GAIN, iOS .shouldResume).
-        // For a radio, the native player would continue from the paused
-        // position — stale, already-played audio — so a *genuine*
-        // interruption re-opens the source to land at the live edge. The
-        // one-shot flag is what keeps this from looping: the re-open's own
-        // transient paused→playing frame leaves it clear.
-        if (this.interruptionPending) {
-          this.interruptionPending = false;
-          this.deps.transport.play(this.deps.streamPreferences.current.url);
-          this.reconcile("connecting");
-          this.deps.heartbeat.beat();
-          return;
-        }
-        // Otherwise adopt the resumed audio as-is (transient flap).
-      }
-
-      // Native 1 Hz heartbeat: drives progress + media-session pushes AND
-      // the data poll while playing (see `HeartbeatScheduler`). These
-      // events keep arriving while the app is backgrounded, where JS
-      // timers freeze/throttle — without this, a live show's notification
-      // keeps a stale title/cover forever.
-      this.reconcile("playing");
-      this.deps.heartbeat.beat();
-      return;
-    }
-
-    // Natively paused without our say-so — audio focus loss, phone call,
-    // car/Siri interruption. Adopt the native truth so the button and the
-    // media session stop claiming "playing" while nothing plays. Dead
-    // streams also report a paused time-control, so they are excluded
-    // here and handled by the loss detection below.
-    if (
-      !status.isBuffering &&
-      status.timeControlStatus === "paused" &&
-      !isDeadPlaybackState(status.playbackState)
-    ) {
-      // A paused time-control while the state machine is still `connecting`
-      // means a start was issued but native never began (typical when iOS
-      // `playImmediately` ran before the item was ready). Don't latch a
-      // user-visible pause — force a fresh native start until it takes.
-      if (this.deps.state.state === "connecting") {
-        this.enforceConnectingWatchdog();
-        this.deps.heartbeat.beat();
-        return;
-      }
-      // A pause while audio was actually flowing is a real interruption
-      // (call, focus loss) and must arm the live-edge re-open.
+    if (this.deps.state.isPlayingIntent) {
+      // Audio that was flowing just stalled — remember when, so a recovery
+      // after the drift threshold can re-open at the live edge. Only arm
+      // from `playing`: a stall while `connecting` is our own stream
+      // replace, not a link that fell behind.
       if (this.deps.state.state === "playing") {
-        this.interruptionPending = true;
+        this.stalledSince = Date.now();
+        this.reconcile("connecting");
       }
-      this.reconcile("paused");
-      return;
+      this.enforceConnectingWatchdog();
+    }
+    this.deps.heartbeat.beat();
+    return true;
+  }
+
+  /**
+   * The stream is actually producing audio. Resets the backoff chain,
+   * re-opens the source after a long stall or a native interruption so a
+   * radio lands on the live edge, and beats the native heartbeat (which
+   * drives progress, the media session and the data poll while playing).
+   *
+   * @returns true when the event reported audio flowing (handled here).
+   */
+  private handlePlaying(status: AudioStatus): boolean {
+    if (!status.playing) return false;
+
+    this.deps.reconnect.reset();
+
+    // Recovering from a stall long enough to have fallen behind: re-open
+    // the source so a radio lands on the live edge instead of draining
+    // the stale buffer it accumulated. Consume the marker first so the
+    // re-open's own buffering frame (state `connecting`) cannot loop.
+    if (this.stalledSince != null) {
+      const stalledFor = Date.now() - this.stalledSince;
+      this.stalledSince = null;
+      if (stalledFor >= LIVE_STALL_REOPEN_MS) {
+        this.deps.transport.play(this.deps.streamPreferences.current.url);
+        this.reconcile("connecting");
+        this.deps.heartbeat.beat();
+        return true;
+      }
     }
 
-    // Stream died while the user wants playback → schedule reconnect.
-    // The grace window filters transient native idle states (replace()).
+    if (this.deps.state.state === "paused") {
+      // The user stopped this stream — an in-flight straggler event or a
+      // rare auto-resume must not resurrect audio against their intent.
+      if (this.userPaused) {
+        this.deps.transport.pause();
+        return true;
+      }
+      // The pause was native (focus loss, phone call) and the OS has just
+      // resumed on its own (Android AUDIOFOCUS_GAIN, iOS .shouldResume).
+      // For a radio, the native player would continue from the paused
+      // position — stale, already-played audio — so a *genuine*
+      // interruption re-opens the source to land at the live edge. The
+      // one-shot flag is what keeps this from looping: the re-open's own
+      // transient paused→playing frame leaves it clear.
+      if (this.interruptionPending) {
+        this.interruptionPending = false;
+        this.deps.transport.play(this.deps.streamPreferences.current.url);
+        this.reconcile("connecting");
+        this.deps.heartbeat.beat();
+        return true;
+      }
+      // Otherwise adopt the resumed audio as-is (transient flap).
+    }
+
+    // Native 1 Hz heartbeat: drives progress + media-session pushes AND
+    // the data poll while playing (see `HeartbeatScheduler`). These
+    // events keep arriving while the app is backgrounded, where JS
+    // timers freeze/throttle — without this, a live show's notification
+    // keeps a stale title/cover forever.
+    this.reconcile("playing");
+    this.deps.heartbeat.beat();
+    return true;
+  }
+
+  /**
+   * Natively paused without our say-so — audio focus loss, phone call,
+   * car/Siri interruption. Adopts the native truth so the button and the
+   * media session stop claiming "playing" while nothing plays. Dead
+   * streams also report a paused time-control, so they are excluded here
+   * and handled by {@link handleStreamLost}.
+   *
+   * @returns true when the event was a genuine native pause (handled here).
+   */
+  private handleNativelyPaused(status: AudioStatus): boolean {
+    if (
+      status.isBuffering ||
+      status.timeControlStatus !== "paused" ||
+      isDeadPlaybackState(status.playbackState)
+    ) {
+      return false;
+    }
+
+    // A paused time-control while the state machine is still `connecting`
+    // means a start was issued but native never began (typical when iOS
+    // `playImmediately` ran before the item was ready). Don't latch a
+    // user-visible pause — force a fresh native start until it takes.
+    if (this.deps.state.state === "connecting") {
+      this.enforceConnectingWatchdog();
+      this.deps.heartbeat.beat();
+      return true;
+    }
+    // A pause while audio was actually flowing is a real interruption
+    // (call, focus loss) and must arm the live-edge re-open.
+    if (this.deps.state.state === "playing") {
+      this.interruptionPending = true;
+    }
+    this.reconcile("paused");
+    return true;
+  }
+
+  /**
+   * Stream died while the user wants playback → schedule reconnect. The
+   * grace window filters transient native idle states (`replace()`).
+   */
+  private handleStreamLost(status: AudioStatus): void {
     const streamLost =
       this.deps.state.isPlayingIntent &&
       !status.isBuffering &&

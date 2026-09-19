@@ -183,6 +183,37 @@ export class NowPlayingRepository {
     this.showProgressValue = value;
   }
 
+  // ── Merge helpers (shared by the SSE push and the HTTP poll) ──
+
+  /** True when a track is a different on-air item (by identity, not fields). */
+  private trackIdentityChanged(track: Track): boolean {
+    return (
+      this.currentTrackValue?.raw !== track.raw ||
+      this.currentTrackValue?.artwork !== track.artwork
+    );
+  }
+
+  /**
+   * Installs a new current track. Real songs also feed the played history;
+   * filler (jingles/idents/transitions) never does.
+   */
+  private applyTrack(track: Track): void {
+    this.currentTrackValue = track;
+    if (isRealTrack(track)) void this.refreshHistory("played");
+  }
+
+  /** Progress shows only for a real track on a non-live program. */
+  private updateShowProgress(isLive: boolean): void {
+    this.showProgressValue = isRealTrack(this.currentTrackValue) && !isLive;
+  }
+
+  /** Installs the listener count when it actually changed. */
+  private mergeListeners(next: Listeners): boolean {
+    if (this.listenersValue?.value === next.value) return false;
+    this.listenersValue = next;
+    return true;
+  }
+
   // ── Realtime stream (SSE) ──
 
   /**
@@ -271,26 +302,17 @@ export class NowPlayingRepository {
     // placeholder) leaves the current state untouched.
     const track = song.track;
     let trackChanged = false;
-    if (track) {
-      trackChanged =
-        this.currentTrackValue?.raw !== track.raw ||
-        this.currentTrackValue?.artwork !== track.artwork;
-      if (trackChanged) {
-        this.currentTrackValue = track;
-        // Filler is never added to the played history (same rule as the
-        // poll's `refreshHistory`).
-        if (isRealTrack(track)) void this.refreshHistory("played");
-        // Progress follows the poll's rule: a seek bar only for real,
-        // non-live tracks. Recomputing here is what keeps the media
-        // session's bar from staying stuck off after a live push (filler
-        // or a live block can flip it off before the next poll lands).
-        this.showProgressValue =
-          isRealTrack(track) && !(this.currentProgramValue?.isLive ?? false);
-      }
+    if (track && this.trackIdentityChanged(track)) {
+      this.applyTrack(track);
+      trackChanged = true;
+      // Progress follows the poll's rule: a seek bar only for real,
+      // non-live tracks. Recomputing here is what keeps the media
+      // session's bar from staying stuck off after a live push (filler
+      // or a live block can flip it off before the next poll lands).
+      this.updateShowProgress(this.currentProgramValue?.isLive ?? false);
     }
 
-    const listenersChanged = this.listenersValue?.value !== song.listeners.value;
-    if (listenersChanged) this.listenersValue = song.listeners;
+    const listenersChanged = this.mergeListeners(song.listeners);
 
     if (trackChanged || listenersChanged) {
       this.onChange({
@@ -309,8 +331,7 @@ export class NowPlayingRepository {
   private ingestListeners(listeners: Listeners): void {
     if (this.disposed) return;
     this.lastLiveEventAt = Date.now();
-    if (this.listenersValue?.value === listeners.value) return;
-    this.listenersValue = listeners;
+    if (!this.mergeListeners(listeners)) return;
     this.onChange({
       ...{
         trackChanged: false,
@@ -389,16 +410,9 @@ export class NowPlayingRepository {
 
       let trackChanged = false;
 
-      if (
-        track &&
-        !liveOwns &&
-        (this.currentTrackValue?.raw !== track.raw ||
-          this.currentTrackValue?.artwork !== track.artwork)
-      ) {
-        this.currentTrackValue = track;
+      if (track && !liveOwns && this.trackIdentityChanged(track)) {
+        this.applyTrack(track);
         trackChanged = true;
-
-        void this.refreshHistory("played");
       }
 
       const programChanged =
@@ -412,18 +426,14 @@ export class NowPlayingRepository {
       // a live block starting/ending while the same track stays on air must
       // still flip the seek bar off/on.
       if (trackChanged || programChanged) {
-        this.showProgressValue =
-          isRealTrack(this.currentTrackValue) && !program.isLive;
+        this.updateShowProgress(program.isLive);
       }
 
       // Same live-authority rule for the listener count: on a skip leg it
       // is the snapshot we just installed out of (never differs); after a
       // mid-flight push, the HTTP count is stale and must not regress it.
       const listenersChanged =
-        !liveOwns &&
-        listeners != null &&
-        this.listenersValue?.value !== listeners.value;
-      if (listenersChanged) this.listenersValue = listeners;
+        !liveOwns && listeners != null && this.mergeListeners(listeners);
 
       const requestedChanged =
         newRequestedTracks.length > 0 &&
