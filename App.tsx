@@ -21,9 +21,9 @@ export default function App() {
           <MyStatusBar />
           <Background>
             <PortalProvider>
-              <AlertProvider>
-                <PlayerProvider>
-                  <UserSettingsProvider>
+              <UserSettingsProvider>
+                <AlertProvider>
+                  <PlayerProvider>
                     <AuthProvider>
                       <OtaProvider>
                         <AppStateGate>
@@ -31,9 +31,9 @@ export default function App() {
                         </AppStateGate>
                       </OtaProvider>
                     </AuthProvider>
-                  </UserSettingsProvider>
-                </PlayerProvider>
-              </AlertProvider>
+                  </PlayerProvider>
+                </AlertProvider>
+              </UserSettingsProvider>
             </PortalProvider>
           </Background>
         </SafeAreaProvider>

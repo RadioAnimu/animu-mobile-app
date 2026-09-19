@@ -22,6 +22,7 @@ import {
   useTrackProgress,
 } from "@/contexts/player/PlayerProvider";
 import { useIsBackgrounded } from "@/contexts/app-state/AppStateProvider";
+import { useDict } from "@/hooks/useDict";
 import type { RootStackParamList } from "@/routes/app.routes";
 import { haptics } from "@/utils/haptics";
 
@@ -40,6 +41,7 @@ export function HeaderBar({ openLiveRequestModal }: Props) {
   const navigation =
     useNavigation<DrawerNavigationProp<RootStackParamList>>();
   const insets = useSafeAreaInsets();
+  const dict = useDict();
   const progressAnim = useMemo(() => new Animated.Value(0), []);
   const [status, setStatus] = useState<Status>("playing");
   const player = usePlayer();
@@ -133,7 +135,7 @@ export function HeaderBar({ openLiveRequestModal }: Props) {
       >
         <TouchableOpacity
           accessibilityRole="button"
-          accessibilityLabel="Open menu"
+          accessibilityLabel={dict.A11Y_OPEN_MENU}
           hitSlop={ICON_HIT_SLOP}
           onPress={() => {
             navigation.openDrawer();
@@ -142,6 +144,9 @@ export function HeaderBar({ openLiveRequestModal }: Props) {
           <Image style={styles.menuBtn} source={menuIcon} />
         </TouchableOpacity>
         <TouchableOpacity
+          accessibilityRole="button"
+          accessibilityLabel={player.isPlaying ? dict.A11Y_PAUSE : dict.A11Y_PLAY}
+          accessibilityState={{ disabled: status === "changing" }}
           onPress={async () => {
             if (status === "changing") return;
             setStatus("changing");
@@ -168,7 +173,7 @@ export function HeaderBar({ openLiveRequestModal }: Props) {
 
         <TouchableOpacity
           accessibilityRole="button"
-          accessibilityLabel="Make a request"
+          accessibilityLabel={dict.A11Y_MAKE_REQUEST}
           hitSlop={ICON_HIT_SLOP}
           onPress={() => {
             if (

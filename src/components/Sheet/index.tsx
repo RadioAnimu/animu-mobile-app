@@ -12,6 +12,7 @@ import {
 } from "react-native";
 import DragIcon from "@/assets/icons/drag_down.png";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useDict } from "@/hooks/useDict";
 import { THEME } from "@/theme";
 
 const CLOSE_AREA_HEIGHT = 35;
@@ -88,6 +89,7 @@ export function Sheet({
 }: Props) {
   const keyboardPadding = useKeyboardPadding(withKeyboard && visible);
   const insets = useSafeAreaInsets();
+  const dict = useDict();
 
   const body = (children: React.ReactNode) => (
     <View style={[styles.overlay, { paddingBottom: keyboardPadding }]}>
@@ -106,7 +108,10 @@ export function Sheet({
     >
       {body(
         <>
+          {/* Decorative tap-away; the labelled close area below is the
+              accessible dismiss affordance. */}
           <TouchableOpacity
+            accessible={false}
             style={styles.backdrop}
             activeOpacity={1}
             onPress={closable ? onClose : undefined}
@@ -122,6 +127,8 @@ export function Sheet({
             ]}
           >
             <TouchableOpacity
+              accessibilityRole="button"
+              accessibilityLabel={dict.A11Y_CLOSE}
               style={styles.closeArea}
               onPress={closable ? onClose : undefined}
             >

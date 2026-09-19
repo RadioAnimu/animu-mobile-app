@@ -24,6 +24,7 @@ import { THEME } from "@/theme";
 import { styles } from "@/contexts/alert/styles";
 import { Portal } from "@/contexts/Portal";
 import { Toast } from "@/components/Toast";
+import { useDict } from "@/hooks/useDict";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export type AlertType = "success" | "error" | null;
@@ -121,6 +122,7 @@ export const AlertProvider: React.FC<{ children: ReactNode }> = ({
   };
 
   const insets = useSafeAreaInsets();
+  const dict = useDict();
 
   const value = useMemo(
     () => ({ alert, setAlert, clearAlert, success, error, toast }),
@@ -156,7 +158,12 @@ export const AlertProvider: React.FC<{ children: ReactNode }> = ({
             style={styles.container}
           >
             <View style={styles.content}>
-              <TouchableOpacity onPress={handleClose} style={styles.closeIcon}>
+              <TouchableOpacity
+                accessibilityRole="button"
+                accessibilityLabel={dict.A11Y_CLOSE}
+                onPress={handleClose}
+                style={styles.closeIcon}
+              >
                 <MaterialIcons
                   name="close"
                   size={THEME.ICON.MD}
@@ -165,8 +172,12 @@ export const AlertProvider: React.FC<{ children: ReactNode }> = ({
               </TouchableOpacity>
               <Image source={haruka} style={styles.img} />
               <Text style={styles.text}>{alert?.message}</Text>
-              <TouchableOpacity onPress={handleClose} style={styles.okButton}>
-                <Text style={styles.okText}>Ok</Text>
+              <TouchableOpacity
+                accessibilityRole="button"
+                onPress={handleClose}
+                style={styles.okButton}
+              >
+                <Text style={styles.okText}>{dict.OK_BUTTON}</Text>
               </TouchableOpacity>
             </View>
           </KeyboardAvoidingView>

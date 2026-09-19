@@ -20,7 +20,12 @@ export const Program = React.memo(function Program({ handleClick }: Props) {
   if (!program) return null;
 
   return (
-    <TouchableOpacity onPress={handleClick} style={styles.container}>
+    <TouchableOpacity
+      accessibilityRole="button"
+      accessibilityLabel={program.name}
+      onPress={handleClick}
+      style={styles.container}
+    >
       <Text style={[styles.title, styles.green]}>{program?.name}</Text>
       <Text
         style={[

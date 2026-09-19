@@ -17,6 +17,9 @@ export function ButtonKBPS({
 }: Props) {
   return (
     <TouchableOpacity
+      accessibilityRole="button"
+      accessibilityLabel={`${category} ${kbps} kbps`}
+      accessibilityState={{ selected }}
       onPress={handleChangeStream}
       style={[
         styles.container,

@@ -178,6 +178,8 @@ export function RequestBottomSheet({
 
             {/* Action button — always visible */}
             <TouchableOpacity
+              accessibilityRole="button"
+              accessibilityState={{ disabled: isSubmitting, busy: isSubmitting }}
               onPress={isDone ? onClose : handleSubmit}
               disabled={isSubmitting}
               style={[

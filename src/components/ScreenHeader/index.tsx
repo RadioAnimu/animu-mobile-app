@@ -3,6 +3,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { BackArrow } from "@/components/BackArrow";
 import { HEADER_HEIGHT, styles } from "@/components/ScreenHeader/styles";
+import { useDict } from "@/hooks/useDict";
 
 interface Props {
   title: string;
@@ -16,6 +17,7 @@ interface Props {
  */
 export function ScreenHeader({ title, onBack }: Props) {
   const insets = useSafeAreaInsets();
+  const dict = useDict();
 
   return (
     <View
@@ -26,7 +28,7 @@ export function ScreenHeader({ title, onBack }: Props) {
     >
       <TouchableOpacity
         accessibilityRole="button"
-        accessibilityLabel="Back"
+        accessibilityLabel={dict.A11Y_BACK}
         onPress={onBack}
         style={styles.headerButton}
       >

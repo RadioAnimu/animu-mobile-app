@@ -221,7 +221,12 @@ export function LiveRequestModal({ visible, handleClose }: Props) {
         {isSubmitting ? (
           <ActivityIndicator color={THEME.COLORS.TEXT} />
         ) : (
-          <TouchableOpacity onPress={handleSubmit} style={styles.okButton}>
+          <TouchableOpacity
+            accessibilityRole="button"
+            accessibilityState={{ disabled: isSubmitting, busy: isSubmitting }}
+            onPress={handleSubmit}
+            style={styles.okButton}
+          >
             <Text style={styles.okText}>{t.SEND_REQUEST_BUTTON_TEXT}</Text>
           </TouchableOpacity>
         )}

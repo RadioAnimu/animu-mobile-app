@@ -74,6 +74,8 @@ export interface LinkMenuItemProps {
 export function LinkMenuItem({ Icon, title, url }: LinkMenuItemProps) {
   return (
     <TouchableOpacity
+      accessibilityRole="link"
+      accessibilityLabel={title}
       activeOpacity={0.7}
       onPress={() => {
         void Linking.openURL(url).catch((error) =>
@@ -166,7 +168,7 @@ function AccountRow({ onOpenLogin, onOpenSettings }: AccountRowProps) {
         <TouchableOpacity
           accessibilityRole="button"
           accessibilityHint={
-            user ? "Opens settings" : "Opens login"
+            user ? dict.A11Y_OPENS_SETTINGS : dict.A11Y_OPENS_LOGIN
           }
           activeOpacity={0.7}
           onPress={user ? onOpenSettings : onOpenLogin}
@@ -218,7 +220,7 @@ function AccountRow({ onOpenLogin, onOpenSettings }: AccountRowProps) {
         {!user && (
           <TouchableOpacity
             accessibilityRole="button"
-            accessibilityHint="Opens settings"
+            accessibilityHint={dict.A11Y_OPENS_SETTINGS}
             accessibilityLabel={dict.SETTINGS_TITLE}
             activeOpacity={0.7}
             onPress={onOpenSettings}
@@ -271,6 +273,8 @@ export function CustomDrawerContent(props: DrawerContentComponentProps) {
       <View>
         <View style={styles.header}>
           <TouchableOpacity
+            accessibilityRole="button"
+            accessibilityLabel="Animu"
             activeOpacity={0.8}
             onPress={() => {
               navigation.navigate("Home");

@@ -198,7 +198,12 @@ export function MakeRequest() {
               }
               onSubmitEditing={handleSearch}
             />
-            <TouchableOpacity onPress={handleSearch} style={styles.searchIcon}>
+            <TouchableOpacity
+              accessibilityRole="button"
+              accessibilityLabel={dict.A11Y_SEARCH}
+              onPress={handleSearch}
+              style={styles.searchIcon}
+            >
               <Ionicons
                 name="search-sharp"
                 size={THEME.ICON.LG}
@@ -227,6 +232,11 @@ export function MakeRequest() {
                   ListFooterComponent={
                     searchState.pagination?.nextPageParams ? (
                       <TouchableOpacity
+                        accessibilityRole="button"
+                        accessibilityState={{
+                          disabled: searchState.status === "loadingMore",
+                          busy: searchState.status === "loadingMore",
+                        }}
                         style={styles.loadMoreBtn}
                         onPress={handleLoadMore}
                         disabled={searchState.status === "loadingMore"}
