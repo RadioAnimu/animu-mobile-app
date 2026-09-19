@@ -1,11 +1,10 @@
 import { useEffect, useState } from "react";
-import { AnimuApiError, type AuthAccountEmail } from "animu-api";
+import type { AuthAccountEmail } from "animu-api";
 import {
   ActivityIndicator,
   Alert,
   ScrollView,
   Text,
-  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
@@ -13,7 +12,9 @@ import {
 import { useAlert } from "@/contexts/alert/AlertProvider";
 import { useAuth } from "@/contexts/auth/AuthProvider";
 import { useDict } from "@/hooks/useDict";
+import { useEmailCodeFlow, emailCodeError } from "@/hooks/useEmailCodeFlow";
 import { THEME } from "@/theme";
+import { EmailCodeFields } from "@/components/EmailCodeFields";
 import { Sheet } from "@/components/Sheet";
 import { styles } from "@/components/AnimuConnectSheet/styles";
 
@@ -22,7 +23,7 @@ interface Props {
   onClose: () => void;
 }
 
-type Mode = "list" | "add" | "verify";
+type Screen = "list" | "form";
 
 /** Manages the account's Animu Connect emails (provider + extra). */
 export function AnimuConnectSheet({ visible, onClose }: Props) {
@@ -32,17 +33,34 @@ export function AnimuConnectSheet({ visible, onClose }: Props) {
   const dict = useDict();
 
   const [loading, setLoading] = useState(false);
-  const [mode, setMode] = useState<Mode>("list");
-  const [email, setEmail] = useState("");
-  const [code, setCode] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [screen, setScreen] = useState<Screen>("list");
+  const [removing, setRemoving] = useState(false);
+
+  const flow = useEmailCodeFlow({
+    requestCode: requestAddEmail,
+    verifyCode: verifyAddEmail,
+    onCodeSent: () => toast(dict.LOGIN_CODE_SENT),
+    onVerified: () => {
+      toast(dict.ACCOUNT_EMAIL_SAVED);
+      setScreen("list");
+    },
+    mapRequestError: (error) =>
+      emailCodeError(dict, error, dict.ACCOUNT_ACTION_FAILED, {
+        taken: dict.ACCOUNT_EMAIL_TAKEN,
+      }),
+    mapVerifyError: (error) =>
+      emailCodeError(dict, error, dict.ACCOUNT_ACTION_FAILED, {
+        taken: dict.ACCOUNT_EMAIL_TAKEN,
+      }),
+  });
+
+  const busy = flow.busy || removing;
 
   useEffect(() => {
     if (!visible) return;
     let cancelled = false;
     setLoading(true);
-    setError(null);
+    flow.setError(null);
     void refreshEmails().finally(() => {
       if (!cancelled) setLoading(false);
     });
@@ -57,67 +75,14 @@ export function AnimuConnectSheet({ visible, onClose }: Props) {
   const extraEmail = emails.find((item) => item.source === "animu") ?? null;
 
   const reset = () => {
-    setMode("list");
-    setEmail("");
-    setCode("");
-    setError(null);
+    flow.reset();
+    setScreen("list");
   };
 
   const handleClose = () => {
     if (busy) return;
     reset();
     onClose();
-  };
-
-  const handleSendCode = async () => {
-    if (busy) return;
-    const address = email.trim();
-    if (!address) {
-      setError(dict.LOGIN_MISSING_FIELDS);
-      return;
-    }
-    setBusy(true);
-    setError(null);
-    try {
-      await requestAddEmail(address);
-      setEmail(address);
-      setMode("verify");
-      toast(dict.LOGIN_CODE_SENT);
-    } catch (err) {
-      setError(
-        err instanceof AnimuApiError && err.code === "email_taken"
-          ? dict.ACCOUNT_EMAIL_TAKEN
-          : dict.ACCOUNT_ACTION_FAILED,
-      );
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const handleVerify = async () => {
-    if (busy) return;
-    const value = code.trim();
-    if (!value) {
-      setError(dict.LOGIN_MISSING_FIELDS);
-      return;
-    }
-    setBusy(true);
-    setError(null);
-    try {
-      await verifyAddEmail(email.trim(), value);
-      toast(dict.ACCOUNT_EMAIL_SAVED);
-      reset();
-    } catch (err) {
-      setError(
-        err instanceof AnimuApiError && err.code === "email_code_failed"
-          ? dict.LOGIN_CODE_INVALID
-          : err instanceof AnimuApiError && err.code === "email_taken"
-            ? dict.ACCOUNT_EMAIL_TAKEN
-            : dict.ACCOUNT_ACTION_FAILED,
-      );
-    } finally {
-      setBusy(false);
-    }
   };
 
   const confirmRemove = (target: AuthAccountEmail) => {
@@ -131,8 +96,7 @@ export function AnimuConnectSheet({ visible, onClose }: Props) {
           style: "destructive",
           onPress: () => {
             void (async () => {
-              setBusy(true);
-              setError(null);
+              setRemoving(true);
               try {
                 await removeEmail(target.id);
                 toast(dict.ACCOUNT_EMAIL_REMOVED);
@@ -140,7 +104,7 @@ export function AnimuConnectSheet({ visible, onClose }: Props) {
                 console.error("[AnimuConnectSheet] Remove email failed:", err);
                 showError(dict.ACCOUNT_ACTION_FAILED);
               } finally {
-                setBusy(false);
+                setRemoving(false);
               }
             })();
           },
@@ -150,7 +114,7 @@ export function AnimuConnectSheet({ visible, onClose }: Props) {
   };
 
   const title =
-    mode === "list" ? dict.ACCOUNT_ANIMU_CONNECT : dict.ACCOUNT_EMAIL_ADD;
+    screen === "list" ? dict.ACCOUNT_ANIMU_CONNECT : dict.ACCOUNT_EMAIL_ADD;
 
   return (
     <Sheet visible={visible} onClose={handleClose} withKeyboard closable={!busy}>
@@ -160,12 +124,12 @@ export function AnimuConnectSheet({ visible, onClose }: Props) {
       >
         <Text style={styles.title}>{title}</Text>
         <Text style={styles.subtitle}>
-          {mode === "verify"
-            ? dict.LOGIN_CODE_SUBTITLE.replace("{email}", email.trim())
+          {flow.step === "code"
+            ? dict.LOGIN_CODE_SUBTITLE.replace("{email}", flow.email.trim())
             : dict.ACCOUNT_ANIMU_CONNECT_FORM_HINT}
         </Text>
 
-        {mode === "list" ? (
+        {screen === "list" ? (
           <>
             {loading ? (
               <ActivityIndicator
@@ -220,7 +184,7 @@ export function AnimuConnectSheet({ visible, onClose }: Props) {
               </View>
             )}
 
-            {error && <Text style={styles.error}>{error}</Text>}
+            {flow.error && <Text style={styles.error}>{flow.error}</Text>}
 
             {/*
               The server allows only ONE extra email and rejects a new add
@@ -233,8 +197,8 @@ export function AnimuConnectSheet({ visible, onClose }: Props) {
                 activeOpacity={0.7}
                 disabled={busy || loading}
                 onPress={() => {
-                  setError(null);
-                  setMode("add");
+                  flow.reset();
+                  setScreen("form");
                 }}
                 style={[
                   styles.submit,
@@ -247,57 +211,24 @@ export function AnimuConnectSheet({ visible, onClose }: Props) {
           </>
         ) : (
           <>
-            {mode === "add" && (
-              <>
-                <Text style={styles.fieldLabel}>{dict.LOGIN_EMAIL}</Text>
-                <TextInput
-                  style={styles.input}
-                  value={email}
-                  onChangeText={setEmail}
-                  keyboardType="email-address"
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                  editable={!busy}
-                  placeholder={dict.LOGIN_EMAIL_PLACEHOLDER}
-                  placeholderTextColor={THEME.COLORS.TEXT_DIM}
-                  onSubmitEditing={handleSendCode}
-                />
-              </>
-            )}
+            <EmailCodeFields flow={flow} />
 
-            {mode === "verify" && (
-              <>
-                <Text style={styles.fieldLabel}>{dict.LOGIN_CODE}</Text>
-                <TextInput
-                  style={styles.input}
-                  value={code}
-                  onChangeText={setCode}
-                  keyboardType="number-pad"
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                  maxLength={6}
-                  editable={!busy}
-                  placeholder={dict.LOGIN_CODE_PLACEHOLDER}
-                  placeholderTextColor={THEME.COLORS.TEXT_DIM}
-                  onSubmitEditing={handleVerify}
-                />
-              </>
-            )}
-
-            {error && <Text style={styles.error}>{error}</Text>}
+            {flow.error && <Text style={styles.error}>{flow.error}</Text>}
 
             <TouchableOpacity
               accessibilityRole="button"
               activeOpacity={0.7}
-              disabled={busy}
-              onPress={mode === "add" ? handleSendCode : handleVerify}
-              style={[styles.submit, busy && styles.submitDisabled]}
+              disabled={flow.busy}
+              onPress={flow.step === "email" ? flow.sendCode : flow.verify}
+              style={[styles.submit, flow.busy && styles.submitDisabled]}
             >
-              {busy ? (
+              {flow.busy ? (
                 <ActivityIndicator color={THEME.COLORS.TEXT_ON_LIGHT} />
               ) : (
                 <Text style={styles.submitText}>
-                  {mode === "add" ? dict.LOGIN_SEND_CODE : dict.ACCOUNT_SAVE}
+                  {flow.step === "email"
+                    ? dict.LOGIN_SEND_CODE
+                    : dict.ACCOUNT_SAVE}
                 </Text>
               )}
             </TouchableOpacity>

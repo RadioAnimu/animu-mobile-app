@@ -5,14 +5,13 @@ import {
   ActivityIndicator,
   ScrollView,
   Text,
-  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-import { AnimuApiError } from "animu-api";
 import { Background } from "@/components/Background";
+import { EmailCodeFields } from "@/components/EmailCodeFields";
 import { ProviderIcon } from "@/components/ProviderIcon";
 import { ScreenHeader } from "@/components/ScreenHeader";
 import { useAlert } from "@/contexts/alert/AlertProvider";
@@ -20,13 +19,13 @@ import { useAuth } from "@/contexts/auth/AuthProvider";
 import { AuthFlowCancelled } from "@/core/auth";
 import { isProviderConfigured } from "@/constants/auth";
 import { useDict } from "@/hooks/useDict";
+import { useEmailCodeFlow, emailCodeError } from "@/hooks/useEmailCodeFlow";
 import { RootStackParamList } from "@/routes/app.routes";
 import { THEME } from "@/theme";
 import { styles } from "@/screens/Login/styles";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Login">;
 type Step = "method" | "connect";
-type ConnectStep = "email" | "code";
 
 const TOTAL_STEPS = 2;
 
@@ -42,11 +41,8 @@ export function Login({ navigation }: Props) {
   const dict = useDict();
 
   const [step, setStep] = useState<Step>("method");
-  const [connectStep, setConnectStep] = useState<ConnectStep>("email");
   const [busyProvider, setBusyProvider] = useState<string | null>(null);
-  const [email, setEmail] = useState("");
-  const [code, setCode] = useState("");
-  const [error, setError] = useState<string | null>(null);
+  const [providerError, setProviderError] = useState<string | null>(null);
 
   const finish = () => {
     if (navigation.canGoBack()) {
@@ -56,9 +52,21 @@ export function Login({ navigation }: Props) {
     }
   };
 
+  const flow = useEmailCodeFlow({
+    requestCode: requestEmailLoginCode,
+    verifyCode: loginWithEmailCode,
+    onCodeSent: () => toast(dict.LOGIN_CODE_SENT),
+    onVerified: () => {
+      toast(dict.LOGIN_SUCCESS);
+      finish();
+    },
+    mapRequestError: () => dict.LOGIN_FAILED,
+    mapVerifyError: (error) => emailCodeError(dict, error, dict.LOGIN_FAILED),
+  });
+
   const handleProvider = async (provider: string) => {
     if (isAuthenticating || busyProvider) return;
-    setError(null);
+    setProviderError(null);
     setBusyProvider(provider);
     try {
       await loginWithProvider(provider);
@@ -69,7 +77,7 @@ export function Login({ navigation }: Props) {
         // User dismissed the prompt — not worth an error.
       } else {
         console.error(`[Login] ${provider} sign-in failed:`, err);
-        setError(dict.LOGIN_FAILED);
+        setProviderError(dict.LOGIN_FAILED);
         showError(dict.LOGIN_FAILED);
       }
     } finally {
@@ -77,67 +85,22 @@ export function Login({ navigation }: Props) {
     }
   };
 
-  const handleSendCode = async () => {
-    if (isAuthenticating) return;
-    const address = email.trim();
-    if (!address) {
-      setError(dict.LOGIN_MISSING_FIELDS);
-      return;
-    }
-    setError(null);
-    setBusyProvider("animu");
-    try {
-      await requestEmailLoginCode(address);
-      setEmail(address);
-      setConnectStep("code");
-      toast(dict.LOGIN_CODE_SENT);
-    } catch {
-      setError(dict.LOGIN_FAILED);
-    } finally {
-      setBusyProvider(null);
-    }
-  };
-
-  const handleVerifyCode = async () => {
-    if (isAuthenticating) return;
-    const value = code.trim();
-    if (!value) {
-      setError(dict.LOGIN_MISSING_FIELDS);
-      return;
-    }
-    setError(null);
-    setBusyProvider("animu");
-    try {
-      await loginWithEmailCode(email.trim(), value);
-      toast(dict.LOGIN_SUCCESS);
-      finish();
-    } catch (err) {
-      setError(
-        err instanceof AnimuApiError && err.code === "email_code_failed"
-          ? dict.LOGIN_CODE_INVALID
-          : dict.LOGIN_FAILED,
-      );
-    } finally {
-      setBusyProvider(null);
-    }
-  };
-
   const goBack = () => {
     if (step === "connect") {
-      if (connectStep === "code") {
-        setConnectStep("email");
-        setCode("");
-        setError(null);
+      if (flow.step === "code") {
+        flow.backToEmail();
         return;
       }
       setStep("method");
-      setError(null);
+      setProviderError(null);
+      flow.setError(null);
       return;
     }
     navigation.goBack();
   };
 
   const stepIndex = step === "method" ? 1 : 2;
+  const errorMessage = providerError ?? flow.error;
 
   return (
     <Background>
@@ -218,7 +181,8 @@ export function Login({ navigation }: Props) {
                 activeOpacity={0.7}
                 disabled={isAuthenticating}
                 onPress={() => {
-                  setError(null);
+                  setProviderError(null);
+                  flow.setError(null);
                   setStep("connect");
                 }}
                 style={styles.method}
@@ -244,61 +208,33 @@ export function Login({ navigation }: Props) {
             <>
               <Text style={styles.title}>{dict.LOGIN_WITH_ANIMU_CONNECT}</Text>
               <Text style={styles.subtitle}>
-                {connectStep === "email"
+                {flow.step === "email"
                   ? dict.LOGIN_CONNECT_SUBTITLE
-                  : dict.LOGIN_CODE_SUBTITLE.replace("{email}", email.trim())}
+                  : dict.LOGIN_CODE_SUBTITLE.replace(
+                      "{email}",
+                      flow.email.trim(),
+                    )}
               </Text>
 
-              {connectStep === "email" ? (
-                <View style={styles.form}>
-                  <Text style={styles.fieldLabel}>{dict.LOGIN_EMAIL}</Text>
-                  <TextInput
-                    style={styles.input}
-                    value={email}
-                    onChangeText={setEmail}
-                    keyboardType="email-address"
-                    autoCapitalize="none"
-                    autoCorrect={false}
-                    editable={!isAuthenticating}
-                    placeholder={dict.LOGIN_EMAIL_PLACEHOLDER}
-                    placeholderTextColor={THEME.COLORS.TEXT_DIM}
-                    onSubmitEditing={handleSendCode}
-                  />
-                </View>
-              ) : (
-                <View style={styles.form}>
-                  <Text style={styles.fieldLabel}>{dict.LOGIN_CODE}</Text>
-                  <TextInput
-                    style={styles.input}
-                    value={code}
-                    onChangeText={setCode}
-                    keyboardType="number-pad"
-                    autoCapitalize="none"
-                    autoCorrect={false}
-                    maxLength={6}
-                    editable={!isAuthenticating}
-                    placeholder={dict.LOGIN_CODE_PLACEHOLDER}
-                    placeholderTextColor={THEME.COLORS.TEXT_DIM}
-                    onSubmitEditing={handleVerifyCode}
-                  />
-                </View>
-              )}
+              <View style={styles.form}>
+                <EmailCodeFields flow={flow} />
+              </View>
 
               <TouchableOpacity
                 accessibilityRole="button"
                 activeOpacity={0.7}
-                disabled={isAuthenticating}
-                onPress={connectStep === "email" ? handleSendCode : handleVerifyCode}
+                disabled={flow.busy}
+                onPress={flow.step === "email" ? flow.sendCode : flow.verify}
                 style={[
                   styles.submit,
-                  isAuthenticating && styles.submitDisabled,
+                  flow.busy && styles.submitDisabled,
                 ]}
               >
-                {isAuthenticating ? (
+                {flow.busy ? (
                   <ActivityIndicator color={THEME.COLORS.TEXT} />
                 ) : (
                   <Text style={styles.submitText}>
-                    {connectStep === "email"
+                    {flow.step === "email"
                       ? dict.LOGIN_SEND_CODE
                       : dict.LOGIN_BUTTON}
                   </Text>
@@ -307,7 +243,7 @@ export function Login({ navigation }: Props) {
             </>
           )}
 
-          {error && <Text style={styles.error}>{error}</Text>}
+          {errorMessage && <Text style={styles.error}>{errorMessage}</Text>}
         </ScrollView>
       </SafeAreaView>
     </Background>
