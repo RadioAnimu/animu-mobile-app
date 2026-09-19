@@ -2,19 +2,20 @@ import { StyleSheet } from "react-native";
 
 import { THEME } from "../../theme";
 
-const CARD_RADIUS = 14;
+const CARD_RADIUS = THEME.RADIUS.CARD;
 const HEADER_HEIGHT = 72;
 const HEADER_BUTTON = 44;
-const ROW_MIN_HEIGHT = 52;
-const SECTION_ICON_SIZE = 18;
+// Row rhythm shared with Account — labels get room to breathe.
+const ROW_MIN_HEIGHT = 64;
 const ICON_BOX_WIDTH = 32;
+const CONTENT_PADDING = THEME.SPACE.LG;
 
 export { HEADER_HEIGHT };
 
 export const SWITCH = {
-  TRACK_WIDTH: 48,
-  TRACK_HEIGHT: 28,
-  THUMB: 22,
+  TRACK_WIDTH: 50,
+  TRACK_HEIGHT: 30,
+  THUMB: 24,
   PADDING: 3,
 };
 
@@ -23,6 +24,10 @@ export const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: THEME.COLORS.BG_DEEP,
   },
+  // Identical to Account's header — a clean SURFACE bar, arrow + centered
+  // title via flex (no absolute positioning, no hairline). `space-around`
+  // (not `space-between`) keeps the arrow off the screen edge, matching
+  // Account's inset.
   header: {
     height: HEADER_HEIGHT,
     width: "100%",
@@ -37,51 +42,36 @@ export const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  settingsText: {
+  headerTitle: {
     color: THEME.COLORS.TEXT,
     fontFamily: THEME.FONT_FAMILY.BOLD,
     fontSize: THEME.FONT_SIZE.TITLE,
   },
+  // 88% column like Account — keeps groups off the screen edges so the
+  // content breathes.
   appContainer: {
     flexGrow: 1,
-    width: "85%",
+    width: "88%",
+    maxWidth: 560,
+    paddingTop: THEME.SPACE.MD,
     paddingBottom: THEME.SPACE.XXXL,
     alignSelf: "center",
   },
-  section: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginHorizontal: THEME.SPACE.SM,
-    paddingHorizontal: THEME.SPACE.MD,
-    marginTop: THEME.SPACE.XL,
-    marginBottom: THEME.SPACE.SM,
-    paddingBottom: THEME.SPACE.MD,
-    borderBottomWidth: 1,
-    borderBottomColor: THEME.COLORS.HAIRLINE,
-  },
-  iconBox: {
-    width: ICON_BOX_WIDTH,
-    alignItems: "center",
-  },
-  sectionText: {
-    flex: 1,
-    color: THEME.COLORS.TEXT_SOFT,
-    fontFamily: THEME.FONT_FAMILY.BOLD,
-    fontSize: THEME.FONT_SIZE.BODY,
-    letterSpacing: 1.2,
-    marginLeft: THEME.SPACE.SM,
-  },
+  // Borderless surface card, identical to Account's groups — the hairline
+  // dividers inside carry the separation, a box outline around the whole
+  // group just adds noise.
   group: {
     backgroundColor: THEME.COLORS.SURFACE,
     borderRadius: CARD_RADIUS,
+    overflow: "hidden",
   },
   divider: {
     height: StyleSheet.hairlineWidth,
     backgroundColor: THEME.COLORS.HAIRLINE,
-    marginLeft: THEME.SPACE.MD,
+    marginLeft: CONTENT_PADDING,
   },
   accountRow: {
-    paddingVertical: THEME.SPACE.MD,
+    paddingVertical: CONTENT_PADDING,
   },
   accountAvatar: {
     width: 56,
@@ -93,9 +83,9 @@ export const styles = StyleSheet.create({
   },
   accountInfo: {
     flex: 1,
-    gap: THEME.SPACE.XXS,
-    marginLeft: THEME.SPACE.MD,
-    paddingRight: THEME.SPACE.MD,
+    gap: THEME.SPACE.XS,
+    marginLeft: CONTENT_PADDING,
+    paddingRight: CONTENT_PADDING,
   },
   accountNameRow: {
     flexDirection: "row",
@@ -122,28 +112,65 @@ export const styles = StyleSheet.create({
     fontFamily: THEME.FONT_FAMILY.REGULAR,
     fontSize: THEME.FONT_SIZE.BODY,
   },
-  rowLabelDanger: {
-    color: THEME.COLORS.ERROR,
-  },
   row: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     minHeight: ROW_MIN_HEIGHT,
-    paddingHorizontal: THEME.SPACE.MD,
+    paddingHorizontal: CONTENT_PADDING,
   },
   rowDisabled: {
-    opacity: 0.4,
+    opacity: THEME.OPACITY.DISABLED,
   },
   switchDisabled: {
-    opacity: 0.4,
+    opacity: THEME.OPACITY.DISABLED,
   },
   rowLabel: {
-    flex: 1,
+    flexShrink: 1,
     color: THEME.COLORS.TEXT,
     fontFamily: THEME.FONT_FAMILY.BOLD,
     fontSize: THEME.FONT_SIZE.LIST,
-    paddingRight: THEME.SPACE.MD,
+    paddingRight: CONTENT_PADDING,
+  },
+  // With a supporting line: generous vertical padding so the two lines breathe.
+  rowBody: {
+    flex: 1,
+    justifyContent: "center",
+    gap: THEME.SPACE.XS,
+    paddingVertical: THEME.SPACE.MD,
+    paddingRight: CONTENT_PADDING,
+  },
+  // Single-label rows: no extra vertical padding, so the label and the
+  // switch sit dead-center on the row instead of the label drifting up.
+  rowBodySingle: {
+    flex: 1,
+    alignSelf: "stretch",
+    justifyContent: "center",
+    paddingRight: CONTENT_PADDING,
+  },
+  rowDescription: {
+    color: THEME.COLORS.TEXT_DIM,
+    fontFamily: THEME.FONT_FAMILY.REGULAR,
+    fontSize: THEME.FONT_SIZE.BODY,
+    lineHeight: THEME.LINE_HEIGHT.SUBHEAD,
+  },
+  // Reset demoted to a plain row — a destructive action that's rarely the
+  // reason someone opens Settings shouldn't shout from a filled banner.
+  resetRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    minHeight: ROW_MIN_HEIGHT,
+    paddingHorizontal: CONTENT_PADDING,
+    gap: THEME.SPACE.SM,
+  },
+  resetRowDisabled: {
+    opacity: THEME.OPACITY.DISABLED,
+  },
+  resetLabel: {
+    color: THEME.COLORS.ERROR,
+    fontFamily: THEME.FONT_FAMILY.BOLD,
+    fontSize: THEME.FONT_SIZE.LIST,
   },
   rowValue: {
     flexDirection: "row",
@@ -157,16 +184,13 @@ export const styles = StyleSheet.create({
     fontFamily: THEME.FONT_FAMILY.REGULAR,
     fontSize: THEME.FONT_SIZE.LIST,
   },
-  visualizerValue: {
-    color: THEME.COLORS.TEXT_SOFT,
-    fontFamily: THEME.FONT_FAMILY.REGULAR,
-    fontSize: THEME.FONT_SIZE.LIST,
-  },
   switchTrack: {
     width: SWITCH.TRACK_WIDTH,
     height: SWITCH.TRACK_HEIGHT,
     borderRadius: SWITCH.TRACK_HEIGHT / 2,
     justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.1)",
   },
   switchThumb: {
     width: SWITCH.THUMB,
@@ -178,8 +202,7 @@ export const styles = StyleSheet.create({
   },
   footer: {
     alignItems: "center",
-    marginTop: "auto",
-    paddingTop: THEME.SPACE.XXL,
+    marginTop: THEME.SPACE.XXXL,
   },
   footerText: {
     color: THEME.COLORS.TEXT_SOFT,
@@ -193,5 +216,3 @@ export const styles = StyleSheet.create({
     textDecorationLine: "underline",
   },
 });
-
-export { SECTION_ICON_SIZE };

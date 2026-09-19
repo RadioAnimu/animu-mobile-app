@@ -20,10 +20,14 @@ export interface SelectOption<T extends string> {
   meta?: string;
   /** Optional leading preview (e.g. a cover sample) once expanded. */
   thumb?: ImageSourcePropType;
+  /** Optional pill rendered next to the label once expanded. */
+  badge?: string;
 }
 
 interface Props<T extends string> {
   label: string;
+  /** Optional helper line under the label, like the other settings rows. */
+  description?: string;
   options: SelectOption<T>[];
   value: T;
   /**
@@ -42,6 +46,7 @@ interface Props<T extends string> {
  */
 export function Select<T extends string>({
   label,
+  description,
   options,
   value,
   onChange,
@@ -95,11 +100,13 @@ export function Select<T extends string>({
         onPress={toggle}
         style={[styles.row, disabled && styles.disabled]}
       >
-        <Text style={styles.label}>{label}</Text>
-        <View style={styles.value}>
-          {selected?.thumb != null && (
-            <Image source={selected.thumb} style={styles.rowThumb} />
+        <View style={styles.body}>
+          <Text style={styles.label}>{label}</Text>
+          {description != null && (
+            <Text style={styles.description}>{description}</Text>
           )}
+        </View>
+        <View style={styles.value}>
           <Text style={styles.valueText} numberOfLines={1}>
             {selected?.label ?? ""}
           </Text>
@@ -112,7 +119,7 @@ export function Select<T extends string>({
       </TouchableOpacity>
 
       {expanded && (
-        <View>
+        <View style={styles.optionsContainer}>
           {options.map((option, index) => {
             const isSelected = option.key === value;
             const isApplying = option.key === applyingKey;
@@ -128,20 +135,36 @@ export function Select<T extends string>({
                   activeOpacity={0.7}
                   disabled={applying}
                   onPress={() => void choose(option.key)}
-                  style={[styles.option, applying && !isApplying && styles.disabled]}
+                  style={[
+                    styles.option,
+                    applying && !isApplying && styles.disabled,
+                  ]}
                 >
                   {option.thumb != null && (
-                    <Image source={option.thumb} style={styles.optionThumb} />
+                    <Image
+                      source={option.thumb}
+                      style={[
+                        styles.optionThumb,
+                        isSelected && styles.optionThumbSelected,
+                      ]}
+                    />
                   )}
                   <View style={styles.optionBody}>
-                    <Text
-                      style={[
-                        styles.optionLabel,
-                        isSelected && styles.optionLabelSelected,
-                      ]}
-                    >
-                      {option.label}
-                    </Text>
+                    <View style={styles.optionTitleRow}>
+                      <Text
+                        style={[
+                          styles.optionLabel,
+                          isSelected && styles.optionLabelSelected,
+                        ]}
+                      >
+                        {option.label}
+                      </Text>
+                      {option.badge != null && (
+                        <View style={styles.badge}>
+                          <Text style={styles.badgeText}>{option.badge}</Text>
+                        </View>
+                      )}
+                    </View>
                     {option.meta != null && (
                       <Text style={styles.optionMeta} numberOfLines={2}>
                         {option.meta}

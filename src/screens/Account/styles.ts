@@ -4,10 +4,13 @@ import { THEME } from "../../theme";
 
 const HEADER_HEIGHT = 72;
 const HEADER_BUTTON = 44;
-const CARD_RADIUS = 14;
+const CARD_RADIUS = THEME.RADIUS.CARD;
 const ICON_BOX_WIDTH = 32;
 const BANNER_HEIGHT = 96;
 const AVATAR = 84;
+// Shared content inset + row rhythm with Settings.
+const CONTENT_PADDING = THEME.SPACE.LG;
+const ROW_MIN_HEIGHT = 64;
 
 export { HEADER_HEIGHT, AVATAR };
 
@@ -37,6 +40,7 @@ export const styles = StyleSheet.create({
   content: {
     flexGrow: 1,
     width: "88%",
+    maxWidth: 560,
     alignSelf: "center",
     paddingBottom: THEME.SPACE.XXXL,
   },
@@ -83,7 +87,7 @@ export const styles = StyleSheet.create({
   identity: {
     flexDirection: "row",
     alignItems: "flex-end",
-    paddingHorizontal: THEME.SPACE.MD,
+    paddingHorizontal: CONTENT_PADDING,
   },
   avatarWrap: {
     marginTop: -AVATAR / 2,
@@ -102,12 +106,16 @@ export const styles = StyleSheet.create({
     fontFamily: THEME.FONT_FAMILY.REGULAR,
     fontSize: THEME.FONT_SIZE.BODY,
     lineHeight: 19,
-    paddingHorizontal: THEME.SPACE.MD,
+    paddingHorizontal: CONTENT_PADDING,
     paddingTop: THEME.SPACE.MD,
   },
   identityInfo: {
     flex: 1,
-    paddingLeft: THEME.SPACE.MD,
+    // minWidth: 0 lets the column shrink below its content width so the
+    // revealed email + eye truncate with an ellipsis instead of pushing the
+    // provider action off-screen at 360dp.
+    minWidth: 0,
+    paddingLeft: CONTENT_PADDING,
     paddingBottom: THEME.SPACE.SM,
     gap: THEME.SPACE.XXS,
   },
@@ -148,7 +156,7 @@ export const styles = StyleSheet.create({
     color: THEME.COLORS.BRAND,
   },
   meta: {
-    paddingHorizontal: THEME.SPACE.MD,
+    paddingHorizontal: CONTENT_PADDING,
     paddingVertical: THEME.SPACE.MD,
     gap: THEME.SPACE.XS,
   },
@@ -180,17 +188,18 @@ export const styles = StyleSheet.create({
   group: {
     backgroundColor: THEME.COLORS.SURFACE,
     borderRadius: CARD_RADIUS,
+    overflow: "hidden",
   },
   divider: {
     height: StyleSheet.hairlineWidth,
     backgroundColor: THEME.COLORS.HAIRLINE,
-    marginLeft: THEME.SPACE.MD,
+    marginLeft: CONTENT_PADDING,
   },
   row: {
     flexDirection: "row",
     alignItems: "center",
-    minHeight: 60,
-    paddingHorizontal: THEME.SPACE.MD,
+    minHeight: ROW_MIN_HEIGHT,
+    paddingHorizontal: CONTENT_PADDING,
     paddingVertical: THEME.SPACE.SM,
   },
   rowIcon: {
@@ -199,6 +208,9 @@ export const styles = StyleSheet.create({
   },
   rowBody: {
     flex: 1,
+    // Same shrink contract as identityInfo — the linked identity (a long
+    // masked email) must wrap/ellipsize before it can push the action out.
+    minWidth: 0,
     gap: THEME.SPACE.XXS,
   },
   rowLabel: {
@@ -211,14 +223,22 @@ export const styles = StyleSheet.create({
     fontFamily: THEME.FONT_FAMILY.REGULAR,
     fontSize: THEME.FONT_SIZE.BODY,
   },
-  rowAction: {
-    color: THEME.COLORS.BRAND,
-    fontFamily: THEME.FONT_FAMILY.BOLD,
-    fontSize: THEME.FONT_SIZE.BODY,
-    paddingLeft: THEME.SPACE.MD,
+  // Icon-only link/unlink affordance: a fixed 40px square keeps the tap
+  // target generous while freeing the horizontal budget a text action used
+  // to eat at small widths (the rowCaption's whole wrapping problem).
+  rowIconAction: {
+    width: 40,
+    height: 40,
+    alignItems: "center",
+    justifyContent: "center",
+    marginLeft: THEME.SPACE.XS,
+  },
+  rowActionBusy: {
+    width: 40,
+    marginLeft: THEME.SPACE.XS,
   },
   rowActionDisabled: {
-    color: THEME.COLORS.TEXT_DIM,
+    opacity: THEME.OPACITY.DISABLED,
   },
   soon: {
     color: THEME.COLORS.TEXT_DIM,

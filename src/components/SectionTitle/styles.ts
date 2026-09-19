@@ -8,10 +8,9 @@ export const styles = StyleSheet.create({
   section: {
     flexDirection: "row",
     alignItems: "center",
-    marginHorizontal: THEME.SPACE.SM,
     paddingHorizontal: THEME.SPACE.MD,
-    marginTop: THEME.SPACE.XL,
-    marginBottom: THEME.SPACE.SM,
+    marginTop: THEME.SPACE.XXL,
+    marginBottom: THEME.SPACE.MD,
     paddingBottom: THEME.SPACE.MD,
     borderBottomWidth: 1,
     borderBottomColor: THEME.COLORS.HAIRLINE,

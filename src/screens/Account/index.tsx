@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import MaterialIcons from "@react-native-vector-icons/material-icons/static";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
-import { Image } from "expo-image";
+import { Image, type ImageSource } from "expo-image";
 import {
   ActivityIndicator,
   Alert,
@@ -86,6 +86,65 @@ function providerDisplay(provider: LinkedProvider): ProviderDisplay | null {
     };
   }
   return null;
+}
+
+/** Transient banner failures self-heal, mirroring the `Avatar` component. */
+const BANNER_RETRY_DELAY_MS = 3000;
+const BANNER_MAX_RETRIES = 2;
+
+interface ProfileBannerProps {
+  source: ImageSource | undefined;
+  /** The provider accent shown while the image loads or after it fails. */
+  fallbackColor: string;
+  /**
+   * Bumped when the underlying profile media changes (imageVersion), so a
+   * fresh banner re-enters the retry loop instead of sticking on a failed
+   * frame.
+   */
+  revision: string | number;
+}
+
+/**
+ * The profile banner, with the same never-blank contract as `Avatar`:
+ * the colored fallback always renders underneath, the image fades in on
+ * top, and a bounded retry loop re-attempts transient network/401 failures
+ * instead of leaving an empty strip. If every attempt fails the strip
+ * simply stays the accent color — the layout never collapses.
+ */
+function ProfileBanner({ source, fallbackColor, revision }: ProfileBannerProps) {
+  const [retry, setRetry] = useState(0);
+  const [failed, setFailed] = useState(false);
+
+  // Adjust state during render so a new image never flashes a stale frame.
+  const [trackedRevision, setTrackedRevision] = useState(revision);
+  if (trackedRevision !== revision) {
+    setTrackedRevision(revision);
+    setFailed(false);
+    setRetry(0);
+  }
+
+  useEffect(() => {
+    if (!failed || retry >= BANNER_MAX_RETRIES) return;
+    const timer = setTimeout(() => {
+      setFailed(false);
+      setRetry((value) => value + 1);
+    }, BANNER_RETRY_DELAY_MS);
+    return () => clearTimeout(timer);
+  }, [failed, retry]);
+
+  return (
+    <View style={[styles.banner, { backgroundColor: fallbackColor }]}>
+      {source && !failed && (
+        <Image
+          source={source}
+          style={styles.bannerImage}
+          contentFit="cover"
+          transition={150}
+          onError={() => setFailed(true)}
+        />
+      )}
+    </View>
+  );
 }
 
 export function Account({ navigation }: Props) {
@@ -227,16 +286,11 @@ export function Account({ navigation }: Props) {
         {renderHeader()}
         <ScrollView contentContainerStyle={styles.content}>
           <View style={styles.card}>
-            <View
-              style={[
-                styles.banner,
-                { backgroundColor: banner?.color ?? THEME.COLORS.FRAME },
-              ]}
-            >
-              {bannerSource && (
-                <Image source={bannerSource} style={styles.bannerImage} />
-              )}
-            </View>
+            <ProfileBanner
+              source={bannerSource}
+              fallbackColor={banner?.color ?? THEME.COLORS.FRAME}
+              revision={imageVersion}
+            />
             <View style={styles.identity}>
               <View style={styles.avatarWrap}>
                 <Avatar uri={user.avatarUrl} size={AVATAR} />
@@ -372,12 +426,22 @@ export function Account({ navigation }: Props) {
                       )}
                     </View>
                     {rowBusy ? (
-                      <ActivityIndicator color={THEME.COLORS.TEXT} />
+                      <ActivityIndicator
+                        size="small"
+                        color={THEME.COLORS.TEXT_DIM}
+                        style={styles.rowActionBusy}
+                      />
                     ) : linked ? (
                       <TouchableOpacity
                         accessibilityRole="button"
+                        accessibilityLabel={`${dict.ACCOUNT_UNLINK} ${provider.label}`}
                         disabled={!canUnlink || !!busy}
                         activeOpacity={0.7}
+                        hitSlop={8}
+                        style={[
+                          styles.rowIconAction,
+                          (!canUnlink || !!busy) && styles.rowActionDisabled,
+                        ]}
                         onPress={() =>
                           handle(`link-${provider.name}`, async () => {
                             await unlinkProvider(provider.name);
@@ -385,20 +449,27 @@ export function Account({ navigation }: Props) {
                           })
                         }
                       >
-                        <Text
-                          style={[
-                            styles.rowAction,
-                            (!canUnlink || !!busy) && styles.rowActionDisabled,
-                          ]}
-                        >
-                          {dict.ACCOUNT_UNLINK}
-                        </Text>
+                        <MaterialIcons
+                          name="link-off"
+                          size={THEME.ICON.MD}
+                          color={
+                            !canUnlink || !!busy
+                              ? THEME.COLORS.TEXT_DIM
+                              : THEME.COLORS.TEXT_SOFT
+                          }
+                        />
                       </TouchableOpacity>
                     ) : configured && linkable ? (
                       <TouchableOpacity
                         accessibilityRole="button"
+                        accessibilityLabel={`${dict.ACCOUNT_LINK} ${provider.label}`}
                         disabled={!!busy}
                         activeOpacity={0.7}
+                        hitSlop={8}
+                        style={[
+                          styles.rowIconAction,
+                          !!busy && styles.rowActionDisabled,
+                        ]}
                         onPress={() =>
                           handle(`link-${provider.name}`, async () => {
                             await linkProvider(provider.name);
@@ -406,9 +477,11 @@ export function Account({ navigation }: Props) {
                           })
                         }
                       >
-                        <Text style={styles.rowAction}>
-                          {dict.ACCOUNT_LINK}
-                        </Text>
+                        <MaterialIcons
+                          name="add-link"
+                          size={THEME.ICON.MD}
+                          color={THEME.COLORS.BRAND}
+                        />
                       </TouchableOpacity>
                     ) : !configured ? (
                       <Text style={styles.soon}>
@@ -430,7 +503,7 @@ export function Account({ navigation }: Props) {
               style={styles.row}
             >
               <View style={styles.rowIcon}>
-                <ProviderIcon provider="animu" />
+                <ProviderIcon provider="animu" size={18} />
               </View>
               <View style={styles.rowBody}>
                 <Text style={styles.rowLabel}>
@@ -447,11 +520,11 @@ export function Account({ navigation }: Props) {
                     : dict.ACCOUNT_ANIMU_CONNECT_DESC}
                 </Text>
               </View>
-              <Text style={styles.rowAction}>
-                {credentialsSet
-                  ? dict.ACCOUNT_ANIMU_CONNECT_UPDATE
-                  : dict.ACCOUNT_ANIMU_CONNECT_SETUP}
-              </Text>
+              <MaterialIcons
+                name="chevron-right"
+                size={THEME.ICON.MD}
+                color={THEME.COLORS.TEXT_DIM}
+              />
             </TouchableOpacity>
           </View>
 

@@ -1,9 +1,9 @@
-import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
-import MaterialIcons from "@react-native-vector-icons/material-icons/static";
+import { useMemo, useState, useSyncExternalStore } from "react";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 
 import {
-  Animated,
+  ActivityIndicator,
+  Alert,
   ScrollView,
   Text,
   TouchableOpacity,
@@ -11,9 +11,7 @@ import {
 } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { Background } from "../../components/Background";
-import { Avatar } from "../../components/Avatar";
 import { BackArrow } from "../../components/BackArrow";
-import { ProviderIcon } from "../../components/ProviderIcon";
 import { SectionTitle } from "../../components/SectionTitle";
 import { Select, type SelectOption } from "../../components/Select";
 import { useCoverStorageSnapshot } from "../../hooks/useCoverStorage";
@@ -21,12 +19,17 @@ import { formatBytes } from "../../utils/format";
 import { DICT, LANGS_KEY_VALUE_PAIRS } from "../../i18n";
 import { RootStackParamList } from "../../routes/app.routes";
 import { THEME } from "../../theme";
-import { HEADER_HEIGHT, styles, SWITCH } from "./styles";
+import { HEADER_HEIGHT, styles } from "./styles";
 import { useUserSettings } from "../../contexts/user/UserSettingsProvider";
 import { coverDiskStorage } from "../../core/services/cover-disk-storage.service";
 import { useAuth } from "../../contexts/auth/AuthProvider";
-import { getUserName } from "../../core/domain/user";
-import { providerLabel } from "../../constants/auth";
+import {
+  AccountRow,
+  cleanLabel,
+  Divider,
+  SettingsRow,
+  ValueRow,
+} from "./rows";
 import {
   COVER_QUALITY_SAMPLES,
   DEFAULT_COVER_SOURCE,
@@ -38,111 +41,6 @@ import * as Linking from "expo-linking";
 /** Dev portfolio — the credits hyperlink target. */
 const PORTFOLIO_URL = "https://rmotafreitas.dev";
 
-/** Labels carry a trailing colon for back-compat — row UI renders clean. */
-const cleanLabel = (label: string) => label.replace(/[:：]\s*$/, "");
-
-function Divider() {
-  return <View style={styles.divider} />;
-}
-
-interface SwitchProps {
-  value: boolean;
-  disabled?: boolean;
-}
-
-function Switch({ value, disabled }: SwitchProps) {
-  const [position] = useState(() => new Animated.Value(value ? 1 : 0));
-
-  useEffect(() => {
-    Animated.spring(position, {
-      toValue: value ? 1 : 0,
-      speed: 30,
-      bounciness: 4,
-      useNativeDriver: true,
-    }).start();
-  }, [value, position]);
-
-  const translateX = position.interpolate({
-    inputRange: [0, 1],
-    outputRange: [
-      0,
-      SWITCH.TRACK_WIDTH - SWITCH.THUMB - SWITCH.PADDING * 2,
-    ],
-  });
-
-  return (
-    <View
-      style={[
-        styles.switchTrack,
-        {
-          backgroundColor: value
-            ? THEME.COLORS.BRAND
-            : THEME.COLORS.SWITCH_OFF,
-        },
-        disabled && styles.switchDisabled,
-      ]}
-    >
-      <Animated.View
-        style={[styles.switchThumb, { transform: [{ translateX }] }]}
-      />
-    </View>
-  );
-}
-
-interface SettingsRowProps {
-  label: string;
-  value: boolean;
-  onToggle: () => void;
-  /** Blocks the toggle while a background transition runs (e.g. the cache
-      wipe after turning caching off) — shows the value is in flight. */
-  disabled?: boolean;
-}
-
-function SettingsRow({ label, value, onToggle, disabled }: SettingsRowProps) {
-  return (
-    <TouchableOpacity
-      accessibilityRole="switch"
-      accessibilityState={{ checked: value, disabled: disabled || undefined }}
-      activeOpacity={0.7}
-      onPress={onToggle}
-      disabled={disabled}
-      style={[styles.row, disabled && styles.rowDisabled]}
-    >
-      <Text style={styles.rowLabel}>{label}</Text>
-      <Switch value={value} disabled={disabled} />
-    </TouchableOpacity>
-  );
-}
-
-interface ValueRowProps {
-  label: string;
-  value: string;
-  onPress: () => void;
-}
-
-function ValueRow({ label, value, onPress }: ValueRowProps) {
-  return (
-    <TouchableOpacity
-      accessibilityRole="button"
-      activeOpacity={0.7}
-      onPress={onPress}
-      style={styles.row}
-    >
-      <Text style={styles.rowLabel}>{label}</Text>
-      <View style={styles.rowValue}>
-        <Text style={styles.rowValueText} numberOfLines={1}>
-          {value}
-        </Text>
-        <MaterialIcons
-          name="chevron-right"
-          size={THEME.ICON.MD}
-          color={THEME.COLORS.TEXT_DIM}
-        />
-      </View>
-    </TouchableOpacity>
-  );
-}
-
 type Props = NativeStackScreenProps<RootStackParamList, "Settings">;
 
 const QUALITY_LABEL_KEY = {
@@ -153,8 +51,9 @@ const QUALITY_LABEL_KEY = {
 
 export function Settings({ navigation }: Props) {
   const insets = useSafeAreaInsets();
-  const { settings, updateSettings } = useUserSettings();
+  const { settings, updateSettings, resetSettings } = useUserSettings();
   const { user, profile } = useAuth();
+  const [resetting, setResetting] = useState(false);
   // Wipe-in-progress from the storage service — disables the cache toggle
   // (both tap paths: the clean button and the automatic cache-off wipe).
   const cacheWiping = useSyncExternalStore(
@@ -165,16 +64,16 @@ export function Settings({ navigation }: Props) {
 
   const dict = DICT[settings.selectedLanguage];
 
-  // Inline dropdown options. Cover tiers carry their real pixel size, so the
-  // choice stays informed without opening a preview sheet.
   const qualityOptions = useMemo<SelectOption<CoverQualityKey | "off">[]>(
     () => [
       ...COVER_QUALITY_SAMPLES.map((sample) => ({
         key: sample.key,
         label: dict[QUALITY_LABEL_KEY[sample.key as CoverQualityKey]],
-        meta: `${sample.pixelWidth}×${sample.pixelHeight} · ${formatBytes(
-          sample.sizeBytes,
-        )}`,
+        meta: `~${formatBytes(sample.sizeBytes)}`,
+        badge:
+          sample.key === "high"
+            ? dict.SETTINGS_QUALITY_RECOMMENDED
+            : undefined,
         thumb: sample.source,
       })),
       {
@@ -197,9 +96,38 @@ export function Settings({ navigation }: Props) {
     [],
   );
 
+  const runReset = async () => {
+    setResetting(true);
+    try {
+      await resetSettings();
+    } finally {
+      setResetting(false);
+    }
+  };
+
+  const confirmReset = () => {
+    Alert.alert(
+      dict.SETTINGS_RESET_CONFIRM_TITLE,
+      dict.SETTINGS_RESET_CONFIRM_MSG,
+      [
+        { text: dict.ACCOUNT_CANCEL, style: "cancel" },
+        {
+          text: dict.SETTINGS_RESET_CONFIRM,
+          style: "destructive",
+          onPress: () => {
+            void runReset();
+          },
+        },
+      ],
+    );
+  };
+
   return (
     <Background>
       <SafeAreaView style={styles.container} edges={["left", "right", "bottom"]}>
+        {/* Header matches Account exactly: back arrow on the left, title
+            centered between the two 44px slots, no hairline, no absolute
+            positioning. */}
         <View
           style={[
             styles.header,
@@ -218,15 +146,17 @@ export function Settings({ navigation }: Props) {
           >
             <BackArrow />
           </TouchableOpacity>
-          <Text style={styles.settingsText}>{dict.SETTINGS_TITLE}</Text>
+          <Text style={styles.headerTitle}>{dict.SETTINGS_TITLE}</Text>
           <View style={styles.headerButton} />
         </View>
         <ScrollView contentContainerStyle={styles.appContainer}>
+          {/* Account first — the one thing tied to *who* is listening. */}
           <SectionTitle title={dict.SETTINGS_ACCOUNT_TITLE} icon="person" />
           <View style={styles.group}>
-            <TouchableOpacity
-              accessibilityRole="button"
-              activeOpacity={0.7}
+            <AccountRow
+              user={user}
+              profile={profile}
+              dict={dict}
               onPress={() => {
                 if (user) {
                   navigation.navigate("Account");
@@ -234,71 +164,14 @@ export function Settings({ navigation }: Props) {
                   navigation.navigate("Login");
                 }
               }}
-              style={[styles.row, styles.accountRow]}
-            >
-              {user ? (
-                <>
-                  <Avatar uri={user.avatarUrl} style={styles.accountAvatar} />
-                  <View style={styles.accountInfo}>
-                    <View style={styles.accountNameRow}>
-                      <Text style={styles.accountName} numberOfLines={1}>
-                        {getUserName(user)}
-                      </Text>
-                      {profile?.user.verified && (
-                        <MaterialIcons
-                          name="verified"
-                          size={THEME.ICON.MD}
-                          color={THEME.COLORS.BRAND}
-                        />
-                      )}
-                    </View>
-                    <View style={styles.accountService}>
-                      <ProviderIcon
-                        provider={profile?.session.loginProvider ?? "animu"}
-                        size={14}
-                        color={THEME.COLORS.TEXT_DIM}
-                      />
-                      <Text style={styles.accountCaption}>
-                        {profile?.session.loginProvider
-                          ? `${dict.ACCOUNT_CONNECTED_VIA} ${providerLabel(
-                              profile.session.loginProvider,
-                            )}`
-                          : dict.ACCOUNT_TITLE}
-                      </Text>
-                    </View>
-                  </View>
-                  <MaterialIcons
-                    name="chevron-right"
-                    size={THEME.ICON.MD}
-                    color={THEME.COLORS.TEXT_DIM}
-                  />
-                </>
-              ) : (
-                <>
-                  <View style={styles.accountServiceIcon}>
-                    <MaterialIcons
-                      name="login"
-                      size={THEME.ICON.MD}
-                      color={THEME.COLORS.TEXT}
-                    />
-                  </View>
-                  <Text style={styles.rowLabel}>
-                    {dict.SETTINGS_ACCOUNT_SIGN_IN}
-                  </Text>
-                  <MaterialIcons
-                    name="chevron-right"
-                    size={THEME.ICON.MD}
-                    color={THEME.COLORS.TEXT_DIM}
-                  />
-                </>
-              )}
-            </TouchableOpacity>
+            />
           </View>
 
-          <SectionTitle title={dict.SETTINGS_SAVE_DATA_TITLE} icon="cloud-off" />
+          <SectionTitle title={dict.SETTINGS_SAVE_DATA_TITLE} icon="image" />
           <View style={styles.group}>
             <Select
               label={dict.SETTINGS_QUALITY_ROW}
+              description={dict.SETTINGS_QUALITY_ROW_DESC}
               options={qualityOptions}
               value={settings.liveQualityCover}
               onChange={(key) => updateSettings({ liveQualityCover: key })}
@@ -340,12 +213,9 @@ export function Settings({ navigation }: Props) {
             icon="graphic-eq"
           />
           <View style={styles.group}>
-            {/* Uncapped like the web player's rAF loop: on = render at the
-                device's own vsync, off = off. No stepped rate to pick, so a
-                plain toggle replaces the old Hz slider. Works on both
-                platforms — expo-audio ships the sampling tap on iOS too. */}
             <SettingsRow
               label={cleanLabel(dict.SETTINGS_VISUALIZER_SWITCH)}
+              description={dict.SETTINGS_VISUALIZER_DESC}
               value={settings.visualizerHz > 0}
               onToggle={() => {
                 updateSettings({
@@ -357,14 +227,9 @@ export function Settings({ navigation }: Props) {
 
           <SectionTitle title={dict.SETTINGS_BATTERY_TITLE} icon="wifi" />
           <View style={styles.group}>
-            {/* Non-technical wording for the realtime-stream battery
-                policy: ON = the app instantly follows station song changes
-                (and a live lock screen) via a persistent, lightweight
-                connection; OFF = the connection pauses when the app is
-                paused in the background (big battery saver, freshness
-                covered by the HTTP poll on the way back). */}
             <SettingsRow
               label={cleanLabel(dict.SETTINGS_LIVE_UPDATES_SWITCH)}
+              description={dict.SETTINGS_LIVE_UPDATES_DESC}
               value={settings.liveUpdatesInBackground}
               onToggle={() => {
                 updateSettings({
@@ -384,10 +249,11 @@ export function Settings({ navigation }: Props) {
             />
           </View>
 
-          <SectionTitle title={dict.SETTINGS_MEMORY_TITLE} icon="memory" />
+          <SectionTitle title={dict.SETTINGS_MEMORY_TITLE} icon="sd-storage" />
           <View style={styles.group}>
             <SettingsRow
               label={cleanLabel(dict.SETTINGS_MEMORY_CLEAR_CACHE_SWITCH)}
+              description={dict.SETTINGS_MEMORY_CLEAR_CACHE_DESC}
               value={settings.cacheEnabled}
               disabled={cacheWiping}
               onToggle={() => {
@@ -397,8 +263,10 @@ export function Settings({ navigation }: Props) {
               }}
             />
             <Divider />
+            {/* Plain-language promise ("Free up space") with the live total as
+                proof — the technical breakdown lives one tap into Storage. */}
             <ValueRow
-              label={dict.SETTINGS_STORAGE_MANAGE}
+              label={dict.SETTINGS_STORAGE_FREE_UP}
               value={
                 measuring ? "· · ·" : formatBytes(snapshot?.totalBytes ?? 0)
               }
@@ -406,6 +274,25 @@ export function Settings({ navigation }: Props) {
                 navigation.navigate("Storage");
               }}
             />
+          </View>
+
+          {/* Reset is its own quiet action at the very bottom — not a fake
+              "About" section (there's nothing else About-ish to group it
+              with). The version footer follows. */}
+          <View style={styles.group}>
+            <TouchableOpacity
+              accessibilityRole="button"
+              accessibilityState={{ disabled: resetting || undefined }}
+              activeOpacity={0.7}
+              onPress={confirmReset}
+              disabled={resetting}
+              style={[styles.resetRow, resetting && styles.resetRowDisabled]}
+            >
+              <Text style={styles.resetLabel}>{dict.SETTINGS_RESET_ROW}</Text>
+              {resetting && (
+                <ActivityIndicator size="small" color={THEME.COLORS.ERROR} />
+              )}
+            </TouchableOpacity>
           </View>
 
           <View style={styles.footer}>
