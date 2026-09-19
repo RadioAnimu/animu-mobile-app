@@ -36,6 +36,11 @@ jobs:
       - name: Test
         run: npm test
 
+      # Bundles the app so broken asset paths and unresolvable imports fail CI
+      # (TypeScript can't catch these — asset modules are declared by wildcard).
+      - name: Bundle smoke test
+        run: npx expo export:embed --platform android --entry-file index.js --bundle-output /tmp/index.android.bundle --assets-dest /tmp/animu-assets --dev false
+
       # Fails the build if the React Doctor health score drops below the floor.
       # Advisory PR feedback lives in react-doctor.yml; this is the hard gate.
       - name: React Doctor score gate
