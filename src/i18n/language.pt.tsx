@@ -1,6 +1,7 @@
 import { Path, Rect, Svg, SvgProps } from "react-native-svg";
 import { version } from "@app/package.json";
 import { Program } from "@/api";
+import { PROGRAM_IMAGES } from "@/constants/programs";
 import type { Dict } from "@/i18n/language.en";
 import logo from "@/assets/logo_PT.png";
 import makeRequest from "@/assets/make_request_harukinha_pt.png";
@@ -9,7 +10,7 @@ import lastRequested from "@/assets/last_requested-haru_pt.png";
 
 const PROGRAMS: Program[] = [
   {
-    img: "https://www.animu.moe/wp-content/uploads/2024/01/NO-AR-ANIMU-NON-STOP-2024-FUYU.webp",
+    img: PROGRAM_IMAGES[0],
     name: "Animu NON-STOP",
     dj: "Haruka Yuki",
     theme: "Bloco Musical",
@@ -18,7 +19,7 @@ const PROGRAMS: Program[] = [
       "Animu NON-STOP é o bloco em que a Animu não para nunca: as melhores músicas tocam sem parar enquanto você, ouvinte, comanda a sequência a qualquer momento.",
   },
   {
-    img: "https://www.animu.com.br/wp-content/uploads/2023/03/Jiyuu-Jikan-Logo.webp",
+    img: PROGRAM_IMAGES[1],
     name: "Jiyuu Jikan",
     dj: "Qualquer pessoa que faz parte da equipe de locução",
     theme: "Qualquer um (sendo otakice é o que vale!)",
@@ -27,7 +28,7 @@ const PROGRAMS: Program[] = [
       "O programa onde invadimos a programação da DJ Haruka e mandamos ela tomar aquele cafezinho. E pode ser a qualquer momento e a qualquer hora, na rádio mais moe do Brasil!",
   },
   {
-    img: "https://www.animu.com.br/wp-content/uploads/2023/03/AnimuSong-Logo.webp",
+    img: PROGRAM_IMAGES[2],
     name: "AnimuSong",
     dj: "LL!",
     theme: "TOP 10 mais pedidas",
@@ -36,7 +37,7 @@ const PROGRAMS: Program[] = [
       "O TOP 10 da mais moe do Brasil! Baseado nas mais pedidas pelos ouvintes na última semana",
   },
   {
-    img: "https://www.animu.com.br/wp-content/uploads/2023/08/Logo-Natsukashii.webp",
+    img: PROGRAM_IMAGES[3],
     name: "Natsukashii",
     dj: "Dolode",
     theme: "Nostalgia",
@@ -45,7 +46,7 @@ const PROGRAMS: Program[] = [
       "O programa que vai levar você de volta ao passado, trazendo o melhor das animusongs que marcaram gerações, incluindo o ritmo envolvente e contagiante do City Pop!",
   },
   {
-    img: "https://www.animu.com.br/wp-content/uploads/2023/03/Expresso-Otaku-Logo.webp",
+    img: PROGRAM_IMAGES[4],
     name: "Expresso Otaku",
     dj: "LL!",
     theme: "Quiz",
@@ -54,7 +55,7 @@ const PROGRAMS: Program[] = [
       "Embarque comigo nesse expresso cheio de otakice! O Expresso Otaku é um programa onde você ouvinte testa seu nível otaku ao vivo comigo DJ LL! E se vencer se torna o otaku da semana no nosso Discord 🏆",
   },
   {
-    img: "https://www.animu.com.br/wp-content/uploads/2023/03/Animu-Plus-logo-final.webp",
+    img: PROGRAM_IMAGES[5],
     name: "Animu+",
     dj: "Qualquer pessoa que faz parte da equipe de Locução junto com ouvintes",
     theme: "Qualquer um (Sendo otakice é o que vale²)",
@@ -63,7 +64,7 @@ const PROGRAMS: Program[] = [
       "O Animu Plus é um programa onde ouvintes participam ao vivo, fazendo parte e interagindo junto com os locutores. Gostamos muito de estar perto dos nossos ouvintes e esse programa foi criado especialmente para isso!",
   },
   {
-    img: "https://www.animu.com.br/wp-content/uploads/2023/03/Logo-DollarRocks-1.webp",
+    img: PROGRAM_IMAGES[6],
     name: "DollarRocks!",
     dj: "Dollar$",
     theme: "J-rock",
@@ -72,7 +73,7 @@ const PROGRAMS: Program[] = [
       "O Deus japonês do rock desceu para a terra e me incumbiu de passar a palavra a todos seus seguidores. As 3 regras mais importantes são Rock hoje, Rock amanhã e Rock sempre. 🤘😝",
   },
   {
-    img: "https://www.animu.com.br/wp-content/uploads/2024/02/Yoake-Logo.webp",
+    img: PROGRAM_IMAGES[7],
     name: "Yoake",
     dj: "Haruka Yuki",
     theme: "Bloco Musical ",
@@ -81,7 +82,7 @@ const PROGRAMS: Program[] = [
       "O nosso amanhecer! O Yoake foi feito para animar o início do seu dia com muita música boa e onde você também comanda a sequência ao vivo! 🌄",
   },
   {
-    img: "https://www.animu.com.br/wp-content/uploads/2023/04/Kohi-Logo.webp",
+    img: PROGRAM_IMAGES[8],
     name: "Kohi",
     dj: "Haruka Yuki",
     theme: "Bloco Musical ",
@@ -90,7 +91,7 @@ const PROGRAMS: Program[] = [
       "O bloco que te acorda nas suas manhãs otaku! Prepare seu cafezinho e faça a sequência junto com nossa Haru-chan ☕",
   },
   {
-    img: "https://www.animu.com.br/wp-content/uploads/2024/02/Animu-Ohayou-Logo-maior.webp",
+    img: PROGRAM_IMAGES[9],
     name: "Animu Ohayou",
     dj: "Haruka Yuki",
     theme: "Bloco Musical ",
@@ -99,7 +100,7 @@ const PROGRAMS: Program[] = [
       "A nossa manhã comandada por você! A melhor forma de aproveitar a melhor parte do dia aqui na mais moe do Brasil! ☀️",
   },
   {
-    img: "https://www.animu.com.br/wp-content/uploads/2023/03/Gohan-Desu-Logo.webp",
+    img: PROGRAM_IMAGES[10],
     name: "Gohan desu!",
     dj: "Haruka Yuki",
     theme: "Bloco Musical ",
@@ -108,7 +109,7 @@ const PROGRAMS: Program[] = [
       "A sua hora do almoço mais animada aqui na sua Animu 😋🍴 Almoço é muito sagrado para nós e por isso neste horário ele é dono do seu próprio bloco musical!",
   },
   {
-    img: "https://www.animu.com.br/wp-content/uploads/2024/02/Oyatsu-Logo.webp",
+    img: PROGRAM_IMAGES[11],
     name: "Oyatsu",
     dj: "Haruka Yuki",
     theme: "Bloco Musical ",
@@ -117,7 +118,7 @@ const PROGRAMS: Program[] = [
       "Sua tarde mais doce e divertida na mais moe do Brasil! 🍰 A hora do seu lanchinho onde você faz a sequência nas tardes com a nossa Haru-chan",
   },
   {
-    img: "https://www.animu.com.br/wp-content/uploads/2024/02/Nemukunai-logo.webp",
+    img: PROGRAM_IMAGES[12],
     name: "Nemukunai",
     dj: "Haruka Yuki",
     theme: "Bloco Musical ",

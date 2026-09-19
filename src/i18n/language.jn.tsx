@@ -1,6 +1,7 @@
 import Svg, { Path, Rect, SvgProps } from "react-native-svg";
 import { version } from "@app/package.json";
 import { Program } from "@/api";
+import { PROGRAM_IMAGES } from "@/constants/programs";
 import type { Dict } from "@/i18n/language.en";
 import logo from "@/assets/logo_JP.png";
 import makeRequest from "@/assets/make_request_harukinha_jn.png";
@@ -9,7 +10,7 @@ import lastRequested from "@/assets/last_requested-haru_jn.png";
 
 const PROGRAMS: Program[] = [
   {
-    img: "https://www.animu.moe/wp-content/uploads/2024/01/NO-AR-ANIMU-NON-STOP-2024-FUYU.webp",
+    img: PROGRAM_IMAGES[0],
     name: "Animu NON-STOP",
     dj: "Haruka Yuki",
     theme: "音楽ブロック",
@@ -18,7 +19,7 @@ const PROGRAMS: Program[] = [
       "Animu NON-STOP は、Animu が止まらない音楽ブロックです。最高の曲がノンストップで流れ、リスナーのあなたがいつでも曲順を決められます。",
   },
   {
-    img: "https://www.animu.com.br/wp-content/uploads/2023/03/Jiyuu-Jikan-Logo.webp",
+    img: PROGRAM_IMAGES[1],
     name: "自由時間",
     dj: "放送チームの誰でも",
     theme: "（オタクなら何でもOK！）",
@@ -27,7 +28,7 @@ const PROGRAMS: Program[] = [
       "ＤＪ春香ちゃんの番組に乗り込んで、彼女にコーヒーを飲ませちゃう。ブラジルで最も萌えのラジオで、いつでも楽しんでね！",
   },
   {
-    img: "https://www.animu.com.br/wp-content/uploads/2023/03/AnimuSong-Logo.webp",
+    img: PROGRAM_IMAGES[2],
     name: "アニムソング",
     dj: "LL!",
     theme: "トップ10リクエスト",
@@ -36,7 +37,7 @@ const PROGRAMS: Program[] = [
       "ブラジル一萌えるトップ１０！先週のリスナーのリクエストで決まる、最高のランキングだ！",
   },
   {
-    img: "https://www.animu.com.br/wp-content/uploads/2023/08/Logo-Natsukashii.webp",
+    img: PROGRAM_IMAGES[3],
     name: "懐かしい",
     dj: "Dolode",
     theme: "ノスタルジア",
@@ -45,7 +46,7 @@ const PROGRAMS: Program[] = [
       "過去に戻って、一時代を築いた懐かしいアニソンを楽しもう！もちろん、シティ・ポップの魅惑的なリズムにも酔いしれてね！",
   },
   {
-    img: "https://www.animu.com.br/wp-content/uploads/2023/03/Expresso-Otaku-Logo.webp",
+    img: PROGRAM_IMAGES[4],
     name: "オタクのエクスプレス",
     dj: "LL!",
     theme: "クイズ",
@@ -54,7 +55,7 @@ const PROGRAMS: Program[] = [
       "僕、DJ LLと一緒にこのオタク・エクスプレスに乗ろう！「オタク・エクスプレス」は、君のオタクレベルをオンエアでテストする番組だ！そして、勝者にはディスコードで週のオタクの称号が与えられるぞ🏆",
   },
   {
-    img: "https://www.animu.com.br/wp-content/uploads/2023/03/Animu-Plus-logo-final.webp",
+    img: PROGRAM_IMAGES[5],
     name: "アニム＋",
     dj: "放送チームの誰でも、リスナーと一緒に (BRT) だよ！",
     theme: "（オタクなら何でもOK²）",
@@ -63,7 +64,7 @@ const PROGRAMS: Program[] = [
       "アニム＋は、リスナーが生で参加し、DJと直接話せる番組だ！リスナーの皆との繋がりが大好きだから、この番組は特に皆のために作ったんだ！",
   },
   {
-    img: "https://www.animu.com.br/wp-content/uploads/2023/03/Logo-DollarRocks-1.webp",
+    img: PROGRAM_IMAGES[6],
     name: "ドルロックス！",
     dj: "Dollar$",
     theme: "Jーロック",
@@ -72,7 +73,7 @@ const PROGRAMS: Program[] = [
       "日本のロックの神が地上に降りてきて、全ての信者にメッセージを伝えるように俺に命じた！絶対守るべき３つのルールは、今日はロック！明日もロック！そして永遠にロックだ！🤘😝",
   },
   {
-    img: "https://www.animu.com.br/wp-content/uploads/2024/02/Yoake-Logo.webp",
+    img: PROGRAM_IMAGES[7],
     name: "夜明け",
     dj: "雪・春香",
     theme: "曲ブロック",
@@ -81,7 +82,7 @@ const PROGRAMS: Program[] = [
       "私たちの夜明け！素晴らしい音楽で今日一日を明るくスタートしよう！ここは君がライブでリクエストできる場所だ！🌄",
   },
   {
-    img: "https://www.animu.com.br/wp-content/uploads/2023/04/Kohi-Logo.webp",
+    img: PROGRAM_IMAGES[8],
     name: "コーヒー",
     dj: "雪・春香",
     theme: "曲ブロック",
@@ -90,7 +91,7 @@ const PROGRAMS: Program[] = [
       "君のオタクな朝を目覚めさせるブロック！はるちゃんと一緒に朝の時間を過ごしながら、コーヒーでも淹れよう！☕",
   },
   {
-    img: "https://www.animu.com.br/wp-content/uploads/2024/02/Animu-Ohayou-Logo-maior.webp",
+    img: PROGRAM_IMAGES[9],
     name: "アニムおはよう～",
     dj: "雪・春香",
     theme: "曲ブロック",
@@ -99,7 +100,7 @@ const PROGRAMS: Program[] = [
       "君が作る朝！ラジルで最も萌えのラジオで、今日一日を最高に楽しもう！☀️",
   },
   {
-    img: "https://www.animu.com.br/wp-content/uploads/2023/03/Gohan-Desu-Logo.webp",
+    img: PROGRAM_IMAGES[10],
     name: "ごはんです！",
     dj: "雪・春香",
     theme: "曲ブロック",
@@ -108,7 +109,7 @@ const PROGRAMS: Program[] = [
       "最高のランチタイムはここ、「ごはんです」で！ランチは私たちにとって、すごく大事な時間だからね！🍴",
   },
   {
-    img: "https://www.animu.com.br/wp-content/uploads/2024/02/Oyatsu-Logo.webp",
+    img: PROGRAM_IMAGES[11],
     name: "おやつ",
     dj: "雪・春香",
     theme: "曲ブロック",
@@ -117,7 +118,7 @@ const PROGRAMS: Program[] = [
       "ブラジルで最も萌えのラジオで、甘くて楽しい午後を過ごそう！はるちゃんと一緒におやつの時間を楽しんで、午後のリクエストもしちゃおう！🍰",
   },
   {
-    img: "https://www.animu.com.br/wp-content/uploads/2024/02/Nemukunai-logo.webp",
+    img: PROGRAM_IMAGES[12],
     name: "眠くない",
     dj: "雪・春香",
     theme: "曲ブロック",
