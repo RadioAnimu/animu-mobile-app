@@ -1,6 +1,7 @@
 import { AnimuApi, type ArtworkQuality } from "animu-api";
 import { fetch as expoFetch } from "expo/fetch";
 import { CONFIG } from "../utils/player.config";
+import { CLIENT_INFO } from "../utils/client-context";
 
 /**
  * Shared client for everything whose settings don't change per call:
@@ -16,7 +17,7 @@ import { CONFIG } from "../utils/player.config";
  * background, freezing now-playing metadata updates.
  */
 export const animuApi = new AnimuApi({
-  userAgent: CONFIG.USER_AGENT,
+  clientInfo: CLIENT_INFO,
   defaultCover: CONFIG.DEFAULT_COVER,
   fallbackStreams: CONFIG.FALLBACK_STREAM_OPTIONS,
   fetchImpl: expoFetch,
@@ -34,7 +35,7 @@ export const createMetadataClient = (
   defaultCover: string = CONFIG.DEFAULT_COVER,
 ): AnimuApi =>
   new AnimuApi({
-    userAgent: CONFIG.USER_AGENT,
+    clientInfo: CLIENT_INFO,
     defaultCover,
     artworkQuality,
     fetchImpl: expoFetch,
@@ -54,7 +55,7 @@ export const createLiveClient = (
   defaultCover: string = CONFIG.DEFAULT_COVER,
 ): AnimuApi =>
   new AnimuApi({
-    userAgent: CONFIG.USER_AGENT,
+    clientInfo: CLIENT_INFO,
     defaultCover,
     artworkQuality,
     fetchImpl: expoFetch,
@@ -68,7 +69,7 @@ export const createLiveClient = (
  */
 export const createSearchClient = (artworkQuality: ArtworkQuality): AnimuApi =>
   new AnimuApi({
-    userAgent: CONFIG.USER_AGENT,
+    clientInfo: CLIENT_INFO,
     defaultCover: CONFIG.DEFAULT_COVER,
     artworkQuality,
     fetchImpl: expoFetch,

@@ -48,12 +48,25 @@ const FALLBACK_STREAM_OPTIONS: Stream[] = [
 
 const DEFAULT_STREAM_OPTION: Stream = FALLBACK_STREAM_OPTIONS[0]; // 320 kbps MP3
 
-const USER_AGENT: string = "Animu Mobile App";
+/**
+ * Stream User-Agent. Starts neutral and is replaced at startup by
+ * `utils/client-context` (which needs native modules and therefore can't be
+ * imported here — this module is loaded by node unit tests). The structured
+ * value is what listener maps display: platform, model, OS and language.
+ */
+let userAgent = "animu-api";
+
+/** Replaces the stream User-Agent (called once by `client-context`). */
+export const setUserAgent = (value: string): void => {
+  userAgent = value;
+};
 
 export const CONFIG = {
   FALLBACK_STREAM_OPTIONS,
   DEFAULT_STREAM_OPTION,
   DEFAULT_COVER,
-  USER_AGENT,
+  get USER_AGENT(): string {
+    return userAgent;
+  },
   DEBUG,
 };
