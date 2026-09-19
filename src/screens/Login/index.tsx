@@ -11,6 +11,7 @@ import {
 } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { AnimuApiError } from "animu-api";
 import { Background } from "../../components/Background";
 import { BackArrow } from "../../components/BackArrow";
 import { ProviderIcon } from "../../components/ProviderIcon";
@@ -26,6 +27,7 @@ import { HEADER_HEIGHT, styles } from "./styles";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Login">;
 type Step = "method" | "connect";
+type ConnectStep = "email" | "code";
 
 const TOTAL_STEPS = 2;
 
@@ -36,15 +38,17 @@ export function Login({ navigation }: Props) {
   const {
     providers,
     loginWithProvider,
-    loginWithAnimuConnect,
+    requestEmailLoginCode,
+    loginWithEmailCode,
     isAuthenticating,
   } = useAuth();
   const dict = DICT[settings.selectedLanguage];
 
   const [step, setStep] = useState<Step>("method");
+  const [connectStep, setConnectStep] = useState<ConnectStep>("email");
   const [busyProvider, setBusyProvider] = useState<string | null>(null);
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
+  const [email, setEmail] = useState("");
+  const [code, setCode] = useState("");
   const [error, setError] = useState<string | null>(null);
 
   const finish = () => {
@@ -76,18 +80,20 @@ export function Login({ navigation }: Props) {
     }
   };
 
-  const handleConnect = async () => {
+  const handleSendCode = async () => {
     if (isAuthenticating) return;
-    if (!username.trim() || !password) {
+    const address = email.trim();
+    if (!address) {
       setError(dict.LOGIN_MISSING_FIELDS);
       return;
     }
     setError(null);
     setBusyProvider("animu");
     try {
-      await loginWithAnimuConnect(username.trim(), password);
-      toast(dict.LOGIN_SUCCESS);
-      finish();
+      await requestEmailLoginCode(address);
+      setEmail(address);
+      setConnectStep("code");
+      toast(dict.LOGIN_CODE_SENT);
     } catch {
       setError(dict.LOGIN_FAILED);
     } finally {
@@ -95,8 +101,38 @@ export function Login({ navigation }: Props) {
     }
   };
 
+  const handleVerifyCode = async () => {
+    if (isAuthenticating) return;
+    const value = code.trim();
+    if (!value) {
+      setError(dict.LOGIN_MISSING_FIELDS);
+      return;
+    }
+    setError(null);
+    setBusyProvider("animu");
+    try {
+      await loginWithEmailCode(email.trim(), value);
+      toast(dict.LOGIN_SUCCESS);
+      finish();
+    } catch (err) {
+      setError(
+        err instanceof AnimuApiError && err.code === "email_code_failed"
+          ? dict.LOGIN_CODE_INVALID
+          : dict.LOGIN_FAILED,
+      );
+    } finally {
+      setBusyProvider(null);
+    }
+  };
+
   const goBack = () => {
     if (step === "connect") {
+      if (connectStep === "code") {
+        setConnectStep("email");
+        setCode("");
+        setError(null);
+        return;
+      }
       setStep("method");
       setError(null);
       return;
@@ -226,40 +262,52 @@ export function Login({ navigation }: Props) {
           ) : (
             <>
               <Text style={styles.title}>{dict.LOGIN_WITH_ANIMU_CONNECT}</Text>
-              <Text style={styles.subtitle}>{dict.LOGIN_CONNECT_SUBTITLE}</Text>
+              <Text style={styles.subtitle}>
+                {connectStep === "email"
+                  ? dict.LOGIN_CONNECT_SUBTITLE
+                  : dict.LOGIN_CODE_SUBTITLE.replace("{email}", email.trim())}
+              </Text>
 
-              <View style={styles.form}>
-                <Text style={styles.fieldLabel}>{dict.LOGIN_USERNAME}</Text>
-                <TextInput
-                  style={styles.input}
-                  value={username}
-                  onChangeText={setUsername}
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                  editable={!isAuthenticating}
-                  placeholder={dict.LOGIN_USERNAME_PLACEHOLDER}
-                  placeholderTextColor={THEME.COLORS.TEXT_DIM}
-                />
-
-                <Text style={styles.fieldLabel}>{dict.LOGIN_PASSWORD}</Text>
-                <TextInput
-                  style={styles.input}
-                  value={password}
-                  onChangeText={setPassword}
-                  secureTextEntry
-                  autoCapitalize="none"
-                  editable={!isAuthenticating}
-                  placeholder={dict.LOGIN_PASSWORD_PLACEHOLDER}
-                  placeholderTextColor={THEME.COLORS.TEXT_DIM}
-                  onSubmitEditing={handleConnect}
-                />
-              </View>
+              {connectStep === "email" ? (
+                <View style={styles.form}>
+                  <Text style={styles.fieldLabel}>{dict.LOGIN_EMAIL}</Text>
+                  <TextInput
+                    style={styles.input}
+                    value={email}
+                    onChangeText={setEmail}
+                    keyboardType="email-address"
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    editable={!isAuthenticating}
+                    placeholder={dict.LOGIN_EMAIL_PLACEHOLDER}
+                    placeholderTextColor={THEME.COLORS.TEXT_DIM}
+                    onSubmitEditing={handleSendCode}
+                  />
+                </View>
+              ) : (
+                <View style={styles.form}>
+                  <Text style={styles.fieldLabel}>{dict.LOGIN_CODE}</Text>
+                  <TextInput
+                    style={styles.input}
+                    value={code}
+                    onChangeText={setCode}
+                    keyboardType="number-pad"
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    maxLength={6}
+                    editable={!isAuthenticating}
+                    placeholder={dict.LOGIN_CODE_PLACEHOLDER}
+                    placeholderTextColor={THEME.COLORS.TEXT_DIM}
+                    onSubmitEditing={handleVerifyCode}
+                  />
+                </View>
+              )}
 
               <TouchableOpacity
                 accessibilityRole="button"
                 activeOpacity={0.7}
                 disabled={isAuthenticating}
-                onPress={handleConnect}
+                onPress={connectStep === "email" ? handleSendCode : handleVerifyCode}
                 style={[
                   styles.submit,
                   isAuthenticating && styles.submitDisabled,
@@ -268,7 +316,11 @@ export function Login({ navigation }: Props) {
                 {isAuthenticating ? (
                   <ActivityIndicator color={THEME.COLORS.TEXT} />
                 ) : (
-                  <Text style={styles.submitText}>{dict.LOGIN_BUTTON}</Text>
+                  <Text style={styles.submitText}>
+                    {connectStep === "email"
+                      ? dict.LOGIN_SEND_CODE
+                      : dict.LOGIN_BUTTON}
+                  </Text>
                 )}
               </TouchableOpacity>
             </>

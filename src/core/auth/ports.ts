@@ -1,14 +1,15 @@
 import type {
-  AuthCredentialsResult,
+  AuthEmailCodeParams,
+  AuthEmailRequestResult,
+  AuthEmailsResult,
   AuthExchangeParams,
   AuthLinkParams,
   AuthLinkResult,
-  AuthNativeLoginParams,
   AuthProfile,
   AuthRefreshResult,
+  AuthRemoveEmailResult,
   AuthSession,
   AuthSessionStatus,
-  AuthSetCredentialsParams,
   AuthUnlinkResult,
   MobileAuthRedirect,
   ProviderInfo,
@@ -83,15 +84,23 @@ export interface AuthApiPort {
   /** Parses the server's deep-link bounce and adopts the session token. */
   completeMobileAuth(callbackUrl: string): MobileAuthRedirect;
   exchangeToken(params: AuthExchangeParams): Promise<AuthSession>;
-  nativeLogin(params: AuthNativeLoginParams): Promise<AuthSession>;
+  /** Animu Connect: emails a 4-digit login code (generic `{ sent }` reply). */
+  requestEmailLoginCode(email: string): Promise<AuthEmailRequestResult>;
+  /** Animu Connect: verifies the emailed code and starts a session. */
+  verifyEmailLoginCode(params: AuthEmailCodeParams): Promise<AuthSession>;
   getSessionStatus(): Promise<AuthSessionStatus>;
   getProfile(): Promise<AuthProfile>;
   refreshProfile(): Promise<AuthRefreshResult>;
   linkProvider(params: AuthLinkParams): Promise<AuthLinkResult>;
   unlinkProvider(provider: string): Promise<AuthUnlinkResult>;
-  setCredentials(
-    params: AuthSetCredentialsParams,
-  ): Promise<AuthCredentialsResult>;
+  /** Lists the account's Animu Connect emails (provider + extra). */
+  getEmails(): Promise<AuthEmailsResult>;
+  /** Requests a code to add/replace the extra Animu Connect email. */
+  requestAddEmail(email: string): Promise<AuthEmailRequestResult>;
+  /** Verifies the code and stores the extra Animu Connect email. */
+  verifyAddEmail(params: AuthEmailCodeParams): Promise<AuthEmailsResult>;
+  /** Removes the extra (`source: "animu"`) email by id. */
+  removeEmail(emailId: number): Promise<AuthRemoveEmailResult>;
   uploadAvatar(params: {
     avatar: Blob;
     filename?: string;

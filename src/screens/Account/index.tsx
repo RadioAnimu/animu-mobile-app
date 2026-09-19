@@ -156,8 +156,6 @@ export function Account({ navigation }: Props) {
     profile,
     providers,
     isAuthenticated,
-    credentialsSet,
-    credentialsUsername,
     imageVersion,
     logout,
     deleteAccount,
@@ -510,14 +508,8 @@ export function Account({ navigation }: Props) {
                   {dict.ACCOUNT_ANIMU_CONNECT}
                 </Text>
                 <Text style={styles.rowCaption}>
-                  {credentialsSet
-                    ? credentialsUsername
-                      ? dict.ACCOUNT_ANIMU_CONNECT_READY_AS.replace(
-                          "{username}",
-                          credentialsUsername,
-                        )
-                      : dict.ACCOUNT_ANIMU_CONNECT_READY
-                    : dict.ACCOUNT_ANIMU_CONNECT_DESC}
+                  {profile?.user.email ??
+                    dict.ACCOUNT_ANIMU_CONNECT_DESC}
                 </Text>
               </View>
               <MaterialIcons
@@ -575,7 +567,6 @@ export function Account({ navigation }: Props) {
         <AnimuConnectSheet
           visible={connectVisible}
           onClose={() => setConnectVisible(false)}
-          hasCredentials={credentialsSet === true}
         />
       </SafeAreaView>
     </Background>

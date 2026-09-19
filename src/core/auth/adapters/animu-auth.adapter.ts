@@ -1,15 +1,16 @@
 import type {
   AnimuAuth,
-  AuthCredentialsResult,
+  AuthEmailCodeParams,
+  AuthEmailRequestResult,
+  AuthEmailsResult,
   AuthExchangeParams,
   AuthLinkParams,
   AuthLinkResult,
-  AuthNativeLoginParams,
   AuthProfile,
   AuthRefreshResult,
+  AuthRemoveEmailResult,
   AuthSession,
   AuthSessionStatus,
-  AuthSetCredentialsParams,
   AuthUnlinkResult,
   MobileAuthRedirect,
   ProviderInfo,
@@ -55,8 +56,12 @@ export class AnimuAuthAdapter implements AuthApiPort {
     return this.client.exchangeToken(params);
   }
 
-  nativeLogin(params: AuthNativeLoginParams): Promise<AuthSession> {
-    return this.client.nativeLogin(params);
+  requestEmailLoginCode(email: string): Promise<AuthEmailRequestResult> {
+    return this.client.requestEmailLoginCode(email);
+  }
+
+  verifyEmailLoginCode(params: AuthEmailCodeParams): Promise<AuthSession> {
+    return this.client.verifyEmailLoginCode(params);
   }
 
   getSessionStatus(): Promise<AuthSessionStatus> {
@@ -79,10 +84,20 @@ export class AnimuAuthAdapter implements AuthApiPort {
     return this.client.unlinkProvider(provider);
   }
 
-  setCredentials(
-    params: AuthSetCredentialsParams,
-  ): Promise<AuthCredentialsResult> {
-    return this.client.setCredentials(params);
+  getEmails(): Promise<AuthEmailsResult> {
+    return this.client.getEmails();
+  }
+
+  requestAddEmail(email: string): Promise<AuthEmailRequestResult> {
+    return this.client.requestAddEmail(email);
+  }
+
+  verifyAddEmail(params: AuthEmailCodeParams): Promise<AuthEmailsResult> {
+    return this.client.verifyAddEmail(params);
+  }
+
+  removeEmail(emailId: number): Promise<AuthRemoveEmailResult> {
+    return this.client.removeEmail(emailId);
   }
 
   uploadAvatar(params: {

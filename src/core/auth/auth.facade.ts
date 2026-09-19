@@ -1,8 +1,11 @@
 import type {
+  AuthEmailCodeParams,
+  AuthEmailRequestResult,
+  AuthEmailsResult,
   AuthLinkResult,
   AuthProfile,
+  AuthRemoveEmailResult,
   AuthSession,
-  AuthSetCredentialsParams,
   AuthUnlinkResult,
   ProviderInfo,
 } from "animu-api";
@@ -193,12 +196,14 @@ export class AuthFacade {
     });
   }
 
-  /** Animu Connect login (native username/password). */
-  async loginWithAnimuConnect(
-    username: string,
-    password: string,
-  ): Promise<User> {
-    const session = await this.api.nativeLogin({ username, password });
+  /** Animu Connect login, step 1: request the 4-digit email code. */
+  requestEmailLoginCode(email: string): Promise<AuthEmailRequestResult> {
+    return this.api.requestEmailLoginCode(email);
+  }
+
+  /** Animu Connect login, step 2: verify the emailed code and adopt the session. */
+  async loginWithEmailCode(email: string, code: string): Promise<User> {
+    const session = await this.api.verifyEmailLoginCode({ email, code });
     return this.adopt(session);
   }
 
@@ -270,8 +275,26 @@ export class AuthFacade {
     return this.api.unlinkProvider(provider);
   }
 
-  setCredentials(params: AuthSetCredentialsParams) {
-    return this.api.setCredentials(params);
+  // ─── Animu Connect emails ─────────────────────────────────────────────
+
+  /** Lists the account's Animu Connect emails (provider + extra). */
+  getEmails(): Promise<AuthEmailsResult> {
+    return this.api.getEmails();
+  }
+
+  /** Requests a code to add/replace the extra Animu Connect email. */
+  requestAddEmail(email: string): Promise<AuthEmailRequestResult> {
+    return this.api.requestAddEmail(email);
+  }
+
+  /** Verifies the code and stores the extra Animu Connect email. */
+  verifyAddEmail(params: AuthEmailCodeParams): Promise<AuthEmailsResult> {
+    return this.api.verifyAddEmail(params);
+  }
+
+  /** Removes the extra (`source: "animu"`) email by id. */
+  removeEmail(emailId: number): Promise<AuthRemoveEmailResult> {
+    return this.api.removeEmail(emailId);
   }
 
   uploadAvatar(avatar: Blob, filename?: string): Promise<string | null> {

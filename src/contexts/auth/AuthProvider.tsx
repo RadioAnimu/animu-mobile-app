@@ -6,11 +6,12 @@ import React, {
   useCallback,
   useRef,
 } from "react";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Linking } from "react-native";
 import type {
+  AuthEmailRequestResult,
+  AuthEmailsResult,
   AuthProfile,
-  AuthSetCredentialsParams,
+  AuthRemoveEmailResult,
   ProviderInfo,
 } from "animu-api";
 import { User } from "../../core/domain/user";
@@ -25,23 +26,25 @@ interface AuthContextType {
   isLoading: boolean;
   isAuthenticating: boolean;
   isAuthenticated: boolean;
-  /** `null` until we know, then whether Animu Connect is configured. */
-  credentialsSet: boolean | null;
-  /** Last known Animu Connect username (login credential), when available. */
-  credentialsUsername: string | null;
   /**
    * Bumped whenever the avatar changes so image consumers can bust the
    * expo-image cache (the authenticated avatar endpoint keeps its URL).
    */
   imageVersion: number;
   loginWithProvider: (provider: string) => Promise<void>;
-  loginWithAnimuConnect: (username: string, password: string) => Promise<void>;
+  /** Animu Connect login, step 1: request the emailed 4-digit code. */
+  requestEmailLoginCode: (email: string) => Promise<AuthEmailRequestResult>;
+  /** Animu Connect login, step 2: verify the code and adopt the session. */
+  loginWithEmailCode: (email: string, code: string) => Promise<void>;
   logout: () => Promise<void>;
   deleteAccount: () => Promise<void>;
   refreshProfile: () => Promise<void>;
   linkProvider: (provider: string) => Promise<void>;
   unlinkProvider: (provider: string) => Promise<void>;
-  setCredentials: (params: AuthSetCredentialsParams) => Promise<void>;
+  getEmails: () => Promise<AuthEmailsResult>;
+  requestAddEmail: (email: string) => Promise<AuthEmailRequestResult>;
+  verifyAddEmail: (email: string, code: string) => Promise<AuthEmailsResult>;
+  removeEmail: (emailId: number) => Promise<AuthRemoveEmailResult>;
   uploadAvatar: (avatar: Blob, filename?: string) => Promise<void>;
   resetAvatar: () => Promise<void>;
 }
@@ -50,24 +53,6 @@ const AuthContext = createContext<AuthContextType | null>(null);
 
 const SESSION_CHECK_INTERVAL = 60000; // 1 minute
 const SESSION_CHECK_TASK_ID = "session-check";
-/**
- * The profile payload has no read endpoint for Animu Connect credential
- * state, so the result of `setCredentials` is cached locally — otherwise
- * every relaunch renders the "Set up" state for an already-configured
- * account (and the update flow hides the current-password requirement).
- */
-const CREDENTIALS_KEY = "animuConnectCredentials";
-
-type StoredCredentials = { userId: number; username: string; setUp: boolean };
-
-const readStoredCredentials = async (): Promise<StoredCredentials | null> => {
-  try {
-    const raw = await AsyncStorage.getItem(CREDENTIALS_KEY);
-    return raw ? (JSON.parse(raw) as StoredCredentials) : null;
-  } catch {
-    return null;
-  }
-};
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
@@ -76,10 +61,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const [profile, setProfile] = useState<AuthProfile | null>(null);
   const [providers, setProviders] = useState<ProviderInfo[]>(
     DEFAULT_PROVIDERS,
-  );
-  const [credentialsSet, setCredentialsSet] = useState<boolean | null>(null);
-  const [credentialsUsername, setCredentialsUsername] = useState<string | null>(
-    null,
   );
   const [imageVersion, setImageVersion] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
@@ -98,8 +79,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     userRef.current = null;
     setUser(null);
     setProfile(null);
-    setCredentialsSet(null);
-    setCredentialsUsername(null);
   }, []);
 
   const loadProfile = useCallback(async () => {
@@ -180,10 +159,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         void authFacade.getProviders().then((list) => {
           if (!cancelled) setProviders(list);
         });
-        const [storedCredentials, storedUser] = await Promise.all([
-          readStoredCredentials(),
-          authFacade.restore(),
-        ]);
+        const storedUser = await authFacade.restore();
 
         // Cold-start recovery: if the OS killed the app during a server
         // provider's browser flow, the `animuapp://redirect` bounce arrives as
@@ -197,11 +173,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
         if (cancelled) return;
 
-        // Only surface cached credential state for the account it belongs to.
-        if (storedCredentials && storedCredentials.userId === storedUser?.id) {
-          setCredentialsSet(storedCredentials.setUp);
-          setCredentialsUsername(storedCredentials.username || null);
-        }
         if (storedUser) {
           userRef.current = storedUser;
           setUser(storedUser);
@@ -244,13 +215,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     [adoptUser],
   );
 
-  const loginWithAnimuConnect = useCallback(
-    async (username: string, password: string) => {
+  const requestEmailLoginCode = useCallback(
+    (email: string) => authFacade.requestEmailLoginCode(email),
+    [],
+  );
+
+  const loginWithEmailCode = useCallback(
+    async (email: string, code: string) => {
       setIsAuthenticating(true);
       try {
-        await adoptUser(
-          await authFacade.loginWithAnimuConnect(username, password),
-        );
+        await adoptUser(await authFacade.loginWithEmailCode(email, code));
       } finally {
         setIsAuthenticating(false);
       }
@@ -279,26 +253,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     [loadProfile],
   );
 
-  const setCredentials = useCallback(
-    async (params: AuthSetCredentialsParams) => {
-      const result = await authFacade.setCredentials(params);
-      setCredentialsSet(result.setUp);
-      if (result.username) setCredentialsUsername(result.username);
-      const userId = userRef.current?.id;
-      if (userId == null) return;
-      try {
-        await AsyncStorage.setItem(
-          CREDENTIALS_KEY,
-          JSON.stringify({
-            userId,
-            username: result.username,
-            setUp: result.setUp,
-          } satisfies StoredCredentials),
-        );
-      } catch (error) {
-        console.warn("[AuthProvider] Failed to cache credentials state:", error);
-      }
-    },
+  const getEmails = useCallback(() => authFacade.getEmails(), []);
+
+  const requestAddEmail = useCallback(
+    (email: string) => authFacade.requestAddEmail(email),
+    [],
+  );
+
+  const verifyAddEmail = useCallback(
+    (email: string, code: string) => authFacade.verifyAddEmail({ email, code }),
+    [],
+  );
+
+  const removeEmail = useCallback(
+    (emailId: number) => authFacade.removeEmail(emailId),
     [],
   );
 
@@ -326,17 +294,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         isLoading,
         isAuthenticating,
         isAuthenticated: !!user,
-        credentialsSet,
-        credentialsUsername,
         imageVersion,
         loginWithProvider,
-        loginWithAnimuConnect,
+        requestEmailLoginCode,
+        loginWithEmailCode,
         logout,
         deleteAccount,
         refreshProfile,
         linkProvider,
         unlinkProvider,
-        setCredentials,
+        getEmails,
+        requestAddEmail,
+        verifyAddEmail,
+        removeEmail,
         uploadAvatar,
         resetAvatar,
       }}

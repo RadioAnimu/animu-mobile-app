@@ -26,6 +26,7 @@ const makeTrack = (overrides: Partial<Track> = {}): Track => ({
   duration: 60_000,
   isRequest: false,
   startTime: new Date(Date.now() - 1000), // elapsed = 1s
+  playlistName: "",
   ...overrides,
 });
 
