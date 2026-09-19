@@ -1,6 +1,6 @@
 import { useState } from "react";
 import MaterialIcons from "@react-native-vector-icons/material-icons/static";
-import { NativeStackScreenProps } from "@react-navigation/native-stack";
+import { DrawerScreenProps } from "@react-navigation/drawer";
 import {
   ActivityIndicator,
   Alert,
@@ -27,7 +27,7 @@ import { styles } from "@/screens/Account/styles";
 import { LinkedAccounts } from "@/screens/Account/LinkedAccounts";
 import { ProfileCard } from "@/screens/Account/ProfileCard";
 
-type Props = NativeStackScreenProps<RootStackParamList, "Account">;
+type Props = DrawerScreenProps<RootStackParamList, "Account">;
 
 export function Account({ navigation }: Props) {
   const { toast, error: showError } = useAlert();

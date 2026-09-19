@@ -91,12 +91,11 @@ src/
 ├── core/
 │   ├── auth/             # AuthFacade + ports (API, OAuth, session store)
 │   ├── domain/           # Thin re-exports of animu-api entities + helpers
-│   ├── errors/           # Typed HTTP errors
 │   ├── player/           # Playback engine (transport, repository, orchestrator…)
 │   └── services/         # API facade, requests, background tasks, settings
-├── hooks/                # Shared hooks (live-request form)
+├── hooks/                # Shared hooks (dict, retry, clipboard, request flows)
 ├── i18n/                 # PT / EN / ES / JP dictionaries
-├── routes/               # Navigation (drawer + stack)
+├── routes/               # Navigation (drawer)
 ├── screens/              # Home (player), Requests, History, Settings, Login, Account
 ├── theme/                # Design tokens (colors, spacing, radii, typography)
 └── @types/               # Ambient type declarations

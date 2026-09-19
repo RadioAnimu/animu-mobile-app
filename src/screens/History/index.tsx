@@ -14,7 +14,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { HeaderBar } from "@/components/HeaderBar";
 import { Cover } from "@/components/Cover";
 
-import { NativeStackScreenProps } from "@react-navigation/native-stack";
+import { DrawerScreenProps } from "@react-navigation/drawer";
 import { RootStackParamList } from "@/routes/app.routes";
 
 import { Image } from "expo-image";
@@ -24,7 +24,7 @@ import { useCopyToClipboard } from "@/hooks/useCopyToClipboard";
 import { useStation } from "@/contexts/player/PlayerProvider";
 import type { StationSnapshot } from "@/core/player";
 
-type Props = NativeStackScreenProps<
+type Props = DrawerScreenProps<
   RootStackParamList,
   "LastRequested" | "LastPlayed"
 >;

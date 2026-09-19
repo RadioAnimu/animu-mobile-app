@@ -1,4 +1,4 @@
-import { NativeStackScreenProps } from "@react-navigation/native-stack";
+import { DrawerScreenProps } from "@react-navigation/drawer";
 import { ScrollView } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -15,7 +15,7 @@ import { FooterSection } from "@/screens/Settings/sections/FooterSection";
 import { StorageSection } from "@/screens/Settings/sections/StorageSection";
 import { UpdatesSection } from "@/screens/Settings/sections/UpdatesSection";
 
-type Props = NativeStackScreenProps<RootStackParamList, "Settings">;
+type Props = DrawerScreenProps<RootStackParamList, "Settings">;
 
 export function Settings({ navigation }: Props) {
   const { user, profile } = useAuth();

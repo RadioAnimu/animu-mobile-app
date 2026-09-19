@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { NativeStackScreenProps } from "@react-navigation/native-stack";
+import { DrawerScreenProps } from "@react-navigation/drawer";
 import { ScrollView, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -16,7 +16,7 @@ import { RootStackParamList } from "@/routes/app.routes";
 import { formatBytes, interpolate } from "@/utils/format";
 import { styles } from "@/screens/Storage/styles";
 
-type Props = NativeStackScreenProps<RootStackParamList, "Storage">;
+type Props = DrawerScreenProps<RootStackParamList, "Storage">;
 
 const MB = 1024 * 1024;
 

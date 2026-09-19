@@ -1,6 +1,6 @@
 import { useState } from "react";
 import MaterialIcons from "@react-native-vector-icons/material-icons/static";
-import { NativeStackScreenProps } from "@react-navigation/native-stack";
+import { DrawerScreenProps } from "@react-navigation/drawer";
 import {
   ActivityIndicator,
   ScrollView,
@@ -24,7 +24,7 @@ import { RootStackParamList } from "@/routes/app.routes";
 import { THEME } from "@/theme";
 import { styles } from "@/screens/Login/styles";
 
-type Props = NativeStackScreenProps<RootStackParamList, "Login">;
+type Props = DrawerScreenProps<RootStackParamList, "Login">;
 type Step = "method" | "connect";
 
 const TOTAL_STEPS = 2;
