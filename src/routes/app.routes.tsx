@@ -2,9 +2,9 @@ import { createDrawerNavigator } from "@react-navigation/drawer";
 
 import { useWindowDimensions } from "react-native";
 import { CustomDrawerContent, DrawerIcon } from "@/components/CustomDrawer";
-import { FazerPedido } from "@/screens/FazerPedido";
+import { MakeRequest } from "@/screens/MakeRequest";
 import { Home } from "@/screens/Home";
-import { Last } from "@/screens/Ultimas";
+import { History } from "@/screens/History";
 import { THEME } from "@/theme";
 import { Settings } from "@/screens/Settings";
 import { Storage } from "@/screens/Storage";
@@ -14,10 +14,10 @@ import { useDict } from "@/hooks/useDict";
 import { HistoryType } from "@/@types/history-type";
 
 type HomeProps = undefined;
-interface LastProps {
+interface HistoryProps {
   historyType: HistoryType;
 }
-type FazerPedidoProps = undefined;
+type MakeRequestProps = undefined;
 type SettingsProps = undefined;
 type StorageProps = undefined;
 type LoginProps = undefined;
@@ -25,9 +25,9 @@ type AccountProps = undefined;
 
 export type RootStackParamList = {
   Home: HomeProps;
-  LastRequested: LastProps;
-  LastPlayed: LastProps;
-  FazerPedido: FazerPedidoProps;
+  LastRequested: HistoryProps;
+  LastPlayed: HistoryProps;
+  MakeRequest: MakeRequestProps;
   Settings: SettingsProps;
   Storage: StorageProps;
   Login: LoginProps;
@@ -68,7 +68,7 @@ export function AppRoutes() {
           drawerIcon: ({ color }) => <DrawerIcon name="queue-music" color={color} />,
         }}
         name="LastRequested"
-        component={Last}
+        component={History}
         initialParams={{ historyType: "requests" }}
       />
       <Screen
@@ -77,7 +77,7 @@ export function AppRoutes() {
           drawerIcon: ({ color }) => <DrawerIcon name="history" color={color} />,
         }}
         name="LastPlayed"
-        component={Last}
+        component={History}
         initialParams={{ historyType: "played" }}
       />
       <Screen
@@ -87,8 +87,8 @@ export function AppRoutes() {
             <DrawerIcon name="music-note" color={color} />
           ),
         }}
-        name="FazerPedido"
-        component={FazerPedido}
+        name="MakeRequest"
+        component={MakeRequest}
       />
       <Screen
         options={{

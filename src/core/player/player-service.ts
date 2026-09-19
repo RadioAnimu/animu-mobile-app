@@ -639,7 +639,7 @@ export class PlayerService {
   }
 
   async openPedidosURL(): Promise<void> {
-    await openBrowserAsync(API.PEDIDOS_URL);
+    await openBrowserAsync(API.REQUESTS_URL);
   }
 
   // ── Event handlers (wired in the constructor) ──

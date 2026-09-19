@@ -10,7 +10,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import DragIcon from "@/assets/icons/ArrastarParaBaixo.png";
+import DragIcon from "@/assets/icons/drag_down.png";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { THEME } from "@/theme";
 

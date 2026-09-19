@@ -1,7 +1,7 @@
 import React from "react";
 import { Image, Text, View } from "react-native";
-import foninho from "@/assets/icons/foninho.png";
-import foninho_branco from "@/assets/icons/foninho_branco.png";
+import headphones from "@/assets/icons/headphones.png";
+import headphonesWhite from "@/assets/icons/headphones_white.png";
 import { THEME } from "@/theme";
 import { styles } from "@/components/Listeners/styles";
 import { useUserSettings } from "@/contexts/user/UserSettingsProvider";
@@ -46,8 +46,8 @@ export const Listeners = React.memo(function Listeners() {
         {currentListeners.value}
       </Text>
       <Image
-        style={styles.foninho}
-        source={track.isRequest || program?.isLive ? foninho_branco : foninho}
+        style={styles.headphones}
+        source={track.isRequest || program?.isLive ? headphonesWhite : headphones}
       />
       <Text
         style={[

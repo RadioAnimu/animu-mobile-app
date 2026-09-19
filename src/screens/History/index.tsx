@@ -8,7 +8,7 @@ import {
 } from "react-native";
 
 import { Background } from "@/components/Background";
-import { styles } from "@/screens/Ultimas/styles";
+import { styles } from "@/screens/History/styles";
 
 import { SafeAreaView } from "react-native-safe-area-context";
 import { HeaderBar } from "@/components/HeaderBar";
@@ -29,9 +29,9 @@ type Props = NativeStackScreenProps<
   "LastRequested" | "LastPlayed"
 >;
 
-export function Last({ route }: Props) {
+export function History({ route }: Props) {
   const { historyType } = route.params;
-  const isUltimasPedidasScreen = historyType === "requests";
+  const isRequestHistory = historyType === "requests";
 
   const station = useStation();
   const { settings } = useUserSettings();
@@ -43,13 +43,13 @@ export function Last({ route }: Props) {
     ({ item }) =>
       (
         <View style={styles.metadata}>
-          {(isUltimasPedidasScreen && settings.lastRequestedCovers) ||
-          (!isUltimasPedidasScreen && settings.lastPlayedCovers) ? (
+          {(isRequestHistory && settings.lastRequestedCovers) ||
+          (!isRequestHistory && settings.lastPlayedCovers) ? (
             <Cover
               cover={item.artwork}
               style={styles.image}
               recyclingKey={`${item.raw}-${new Date(item.startTime).getTime()}`}
-              category={isUltimasPedidasScreen ? "requested" : "played"}
+              category={isRequestHistory ? "requested" : "played"}
             />
           ) : (
             <></>
@@ -60,10 +60,10 @@ export function Last({ route }: Props) {
             onPress={() => copyText(item.raw)}
             style={styles.nameTouchable}
           >
-                <Text style={styles.musicapedidaname}>{item.raw}</Text>
+                <Text style={styles.trackName}>{item.raw}</Text>
           </TouchableOpacity>
-          {isUltimasPedidasScreen && (
-            <Text style={styles.musicapedidatime}>
+          {isRequestHistory && (
+            <Text style={styles.trackTime}>
               {new Date(item.startTime).toLocaleTimeString([], {
                 hour: "2-digit",
                 minute: "2-digit",
@@ -75,7 +75,7 @@ export function Last({ route }: Props) {
       ),
     [
       copyText,
-      isUltimasPedidasScreen,
+      isRequestHistory,
       settings.lastRequestedCovers,
       settings.lastPlayedCovers,
     ],
@@ -83,10 +83,10 @@ export function Last({ route }: Props) {
 
   const listData = useMemo(
     () =>
-      isUltimasPedidasScreen
+      isRequestHistory
         ? station.lastRequestedTracks
         : station.lastPlayedTracks,
-    [isUltimasPedidasScreen, station.lastRequestedTracks, station.lastPlayedTracks],
+    [isRequestHistory, station.lastRequestedTracks, station.lastPlayedTracks],
   );
 
   return (
@@ -96,11 +96,11 @@ export function Last({ route }: Props) {
         <View style={styles.appContainer}>
           <Image
             source={
-              isUltimasPedidasScreen
+              isRequestHistory
                 ? IMGS[settings.selectedLanguage].LAST_REQUEST
                 : IMGS[settings.selectedLanguage].LAST_PLAYED
             }
-            style={styles.ultimasPedidasImage}
+            style={styles.headerImage}
             contentFit="contain"
             cachePolicy={"none"}
           />

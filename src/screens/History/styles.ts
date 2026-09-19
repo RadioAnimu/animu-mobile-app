@@ -17,7 +17,7 @@ export const styles = StyleSheet.create({
     marginBottom: THEME.SPACE.LG,
     alignSelf: "center",
   },
-  ultimasPedidasImage: {
+  headerImage: {
     width: "100%",
     height: HEADER_IMAGE_HEIGHT,
     marginVertical: THEME.SPACE.LG,
@@ -25,7 +25,7 @@ export const styles = StyleSheet.create({
   nameTouchable: {
     flex: 1,
   },
-  musicapedidaname: {
+  trackName: {
     color: THEME.COLORS.TEXT,
     fontSize: THEME.FONT_SIZE.LIST,
     fontFamily: THEME.FONT_FAMILY.BOLD,
@@ -38,7 +38,7 @@ export const styles = StyleSheet.create({
     width: "100%",
     flex: 1,
   },
-  musicapedidatime: {
+  trackTime: {
     color: THEME.COLORS.TEXT,
     fontSize: THEME.FONT_SIZE.LIST,
     fontFamily: THEME.FONT_FAMILY.REGULAR,

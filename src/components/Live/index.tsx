@@ -11,7 +11,7 @@ export const Live = React.memo(function Live() {
   const { settings } = useUserSettings();
   const player = usePlayer();
   const copy = useCopyToClipboard();
-  const NoAr = IMGS[settings.selectedLanguage].LIVE_LABEL;
+  const LiveLabel = IMGS[settings.selectedLanguage].LIVE_LABEL;
 
   const track = player.currentTrack;
 
@@ -19,7 +19,7 @@ export const Live = React.memo(function Live() {
 
   return (
     <View style={styles.track}>
-      <NoAr />
+      <LiveLabel />
       <View style={styles.info}>
         <MarqueeGroup>
           <Marquee

@@ -19,7 +19,7 @@ export const styles = StyleSheet.create({
     verticalAlign: "middle",
     textAlign: "center",
   },
-  foninho: {
+  headphones: {
     width: FONINHO,
     height: FONINHO,
     objectFit: "contain",

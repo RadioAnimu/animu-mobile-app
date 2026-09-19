@@ -6,12 +6,12 @@
  */
 
 const WEB_URL = "https://www.animu.com.br/";
-const PEDIDOS_URL = "https://www.animu.com.br/pedidos/";
+const REQUESTS_URL = "https://www.animu.com.br/pedidos/";
 const DISCORD_URL = "https://discord.animu.com.br";
 
 export const API = {
   WEB_URL,
-  PEDIDOS_URL,
+  REQUESTS_URL,
   DISCORD_URL,
 };
 

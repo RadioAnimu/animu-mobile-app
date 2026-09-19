@@ -3,9 +3,9 @@ import { version } from "@app/package.json";
 import { Program } from "@/api";
 import type { Dict } from "@/i18n/language.en";
 import logo from "@/assets/logo_ES.png";
-import fazer_pedido from "@/assets/pedidos_harukinha_es.png";
-import ultimas_tocadas from "@/assets/ultimas_tocadas-haru_es.png";
-import ultimas_pedidas from "@/assets/ultimos_pedidas-haru_es.png";
+import makeRequest from "@/assets/make_request_harukinha_es.png";
+import lastPlayed from "@/assets/last_played-haru_es.png";
+import lastRequested from "@/assets/last_requested-haru_es.png";
 
 const PROGRAMS: Program[] = [
   {
@@ -326,7 +326,7 @@ const DICT: Dict = {
   SETTINGS_ACCOUNT_SIGN_IN: "Inicia sesión en tu cuenta",
 };
 
-const NoArLabel = (props: SvgProps) => (
+const OnAirLabel = (props: SvgProps) => (
   <Svg width="41" height="92" viewBox="0 0 41 92" fill="none">
     <Rect width="41" height="92" fill="#FF0000" />
     <Path
@@ -336,7 +336,7 @@ const NoArLabel = (props: SvgProps) => (
   </Svg>
 );
 
-const PedidosAoVivoAtivados = (props: SvgProps) => {
+const LiveRequestsEnabled = (props: SvgProps) => {
   return (
     <Svg width="81" height="23" viewBox="0 0 81 23" fill="none">
       <Rect width="76.1881" height="23" rx="4" fill="#6BDB00" />
@@ -349,7 +349,7 @@ const PedidosAoVivoAtivados = (props: SvgProps) => {
   );
 };
 
-const PedidosAoVivoDesativados = (props: SvgProps) => {
+const LiveRequestsDisabled = (props: SvgProps) => {
   return (
     <Svg width="81" height="23" viewBox="0 0 81 23" fill="none">
       <Rect width="76.1881" height="23" rx="4" fill="#6BDB00" />
@@ -364,12 +364,12 @@ const PedidosAoVivoDesativados = (props: SvgProps) => {
 
 const IMGS = {
   LOGO: logo,
-  LAST_REQUEST: ultimas_pedidas,
-  LAST_PLAYED: ultimas_tocadas,
-  LIVE_LABEL: NoArLabel,
-  MAKE_REQUEST: fazer_pedido,
-  LIVE_REQUEST_ENABLED: PedidosAoVivoAtivados,
-  LIVE_REQUEST_DISABLED: PedidosAoVivoDesativados,
+  LAST_REQUEST: lastRequested,
+  LAST_PLAYED: lastPlayed,
+  LIVE_LABEL: OnAirLabel,
+  MAKE_REQUEST: makeRequest,
+  LIVE_REQUEST_ENABLED: LiveRequestsEnabled,
+  LIVE_REQUEST_DISABLED: LiveRequestsDisabled,
 };
 
 export { DICT, IMGS };

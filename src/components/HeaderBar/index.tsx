@@ -180,7 +180,7 @@ export function HeaderBar({ openLiveRequestModal }: Props) {
             } else if (currentProgram?.isLive) {
               return;
             }
-            navigation.navigate("FazerPedido");
+            navigation.navigate("MakeRequest");
           }}
           style={styles.noteWrapper}
         >

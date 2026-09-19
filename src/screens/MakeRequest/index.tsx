@@ -34,11 +34,11 @@ import {
 } from "@/core/services/music-request.service";
 import { IMGS } from "@/i18n";
 import { THEME } from "@/theme";
-import { styles } from "@/screens/FazerPedido/styles";
+import { styles } from "@/screens/MakeRequest/styles";
 
 const LOGO_HEIGHT = 150;
 
-export function FazerPedido() {
+export function MakeRequest() {
   const { user } = useAuth();
   const { settings } = useUserSettings();
   const dict = useDict();
