@@ -4,6 +4,7 @@ import React, {
   useEffect,
   useState,
   useCallback,
+  useMemo,
   useRef,
 } from "react";
 import { Linking } from "react-native";
@@ -322,33 +323,58 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     await loadProfile();
   }, [loadProfile]);
 
+  const value = useMemo<AuthContextType>(
+    () => ({
+      user,
+      profile,
+      providers,
+      isLoading,
+      isAuthenticating,
+      isAuthenticated: !!user,
+      imageVersion,
+      loginWithProvider,
+      requestEmailLoginCode,
+      loginWithEmailCode,
+      logout,
+      deleteAccount,
+      refreshProfile,
+      linkProvider,
+      unlinkProvider,
+      emails,
+      refreshEmails,
+      requestAddEmail,
+      verifyAddEmail,
+      removeEmail,
+      uploadAvatar,
+      resetAvatar,
+    }),
+    [
+      user,
+      profile,
+      providers,
+      isLoading,
+      isAuthenticating,
+      imageVersion,
+      loginWithProvider,
+      requestEmailLoginCode,
+      loginWithEmailCode,
+      logout,
+      deleteAccount,
+      refreshProfile,
+      linkProvider,
+      unlinkProvider,
+      emails,
+      refreshEmails,
+      requestAddEmail,
+      verifyAddEmail,
+      removeEmail,
+      uploadAvatar,
+      resetAvatar,
+    ],
+  );
+
   return (
-    <AuthContext.Provider
-      value={{
-        user,
-        profile,
-        providers,
-        isLoading,
-        isAuthenticating,
-        isAuthenticated: !!user,
-        imageVersion,
-        loginWithProvider,
-        requestEmailLoginCode,
-        loginWithEmailCode,
-        logout,
-        deleteAccount,
-        refreshProfile,
-        linkProvider,
-        unlinkProvider,
-        emails,
-        refreshEmails,
-        requestAddEmail,
-        verifyAddEmail,
-        removeEmail,
-        uploadAvatar,
-        resetAvatar,
-      }}
-    >
+    <AuthContext.Provider value={value}>
       {children}
     </AuthContext.Provider>
   );

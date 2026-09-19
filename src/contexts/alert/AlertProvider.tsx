@@ -6,6 +6,7 @@ import React, {
   useRef,
   useCallback,
   useEffect,
+  useMemo,
 } from "react";
 import {
   Image,
@@ -121,10 +122,13 @@ export const AlertProvider: React.FC<{ children: ReactNode }> = ({
 
   const insets = useSafeAreaInsets();
 
+  const value = useMemo(
+    () => ({ alert, setAlert, clearAlert, success, error, toast }),
+    [alert, setAlert, clearAlert, success, error, toast],
+  );
+
   return (
-    <AlertContext.Provider
-      value={{ alert, setAlert, clearAlert, success, error, toast }}
-    >
+    <AlertContext.Provider value={value}>
       {children}
       <Portal name="toast">
         {toastState && (

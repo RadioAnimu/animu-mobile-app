@@ -1,20 +1,11 @@
-import React, { createContext, useContext } from "react";
+import React, { useContext } from "react";
 import { Text, TouchableOpacity } from "react-native";
 import { styles } from "@/components/RequestTrack/styles";
+import { TrackRequestContext } from "@/components/RequestTrack/context";
 import { THEME } from "@/theme";
 import { Cover } from "@/components/Cover";
 import { useUserSettings } from "@/contexts/user/UserSettingsProvider";
 import { MusicRequest } from "@/core/domain/music-request";
-
-/**
- * Per-row action context. Lets the row fire its parent's stable handler
- * without the list item passing a fresh closure per row — every memoized
- * row then survives a `results` re-render untouched (only rows whose
- * item identity actually changed re-render).
- */
-export const TrackRequestContext = createContext<(track: MusicRequest) => void>(
-  () => {},
-);
 
 interface Props {
   track: MusicRequest;

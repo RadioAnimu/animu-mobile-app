@@ -11,10 +11,6 @@ import type { AuthProfile, User } from "@/core/domain/user";
 import { providerLabel } from "@/constants/auth";
 import { styles, SWITCH } from "@/screens/Settings/styles";
 
-/** Labels carry a trailing colon for back-compat — row UI renders clean. */
-export const cleanLabel = (label: string) =>
-  label.replace(/[:：]\s*$/, "");
-
 export function Divider() {
   return <View style={styles.divider} />;
 }

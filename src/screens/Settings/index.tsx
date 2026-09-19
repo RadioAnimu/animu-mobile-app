@@ -29,12 +29,12 @@ import { useAlert } from "@/contexts/alert/AlertProvider";
 import { isOtaSupported } from "@/core/ota";
 import {
   AccountRow,
-  cleanLabel,
   Divider,
   InfoRow,
   SettingsRow,
   ValueRow,
 } from "@/screens/Settings/rows";
+import { cleanLabel } from "@/screens/Settings/labels";
 import {
   COVER_QUALITY_SAMPLES,
   DEFAULT_COVER_SOURCE,

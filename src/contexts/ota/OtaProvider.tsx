@@ -4,6 +4,7 @@ import React, {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 import NetInfo from "@react-native-community/netinfo";
@@ -53,8 +54,15 @@ const OtaContext = createContext<OtaContextValue>({
 export const OtaProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
-  const [status, setStatus] = useState<OtaStatus>("idle");
+  const [status, setStatusState] = useState<OtaStatus>("idle");
   const [version, setVersion] = useState<number | null>(null);
+  // Mirror `status` in a ref so `checkNow` stays referentially stable: it only
+  // needs the current value, not to be re-created on every status change.
+  const statusRef = useRef<OtaStatus>("idle");
+  const setStatus = useCallback((next: OtaStatus) => {
+    statusRef.current = next;
+    setStatusState(next);
+  }, []);
 
   const checkNow = useCallback(
     async (auto = false): Promise<OtaOutcome> => {
@@ -66,7 +74,7 @@ export const OtaProvider: React.FC<{ children: React.ReactNode }> = ({
       // A bundle already staged this session only needs a restart; re-checking
       // would report "up to date" (the native version already moved) and hide
       // the pending update from the user.
-      if (status === "ready") return "ready";
+      if (statusRef.current === "ready") return "ready";
 
       setStatus("checking");
       const result: OtaCheckResult = await checkForOtaUpdate();
@@ -117,16 +125,15 @@ export const OtaProvider: React.FC<{ children: React.ReactNode }> = ({
       setStatus("error");
       return "error";
     },
-    [status],
+    [setStatus],
   );
 
   // Silent check on mount so updates land without the user asking. The bundle
-  // is applied on the next cold start, never mid-session.
+  // is applied on the next cold start, never mid-session. `checkNow` is stable,
+  // so this runs exactly once.
   useEffect(() => {
     void checkNow(true);
-    // Intentionally once, on mount.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [checkNow]);
 
   const applyNow = useCallback(() => {
     restartForOtaUpdate();

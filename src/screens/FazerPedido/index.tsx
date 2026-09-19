@@ -16,7 +16,8 @@ import { Background } from "@/components/Background";
 import { HeaderBar } from "@/components/HeaderBar";
 import { Logo } from "@/components/Logo";
 import { RequestBottomSheet } from "@/components/RequestBottomSheet";
-import { RequestTrack, TrackRequestContext } from "@/components/RequestTrack";
+import { RequestTrack } from "@/components/RequestTrack";
+import { TrackRequestContext } from "@/components/RequestTrack/context";
 
 // Core
 import { useAuth } from "@/contexts/auth/AuthProvider";

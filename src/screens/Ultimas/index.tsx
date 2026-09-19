@@ -6,7 +6,6 @@ import {
   View,
   type ListRenderItem,
 } from "react-native";
-import * as Clipboard from "expo-clipboard";
 
 import { Background } from "@/components/Background";
 import { styles } from "@/screens/Ultimas/styles";
@@ -21,10 +20,9 @@ import { RootStackParamList } from "@/routes/app.routes";
 import { Image } from "expo-image";
 import { IMGS } from "@/i18n";
 import { useUserSettings } from "@/contexts/user/UserSettingsProvider";
-import { useDict } from "@/hooks/useDict";
+import { useCopyToClipboard } from "@/hooks/useCopyToClipboard";
 import { useStation } from "@/contexts/player/PlayerProvider";
 import type { StationSnapshot } from "@/core/player";
-import { useAlert } from "@/contexts/alert/AlertProvider";
 
 type Props = NativeStackScreenProps<
   RootStackParamList,
@@ -36,18 +34,8 @@ export function Last({ route, navigation }: Props) {
   const isUltimasPedidasScreen = historyType === "requests";
 
   const station = useStation();
-  const { toast } = useAlert();
-
   const { settings } = useUserSettings();
-  const dict = useDict();
-
-  const copyText = useCallback(
-    (text: string) => {
-      Clipboard.setStringAsync(text);
-      toast(dict.TEXT_COPIED);
-    },
-    [toast, dict],
-  );
+  const copyText = useCopyToClipboard();
 
   const renderItem: ListRenderItem<
     NonNullable<StationSnapshot["lastRequestedTracks"]>[number]

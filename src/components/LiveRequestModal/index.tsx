@@ -15,6 +15,7 @@ import { useAlert } from "@/contexts/alert/AlertProvider";
 import { useAuth } from "@/contexts/auth/AuthProvider";
 import { useLiveRequestForm } from "@/hooks/useLiveRequestForm";
 import { liveRequestService } from "@/core/services/live-request.service";
+import type { LiveRequest } from "@/core/domain/live-request";
 import { Sheet } from "@/components/Sheet";
 
 interface Props {
@@ -65,6 +66,18 @@ function Input({
       onEndEditing={onEndEditing}
     />
   );
+}
+
+interface FormField {
+  label: string;
+  optional?: boolean;
+  name: keyof LiveRequest;
+  input: {
+    onChangeText: (text: string) => void;
+    placeholder: string;
+    multiline?: boolean;
+    onEndEditing?: () => Promise<void>;
+  };
 }
 
 export function LiveRequestModal({ visible, handleClose }: Props) {
@@ -131,12 +144,11 @@ export function LiveRequestModal({ visible, handleClose }: Props) {
     }
   };
 
-  const FORM_BUILDER_MAPPER = [
+  const FORM_BUILDER_MAPPER: FormField[] = [
     {
       label: t.FORM_LABEL_NICK,
       name: "name",
       input: {
-        value: formData.name,
         onChangeText: setters.setName,
         placeholder: t.FORM_PLACEHOLDER_NICK,
       },
@@ -145,7 +157,6 @@ export function LiveRequestModal({ visible, handleClose }: Props) {
       label: t.FORM_LABEL_CITY,
       name: "city",
       input: {
-        value: formData.city,
         onChangeText: setters.setCity,
         placeholder: t.FORM_PLACEHOLDER_CITY,
       },
@@ -154,7 +165,6 @@ export function LiveRequestModal({ visible, handleClose }: Props) {
       label: t.FORM_LABEL_ARTIST,
       name: "artist",
       input: {
-        value: formData.artist,
         onChangeText: setters.setArtist,
         placeholder: t.FORM_PLACEHOLDER_ARTIST,
       },
@@ -163,7 +173,6 @@ export function LiveRequestModal({ visible, handleClose }: Props) {
       label: t.FORM_LABEL_MUSIC,
       name: "music",
       input: {
-        value: formData.music,
         onChangeText: setters.setMusic,
         placeholder: t.FORM_PLACEHOLDER_MUSIC,
       },
@@ -172,7 +181,6 @@ export function LiveRequestModal({ visible, handleClose }: Props) {
       label: t.FORM_LABEL_ANIME,
       name: "anime",
       input: {
-        value: formData.anime,
         onChangeText: setters.setAnime,
         placeholder: t.FORM_PLACEHOLDER_ANIME,
       },
@@ -182,7 +190,6 @@ export function LiveRequestModal({ visible, handleClose }: Props) {
       optional: true,
       name: "request",
       input: {
-        value: formData.request,
         onChangeText: setters.setRequest,
         placeholder: t.FORM_PLACEHOLDER_REQUEST,
         multiline: true,
@@ -202,7 +209,7 @@ export function LiveRequestModal({ visible, handleClose }: Props) {
           <View style={styles.field} key={item.name}>
             <Label text={item.label} optional={item.optional} />
             <Input
-              value={formData[item.name as keyof typeof formData]}
+              value={formData[item.name]}
               onChangeText={item.input.onChangeText}
               placeholder={item.input.placeholder}
               multiline={item.input.multiline}

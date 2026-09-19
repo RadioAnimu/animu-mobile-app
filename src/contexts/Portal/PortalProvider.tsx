@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useMemo, useState } from "react";
 import PortalContext from "@/contexts/Portal/PortalContext";
 interface PortalProviderProps {
   children: React.ReactNode;
@@ -24,8 +24,13 @@ const PortalProvider: React.FC<PortalProviderProps> = ({ children }) => {
     });
   }, []);
 
+  const value = useMemo(
+    () => ({ addComponent, removeComponent }),
+    [addComponent, removeComponent],
+  );
+
   return (
-    <PortalContext.Provider value={{ addComponent, removeComponent }}>
+    <PortalContext.Provider value={value}>
       {children}
       {Object.values(components)}
     </PortalContext.Provider>
