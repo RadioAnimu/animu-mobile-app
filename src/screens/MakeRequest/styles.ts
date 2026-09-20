@@ -1,8 +1,9 @@
 import { StyleSheet } from "react-native";
 import { THEME } from "@/theme";
+import { scale } from "@/theme/responsive";
 
-const INPUT_HEIGHT = 40;
-const SEARCH_ICON = 37;
+const INPUT_HEIGHT = scale(40);
+const SEARCH_ICON = scale(37);
 
 export const styles = StyleSheet.create({
   container: {
@@ -39,7 +40,7 @@ export const styles = StyleSheet.create({
     flex: 1,
     height: INPUT_HEIGHT,
     borderRadius: THEME.RADIUS.SM,
-    borderWidth: 3,
+    borderWidth: scale(3),
     borderColor: THEME.COLORS.INPUT_BORDER,
     backgroundColor: THEME.COLORS.INPUT_BG,
     color: THEME.COLORS.TEXT,

@@ -1,7 +1,8 @@
 import { StyleSheet } from "react-native";
 import { THEME } from "@/theme";
+import { scale } from "@/theme/responsive";
 
-export const SECTION_ICON_SIZE = 18;
+export const SECTION_ICON_SIZE = scale(18);
 
 export const styles = StyleSheet.create({
   section: {
@@ -23,7 +24,7 @@ export const styles = StyleSheet.create({
     color: THEME.COLORS.TEXT_SOFT,
     fontFamily: THEME.FONT_FAMILY.BOLD,
     fontSize: THEME.FONT_SIZE.BODY,
-    letterSpacing: 1.2,
+    letterSpacing: scale(1.2),
     marginLeft: THEME.SPACE.SM,
   },
 });

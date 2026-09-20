@@ -1,10 +1,11 @@
 import { StyleSheet } from "react-native";
 
 import { THEME } from "@/theme";
+import { scale } from "@/theme/responsive";
 
 // Big enough to actually judge a quality tier at a glance (the old 52 read
 // as a tiny swatch). The option row grows around it.
-const THUMB = 76;
+const THUMB = scale(76);
 
 /**
  * The control row shares the Settings group's row rhythm (64px, breathing
@@ -81,13 +82,13 @@ export const styles = StyleSheet.create({
     width: THUMB,
     height: THUMB,
     borderRadius: THEME.RADIUS.MD,
-    borderWidth: 1.5,
+    borderWidth: scale(1.5),
     borderColor: THEME.COLORS.HAIRLINE,
     backgroundColor: THEME.COLORS.SURFACE,
   },
   optionThumbSelected: {
     borderColor: THEME.COLORS.BRAND,
-    borderWidth: 2,
+    borderWidth: scale(2),
   },
   optionBody: {
     flex: 1,
@@ -118,7 +119,7 @@ export const styles = StyleSheet.create({
   },
   badge: {
     paddingHorizontal: THEME.SPACE.SM,
-    paddingVertical: 2,
+    paddingVertical: scale(2),
     borderRadius: THEME.RADIUS.CIRCLE,
     backgroundColor: THEME.COLORS.BRAND_SUBTLE,
   },

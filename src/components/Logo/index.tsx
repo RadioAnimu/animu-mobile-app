@@ -2,13 +2,14 @@ import { Image } from "react-native";
 import { styles } from "@/components/Logo/styles";
 import { IMGS } from "@/i18n";
 import { useUserSettings } from "@/contexts/user/UserSettingsProvider";
+import { scale } from "@/theme/responsive";
 
 interface Props {
   size?: number;
   img?: string;
 }
 
-const DEFAULT_SIZE = 100;
+const DEFAULT_SIZE = scale(100);
 
 export function Logo({ size, img }: Props) {
   const { settings } = useUserSettings();

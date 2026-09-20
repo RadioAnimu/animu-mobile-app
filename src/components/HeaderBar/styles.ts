@@ -1,19 +1,20 @@
-import { Dimensions, StyleSheet } from "react-native";
+import { StyleSheet } from "react-native";
 import { THEME } from "@/theme";
+import { CONTENT_WIDTH, SCREEN_WIDTH, scale } from "@/theme/responsive";
 
-const CONTAINER_HEIGHT = 67;
-const VIEW_MIN_HEIGHT = 72;
-const PLAY_BTN = 48;
-const ICON_BTN = 27;
-const PLAY_BTN_MARGIN = 47;
-const PROGRESS_HEIGHT = 5;
-const LIVE_BADGE_RIGHT = 25;
-const LIVE_BADGE_BOTTOM = 48;
+const CONTAINER_HEIGHT = scale(67);
+const VIEW_MIN_HEIGHT = scale(72);
+const PLAY_BTN = scale(48);
+const ICON_BTN = scale(27);
+const PLAY_BTN_MARGIN = scale(47);
+const PROGRESS_HEIGHT = scale(5);
+const LIVE_BADGE_RIGHT = scale(25);
+const LIVE_BADGE_BOTTOM = scale(48);
 /**
- * Expands the tap area of the 27px header icons to a comfortable ~55px
- * target without changing layout (hitSlop is invisible to flex sizing).
+ * Expands the tap area of the header icons to a comfortable target without
+ * changing layout (hitSlop is invisible to flex sizing).
  */
-const ICON_HIT_SLOP = 14;
+const ICON_HIT_SLOP = scale(14);
 
 export { CONTAINER_HEIGHT, ICON_HIT_SLOP };
 
@@ -22,13 +23,21 @@ export const styles = StyleSheet.create({
     flexDirection: "column",
     minHeight: VIEW_MIN_HEIGHT,
   },
+  // Full-bleed SURFACE bar; the row inside is the capped content column so
+  // the icons keep their spacing on tablets instead of drifting apart.
   container: {
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: THEME.COLORS.SURFACE,
+    width: SCREEN_WIDTH,
+    height: CONTAINER_HEIGHT,
+  },
+  row: {
     alignItems: "center",
     flexDirection: "row",
     justifyContent: "space-around",
-    backgroundColor: THEME.COLORS.SURFACE,
-    width: Dimensions.get("window").width,
-    height: CONTAINER_HEIGHT,
+    width: CONTENT_WIDTH,
+    height: "100%",
   },
   playBtn: {
     width: PLAY_BTN,

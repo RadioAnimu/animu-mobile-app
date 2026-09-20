@@ -1,8 +1,9 @@
 import { StyleSheet } from "react-native";
 import { THEME } from "@/theme";
+import { scale } from "@/theme/responsive";
 
-const BTN_WIDTH = 91;
-const BTN_HEIGHT = 41;
+const BTN_WIDTH = scale(91);
+const BTN_HEIGHT = scale(41);
 
 export const styles = StyleSheet.create({
   container: {

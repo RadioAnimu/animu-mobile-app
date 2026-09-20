@@ -1,6 +1,7 @@
 import { StyleSheet } from "react-native";
 
 import { THEME } from "@/theme";
+import { scale } from "@/theme/responsive";
 
 export const styles = StyleSheet.create({
   card: {
@@ -44,10 +45,10 @@ export const styles = StyleSheet.create({
   },
   barTrack: {
     flexDirection: "row",
-    height: 14,
-    borderRadius: 7,
+    height: scale(14),
+    borderRadius: scale(7),
     overflow: "hidden",
-    gap: 2,
+    gap: scale(2),
     backgroundColor: THEME.COLORS.SURFACE_SUBTLE,
   },
   barSegment: {
@@ -66,13 +67,13 @@ export const styles = StyleSheet.create({
   legendRow: {
     flexDirection: "row",
     alignItems: "center",
-    minHeight: 26,
+    minHeight: scale(26),
     gap: THEME.SPACE.XS,
   },
   dot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
+    width: scale(10),
+    height: scale(10),
+    borderRadius: scale(5),
     marginRight: THEME.SPACE.XS,
   },
   legendLabel: {
@@ -92,7 +93,7 @@ export const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     gap: THEME.SPACE.SM,
-    minHeight: 48,
+    minHeight: scale(48),
     marginTop: THEME.SPACE.XS,
     borderRadius: THEME.RADIUS.XL,
     backgroundColor: THEME.COLORS.BRAND,

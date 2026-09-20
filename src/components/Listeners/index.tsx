@@ -3,6 +3,7 @@ import { Image, Text, View } from "react-native";
 import headphones from "@/assets/icons/headphones.png";
 import headphonesWhite from "@/assets/icons/headphones_white.png";
 import { THEME } from "@/theme";
+import { scale } from "@/theme/responsive";
 import { styles } from "@/components/Listeners/styles";
 import { useUserSettings } from "@/contexts/user/UserSettingsProvider";
 import { useDict } from "@/hooks/useDict";
@@ -66,9 +67,9 @@ export const Listeners = React.memo(function Listeners() {
           settings.selectedLanguage === "JN" && {
             lineHeight: THEME.LINE_HEIGHT.HEADING,
             fontSize: highlighted
-              ? THEME.FONT_SIZE.HEADING - 3.8
+              ? THEME.FONT_SIZE.HEADING - scale(3.8)
               : THEME.FONT_SIZE.HEADING,
-            marginLeft: -1.2,
+            marginLeft: scale(-1.2),
           },
         ]}
       >

@@ -1,6 +1,7 @@
 import { StyleSheet } from "react-native";
 
 import { THEME } from "@/theme";
+import { scale } from "@/theme/responsive";
 
 export const styles = StyleSheet.create({
   fieldLabel: {
@@ -11,7 +12,7 @@ export const styles = StyleSheet.create({
     marginTop: THEME.SPACE.MD,
   },
   input: {
-    height: 48,
+    height: scale(48),
     paddingHorizontal: THEME.SPACE.MD,
     borderRadius: THEME.RADIUS.MD,
     backgroundColor: THEME.COLORS.INPUT_BG,

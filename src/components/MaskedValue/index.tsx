@@ -10,6 +10,7 @@ import {
 } from "react-native";
 
 import { THEME } from "@/theme";
+import { scale } from "@/theme/responsive";
 
 interface Props {
   /** The real value — shown only while revealed. */
@@ -38,7 +39,7 @@ export function MaskedValue({
   showLabel,
   hideLabel,
   textStyle,
-  iconSize = 16,
+  iconSize = scale(16),
   hint,
 }: Props) {
   const [revealed, setRevealed] = useState(false);

@@ -18,8 +18,9 @@ import { TimeRemaining } from "@/components/TimeRemaining";
 
 // Styles
 import { styles } from "@/screens/Home/styles";
+import { scale } from "@/theme/responsive";
 
-const LOGO_HEIGHT = 127;
+const LOGO_HEIGHT = scale(127);
 
 export const Home = () => {
   const [isModalVisible, setIsModalVisible] = useState(false);

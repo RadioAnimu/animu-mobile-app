@@ -1,13 +1,14 @@
 import { StyleSheet } from "react-native";
+import { scale } from "@/theme/responsive";
 
 /** Designer's vertical rhythm between the player sections. */
 const RHYTHM = {
-  LISTENERS: 10,
-  COVER: 11,
-  TIME_TOP: 10,
-  TIME_BOTTOM: 8,
-  LIVE: 9,
-  PROGRAM: 9,
+  LISTENERS: scale(10),
+  COVER: scale(11),
+  TIME_TOP: scale(10),
+  TIME_BOTTOM: scale(8),
+  LIVE: scale(9),
+  PROGRAM: scale(9),
 };
 
 export const styles = StyleSheet.create({

@@ -1,8 +1,9 @@
 import { StyleSheet } from "react-native";
 import { THEME } from "@/theme";
+import { scale } from "@/theme/responsive";
 
-const HEADER_IMAGE_HEIGHT = 127;
-const ROW_COVER = 50;
+const HEADER_IMAGE_HEIGHT = scale(127);
+const ROW_COVER = scale(50);
 
 export const styles = StyleSheet.create({
   container: {
@@ -56,6 +57,6 @@ export const styles = StyleSheet.create({
     height: ROW_COVER,
     borderRadius: THEME.RADIUS.XL,
     borderColor: THEME.COLORS.FRAME,
-    borderWidth: 2,
+    borderWidth: scale(2),
   },
 });

@@ -20,6 +20,7 @@ import {
   type TextStyle,
 } from "react-native";
 import { useIsBackgrounded } from "@/contexts/app-state/AppStateProvider";
+import { scale } from "@/theme/responsive";
 
 type MarqueeProps = {
   text: string;
@@ -122,9 +123,9 @@ export function MarqueeGroup({
 export const Marquee = React.memo(function Marquee({
   text,
   style,
-  speed = 60,
+  speed = scale(60),
   delay,
-  spacer = 20,
+  spacer = scale(20),
   onPress,
 }: MarqueeProps) {
   const group = useContext(GroupContext);

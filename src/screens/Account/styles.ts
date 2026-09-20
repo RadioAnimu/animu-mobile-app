@@ -1,10 +1,11 @@
 import { StyleSheet } from "react-native";
 
 import { THEME } from "@/theme";
+import { scale } from "@/theme/responsive";
 
 const CARD_RADIUS = THEME.RADIUS.CARD;
-const BANNER_HEIGHT = 96;
-const AVATAR = 84;
+const BANNER_HEIGHT = scale(96);
+const AVATAR = scale(84);
 // Shared content inset + row rhythm with Settings.
 const CONTENT_PADDING = THEME.SPACE.LG;
 
@@ -36,7 +37,7 @@ export const styles = StyleSheet.create({
     textAlign: "center",
   },
   primaryButton: {
-    height: 48,
+    height: scale(48),
     paddingHorizontal: THEME.SPACE.XXL,
     borderRadius: CARD_RADIUS,
     backgroundColor: THEME.COLORS.BRAND,
@@ -70,7 +71,7 @@ export const styles = StyleSheet.create({
   avatarWrap: {
     marginTop: -AVATAR / 2,
     borderRadius: THEME.RADIUS.CIRCLE,
-    borderWidth: 3,
+    borderWidth: scale(3),
     borderColor: THEME.COLORS.SURFACE,
     backgroundColor: THEME.COLORS.APP_BG,
   },
@@ -116,7 +117,7 @@ export const styles = StyleSheet.create({
     alignItems: "center",
     gap: THEME.SPACE.XS,
     paddingHorizontal: THEME.SPACE.SM,
-    paddingVertical: 3,
+    paddingVertical: scale(3),
     borderRadius: THEME.RADIUS.CIRCLE,
   },
   badgeSuccess: {
@@ -153,7 +154,7 @@ export const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     gap: THEME.SPACE.SM,
-    height: 48,
+    height: scale(48),
     marginTop: THEME.SPACE.MD,
     borderRadius: CARD_RADIUS,
     backgroundColor: THEME.COLORS.SURFACE_SUBTLE,
@@ -205,14 +206,14 @@ export const styles = StyleSheet.create({
   // target generous while freeing the horizontal budget a text action used
   // to eat at small widths (the rowCaption's whole wrapping problem).
   rowIconAction: {
-    width: 40,
-    height: 40,
+    width: scale(40),
+    height: scale(40),
     alignItems: "center",
     justifyContent: "center",
     marginLeft: THEME.SPACE.XS,
   },
   rowActionBusy: {
-    width: 40,
+    width: scale(40),
     marginLeft: THEME.SPACE.XS,
   },
   rowActionDisabled: {

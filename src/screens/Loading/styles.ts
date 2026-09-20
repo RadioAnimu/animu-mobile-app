@@ -1,4 +1,5 @@
 import { StyleSheet } from "react-native";
+import { scale } from "@/theme/responsive";
 
 export const FALLBACK_HIDE_MS = 3000;
 
@@ -18,7 +19,7 @@ export const styles = StyleSheet.create({
     position: "absolute",
     left: 0,
     right: 0,
-    bottom: 96,
+    bottom: scale(96),
     alignItems: "center",
   },
 });

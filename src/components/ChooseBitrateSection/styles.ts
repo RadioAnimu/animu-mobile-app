@@ -1,10 +1,11 @@
 import { StyleSheet } from "react-native";
+import { scale } from "@/theme/responsive";
 
 export const styles = StyleSheet.create({
   container: {
-    maxWidth: 311,
+    maxWidth: scale(311),
   },
   contentContainer: {
-    gap: 19,
+    gap: scale(19),
   },
 });

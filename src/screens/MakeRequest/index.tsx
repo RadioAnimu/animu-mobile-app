@@ -35,9 +35,10 @@ import {
 } from "@/core/services/music-request.service";
 import { IMGS } from "@/i18n";
 import { THEME } from "@/theme";
+import { scale } from "@/theme/responsive";
 import { styles } from "@/screens/MakeRequest/styles";
 
-const LOGO_HEIGHT = 150;
+const LOGO_HEIGHT = scale(150);
 
 export function MakeRequest() {
   const { user } = useAuth();

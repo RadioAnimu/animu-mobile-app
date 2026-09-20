@@ -1,15 +1,16 @@
 import { StyleSheet } from "react-native";
 
 import { THEME } from "@/theme";
+import { scale } from "@/theme/responsive";
 
 const CARD_RADIUS = THEME.RADIUS.CARD;
 const CONTENT_PADDING = THEME.SPACE.LG;
 
 export const SWITCH = {
-  TRACK_WIDTH: 50,
-  TRACK_HEIGHT: 30,
-  THUMB: 24,
-  PADDING: 3,
+  TRACK_WIDTH: scale(50),
+  TRACK_HEIGHT: scale(30),
+  THUMB: scale(24),
+  PADDING: scale(3),
 };
 
 export const styles = StyleSheet.create({
@@ -44,10 +45,10 @@ export const styles = StyleSheet.create({
     paddingVertical: CONTENT_PADDING,
   },
   accountAvatar: {
-    width: 56,
-    height: 56,
+    width: scale(56),
+    height: scale(56),
     borderRadius: THEME.RADIUS.CIRCLE,
-    borderWidth: 2,
+    borderWidth: scale(2),
     borderColor: THEME.COLORS.BRAND,
     backgroundColor: THEME.COLORS.APP_BG,
   },

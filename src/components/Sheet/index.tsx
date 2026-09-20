@@ -14,9 +14,10 @@ import DragIcon from "@/assets/icons/drag_down.png";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useDict } from "@/hooks/useDict";
 import { THEME } from "@/theme";
+import { scale } from "@/theme/responsive";
 
-const CLOSE_AREA_HEIGHT = 35;
-const DRAG_ICON_HEIGHT = 14;
+const CLOSE_AREA_HEIGHT = scale(35);
+const DRAG_ICON_HEIGHT = scale(14);
 
 /**
  * Bottom padding equal to the software keyboard height.

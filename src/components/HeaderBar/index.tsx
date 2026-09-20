@@ -133,75 +133,79 @@ export function HeaderBar({ openLiveRequestModal }: Props) {
           },
         ]}
       >
-        <TouchableOpacity
-          accessibilityRole="button"
-          accessibilityLabel={dict.A11Y_OPEN_MENU}
-          hitSlop={ICON_HIT_SLOP}
-          onPress={() => {
-            navigation.openDrawer();
-          }}
-        >
-          <Image style={styles.menuBtn} source={menuIcon} />
-        </TouchableOpacity>
-        <TouchableOpacity
-          accessibilityRole="button"
-          accessibilityLabel={player.isPlaying ? dict.A11Y_PAUSE : dict.A11Y_PLAY}
-          accessibilityState={{ disabled: status === "changing" }}
-          onPress={async () => {
-            if (status === "changing") return;
-            setStatus("changing");
-            haptics.tap();
-            if (!player.isPlaying) {
-              await player.play();
-              setStatus("playing");
-            } else {
-              await player.pause();
-              setStatus("paused");
+        <View style={styles.row}>
+          <TouchableOpacity
+            accessibilityRole="button"
+            accessibilityLabel={dict.A11Y_OPEN_MENU}
+            hitSlop={ICON_HIT_SLOP}
+            onPress={() => {
+              navigation.openDrawer();
+            }}
+          >
+            <Image style={styles.menuBtn} source={menuIcon} />
+          </TouchableOpacity>
+          <TouchableOpacity
+            accessibilityRole="button"
+            accessibilityLabel={
+              player.isPlaying ? dict.A11Y_PAUSE : dict.A11Y_PLAY
             }
-          }}
-        >
-          <Image
-            style={[
-              styles.playBtn,
-              {
-                opacity: status === "changing" ? THEME.OPACITY.DISABLED : 1,
-              },
-            ]}
-            source={!player.isPlaying ? pauseButtonImage : playButtonImage}
-          />
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          accessibilityRole="button"
-          accessibilityLabel={dict.A11Y_MAKE_REQUEST}
-          hitSlop={ICON_HIT_SLOP}
-          onPress={() => {
-            if (
-              currentProgram?.isLive &&
-              currentProgram?.acceptingRequests &&
-              openLiveRequestModal
-            ) {
-              openLiveRequestModal();
-              return;
-            } else if (currentProgram?.isLive) {
-              return;
-            }
-            navigation.navigate("MakeRequest");
-          }}
-          style={styles.noteWrapper}
-        >
-          {currentProgram?.isLive && openLiveRequestModal && (
-            <Animated.View
+            accessibilityState={{ disabled: status === "changing" }}
+            onPress={async () => {
+              if (status === "changing") return;
+              setStatus("changing");
+              haptics.tap();
+              if (!player.isPlaying) {
+                await player.play();
+                setStatus("playing");
+              } else {
+                await player.pause();
+                setStatus("paused");
+              }
+            }}
+          >
+            <Image
               style={[
-                styles.liveRequestBadge,
-                { transform: [{ translateY }] },
+                styles.playBtn,
+                {
+                  opacity: status === "changing" ? THEME.OPACITY.DISABLED : 1,
+                },
               ]}
-            >
-              <LiveRequestComponent />
-            </Animated.View>
-          )}
-          <Image style={styles.noteIcon} source={noteIcon} />
-        </TouchableOpacity>
+              source={!player.isPlaying ? pauseButtonImage : playButtonImage}
+            />
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            accessibilityRole="button"
+            accessibilityLabel={dict.A11Y_MAKE_REQUEST}
+            hitSlop={ICON_HIT_SLOP}
+            onPress={() => {
+              if (
+                currentProgram?.isLive &&
+                currentProgram?.acceptingRequests &&
+                openLiveRequestModal
+              ) {
+                openLiveRequestModal();
+                return;
+              } else if (currentProgram?.isLive) {
+                return;
+              }
+              navigation.navigate("MakeRequest");
+            }}
+            style={styles.noteWrapper}
+          >
+            {currentProgram?.isLive && openLiveRequestModal && (
+              <Animated.View
+                style={[
+                  styles.liveRequestBadge,
+                  { transform: [{ translateY }] },
+                ]}
+              >
+                <LiveRequestComponent />
+              </Animated.View>
+            )}
+            <Image style={styles.noteIcon} source={noteIcon} />
+          </TouchableOpacity>
+        </View>
       </View>
       {!currentProgram?.isLive &&
         !currentTrack?.anime?.toLocaleLowerCase().includes("passagem") && (

@@ -6,13 +6,18 @@ import { useIsBackgrounded } from "@/contexts/app-state/AppStateProvider";
 import { usePlayer } from "@/contexts/player/PlayerProvider";
 import { useUserSettings } from "@/contexts/user/UserSettingsProvider";
 import { THEME } from "@/theme";
+import { scale } from "@/theme/responsive";
 import { styles } from "@/components/Oscilloscope/styles";
 
 /**
  * Full strip the native container reserves for the scope (logo renders
  * around it) — the canvas is absolutely pinned to its vertical centre.
+ * Geometry is authored at the 393pt reference and scaled with the logo so
+ * the trace stays centred behind it on every device.
  */
-const STRIP_HEIGHT = 127;
+const STRIP_HEIGHT = scale(127);
+const CANVAS_HEIGHT = scale(75);
+const CANVAS_TOP = scale(26);
 
 type WebViewHandle = React.ComponentRef<typeof WebView>;
 
@@ -53,10 +58,10 @@ const PAGE_HTML = `<!DOCTYPE html>
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <style>
       html, body { margin: 0; padding: 0; background: transparent; overflow: hidden; }
-      /* The 75px canvas is pinned to the exact vertical centre of the 127px
-         strip the native container reserves for it, so no body-flow or
-         zoom quirk of the embed can shift where the trace sits. */
-      #oscilloscope { display: block; position: absolute; left: 0; top: 26px; z-index: 0; color: white; }
+      /* The canvas is pinned to the exact vertical centre of the strip the
+         native container reserves for it, so no body-flow or zoom quirk of
+         the embed can shift where the trace sits. */
+      #oscilloscope { display: block; position: absolute; left: 0; top: ${CANVAS_TOP}px; z-index: 0; color: white; }
     </style>
   </head>
   <body>
@@ -158,7 +163,7 @@ const PAGE_HTML = `<!DOCTYPE html>
         // Identical to the web player: CSS-pixel canvas, 1x, compositor
         // handles upscaling on hi-DPI phones.
         scopeCanvas.width = window.innerWidth;
-        scopeCanvas.height = 75;
+        scopeCanvas.height = ${CANVAS_HEIGHT};
 
         scopeContext.clearRect(0, 0, scopeCanvas.width, scopeCanvas.height);
         scopeContext.beginPath();

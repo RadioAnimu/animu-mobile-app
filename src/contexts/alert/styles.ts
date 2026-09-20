@@ -1,8 +1,9 @@
 import { StyleSheet } from "react-native";
 import { THEME } from "@/theme";
+import { scale } from "@/theme/responsive";
 
-const CONTENT_WIDTH = 311;
-const IMG_HEIGHT = 140;
+const CONTENT_WIDTH = scale(311);
+const IMG_HEIGHT = scale(140);
 const PORTAL_Z_INDEX = 9999;
 
 export const styles = StyleSheet.create({

@@ -1,7 +1,8 @@
 import { StyleSheet } from "react-native";
 import { THEME } from "@/theme";
+import { scale } from "@/theme/responsive";
 
-const SHEET_INSET = 24;
+const SHEET_INSET = scale(24);
 
 export const styles = StyleSheet.create({
   content: {
@@ -31,9 +32,9 @@ export const styles = StyleSheet.create({
     textAlign: "center",
   },
   submit: {
-    height: 52,
+    height: scale(52),
     marginTop: THEME.SPACE.XL,
-    borderRadius: 14,
+    borderRadius: scale(14),
     backgroundColor: THEME.COLORS.BRAND,
     alignItems: "center",
     justifyContent: "center",
@@ -83,7 +84,7 @@ export const styles = StyleSheet.create({
     fontFamily: THEME.FONT_FAMILY.BOLD,
     fontSize: THEME.FONT_SIZE.LABEL,
     paddingHorizontal: THEME.SPACE.SM,
-    paddingVertical: 2,
+    paddingVertical: scale(2),
     borderRadius: THEME.RADIUS.SM,
     backgroundColor: THEME.COLORS.INPUT_BORDER,
     overflow: "hidden",
@@ -111,7 +112,7 @@ export const styles = StyleSheet.create({
     marginTop: THEME.SPACE.MD,
   },
   cancel: {
-    height: 44,
+    height: scale(44),
     marginTop: THEME.SPACE.SM,
     alignItems: "center",
     justifyContent: "center",

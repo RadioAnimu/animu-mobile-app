@@ -1,3 +1,5 @@
+import { scale } from "@/theme/responsive";
+
 export const THEME = {
   COLORS: {
     APP_BG: "#471654",
@@ -43,59 +45,60 @@ export const THEME = {
     BOLD: "proximanova-bold",
   },
 
+  // Sizes are authored at the 393pt reference and scaled per device.
   FONT_SIZE: {
-    CAPTION: 12,
-    LABEL: 13,
-    BODY: 14,
-    LIST: 16,
-    SUBHEAD: 19,
-    HEADING: 20,
-    TITLE: 22,
+    CAPTION: scale(12),
+    LABEL: scale(13),
+    BODY: scale(14),
+    LIST: scale(16),
+    SUBHEAD: scale(19),
+    HEADING: scale(20),
+    TITLE: scale(22),
   },
 
   LINE_HEIGHT: {
-    BODY: 16,
+    BODY: scale(16),
     /** Body copy with a little more air (profile info, sheet subtitles). */
-    RELAXED: 19,
-    SUBHEAD: 20,
-    HEADING: 27.5,
+    RELAXED: scale(19),
+    SUBHEAD: scale(20),
+    HEADING: scale(27.5),
   },
 
   ICON: {
-    MD: 22,
-    LG: 24,
-    XL: 40,
+    MD: scale(22),
+    LG: scale(24),
+    XL: scale(40),
   },
 
   SPACE: {
-    XXS: 2,
-    XS: 4,
-    SM: 8,
-    MD: 12,
-    LG: 16,
-    XL: 20,
-    XXL: 24,
-    XXXL: 32,
+    XXS: scale(2),
+    XS: scale(4),
+    SM: scale(8),
+    MD: scale(12),
+    LG: scale(16),
+    XL: scale(20),
+    XXL: scale(24),
+    XXXL: scale(32),
   },
 
   RADIUS: {
-    SM: 6,
-    MD: 8,
-    LG: 10,
-    XL: 12,
+    SM: scale(6),
+    MD: scale(8),
+    LG: scale(10),
+    XL: scale(12),
     /** Grouped settings/profile card — the established surface radius. */
-    CARD: 14,
-    SHEET: 20,
+    CARD: scale(14),
+    SHEET: scale(20),
     CIRCLE: 999,
   },
 
   LAYOUT: {
     /** Fixed leading-icon column shared by settings/profile rows. */
-    ICON_BOX_WIDTH: 32,
+    ICON_BOX_WIDTH: scale(32),
     /** Minimum height of a settings/profile row. */
-    ROW_MIN_HEIGHT: 64,
+    ROW_MIN_HEIGHT: scale(64),
     /** Centered content column shared by the full-screen pages. */
     CONTENT_WIDTH: "88%" as const,
-    CONTENT_MAX_WIDTH: 560,
+    CONTENT_MAX_WIDTH: scale(560),
   },
 };

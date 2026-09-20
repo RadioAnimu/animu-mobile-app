@@ -21,10 +21,11 @@ import { getUserName } from "@/core/domain/user";
 import { providerLabel } from "@/constants/auth";
 import { IMGS } from "@/i18n";
 import { THEME } from "@/theme";
+import { scale } from "@/theme/responsive";
 import { styles } from "@/components/CustomDrawer/styles";
 
-export const MENU_ICON_SIZE = 22;
-const SECTION_ICON_SIZE = 18;
+export const MENU_ICON_SIZE = scale(22);
+const SECTION_ICON_SIZE = scale(18);
 
 /** Intrinsic ratio of the logo assets (1200×630 px). */
 const LOGO_ASPECT_RATIO = 1200 / 630;
@@ -88,7 +89,7 @@ export function LinkMenuItem({ Icon, title, url }: LinkMenuItemProps) {
       <Text style={styles.navItemText}>{title}</Text>
       <MaterialIcons
         name="open-in-new"
-        size={16}
+        size={scale(16)}
         color={THEME.COLORS.TEXT_DIM}
       />
     </TouchableOpacity>
@@ -193,7 +194,7 @@ function AccountRow({ onOpenLogin, onOpenSettings }: AccountRowProps) {
               {user && (
                 <ProviderIcon
                   provider={loginProvider ?? "animu"}
-                  size={14}
+                  size={scale(14)}
                   color={THEME.COLORS.TEXT_DIM}
                 />
               )}

@@ -1,7 +1,8 @@
 import { StyleSheet } from "react-native";
 import { THEME } from "@/theme";
+import { scale } from "@/theme/responsive";
 
-const IMAGE = 50;
+const IMAGE = scale(50);
 
 export const styles = StyleSheet.create({
   container: {

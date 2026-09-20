@@ -1,9 +1,10 @@
 import { StyleSheet } from "react-native";
 import { THEME } from "@/theme";
+import { scale } from "@/theme/responsive";
 
 export const DRAWER_GRID = {
-  SCREEN_MARGIN: 12,
-  CONTENT_INSET: 20,
+  SCREEN_MARGIN: scale(12),
+  CONTENT_INSET: scale(20),
 };
 
 export const styles = StyleSheet.create({
@@ -27,7 +28,7 @@ export const styles = StyleSheet.create({
   },
   bottom: {
     marginTop: "auto",
-    minHeight: 76,
+    minHeight: scale(76),
     borderTopWidth: 1,
     borderTopColor: THEME.COLORS.HAIRLINE,
     paddingBottom: THEME.SPACE.LG,
@@ -49,22 +50,22 @@ export const styles = StyleSheet.create({
     flex: 1,
   },
   gearButton: {
-    width: 40,
-    height: 40,
+    width: scale(40),
+    height: scale(40),
     alignItems: "center",
     justifyContent: "center",
   },
   accountAvatar: {
-    width: 40,
-    height: 40,
+    width: scale(40),
+    height: scale(40),
     borderRadius: THEME.RADIUS.CIRCLE,
-    borderWidth: 2,
+    borderWidth: scale(2),
     borderColor: THEME.COLORS.BRAND,
     backgroundColor: THEME.COLORS.APP_BG,
   },
   accountIconBox: {
-    width: 40,
-    height: 40,
+    width: scale(40),
+    height: scale(40),
     alignItems: "center",
     justifyContent: "center",
   },
@@ -94,7 +95,7 @@ export const styles = StyleSheet.create({
     alignItems: "center",
     marginHorizontal: DRAWER_GRID.SCREEN_MARGIN,
     paddingHorizontal: THEME.SPACE.MD,
-    marginTop: 18,
+    marginTop: scale(18),
     marginBottom: THEME.SPACE.SM,
     paddingBottom: THEME.SPACE.MD,
     borderBottomWidth: 1,
@@ -105,7 +106,7 @@ export const styles = StyleSheet.create({
     color: THEME.COLORS.TEXT_SOFT,
     fontFamily: THEME.FONT_FAMILY.BOLD,
     fontSize: THEME.FONT_SIZE.BODY,
-    letterSpacing: 1.2,
+    letterSpacing: scale(1.2),
     marginLeft: THEME.SPACE.SM,
   },
   navItem: {

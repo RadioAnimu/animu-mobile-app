@@ -1,12 +1,13 @@
-import { Dimensions, StyleSheet } from "react-native";
+import { StyleSheet } from "react-native";
 import { THEME } from "@/theme";
+import { SCREEN_WIDTH, scale } from "@/theme/responsive";
 
-const TRACK_WIDTH = Dimensions.get("window").width;
-const INFO_MARGIN = 14;
+const TRACK_WIDTH = SCREEN_WIDTH;
+const INFO_MARGIN = scale(14);
 /** Designer-specified tight leading between the ticker lines. */
-const INFO_GAP = -3.823;
+const INFO_GAP = scale(-3.823);
 /** Trims the font's descender space so the ink block centers vertically. */
-const INFO_PADDING_BOTTOM = 3;
+const INFO_PADDING_BOTTOM = scale(3);
 
 export const styles = StyleSheet.create({
   track: {

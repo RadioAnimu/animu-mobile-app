@@ -1,9 +1,10 @@
 import { StyleSheet } from "react-native";
 
 import { THEME } from "@/theme";
+import { scale } from "@/theme/responsive";
 
-const CARD_RADIUS = 14;
-const ICON_BOX_WIDTH = 40;
+const CARD_RADIUS = scale(14);
+const ICON_BOX_WIDTH = scale(40);
 
 export const styles = StyleSheet.create({
   container: {
@@ -24,9 +25,9 @@ export const styles = StyleSheet.create({
     marginBottom: THEME.SPACE.LG,
   },
   stepDot: {
-    width: 36,
-    height: 4,
-    borderRadius: 2,
+    width: scale(36),
+    height: scale(4),
+    borderRadius: scale(2),
     backgroundColor: THEME.COLORS.SWITCH_OFF,
   },
   stepDotActive: {
@@ -51,7 +52,7 @@ export const styles = StyleSheet.create({
   method: {
     flexDirection: "row",
     alignItems: "center",
-    minHeight: 60,
+    minHeight: scale(60),
     paddingHorizontal: THEME.SPACE.MD,
     borderRadius: CARD_RADIUS,
     backgroundColor: THEME.COLORS.SURFACE,
@@ -95,13 +96,13 @@ export const styles = StyleSheet.create({
     fontFamily: THEME.FONT_FAMILY.REGULAR,
     fontSize: THEME.FONT_SIZE.CAPTION,
     marginTop: THEME.SPACE.MD,
-    lineHeight: 17,
+    lineHeight: scale(17),
   },
   form: {
     marginTop: THEME.SPACE.SM,
   },
   submit: {
-    height: 52,
+    height: scale(52),
     marginTop: THEME.SPACE.XXL,
     borderRadius: CARD_RADIUS,
     backgroundColor: THEME.COLORS.BRAND,

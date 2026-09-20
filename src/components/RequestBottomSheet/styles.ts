@@ -1,8 +1,9 @@
 import { StyleSheet } from "react-native";
 import { THEME } from "@/theme";
+import { scale } from "@/theme/responsive";
 
-const COVER = 64;
-const AVATAR = 36;
+const COVER = scale(64);
+const AVATAR = scale(36);
 
 export const styles = StyleSheet.create({
   scrollContent: {
@@ -19,7 +20,7 @@ export const styles = StyleSheet.create({
     width: COVER,
     height: COVER,
     borderRadius: THEME.RADIUS.MD,
-    borderWidth: 2,
+    borderWidth: scale(2),
     borderColor: THEME.COLORS.FRAME,
   },
   trackInfo: {
@@ -77,7 +78,7 @@ export const styles = StyleSheet.create({
     width: AVATAR,
     height: AVATAR,
     borderRadius: THEME.RADIUS.CIRCLE,
-    borderWidth: 2,
+    borderWidth: scale(2),
     borderColor: THEME.COLORS.BRAND,
   },
   username: {
