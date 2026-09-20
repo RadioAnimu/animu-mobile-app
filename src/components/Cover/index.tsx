@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Image, type ImageStyle } from "expo-image";
 import type { StyleProp } from "react-native";
 import { styles } from "@/components/Cover/styles";
@@ -83,6 +83,12 @@ export function Cover({ cover, style, cachePolicy, recyclingKey, category }: Pro
 
   const showFallback = failure?.url === cover;
 
+  const mountAt = useRef(0);
+  useLayoutEffect(() => {
+    mountAt.current = Date.now();
+    __DEV__ && console.log(`[ArtDebug] Cover render url=${cover}`);
+  }, [cover]);
+
   // Self-heal transient failures (bounded — a dead URL stops retrying)
   useEffect(() => {
     if (!failure || failure.url !== cover || failure.attempts >= MAX_FAILURES) {
@@ -103,6 +109,12 @@ export function Cover({ cover, style, cachePolicy, recyclingKey, category }: Pro
           prev?.url === cover
             ? { url: cover, attempts: prev.attempts + 1 }
             : { url: cover, attempts: 1 },
+        )
+      }
+      onLoad={() =>
+        __DEV__ &&
+        console.log(
+          `[ArtDebug] Cover onLoad after ${Date.now() - mountAt.current}ms url=${cover}`,
         )
       }
       cachePolicy={cachePolicy ?? (settings.cacheEnabled ? "disk" : "none")}

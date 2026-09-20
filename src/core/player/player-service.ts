@@ -22,7 +22,10 @@ import {
   buildNowPlayingMetadata,
   type NowPlayingInput,
 } from "@/core/player/media-session/now-playing.metadata";
-import { ArtworkResolver } from "@/core/player/storage/artwork";
+import {
+  ArtworkResolver,
+  pickPreviewArtwork,
+} from "@/core/player/storage/artwork";
 import {
   CachedCoverLookup,
   CoverCacheSeeder,
@@ -193,6 +196,9 @@ export class PlayerService {
     // Live SSE track change → push the media session immediately instead
     // of riding the next poll's round-trip.
     this.deps.repository.onLiveTrackChange = () => {
+      console.log(
+        `[ArtDebug] LIVE track change → "${this.deps.repository.currentTrack?.title ?? "?"}" artwork=${this.deps.repository.currentTrack?.artwork}`,
+      );
       void this.updateMetadata();
     };
   }
@@ -607,25 +613,64 @@ export class PlayerService {
   async updateMetadata(): Promise<void> {
     try {
       // Download the cover to a local file so the media session's native
-      // loader (no UA, no retry) renders it reliably. The first push uses
-      // the remote URL as-is; when the local file lands, push again so
-      // the notification swaps to the file URI within seconds. Skipped
-      // when the song changed mid-download — that push owns the session.
+      // loader renders it reliably. The first push uses the remote URL
+      // as-is; when the local file lands, push again so the notification
+      // swaps to the file URI within seconds. Skipped when the song
+      // changed mid-download — that push owns the session.
       //
       // Only remote URLs enter the download/re-push dance. Local artwork
       // (e.g. the bundled default when "Live covers" is off, or an
       // already-resolved file) is final — `resolve()` passes it through
       // WITHOUT tracking it, so a "re-push until peek hits" loop would
       // recurse forever and wedge the JS thread.
+      //
+      // Android note: SystemUI cannot OPEN app-private `file://` artwork
+      // cross-process (scoped-storage ENOENT), which is why the native
+      // module is patched to read the bytes in-process and publish them
+      // as `artworkData` (`setArtworkData` → `METADATA_KEY_ART`) — the
+      // loaders render those with no IO of their own.
       const artworkUrl = this.deps.repository.currentTrack?.artwork;
+      const peeked = artworkUrl ? this.deps.artwork.peek(artworkUrl) : undefined;
+      const t0 = Date.now();
+      console.log(
+        `[ArtDebug] updateMetadata track="${this.deps.repository.currentTrack?.title ?? "?"}" artwork="${artworkUrl ?? "none"}" peeked=${peeked ?? "MISS"}`,
+      );
       if (
         artworkUrl &&
         this.deps.artwork.isRemote(artworkUrl) &&
-        !this.deps.artwork.peek(artworkUrl)
+        !peeked
       ) {
-        void this.deps.artwork.resolve(artworkUrl).then(() => {
+        // Only sizes the API actually reports (`track.artworks`) — the
+        // CDN's own naming scheme 302s unknown sizes to a placeholder.
+        void this.deps.artwork
+          .resolve(
+            artworkUrl,
+            (preview) => {
+              // Low-res cover painted as soon as the reported low-size
+              // sibling lands — the full-size swap happens in
+              // resolve.then below.
+              if (this.deps.repository.currentTrack?.artwork === artworkUrl) {
+                this.pushNowPlaying();
+                this.emitPlayer();
+              }
+            },
+            pickPreviewArtwork(
+              artworkUrl,
+              this.deps.repository.currentTrack?.artworks,
+            ),
+          )
+          .then((resolved) => {
+          const dt = Date.now() - t0;
+          console.log(
+            `[ArtDebug] resolve.then after ${dt}ms sameTrack=${this.deps.repository.currentTrack?.artwork === artworkUrl} resolved=${resolved}`,
+          );
           if (this.deps.repository.currentTrack?.artwork === artworkUrl) {
             this.pushNowPlaying();
+            // Hand the UI the local file too — otherwise expo-image
+            // re-downloads the same cover over the network while the
+            // audio stream hogs the connection (measured: multi-minute
+            // onLoad on a hotspot → blank-to-slow cover).
+            this.emitPlayer();
           }
         });
       }
@@ -654,6 +699,33 @@ export class PlayerService {
    */
   heartbeat(): void {
     this.deps.heartbeat.beat();
+  }
+
+  // ── Artwork (shared resolver for the now-playing UI) ──
+
+  /**
+   * Sync peek at a previously-resolved local file for a remote cover URL,
+   * and the awaited resolution (deduped with the media session's own
+   * download). The now-playing UI renders the resolver's file so expo-image
+   * never re-downloads a cover the resolver already has in flight — two
+   * parallel fetches of the same cover over a saturated connection were
+   * measured at 33s/44s.
+   */
+  peekArtwork(url: string): string | undefined {
+    return this.deps.artwork.peek(url);
+  }
+
+  resolveArtwork(
+    url: string,
+    onPreview?: (local: string) => void,
+    previewUrl?: string | null,
+  ): Promise<string> {
+    return this.deps.artwork.resolve(url, onPreview, previewUrl);
+  }
+
+  /** Bundled default cover as a loadable URI (see `ArtworkResolver`). */
+  get defaultArtwork(): string {
+    return this.deps.artwork.defaultCover;
   }
 
   async openPedidosURL(): Promise<void> {
@@ -942,7 +1014,10 @@ export class PlayerService {
   private nowPlayingInput(): NowPlayingInput {
     return {
       // The media session gets the locally cached cover file when it is
-      // ready — its native loader has no UA/retry guarantees over HTTP.
+      // ready. iOS reads `file://` URIs itself; on Android the native
+      // module (patched) reads the bytes in-process and publishes them
+      // as `artworkData` — a plain `file://` URI would fail cross-process
+      // under scoped storage (ENOENT).
       track: this.deps.artwork.apply(this.deps.repository.currentTrack),
       isLive: this.deps.repository.currentProgram?.isLive ?? false,
       showProgress: this.deps.repository.showProgress,
@@ -954,7 +1029,13 @@ export class PlayerService {
   private emitPlayer(): void {
     if (!this.appActive) return;
     const next: PlayerSnapshot = {
-      currentTrack: this.deps.repository.currentTrack ?? undefined,
+      // Same rule as `nowPlayingInput`: the locally cached cover file is
+      // preferred for the UI render too so expo-image never re-downloads
+      // a cover the resolver already has on disk (`apply` is a sync
+      // LRU-map peek, so it costs nothing when the file isn't ready).
+      currentTrack:
+        this.deps.artwork.apply(this.deps.repository.currentTrack) ??
+        undefined,
       currentProgram: this.deps.repository.currentProgram ?? undefined,
       currentStream: this.deps.streamPreferences.current,
       streamOptions: this.streamOptions,
@@ -1044,6 +1125,8 @@ export const createPlayerService = (): PlayerService => {
     media,
     buildMetadata: () =>
       buildNowPlayingMetadata({
+        // Local cover file when it exists — the patched native module
+        // reads it in-process and publishes artworkData on Android.
         track: artwork.apply(repository.currentTrack),
         isLive: repository.currentProgram?.isLive ?? false,
         showProgress: repository.showProgress,

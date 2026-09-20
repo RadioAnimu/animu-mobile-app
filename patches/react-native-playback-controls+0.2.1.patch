@@ -1,8 +1,40 @@
 diff --git a/node_modules/react-native-playback-controls/android/src/main/java/com/playbackcontrols/ControlsPlayer.kt b/node_modules/react-native-playback-controls/android/src/main/java/com/playbackcontrols/ControlsPlayer.kt
-index 276f2ea..c1b96fb 100644
+index 276f2ea..cff6786 100644
 --- a/node_modules/react-native-playback-controls/android/src/main/java/com/playbackcontrols/ControlsPlayer.kt
 +++ b/node_modules/react-native-playback-controls/android/src/main/java/com/playbackcontrols/ControlsPlayer.kt
-@@ -168,6 +168,8 @@ class ControlsPlayer : SimpleBasePlayer(Looper.getMainLooper()) {
+@@ -156,7 +156,30 @@ class ControlsPlayer : SimpleBasePlayer(Looper.getMainLooper()) {
+       .setArtist(metadata.artist)
+       .setAlbumTitle(metadata.album)
+       .apply {
+-        metadata.artworkUri?.let { setArtworkUri(Uri.parse(it)) }
++        metadata.artworkUri?.let { uriStr ->
++          val uri = Uri.parse(uriStr)
++          if (uriStr.startsWith("file://") && uri.path != null) {
++            // Android's loaders (SystemUI / notification) resolve artwork
++            // cross-process: a `file://` URI pointing into the ARTIST app's
++            // private cache fails with ENOENT under scoped storage, and the
++            // remote fallback is another network race. Instead the bytes are
++            // read HERE — where the file is readable — and attached inline:
++            // media3 maps `artworkData` onto `METADATA_KEY_ART`, which the
++            // system loaders render with none of their own IO.
++            try {
++              val bytes = java.io.File(uri.path!!).readBytes()
++              if (bytes.isNotEmpty()) {
++                setArtworkData(bytes, MediaMetadata.PICTURE_TYPE_FRONT_COVER)
++              } else {
++                setArtworkUri(uri)
++              }
++            } catch (_: Exception) {
++              setArtworkUri(uri)
++            }
++          } else {
++            setArtworkUri(uri)
++          }
++        }
+       }
+       .build()
+ 
+@@ -168,6 +191,8 @@ class ControlsPlayer : SimpleBasePlayer(Looper.getMainLooper()) {
        C.TIME_UNSET
      }
  
@@ -11,7 +43,7 @@ index 276f2ea..c1b96fb 100644
      return MediaItemData.Builder(MEDIA_ITEM_ID)
        .setMediaItem(
          MediaItem.Builder().setMediaId(MEDIA_ITEM_ID).setMediaMetadata(mediaMetadata).build()
-@@ -175,7 +177,7 @@ class ControlsPlayer : SimpleBasePlayer(Looper.getMainLooper()) {
+@@ -175,7 +200,7 @@ class ControlsPlayer : SimpleBasePlayer(Looper.getMainLooper()) {
        .setMediaMetadata(mediaMetadata)
        .setDurationUs(durationUs)
        .setIsDynamic(metadata.isLiveStream)

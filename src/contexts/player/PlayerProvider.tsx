@@ -41,6 +41,8 @@ type PlayerContextType = PlayerSnapshot & {
   pause: () => Promise<void>;
   changeStream: (stream: Stream) => Promise<void>;
   refreshData: () => Promise<void>;
+  /** Bundled default cover as a loadable URI (see `ArtworkResolver`). */
+  defaultArtwork: string;
   /** Whether the platform can sample audio for the visualizer. */
   visualizerSupported: boolean;
   /**
@@ -62,6 +64,7 @@ const PlayerContext = createContext<PlayerContextType>({
   pause: () => Promise.reject("Player not initialized"),
   changeStream: () => Promise.reject("Player not initialized"),
   refreshData: () => Promise.reject("Player not initialized"),
+  defaultArtwork: "",
   visualizerSupported: false,
   subscribeVisualizerWindows: () => () => {},
   reportVisualizerDelay: () => {},
@@ -296,6 +299,7 @@ export const PlayerProvider: React.FC<{
       pause,
       changeStream,
       refreshData,
+      defaultArtwork: playerServiceInstance.defaultArtwork,
       // Re-read on every snapshot change so it flips true once the native
       // player exists (created on first play).
       visualizerSupported: playerServiceInstance.isVisualizerSupported,

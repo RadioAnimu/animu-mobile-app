@@ -33,6 +33,24 @@ vi.mock("expo-asset", () => ({
   },
 }));
 vi.mock("expo-web-browser", () => ({ openBrowserAsync: vi.fn() }));
+// The artwork resolver now reaches expo-file-system; failing download
+// keeps tests on the expo-asset fallback path this suite asserts.
+vi.mock("expo-file-system", () => ({
+  File: Object.assign(
+    function (this: { exists: boolean; size: number; uri: string }, dir: unknown, name: string) {
+      void dir;
+      this.exists = false;
+      this.size = 0;
+      this.uri = `file://mock/cache/${name}`;
+    },
+    {
+      downloadFileAsync: vi.fn(async () => {
+        throw new Error("direct download disabled in test");
+      }),
+    },
+  ),
+  Paths: { cache: "file://mock/cache" },
+}));
 vi.mock("expo-image", () => ({
   Image: { getCachePathAsync: vi.fn(), writeToCacheAsync: vi.fn() },
 }));
@@ -734,6 +752,9 @@ describe("PlayerService updateMetadata", () => {
   });
 
   it("re-pushes once (and terminates) when a remote cover resolves locally", async () => {
+    // The media session reads the app's own local file — the second push
+    // swaps the remote URL for the resolved `file://` URI — on every
+    // platform (the patched native module publishes the bytes inline).
     const { deps, publisher, repository } = makeDeps();
     repository.currentTrack = {
       ...makeTrack(),

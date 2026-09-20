@@ -1,5 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { ArtworkResolver } from "@/core/player/storage/artwork";
+import {
+  ArtworkResolver,
+  pickPreviewArtwork,
+} from "@/core/player/storage/artwork";
 import type { Track } from "@/core/domain/track";
 
 // expo-asset reaches react-native (unparseable in node) — mock it entirely.
@@ -8,6 +11,33 @@ const assetMocks = vi.hoisted(() => ({
   fromModule: vi.fn(),
   fromURI: vi.fn(),
 }));
+
+// expo-file-system reaches react-native too. `directDownload` backs
+// File.downloadFileAsync — it defaults to FAILING so the resolver takes
+// the expo-asset fallback (what most of these tests assert); tests that
+// cover the direct path re-set the implementation per case.
+const fileSystemMocks = vi.hoisted(() => ({ directDownload: vi.fn() }));
+
+vi.mock("expo-file-system", () => {
+  const File = Object.assign(
+    function (this: { exists: boolean; size: number; uri: string }, dir: unknown, name: string) {
+      void dir;
+      this.exists = false;
+      this.size = 0;
+      this.uri = `file://mock/cache/${name}`;
+    },
+    {
+      downloadFileAsync: fileSystemMocks.directDownload,
+    },
+  ) as unknown as {
+    new (dir: unknown, name: string): {
+      exists: boolean;
+      size: number;
+      uri: string;
+    };
+  };
+  return { File, Paths: { cache: "file://mock/cache" } };
+});
 
 vi.mock("expo-asset", () => ({ Asset: assetMocks }));
 vi.mock("../../../assets/default-cover.png", () => ({ default: 1234 }));
@@ -20,10 +50,48 @@ const makeTrack = (artwork = "https://images.test/cover.png"): Track =>
     startTime: new Date(),
   }) as unknown as Track;
 
+describe("pickPreviewArtwork", () => {
+  it("picks the lowest reported size strictly below the requested one", () => {
+    expect(
+      pickPreviewArtwork("https://cdn.test/trackImage1_large.jpg", {
+        tiny: "https://cdn.test/trackImage1_tiny.jpg",
+        medium: "https://cdn.test/trackImage1_medium.jpg",
+        large: "https://cdn.test/trackImage1_large.jpg",
+      }),
+    ).toBe("https://cdn.test/trackImage1_tiny.jpg");
+    expect(
+      pickPreviewArtwork("https://cdn.test/trackImage1_medium.jpg", {
+        tiny: "https://cdn.test/trackImage1_tiny.jpg",
+        medium: "https://cdn.test/trackImage1_medium.jpg",
+      }),
+    ).toBe("https://cdn.test/trackImage1_tiny.jpg");
+  });
+
+  it("never picks a size the API did not report (the CDN 302s unknown sizes to a placeholder)", () => {
+    // No artworks report → no preview at all, even though the naming
+    // scheme could "derive" a `_tiny` URL.
+    expect(pickPreviewArtwork("https://cdn.test/trackImage1_large.jpg")).toBe(
+      null,
+    );
+    // Only a same-or-worse size reported → no smaller candidate exists.
+    expect(
+      pickPreviewArtwork("https://cdn.test/trackImage1_medium.jpg", {
+        medium: "https://cdn.test/trackImage1_medium.jpg",
+        large: "https://cdn.test/trackImage1_large.jpg",
+      } as never),
+    ).toBe(null);
+  });
+});
+
 describe("ArtworkResolver", () => {
   beforeEach(() => {
     assetMocks.fromModule.mockReset();
     assetMocks.fromURI.mockReset();
+    // Default: the direct download is unavailable → resolver uses the
+    // expo-asset fallback path (what the existing expectations target).
+    fileSystemMocks.directDownload
+      .mockReset()
+      .mockRejectedValue(new Error("direct download disabled in test"));
   });
 
   afterEach(() => {
@@ -82,6 +150,29 @@ describe("ArtworkResolver", () => {
       expect(resolver.peek("https://images.test/cover.png")).toBe(
         "file://cache/cover.png",
       );
+    });
+
+    it("downloads directly to a deterministic cache file (no expo-asset machinery)", async () => {
+      // Direct path available: expo-asset must stay untouched.
+      fileSystemMocks.directDownload.mockImplementation(
+        async (_url: string, file: { exists: boolean; size: number }) => {
+          file.exists = true;
+          file.size = 120540;
+        },
+      );
+
+      const resolver = new ArtworkResolver();
+      const url = "https://images.test/cover.png";
+      const local = await resolver.resolve(url);
+
+      expect(fileSystemMocks.directDownload).toHaveBeenCalledTimes(1);
+      expect(fileSystemMocks.directDownload).toHaveBeenCalledWith(
+        url,
+        expect.any(Object),
+      );
+      expect(local).toBe(resolver.peek(url));
+      expect(local).toMatch(/^file:\/\/mock\/cache\/animu-cover-[0-9a-f]+\.jpg$/);
+      expect(assetMocks.fromURI).not.toHaveBeenCalled();
     });
 
     it("shares one download between concurrent callers", async () => {
