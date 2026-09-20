@@ -94,6 +94,13 @@ const LIVE_STALL_REOPEN_MS = 2000;
  * ready-notification would otherwise leave the UI on "paused" forever).
  */
 const CONNECTING_WATCHDOG_MS = 4000;
+/**
+ * How old the last measurement may be before a resume is treated as stale and
+ * the clock is re-synced. A stream that was paused (or suspended in the
+ * background) past this window is re-opened at the live edge, so the retained
+ * lag is re-measured rather than trusted — a short pause stays seamless.
+ */
+const RESYNC_AFTER_MS = 15_000;
 
 export interface PlayerServiceDependencies {
   state: TransportStateMachine;
@@ -544,6 +551,16 @@ export class PlayerService {
       // immediately; the poll cycle counts from zero)
       this.deps.heartbeat.reset();
 
+      // A long pause (or background suspension) leaves the retained lag stale:
+      // the source below re-opens at the live edge, so re-lock the clock.
+      // A short pause is seamless — the estimate is still fresh.
+      if (
+        this.deps.sync.hasMeasurement &&
+        this.deps.sync.isStale(RESYNC_AFTER_MS)
+      ) {
+        this.reacquireSyncClock();
+      }
+
       this.deps.audio.play(this.deps.streamPreferences.current.url);
       // Reconcile emits the store (isPlaying → true immediately) and
       // pushes "buffering" to the media session.
@@ -591,6 +608,21 @@ export class PlayerService {
     }
   }
 
+  /**
+   * Re-locks the audible clock after the source is (re)opened — a manual
+   * re-tune, a reconnect, a stall recovery, an interruption resume, or a
+   * stale resume. Drops the old lag so the first reading of the rebuilt
+   * buffer snaps, and holds the display (`beginReacquire`) until it is
+   * measured so a relay that landed behind cannot flash the announced track
+   * early.
+   */
+  private reacquireSyncClock(): void {
+    this.deps.sync.reset();
+    this.deps.audible.beginReacquire();
+    // Evaluate immediately so the hold engages before the next native frame.
+    this.deps.audible.adoptIfDue();
+  }
+
   async changeStream(stream: Stream): Promise<void> {
     if (this.deps.streamPreferences.current.id === stream.id) return;
 
@@ -608,19 +640,9 @@ export class PlayerService {
       // A manual re-tune is a fresh intent — no pending live-edge re-open.
       this.interruptionPending = false;
       this.stalledSince = null;
-      // A different relay (MP3 vs AAC+) buffers differently AND may sit at a
-      // different point in the broadcast — drop the old lag so the first
-      // native reading of the new stream snaps. The display resolver is
-      // deliberately NOT reset (it keeps the current track on screen across
-      // the re-tune), but it must HOLD that track until the new relay's lag
-      // is measured: otherwise it adopts the announced item on the wall-clock
-      // fallback while the new relay is still on the previous song.
-      this.deps.sync.reset();
-      this.deps.audible.beginReacquire();
-      // Evaluate now: with the clock reset, this holds whatever is on screen
-      // until the new relay's lag is measured (and later reverts if the new
-      // relay landed behind the station timeline).
-      this.deps.audible.adoptIfDue();
+      // A different relay buffers differently AND may sit at a different
+      // point in the broadcast — re-lock the clock (see `reacquireSyncClock`).
+      this.reacquireSyncClock();
 
       this.deps.audio.load(stream.url);
       if (wasPlaying) {
@@ -967,6 +989,7 @@ export class PlayerService {
       const stalledFor = Date.now() - this.stalledSince;
       this.stalledSince = null;
       if (stalledFor >= LIVE_STALL_REOPEN_MS) {
+        this.reacquireSyncClock();
         this.deps.audio.play(this.deps.streamPreferences.current.url);
         this.reconcile("connecting");
         this.deps.heartbeat.beat();
@@ -990,6 +1013,7 @@ export class PlayerService {
       // transient paused→playing frame leaves it clear.
       if (this.interruptionPending) {
         this.interruptionPending = false;
+        this.reacquireSyncClock();
         this.deps.audio.play(this.deps.streamPreferences.current.url);
         this.reconcile("connecting");
         this.deps.heartbeat.beat();
@@ -1132,6 +1156,8 @@ export class PlayerService {
       // Reconnect re-opens live anyway — drop any pending interruption.
       this.interruptionPending = false;
       this.stalledSince = null;
+      // The source is re-opened: re-lock the audible clock.
+      this.reacquireSyncClock();
       this.deps.audio.play(this.deps.streamPreferences.current.url);
       // Reconcile pushes "buffering" — no manual pushStatus needed.
       this.reconcile("connecting");

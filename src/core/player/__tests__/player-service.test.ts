@@ -172,6 +172,7 @@ const makeDeps = () => {
     updateFromAnchor: vi.fn(),
     reset: vi.fn(),
     isAudible: vi.fn(() => true),
+    isStale: vi.fn(() => false),
     delay: 0,
     hasMeasurement: false,
     settled: true,
@@ -283,6 +284,41 @@ describe("PlayerService store emission", () => {
     wiredHandler(transport)({ playing: true } as AudioPlaybackStatus);
 
     expect(playerStore.getSnapshot().syncing).toBe(false);
+  });
+
+  it("re-syncs on resume when the retained clock is stale", async () => {
+    const { deps, sync, audible } = makeDeps();
+    const service = new PlayerService(deps);
+    await service.play();
+
+    // A long pause / background gap: the estimate is stale.
+    (sync as unknown as { hasMeasurement: boolean }).hasMeasurement = true;
+    (sync as unknown as { isStale: ReturnType<typeof vi.fn> }).isStale
+      .mockReturnValue(true);
+    sync.reset.mockClear();
+    audible.beginReacquire.mockClear();
+
+    await service.play();
+
+    expect(sync.reset).toHaveBeenCalledTimes(1);
+    expect(audible.beginReacquire).toHaveBeenCalledTimes(1);
+  });
+
+  it("stays seamless on a short resume with a fresh clock", async () => {
+    const { deps, sync, audible } = makeDeps();
+    const service = new PlayerService(deps);
+    await service.play();
+
+    (sync as unknown as { hasMeasurement: boolean }).hasMeasurement = true;
+    (sync as unknown as { isStale: ReturnType<typeof vi.fn> }).isStale
+      .mockReturnValue(false);
+    sync.reset.mockClear();
+    audible.beginReacquire.mockClear();
+
+    await service.play();
+
+    expect(sync.reset).not.toHaveBeenCalled();
+    expect(audible.beginReacquire).not.toHaveBeenCalled();
   });
 
   it("pause() reaches the transport even without track data", async () => {

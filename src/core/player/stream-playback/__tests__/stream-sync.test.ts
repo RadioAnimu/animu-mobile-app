@@ -306,6 +306,34 @@ describe("StreamSyncEngine", () => {
       expect(engine.settled).toBe(false);
     });
   });
+
+  describe("isStale", () => {
+    it("reports the age of the retained estimate", () => {
+      const engine = new StreamSyncEngine();
+
+      // Never measured → not "stale", just unmeasured.
+      expect(engine.isStale(10_000)).toBe(false);
+
+      engine.updateFromStatus({ isLive: true, offsetFromLive: 5 });
+      expect(engine.isStale(10_000)).toBe(false);
+
+      vi.setSystemTime(new Date(Date.now() + 11_000));
+      expect(engine.isStale(10_000)).toBe(true);
+
+      // A fresh reading resets the age.
+      engine.updateFromStatus({ isLive: true, offsetFromLive: 5 });
+      expect(engine.isStale(10_000)).toBe(false);
+    });
+
+    it("is not stale after reset() (unmeasured, not old)", () => {
+      const engine = new StreamSyncEngine();
+      engine.updateFromStatus({ isLive: true, offsetFromLive: 5 });
+      vi.setSystemTime(new Date(Date.now() + 60_000));
+
+      engine.reset();
+      expect(engine.isStale(10_000)).toBe(false);
+    });
+  });
 });
 
 describe("getSyncedTrackProgress", () => {

@@ -153,6 +153,13 @@ export class StreamSyncEngine {
    * non-live) clears it.
    */
   private settledLatch = false;
+  /**
+   * When a finite reading last landed (0 = never). Lets callers decide whether
+   * the retained estimate is stale (a long pause / background gap advanced the
+   * relay while we were not measuring) and should be re-synced rather than
+   * trusted.
+   */
+  private lastMeasuredAtMs = 0;
 
   /**
    * Folds a native status reading into the delay estimate.
@@ -185,6 +192,7 @@ export class StreamSyncEngine {
         this.measuredSinceMs = 0;
         this.delayChangedAtMs = 0;
         this.settledLatch = false;
+        this.lastMeasuredAtMs = 0;
       }
       // Live (or in a brief teardown gap): keep the last known delay.
       return;
@@ -218,6 +226,7 @@ export class StreamSyncEngine {
     } else if (Math.abs(this.delayMs - previousDelay) >= SETTLE_EPSILON_MS) {
       this.delayChangedAtMs = now;
     }
+    this.lastMeasuredAtMs = now;
   }
 
   /**
@@ -239,6 +248,7 @@ export class StreamSyncEngine {
     this.measuredSinceMs = 0;
     this.delayChangedAtMs = 0;
     this.settledLatch = false;
+    this.lastMeasuredAtMs = 0;
   }
 
   /**
@@ -321,6 +331,20 @@ export class StreamSyncEngine {
   /** Whether a native delay measurement has landed. */
   get hasMeasurement(): boolean {
     return this.measured;
+  }
+
+  /**
+   * Whether the retained estimate is older than `maxAgeMs`. A long pause or
+   * background gap means the clock was not re-measured while the relay's live
+   * edge advanced, so callers re-sync (reset + re-acquire) instead of trusting
+   * it — a stale lag can be seconds off after the source is re-opened.
+   */
+  isStale(maxAgeMs: number, at: number = Date.now()): boolean {
+    return (
+      this.measured &&
+      this.lastMeasuredAtMs > 0 &&
+      at - this.lastMeasuredAtMs > maxAgeMs
+    );
   }
 
   /** Last SSE arrival anchor, when one was seen. */
