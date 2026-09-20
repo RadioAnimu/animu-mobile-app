@@ -1,5 +1,5 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import * as SecureStore from "expo-secure-store";
+import type * as SecureStoreTypes from "expo-secure-store";
 import type { SessionStorePort, StoredSession } from "@/core/auth/ports";
 import type { User } from "@/core/domain/user";
 
@@ -37,17 +37,40 @@ function parseBlob(raw: string | null): StoredSession | null {
  * (iOS Keychain / Android Keystore-backed), while the display projection
  * (username, avatar, provider) lives in AsyncStorage. A session previously
  * persisted in plaintext by older builds is migrated on first read, and
- * platforms without a secure store (e.g. web) degrade to the old single-blob
- * layout so the app still works.
+ * environments without a secure store (e.g. web) degrade to the old
+ * single-blob layout so the app still works.
+ *
+ * The native module is resolved lazily (first use, not import): it evaluates
+ * its native constants eagerly, so a bundle a binary does not support — e.g.
+ * an OTA applied to the wrong runtime — must degrade to plain storage instead
+ * of throwing at import and crashing every launch.
  */
 export class SecureSessionStore implements SessionStorePort {
-  /** `null` until probed. */
-  private secureAvailable: boolean | null = null;
+  /** `undefined` = not resolved yet; `null` = native module unavailable. */
+  private secureStore: typeof SecureStoreTypes | null | undefined;
+  /** Only a POSITIVE availability probe is cached (see `usableSecureStore`). */
+  private secureAvailable = false;
 
-  private async canUseSecureStore(): Promise<boolean> {
-    if (this.secureAvailable != null) return this.secureAvailable;
+  private async resolveSecureStore(): Promise<typeof SecureStoreTypes | null> {
+    if (this.secureStore !== undefined) return this.secureStore;
     try {
-      this.secureAvailable = await SecureStore.isAvailableAsync();
+      this.secureStore = await import("expo-secure-store");
+    } catch (error) {
+      console.warn(
+        "[SessionStore] SecureStore native module unavailable — using plain storage:",
+        error,
+      );
+      this.secureStore = null;
+    }
+    return this.secureStore;
+  }
+
+  private async usableSecureStore(): Promise<typeof SecureStoreTypes | null> {
+    const store = await this.resolveSecureStore();
+    if (!store) return null;
+    if (this.secureAvailable) return store;
+    try {
+      this.secureAvailable = await store.isAvailableAsync();
     } catch (error) {
       console.warn(
         "[SessionStore] SecureStore unavailable, falling back to plain storage:",
@@ -55,7 +78,10 @@ export class SecureSessionStore implements SessionStorePort {
       );
       this.secureAvailable = false;
     }
-    return this.secureAvailable;
+    // A false may be transient (keychain not ready during very early
+    // startup), so it is NOT cached — a later call re-probes rather than
+    // degrading the whole JS session on one bad probe.
+    return this.secureAvailable ? store : null;
   }
 
   async load(): Promise<StoredSession | null> {
@@ -77,7 +103,7 @@ export class SecureSessionStore implements SessionStorePort {
       // legacy blob IS the storage format, so it must be left in place.
       const legacy = parseBlob(await AsyncStorage.getItem(LEGACY_KEY));
       if (legacy) {
-        if (await this.canUseSecureStore()) {
+        if (await this.usableSecureStore()) {
           await this.save(legacy);
           await AsyncStorage.removeItem(LEGACY_KEY).catch(() => {});
         }
@@ -92,28 +118,31 @@ export class SecureSessionStore implements SessionStorePort {
   }
 
   async save(session: StoredSession): Promise<void> {
-    if (await this.canUseSecureStore()) {
-      // Projection first: a crash between the two writes must not leave an
-      // orphan token with no user (which `load` would reject anyway).
-      await AsyncStorage.setItem(USER_KEY, JSON.stringify(session.user));
-      await SecureStore.setItemAsync(TOKEN_KEY, session.sessionToken);
+    const store = await this.usableSecureStore();
+    if (!store) {
+      await AsyncStorage.setItem(LEGACY_KEY, JSON.stringify(session));
       return;
     }
-    await AsyncStorage.setItem(LEGACY_KEY, JSON.stringify(session));
+    // Projection first: a crash between the two writes must not leave an
+    // orphan token with no user (which `load` would reject anyway).
+    await AsyncStorage.setItem(USER_KEY, JSON.stringify(session.user));
+    await store.setItemAsync(TOKEN_KEY, session.sessionToken);
   }
 
   async clear(): Promise<void> {
+    const store = await this.usableSecureStore();
     await Promise.all([
-      SecureStore.deleteItemAsync(TOKEN_KEY).catch(() => {}),
+      store ? store.deleteItemAsync(TOKEN_KEY).catch(() => {}) : Promise.resolve(),
       AsyncStorage.removeItem(USER_KEY).catch(() => {}),
       AsyncStorage.removeItem(LEGACY_KEY).catch(() => {}),
     ]);
   }
 
   private async readToken(): Promise<string | null> {
-    if (!(await this.canUseSecureStore())) return null;
+    const store = await this.usableSecureStore();
+    if (!store) return null;
     try {
-      return await SecureStore.getItemAsync(TOKEN_KEY);
+      return await store.getItemAsync(TOKEN_KEY);
     } catch (error) {
       console.error("[SessionStore] Failed to read token:", error);
       return null;

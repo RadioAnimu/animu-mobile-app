@@ -1,4 +1,5 @@
 import {
+  type AnimuApi,
   type AnimuLive,
   type ArtworkQuality,
   type HistoryType,
@@ -10,11 +11,21 @@ import type { Program } from "@/core/domain/program";
 import { DICT } from "@/i18n";
 import type { Program as ProgramDictionaryEntry } from "@/api";
 import { abortPlayerRequests, createApiClient } from "@/api/client";
+import { userSettingsService } from "@/core/services/user-settings.service";
 
 class AnimuService {
   /** Lazily-created SSE surface, keyed by `quality|cover` (constructor state). */
   private liveClient: AnimuLive | null = null;
   private liveKey = "";
+  /**
+   * Program client, cached per artwork quality (the quality can shape the
+   * program payload) — REBUILDS only when the setting changes so the
+   * package's 2.5s GET micro-cache survives across the 5s/30s poll cadence
+   * (a per-call client would make every poll a fresh HTTP round-trip).
+   * Still `playerScoped`, so the watchdog can cut a stalled program fetch.
+   */
+  private programClient: AnimuApi | null = null;
+  private programClientQuality: ArtworkQuality | null = null;
   /**
    * Fetches track + listeners from a single API call.
    *
@@ -37,13 +48,22 @@ class AnimuService {
    * dictionary entry (the package doesn't know about DICT).
    */
   async getCurrentProgram(): Promise<Program> {
-    const program = await createApiClient("medium", undefined, {
-      playerScoped: true,
-    }).getProgram();
+    const program = await this.getProgramClient().getProgram();
     return {
       ...program,
       raw: findRawProgram(program.name),
     };
+  }
+
+  private getProgramClient(): AnimuApi {
+    const quality = userSettingsService.getCurrentSettings().liveQualityCover;
+    if (this.programClientQuality !== quality || !this.programClient) {
+      this.programClientQuality = quality;
+      this.programClient = createApiClient(quality, undefined, {
+        playerScoped: true,
+      });
+    }
+    return this.programClient;
   }
 
   /**

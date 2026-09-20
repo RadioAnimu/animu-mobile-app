@@ -220,7 +220,6 @@ All station endpoints are wrapped by the [`animu-api`](https://github.com/RadioA
 ## Roadmap
 
 - [ ] iOS release on the App Store
-- [ ] Native Apple Sign-In once the backend can verify its identity token
 - [ ] Push notifications for program/live events
 - [ ] Expanded localization coverage
 

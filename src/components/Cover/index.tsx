@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Image, type ImageStyle } from "expo-image";
 import type { StyleProp } from "react-native";
+import { DEFAULT_COVER } from "@app/assets/default-cover.png";
 import { styles } from "@/components/Cover/styles";
 import { THEME } from "@/theme";
 import { useUserSettings } from "@/contexts/user/UserSettingsProvider";
@@ -9,16 +10,6 @@ import {
   type CoverCacheCategory,
 } from "@/core/services/cover-cache-registry.service";
 
-/** Bundled fallback — no network needed, always renders, instant placeholder. */
-const DEFAULT_COVER = require("@app/assets/default-cover.png");
-
-/**
- * A transient failure self-heals: after a failed load, retry after a
- * short delay (up to MAX_FAILURES total failures) instead of pinning the
- * fallback until the next track change. The media session's resolver
- * downloads the same URLs successfully — most in-app failures are
- * transient (canceled loads during fast track transitions, flaky cells).
- */
 const RETRY_DELAY_MS = 3000;
 const MAX_FAILURES = 2;
 
@@ -113,8 +104,13 @@ export function Cover({ cover, style, cachePolicy, recyclingKey, category }: Pro
         setFailedUrl(cover);
       }}
       onLoad={() => {
-        attemptsByUrl.current.delete(cover);
-        setFailedUrl(null);
+        // The fallback (bundled asset) loads too and fires this — it must
+        // NOT clear the failure state or it wipes the attempt counter and
+        // the bounded retry loops forever on a dead URL.
+        if (!showFallback) {
+          attemptsByUrl.current.delete(cover);
+          setFailedUrl(null);
+        }
         if (__DEV__) {
           console.log(
             `[ArtDebug] Cover onLoad after ${Date.now() - mountAt.current}ms url=${cover}`,

@@ -553,11 +553,15 @@ export class NowPlayingRepository {
         if (seenPayloadRaws.has(track.raw)) continue;
         seenPayloadRaws.add(track.raw);
 
+        // Stop the walk at anything older than a day. For KNOWN rows that is
+        // the original rule (everything after is guaranteed older/known);
+        // for UNKNOWN rows too — they can only be entries a previous
+        // MAX_HISTORY_TRACKS eviction dropped, and re-collecting them as
+        // "fresh" would prepend stale rows ABOVE genuinely newer ones,
+        // breaking the newest-first invariant on every refresh.
+        if (Date.now() - track.startTime.getTime() > DAY_MS) break;
         const isKnown = target.some((t) => t.raw === track.raw);
-        if (isKnown) {
-          if (Date.now() - track.startTime.getTime() > DAY_MS) break;
-          continue;
-        }
+        if (isKnown) continue;
         fresh.push(track);
       }
       if (fresh.length === 0) return;
