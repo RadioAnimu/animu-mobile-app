@@ -241,6 +241,8 @@ const DICT = {
     "The radio panel is temporarily unavailable. Try again in a moment.",
   REQUEST_SUCCESS: "Request made successfully!",
   REQUEST_SEARCH_PLACEHOLDER: "Type here to search",
+  REQUEST_SEARCH_EMPTY: "No songs found. Try another search.",
+  REQUEST_SEARCH_ERROR: "Couldn't search right now. Check your connection.",
   HARU_CHAN_TEXT: "HARU-CHAN",
   THEME_WORD: "Theme",
   LOGIN_WORD: "Login",

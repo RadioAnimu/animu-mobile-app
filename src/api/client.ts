@@ -37,6 +37,40 @@ const clockAwareFetch: typeof expoFetch = async (...args) => {
 };
 
 /**
+ * Player-scoped cancellation. The now-playing watchdog must cut ONLY the
+ * player's own stalled metadata/history/program sockets on a bad network.
+ * The package's `abortAllInFlightRequests()` is process-global and would also
+ * kill an in-flight login, avatar upload or music request happening at the
+ * same moment. Player clients get the wrapper below, which links the
+ * package's per-request signal to this scope; every other client keeps the
+ * package's own timeout/abort behaviour untouched.
+ */
+let playerScope = new AbortController();
+
+/** Aborts only requests issued by player-scoped clients; re-arms for the next poll. */
+export const abortPlayerRequests = (): void => {
+  playerScope.abort();
+  playerScope = new AbortController();
+};
+
+/** Runs `clockAwareFetch` with a signal that fires on the package's abort OR the scope's. */
+const playerScopedFetch: typeof expoFetch = async (input, init) => {
+  const scope = playerScope.signal;
+  const sources = [init?.signal, scope].filter(Boolean) as AbortSignal[];
+  const controller = new AbortController();
+  const abort = () => controller.abort();
+  for (const source of sources) {
+    if (source.aborted) controller.abort();
+    else source.addEventListener("abort", abort, { once: true });
+  }
+  try {
+    return await clockAwareFetch(input, { ...init, signal: controller.signal });
+  } finally {
+    for (const source of sources) source.removeEventListener("abort", abort);
+  }
+};
+
+/**
  * Shared client for everything whose settings don't change per call:
  * program, history, music/live requests, streams, auth.
  *
@@ -75,10 +109,12 @@ export const animuApi = new AnimuApi({
 export const createApiClient = (
   artworkQuality: ArtworkQuality,
   defaultCover: string = CONFIG.DEFAULT_COVER,
+  /** `playerScoped` links the client's requests to `abortPlayerRequests()`. */
+  options: { playerScoped?: boolean } = {},
 ): AnimuApi =>
   new AnimuApi({
     clientInfo: CLIENT_INFO,
     defaultCover,
     artworkQuality,
-    fetchImpl: clockAwareFetch,
+    fetchImpl: options.playerScoped ? playerScopedFetch : clockAwareFetch,
   });

@@ -243,6 +243,8 @@ const DICT: Dict = {
     "ラジオのパネルが一時的に利用できないよ。少ししてからもう一度試してね。",
   REQUEST_SUCCESS: "リクエスト成功！",
   REQUEST_SEARCH_PLACEHOLDER: "ローマ字で検索してね",
+  REQUEST_SEARCH_EMPTY: "曲が見つかりませんでした。別のキーワードで試してね。",
+  REQUEST_SEARCH_ERROR: "検索できませんでした。接続を確認してね。",
   HARU_CHAN_TEXT: "はるちゃん",
   THEME_WORD: "テーマ",
   LOGIN_WORD: "ログイン",

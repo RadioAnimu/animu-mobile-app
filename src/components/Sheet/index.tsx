@@ -121,6 +121,7 @@ export function Sheet({
               RN 0.86 Android Modals are always edge-to-edge, so a fixed pad
               would sit the last row under the nav bar. */}
           <View
+            accessibilityViewIsModal
             style={[
               styles.sheet,
               maxHeight != null && { maxHeight },

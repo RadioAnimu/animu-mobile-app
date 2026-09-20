@@ -116,7 +116,7 @@ export interface StoredSession {
   user: User;
 }
 
-/** Port for session persistence (AsyncStorage in production). */
+/** Port for session persistence (secure keychain storage in production). */
 export interface SessionStorePort {
   load(): Promise<StoredSession | null>;
   save(session: StoredSession): Promise<void>;

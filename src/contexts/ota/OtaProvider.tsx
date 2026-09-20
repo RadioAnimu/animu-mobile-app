@@ -34,7 +34,9 @@ export type OtaOutcome =
   | "available"
   | "downloaded"
   | "ready"
-  | "error";
+  | "error"
+  /** A check/download is already running — the call was a no-op. */
+  | "busy";
 
 type OtaContextValue = {
   status: OtaStatus;
@@ -75,6 +77,16 @@ export const OtaProvider: React.FC<{ children: React.ReactNode }> = ({
       // would report "up to date" (the native version already moved) and hide
       // the pending update from the user.
       if (statusRef.current === "ready") return "ready";
+
+      // Re-entrancy guard: the Settings row stays tappable while a check or a
+      // download runs, and a second `downloadBundleUri` would fetch the same
+      // multi-MB bundle again (and double-stage it natively).
+      if (
+        statusRef.current === "checking" ||
+        statusRef.current === "downloading"
+      ) {
+        return "busy";
+      }
 
       setStatus("checking");
       const result: OtaCheckResult = await checkForOtaUpdate();

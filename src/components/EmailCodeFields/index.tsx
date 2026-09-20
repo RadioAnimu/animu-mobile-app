@@ -24,6 +24,7 @@ export function EmailCodeFields({ flow }: { flow: EmailCodeFlow }) {
           autoCapitalize="none"
           autoCorrect={false}
           editable={!flow.busy}
+          accessibilityLabel={dict.LOGIN_EMAIL}
           placeholder={dict.LOGIN_EMAIL_PLACEHOLDER}
           placeholderTextColor={THEME.COLORS.TEXT_DIM}
           onSubmitEditing={flow.sendCode}
@@ -44,6 +45,7 @@ export function EmailCodeFields({ flow }: { flow: EmailCodeFlow }) {
         autoCorrect={false}
         maxLength={6}
         editable={!flow.busy}
+        accessibilityLabel={dict.LOGIN_CODE}
         placeholder={dict.LOGIN_CODE_PLACEHOLDER}
         placeholderTextColor={THEME.COLORS.TEXT_DIM}
         onSubmitEditing={flow.verify}

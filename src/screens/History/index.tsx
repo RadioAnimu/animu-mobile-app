@@ -23,6 +23,7 @@ import { IMGS } from "@/i18n";
 import { THEME } from "@/theme";
 import { useUserSettings } from "@/contexts/user/UserSettingsProvider";
 import { useCopyToClipboard } from "@/hooks/useCopyToClipboard";
+import { useDict } from "@/hooks/useDict";
 import { usePlayer, useStation } from "@/contexts/player/PlayerProvider";
 import type { StationSnapshot } from "@/core/player";
 
@@ -39,16 +40,24 @@ export function History({ route }: Props) {
   const player = usePlayer();
   const { settings } = useUserSettings();
   const copyText = useCopyToClipboard();
+  const dict = useDict();
   const [refreshing, setRefreshing] = useState(false);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     try {
-      await player.refreshData();
+      // `refreshData` only re-fetches the requested feed; the played feed is
+      // otherwise refreshed only on track change, so pull-to-refresh must ask
+      // for the list currently on screen.
+      if (isRequestHistory) {
+        await player.refreshData();
+      } else {
+        await player.refreshHistory("played");
+      }
     } finally {
       setRefreshing(false);
     }
-  }, [player]);
+  }, [player, isRequestHistory]);
 
   const renderItem: ListRenderItem<
     NonNullable<StationSnapshot["lastRequestedTracks"]>[number]
@@ -69,6 +78,7 @@ export function History({ route }: Props) {
           )}
           <TouchableOpacity
             accessibilityRole="button"
+            accessibilityHint={dict.TEXT_COPIED}
             activeOpacity={0.7}
             onPress={() => copyText(item.raw)}
             style={styles.nameTouchable}
@@ -88,6 +98,7 @@ export function History({ route }: Props) {
       ),
     [
       copyText,
+      dict.TEXT_COPIED,
       isRequestHistory,
       settings.lastRequestedCovers,
       settings.lastPlayedCovers,

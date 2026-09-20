@@ -122,6 +122,8 @@ export class ArtworkResolver {
   /** Remote URL until the bundled default cover resolves (see `init`). */
   private defaultCoverValue = CONFIG.DEFAULT_COVER;
   private initPromise: Promise<void> | null = null;
+  /** Set by `reset()`; late downloads must not repopulate a destroyed resolver. */
+  private disposed = false;
 
   constructor(private readonly options: ArtworkResolverOptions = {}) {
     this.fileMap = options.fileMap ?? new CoverFileHashMap();
@@ -204,6 +206,8 @@ export class ArtworkResolver {
   ): Promise<string> {
     // Already local (bundled default, prior file URI) — nothing to do
     if (!this.isRemote(url)) return url;
+    // Destroyed — never start new work.
+    if (this.disposed) return url;
 
     const cached = this.fileMap.peek(url);
     if (cached) return cached;
@@ -270,6 +274,7 @@ export class ArtworkResolver {
       debugLog(
         `[ArtDebug] resolve EXPO-IMAGE CACHE HIT after ${Date.now() - startedAt}ms url=${url} file=${cachedFile}`,
       );
+      if (this.disposed) return url;
       this.fileMap.track(url, cachedFile);
       return cachedFile;
     }
@@ -296,23 +301,30 @@ export class ArtworkResolver {
         `[ArtDebug] resolver direct download failed (${url}):`,
         error,
       );
-      // Fall through to the original expo-asset path as a backup.
-      return Asset.fromURI(url)
-        .downloadAsync()
-        .then((asset) => {
-          const local = asset.localUri ?? url;
-          debugLog(
-            `[ArtDebug] resolve DOWNLOAD(expo-asset fallback) done after ${Date.now() - startedAt}ms url=${url} local=${local}`,
-          );
-          this.fileMap.track(url, local);
-          if (asset.localUri)
-            void this.options?.onResolved?.(asset.localUri, url);
-          return local;
-        });
+      // Fall through to the original expo-asset path as a backup. The
+      // direct attempt is deadline-bounded above; without the same guard
+      // here a fallback that never settles would keep `resolve()` pending
+      // forever and latch its entry in `inFlight`, so that cover could never
+      // retry. The deadline releases the caller; the work itself is left to
+      // finish (or not) as a cache-only miss.
+      return deadline(
+        Asset.fromURI(url).downloadAsync(),
+        DIRECT_DOWNLOAD_DEADLINE_MS,
+      ).then((asset) => {
+        if (this.disposed) return url;
+        const local = asset.localUri ?? url;
+        debugLog(
+          `[ArtDebug] resolve DOWNLOAD(expo-asset fallback) done after ${Date.now() - startedAt}ms url=${url} local=${local}`,
+        );
+        this.fileMap.track(url, local);
+        if (asset.localUri) void this.options?.onResolved?.(asset.localUri, url);
+        return local;
+      });
     }
     if (!destination.exists || destination.size === 0) {
       throw new Error(`cover download produced an empty file (${url})`);
     }
+    if (this.disposed) return url;
     const local = destination.uri;
     debugLog(
       `[ArtDebug] resolve DOWNLOAD done after ${Date.now() - startedAt}ms size=${destination.size} url=${url} local=${local}`,
@@ -324,6 +336,7 @@ export class ArtworkResolver {
 
   /** Destroy path: drop the in-memory lookups (cache files are OS-owned). */
   reset(): void {
+    this.disposed = true;
     this.fileMap.clear();
     this.inFlight.clear();
   }

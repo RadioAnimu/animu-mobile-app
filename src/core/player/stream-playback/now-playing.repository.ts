@@ -20,6 +20,12 @@ const BASE_RETRY_DELAY_MS = 2000;
 const MAX_RETRY_DELAY_MS = 30_000;
 const DAY_MS = 24 * 60 * 60 * 1000;
 /**
+ * Cap on each in-memory history feed. A radio left on all day accumulates a
+ * track every few minutes; without a cap the arrays (and the O(n) dedup walk
+ * over them) grow for the whole session. Far more rows than anyone scrolls.
+ */
+const MAX_HISTORY_TRACKS = 300;
+/**
  * Hard limit for a single refresh run (ms). Slightly above the HTTP abort
  * timeout so foreground timeouts always win. In the BACKGROUND, RN JS
  * timers freeze — the fetch's `setTimeout`-based abort never fires, a
@@ -557,9 +563,15 @@ export class NowPlayingRepository {
       if (fresh.length === 0) return;
 
       if (type === "requests") {
-        this.requestedTracks = [...fresh, ...this.requestedTracks];
+        this.requestedTracks = [...fresh, ...this.requestedTracks].slice(
+          0,
+          MAX_HISTORY_TRACKS,
+        );
       } else {
-        this.playedTracks = [...fresh, ...this.playedTracks];
+        this.playedTracks = [...fresh, ...this.playedTracks].slice(
+          0,
+          MAX_HISTORY_TRACKS,
+        );
       }
 
       this.onChange({

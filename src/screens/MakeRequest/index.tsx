@@ -20,6 +20,7 @@ import { RequestTrack } from "@/components/RequestTrack";
 import { TrackRequestContext } from "@/components/RequestTrack/context";
 
 // Core
+import { useAlert } from "@/contexts/alert/AlertProvider";
 import { useAuth } from "@/contexts/auth/AuthProvider";
 import { useUserSettings } from "@/contexts/user/UserSettingsProvider";
 import { useDict } from "@/hooks/useDict";
@@ -43,6 +44,7 @@ const LOGO_HEIGHT = scale(150);
 export function MakeRequest() {
   const { user } = useAuth();
   const { settings } = useUserSettings();
+  const { error: showError } = useAlert();
   const dict = useDict();
 
   const [searchState, setSearchState] = useState<{
@@ -56,6 +58,11 @@ export function MakeRequest() {
     status: "idle",
   });
 
+  /** Whether a search has ever run, so "no results" only shows afterwards. */
+  const [hasSearched, setHasSearched] = useState(false);
+  /** Last search failed — suppress the empty state so it can't contradict the toast. */
+  const [searchFailed, setSearchFailed] = useState(false);
+
   const [selectedTrack, setSelectedTrack] = useState<MusicRequest | undefined>(
     undefined,
   );
@@ -67,6 +74,8 @@ export function MakeRequest() {
     const query = searchState.query;
     if (!query) return;
     const requestId = begin();
+    setHasSearched(true);
+    setSearchFailed(false);
     setSearchState((prev) => ({ ...prev, status: "loading" }));
     try {
       const response = await musicRequestService.searchTracksByTitle(query);
@@ -80,9 +89,11 @@ export function MakeRequest() {
     } catch (err) {
       console.error(err);
       if (!isCurrent(requestId)) return;
+      setSearchFailed(true);
       setSearchState((prev) => ({ ...prev, status: "idle" }));
+      showError(dict.REQUEST_SEARCH_ERROR);
     }
-  }, [begin, isCurrent, searchState.query]);
+  }, [begin, isCurrent, searchState.query, showError, dict]);
 
   const handleLoadMore = useCallback(async () => {
     if (searchState.status !== "idle") return;
@@ -105,8 +116,9 @@ export function MakeRequest() {
       console.error(err);
       if (!isCurrent(requestId)) return;
       setSearchState((prev) => ({ ...prev, status: "idle" }));
+      showError(dict.REQUEST_SEARCH_ERROR);
     }
-  }, [begin, isCurrent, searchState.pagination, searchState.status]);
+  }, [begin, isCurrent, searchState.pagination, searchState.status, showError, dict]);
 
   const [refreshing, setRefreshing] = useState(false);
 
@@ -126,10 +138,11 @@ export function MakeRequest() {
       });
     } catch (err) {
       console.error(err);
+      showError(dict.REQUEST_SEARCH_ERROR);
     } finally {
       setRefreshing(false);
     }
-  }, [begin, isCurrent, searchState.query]);
+  }, [begin, isCurrent, searchState.query, showError, dict]);
 
   const handleSubmitRequest = useCallback(
     async (message: string): Promise<{ success: boolean; message: string }> => {
@@ -217,6 +230,7 @@ export function MakeRequest() {
                 dict.REQUEST_SEARCH_PLACEHOLDER
               }
               placeholderTextColor={THEME.COLORS.TEXT}
+              accessibilityLabel={dict.REQUEST_SEARCH_PLACEHOLDER}
               value={searchState.query}
               onChangeText={(query) =>
                 setSearchState((prev) => ({ ...prev, query }))
@@ -226,6 +240,7 @@ export function MakeRequest() {
             <TouchableOpacity
               accessibilityRole="button"
               accessibilityLabel={dict.A11Y_SEARCH}
+              hitSlop={8}
               onPress={handleSearch}
               style={styles.searchIcon}
             >
@@ -254,6 +269,16 @@ export function MakeRequest() {
                   initialNumToRender={10}
                   maxToRenderPerBatch={10}
                   windowSize={7}
+                  ListEmptyComponent={
+                    hasSearched &&
+                    !searchFailed &&
+                    searchState.status === "idle" &&
+                    searchState.query.trim() !== "" ? (
+                      <Text style={styles.emptyText}>
+                        {dict.REQUEST_SEARCH_EMPTY}
+                      </Text>
+                    ) : null
+                  }
                   refreshControl={
                     <RefreshControl
                       refreshing={refreshing}

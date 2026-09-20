@@ -45,7 +45,7 @@ interface InputProps {
   disabled?: boolean;
   multiline?: boolean;
   placeholder?: string;
-  onEndEditing?: () => Promise<void>;
+  accessibilityLabel: string;
 }
 
 function Input({
@@ -54,7 +54,7 @@ function Input({
   disabled,
   placeholder,
   multiline,
-  onEndEditing,
+  accessibilityLabel,
 }: InputProps) {
   return (
     <TextInput
@@ -63,7 +63,7 @@ function Input({
       onChangeText={onChangeText}
       editable={!disabled}
       placeholder={placeholder}
-      onEndEditing={onEndEditing}
+      accessibilityLabel={accessibilityLabel}
     />
   );
 }
@@ -76,7 +76,6 @@ interface FormField {
     onChangeText: (text: string) => void;
     placeholder: string;
     multiline?: boolean;
-    onEndEditing?: () => Promise<void>;
   };
 }
 
@@ -193,7 +192,6 @@ export function LiveRequestModal({ visible, handleClose }: Props) {
         onChangeText: setters.setRequest,
         placeholder: t.FORM_PLACEHOLDER_REQUEST,
         multiline: true,
-        onEndEditing: handleSubmit,
       },
     },
   ];
@@ -213,7 +211,7 @@ export function LiveRequestModal({ visible, handleClose }: Props) {
               onChangeText={item.input.onChangeText}
               placeholder={item.input.placeholder}
               multiline={item.input.multiline}
-              onEndEditing={item.input.onEndEditing}
+              accessibilityLabel={item.label}
               disabled={isSubmitting}
             />
           </View>

@@ -244,6 +244,9 @@ const DICT: Dict = {
     "El panel de la radio está temporalmente no disponible. Inténtalo de nuevo en un momento.",
   REQUEST_SUCCESS: "¡Solicitud realizada con éxito!",
   REQUEST_SEARCH_PLACEHOLDER: "Escribe aquí para buscar",
+  REQUEST_SEARCH_EMPTY: "No se encontraron canciones. Prueba otra búsqueda.",
+  REQUEST_SEARCH_ERROR:
+    "No se pudo buscar ahora. Revisa tu conexión.",
   HARU_CHAN_TEXT: "HARU-CHAN",
   THEME_WORD: "Tema",
   LOGIN_WORD: "Ingresar al",

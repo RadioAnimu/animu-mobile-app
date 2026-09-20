@@ -41,6 +41,8 @@ type PlayerContextType = PlayerSnapshot & {
   pause: () => Promise<void>;
   changeStream: (stream: Stream) => Promise<void>;
   refreshData: () => Promise<void>;
+  /** Refreshes one history feed — pull-to-refresh on the history lists. */
+  refreshHistory: (type: "requests" | "played") => Promise<void>;
   /** Bundled default cover as a loadable URI (see `ArtworkResolver`). */
   defaultArtwork: string;
   /** Whether the platform can sample audio for the visualizer. */
@@ -64,6 +66,7 @@ const PlayerContext = createContext<PlayerContextType>({
   pause: () => Promise.reject("Player not initialized"),
   changeStream: () => Promise.reject("Player not initialized"),
   refreshData: () => Promise.reject("Player not initialized"),
+  refreshHistory: () => Promise.reject("Player not initialized"),
   defaultArtwork: "",
   visualizerSupported: false,
   subscribeVisualizerWindows: () => () => {},
@@ -279,6 +282,17 @@ export const PlayerProvider: React.FC<{
     }
   }, [playerServiceInstance]);
 
+  const refreshHistory = useCallback(
+    async (type: "requests" | "played") => {
+      try {
+        await playerServiceInstance.refreshHistory(type);
+      } catch (error) {
+        console.error("[PlayerProvider] Error refreshing history:", error);
+      }
+    },
+    [playerServiceInstance],
+  );
+
   const subscribeVisualizerWindows = useCallback(
     (listener: (window: VisualizerWindow) => void) =>
       playerServiceInstance.subscribeVisualizerWindows(listener),
@@ -300,6 +314,7 @@ export const PlayerProvider: React.FC<{
       pause,
       changeStream,
       refreshData,
+      refreshHistory,
       defaultArtwork: playerServiceInstance.defaultArtwork,
       // Re-read on every snapshot change so it flips true once the native
       // player exists (created on first play).
@@ -313,6 +328,7 @@ export const PlayerProvider: React.FC<{
       pause,
       changeStream,
       refreshData,
+      refreshHistory,
       playerServiceInstance,
       subscribeVisualizerWindows,
       reportVisualizerDelay,

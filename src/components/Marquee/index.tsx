@@ -234,6 +234,8 @@ export const Marquee = React.memo(function Marquee({
         scrollEnabled={false}
         showsHorizontalScrollIndicator={false}
         pointerEvents="none"
+        accessible={false}
+        importantForAccessibility="no-hide-descendants"
         style={StyleSheet.absoluteFill}
       >
         <Animated.View
@@ -271,6 +273,8 @@ export const Marquee = React.memo(function Marquee({
     <Pressable
       onLayout={lineProps.onLayout}
       onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={text}
       // Subtle press feedback (dims like the history rows' TouchableOpacity).
       style={({ pressed }) => [
         styles.container,

@@ -41,8 +41,13 @@ export function subscribeAssistantActions(
   };
 
   const subscription = RNLinking.addEventListener("url", onUrl);
+
+  // The cold-start URL resolves asynchronously; a teardown before it does must
+  // not fire the handler (and must not double-fire with the "url" event).
+  let cancelled = false;
   void RNLinking.getInitialURL()
     .then((url) => {
+      if (cancelled) return;
       const action = parseAssistantUrl(url);
       if (action) handler(action);
     })
@@ -50,5 +55,8 @@ export function subscribeAssistantActions(
       console.warn("[Assistant] getInitialURL failed:", error);
     });
 
-  return () => subscription.remove();
+  return () => {
+    cancelled = true;
+    subscription.remove();
+  };
 }

@@ -16,7 +16,7 @@ import {
   redirectUriForProvider,
 } from "@/constants/auth";
 import type { User } from "@/core/domain/user";
-import { AsyncStorageSessionStore } from "@/core/auth/adapters/async-storage.adapter";
+import { SecureSessionStore } from "@/core/auth/adapters/secure-session.adapter";
 import { AnimuAuthAdapter } from "@/core/auth/adapters/animu-auth.adapter";
 import { OAuthAdapter } from "@/core/auth/adapters/oauth.adapter";
 import { AuthFlowCancelled } from "@/core/auth/errors";
@@ -346,9 +346,9 @@ export class AuthFacade {
   }
 }
 
-/** Production wiring: package client + expo-auth-session + AsyncStorage. */
+/** Production wiring: package client + expo-auth-session + secure keychain storage. */
 export const authFacade = new AuthFacade(
   new AnimuAuthAdapter(),
   new OAuthAdapter(),
-  new AsyncStorageSessionStore(),
+  new SecureSessionStore(),
 );

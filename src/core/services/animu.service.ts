@@ -1,5 +1,4 @@
 import {
-  abortAllInFlightRequests,
   type AnimuLive,
   type ArtworkQuality,
   type HistoryType,
@@ -10,7 +9,7 @@ import {
 import type { Program } from "@/core/domain/program";
 import { DICT } from "@/i18n";
 import type { Program as ProgramDictionaryEntry } from "@/api";
-import { animuApi, createApiClient } from "@/api/client";
+import { abortPlayerRequests, createApiClient } from "@/api/client";
 
 class AnimuService {
   /** Lazily-created SSE surface, keyed by `quality|cover` (constructor state). */
@@ -27,7 +26,9 @@ class AnimuService {
     artworkQuality?: ArtworkQuality,
     defaultCover?: string,
   ): Promise<{ track: Track | null; listeners: Listeners }> {
-    const client = createApiClient(artworkQuality ?? "medium", defaultCover);
+    const client = createApiClient(artworkQuality ?? "medium", defaultCover, {
+      playerScoped: true,
+    });
     return client.getStreamMetadata();
   }
 
@@ -36,7 +37,9 @@ class AnimuService {
    * dictionary entry (the package doesn't know about DICT).
    */
   async getCurrentProgram(): Promise<Program> {
-    const program = await animuApi.getProgram();
+    const program = await createApiClient("medium", undefined, {
+      playerScoped: true,
+    }).getProgram();
     return {
       ...program,
       raw: findRawProgram(program.name),
@@ -56,19 +59,26 @@ class AnimuService {
     artworkQuality?: ArtworkQuality,
     defaultCover?: string,
   ): Promise<Track[]> {
-    const client = createApiClient(artworkQuality ?? "medium", defaultCover);
+    const client = createApiClient(artworkQuality ?? "medium", defaultCover, {
+      playerScoped: true,
+    });
     return client.getTrackHistory(type);
   }
 
   /**
-   * Watchdog hook — aborts every in-flight request (shared + per-call
-   * clients). Called by the player's native-driven heartbeat when a data
-   * refresh outlives its hard limit: in the background, the JS-timer
-   * abort inside HttpClient never fires, so stalled requests would hang
-   * forever and freeze the now-playing data.
+   * Watchdog hook — aborts the player's own in-flight data requests
+   * (metadata, program, history). Called by the player's native-driven
+   * heartbeat when a data refresh outlives its hard limit: in the
+   * background, the JS-timer abort inside HttpClient never fires, so
+   * stalled requests would hang forever and freeze the now-playing data.
+   *
+   * Deliberately scoped rather than the package's process-global
+   * `abortAllInFlightRequests()`: a bad network that stalls a poll must not
+   * also abort an in-flight login, avatar upload or music request. The SSE
+   * connection is excluded too (it has its own controller and must survive).
    */
   abortInFlightRequests(): void {
-    abortAllInFlightRequests();
+    abortPlayerRequests();
   }
 
   /**
@@ -78,9 +88,10 @@ class AnimuService {
    * connection with the current state, making the rebuild seamless.
    *
    * The SSE connection is deliberately NOT covered by
-   * {@link abortAllInFlightRequests}: its AbortController lives inside
+   * {@link abortPlayerRequests} either: its AbortController lives inside
    * `AnimuLive` and must survive the watchdog, which exists to cut stale
-   * one-shot fetches only.
+   * one-shot fetches only. The live client is created without
+   * `playerScoped`, so it is out of scope by construction.
    */
   subscribeLive(
     quality: ArtworkQuality,

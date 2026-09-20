@@ -132,8 +132,18 @@ export const UserSettingsProvider: React.FC<{ children: React.ReactNode }> = ({
       await wipeIfNeeded();
       await trimIfNeeded();
       await wipeOnQualityChange();
-      await userSettingsService.updateSettings(updatedSettings);
-      applySettings(updatedSettings);
+      try {
+        await userSettingsService.updateSettings(updatedSettings);
+        applySettings(updatedSettings);
+      } catch (error) {
+        // Persist failed: keep the previous in-memory value so the UI can
+        // never diverge from what is actually on disk (a silently-applied
+        // toggle that reverts on the next launch is the worse failure).
+        console.error(
+          "[UserSettings] update not applied — persist failed:",
+          error,
+        );
+      }
     });
     updateChainRef.current = run.catch((error) => {
       console.error("Settings update chain failed:", error);
@@ -142,12 +152,26 @@ export const UserSettingsProvider: React.FC<{ children: React.ReactNode }> = ({
   }, []);
 
   const resetSettings = useCallback(async () => {
-    // Reset never implies a wipe: the default re-ENABLES caching (true),
-    // so the transition path never matches "turning off". Chained like
-    // updateSettings so it can't interleave a queued toggle's persist.
+    // Reset never implies a cache-off wipe (the default re-ENABLES caching),
+    // but it can change the artwork quality: cached covers key off the tier's
+    // URL, so a reset from a non-default quality leaves old-tier files mixed
+    // with the new ones — same wipe `updateSettings` runs for that transition.
+    // Chained like updateSettings so it can't interleave a queued toggle.
     const run = (updateChainRef.current ?? Promise.resolve()).then(async () => {
-      await userSettingsService.updateSettings(DEFAULT_USER_SETTINGS);
-      applySettings(DEFAULT_USER_SETTINGS);
+      if (
+        settingsRef.current.liveQualityCover !==
+        DEFAULT_USER_SETTINGS.liveQualityCover
+      ) {
+        await coverDiskStorage.clearAll().catch((error) => {
+          console.warn("[UserSettings] cache wipe on reset failed:", error);
+        });
+      }
+      try {
+        await userSettingsService.updateSettings(DEFAULT_USER_SETTINGS);
+        applySettings(DEFAULT_USER_SETTINGS);
+      } catch (error) {
+        console.error("[UserSettings] reset not applied — persist failed:", error);
+      }
     });
     updateChainRef.current = run.catch((error) => {
       console.error("Settings reset chain failed:", error);

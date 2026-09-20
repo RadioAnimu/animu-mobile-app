@@ -13,7 +13,9 @@ export function useCopyToClipboard() {
   return useCallback(
     (text: string) => {
       haptics.select();
-      void Clipboard.setStringAsync(text);
+      void Clipboard.setStringAsync(text).catch((error) => {
+        console.warn("[Clipboard] copy failed:", error);
+      });
       toast(dict.TEXT_COPIED);
     },
     [toast, dict],

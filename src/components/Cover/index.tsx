@@ -69,10 +69,12 @@ interface Props {
  */
 export function Cover({ cover, style, cachePolicy, recyclingKey, category }: Props) {
   const { settings } = useUserSettings();
-  const [failure, setFailure] = useState<{
-    url: string;
-    attempts: number;
-  } | null>(null);
+  // Failure count lives per URL in a ref, NOT in the state that derives the
+  // fallback: clearing that state to retry used to discard the count and the
+  // bounded retry looped forever. The state only holds which URL is showing
+  // the fallback; the ref survives the retry.
+  const attemptsByUrl = useRef<Map<string, number>>(new Map());
+  const [failedUrl, setFailedUrl] = useState<string | null>(null);
 
   // Attribute the cached file to this surface — what the storage card reports.
   useEffect(() => {
@@ -81,7 +83,7 @@ export function Cover({ cover, style, cachePolicy, recyclingKey, category }: Pro
     }
   }, [cover, category, settings.cacheEnabled]);
 
-  const showFallback = failure?.url === cover;
+  const showFallback = failedUrl === cover;
 
   const mountAt = useRef(0);
   useLayoutEffect(() => {
@@ -91,12 +93,11 @@ export function Cover({ cover, style, cachePolicy, recyclingKey, category }: Pro
 
   // Self-heal transient failures (bounded — a dead URL stops retrying)
   useEffect(() => {
-    if (!failure || failure.url !== cover || failure.attempts >= MAX_FAILURES) {
-      return;
-    }
-    const timer = setTimeout(() => setFailure(null), RETRY_DELAY_MS);
+    if (failedUrl !== cover) return;
+    if ((attemptsByUrl.current.get(cover) ?? 0) >= MAX_FAILURES) return;
+    const timer = setTimeout(() => setFailedUrl(null), RETRY_DELAY_MS);
     return () => clearTimeout(timer);
-  }, [failure, cover]);
+  }, [failedUrl, cover]);
 
   return (
     <Image
@@ -104,19 +105,22 @@ export function Cover({ cover, style, cachePolicy, recyclingKey, category }: Pro
       style={[{ backgroundColor: THEME.COLORS.APP_BG }, style ?? styles.image]}
       placeholder={DEFAULT_COVER}
       placeholderContentFit="cover"
-      onError={() =>
-        setFailure((prev) =>
-          prev?.url === cover
-            ? { url: cover, attempts: prev.attempts + 1 }
-            : { url: cover, attempts: 1 },
-        )
-      }
-      onLoad={() =>
-        __DEV__ &&
-        console.log(
-          `[ArtDebug] Cover onLoad after ${Date.now() - mountAt.current}ms url=${cover}`,
-        )
-      }
+      onError={() => {
+        attemptsByUrl.current.set(
+          cover,
+          (attemptsByUrl.current.get(cover) ?? 0) + 1,
+        );
+        setFailedUrl(cover);
+      }}
+      onLoad={() => {
+        attemptsByUrl.current.delete(cover);
+        setFailedUrl(null);
+        if (__DEV__) {
+          console.log(
+            `[ArtDebug] Cover onLoad after ${Date.now() - mountAt.current}ms url=${cover}`,
+          );
+        }
+      }}
       cachePolicy={cachePolicy ?? (settings.cacheEnabled ? "disk" : "none")}
       contentFit="cover"
       recyclingKey={recyclingKey ?? cover}

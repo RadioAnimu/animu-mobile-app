@@ -24,7 +24,7 @@ import { THEME } from "@/theme";
 import { scale } from "@/theme/responsive";
 import { styles } from "@/components/CustomDrawer/styles";
 
-export const MENU_ICON_SIZE = scale(22);
+const MENU_ICON_SIZE = scale(22);
 const SECTION_ICON_SIZE = scale(18);
 
 /** Intrinsic ratio of the logo assets (1200×630 px). */

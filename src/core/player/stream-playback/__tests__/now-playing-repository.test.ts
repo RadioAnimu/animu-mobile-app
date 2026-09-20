@@ -444,6 +444,24 @@ describe("NowPlayingRepository", () => {
     expect(changes[0].playedChanged).toBe(true);
   });
 
+  it("caps the played history so a long session can't grow unbounded", async () => {
+    const many: Track[] = Array.from({ length: 400 }, (_, i) =>
+      makeTrack({
+        id: `t-${i}`,
+        raw: `Track ${i}`,
+        startTime: new Date(Date.now() - i * 1000),
+      }),
+    );
+    const { repository } = makeRepository({
+      getTrackHistory: vi.fn(async (type) => (type === "played" ? many : [])),
+    });
+
+    await repository.refreshHistory("played");
+
+    expect(repository.lastPlayedTracks).toHaveLength(300);
+    expect(repository.lastPlayedTracks[0].raw).toBe("Track 0");
+  });
+
   it("clears all data", async () => {
     const { repository } = makeRepository();
     await repository.refresh();

@@ -46,21 +46,42 @@ export class PlaybackControlsAdapter implements MediaSessionPort {
   async start(): Promise<boolean> {
     if (this.isActive) return true;
     try {
-      this.session = await PlaybackControls.startSession({
-        commands: ["play", "pause", "toggle-play-pause"],
-      });
-      this.subscription?.remove();
-      this.subscription = this.session.addCommandListener((event) => {
-        void this.handleCommand(event);
-      });
+      await this.beginSession();
       return true;
     } catch (error) {
-      console.error(
-        "[PlaybackControlsAdapter] Failed to start session:",
+      // The native session can already be alive from a previous JS instance
+      // (a bridge reload, or a teardown whose `end()` failed). `startSession`
+      // then rejects and — without this recovery — `isActive` stays false for
+      // the whole session, so every `push` is a silent no-op and the lock
+      // screen/notification controls stay dead. Tear the stale session down
+      // and retry once.
+      console.warn(
+        "[PlaybackControlsAdapter] start failed, retrying after teardown:",
         error,
       );
-      return false;
+      await this.end();
+      try {
+        await this.beginSession();
+        return true;
+      } catch (retryError) {
+        console.error(
+          "[PlaybackControlsAdapter] Failed to start session:",
+          retryError,
+        );
+        return false;
+      }
     }
+  }
+
+  private async beginSession(): Promise<void> {
+    const session = await PlaybackControls.startSession({
+      commands: ["play", "pause", "toggle-play-pause"],
+    });
+    this.session = session;
+    this.subscription?.remove();
+    this.subscription = session.addCommandListener((event) => {
+      void this.handleCommand(event);
+    });
   }
 
   push(

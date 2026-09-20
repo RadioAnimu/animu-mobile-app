@@ -51,6 +51,9 @@ export const Listeners = React.memo(function Listeners() {
 
   return (
     <View
+      accessible
+      accessibilityLiveRegion="polite"
+      accessibilityLabel={`${currentListeners.value} ${label}`}
       style={[styles.container, { backgroundColor: palette.background }]}
     >
       <Text style={[styles.text, { color: palette.text }]}>

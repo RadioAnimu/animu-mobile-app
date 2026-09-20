@@ -61,6 +61,13 @@ export const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
+  emptyText: {
+    color: THEME.COLORS.TEXT,
+    textAlign: "center",
+    fontFamily: THEME.FONT_FAMILY.REGULAR,
+    fontSize: THEME.FONT_SIZE.LIST,
+    marginTop: THEME.SPACE.LG,
+  },
   loadMoreBtn: {
     backgroundColor: THEME.COLORS.INPUT_BG,
     padding: THEME.SPACE.MD,

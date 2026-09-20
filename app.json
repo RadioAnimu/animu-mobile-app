@@ -93,7 +93,8 @@
       "./plugins/withAndroidAppActions",
       "expo-localization",
       "react-native-ota-hot-update",
-      "react-native-blob-util"
+      "react-native-blob-util",
+      "expo-secure-store"
     ],
     "extra": {
       "eas": {

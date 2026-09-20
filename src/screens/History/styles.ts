@@ -25,6 +25,8 @@ export const styles = StyleSheet.create({
   },
   nameTouchable: {
     flex: 1,
+    minHeight: scale(44),
+    justifyContent: "center",
   },
   trackName: {
     color: THEME.COLORS.TEXT,

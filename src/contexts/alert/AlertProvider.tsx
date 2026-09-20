@@ -152,12 +152,13 @@ export const AlertProvider: React.FC<{ children: ReactNode }> = ({
           visible={visible}
           statusBarTranslucent
           transparent
+          onRequestClose={handleClose}
         >
           <KeyboardAvoidingView
             behavior="padding"
             style={styles.container}
           >
-            <View style={styles.content}>
+            <View style={styles.content} accessibilityViewIsModal>
               <TouchableOpacity
                 accessibilityRole="button"
                 accessibilityLabel={dict.A11Y_CLOSE}

@@ -131,6 +131,13 @@ export async function checkForOtaUpdate(): Promise<OtaCheckResult> {
 }
 
 /**
+ * Hard ceiling for a staged download. The native library can silently invoke
+ * neither callback on a stalled connection; without this the returned promise
+ * never settles and the Settings row stays on "Downloading…" forever.
+ */
+const DOWNLOAD_TIMEOUT_MS = 120_000;
+
+/**
  * Downloads and stages a bundle. It is applied on the next cold start (or
  * immediately via {@link restartForOtaUpdate}) — never mid-session, so a live
  * show is not interrupted by a reload.
@@ -141,20 +148,37 @@ export function downloadOtaUpdate(
   onProgress?: (received: number, total: number) => void,
 ): Promise<OtaDownloadResult> {
   return new Promise((resolve) => {
-    hotUpdate.downloadBundleUri(
-      ReactNativeBlobUtil as never,
-      url,
-      version,
-      {
-        restartAfterInstall: false,
-        maxBundleVersions: OTA_MAX_BUNDLE_VERSIONS,
-        progress: (received, total) => {
-          onProgress?.(Number(received), Number(total));
+    let settled = false;
+    let timeout: ReturnType<typeof setTimeout>;
+    const finish = (result: OtaDownloadResult) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timeout);
+      resolve(result);
+    };
+
+    timeout = setTimeout(() => {
+      finish({ status: "error", error: new Error("OTA download timed out") });
+    }, DOWNLOAD_TIMEOUT_MS);
+
+    try {
+      hotUpdate.downloadBundleUri(
+        ReactNativeBlobUtil as never,
+        url,
+        version,
+        {
+          restartAfterInstall: false,
+          maxBundleVersions: OTA_MAX_BUNDLE_VERSIONS,
+          progress: (received, total) => {
+            onProgress?.(Number(received), Number(total));
+          },
+          updateSuccess: () => finish({ status: "installed", version }),
+          updateFail: (error) => finish({ status: "error", error }),
         },
-        updateSuccess: () => resolve({ status: "installed", version }),
-        updateFail: (error) => resolve({ status: "error", error }),
-      },
-    );
+      );
+    } catch (error) {
+      finish({ status: "error", error });
+    }
   });
 }
 
