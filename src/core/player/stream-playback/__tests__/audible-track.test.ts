@@ -32,6 +32,8 @@ interface Fixture {
   setStation: (track: Track | null) => void;
   /** Toggle whether the sync engine has a measured lag. */
   setMeasured: (value: boolean) => void;
+  /** How far the audible clock trails the raw clock (the stream lag). */
+  setLag: (ms: number) => void;
   /** Current virtual clock (epoch-ish ms). */
   now: () => number;
 }
@@ -42,12 +44,13 @@ const makeFixture = (): Fixture => {
   let wall = 5_000_000;
   let station: Track | null = null;
   let measured = true;
+  let lag = 0;
 
   const resolver = new AudibleTrackResolver({
     getStationTrack: () => station,
     sync: {
-      now: () => clock,
-      isAudible: (startTimeMs: number) => clock >= startTimeMs,
+      now: () => clock - lag,
+      isAudible: (startTimeMs: number) => clock - lag >= startTimeMs,
       get hasMeasurement() {
         return measured;
       },
@@ -73,6 +76,9 @@ const makeFixture = (): Fixture => {
     },
     setMeasured: (value) => {
       measured = value;
+    },
+    setLag: (ms) => {
+      lag = ms;
     },
   };
 };
@@ -152,6 +158,76 @@ describe("AudibleTrackResolver", () => {
     f.advance(5_000);
     f.resolver.adoptIfDue();
 
+    expect(f.resolver.track?.raw).toBe("B");
+  });
+
+  it("holds the displayed track across a re-tune until the new lag is measured", () => {
+    const f = makeFixture();
+    f.setStation(makeTrack({ raw: "A", startTime: new Date(f.now() - 1_000) }));
+    f.resolver.reconcile();
+    expect(f.resolver.track?.raw).toBe("A");
+
+    // Relay switched just as B is announced: the clock reset, so B must NOT
+    // be adopted on the wall-clock fallback — the new relay is still on A.
+    f.setMeasured(false);
+    f.resolver.beginReacquire();
+    f.setStation(makeTrack({ raw: "B", startTime: new Date(f.now()) }));
+
+    expect(f.resolver.reconcile()).toBe(false);
+    expect(f.resolver.track?.raw).toBe("A");
+
+    // The new relay's lag lands (16s behind): B is not audible yet.
+    f.setLag(16_000);
+    f.setMeasured(true);
+    expect(f.resolver.reconcile()).toBe(false);
+    expect(f.resolver.track?.raw).toBe("A");
+
+    // Only when the speaker reaches B does the display flip.
+    f.advance(16_000);
+    expect(f.resolver.track?.raw).toBe("B");
+  });
+
+  it("reverts to the previous track when a re-tune lands behind the timeline", () => {
+    const f = makeFixture();
+
+    // A → B: B is on screen, A is retained as the previous item.
+    f.setStation(
+      makeTrack({
+        raw: "A",
+        startTime: new Date(f.now() - 60_000),
+        duration: 120_000,
+      }),
+    );
+    f.resolver.reconcile();
+    f.setStation(
+      makeTrack({
+        raw: "B",
+        startTime: new Date(f.now() - 1_000),
+        duration: 120_000,
+      }),
+    );
+    expect(f.resolver.reconcile()).toBe(true);
+    expect(f.resolver.track?.raw).toBe("B");
+
+    // Switch relay mid-song: the new relay is 16s behind, so the listener is
+    // still on A even though the station says B. No pending item exists at
+    // this point, so `adoptIfDue` must still re-evaluate the re-tune.
+    f.setMeasured(false);
+    f.resolver.beginReacquire();
+    f.resolver.adoptIfDue();
+    expect(f.resolver.track?.raw).toBe("B");
+
+    f.setLag(16_000);
+    f.setMeasured(true);
+    f.resolver.adoptIfDue();
+    expect(f.resolver.track?.raw).toBe("A");
+
+    // …and it re-adopts B once the speaker reaches it.
+    f.advance(14_000);
+    f.resolver.adoptIfDue();
+    expect(f.resolver.track?.raw).toBe("A");
+    f.advance(1_000);
+    f.resolver.adoptIfDue();
     expect(f.resolver.track?.raw).toBe("B");
   });
 

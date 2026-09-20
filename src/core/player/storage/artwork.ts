@@ -2,7 +2,7 @@ import { Asset } from "expo-asset";
 import { File, Paths } from "expo-file-system";
 import { artworkSizeRank, type Artworks } from "animu-api";
 import DEFAULT_COVER from "@app/assets/default-cover.png";
-import { CONFIG } from "@/utils/player.config";
+import { CONFIG, debugLog } from "@/utils/player.config";
 import type { Track } from "@/core/domain/track";
 import type {
   CoverFileCache,
@@ -217,7 +217,7 @@ export class ArtworkResolver {
     if (pending) return pending;
 
     const startedAt = Date.now();
-    console.log(`[ArtDebug] resolve START ${url}`);
+    debugLog(`[ArtDebug] resolve START ${url}`);
 
     const promise = this.pipeline(url, startedAt)
       .catch((error) => {
@@ -267,7 +267,7 @@ export class ArtworkResolver {
   private async pipeline(url: string, startedAt: number): Promise<string> {
     const cachedFile = await this.options?.findCachedCoverFile?.(url);
     if (cachedFile) {
-      console.log(
+      debugLog(
         `[ArtDebug] resolve EXPO-IMAGE CACHE HIT after ${Date.now() - startedAt}ms url=${url} file=${cachedFile}`,
       );
       this.fileMap.track(url, cachedFile);
@@ -301,7 +301,7 @@ export class ArtworkResolver {
         .downloadAsync()
         .then((asset) => {
           const local = asset.localUri ?? url;
-          console.log(
+          debugLog(
             `[ArtDebug] resolve DOWNLOAD(expo-asset fallback) done after ${Date.now() - startedAt}ms url=${url} local=${local}`,
           );
           this.fileMap.track(url, local);
@@ -314,7 +314,7 @@ export class ArtworkResolver {
       throw new Error(`cover download produced an empty file (${url})`);
     }
     const local = destination.uri;
-    console.log(
+    debugLog(
       `[ArtDebug] resolve DOWNLOAD done after ${Date.now() - startedAt}ms size=${destination.size} url=${url} local=${local}`,
     );
     this.fileMap.track(url, local);

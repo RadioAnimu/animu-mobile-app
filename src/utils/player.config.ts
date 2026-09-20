@@ -70,3 +70,13 @@ export const CONFIG = {
   },
   DEBUG,
 };
+
+/**
+ * Dev-only trace. Debug chatter (cover resolution, sync math) is verbose and
+ * the release console is silent by definition — gate it behind `__DEV__` so
+ * production builds ship no logging overhead. Failures keep using
+ * `console.warn` directly (worth surfacing regardless of build).
+ */
+export const debugLog = (...args: unknown[]): void => {
+  if (DEBUG) console.log(...args);
+};

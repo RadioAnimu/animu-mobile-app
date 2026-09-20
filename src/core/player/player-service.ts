@@ -7,7 +7,7 @@ import { animuService } from "@/core/services/animu.service";
 import { userSettingsService } from "@/core/services/user-settings.service";
 import { API } from "@/api";
 import { animuApi, setServerSkewListener } from "@/api/client";
-import { CONFIG } from "@/utils/player.config";
+import { CONFIG, debugLog } from "@/utils/player.config";
 import type {
   AudioEnginePort,
   AudioPlaybackStatus,
@@ -228,7 +228,7 @@ export class PlayerService {
         startTimeMs: track.startTime.getTime(),
         receivedAtMs: receivedAt.getTime(),
       });
-      console.log(
+      debugLog(
         `[ArtDebug] LIVE track change → "${track.title ?? "?"}" artwork=${track.artwork}`,
       );
     };
@@ -608,12 +608,19 @@ export class PlayerService {
       // A manual re-tune is a fresh intent — no pending live-edge re-open.
       this.interruptionPending = false;
       this.stalledSince = null;
-      // A different relay (MP3 vs AAC+) buffers differently — drop the old
-      // lag so the first native reading of the new stream snaps. The display
-      // resolver is deliberately NOT reset: it keeps the current track on
-      // screen across the re-tune (and if the follow-up fetch fails offline,
-      // the UI must not blank).
+      // A different relay (MP3 vs AAC+) buffers differently AND may sit at a
+      // different point in the broadcast — drop the old lag so the first
+      // native reading of the new stream snaps. The display resolver is
+      // deliberately NOT reset (it keeps the current track on screen across
+      // the re-tune), but it must HOLD that track until the new relay's lag
+      // is measured: otherwise it adopts the announced item on the wall-clock
+      // fallback while the new relay is still on the previous song.
       this.deps.sync.reset();
+      this.deps.audible.beginReacquire();
+      // Evaluate now: with the clock reset, this holds whatever is on screen
+      // until the new relay's lag is measured (and later reverts if the new
+      // relay landed behind the station timeline).
+      this.deps.audible.adoptIfDue();
 
       this.deps.audio.load(stream.url);
       if (wasPlaying) {
@@ -681,7 +688,7 @@ export class PlayerService {
     // connectivity (and the track) is live again.
     if (!this.deps.networkMonitor.isOnline()) return;
     const preview = pickPreviewArtwork(url, track?.artworks);
-    console.log(
+    debugLog(
       `[ArtDebug] prefetch START "${track?.title ?? "?"}" artwork=${url} preview=${preview ?? "none"}`,
     );
     void Promise.all([
@@ -689,7 +696,7 @@ export class PlayerService {
       ...(preview ? [this.deps.artwork.resolve(preview)] : []),
     ])
       .then(([resolved]) => {
-        console.log(
+        debugLog(
           `[ArtDebug] prefetch READY "${track?.title ?? "?"}" → ${resolved}`,
         );
       })
@@ -721,7 +728,7 @@ export class PlayerService {
       const artworkUrl = this.deps.audible.track?.artwork;
       const peeked = artworkUrl ? this.deps.artwork.peek(artworkUrl) : undefined;
       const t0 = Date.now();
-      console.log(
+      debugLog(
         `[ArtDebug] updateMetadata track="${this.deps.audible.track?.title ?? "?"}" artwork="${artworkUrl ?? "none"}" peeked=${peeked ?? "MISS"}`,
       );
       if (
@@ -750,7 +757,7 @@ export class PlayerService {
           )
           .then((resolved) => {
           const dt = Date.now() - t0;
-          console.log(
+          debugLog(
             `[ArtDebug] resolve.then after ${dt}ms sameTrack=${this.deps.audible.track?.artwork === artworkUrl} resolved=${resolved}`,
           );
           if (this.deps.audible.track?.artwork === artworkUrl) {

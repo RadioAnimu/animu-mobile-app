@@ -186,6 +186,7 @@ const makeDeps = () => {
     },
     reconcile: vi.fn(() => false),
     adoptIfDue: vi.fn(),
+    beginReacquire: vi.fn(),
     reset: vi.fn(),
   };
   const sampler = {
@@ -696,6 +697,7 @@ describe("PlayerService lifecycle", () => {
     const service = new PlayerService(deps);
     await service.play();
     audible.reset.mockClear();
+    audible.beginReacquire.mockClear();
 
     await service.changeStream({
       id: "high",
@@ -707,6 +709,9 @@ describe("PlayerService lifecycle", () => {
     // Resetting the resolver would blank the now-playing UI if the follow-up
     // fetch fails (offline re-tune).
     expect(audible.reset).not.toHaveBeenCalled();
+    // …but the re-tune must hold the displayed track until the new relay's
+    // lag is measured (the new relay is still behind on the previous song).
+    expect(audible.beginReacquire).toHaveBeenCalledTimes(1);
   });
 });
 
