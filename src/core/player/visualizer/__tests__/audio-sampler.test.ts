@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import type { AudioSample } from "expo-audio";
+import type { AudioSample } from "@/core/player/ports";
 import { AudioSampler } from "@/core/player/visualizer/audio-sampler";
 
 /** Fake transport exposing the captured native sample handler. */
@@ -201,7 +201,7 @@ describe("AudioSampler windows", () => {
       channels: [{ frames: [0.5, 0.5] }],
       timestamp: 0,
       outputLatencySeconds: 0.12,
-    } as AudioSample & { outputLatencySeconds: number });
+    });
 
     const window = listener.mock.calls[0][0];
     expect(window.outputLatencyMs).toBeGreaterThan(0);
@@ -227,7 +227,7 @@ describe("AudioSampler windows", () => {
       channels: [{ frames: [0.3, 0.3] }],
       timestamp: 0,
       outputLatencySeconds: seconds,
-    }) as AudioSample & { outputLatencySeconds: number };
+    });
 
     emit(withLatency(0.1));
     const initial = listener.mock.calls[0][0].outputLatencyMs;

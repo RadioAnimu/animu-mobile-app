@@ -1,4 +1,4 @@
-import type { AudioSample } from "expo-audio";
+import type { AudioSample } from "@/core/player/ports";
 import { downmixChannels, resampleWaveformInto, rms } from "@/core/player/visualizer/waveform";
 import type {
   SamplingTransport,
@@ -73,9 +73,6 @@ const OUTPUT_LATENCY_SMOOTH = 0.85;
  */
 const SYNC_TRIM_LIMIT_MS = 150;
 const SYNC_CALIBRATION_STEP = 0.08;
-
-/** Native `AudioSample` plus the Android tap's measured output latency. */
-type LatencySample = AudioSample & { outputLatencySeconds?: number };
 
 /**
  * Median of the recent inter-window deltas, clamped to the plausible cadence
@@ -233,7 +230,7 @@ export class AudioSampler implements VisualizerSampler {
 
     // The native tap reports how far this window leads the speaker. Track it
     // smoothly; the visualizer uses it to delay the trace into sync.
-    const latencySeconds = (sample as LatencySample).outputLatencySeconds;
+    const latencySeconds = sample.outputLatencySeconds;
     if (typeof latencySeconds === "number" && Number.isFinite(latencySeconds)) {
       const measuredMs = Math.min(
         MAX_OUTPUT_LATENCY_MS,

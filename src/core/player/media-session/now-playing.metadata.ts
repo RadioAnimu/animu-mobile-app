@@ -1,4 +1,4 @@
-import type { NowPlayingMetadata } from "react-native-playback-controls";
+import type { NowPlayingMetadata } from "@/core/player/ports";
 import type { Track } from "@/core/domain/track";
 
 export interface NowPlayingInput {

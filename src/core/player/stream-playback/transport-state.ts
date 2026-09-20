@@ -1,4 +1,4 @@
-import type { PlaybackStatus } from "react-native-playback-controls";
+import type { RemotePlaybackStatus } from "@/core/player/ports";
 
 // ─── Transport state machine ───
 // Explicit lifecycle instead of independent booleans ("paused", "started").
@@ -43,8 +43,8 @@ export const isDeadPlaybackState = (playbackState: string): boolean =>
   playbackState === "failed" ||
   playbackState === "ended";
 
-/** Maps the transport state to a media-session PlaybackStatus. */
-export const toRemoteStatus = (state: TransportState): PlaybackStatus => {
+/** Maps the transport state to a media-session playback status. */
+export const toRemoteStatus = (state: TransportState): RemotePlaybackStatus => {
   switch (state) {
     case "playing":
       return "playing";
@@ -81,7 +81,7 @@ export class TransportStateMachine {
     return isPlayingIntentState(this.current);
   }
 
-  get remoteStatus(): PlaybackStatus {
+  get remoteStatus(): RemotePlaybackStatus {
     return toRemoteStatus(this.current);
   }
 

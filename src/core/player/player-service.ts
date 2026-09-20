@@ -1,5 +1,3 @@
-import type { AudioStatus } from "expo-audio";
-import type { NowPlayingMetadata } from "react-native-playback-controls";
 import NetInfo from "@react-native-community/netinfo";
 import { openBrowserAsync } from "expo-web-browser";
 import type { HistoryType } from "@/@types/history-type.d";
@@ -7,10 +5,18 @@ import type { Stream } from "@/core/domain/stream";
 import { getTrackProgress } from "@/core/domain/track";
 import { animuService } from "@/core/services/animu.service";
 import { userSettingsService } from "@/core/services/user-settings.service";
-import { EndPlaybackSession } from "@/core/services/player-playback.service";
 import { API } from "@/api";
 import { animuApi } from "@/api/client";
 import { CONFIG } from "@/utils/player.config";
+import type {
+  AudioEnginePort,
+  AudioPlaybackStatus,
+  MediaSessionPort,
+  NowPlayingMetadata,
+  RemoteCommandHandlers,
+} from "@/core/player/ports";
+import { ExpoAudioAdapter } from "@/core/player/adapters/expo-audio.adapter";
+import { PlaybackControlsAdapter } from "@/core/player/adapters/playback-controls.adapter";
 import { BackoffScheduler } from "@/core/player/stream-playback/backoff";
 import {
   buildNowPlayingMetadata,
@@ -23,7 +29,6 @@ import {
   ExpoImageCoverDiskCache,
 } from "@/core/player/storage/cover-image-cache";
 import { HeartbeatScheduler } from "@/core/player/stream-playback/heartbeat";
-import { MediaSessionPublisher } from "@/core/player/media-session/media-session.publisher";
 import {
   NetworkMonitor,
   type ConnectivitySubscribe,
@@ -40,7 +45,6 @@ import {
   type StationSnapshot,
 } from "@/core/player/store";
 import { StreamPreferences } from "@/core/player/stream-playback/stream-preferences";
-import { AudioTransport } from "@/core/player/stream-playback/transport";
 import { createVisualizerSampler } from "@/core/player/visualizer";
 import type {
   VisualizerSampler,
@@ -85,9 +89,9 @@ const CONNECTING_WATCHDOG_MS = 4000;
 
 export interface PlayerServiceDependencies {
   state: TransportStateMachine;
-  transport: AudioTransport;
+  audio: AudioEnginePort;
+  media: MediaSessionPort;
   sampler: VisualizerSampler;
-  publisher: MediaSessionPublisher;
   repository: NowPlayingRepository;
   streamPreferences: StreamPreferences;
   reconnect: BackoffScheduler;
@@ -166,7 +170,7 @@ export class PlayerService {
 
   constructor(private readonly deps: PlayerServiceDependencies) {
     // ── Wiring: this class owns every cross-unit connection ──
-    this.deps.transport.setStatusHandler((status) =>
+    this.deps.audio.setStatusHandler((status) =>
       this.handlePlaybackStatus(status),
     );
     this.deps.repository.onChange = (change) => {
@@ -193,6 +197,22 @@ export class PlayerService {
     };
   }
 
+  // ── Session ──
+
+  /**
+   * Applies the audio-session mode and starts the media session. Idempotent:
+   * the audio mode is applied once, the media session is a no-op once active.
+   */
+  private async ensureSession(): Promise<void> {
+    await this.deps.audio.ensureAudioMode();
+    await this.deps.media.start();
+  }
+
+  /** Routes remote media-session commands (lock screen) into the player. */
+  setRemoteHandlers(handlers: RemoteCommandHandlers): void {
+    this.deps.media.setHandlers(handlers);
+  }
+
   // ── Queries ──
 
   /** Whether the user's last action was "play" (covers the intent chain). */
@@ -207,7 +227,7 @@ export class PlayerService {
    * foreground data refresh.)
    */
   get isReady(): boolean {
-    return this.deps.transport.hasPlayer && this.deps.repository.hasTrack;
+    return this.deps.audio.hasPlayer && this.deps.repository.hasTrack;
   }
 
   getNowPlayingMetadata(): NowPlayingMetadata {
@@ -332,7 +352,7 @@ export class PlayerService {
       // Media-session start is best-effort: if the OS refuses it at boot
       // (e.g. not foreground yet) playback must still come up and the
       // session is retried on the next play(). Never let it wedge bootstrap.
-      this.deps.transport.ensureSession().catch((error) => {
+      this.ensureSession().catch((error) => {
         console.warn(
           "[PlayerService] media session deferred — will retry on play:",
           error,
@@ -381,8 +401,8 @@ export class PlayerService {
     // ── Phase 3: media session preload (non-blocking) ──
     // Fire-and-forget: the notification player is nice-to-have,
     // the UI is already interactive.
-    if (this.deps.repository.hasTrack && this.deps.transport.isSessionReady) {
-      this.deps.publisher.push(
+    if (this.deps.repository.hasTrack && this.deps.media.isActive) {
+      this.deps.media.push(
         this.getNowPlayingMetadata(),
         this.deps.state.remoteStatus,
       );
@@ -410,11 +430,10 @@ export class PlayerService {
       this.deps.heartbeat.reset();
       this.deps.artwork.reset();
       this.deps.sampler.dispose();
-      if (this.deps.transport.hasPlayer) {
-        this.deps.transport.dispose();
-        this.deps.transport.markSessionDown();
+      if (this.deps.audio.hasPlayer) {
+        this.deps.audio.dispose();
       }
-      await EndPlaybackSession().catch(() => {});
+      await this.deps.media.end().catch(() => {});
       this.deps.state.transition("idle");
       this.initialized = false;
       this.emitPlayer();
@@ -423,10 +442,10 @@ export class PlayerService {
     }
 
     try {
-      this.deps.transport.dispose();
+      this.deps.audio.dispose();
       this.deps.reconnect.reset();
       this.deps.networkMonitor.stop();
-      await EndPlaybackSession();
+      await this.deps.media.end();
 
       this.deps.repository.dispose();
       this.deps.state.transition("idle");
@@ -436,7 +455,6 @@ export class PlayerService {
       this.deps.heartbeat.reset();
       this.deps.artwork.reset();
       this.deps.sampler.dispose();
-      this.deps.transport.markSessionDown();
       this.initialized = false;
       this.streamOptions = [];
 
@@ -464,9 +482,9 @@ export class PlayerService {
     try {
       // Ensure audio mode + media session are set up, then resolve the
       // stored stream (setupPlayer already persisted a valid default).
-      if (!this.deps.transport.isSessionReady) {
+      if (!this.deps.media.isActive) {
         try {
-          await this.deps.transport.ensureSession();
+          await this.ensureSession();
         } catch (error) {
           // Audio still plays; only the OS controls are missing. The next
           // play() retries the session.
@@ -484,7 +502,7 @@ export class PlayerService {
       // immediately; the poll cycle counts from zero)
       this.deps.heartbeat.reset();
 
-      this.deps.transport.play(this.deps.streamPreferences.current.url);
+      this.deps.audio.play(this.deps.streamPreferences.current.url);
       // Reconcile emits the store (isPlaying → true immediately) and
       // pushes "buffering" to the media session.
       this.reconcile("connecting");
@@ -511,7 +529,7 @@ export class PlayerService {
     // Pausing only needs the audio transport — a failed/slow now-playing
     // fetch, or a media session that never started, must never make the
     // audio unpausable.
-    if (!this.deps.transport.hasPlayer || this.deps.state.state === "paused") {
+    if (!this.deps.audio.hasPlayer || this.deps.state.state === "paused") {
       return;
     }
 
@@ -519,7 +537,7 @@ export class PlayerService {
       // User paused — stop any pending stream reconnects first
       this.deps.reconnect.cancel();
 
-      this.deps.transport.pause();
+      this.deps.audio.pause();
       // Reconcile flips isPlayingIntent → false, emits the store and
       // pushes "paused" to the media session (the old flow pushed the
       // status manually and could leave the button latched).
@@ -540,7 +558,7 @@ export class PlayerService {
     // the media session — just replace the audio source. (Deliberately
     // not `isReady`: a missing track snapshot must not leave the audio
     // playing the OLD stream while the store already records the new one.)
-    if (this.deps.transport.hasPlayer) {
+    if (this.deps.audio.hasPlayer) {
       const wasPlaying = this.deps.state.isPlayingIntent;
 
       // A pending reconnect would double-fire after the manual re-tune
@@ -549,9 +567,9 @@ export class PlayerService {
       this.interruptionPending = false;
       this.stalledSince = null;
 
-      this.deps.transport.load(stream.url);
+      this.deps.audio.load(stream.url);
       if (wasPlaying) {
-        this.deps.transport.resume();
+        this.deps.audio.resume();
         // Reconcile: the notification follows the re-tune ("buffering")
         // instead of claiming the old stream is still playing.
         this.reconcile("connecting");
@@ -619,7 +637,7 @@ export class PlayerService {
   }
 
   private pushNowPlaying(): void {
-    this.deps.publisher.push(
+    this.deps.media.push(
       this.getNowPlayingMetadata(),
       this.deps.state.remoteStatus,
       toSec(getTrackProgress(this.deps.repository.currentTrack ?? undefined)),
@@ -674,7 +692,7 @@ export class PlayerService {
     this.emitPlayer();
     // …and it changes the media session's affordance (play/pause/loading
     // icon) — tell the OS immediately, don't wait for the next tick.
-    this.deps.publisher.pushStatus(this.deps.state.remoteStatus);
+    this.deps.media.pushStatus(this.deps.state.remoteStatus);
   }
 
   /**
@@ -683,7 +701,7 @@ export class PlayerService {
    * dead stream) is folded back into the state machine here, so the stores
    * and the media session can never drift from the audio.
    */
-  private handlePlaybackStatus(status: AudioStatus): void {
+  private handlePlaybackStatus(status: AudioPlaybackStatus): void {
     // Straggler native event after teardown — a destroyed instance must
     // not tick, poll or transition.
     if (this.disposed) return;
@@ -706,7 +724,7 @@ export class PlayerService {
    *
    * @returns true when the event was a buffering frame (handled here).
    */
-  private handleBuffering(status: AudioStatus): boolean {
+  private handleBuffering(status: AudioPlaybackStatus): boolean {
     if (!status.isBuffering) return false;
 
     if (this.deps.state.isPlayingIntent) {
@@ -732,7 +750,7 @@ export class PlayerService {
    *
    * @returns true when the event reported audio flowing (handled here).
    */
-  private handlePlaying(status: AudioStatus): boolean {
+  private handlePlaying(status: AudioPlaybackStatus): boolean {
     if (!status.playing) return false;
 
     this.deps.reconnect.reset();
@@ -745,7 +763,7 @@ export class PlayerService {
       const stalledFor = Date.now() - this.stalledSince;
       this.stalledSince = null;
       if (stalledFor >= LIVE_STALL_REOPEN_MS) {
-        this.deps.transport.play(this.deps.streamPreferences.current.url);
+        this.deps.audio.play(this.deps.streamPreferences.current.url);
         this.reconcile("connecting");
         this.deps.heartbeat.beat();
         return true;
@@ -756,7 +774,7 @@ export class PlayerService {
       // The user stopped this stream — an in-flight straggler event or a
       // rare auto-resume must not resurrect audio against their intent.
       if (this.userPaused) {
-        this.deps.transport.pause();
+        this.deps.audio.pause();
         return true;
       }
       // The pause was native (focus loss, phone call) and the OS has just
@@ -768,7 +786,7 @@ export class PlayerService {
       // transient paused→playing frame leaves it clear.
       if (this.interruptionPending) {
         this.interruptionPending = false;
-        this.deps.transport.play(this.deps.streamPreferences.current.url);
+        this.deps.audio.play(this.deps.streamPreferences.current.url);
         this.reconcile("connecting");
         this.deps.heartbeat.beat();
         return true;
@@ -795,7 +813,7 @@ export class PlayerService {
    *
    * @returns true when the event was a genuine native pause (handled here).
    */
-  private handleNativelyPaused(status: AudioStatus): boolean {
+  private handleNativelyPaused(status: AudioPlaybackStatus): boolean {
     if (
       status.isBuffering ||
       status.timeControlStatus !== "paused" ||
@@ -826,7 +844,7 @@ export class PlayerService {
    * Stream died while the user wants playback → schedule reconnect. The
    * grace window filters transient native idle states (`replace()`).
    */
-  private handleStreamLost(status: AudioStatus): void {
+  private handleStreamLost(status: AudioPlaybackStatus): void {
     const streamLost =
       this.deps.state.isPlayingIntent &&
       !status.isBuffering &&
@@ -858,7 +876,7 @@ export class PlayerService {
     );
     // Restart the clock so a failed retry waits another full window.
     this.connectingSince = Date.now();
-    this.deps.transport.resume();
+    this.deps.audio.resume();
   }
 
   private handleNetworkRestore(): void {
@@ -902,7 +920,7 @@ export class PlayerService {
    * gapless resume on a radio stream) and resumes playback.
    */
   private async attemptReconnect(): Promise<void> {
-    if (!this.deps.state.isPlayingIntent || !this.deps.transport.hasPlayer) {
+    if (!this.deps.state.isPlayingIntent || !this.deps.audio.hasPlayer) {
       return;
     }
 
@@ -910,7 +928,7 @@ export class PlayerService {
       // Reconnect re-opens live anyway — drop any pending interruption.
       this.interruptionPending = false;
       this.stalledSince = null;
-      this.deps.transport.play(this.deps.streamPreferences.current.url);
+      this.deps.audio.play(this.deps.streamPreferences.current.url);
       // Reconcile pushes "buffering" — no manual pushStatus needed.
       this.reconcile("connecting");
     } catch (error) {
@@ -988,9 +1006,11 @@ let playerServiceInstance: PlayerService | null = null;
 /** Builds a fully-wired PlayerService with production dependencies. */
 export const createPlayerService = (): PlayerService => {
   const state = new TransportStateMachine();
-  const transport = new AudioTransport();
-  const sampler = createVisualizerSampler(transport);
-  const publisher = new MediaSessionPublisher();
+  // The only two places the native libraries are touched live in these
+  // adapters; the rest of the core depends on the ports.
+  const audio = new ExpoAudioAdapter();
+  const media = new PlaybackControlsAdapter();
+  const sampler = createVisualizerSampler(audio);
   const streamPreferences = new StreamPreferences();
   const reconnect = new BackoffScheduler({
     baseMs: BASE_RECONNECT_DELAY_MS,
@@ -1020,8 +1040,8 @@ export const createPlayerService = (): PlayerService => {
   const ticker = new ProgressTicker({
     repository,
     state,
-    transport,
-    publisher,
+    audio,
+    media,
     buildMetadata: () =>
       buildNowPlayingMetadata({
         track: artwork.apply(repository.currentTrack),
@@ -1040,9 +1060,9 @@ export const createPlayerService = (): PlayerService => {
 
   return new PlayerService({
     state,
-    transport,
+    audio,
+    media,
     sampler,
-    publisher,
     repository,
     streamPreferences,
     reconnect,

@@ -1,5 +1,4 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { AudioStatus } from "expo-audio";
 import { setAudioModeAsync } from "expo-audio";
 import { PlayerService, playerService } from "@/core/player/player-service";
 import { ArtworkResolver } from "@/core/player/storage/artwork";
@@ -7,6 +6,7 @@ import { HeartbeatScheduler } from "@/core/player/stream-playback/heartbeat";
 import { TransportStateMachine } from "@/core/player/stream-playback/transport-state";
 import { playerStore, progressStore } from "@/core/player/store";
 import type { PlayerServiceDependencies } from "@/core/player/player-service";
+import type { AudioPlaybackStatus } from "@/core/player/ports";
 import type { Track } from "@/core/domain/track";
 import type { Stream } from "@/core/domain/stream";
 
@@ -42,12 +42,16 @@ vi.mock("@react-native-community/netinfo", () => ({
 vi.mock("@react-native-async-storage/async-storage", () => ({
   default: { getItem: async () => null, setItem: async () => {} },
 }));
-vi.mock("../../services/player-playback.service", () => ({
-  StartPlaybackSession: vi.fn(async () => ({})),
-  EndPlaybackSession: vi.fn(async () => {}),
-  getPlaybackSession: vi.fn(() => null),
-  setNowPlayingMetadata: vi.fn(),
-  setRemotePlaybackStatus: vi.fn(),
+vi.mock("react-native-playback-controls", () => ({
+  PlaybackControls: {
+    startSession: vi.fn(async () => ({
+      isEnded: false,
+      addCommandListener: () => ({ remove: () => {} }),
+      setNowPlaying: vi.fn(),
+      setPlaybackState: vi.fn(),
+      end: async () => {},
+    })),
+  },
 }));
 vi.mock("../../services/animu.service", () => ({
   animuService: { abortInFlightRequests: vi.fn() },
@@ -75,17 +79,25 @@ const makeDeps = () => {
   const state = new TransportStateMachine();
   const transport = {
     setStatusHandler: vi.fn(),
-    isSessionReady: true,
+    isSamplingSupported: false,
     hasPlayer: true,
-    ensureSession: vi.fn(async () => {}),
-    markSessionDown: vi.fn(),
+    ensureAudioMode: vi.fn(async () => {}),
     play: vi.fn(),
     load: vi.fn(),
     resume: vi.fn(),
     pause: vi.fn(),
+    setSamplingEnabled: vi.fn(),
+    onSample: vi.fn(() => () => {}),
     dispose: vi.fn(),
   };
-  const publisher = { push: vi.fn(), pushStatus: vi.fn() };
+  const publisher = {
+    setHandlers: vi.fn(),
+    start: vi.fn(async () => true),
+    isActive: true,
+    push: vi.fn(),
+    pushStatus: vi.fn(),
+    end: vi.fn(async () => {}),
+  };
   const ticker = { tick: vi.fn(), reset: vi.fn() };
   const repository = {
     onChange: vi.fn(),
@@ -142,9 +154,9 @@ const makeDeps = () => {
 
   const deps = {
     state,
-    transport,
+    audio: transport,
     sampler,
-    publisher,
+    media: publisher,
     repository,
     streamPreferences,
     reconnect,
@@ -159,8 +171,10 @@ const makeDeps = () => {
 
 const wiredHandler = (transport: {
   setStatusHandler: ReturnType<typeof vi.fn>;
-}): ((status: AudioStatus) => void) =>
-  transport.setStatusHandler.mock.calls[0][0] as (status: AudioStatus) => void;
+}): ((status: AudioPlaybackStatus) => void) =>
+  transport.setStatusHandler.mock.calls[0][0] as (
+    status: AudioPlaybackStatus,
+  ) => void;
 
 describe("PlayerService store emission", () => {
   beforeEach(() => {
@@ -240,7 +254,7 @@ describe("PlayerService stream-loss handling", () => {
       // Intent chain: play() → connecting → native reports audio flowing
       await service.play();
       const handler = wiredHandler(transport);
-      handler({ playing: true } as AudioStatus);
+      handler({ playing: true } as AudioPlaybackStatus);
 
       // …then the stream dies after the 3s grace window
       vi.advanceTimersByTime(4000);
@@ -248,7 +262,7 @@ describe("PlayerService stream-loss handling", () => {
         playing: false,
         isBuffering: false,
         playbackState: "idle",
-      } as AudioStatus);
+      } as AudioPlaybackStatus);
 
       expect(reconnect.schedule).toHaveBeenCalledTimes(1);
       expect(deps.state.state).toBe("reconnecting");
@@ -271,7 +285,7 @@ describe("PlayerService stream-loss handling", () => {
         playing: false,
         isBuffering: false,
         playbackState: "idle",
-      } as AudioStatus);
+      } as AudioPlaybackStatus);
 
       expect(deps.state.state).toBe("connecting");
     } finally {
@@ -293,14 +307,14 @@ describe("PlayerService stream-loss handling", () => {
       isBuffering: true,
       timeControlStatus: "playing",
       playbackState: "buffering",
-    } as AudioStatus);
+    } as AudioPlaybackStatus);
 
     expect(deps.state.state).toBe("connecting");
     const statuses = publisher.pushStatus.mock.calls.map((call) => call[0]);
     expect(statuses).not.toContain("playing");
 
     // …and once audio actually flows it adopts "playing" as usual.
-    handler({ playing: true, isBuffering: false } as AudioStatus);
+    handler({ playing: true, isBuffering: false } as AudioPlaybackStatus);
     expect(deps.state.state).toBe("playing");
   });
 
@@ -312,15 +326,15 @@ describe("PlayerService stream-loss handling", () => {
       await service.play();
       const handler = wiredHandler(transport);
 
-      handler({ playing: true } as AudioStatus); // recovery push #1
+      handler({ playing: true } as AudioPlaybackStatus); // recovery push #1
       vi.advanceTimersByTime(4000);
       handler({
         playing: false,
         isBuffering: false,
         playbackState: "idle",
         timeControlStatus: "paused",
-      } as AudioStatus); // dead → "buffering"
-      handler({ playing: true } as AudioStatus); // recovered → "playing"
+      } as AudioPlaybackStatus); // dead → "buffering"
+      handler({ playing: true } as AudioPlaybackStatus); // recovered → "playing"
 
       const statuses = publisher.pushStatus.mock.calls.map(
         (call) => call[0],
@@ -343,7 +357,7 @@ describe("PlayerService stream-loss handling", () => {
       const service = new PlayerService(deps);
       await service.play();
       const handler = wiredHandler(transport);
-      handler({ playing: true } as AudioStatus);
+      handler({ playing: true } as AudioPlaybackStatus);
 
       // Audio focus lost — expo-audio pauses natively and reports it
       handler({
@@ -351,7 +365,7 @@ describe("PlayerService stream-loss handling", () => {
         isBuffering: false,
         playbackState: "ready",
         timeControlStatus: "paused",
-      } as AudioStatus);
+      } as AudioPlaybackStatus);
 
       expect(deps.state.state).toBe("paused");
       expect(playerStore.getSnapshot().isPlaying).toBe(false);
@@ -375,7 +389,7 @@ describe("PlayerService stream-loss handling", () => {
 
       // A straggler playing event (or rare auto-resume) must not
       // resurrect audio against the user's intent
-      handler({ playing: true } as AudioStatus);
+      handler({ playing: true } as AudioPlaybackStatus);
 
       expect(deps.state.state).toBe("paused");
       expect(transport.pause).toHaveBeenCalledTimes(pauseCalls + 1);
@@ -392,7 +406,7 @@ describe("PlayerService stream-loss handling", () => {
       const service = new PlayerService(deps);
       await service.play();
       const handler = wiredHandler(transport);
-      handler({ playing: true } as AudioStatus);
+      handler({ playing: true } as AudioPlaybackStatus);
       transport.play.mockClear();
 
       // Phone call: expo-audio pauses natively while audio is flowing.
@@ -401,12 +415,12 @@ describe("PlayerService stream-loss handling", () => {
         isBuffering: false,
         playbackState: "ready",
         timeControlStatus: "paused",
-      } as AudioStatus);
+      } as AudioPlaybackStatus);
       expect(deps.state.state).toBe("paused");
 
       // Call ends and the OS resumes on its own — re-open at the live edge
       // instead of replaying the stale buffered position.
-      handler({ playing: true } as AudioStatus);
+      handler({ playing: true } as AudioPlaybackStatus);
 
       expect(transport.play).toHaveBeenCalledWith(
         deps.streamPreferences.current.url,
@@ -428,7 +442,7 @@ describe("PlayerService stream-loss handling", () => {
       const service = new PlayerService(deps);
       await service.play();
       const handler = wiredHandler(transport);
-      handler({ playing: true } as AudioStatus);
+      handler({ playing: true } as AudioPlaybackStatus);
 
       // Manual re-tune: state becomes "connecting" while replace() runs,
       // then the native layer emits a transient paused frame + playing.
@@ -445,8 +459,8 @@ describe("PlayerService stream-loss handling", () => {
         isBuffering: false,
         playbackState: "ready",
         timeControlStatus: "paused",
-      } as AudioStatus);
-      handler({ playing: true } as AudioStatus);
+      } as AudioPlaybackStatus);
+      handler({ playing: true } as AudioPlaybackStatus);
 
       expect(transport.play).not.toHaveBeenCalled();
       expect(deps.state.state).toBe("playing");
@@ -462,7 +476,7 @@ describe("PlayerService stream-loss handling", () => {
       const service = new PlayerService(deps);
       await service.play();
       const handler = wiredHandler(transport);
-      handler({ playing: true } as AudioStatus);
+      handler({ playing: true } as AudioPlaybackStatus);
       vi.advanceTimersByTime(4000);
 
       handler({
@@ -470,7 +484,7 @@ describe("PlayerService stream-loss handling", () => {
         isBuffering: false,
         playbackState: "ended",
         timeControlStatus: "paused",
-      } as AudioStatus);
+      } as AudioPlaybackStatus);
 
       expect(reconnect.schedule).toHaveBeenCalledTimes(1);
       expect(deps.state.state).toBe("reconnecting");
@@ -486,12 +500,12 @@ describe("PlayerService stream-loss handling", () => {
       const service = new PlayerService(deps);
       await service.play();
       const handler = wiredHandler(transport);
-      handler({ playing: true } as AudioStatus);
+      handler({ playing: true } as AudioPlaybackStatus);
       transport.play.mockClear();
 
       // The link degrades but Wi-Fi stays associated: the native player
       // stalls (buffering) without the stream ever dying.
-      handler({ playing: true, isBuffering: true } as AudioStatus);
+      handler({ playing: true, isBuffering: true } as AudioPlaybackStatus);
       expect(deps.state.state).toBe("connecting");
 
       // 4s behind live — longer than the drift threshold.
@@ -499,7 +513,7 @@ describe("PlayerService stream-loss handling", () => {
 
       // The link recovers. The native player would drain its stale buffer
       // and stay behind live; the service must re-open at the live edge.
-      handler({ playing: true, isBuffering: false } as AudioStatus);
+      handler({ playing: true, isBuffering: false } as AudioPlaybackStatus);
 
       expect(transport.play).toHaveBeenCalledWith(
         deps.streamPreferences.current.url,
@@ -518,13 +532,13 @@ describe("PlayerService stream-loss handling", () => {
       const service = new PlayerService(deps);
       await service.play();
       const handler = wiredHandler(transport);
-      handler({ playing: true } as AudioStatus);
+      handler({ playing: true } as AudioPlaybackStatus);
       transport.play.mockClear();
 
       // A sub-threshold blip: no re-open, the native player catches up.
-      handler({ playing: true, isBuffering: true } as AudioStatus);
+      handler({ playing: true, isBuffering: true } as AudioPlaybackStatus);
       vi.advanceTimersByTime(500);
-      handler({ playing: true, isBuffering: false } as AudioStatus);
+      handler({ playing: true, isBuffering: false } as AudioPlaybackStatus);
 
       expect(transport.play).not.toHaveBeenCalled();
       expect(deps.state.state).toBe("playing");
@@ -615,7 +629,7 @@ describe("PlayerService heartbeat", () => {
 
       // Native event processed…
       vi.setSystemTime(base + 10_000);
-      handler({ playing: true } as AudioStatus);
+      handler({ playing: true } as AudioPlaybackStatus);
       expect(deps.ticker.tick).toHaveBeenCalledTimes(1);
 
       // …JS task 300ms later is gated (< 800ms since last beat)
@@ -624,7 +638,7 @@ describe("PlayerService heartbeat", () => {
 
       // …next native event a second later processes again
       vi.setSystemTime(base + 11_200);
-      handler({ playing: true } as AudioStatus);
+      handler({ playing: true } as AudioPlaybackStatus);
       expect(deps.ticker.tick).toHaveBeenCalledTimes(2);
     } finally {
       vi.useRealTimers();
@@ -641,7 +655,7 @@ describe("PlayerService heartbeat", () => {
       const base = Date.now();
 
       vi.setSystemTime(base + 10_000);
-      handler({ playing: true } as AudioStatus);
+      handler({ playing: true } as AudioPlaybackStatus);
 
       expect(repository.expireStuckRefresh).toHaveBeenCalledTimes(1);
     } finally {
@@ -662,7 +676,7 @@ describe("PlayerService heartbeat", () => {
       // 10s of audio at 1 Hz → polls at heartbeat 5 and 10
       for (let i = 1; i <= 10; i++) {
         vi.setSystemTime(base + 10_000 + i * 1000);
-        handler({ playing: true } as AudioStatus);
+        handler({ playing: true } as AudioPlaybackStatus);
       }
       await flush();
 
@@ -685,7 +699,7 @@ describe("PlayerService heartbeat", () => {
 
       const handler = wiredHandler(transport);
       vi.setSystemTime(Date.now() + 60_000);
-      handler({ playing: true } as AudioStatus);
+      handler({ playing: true } as AudioPlaybackStatus);
 
       // No new polls or ticks may happen on a destroyed instance
       expect(vi.mocked(repository.refresh).mock.calls.length).toBe(

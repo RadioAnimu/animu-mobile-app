@@ -1,11 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { NowPlayingMetadata } from "react-native-playback-controls";
 import type { Track } from "@/core/domain/track";
-import type { MediaSessionPublisher } from "@/core/player/media-session/media-session.publisher";
+import type {
+  AudioEnginePort,
+  MediaSessionPort,
+  NowPlayingMetadata,
+} from "@/core/player/ports";
 import type { NowPlayingRepository } from "@/core/player/stream-playback/now-playing.repository";
 import { ProgressTicker } from "@/core/player/stream-playback/progress-ticker";
 import { progressStore } from "@/core/player/store";
-import type { AudioTransport } from "@/core/player/stream-playback/transport";
 import type { TransportStateMachine } from "@/core/player/stream-playback/transport-state";
 
 const METADATA: NowPlayingMetadata = {
@@ -71,28 +73,28 @@ const makeTicker = (): Fixture => {
     },
   } as unknown as TransportStateMachine;
 
-  const transport = {
-    get isSessionReady() {
-      return true;
-    },
+  const audio = {
     get hasPlayer() {
       return true;
     },
-  } as unknown as AudioTransport;
+  } as unknown as AudioEnginePort;
 
-  const publisher = {
+  const media = {
+    get isActive() {
+      return true;
+    },
     push: vi.fn(
       (metadata: NowPlayingMetadata, _status: unknown, positionSec?: number) => {
         fixture.pushes.push({ metadata, positionSec });
       },
     ),
-  } as unknown as MediaSessionPublisher;
+  } as unknown as MediaSessionPort;
 
   fixture.ticker = new ProgressTicker({
     repository,
     state,
-    transport,
-    publisher,
+    audio,
+    media,
     buildMetadata: () => fixture.metadata,
   });
 

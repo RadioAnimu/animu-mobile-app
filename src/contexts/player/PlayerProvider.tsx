@@ -10,7 +10,6 @@ import React, {
 import { AppState, type AppStateStatus } from "react-native";
 import { Stream } from "@/core/domain/stream";
 import { playerService } from "@/core/player";
-import { setRemotePlaybackHandlers } from "@/core/services/player-playback.service";
 import { backgroundService } from "@/core/services/background.service";
 import { subscribeAssistantActions } from "@/core/assistant";
 import { useIsBackgrounded } from "@/contexts/app-state/AppStateProvider";
@@ -122,7 +121,7 @@ export const PlayerProvider: React.FC<{
 
     const initializePlayer = async () => {
       try {
-        setRemotePlaybackHandlers({
+        playerServiceInstance.setRemoteHandlers({
           play: async () => {
             await playerServiceInstance.play();
           },
@@ -185,7 +184,7 @@ export const PlayerProvider: React.FC<{
       unsubscribeAssistant?.();
       appStateSubscription?.remove();
       backgroundService.stopTask("heartbeat");
-      setRemotePlaybackHandlers({
+      playerServiceInstance.setRemoteHandlers({
         play: async () => {},
         pause: async () => {},
         toggle: async () => {},

@@ -1,14 +1,18 @@
 import {
   createAudioPlayer,
+  setAudioModeAsync,
   type AudioPlayer,
-  type AudioSample,
-  type AudioStatus,
+  type AudioSample as ExpoAudioSample,
   type AudioSource,
+  type AudioStatus as ExpoAudioStatus,
 } from "expo-audio";
 import { CONFIG } from "@/utils/player.config";
 import { LIVE_FORWARD_BUFFER_SECONDS } from "@/core/player/stream-playback/live-buffer";
-import { getPlaybackSession } from "@/core/services/player-playback.service";
-import { SetupService } from "@/core/services/player-setup.service";
+import type {
+  AudioEnginePort,
+  AudioPlaybackStatus,
+  AudioSample,
+} from "@/core/player/ports";
 
 /**
  * Native-driven tick interval (ms). expo-audio emits playbackStatusUpdate
@@ -18,76 +22,55 @@ import { SetupService } from "@/core/services/player-setup.service";
  */
 const PLAYER_TICK_INTERVAL_MS = 1000;
 
-/** Builds an expo-audio source for a live stream with the app User-Agent */
-export const buildStreamSource = (url: string): AudioSource => ({
+/** Builds an expo-audio source for a live stream with the app User-Agent. */
+const buildStreamSource = (url: string): AudioSource => ({
   uri: url,
   headers: { "User-Agent": CONFIG.USER_AGENT },
 });
 
 /**
- * Owns the expo-audio player and the native audio-session lifecycle.
+ * `AudioEnginePort` backed by `expo-audio`. The only place the audio library
+ * is imported: the player core talks to {@link AudioEnginePort}, so swapping
+ * the audio engine means writing a new adapter, not touching the core.
  *
- * - `ensureSession()` runs the one-time audio-mode + media-session setup.
- * - `play()` / `load()` / `resume()` / `pause()` drive native playback.
- *   Live streams are always (re)opened at the current live point — there
- *   is no gapless resume, so source replacement IS the reconnect.
- * - `playbackStatusUpdate` events are forwarded to the handler wired by
- *   the orchestrator (progress ticks + stream-loss detection).
+ * - `ensureAudioMode()` applies the app-wide audio-session mode (idempotent).
+ * - `play()` / `load()` / `resume()` / `pause()` drive native playback. Live
+ *   streams are always (re)opened at the current live point — there is no
+ *   gapless resume, so source replacement IS the reconnect.
+ * - `playbackStatusUpdate` events are forwarded to the handler wired by the
+ *   orchestrator (progress ticks + stream-loss detection).
+ * - `audioSampleUpdate` events feed the visualizer.
  */
-export class AudioTransport {
+export class ExpoAudioAdapter implements AudioEnginePort {
   private player: AudioPlayer | null = null;
   private statusSubscription: { remove(): void } | null = null;
-  private statusHandler: ((status: AudioStatus) => void) | null = null;
-  private sessionReady = false;
-
-  /** Sampling seam (see `AudioSampler`). */
+  private statusHandler: ((status: AudioPlaybackStatus) => void) | null = null;
   private sampleSubscription: { remove(): void } | null = null;
   private sampleHandler: ((sample: AudioSample) => void) | null = null;
   /** Desired sampling state, applied lazily once a player exists. */
   private samplingRequested = false;
+  private audioModeReady = false;
 
   get hasPlayer(): boolean {
     return this.player != null;
   }
 
-  /** Whether the native player can provide decoded PCM on this platform. */
   get isSamplingSupported(): boolean {
     return this.player?.isAudioSamplingSupported ?? false;
   }
 
-  /** Whether the audio mode + media session setup has completed. */
-  get isSessionReady(): boolean {
-    return this.sessionReady;
-  }
-
-  /** Registers the native status handler (call once, before first play). */
-  setStatusHandler(handler: (status: AudioStatus) => void): void {
+  setStatusHandler(handler: (status: AudioPlaybackStatus) => void): void {
     this.statusHandler = handler;
   }
 
-  /**
-   * Runs the one-time native setup (idempotent). Throws on failure.
-   *
-   * `SetupService` sets the audio mode AND starts the media session, but the
-   * session start is best-effort (the OS can refuse if the app isn't in the
-   * foreground yet). Marking `sessionReady` unconditionally used to be a
-   * one-way trap: the first failure meant no media session for the life of
-   * the app and no retry. We verify the session actually exists instead, so
-   * callers that await this can surface the failure and try again on the
-   * next `play()`.
-   */
-  async ensureSession(): Promise<void> {
-    if (this.sessionReady) return;
-    await SetupService();
-    this.sessionReady = getPlaybackSession() != null;
-    if (!this.sessionReady) {
-      throw new Error("[AudioTransport] Playback session unavailable");
-    }
-  }
-
-  /** Marks the native session as torn down (destroy path). */
-  markSessionDown(): void {
-    this.sessionReady = false;
+  async ensureAudioMode(): Promise<void> {
+    if (this.audioModeReady) return;
+    await setAudioModeAsync({
+      playsInSilentMode: true,
+      shouldPlayInBackground: true,
+      interruptionMode: "doNotMix",
+    });
+    this.audioModeReady = true;
   }
 
   /** Loads the source (create-or-replace) and starts playback. */
@@ -161,26 +144,7 @@ export class AudioTransport {
     };
   }
 
-  private applySampling(enabled: boolean): void {
-    const player = this.player;
-    if (!player) return;
-    if (enabled && !player.isAudioSamplingSupported) return;
-    try {
-      player.setAudioSamplingEnabled(enabled);
-    } catch (error) {
-      console.warn("[AudioTransport] audio sampling toggle failed:", error);
-    }
-  }
-
-  private attachSampleListener(): void {
-    if (!this.player || !this.sampleHandler || this.sampleSubscription) return;
-    this.sampleSubscription = this.player.addListener(
-      "audioSampleUpdate",
-      (sample: AudioSample) => this.sampleHandler?.(sample),
-    );
-  }
-
-  /** Removes the status listener and destroys the native player. */
+  /** Removes listeners and destroys the native player. */
   dispose(): void {
     this.statusSubscription?.remove();
     this.statusSubscription = null;
@@ -192,11 +156,30 @@ export class AudioTransport {
     this.player = null;
   }
 
+  private applySampling(enabled: boolean): void {
+    const player = this.player;
+    if (!player) return;
+    if (enabled && !player.isAudioSamplingSupported) return;
+    try {
+      player.setAudioSamplingEnabled(enabled);
+    } catch (error) {
+      console.warn("[ExpoAudioAdapter] audio sampling toggle failed:", error);
+    }
+  }
+
+  private attachSampleListener(): void {
+    if (!this.player || !this.sampleHandler || this.sampleSubscription) return;
+    this.sampleSubscription = this.player.addListener(
+      "audioSampleUpdate",
+      (sample: ExpoAudioSample) => this.sampleHandler?.(sample),
+    );
+  }
+
   private attachStatusListener(): void {
     if (!this.player || !this.statusHandler || this.statusSubscription) return;
     this.statusSubscription = this.player.addListener(
       "playbackStatusUpdate",
-      (status: AudioStatus) => this.statusHandler?.(status),
+      (status: ExpoAudioStatus) => this.statusHandler?.(status),
     );
   }
 }

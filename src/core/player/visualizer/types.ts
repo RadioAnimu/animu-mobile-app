@@ -1,4 +1,4 @@
-import type { AudioSample } from "expo-audio";
+import type { AudioSample } from "@/core/player/ports";
 
 /**
  * Visualizer contracts shared by both platforms.

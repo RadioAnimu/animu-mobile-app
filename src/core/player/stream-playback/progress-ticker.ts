@@ -1,12 +1,12 @@
 import { getTrackProgress } from "@/core/domain/track";
-import type {
-  NowPlayingMetadata,
-  PlaybackStatus,
-} from "react-native-playback-controls";
 import { progressStore } from "@/core/player/store";
-import type { MediaSessionPublisher } from "@/core/player/media-session/media-session.publisher";
+import type {
+  AudioEnginePort,
+  MediaSessionPort,
+  NowPlayingMetadata,
+  RemotePlaybackStatus,
+} from "@/core/player/ports";
 import type { NowPlayingRepository } from "@/core/player/stream-playback/now-playing.repository";
-import type { AudioTransport } from "@/core/player/stream-playback/transport";
 import type { TransportStateMachine } from "@/core/player/stream-playback/transport-state";
 
 /** ms → seconds for the native media session, rejecting NaN/Infinity */
@@ -19,8 +19,8 @@ const NATIVE_POSITION_PUSH_EVERY_TICKS = 3;
 export interface ProgressTickerOptions {
   repository: NowPlayingRepository;
   state: TransportStateMachine;
-  transport: AudioTransport;
-  publisher: MediaSessionPublisher;
+  audio: AudioEnginePort;
+  media: MediaSessionPort;
   /** Builds fresh metadata (orchestrator supplies cover config). */
   buildMetadata: () => NowPlayingMetadata;
 }
@@ -96,8 +96,8 @@ export class ProgressTicker {
     if (this.ticks < NATIVE_POSITION_PUSH_EVERY_TICKS) return;
     this.ticks = 0;
 
-    const { transport } = this.options;
-    if (!transport.isSessionReady || !transport.hasPlayer) return;
+    const { audio, media } = this.options;
+    if (!media.isActive || !audio.hasPlayer) return;
 
     const metadata = this.options.buildMetadata();
     const positionSec = showProgress ? toSec(elapsed) : undefined;
@@ -109,7 +109,7 @@ export class ProgressTicker {
     if (positionSec === undefined && key === this.lastPushedKey) return;
     this.lastPushedKey = key;
 
-    this.options.publisher.push(
+    this.options.media.push(
       metadata,
       this.options.state.remoteStatus,
       positionSec,
@@ -131,13 +131,13 @@ export class ProgressTicker {
       });
     }
 
-    if (!this.options.transport.isSessionReady) return;
+    if (!this.options.media.isActive) return;
     const metadata = this.options.buildMetadata();
     this.lastPushedKey = metadataKey(
       metadata,
       this.options.state.remoteStatus,
     );
-    this.options.publisher.push(
+    this.options.media.push(
       metadata,
       this.options.state.remoteStatus,
       0,
@@ -153,7 +153,7 @@ export class ProgressTicker {
  */
 const metadataKey = (
   metadata: NowPlayingMetadata,
-  status: PlaybackStatus,
+  status: RemotePlaybackStatus,
 ): string =>
   [
     metadata.title,
