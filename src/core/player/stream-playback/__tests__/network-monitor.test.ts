@@ -107,4 +107,23 @@ describe("NetworkMonitor", () => {
     f.emit(true); // baseline again after restart
     expect(f.restores).toBe(0);
   });
+
+  it("reports current link health, treating unknown as online", () => {
+    const f = makeMonitor();
+    expect(f.monitor.isOnline()).toBe(true); // not determined yet
+
+    f.monitor.start();
+    f.emit(true);
+    expect(f.monitor.isOnline()).toBe(true);
+
+    f.emit(false);
+    expect(f.monitor.isOnline()).toBe(false);
+
+    // Wi-Fi associated but no internet is offline for our purposes.
+    f.emitState({ isConnected: true, isInternetReachable: false });
+    expect(f.monitor.isOnline()).toBe(false);
+
+    f.monitor.stop();
+    expect(f.monitor.isOnline()).toBe(true); // back to unknown → online
+  });
 });

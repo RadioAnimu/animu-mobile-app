@@ -14,6 +14,7 @@ describe("player stores", () => {
       isPlaying: true,
       playbackState: "playing",
       isInitialized: true,
+      syncing: false,
     });
     expect(spy).toHaveBeenCalledTimes(1);
 
@@ -21,6 +22,7 @@ describe("player stores", () => {
       isPlaying: true,
       playbackState: "playing",
       isInitialized: true,
+      syncing: false,
     });
     expect(spy).toHaveBeenCalledTimes(1); // identical → no notification
 
@@ -28,6 +30,7 @@ describe("player stores", () => {
       isPlaying: false,
       playbackState: "paused",
       isInitialized: true,
+      syncing: false,
     });
     expect(spy).toHaveBeenCalledTimes(2);
 

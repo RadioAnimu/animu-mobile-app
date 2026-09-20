@@ -39,6 +39,22 @@ const MAX_CLOCK_SKEW_MS = 24 * 60 * 60 * 1000;
  * a genuine non-live source keeps reporting false forever.
  */
 const SUSTAINED_NON_LIVE_FRAMES = 5;
+/**
+ * Settling policy for {@link StreamSyncEngine.settled}. `hasMeasurement`
+ * flips on the *first* finite reading, but that reading can be a small/stale
+ * sample the engine then eases upward — visible as the remaining time still
+ * changing after the "calculating" state ended. The UI keeps the muted state
+ * until the estimate has been quiet for a minimum time, then stops moving,
+ * with a hard cap so a noisy platform can never pulse forever.
+ */
+/** Minimum quiet period after the first measurement. */
+const SETTLE_MIN_MS = 2_500;
+/** The estimate must hold this long without a material change. */
+const SETTLE_STABLE_MS = 1_500;
+/** Hard cap — the "calculating" state never outlives this. */
+const SETTLE_MAX_MS = 12_000;
+/** A delay move of at least this counts as "still moving". */
+const SETTLE_EPSILON_MS = 200;
 
 /** A native live-offset reading, in the shape the audio port reports it. */
 export interface LiveOffsetStatus {
@@ -125,6 +141,18 @@ export class StreamSyncEngine {
    * used to blank the estimate and fling the UI to the live point.
    */
   private nonLiveFrames = 0;
+  /** When the estimate first became measured (0 = not measured). */
+  private measuredSinceMs = 0;
+  /** When the delay last moved by {@link SETTLE_EPSILON_MS} or more. */
+  private delayChangedAtMs = 0;
+  /**
+   * Latched "the clock is locked" flag. Once the estimate has settled it
+   * stays settled for the life of the stream: small later drifts (buffer
+   * drain, a codec tick, the re-lock snap a track change arms) must NOT
+   * re-show the calculating state. Only a re-measure (reset / sustained
+   * non-live) clears it.
+   */
+  private settledLatch = false;
 
   /**
    * Folds a native status reading into the delay estimate.
@@ -154,12 +182,17 @@ export class StreamSyncEngine {
         this.delayMs = 0;
         this.measured = false;
         this.recalibrate = false;
+        this.measuredSinceMs = 0;
+        this.delayChangedAtMs = 0;
+        this.settledLatch = false;
       }
       // Live (or in a brief teardown gap): keep the last known delay.
       return;
     }
 
     this.nonLiveFrames = 0;
+    const previousDelay = this.delayMs;
+    const wasMeasured = this.measured;
     const measured = Math.min(MAX_DELAY_MS, rawOffset * 1000);
     const snap =
       this.recalibrate ||
@@ -177,6 +210,14 @@ export class StreamSyncEngine {
     }
     this.measured = true;
     this.recalibrate = false;
+
+    const now = Date.now();
+    if (!wasMeasured) {
+      this.measuredSinceMs = now;
+      this.delayChangedAtMs = now;
+    } else if (Math.abs(this.delayMs - previousDelay) >= SETTLE_EPSILON_MS) {
+      this.delayChangedAtMs = now;
+    }
   }
 
   /**
@@ -195,6 +236,9 @@ export class StreamSyncEngine {
     this.recalibrate = false;
     this.nonLiveFrames = 0;
     this.lastAnchorValue = null;
+    this.measuredSinceMs = 0;
+    this.delayChangedAtMs = 0;
+    this.settledLatch = false;
   }
 
   /**
@@ -241,6 +285,37 @@ export class StreamSyncEngine {
   /** Current audible lag behind the live edge (ms) — diagnostics. */
   get delay(): number {
     return this.delayMs;
+  }
+
+  /**
+   * Whether the lag estimate has settled enough for the UI to trust it.
+   *
+   * Distinct from {@link hasMeasurement}, which flips on the first finite
+   * reading — one that may still be a small/stale sample the engine then
+   * eases upward. This waits out a minimum quiet period, then requires the
+   * estimate to stop moving (bounded by a hard cap), so the "calculating"
+   * UI and the media seek bar only appear once the clock is actually locked.
+   *
+   * Once true it is latched until the next {@link reset}: later small drifts
+   * (the fall easing, the re-lock snap a track change arms) must not flip the
+   * UI back to "calculating". Evaluating latches it, so the value can only
+   * ever transition false once, then stay true.
+   */
+  get settled(): boolean {
+    if (!this.settledLatch && this.evaluateSettled()) {
+      this.settledLatch = true;
+    }
+    return this.settledLatch;
+  }
+
+  /** Time/quiet-window check behind {@link settled} (pre-latch). */
+  private evaluateSettled(): boolean {
+    if (!this.measured || this.measuredSinceMs === 0) return false;
+    const now = Date.now();
+    const sinceMeasured = now - this.measuredSinceMs;
+    if (sinceMeasured < SETTLE_MIN_MS) return false;
+    if (sinceMeasured >= SETTLE_MAX_MS) return true;
+    return now - this.delayChangedAtMs >= SETTLE_STABLE_MS;
   }
 
   /** Whether a native delay measurement has landed. */

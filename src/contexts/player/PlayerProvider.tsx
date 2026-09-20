@@ -71,6 +71,7 @@ const PlayerContext = createContext<PlayerContextType>({
   isPlaying: false,
   playbackState: "idle",
   isInitialized: false,
+  syncing: false,
 });
 
 const StationContext = createContext<StationSnapshot>({});

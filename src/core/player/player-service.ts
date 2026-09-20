@@ -1,6 +1,7 @@
 import NetInfo from "@react-native-community/netinfo";
 import { openBrowserAsync } from "expo-web-browser";
 import type { HistoryType } from "@/@types/history-type.d";
+import type { Track } from "@/core/domain/track";
 import type { Stream } from "@/core/domain/stream";
 import { animuService } from "@/core/services/animu.service";
 import { userSettingsService } from "@/core/services/user-settings.service";
@@ -180,6 +181,8 @@ export class PlayerService {
   private appActive = true;
   /** Dev-only sampled counter for the sync-math trace. */
   private syncDebugBeats = 0;
+  /** Last observed settle state — drives the "calculating" UI flip. */
+  private syncSettled = false;
 
   constructor(private readonly deps: PlayerServiceDependencies) {
     // ── Wiring: this class owns every cross-unit connection ──
@@ -193,7 +196,12 @@ export class PlayerService {
       if (change.trackChanged || change.programChanged) {
         // The station's on-air item changed, but the speaker may still be on
         // the previous track — let the audible resolver decide what to show.
-        if (change.trackChanged) this.deps.audible.reconcile();
+        if (change.trackChanged) {
+          // The announcement is a full stream-lag ahead of the ear: warm the
+          // cover now so it swaps in from disk the instant it is heard.
+          this.prefetchArtwork(this.deps.repository.currentTrack);
+          this.deps.audible.reconcile();
+        }
         this.handleDisplayedTrackChange();
       }
       if (
@@ -643,6 +651,50 @@ export class PlayerService {
     await this.deps.repository.refreshHistory(type);
   }
 
+  /**
+   * Warms the cover of a freshly *announced* track while the speaker is still
+   * on the previous one.
+   *
+   * The station announces a `song_change` a whole stream-lag before the ear
+   * reaches it (the sync engine's delay — seconds on iOS, tens of seconds on
+   * Android). Downloading the artwork during that window means that when the
+   * audible resolver adopts the track, `updateMetadata` finds the file already
+   * in the cache and swaps the cover from disk in one push, instead of the
+   * "clanky" remote-load-then-swap that lands seconds late.
+   *
+   * Fire-and-forget: a failed prefetch simply leaves the normal
+   * resolve-on-adoption path to do the work. `resolve()` de-dupes against the
+   * adoption call through its in-flight map, so this never double-downloads.
+   *
+   * Deliberately fetches only the full-size cover: the low-res preview exists
+   * to paint fast *at adoption*, and `resolve()` maps a preview onto the full
+   * URL while the full file is missing — doing that here would make the
+   * adoption call see a cache hit and skip the full-size swap. The preview
+   * still runs from the adoption path when the full file is not ready yet.
+   */
+  private prefetchArtwork(track: Track | null | undefined): void {
+    const url = track?.artwork;
+    if (!url || !this.deps.artwork.isRemote(url)) return;
+    if (this.deps.artwork.peek(url)) return;
+    // No link → skip the pointless attempt; the adoption path retries once
+    // connectivity (and the track) is live again.
+    if (!this.deps.networkMonitor.isOnline()) return;
+    console.log(
+      `[ArtDebug] prefetch START "${track?.title ?? "?"}" artwork=${url}`,
+    );
+    void this.deps.artwork
+      .resolve(url)
+      .then((resolved) => {
+        console.log(
+          `[ArtDebug] prefetch READY "${track?.title ?? "?"}" → ${resolved}`,
+        );
+      })
+      .catch(() => {
+        // resolve() already degrades to the remote URL; this only stops an
+        // unhandled rejection from ever surfacing.
+      });
+  }
+
   async updateMetadata(): Promise<void> {
     try {
       // Download the cover to a local file so the media session's native
@@ -722,10 +774,17 @@ export class PlayerService {
     this.deps.media.push(
       this.getNowPlayingMetadata(),
       this.deps.state.remoteStatus,
-      // A freshly-announced track that is still buffered reports position 0:
-      // the speaker is finishing the previous one and the OS seek bar must
-      // not jump to the live point.
-      pending ? 0 : toSec(elapsedMs),
+      // Until the estimate settles the progress is a wall-clock guess —
+      // withhold it (and, via `nowPlayingInput`, the seek bar) so the lock
+      // screen does not show an unsynced position.
+      !this.deps.sync.settled
+        ? undefined
+        : // A freshly-announced track that is still buffered reports position 0:
+          // the speaker is finishing the previous one and the OS seek bar must
+          // not jump to the live point.
+          pending
+          ? 0
+          : toSec(elapsedMs),
     );
   }
 
@@ -827,6 +886,13 @@ export class PlayerService {
       offsetFromLive: status.currentOffsetFromLive ?? null,
       bufferedAheadSeconds: status.bufferedAheadSeconds ?? null,
     });
+    // The estimate settling (or losing its measurement on reset) flips the
+    // "calculating" state — emit so the header bar and countdown leave it
+    // without waiting for the next song/transport change.
+    if (this.syncSettled !== this.deps.sync.settled) {
+      this.syncSettled = this.deps.sync.settled;
+      this.emitPlayer();
+    }
     // The lag may have shifted under a pending track — adopt it the moment
     // it is due instead of waiting for the boundary timer to be corrected.
     this.deps.audible.adoptIfDue();
@@ -1075,7 +1141,10 @@ export class PlayerService {
       // under scoped storage (ENOENT).
       track: this.deps.artwork.apply(this.deps.audible.track),
       isLive: this.deps.repository.currentProgram?.isLive ?? false,
-      showProgress: this.deps.repository.showProgress,
+      // No seek bar until the estimate settles — the duration drives the OS
+      // bar, and an unsettled position would run ahead of the speaker.
+      showProgress:
+        this.deps.repository.showProgress && this.deps.sync.settled,
       defaultCover: this.deps.artwork.defaultCover,
     };
   }
@@ -1136,6 +1205,9 @@ export class PlayerService {
       isPlaying: this.isPlayingIntent,
       playbackState: this.deps.state.state,
       isInitialized: this.initialized,
+      // Playing but the estimate has not settled → the UI shows the muted
+      // "calculating" state until the clock is actually locked.
+      syncing: this.isPlayingIntent && !this.deps.sync.settled,
     };
     playerStore.setSnapshot(next);
   }
@@ -1250,7 +1322,8 @@ export const createPlayerService = (): PlayerService => {
         // reads it in-process and publishes artworkData on Android.
         track: artwork.apply(audible.track),
         isLive: repository.currentProgram?.isLive ?? false,
-        showProgress: repository.showProgress,
+        // Withhold the seek bar until the estimate settles (see `pushNowPlaying`).
+        showProgress: repository.showProgress && sync.settled,
         defaultCover: artwork.defaultCover,
       }),
   });

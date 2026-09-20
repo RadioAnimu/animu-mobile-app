@@ -65,6 +65,10 @@ export const styles = StyleSheet.create({
     // from 0 → full width instead of scaling about its center.
     transformOrigin: "left",
   },
+  /** Muted bar while the audible clock is still being measured. */
+  progressBarSyncing: {
+    backgroundColor: THEME.COLORS.SWITCH_OFF,
+  },
   noteWrapper: {
     position: "relative",
   },

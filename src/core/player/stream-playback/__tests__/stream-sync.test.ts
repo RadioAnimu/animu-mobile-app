@@ -210,12 +210,101 @@ describe("StreamSyncEngine", () => {
     expect(engine.lastAnchor).toBeNull();
   });
 
+  it("holds the estimate through an unmeasurable burst (bad link)", () => {
+    const engine = new StreamSyncEngine();
+    engine.updateFromStatus({ isLive: true, offsetFromLive: 5 });
+    vi.setSystemTime(new Date(Date.now() + 4_000));
+    expect(engine.settled).toBe(true);
+
+    // Packet loss / a stalled buffer: no offset and no buffer for a stretch.
+    for (let i = 0; i < 30; i++) {
+      engine.updateFromStatus({
+        isLive: true,
+        offsetFromLive: null,
+        bufferedAheadSeconds: null,
+      });
+    }
+
+    expect(engine.delay).toBe(5_000);
+    expect(engine.hasMeasurement).toBe(true);
+    expect(engine.settled).toBe(true);
+  });
+
+  it("re-measures and re-settles after a sustained non-live clear", () => {
+    const engine = new StreamSyncEngine();
+    engine.updateFromStatus({ isLive: true, offsetFromLive: 5 });
+    vi.setSystemTime(new Date(Date.now() + 4_000));
+    expect(engine.settled).toBe(true);
+
+    // A real source swap (not a teardown blip) discards the estimate.
+    for (let i = 0; i < 5; i++) {
+      engine.updateFromStatus({ isLive: false, offsetFromLive: null });
+    }
+    expect(engine.hasMeasurement).toBe(false);
+    expect(engine.settled).toBe(false);
+
+    // The live source returns (reconnect): measure again, then settle.
+    engine.updateFromStatus({ isLive: true, offsetFromLive: 3 });
+    expect(engine.hasMeasurement).toBe(true);
+    expect(engine.settled).toBe(false);
+
+    vi.setSystemTime(new Date(Date.now() + 2_600));
+    expect(engine.settled).toBe(true);
+  });
+
   it("reports audibility of a track start", () => {
     const engine = new StreamSyncEngine();
     engine.updateFromStatus({ isLive: true, offsetFromLive: 3 });
 
     expect(engine.isAudible(Date.now())).toBe(false);
     expect(engine.isAudible(Date.now() - 4_000)).toBe(true);
+  });
+
+  describe("settled", () => {
+    it("is false on the first reading and until the estimate stops moving", () => {
+      const engine = new StreamSyncEngine();
+      engine.updateFromStatus({ isLive: true, offsetFromLive: 2 });
+
+      expect(engine.hasMeasurement).toBe(true);
+      expect(engine.settled).toBe(false); // minimum quiet period
+
+      vi.setSystemTime(new Date(Date.now() + 2_600));
+      expect(engine.settled).toBe(true);
+    });
+
+    it("stays settled across a later drift (no flapping)", () => {
+      const engine = new StreamSyncEngine();
+      engine.updateFromStatus({ isLive: true, offsetFromLive: 2 });
+      vi.setSystemTime(new Date(Date.now() + 4_000));
+      expect(engine.settled).toBe(true);
+
+      // A later snap/ease — the re-lock a track change arms — must NOT flip
+      // the UI back to "calculating".
+      engine.updateFromStatus({ isLive: true, offsetFromLive: 9 });
+      expect(engine.settled).toBe(true);
+    });
+
+    it("caps the wait so a noisy estimate cannot pulse forever", () => {
+      const engine = new StreamSyncEngine();
+      engine.updateFromStatus({ isLive: true, offsetFromLive: 2 });
+
+      for (let i = 1; i <= 15; i++) {
+        vi.setSystemTime(new Date(Date.now() + 1_000));
+        engine.updateFromStatus({ isLive: true, offsetFromLive: 2 + i * 0.5 });
+      }
+
+      expect(engine.settled).toBe(true);
+    });
+
+    it("is false again after reset()", () => {
+      const engine = new StreamSyncEngine();
+      engine.updateFromStatus({ isLive: true, offsetFromLive: 2 });
+      vi.setSystemTime(new Date(Date.now() + 4_000));
+      expect(engine.settled).toBe(true);
+
+      engine.reset();
+      expect(engine.settled).toBe(false);
+    });
   });
 });
 

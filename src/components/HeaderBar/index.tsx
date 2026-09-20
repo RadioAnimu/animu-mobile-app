@@ -36,6 +36,9 @@ const PULSE_OPACITY = 0.05;
 const PULSE_DURATION = 1750;
 const PULSE_TRAVEL = 50;
 const PROGRESS_ANIM_DURATION = 1000;
+/** "Calculating" bar pulse — how dim it dips and how long each half takes. */
+const SYNC_BLINK_MIN = 0.35;
+const SYNC_BLINK_DURATION = 650;
 
 export function HeaderBar({ openLiveRequestModal }: Props) {
   const navigation =
@@ -49,6 +52,11 @@ export function HeaderBar({ openLiveRequestModal }: Props) {
   const currentTrack = player.currentTrack;
   const currentProgram = player.currentProgram;
   const isBackgrounded = useIsBackgrounded();
+  /** Still locking the audible clock — the bar is a guess until then. */
+  const syncing = player.syncing;
+  const showProgressBar =
+    !currentProgram?.isLive &&
+    !currentTrack?.anime?.toLocaleLowerCase().includes("passagem");
 
   useEffect(() => {
     const duration = currentTrack?.duration ?? 0;
@@ -74,6 +82,40 @@ export function HeaderBar({ openLiveRequestModal }: Props) {
   }, [progressAnim, currentTrack, currentTrackProgress]);
 
   const [animation] = useState(() => new Animated.Value(0));
+
+  // Pulse the bar while the audible clock is still being measured, so a
+  // wrong/empty position reads as "working on it" instead of broken. Stops
+  // (and resets to full opacity) the moment sync lands or the app hides.
+  const [syncBlink] = useState(() => new Animated.Value(1));
+
+  useEffect(() => {
+    if (!syncing || !showProgressBar || isBackgrounded) {
+      syncBlink.setValue(1);
+      return;
+    }
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(syncBlink, {
+          toValue: SYNC_BLINK_MIN,
+          duration: SYNC_BLINK_DURATION,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: true,
+        }),
+        Animated.timing(syncBlink, {
+          toValue: 1,
+          duration: SYNC_BLINK_DURATION,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: true,
+        }),
+      ]),
+    );
+    loop.start();
+
+    return () => {
+      loop.stop();
+      syncBlink.setValue(1);
+    };
+  }, [syncing, showProgressBar, isBackgrounded, syncBlink]);
 
   const showLiveBadge = Boolean(currentProgram?.isLive && openLiveRequestModal);
 
@@ -207,15 +249,20 @@ export function HeaderBar({ openLiveRequestModal }: Props) {
           </TouchableOpacity>
         </View>
       </View>
-      {!currentProgram?.isLive &&
-        !currentTrack?.anime?.toLocaleLowerCase().includes("passagem") && (
-          <Animated.View
-            style={[
-              styles.progressBarView,
-              { transform: [{ scaleX: progressAnim }] },
-            ]}
-          />
-        )}
+      {showProgressBar && (
+        <Animated.View
+          style={[
+            styles.progressBarView,
+            syncing && styles.progressBarSyncing,
+            {
+              opacity: syncing ? syncBlink : 1,
+              // Unknown position while syncing → show the full muted bar
+              // pulsing rather than a stale/0 progress.
+              transform: [{ scaleX: syncing ? 1 : progressAnim }],
+            },
+          ]}
+        />
+      )}
     </View>
   );
 }

@@ -26,6 +26,15 @@ export type PlayerSnapshot = {
    */
   playbackState: TransportState;
   isInitialized: boolean;
+  /**
+   * The listener wants playback but the audible station clock has no measured
+   * stream lag yet — the first seconds after playing or reconnecting, while
+   * progress/countdown still fall back to the wall clock and are known to be
+   * ahead of the speaker. The header bar and countdown render a muted,
+   * "calculating" state until it flips false; the media-session seek bar is
+   * withheld until then.
+   */
+  syncing: boolean;
 };
 
 /** Poll data — changes per API poll (5s playing / 30s paused). */
@@ -98,6 +107,7 @@ export const playerStore = createStore<PlayerSnapshot>({
   isPlaying: false,
   playbackState: "idle",
   isInitialized: false,
+  syncing: false,
 });
 
 export const stationStore = createStore<StationSnapshot>({});

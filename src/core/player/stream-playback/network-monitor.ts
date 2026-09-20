@@ -57,4 +57,13 @@ export class NetworkMonitor {
     this.unsubscribe = null;
     this.wasConnected = null;
   }
+
+  /**
+   * Whether the link is currently usable. `null` (not determined yet) counts
+   * as online — the same conservative rule as the restore edge, so an unknown
+   * probe never suppresses background work (cover prefetch).
+   */
+  isOnline(): boolean {
+    return this.wasConnected !== false;
+  }
 }

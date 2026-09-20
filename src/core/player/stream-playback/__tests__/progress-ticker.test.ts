@@ -39,8 +39,11 @@ interface Fixture {
   metadata: NowPlayingMetadata;
   /** Audible clock fed to the ticker; tests may replace it. */
   now: () => number;
+  /** Whether the sync engine's estimate has settled. */
+  settled: boolean;
   setTrack: (track: Track | null) => void;
   setShowProgress: (value: boolean) => void;
+  setSettled: (value: boolean) => void;
   pushes: { metadata: NowPlayingMetadata; positionSec?: number }[];
 }
 
@@ -50,11 +53,15 @@ const makeTicker = (): Fixture => {
     showProgress: true,
     metadata: METADATA,
     now: () => Date.now(),
+    settled: true,
     setTrack: (track) => {
       fixture.track = track;
     },
     setShowProgress: (value) => {
       fixture.showProgress = value;
+    },
+    setSettled: (value) => {
+      fixture.settled = value;
     },
     pushes: [],
     ticker: undefined as unknown as ProgressTicker,
@@ -98,7 +105,12 @@ const makeTicker = (): Fixture => {
     state,
     audio,
     media,
-    sync: { now: () => fixture.now() },
+    sync: {
+      now: () => fixture.now(),
+      get settled() {
+        return fixture.settled;
+      },
+    },
     buildMetadata: () => fixture.metadata,
   });
 
@@ -156,6 +168,23 @@ describe("ProgressTicker", () => {
     expect(fixture.pushes).toEqual([
       { metadata: METADATA, positionSec: 1 },
     ]);
+  });
+
+  it("withholds the native position until the lag is measured", () => {
+    const fixture = makeTicker();
+    fixture.track = makeTrack();
+    fixture.setSettled(false);
+
+    fixture.ticker.tick();
+    fixture.ticker.tick();
+    fixture.ticker.tick();
+
+    // A metadata push still lands (song/status), but with no position so the
+    // OS cannot interpolate an unmeasured seek bar.
+    expect(fixture.pushes.length).toBeGreaterThan(0);
+    expect(
+      fixture.pushes.filter((push) => push.positionSec != null),
+    ).toHaveLength(0);
   });
 
   it("does nothing without a track", () => {

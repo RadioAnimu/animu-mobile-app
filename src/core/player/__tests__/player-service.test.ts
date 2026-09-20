@@ -153,7 +153,12 @@ const makeDeps = () => {
     isPending: false,
     attemptCount: 0,
   };
-  const networkMonitor = { onRestore: vi.fn(), start: vi.fn(), stop: vi.fn() };
+  const networkMonitor = {
+    onRestore: vi.fn(),
+    start: vi.fn(),
+    stop: vi.fn(),
+    isOnline: vi.fn(() => true),
+  };
   const heartbeat = new HeartbeatScheduler({
     repository,
     ticker,
@@ -169,6 +174,7 @@ const makeDeps = () => {
     isAudible: vi.fn(() => true),
     delay: 0,
     hasMeasurement: false,
+    settled: true,
     lastAnchor: null,
   };
   const audible = {
@@ -217,6 +223,7 @@ const makeDeps = () => {
     sampler,
     sync,
     audible,
+    networkMonitor,
   };
 };
 
@@ -234,6 +241,7 @@ describe("PlayerService store emission", () => {
       isPlaying: false,
       playbackState: "idle",
       isInitialized: false,
+      syncing: false,
     });
     progressStore.setSnapshot({
       currentTrackProgress: null,
@@ -256,6 +264,24 @@ describe("PlayerService store emission", () => {
     expect(playerStore.getSnapshot().isPlaying).toBe(false);
     expect(seen).toContain(true);
     expect(seen[seen.length - 1]).toBe(false);
+  });
+
+  it("enters the calculating state on the first play and clears once settled", async () => {
+    const { deps, transport } = makeDeps();
+    // The real engine starts unmeasured; the fake defaults to settled.
+    (deps.sync as unknown as { settled: boolean }).settled = false;
+    const service = new PlayerService(deps);
+
+    // First play: the native status listener attaches now, so the store is
+    // in "calculating" from this press until the estimate settles.
+    await service.play();
+    expect(playerStore.getSnapshot().syncing).toBe(true);
+
+    // A native status frame arrives after the engine has settled.
+    (deps.sync as unknown as { settled: boolean }).settled = true;
+    wiredHandler(transport)({ playing: true } as AudioPlaybackStatus);
+
+    expect(playerStore.getSnapshot().syncing).toBe(false);
   });
 
   it("pause() reaches the transport even without track data", async () => {
@@ -850,5 +876,104 @@ describe("PlayerService updateMetadata", () => {
     expect(publisher.push).toHaveBeenCalledTimes(2);
 
     resolveSpy.mockRestore();
+  });
+});
+
+describe("PlayerService artwork prefetch", () => {
+  const change = {
+    trackChanged: true,
+    programChanged: false,
+    listenersChanged: false,
+    playedChanged: false,
+    requestedChanged: false,
+  };
+
+  it("warms the announced cover while the previous track is still heard", async () => {
+    const { deps, repository, audible } = makeDeps();
+    // The speaker is still on the previous track (audible resolver deferred).
+    Object.defineProperty(audible, "track", {
+      configurable: true,
+      get: () =>
+        ({
+          ...makeTrack(),
+          raw: "previous",
+          artwork: "https://images.test/previous.png",
+        }) as Track,
+    });
+    new PlayerService(deps);
+    const resolveSpy = vi
+      .spyOn(deps.artwork, "resolve")
+      .mockImplementation(async (url) => url);
+
+    repository.currentTrack = {
+      ...makeTrack(),
+      raw: "next",
+      artwork: "https://images.test/next.png",
+    } as Track;
+    repository.onChange(change);
+
+    // The prefetch resolves the *announced* track, not the displayed one.
+    expect(resolveSpy).toHaveBeenCalledWith("https://images.test/next.png");
+  });
+
+  it("does not prefetch local/bundled artwork", () => {
+    const { deps, repository } = makeDeps();
+    new PlayerService(deps);
+    const resolveSpy = vi
+      .spyOn(deps.artwork, "resolve")
+      .mockImplementation(async (url) => url);
+
+    repository.currentTrack = {
+      ...makeTrack(),
+      artwork: "file://bundled/default-cover.png",
+    } as Track;
+    repository.onChange(change);
+
+    expect(resolveSpy).not.toHaveBeenCalled();
+  });
+
+  it("skips the prefetch when the cover is already cached", () => {
+    const { deps, repository } = makeDeps();
+    new PlayerService(deps);
+    vi.spyOn(deps.artwork, "peek").mockReturnValue("file://mock/cached.jpg");
+    const resolveSpy = vi
+      .spyOn(deps.artwork, "resolve")
+      .mockImplementation(async (url) => url);
+
+    repository.currentTrack = {
+      ...makeTrack(),
+      artwork: "https://images.test/cached.png",
+    } as Track;
+    repository.onChange(change);
+
+    expect(resolveSpy).not.toHaveBeenCalled();
+  });
+
+  it("skips the prefetch while the link is known-down", () => {
+    const { deps, repository, audible, networkMonitor } = makeDeps();
+    // The displayed track is local, so only the prefetch could resolve.
+    Object.defineProperty(audible, "track", {
+      configurable: true,
+      get: () =>
+        ({
+          ...makeTrack(),
+          raw: "previous",
+          artwork: "file://local/previous.jpg",
+        }) as Track,
+    });
+    new PlayerService(deps);
+    vi.mocked(networkMonitor.isOnline).mockReturnValue(false);
+    const resolveSpy = vi
+      .spyOn(deps.artwork, "resolve")
+      .mockImplementation(async (url) => url);
+
+    repository.currentTrack = {
+      ...makeTrack(),
+      raw: "next",
+      artwork: "https://images.test/next.png",
+    } as Track;
+    repository.onChange(change);
+
+    expect(resolveSpy).not.toHaveBeenCalled();
   });
 });

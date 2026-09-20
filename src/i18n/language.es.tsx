@@ -131,6 +131,7 @@ const PROGRAMS: Program[] = [
 const DICT: Dict = {
   PROGRAMS,
   TIME_REMAINING: "Tiempo restante",
+  CALCULATING: "Calculando",
   WITH_DJ: "CON",
   MENU: "Menú",
   MENU_PLAYER: "Reproductor",

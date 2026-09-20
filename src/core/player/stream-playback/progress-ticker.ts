@@ -36,7 +36,7 @@ export interface ProgressTickerOptions {
    * the countdown and the media-session position follow the buffered audio
    * instead of the station's live point.
    */
-  sync: Pick<StreamSyncEngine, "now">;
+  sync: Pick<StreamSyncEngine, "now" | "settled">;
   /**
    * The track whose progress is shown — the *audible* track, which may lag
    * the repository's station-current track by the stream buffer. Defaults to
@@ -156,7 +156,11 @@ export class ProgressTicker {
     if (!media.isActive || !audio.hasPlayer) return;
 
     const metadata = this.options.buildMetadata();
-    const positionSec = showProgress ? toSec(elapsed) : undefined;
+    // Hold the seek bar back until the estimate settles: the position is a
+    // wall-clock guess before then, and the OS would interpolate it ahead of
+    // the speaker.
+    const positionSec =
+      showProgress && this.options.sync.settled ? toSec(elapsed) : undefined;
 
     // No seek bar → the OS interpolates nothing → a push only matters
     // when the metadata or the playback status changed (song change on a
