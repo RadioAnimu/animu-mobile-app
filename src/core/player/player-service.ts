@@ -666,11 +666,12 @@ export class PlayerService {
    * resolve-on-adoption path to do the work. `resolve()` de-dupes against the
    * adoption call through its in-flight map, so this never double-downloads.
    *
-   * Deliberately fetches only the full-size cover: the low-res preview exists
-   * to paint fast *at adoption*, and `resolve()` maps a preview onto the full
-   * URL while the full file is missing — doing that here would make the
-   * adoption call see a cache hit and skip the full-size swap. The preview
-   * still runs from the adoption path when the full file is not ready yet.
+   * Fetches the reported low-res sibling (a few KB) in parallel with the
+   * full-size cover. The selected-quality image may not have landed by the
+   * time the song is heard, but the tiny almost always has — so the cover
+   * paints instantly at adoption and swaps up when the full arrives, rather
+   * than staying blank. The tiny is resolved under its own URL (not mapped
+   * onto the full one) so the adoption call can still drive the full swap.
    */
   private prefetchArtwork(track: Track | null | undefined): void {
     const url = track?.artwork;
@@ -679,12 +680,15 @@ export class PlayerService {
     // No link → skip the pointless attempt; the adoption path retries once
     // connectivity (and the track) is live again.
     if (!this.deps.networkMonitor.isOnline()) return;
+    const preview = pickPreviewArtwork(url, track?.artworks);
     console.log(
-      `[ArtDebug] prefetch START "${track?.title ?? "?"}" artwork=${url}`,
+      `[ArtDebug] prefetch START "${track?.title ?? "?"}" artwork=${url} preview=${preview ?? "none"}`,
     );
-    void this.deps.artwork
-      .resolve(url)
-      .then((resolved) => {
+    void Promise.all([
+      this.deps.artwork.resolve(url),
+      ...(preview ? [this.deps.artwork.resolve(preview)] : []),
+    ])
+      .then(([resolved]) => {
         console.log(
           `[ArtDebug] prefetch READY "${track?.title ?? "?"}" → ${resolved}`,
         );

@@ -301,6 +301,84 @@ describe("ArtworkResolver", () => {
     });
   });
 
+  describe("resolve() — progressive preview", () => {
+    const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
+
+    it("wires the low-res preview even when the full download is already in flight", async () => {
+      const fullUrl = "https://images.test/trackImage1_large.jpg";
+      const previewUrl = "https://images.test/trackImage1_tiny.jpg";
+
+      let releaseFull!: (value: { localUri: string }) => void;
+      assetMocks.fromURI.mockReturnValueOnce({
+        localUri: null,
+        downloadAsync: () =>
+          new Promise((resolve) => {
+            releaseFull = resolve;
+          }),
+      });
+
+      const resolver = new ArtworkResolver({
+        findCachedCoverFile: async (url) =>
+          url === previewUrl ? "file://image-cache/tiny.jpg" : null,
+      });
+
+      // A prefetch grabs the full-size download slot…
+      const prefetch = resolver.resolve(fullUrl);
+      await flush();
+
+      // …and the adoption call must STILL paint the tiny from cache and map
+      // it onto the full URL while the full is missing.
+      const previews: string[] = [];
+      const adoption = resolver.resolve(fullUrl, (local) =>
+        previews.push(local),
+        previewUrl,
+      );
+      await flush();
+
+      expect(previews).toEqual(["file://image-cache/tiny.jpg"]);
+      expect(resolver.peek(fullUrl)).toBe("file://image-cache/tiny.jpg");
+
+      // The full lands and wins.
+      releaseFull({ localUri: "file://cache/full.jpg" });
+      expect(await prefetch).toBe("file://cache/full.jpg");
+      expect(await adoption).toBe("file://cache/full.jpg");
+      expect(resolver.peek(fullUrl)).toBe("file://cache/full.jpg");
+    });
+
+    it("issues the preview and full downloads in parallel", async () => {
+      const fullUrl = "https://images.test/trackImage1_large.jpg";
+      const previewUrl = "https://images.test/trackImage1_tiny.jpg";
+
+      const probeOrder: string[] = [];
+      const releases: Record<string, () => void> = {};
+
+      const resolver = new ArtworkResolver({
+        // Hold each probe open so we can prove both were issued before
+        // either resolved (i.e. the downloads are concurrent).
+        findCachedCoverFile: (url) =>
+          new Promise<string | null>((resolve) => {
+            probeOrder.push(url);
+            releases[url] = () =>
+              resolve(
+                url === previewUrl
+                  ? "file://image-cache/tiny.jpg"
+                  : "file://image-cache/full.jpg",
+              );
+          }),
+      });
+
+      const done = resolver.resolve(fullUrl, () => {}, previewUrl);
+      await flush();
+
+      expect(probeOrder).toEqual([previewUrl, fullUrl]);
+
+      Object.values(releases).forEach((release) => release());
+      await flush();
+
+      expect(await done).toBe("file://image-cache/full.jpg");
+    });
+  });
+
   describe("apply()", () => {
     it("swaps the track artwork to the local file once resolved", async () => {
       assetMocks.fromURI.mockReturnValueOnce({

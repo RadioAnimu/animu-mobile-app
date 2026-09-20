@@ -208,38 +208,18 @@ export class ArtworkResolver {
     const cached = this.fileMap.peek(url);
     if (cached) return cached;
 
+    // Progressive preview FIRST, and unconditionally: a prefetch may already
+    // hold the full-size download in flight, and the in-flight de-dupe below
+    // would otherwise return early and skip the low-res paint entirely.
+    this.startPreview(previewUrl, url, onPreview);
+
     const pending = this.inFlight.get(url);
     if (pending) return pending;
 
     const startedAt = Date.now();
     console.log(`[ArtDebug] resolve START ${url}`);
 
-    const promise = (async () => {
-      // Low-res preview in PARALLEL (a `_tiny` sibling is a few KB): it
-      // paints the frame when it lands, and the full-size download is NOT
-      // held back by it (serializing the two turned a wedged tiny fetch
-      // into a wedged full fetch). The preview only maps onto the
-      // requested URL while the full file is still missing.
-      //
-      // The candidate MUST come from the caller (the track's reported
-      // sizes): deriving `_tiny` from the CDN naming scheme is wrong —
-      // the CDN 302s unknown sizes to a placeholder image, so a guessed
-      // sibling used to fetch a 404 page as the "preview".
-      const preview = previewUrl && previewUrl !== url ? previewUrl : null;
-      if (preview) {
-        void this.pipeline(preview, startedAt)
-          .then((local) => {
-            if (local !== preview && !this.fileMap.peek(url)) {
-              this.fileMap.track(url, local);
-              onPreview?.(local);
-            }
-          })
-          .catch(() => {
-            // Best effort — the full download decides the end state.
-          });
-      }
-      return this.pipeline(url, startedAt);
-    })()
+    const promise = this.pipeline(url, startedAt)
       .catch((error) => {
         console.warn(
           `[ArtDebug] resolve FAILED after ${Date.now() - startedAt}ms (${url}):`,
@@ -253,6 +233,34 @@ export class ArtworkResolver {
 
     this.inFlight.set(url, promise);
     return promise;
+  }
+
+  /**
+   * Low-res step of the progressive cover: downloads the reported smaller
+   * sibling (a few KB), maps it onto the full URL while the full file is
+   * still missing, and reports it via `onPreview`. De-duped through
+   * `resolve(previewUrl)`, so a prefetch and the adoption call share one
+   * download. Idempotent — safe to call on every `resolve`.
+   */
+  private startPreview(
+    previewUrl: string | null | undefined,
+    fullUrl: string,
+    onPreview?: (local: string) => void,
+  ): void {
+    if (!previewUrl || previewUrl === fullUrl) return;
+    if (this.fileMap.peek(fullUrl)) return;
+    void this.resolve(previewUrl)
+      .then((local) => {
+        // Map/paint only while the full file is still missing — if it landed
+        // first it wins, and the preview must not shadow it.
+        if (local !== previewUrl && !this.fileMap.peek(fullUrl)) {
+          this.fileMap.track(fullUrl, local);
+          onPreview?.(local);
+        }
+      })
+      .catch(() => {
+        // Best effort — the full download decides the end state.
+      });
   }
 
   /** Cache hit → direct download → expo-asset fallback, for one URL. */

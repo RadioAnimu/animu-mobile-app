@@ -976,4 +976,37 @@ describe("PlayerService artwork prefetch", () => {
 
     expect(resolveSpy).not.toHaveBeenCalled();
   });
+
+  it("prefetches the low-res sibling alongside the full cover", () => {
+    const { deps, repository, audible } = makeDeps();
+    // The displayed track is local, so only the prefetch could resolve.
+    Object.defineProperty(audible, "track", {
+      configurable: true,
+      get: () =>
+        ({
+          ...makeTrack(),
+          raw: "previous",
+          artwork: "file://local/previous.jpg",
+        }) as Track,
+    });
+    new PlayerService(deps);
+    const resolveSpy = vi
+      .spyOn(deps.artwork, "resolve")
+      .mockImplementation(async (url) => url);
+
+    repository.currentTrack = {
+      ...makeTrack(),
+      raw: "next",
+      artwork: "https://images.test/next_large.png",
+      artworks: {
+        tiny: "https://images.test/next_tiny.png",
+        large: "https://images.test/next_large.png",
+      },
+    } as unknown as Track;
+    repository.onChange(change);
+
+    const resolvedUrls = resolveSpy.mock.calls.map((call) => call[0]);
+    expect(resolvedUrls).toContain("https://images.test/next_large.png");
+    expect(resolvedUrls).toContain("https://images.test/next_tiny.png");
+  });
 });
