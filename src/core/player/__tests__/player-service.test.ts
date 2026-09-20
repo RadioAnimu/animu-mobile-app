@@ -75,6 +75,7 @@ vi.mock("../../services/animu.service", () => ({
   animuService: { abortInFlightRequests: vi.fn() },
 }));
 vi.mock("../../../api/client", () => ({
+  setServerSkewListener: vi.fn(),
   animuApi: {
     getStreams: vi.fn(async () => [
       { id: "low", url: "https://stream-low", bitrate: 64, category: "aac" },
@@ -160,6 +161,27 @@ const makeDeps = () => {
     stateLabel: () => state.state,
   });
   const artwork = new ArtworkResolver();
+  const sync = {
+    now: () => Date.now(),
+    updateFromStatus: vi.fn(),
+    updateFromAnchor: vi.fn(),
+    reset: vi.fn(),
+    isAudible: vi.fn(() => true),
+    delay: 0,
+    hasMeasurement: false,
+    lastAnchor: null,
+  };
+  const audible = {
+    onChange: vi.fn(),
+    // By default the displayed track mirrors the station's, so tests that
+    // set `repository.currentTrack` see it in the now-playing surfaces.
+    get track() {
+      return repository.currentTrack;
+    },
+    reconcile: vi.fn(() => false),
+    adoptIfDue: vi.fn(),
+    reset: vi.fn(),
+  };
   const sampler = {
     isSupported: true,
     isActive: false,
@@ -182,9 +204,20 @@ const makeDeps = () => {
     ticker,
     heartbeat,
     artwork,
+    sync,
+    audible,
   } as unknown as PlayerServiceDependencies;
 
-  return { deps, transport, publisher, repository, reconnect, sampler };
+  return {
+    deps,
+    transport,
+    publisher,
+    repository,
+    reconnect,
+    sampler,
+    sync,
+    audible,
+  };
 };
 
 const wiredHandler = (transport: {
@@ -630,6 +663,24 @@ describe("PlayerService lifecycle", () => {
     } as Stream);
 
     expect(transport.load).toHaveBeenCalledWith("https://stream-high");
+  });
+
+  it("changeStream keeps the displayed track on screen (offline-safe)", async () => {
+    const { deps, audible } = makeDeps();
+    const service = new PlayerService(deps);
+    await service.play();
+    audible.reset.mockClear();
+
+    await service.changeStream({
+      id: "high",
+      url: "https://stream-high",
+      bitrate: 256,
+      category: "aac",
+    } as Stream);
+
+    // Resetting the resolver would blank the now-playing UI if the follow-up
+    // fetch fails (offline re-tune).
+    expect(audible.reset).not.toHaveBeenCalled();
   });
 });
 

@@ -247,6 +247,20 @@ describe("NowPlayingRepository", () => {
     expect(trackEndTimer!.ms).toBeGreaterThan(100_000);
   });
 
+  it("schedules track-end on the audible clock when one is injected", async () => {
+    const { timer, repository } = makeRepository();
+    // Audible clock trails the station by 5s (stream buffer).
+    repository["options"].getNow = () => Date.now() - 5_000;
+
+    await repository.refresh();
+
+    const trackEndTimer = timer.scheduled.find((call) => call.ms > 1000);
+    expect(trackEndTimer).toBeTruthy();
+    // ≈ duration - elapsed + lag + buffer = 180s - 10s + 5s + 0.5s
+    expect(trackEndTimer!.ms).toBeGreaterThan(174_000);
+    expect(trackEndTimer!.ms).toBeLessThanOrEqual(175_500);
+  });
+
   it("refreshes soon when the track already ended", async () => {
     const { timer, repository } = makeRepository({
       getStreamMetadata: async () => ({
@@ -679,6 +693,9 @@ describe("NowPlayingRepository — live SSE ingestion", () => {
       },
     ]);
     expect(onLiveTrackChange).toHaveBeenCalledTimes(1);
+    const [anchorTrack, anchorAt] = onLiveTrackChange.mock.calls[0];
+    expect(anchorTrack.raw).toBe("Live - Song");
+    expect(anchorAt).toBeInstanceOf(Date);
     expect(fixture.getStreamMetadataSpy).not.toHaveBeenCalled();
   });
 

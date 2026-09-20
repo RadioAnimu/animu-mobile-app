@@ -2,11 +2,10 @@ import NetInfo from "@react-native-community/netinfo";
 import { openBrowserAsync } from "expo-web-browser";
 import type { HistoryType } from "@/@types/history-type.d";
 import type { Stream } from "@/core/domain/stream";
-import { getTrackProgress } from "@/core/domain/track";
 import { animuService } from "@/core/services/animu.service";
 import { userSettingsService } from "@/core/services/user-settings.service";
 import { API } from "@/api";
-import { animuApi } from "@/api/client";
+import { animuApi, setServerSkewListener } from "@/api/client";
 import { CONFIG } from "@/utils/player.config";
 import type {
   AudioEnginePort,
@@ -40,6 +39,11 @@ import {
   NowPlayingRepository,
 } from "@/core/player/stream-playback/now-playing.repository";
 import { ProgressTicker, toSec } from "@/core/player/stream-playback/progress-ticker";
+import {
+  getSyncedTrackProgress,
+  StreamSyncEngine,
+} from "@/core/player/stream-playback/stream-sync";
+import { AudibleTrackResolver } from "@/core/player/stream-playback/audible-track";
 import {
   playerStore,
   progressStore,
@@ -102,6 +106,8 @@ export interface PlayerServiceDependencies {
   ticker: ProgressTicker;
   heartbeat: HeartbeatScheduler;
   artwork: ArtworkResolver;
+  sync: StreamSyncEngine;
+  audible: AudibleTrackResolver;
 }
 
 /**
@@ -113,6 +119,8 @@ export interface PlayerServiceDependencies {
  * - `NowPlayingRepository` — on-air data: fetch, diff, retry, track-end
  * - `MediaSessionPublisher`— pushes metadata/status to the OS
  * - `ProgressTicker`       — 1 Hz progress heartbeat
+ * - `StreamSyncEngine`     — audible station clock (native live offset)
+ * - `AudibleTrackResolver` — now-playing display held to the audible moment
  * - `HeartbeatScheduler`   — 1 Hz gate + watchdog + data-poll cadence
  * - `ArtworkResolver`      — local-file artwork + bundled default cover
  * - `StreamPreferences`    — persisted stream choice
@@ -170,6 +178,8 @@ export class PlayerService {
    * way back to the foreground.
    */
   private appActive = true;
+  /** Dev-only sampled counter for the sync-math trace. */
+  private syncDebugBeats = 0;
 
   constructor(private readonly deps: PlayerServiceDependencies) {
     // ── Wiring: this class owns every cross-unit connection ──
@@ -180,7 +190,12 @@ export class PlayerService {
       // Route by change cadence: track/program → now-playing UI,
       // listeners/histories → poll-data UI. A listener-count tick never
       // re-renders the now-playing UI and vice versa.
-      if (change.trackChanged || change.programChanged) this.emitPlayer();
+      if (change.trackChanged || change.programChanged) {
+        // The station's on-air item changed, but the speaker may still be on
+        // the previous track — let the audible resolver decide what to show.
+        if (change.trackChanged) this.deps.audible.reconcile();
+        this.handleDisplayedTrackChange();
+      }
       if (
         change.listenersChanged ||
         change.playedChanged ||
@@ -189,17 +204,25 @@ export class PlayerService {
         this.emitStation();
       }
     };
+    // A deferred adoption (the announced track reached the speaker) must
+    // reach the UI and the media session on its own.
+    this.deps.audible.onChange = () => this.handleDisplayedTrackChange();
     this.deps.networkMonitor.onRestore = () => this.handleNetworkRestore();
     this.deps.heartbeat.onPoll = () => {
       void this.refreshData().catch(console.error);
     };
-    // Live SSE track change → push the media session immediately instead
-    // of riding the next poll's round-trip.
-    this.deps.repository.onLiveTrackChange = () => {
+    // Live SSE track change → anchor the sync engine on the event's arrival
+    // (the package's per-event `ts`) so the audible clock re-locks to this
+    // track. The displayed metadata does NOT change here: the audible
+    // resolver holds the previous track on screen until the new one is heard.
+    this.deps.repository.onLiveTrackChange = (track, receivedAt) => {
+      this.deps.sync.updateFromAnchor({
+        startTimeMs: track.startTime.getTime(),
+        receivedAtMs: receivedAt.getTime(),
+      });
       console.log(
-        `[ArtDebug] LIVE track change → "${this.deps.repository.currentTrack?.title ?? "?"}" artwork=${this.deps.repository.currentTrack?.artwork}`,
+        `[ArtDebug] LIVE track change → "${track.title ?? "?"}" artwork=${track.artwork}`,
       );
-      void this.updateMetadata();
     };
   }
 
@@ -324,6 +347,7 @@ export class PlayerService {
     // paused, backgrounding may drop the connection (see the setting).
     this.updateLiveStreamLifecycle();
     if (active) {
+      this.deps.audible.adoptIfDue();
       this.emitPlayer();
       this.emitStation();
       this.emitProgress();
@@ -436,6 +460,8 @@ export class PlayerService {
       this.deps.heartbeat.reset();
       this.deps.artwork.reset();
       this.deps.sampler.dispose();
+      this.deps.sync.reset();
+      this.deps.audible.reset();
       if (this.deps.audio.hasPlayer) {
         this.deps.audio.dispose();
       }
@@ -461,6 +487,8 @@ export class PlayerService {
       this.deps.heartbeat.reset();
       this.deps.artwork.reset();
       this.deps.sampler.dispose();
+      this.deps.sync.reset();
+      this.deps.audible.reset();
       this.initialized = false;
       this.streamOptions = [];
 
@@ -572,6 +600,12 @@ export class PlayerService {
       // A manual re-tune is a fresh intent — no pending live-edge re-open.
       this.interruptionPending = false;
       this.stalledSince = null;
+      // A different relay (MP3 vs AAC+) buffers differently — drop the old
+      // lag so the first native reading of the new stream snaps. The display
+      // resolver is deliberately NOT reset: it keeps the current track on
+      // screen across the re-tune (and if the follow-up fetch fails offline,
+      // the UI must not blank).
+      this.deps.sync.reset();
 
       this.deps.audio.load(stream.url);
       if (wasPlaying) {
@@ -593,16 +627,15 @@ export class PlayerService {
 
   async refreshData(): Promise<boolean> {
     const changed = await this.deps.repository.refresh();
-    if (changed && this.isReady) {
-      if (CONFIG.DEBUG) {
-        console.info(
-          `[PlayerService] track/program changed → updating media session: ${
-            this.deps.repository.currentTrack?.title ?? "?"
-          }`,
-        );
-      }
-      await this.updateMetadata();
+    if (changed && CONFIG.DEBUG) {
+      console.info(
+        `[PlayerService] track/program changed → updating media session: ${
+          this.deps.repository.currentTrack?.title ?? "?"
+        }`,
+      );
     }
+    // The repository's onChange handler already routed the change through the
+    // audible resolver, which emits the UI and pushes the media session.
     return changed;
   }
 
@@ -629,11 +662,11 @@ export class PlayerService {
       // module is patched to read the bytes in-process and publish them
       // as `artworkData` (`setArtworkData` → `METADATA_KEY_ART`) — the
       // loaders render those with no IO of their own.
-      const artworkUrl = this.deps.repository.currentTrack?.artwork;
+      const artworkUrl = this.deps.audible.track?.artwork;
       const peeked = artworkUrl ? this.deps.artwork.peek(artworkUrl) : undefined;
       const t0 = Date.now();
       console.log(
-        `[ArtDebug] updateMetadata track="${this.deps.repository.currentTrack?.title ?? "?"}" artwork="${artworkUrl ?? "none"}" peeked=${peeked ?? "MISS"}`,
+        `[ArtDebug] updateMetadata track="${this.deps.audible.track?.title ?? "?"}" artwork="${artworkUrl ?? "none"}" peeked=${peeked ?? "MISS"}`,
       );
       if (
         artworkUrl &&
@@ -649,22 +682,22 @@ export class PlayerService {
               // Low-res cover painted as soon as the reported low-size
               // sibling lands — the full-size swap happens in
               // resolve.then below.
-              if (this.deps.repository.currentTrack?.artwork === artworkUrl) {
+              if (this.deps.audible.track?.artwork === artworkUrl) {
                 this.pushNowPlaying();
                 this.emitPlayer();
               }
             },
             pickPreviewArtwork(
               artworkUrl,
-              this.deps.repository.currentTrack?.artworks,
+              this.deps.audible.track?.artworks,
             ),
           )
           .then((resolved) => {
           const dt = Date.now() - t0;
           console.log(
-            `[ArtDebug] resolve.then after ${dt}ms sameTrack=${this.deps.repository.currentTrack?.artwork === artworkUrl} resolved=${resolved}`,
+            `[ArtDebug] resolve.then after ${dt}ms sameTrack=${this.deps.audible.track?.artwork === artworkUrl} resolved=${resolved}`,
           );
-          if (this.deps.repository.currentTrack?.artwork === artworkUrl) {
+          if (this.deps.audible.track?.artwork === artworkUrl) {
             this.pushNowPlaying();
             // Hand the UI the local file too — otherwise expo-image
             // re-downloads the same cover over the network while the
@@ -682,10 +715,17 @@ export class PlayerService {
   }
 
   private pushNowPlaying(): void {
+    const { elapsedMs, pending } = getSyncedTrackProgress(
+      this.deps.audible.track,
+      this.deps.sync.now(),
+    );
     this.deps.media.push(
       this.getNowPlayingMetadata(),
       this.deps.state.remoteStatus,
-      toSec(getTrackProgress(this.deps.repository.currentTrack ?? undefined)),
+      // A freshly-announced track that is still buffered reports position 0:
+      // the speaker is finishing the previous one and the OS seek bar must
+      // not jump to the live point.
+      pending ? 0 : toSec(elapsedMs),
     );
   }
 
@@ -698,6 +738,7 @@ export class PlayerService {
    * timers freeze/throttle.
    */
   heartbeat(): void {
+    this.deps.audible.adoptIfDue();
     this.deps.heartbeat.beat();
   }
 
@@ -777,6 +818,20 @@ export class PlayerService {
     // Straggler native event after teardown — a destroyed instance must
     // not tick, poll or transition.
     if (this.disposed) return;
+
+    // Feed the audible-clock estimate on EVERY native frame (including
+    // buffering ones): the offset is what shifts progress, the countdown and
+    // the media-session position back to what the speaker is producing.
+    this.deps.sync.updateFromStatus({
+      isLive: status.isLive ?? false,
+      offsetFromLive: status.currentOffsetFromLive ?? null,
+      bufferedAheadSeconds: status.bufferedAheadSeconds ?? null,
+    });
+    // The lag may have shifted under a pending track — adopt it the moment
+    // it is due instead of waiting for the boundary timer to be corrected.
+    this.deps.audible.adoptIfDue();
+
+    if (CONFIG.DEBUG) this.logSyncDebug(status);
 
     if (this.handleBuffering(status)) return;
     if (this.handlePlaying(status)) return;
@@ -1018,11 +1073,51 @@ export class PlayerService {
       // module (patched) reads the bytes in-process and publishes them
       // as `artworkData` — a plain `file://` URI would fail cross-process
       // under scoped storage (ENOENT).
-      track: this.deps.artwork.apply(this.deps.repository.currentTrack),
+      track: this.deps.artwork.apply(this.deps.audible.track),
       isLive: this.deps.repository.currentProgram?.isLive ?? false,
       showProgress: this.deps.repository.showProgress,
       defaultCover: this.deps.artwork.defaultCover,
     };
+  }
+
+  /**
+   * Dev-only sampled trace of the sync math: native inputs (live offset,
+   * forward buffer, playhead) alongside the engine's outputs (lag, clock
+   * skew, audible station clock) and the resulting track progress. One line
+   * per ~5 native frames, so a real session can be checked against the
+   * station without flooding the console.
+   */
+  private logSyncDebug(status: AudioPlaybackStatus): void {
+    this.syncDebugBeats += 1;
+    if (this.syncDebugBeats % 5 !== 0) return;
+    const track = this.deps.audible.track ?? this.deps.repository.currentTrack;
+    const start = track?.startTime?.getTime();
+    const now = this.deps.sync.now();
+    console.log(
+      `[SyncDebug] isLive=${status.isLive ?? "?"} offLive=${
+        status.currentOffsetFromLive ?? "null"
+      } bufAhead=${status.bufferedAheadSeconds ?? "null"} curTime=${
+        status.currentTime?.toFixed?.(1) ?? status.currentTime ?? "?"
+      } | delay=${Math.round(this.deps.sync.delay)}ms skew=${Math.round(
+        this.deps.sync.clockSkew,
+      )}ms measured=${this.deps.sync.hasMeasurement} | audibleNow=${Math.round(
+        now,
+      )} elapsed=${start != null ? Math.round(now - start) : "?"}ms dur=${
+        track?.duration ?? "?"
+      } track="${track?.title ?? "?"}"`,
+    );
+  }
+
+  /**
+   * The displayed (audible) track changed — either the station announced a
+   * track that is already audible, or a deferred one just crossed into the
+   * speaker. Emits the now-playing UI, the progress store and the media
+   * session so title, cover, lock screen and seek bar all move together.
+   */
+  private handleDisplayedTrackChange(): void {
+    this.emitPlayer();
+    this.emitProgress();
+    void this.updateMetadata();
   }
 
   /** Now-playing snapshot — per song / program / stream / user action. */
@@ -1034,8 +1129,7 @@ export class PlayerService {
       // a cover the resolver already has on disk (`apply` is a sync
       // LRU-map peek, so it costs nothing when the file isn't ready).
       currentTrack:
-        this.deps.artwork.apply(this.deps.repository.currentTrack) ??
-        undefined,
+        this.deps.artwork.apply(this.deps.audible.track) ?? undefined,
       currentProgram: this.deps.repository.currentProgram ?? undefined,
       currentStream: this.deps.streamPreferences.current,
       streamOptions: this.streamOptions,
@@ -1063,10 +1157,17 @@ export class PlayerService {
 
   private emitProgress(): void {
     if (!this.appActive) return;
+    const { elapsedMs, pending } = getSyncedTrackProgress(
+      this.deps.audible.track,
+      this.deps.sync.now(),
+    );
     progressStore.setSnapshot({
-      currentTrackProgress: getTrackProgress(
-        this.deps.repository.currentTrack ?? undefined,
-      ),
+      // While the announced track is still buffered, leave the bar where the
+      // ticker carried it (the previous track is finishing) instead of
+      // flashing it back to 0 on a foreground catch-up.
+      currentTrackProgress: pending
+        ? progressStore.getSnapshot().currentTrackProgress
+        : elapsedMs,
       showProgress: this.deps.repository.showProgress,
     });
   }
@@ -1087,6 +1188,14 @@ let playerServiceInstance: PlayerService | null = null;
 /** Builds a fully-wired PlayerService with production dependencies. */
 export const createPlayerService = (): PlayerService => {
   const state = new TransportStateMachine();
+  // The audible station clock: turns the native live offset into the instant
+  // the speaker is producing, so every station-timeline surface stays on the
+  // audio the listener hears rather than the station's live point.
+  const sync = new StreamSyncEngine();
+  // Feed the engine the server-vs-device clock offset from every HTTP
+  // response's `date` header (the app already makes these requests). Keeps
+  // the station-timeline comparison valid on a device with a wrong clock.
+  setServerSkewListener((skewMs) => sync.setClockSkew(skewMs));
   // The only two places the native libraries are touched live in these
   // adapters; the rest of the core depends on the ports.
   const audio = new ExpoAudioAdapter();
@@ -1105,6 +1214,8 @@ export const createPlayerService = (): PlayerService => {
       userSettingsService.getCurrentSettings().liveQualityCover,
     getDefaultCover: () => artwork.defaultCover,
     timer: jsTimer,
+    // Track-end refreshes fire on the audible timeline, not the station's.
+    getNow: () => sync.now(),
   });
   const networkMonitor = new NetworkMonitor(netInfoSubscribe);
   // Bridges the media-session artwork with the in-app image cache: any
@@ -1118,16 +1229,26 @@ export const createPlayerService = (): PlayerService => {
     onResolved: coverSeeder.seed.bind(coverSeeder),
     findCachedCoverFile: coverLookup.find.bind(coverLookup),
   });
+  // Holds the announced track back until the speaker reaches it, so the
+  // title/cover/lock screen flip when the song is heard — not when the
+  // station announces it.
+  const audible = new AudibleTrackResolver({
+    getStationTrack: () => repository.currentTrack,
+    sync,
+    timer: jsTimer,
+  });
   const ticker = new ProgressTicker({
     repository,
     state,
     audio,
     media,
+    sync,
+    getTrack: () => audible.track,
     buildMetadata: () =>
       buildNowPlayingMetadata({
         // Local cover file when it exists — the patched native module
         // reads it in-process and publishes artworkData on Android.
-        track: artwork.apply(repository.currentTrack),
+        track: artwork.apply(audible.track),
         isLive: repository.currentProgram?.isLive ?? false,
         showProgress: repository.showProgress,
         defaultCover: artwork.defaultCover,
@@ -1153,6 +1274,8 @@ export const createPlayerService = (): PlayerService => {
     ticker,
     heartbeat,
     artwork,
+    sync,
+    audible,
   });
 };
 

@@ -1,7 +1,40 @@
 import { AnimuApi, type ArtworkQuality } from "animu-api";
 import { fetch as expoFetch } from "expo/fetch";
+import { serverSkewFromDate } from "@/api/server-skew";
 import { CONFIG } from "@/utils/player.config";
 import { CLIENT_INFO } from "@/utils/client-context";
+
+/**
+ * Sink for the server-vs-device clock offset observed on each HTTP response.
+ * The player registers the sync engine here; no extra requests are made —
+ * every existing call (metadata poll, program, history, SSE connect) carries
+ * a `date` header that already tells us the server's clock.
+ */
+let serverSkewListener: ((skewMs: number) => void) | null = null;
+
+/** Registers (or clears) the server-skew sink. */
+export const setServerSkewListener = (
+  listener: ((skewMs: number) => void) | null,
+): void => {
+  serverSkewListener = listener;
+};
+
+/**
+ * `expo/fetch` wrapped to feed every response's `date` header to the sync
+ * engine's clock correction. Everything else is passed through untouched.
+ */
+const clockAwareFetch: typeof expoFetch = async (...args) => {
+  const sentAtMs = Date.now();
+  const response = await expoFetch(...args);
+  const receivedAtMs = Date.now();
+  const skew = serverSkewFromDate(
+    response.headers.get("date"),
+    sentAtMs,
+    receivedAtMs,
+  );
+  if (skew != null) serverSkewListener?.(skew);
+  return response;
+};
 
 /**
  * Shared client for everything whose settings don't change per call:
@@ -20,7 +53,7 @@ export const animuApi = new AnimuApi({
   clientInfo: CLIENT_INFO,
   defaultCover: CONFIG.DEFAULT_COVER,
   fallbackStreams: CONFIG.FALLBACK_STREAM_OPTIONS,
-  fetchImpl: expoFetch,
+  fetchImpl: clockAwareFetch,
 });
 
 /**
@@ -47,5 +80,5 @@ export const createApiClient = (
     clientInfo: CLIENT_INFO,
     defaultCover,
     artworkQuality,
-    fetchImpl: expoFetch,
+    fetchImpl: clockAwareFetch,
   });

@@ -21,6 +21,35 @@ export interface AudioPlaybackStatus {
   timeControlStatus: string;
   /** Native playback state ("idle" / "ended" / "failed" / …). */
   playbackState: string;
+  /**
+   * Whether the source is an indefinite live stream. Present on the native
+   * status; absent on hand-built test fixtures.
+   */
+  isLive?: boolean;
+  /**
+   * Seconds the audible playhead trails the stream's live edge — the encoder
+   * + relay + jitter-buffer + decoder + output stack. iOS derives it from
+   * `AVPlayerItem.currentDate()` (absolute wall clock), Android from
+   * ExoPlayer's `currentLiveOffset`. `null` when the platform cannot measure
+   * it (e.g. an ICY progressive stream ExoPlayer treats as unseekable).
+   *
+   * This is the counterpart of the visualizer's `outputLatencySeconds` for
+   * the *UI* timeline: the sync engine subtracts it so progress tracks what
+   * the speaker is producing instead of the station's live point.
+   */
+  currentOffsetFromLive?: number | null;
+  /**
+   * Forward buffer depth in seconds — how much audio the player has loaded
+   * past the playhead. A patched native field used as the UI-sync fallback
+   * when {@link currentOffsetFromLive} is `null` (live ICY/progressive
+   * streams often have no manifest window for the platform to measure).
+   */
+  bufferedAheadSeconds?: number | null;
+  /**
+   * Current playback position in seconds. For an indefinite stream this is
+   * the player's stream-relative playhead; diagnostics only.
+   */
+  currentTime?: number;
 }
 
 /** One decoded PCM channel (frames normalized -1..1). */

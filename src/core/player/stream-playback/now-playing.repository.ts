@@ -79,6 +79,13 @@ export interface NowPlayingRepositoryOptions {
   /** Runtime resolver value — bundled default cover for missing artwork. */
   getDefaultCover: () => string;
   timer: Timer;
+  /**
+   * The station-timeline "now" (epoch ms) used to schedule the predictive
+   * track-end refresh. Defaults to `Date.now`; the player injects the sync
+   * engine so the refresh fires when the listener *hears* the track end, not
+   * when the station crosses it. Tests leave it unset for a real clock.
+   */
+  getNow?: () => number;
 }
 
 /**
@@ -113,10 +120,13 @@ export class NowPlayingRepository {
   /** Fired whenever merged data actually changed. Wired by the orchestrator. */
   onChange: (change: NowPlayingChange) => void = () => {};
   /**
-   * Wired by the orchestrator: a LIVE track change must reach the media
-   * session without waiting for the next poll round-trip.
+   * Wired by the orchestrator: a LIVE track change carries the station-side
+   * `startTime` plus the event arrival instant (`receivedAt`, the package's
+   * per-event `ts`) so the sync engine can anchor on it. The displayed
+   * metadata is NOT switched here — the audible resolver holds the previous
+   * track until the new one reaches the speaker.
    */
-  onLiveTrackChange: () => void = () => {};
+  onLiveTrackChange: (track: Track, receivedAt: Date) => void = () => {};
 
   private currentTrackValue: Track | null = null;
   private currentProgramValue: Program | null = null;
@@ -323,7 +333,7 @@ export class NowPlayingRepository {
         requestedChanged: false,
       });
     }
-    if (trackChanged) this.onLiveTrackChange();
+    if (trackChanged && track) this.onLiveTrackChange(track, song.receivedAt);
     this.scheduleTrackEndRefresh();
   }
 
@@ -568,7 +578,10 @@ export class NowPlayingRepository {
   /**
    * Predictive refresh: schedules a fetch right after the current real,
    * non-live track is expected to end (`startTime + duration + buffer`),
-   * keeping the UI ahead of the station instead of polling blindly.
+   * keeping the UI ahead of the station instead of polling blindly. The
+   * delay is measured against the injected `getNow` — the sync engine's
+   * audible clock — so the refresh lands when the listener *hears* the
+   * track end rather than when the station crosses it.
    */
   scheduleTrackEndRefresh(): void {
     this.cancelTrackEndTimer();
@@ -579,8 +592,8 @@ export class NowPlayingRepository {
     if (!isRealTrack(track)) return;
     if (this.currentProgramValue?.isLive) return;
 
-    const msUntilEnd =
-      track.startTime.getTime() + track.duration - Date.now();
+    const now = this.options.getNow?.() ?? Date.now();
+    const msUntilEnd = track.startTime.getTime() + track.duration - now;
     const delay =
       msUntilEnd > 0
         ? msUntilEnd + TRACK_END_BUFFER_MS

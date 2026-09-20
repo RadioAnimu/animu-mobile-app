@@ -37,6 +37,8 @@ interface Fixture {
   track: Track | null;
   showProgress: boolean;
   metadata: NowPlayingMetadata;
+  /** Audible clock fed to the ticker; tests may replace it. */
+  now: () => number;
   setTrack: (track: Track | null) => void;
   setShowProgress: (value: boolean) => void;
   pushes: { metadata: NowPlayingMetadata; positionSec?: number }[];
@@ -47,6 +49,7 @@ const makeTicker = (): Fixture => {
     track: null,
     showProgress: true,
     metadata: METADATA,
+    now: () => Date.now(),
     setTrack: (track) => {
       fixture.track = track;
     },
@@ -95,6 +98,7 @@ const makeTicker = (): Fixture => {
     state,
     audio,
     media,
+    sync: { now: () => fixture.now() },
     buildMetadata: () => fixture.metadata,
   });
 
@@ -177,6 +181,61 @@ describe("ProgressTicker", () => {
       showProgress: false,
     });
     expect(fixture.pushes).toEqual([{ metadata: METADATA, positionSec: 0 }]);
+  });
+
+  it("holds progress at 0 while the announced track is still buffered", () => {
+    const fixture = makeTicker();
+    fixture.track = makeTrack(); // startTime = Date.now() - 1000
+    // Audible clock trails the station by 3s → the track has not started.
+    fixture.now = () => Date.now() - 3000;
+
+    fixture.ticker.tick();
+
+    expect(progressStore.getSnapshot()).toEqual({
+      currentTrackProgress: 0,
+      showProgress: true,
+    });
+    // Held, not cleared — the previous track is still audible.
+    expect(fixture.pushes).toEqual([]);
+  });
+
+  it("resumes progress once the track reaches the speaker", () => {
+    const fixture = makeTicker();
+    fixture.track = makeTrack(); // startTime = Date.now() - 1000
+    fixture.now = () => Date.now() - 3000;
+    fixture.ticker.tick(); // pending → 0
+
+    // The buffer drains: the same track is now audible at 1s elapsed.
+    fixture.now = () => Date.now();
+    fixture.ticker.tick();
+
+    expect(progressStore.getSnapshot().currentTrackProgress).toBe(1000);
+  });
+
+  it("carries the previous track's bar while the next one buffers", () => {
+    const fixture = makeTicker();
+    let offset = 0;
+    fixture.now = () => Date.now() - offset;
+
+    // Track A: playing 5s in, on the live edge.
+    fixture.track = makeTrack({
+      raw: "A",
+      startTime: new Date(Date.now() - 5_000),
+    });
+    fixture.ticker.tick();
+    expect(progressStore.getSnapshot().currentTrackProgress).toBe(5_000);
+
+    // 4s later the relay is 3s behind, and B was announced 2s ahead.
+    vi.setSystemTime(new Date(Date.now() + 4_000));
+    offset = 3_000;
+    fixture.track = makeTrack({
+      raw: "B",
+      startTime: new Date(Date.now() + 2_000),
+    });
+    fixture.ticker.tick();
+
+    // A's bar advanced ~1s instead of snapping to B's 0 for the buffer window.
+    expect(progressStore.getSnapshot().currentTrackProgress).toBe(6_000);
   });
 
   it("resets the push cadence when progress toggles on", () => {

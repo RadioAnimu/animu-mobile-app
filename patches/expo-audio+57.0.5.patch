@@ -1,5 +1,5 @@
 diff --git a/node_modules/expo-audio/android/src/main/java/expo/modules/audio/AudioPlayer.kt b/node_modules/expo-audio/android/src/main/java/expo/modules/audio/AudioPlayer.kt
-index c76a9fd..606168f 100644
+index c76a9fd..3408b68 100644
 --- a/node_modules/expo-audio/android/src/main/java/expo/modules/audio/AudioPlayer.kt
 +++ b/node_modules/expo-audio/android/src/main/java/expo/modules/audio/AudioPlayer.kt
 @@ -1,19 +1,21 @@
@@ -29,7 +29,7 @@ index c76a9fd..606168f 100644
  import androidx.media3.exoplayer.source.MediaSource
  import androidx.media3.session.MediaSession
  import expo.modules.audio.service.AudioPlaybackServiceConnection
-@@ -21,10 +23,14 @@ import expo.modules.audio.service.ServiceBindingState
+@@ -21,10 +23,17 @@ import expo.modules.audio.service.ServiceBindingState
  import expo.modules.kotlin.AppContext
  import expo.modules.kotlin.exception.Exceptions
  import java.lang.ref.WeakReference
@@ -41,10 +41,13 @@ index c76a9fd..606168f 100644
  private const val SEEK_JUMP_INTERVAL_MS: Long = 10_000
 +// PATCH: upper bound for the visualizer's measured output latency.
 +private const val MAX_OUTPUT_LATENCY_SECONDS = 0.75
++// PATCH: sanity bound for the forward-buffer UI-sync fallback (see
++// `AudioPlayer.bufferedAheadSeconds`).
++private const val MAX_BUFFERED_AHEAD_MS = 60_000L
  
  @UnstableApi
  class AudioPlayer(
-@@ -32,9 +38,14 @@ class AudioPlayer(
+@@ -32,9 +41,14 @@ class AudioPlayer(
    appContext: AppContext,
    source: MediaSource?,
    updateInterval: Double,
@@ -61,16 +64,30 @@ index c76a9fd..606168f 100644
      .setLooper(context.mainLooper)
      .setAudioAttributes(AudioAttributes.DEFAULT, false)
      .setSeekForwardIncrementMs(SEEK_JUMP_INTERVAL_MS)
-@@ -76,8 +87,6 @@ class AudioPlayer(
+@@ -76,8 +90,20 @@ class AudioPlayer(
        return if (offset == C.TIME_UNSET) null else offset / 1000.0
      }
  
 -  private var samplingEnabled = false
 -  private var visualizer: Visualizer? = null
++  // PATCH: forward buffer depth — how much audio the player has downloaded
++  // past the playhead. Live ICY/progressive streams have no manifest window,
++  // so `currentLiveOffset` is usually TIME_UNSET; this queue depth is then the
++  // best proxy for how far the speaker trails the live edge, and it tracks the
++  // codec/relay difference (AAC+ buffers deeper than MP3) automatically.
++  val bufferedAheadSeconds: Double?
++    get() {
++      val buffered = ref.bufferedPosition
++      val current = ref.currentPosition
++      if (buffered == C.TIME_UNSET || current == C.TIME_UNSET) return null
++      val ahead = buffered - current
++      return if (ahead in 0..MAX_BUFFERED_AHEAD_MS) ahead / 1000.0 else null
++    }
++
    private val context by lazy {
      appContext.reactContext
        ?: throw Exceptions.ReactContextLost()
-@@ -85,6 +94,13 @@ class AudioPlayer(
+@@ -85,6 +111,13 @@ class AudioPlayer(
  
    init {
      installPlayerListeners()
@@ -84,7 +101,7 @@ index c76a9fd..606168f 100644
      source?.let {
        setMediaSource(source)
      }
-@@ -164,20 +180,10 @@ class AudioPlayer(
+@@ -164,20 +197,10 @@ class AudioPlayer(
    }
  
    fun setSamplingEnabled(enabled: Boolean) {
@@ -109,7 +126,7 @@ index c76a9fd..606168f 100644
    }
  
    override fun setPlaybackRate(rate: Float) {
-@@ -186,11 +192,6 @@ class AudioPlayer(
+@@ -186,11 +209,6 @@ class AudioPlayer(
      ref.playbackParameters = PlaybackParameters(playbackRate, pitch)
    }
  
@@ -121,7 +138,15 @@ index c76a9fd..606168f 100644
    override fun currentStatus(): Map<String, Any?> {
      val isMuted = ref.volume == 0f
      val isLooping = ref.repeatMode == Player.REPEAT_MODE_ONE
-@@ -224,12 +225,18 @@ class AudioPlayer(
+@@ -215,6 +233,7 @@ class AudioPlayer(
+       "isBuffering" to isBuffering,
+       "isLive" to isLive,
+       "currentOffsetFromLive" to currentOffsetFromLive,
++      "bufferedAhead" to bufferedAheadSeconds,
+       "error" to null
+     )
+   }
+@@ -224,12 +243,18 @@ class AudioPlayer(
      mediaSession = buildBasicMediaSession(context, ref)
    }
  
@@ -145,7 +170,7 @@ index c76a9fd..606168f 100644
      )
      emit(AUDIO_SAMPLE_UPDATE, body)
    }
-@@ -244,33 +251,6 @@ class AudioPlayer(
+@@ -244,33 +269,6 @@ class AudioPlayer(
      }
    }
  
@@ -179,7 +204,7 @@ index c76a9fd..606168f 100644
    override fun sharedObjectDidRelease() {
      serviceConnection.release()
      super.sharedObjectDidRelease()
-@@ -282,7 +262,8 @@ class AudioPlayer(
+@@ -282,7 +280,8 @@ class AudioPlayer(
        serviceConnection.playbackServiceBinder?.service?.unregisterPlayer()
      }
      serviceConnection.unbind()
@@ -189,7 +214,7 @@ index c76a9fd..606168f 100644
      super.releasePlayer()
    }
  
-@@ -290,3 +271,191 @@ class AudioPlayer(
+@@ -290,3 +289,191 @@ class AudioPlayer(
      val TAG = AudioPlayer::class.simpleName
    }
  }
@@ -397,7 +422,7 @@ index d265606..4ff7bdb 100644
            if !keepAudioSessionActive {
              self?.deactivateSession()
 diff --git a/node_modules/expo-audio/ios/AudioPlayer.swift b/node_modules/expo-audio/ios/AudioPlayer.swift
-index 0742943..a69a730 100644
+index 0742943..106bd60 100644
 --- a/node_modules/expo-audio/ios/AudioPlayer.swift
 +++ b/node_modules/expo-audio/ios/AudioPlayer.swift
 @@ -24,6 +24,12 @@ public class AudioPlayer: SharedRef<AVPlayer>, Playable {
@@ -413,7 +438,93 @@ index 0742943..a69a730 100644
  
    var isLooping = false {
      didSet {
-@@ -81,6 +87,32 @@ public class AudioPlayer: SharedRef<AVPlayer>, Playable {
+@@ -75,12 +81,118 @@ public class AudioPlayer: SharedRef<AVPlayer>, Playable {
+     return Date().timeIntervalSince1970 - currentDate.timeIntervalSince1970
+   }
+ 
++  // PATCH: forward buffer depth — how far the downloaded/loaded range extends
++  // past the playhead.
++  //
++  // Live ICY/progressive streams carry no absolute timeline (`currentDate()`
++  // nil, `duration` indefinite), so `currentOffsetFromLive` is always nil and
++  // the sync engine must fall back to this. The furthest finite end across the
++  // *ready* ranges is the download head; the gap to the playhead is the lag
++  // the speaker actually trails the live edge by (it tracks the codec/relay
++  // difference — AAC+ buffers deeper than MP3 — automatically).
++  //
++  // AVFoundation does not keep that range continuously up to date on these
++  // relays: it stalls between download bursts while the playhead keeps
++  // consuming. A naive `end - playhead` therefore flips negative and the
++  // caller loses every measurement until the next burst. Anchor on each head
++  // move and hold/project the lead in between so a fresh, positive value is
++  // reported on every status tick.
++  private static let maxBufferedLeadSeconds: Double = 60.0
++  /** Item the anchors below belong to (reconnects replace the item). */
++  private var bufferHeadItem: ObjectIdentifier?
++  /** Furthest observed download head, in item seconds. */
++  private var bufferHeadAnchor: Double = -.infinity
++  /** Wall-clock instant `bufferHeadAnchor` was observed. */
++  private var bufferHeadAnchorWall: TimeInterval = 0
++  /** Playhead at the instant `bufferHeadAnchor` was observed. */
++  private var bufferHeadAnchorPlayhead: Double = 0
++  /** Last lead returned, used until the first head is observed. */
++  private var lastBufferLead: Double?
++
++  var bufferedAheadSeconds: Double? {
++    guard let item = ref.currentItem else { return nil }
++    let playhead = currentTime
++    guard playhead.isFinite else { return nil }
++
++    // Drop the anchor state when the item changes (reconnect / stream swap).
++    let itemId = ObjectIdentifier(item)
++    if bufferHeadItem != itemId {
++      bufferHeadItem = itemId
++      bufferHeadAnchor = -.infinity
++      bufferHeadAnchorWall = 0
++      bufferHeadAnchorPlayhead = 0
++      lastBufferLead = nil
++    }
++
++    // Furthest finite end of the ready ranges is the download head; fall back
++    // to the seekable window for pipelines that publish only that.
++    var head = -Double.infinity
++    for range in item.loadedTimeRanges {
++      let end = CMTimeRangeGetEnd(range.timeRangeValue).seconds
++      if end.isFinite && end > head { head = end }
++    }
++    if !head.isFinite {
++      for range in item.seekableTimeRanges {
++        let end = CMTimeRangeGetEnd(range.timeRangeValue).seconds
++        if end.isFinite && end > head { head = end }
++      }
++    }
++    guard head.isFinite else { return lastBufferLead }
++
++    let wall = Date().timeIntervalSince1970
++    if head > bufferHeadAnchor + 0.05 {
++      // A moved head is an authoritative sample — re-anchor on it.
++      bufferHeadAnchor = head
++      bufferHeadAnchorWall = wall
++      bufferHeadAnchorPlayhead = playhead
++    }
++
++    // Between head moves the live edge advances with real time while the
++    // playhead does too, so the lead stays what it was at the anchor. Project
++    // only while actually playing; a paused/stalled player must not accrue a
++    // phantom lead.
++    let elapsed = ref.timeControlStatus == .playing
++      ? max(0, wall - bufferHeadAnchorWall)
++      : 0
++    var lead = (bufferHeadAnchor + elapsed) - playhead
++    if !lead.isFinite { return lastBufferLead }
++    lead = max(0, min(lead, Self.maxBufferedLeadSeconds))
++    lastBufferLead = lead
++    return lead
++  }
++
+   init(_ ref: AVPlayer, interval: Double, source: AudioSource? = nil) {
+     self.interval = interval
+     self.source = source
      super.init(ref)
  
      setupPublisher()
@@ -446,7 +557,7 @@ index 0742943..a69a730 100644
    }
  
    var isLoaded: Bool {
-@@ -100,13 +132,20 @@ public class AudioPlayer: SharedRef<AVPlayer>, Playable {
+@@ -100,13 +212,20 @@ public class AudioPlayer: SharedRef<AVPlayer>, Playable {
    }
  
    func play(at rate: Float) {
@@ -468,7 +579,15 @@ index 0742943..a69a730 100644
  
      if isActiveForLockScreen {
        MediaController.shared.updateNowPlayingInfo(for: self)
-@@ -228,6 +267,9 @@ public class AudioPlayer: SharedRef<AVPlayer>, Playable {
+@@ -150,6 +269,7 @@ public class AudioPlayer: SharedRef<AVPlayer>, Playable {
+       "isBuffering": isBuffering,
+       "isLive": isLive,
+       "currentOffsetFromLive": currentOffsetFromLive,
++      "bufferedAhead": bufferedAheadSeconds,
+       "error": nil
+     ]
+   }
+@@ -228,6 +348,9 @@ public class AudioPlayer: SharedRef<AVPlayer>, Playable {
          guard let self else {
            return
          }
@@ -478,7 +597,7 @@ index 0742943..a69a730 100644
          if self.isLooping {
            self.enqueueNextLoopItem()
            self.addPlaybackEndNotification()
-@@ -413,6 +455,8 @@ public class AudioPlayer: SharedRef<AVPlayer>, Playable {
+@@ -413,6 +536,8 @@ public class AudioPlayer: SharedRef<AVPlayer>, Playable {
      } else {
        ref.replaceCurrentItem(with: item)
      }
@@ -487,7 +606,7 @@ index 0742943..a69a730 100644
    }
  
    private func enqueueNextLoopItem() {
-@@ -496,10 +540,15 @@ public class AudioPlayer: SharedRef<AVPlayer>, Playable {
+@@ -496,10 +621,15 @@ public class AudioPlayer: SharedRef<AVPlayer>, Playable {
    }
  
    func pause() {

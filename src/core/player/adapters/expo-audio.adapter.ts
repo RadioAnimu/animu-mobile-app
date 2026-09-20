@@ -29,6 +29,25 @@ const buildStreamSource = (url: string): AudioSource => ({
 });
 
 /**
+ * Projects the native `AudioStatus` onto the core's `AudioPlaybackStatus`.
+ *
+ * `bufferedAhead` is added by the app's `expo-audio` patch (both platforms)
+ * and is therefore not in the package's TypeScript surface — read it through
+ * a narrow cast and default it to `null` on an unpatched build.
+ */
+const toPortStatus = (status: ExpoAudioStatus): AudioPlaybackStatus => ({
+  playing: status.playing,
+  isBuffering: status.isBuffering,
+  timeControlStatus: status.timeControlStatus,
+  playbackState: status.playbackState,
+  isLive: status.isLive,
+  currentOffsetFromLive: status.currentOffsetFromLive ?? null,
+  bufferedAheadSeconds:
+    (status as { bufferedAhead?: number | null }).bufferedAhead ?? null,
+  currentTime: status.currentTime,
+});
+
+/**
  * `AudioEnginePort` backed by `expo-audio`. The only place the audio library
  * is imported: the player core talks to {@link AudioEnginePort}, so swapping
  * the audio engine means writing a new adapter, not touching the core.
@@ -179,7 +198,7 @@ export class ExpoAudioAdapter implements AudioEnginePort {
     if (!this.player || !this.statusHandler || this.statusSubscription) return;
     this.statusSubscription = this.player.addListener(
       "playbackStatusUpdate",
-      (status: ExpoAudioStatus) => this.statusHandler?.(status),
+      (status: ExpoAudioStatus) => this.statusHandler?.(toPortStatus(status)),
     );
   }
 }

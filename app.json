@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "Rádio Animu",
-    "version": "2.1.0",
+    "version": "2.2.0",
     "slug": "animu",
     "orientation": "portrait",
     "icon": "./assets/icon_top.png",
@@ -11,13 +11,14 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.nessjs.animu",
+      "appleTeamId": "RWDZC8478Q",
       "infoPlist": {
         "UIBackgroundModes": [
           "audio"
         ],
         "ITSAppUsesNonExemptEncryption": false
       },
-      "buildNumber": "3"
+      "buildNumber": "4"
     },
     "android": {
       "adaptiveIcon": {
@@ -25,7 +26,7 @@
         "backgroundColor": "#270051"
       },
       "package": "com.nessjs.animu",
-      "versionCode": 12,
+      "versionCode": 13,
       "blockedPermissions": [
         "android.permission.RECORD_AUDIO"
       ]
