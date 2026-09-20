@@ -45,6 +45,26 @@ export class ExpoImageCoverDiskCache implements CoverDiskCache {
   }
 }
 
+/**
+ * Canonical key for a cover URL.
+ *
+ * Different endpoints emit the same cover path with inconsistent slashes
+ * (`/media/...` vs `//media/...`). Everything keyed by exact URL — the
+ * app-side image cache, the resolver's probes — misses across journeys
+ * because of it ("ADAMAS" was on screen at `//media` and re-downloaded as
+ * `/media` seconds later). Collapse duplicate slashes after the scheme;
+ * the CDN serves both identically.
+ */
+export function normalizeArtworkKey(url: string): string {
+  return url.replace(/([^:])\/{2,}/g, "$1/");
+}
+
+/** The canonical form and the URL's own spelling (both cache keys). */
+export function artworkKeyVariants(url: string): string[] {
+  const normalized = normalizeArtworkKey(url);
+  return normalized === url ? [url] : [normalized, url];
+}
+
 const MIN_RANK: Record<"tiny" | "medium" | "large", number> = {
   tiny: 1,
   medium: 2,
@@ -66,15 +86,17 @@ export class CachedCoverLookup {
   async find(url: string): Promise<string | null> {
     const needed = MIN_RANK[artworkSizeRank(url)];
 
-    const candidates: string[] = [url];
+    const candidates: string[] = [...artworkKeyVariants(url)];
     const siblings = deriveArtworkVariants(url);
     if (siblings) {
-      candidates.push(
-        ...RANK_ORDER.filter(
-          (size) =>
-            siblings[size] && MIN_RANK[artworkSizeRank(siblings[size]!)] >= needed,
-        ).map((size) => siblings[size] as string),
-      );
+      for (const size of RANK_ORDER) {
+        if (
+          siblings[size] &&
+          MIN_RANK[artworkSizeRank(siblings[size]!)] >= needed
+        ) {
+          candidates.push(...artworkKeyVariants(siblings[size] as string));
+        }
+      }
     }
 
     for (const candidate of candidates) {
@@ -110,7 +132,12 @@ export class CoverCacheSeeder {
         .getCachePath(remoteUrl)
         .catch(() => null);
       if (existing) return;
-      await this.diskCache.writeCache(localUri, remoteUrl);
+      // Register under BOTH spellings the endpoints emit — the seeded
+      // bytes must satisfy whichever journey asks next, not just the one
+      // that triggered the download.
+      for (const key of artworkKeyVariants(remoteUrl)) {
+        await this.diskCache.writeCache(localUri, key);
+      }
     } catch (error) {
       console.warn("[CoverImageCache] seed failed:", error);
     }

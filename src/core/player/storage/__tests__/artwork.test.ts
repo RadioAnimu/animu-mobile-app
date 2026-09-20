@@ -41,6 +41,11 @@ vi.mock("expo-file-system", () => {
 
 vi.mock("expo-asset", () => ({ Asset: assetMocks }));
 vi.mock("../../../assets/default-cover.png", () => ({ default: 1234 }));
+// cover-image-cache (imported for the slash-normalized keys) reaches
+// expo-image at module scope.
+vi.mock("expo-image", () => ({
+  Image: { getCachePathAsync: vi.fn(), writeToCacheAsync: vi.fn() },
+}));
 
 const makeTrack = (artwork = "https://images.test/cover.png"): Track =>
   ({

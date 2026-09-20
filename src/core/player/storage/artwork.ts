@@ -10,6 +10,7 @@ import type {
   SeedCoverCache,
 } from "@/core/player/storage/cover-ports";
 import { CoverFileHashMap } from "@/core/player/storage/cover-file-cache";
+import { normalizeArtworkKey } from "@/core/player/storage/cover-image-cache";
 
 export interface ArtworkResolverOptions {
   /**
@@ -36,9 +37,15 @@ const COVER_FILE_PREFIX = "animu-cover-";
 
 /** Deterministic cache-file name for a remote cover URL (djb2, hex). */
 function coverFileName(url: string): string {
+  // Slash-normalized: the endpoints spell the same cover both ways and
+  // both spellings must land on the same on-disk file (one download).
+  return coverFileNameFor(normalizeArtworkKey(url));
+}
+
+function coverFileNameFor(key: string): string {
   let hash = 5381;
-  for (let i = 0; i < url.length; i++) {
-    hash = ((hash << 5) + hash + url.charCodeAt(i)) | 0;
+  for (let i = 0; i < key.length; i++) {
+    hash = ((hash << 5) + hash + key.charCodeAt(i)) | 0;
   }
   return `${COVER_FILE_PREFIX}${(hash >>> 0).toString(16)}.jpg`;
 }
