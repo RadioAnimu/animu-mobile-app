@@ -1,4 +1,4 @@
-import Ionicons from "@react-native-vector-icons/ionicons/static";
+import MaterialIcons from "@react-native-vector-icons/material-icons/static";
 import { useCallback, useState } from "react";
 import {
   ActivityIndicator,
@@ -244,8 +244,8 @@ export function MakeRequest() {
               onPress={handleSearch}
               style={styles.searchIcon}
             >
-              <Ionicons
-                name="search-sharp"
+              <MaterialIcons
+                name="search"
                 size={THEME.ICON.LG}
                 color={THEME.COLORS.TEXT}
               />

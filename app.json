@@ -85,8 +85,6 @@
       ],
       "expo-apple-authentication",
       "expo-image",
-      "@react-native-vector-icons/ionicons",
-      "@react-native-vector-icons/material-design-icons",
       "@react-native-vector-icons/material-icons",
       "./plugins/withAndroidDeepLinkOnNewIntent",
       "./plugins/withIOSAppIntents",
