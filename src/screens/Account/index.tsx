@@ -1,14 +1,7 @@
 import { useState } from "react";
 import MaterialIcons from "@react-native-vector-icons/material-icons/static";
 import { DrawerScreenProps } from "@react-navigation/drawer";
-import {
-  ActivityIndicator,
-  Alert,
-  ScrollView,
-  Text,
-  TouchableOpacity,
-  View,
-} from "react-native";
+import { Alert, ScrollView, Text, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { AnimuApiError } from "animu-api";
@@ -149,31 +142,14 @@ export function Account({ navigation }: Props) {
             user={user}
             profile={profile}
             imageVersion={imageVersion}
-          />
-
-          <TouchableOpacity
-            accessibilityRole="button"
-            activeOpacity={0.7}
-            disabled={!!busy}
-            onPress={() =>
+            refreshing={busy === "refresh"}
+            onRefresh={() =>
               handle("refresh", async () => {
                 await refreshProfile();
                 toast(dict.ACCOUNT_REFRESHED);
               })
             }
-            style={styles.refreshRow}
-          >
-            {busy === "refresh" ? (
-              <ActivityIndicator color={THEME.COLORS.TEXT} />
-            ) : (
-              <MaterialIcons
-                name="sync"
-                size={THEME.ICON.MD}
-                color={THEME.COLORS.TEXT}
-              />
-            )}
-            <Text style={styles.refreshText}>{dict.ACCOUNT_REFRESH}</Text>
-          </TouchableOpacity>
+          />
 
           <LinkedAccounts
             providers={providers}

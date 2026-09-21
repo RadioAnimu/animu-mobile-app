@@ -15,6 +15,9 @@ export const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: THEME.COLORS.HAIRLINE,
   },
+  sectionFirst: {
+    marginTop: 0,
+  },
   iconBox: {
     width: THEME.LAYOUT.ICON_BOX_WIDTH,
     alignItems: "center",

@@ -10,15 +10,21 @@ interface Props {
   user: User | null;
   profile: AuthProfile | null;
   onPress: () => void;
+  /** First section on the screen — no top margin. */
+  first?: boolean;
 }
 
 /** Account entry point — the one setting tied to *who* is listening. */
-export function AccountSection({ user, profile, onPress }: Props) {
+export function AccountSection({ user, profile, onPress, first }: Props) {
   const dict = useDict();
 
   return (
     <>
-      <SectionTitle title={dict.SETTINGS_ACCOUNT_TITLE} icon="person" />
+      <SectionTitle
+        title={dict.SETTINGS_ACCOUNT_TITLE}
+        icon="person"
+        first={first}
+      />
       <View style={styles.group}>
         <AccountRow
           user={user}

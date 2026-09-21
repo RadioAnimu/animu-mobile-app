@@ -1,5 +1,7 @@
+import { useEffect, useRef } from "react";
 import { Text, TextInput } from "react-native";
 
+import { CodeInput, CODE_LENGTH } from "@/components/CodeInput";
 import type { EmailCodeFlow } from "@/hooks/useEmailCodeFlow";
 import { useDict } from "@/hooks/useDict";
 import { THEME } from "@/theme";
@@ -11,6 +13,25 @@ import { styles } from "@/components/EmailCodeFields/styles";
  */
 export function EmailCodeFields({ flow }: { flow: EmailCodeFlow }) {
   const dict = useDict();
+  const autoSubmitted = useRef(false);
+
+  const onCodeStep = flow.step === "code";
+  const { code, busy, verify } = flow;
+
+  // A complete 4-digit code has no reason to wait for a second tap, so submit
+  // as soon as the last box fills. The ref fires once per complete entry
+  // (editing a digit re-arms it) and `busy` keeps a failed attempt from
+  // looping.
+  useEffect(() => {
+    if (!onCodeStep || code.length < CODE_LENGTH) {
+      autoSubmitted.current = false;
+      return;
+    }
+    if (!autoSubmitted.current && !busy) {
+      autoSubmitted.current = true;
+      void verify();
+    }
+  }, [onCodeStep, code, busy, verify]);
 
   if (flow.step === "email") {
     return (
@@ -36,19 +57,11 @@ export function EmailCodeFields({ flow }: { flow: EmailCodeFlow }) {
   return (
     <>
       <Text style={styles.fieldLabel}>{dict.LOGIN_CODE}</Text>
-      <TextInput
-        style={styles.input}
+      <CodeInput
         value={flow.code}
         onChangeText={flow.setCode}
-        keyboardType="number-pad"
-        autoCapitalize="none"
-        autoCorrect={false}
-        maxLength={6}
         editable={!flow.busy}
         accessibilityLabel={dict.LOGIN_CODE}
-        placeholder={dict.LOGIN_CODE_PLACEHOLDER}
-        placeholderTextColor={THEME.COLORS.TEXT_DIM}
-        onSubmitEditing={flow.verify}
       />
     </>
   );

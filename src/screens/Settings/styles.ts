@@ -19,12 +19,13 @@ export const styles = StyleSheet.create({
     backgroundColor: THEME.COLORS.BG_DEEP,
   },
   // 88% column like Account — keeps groups off the screen edges so the
-  // content breathes.
+  // content breathes. The first section drops its own top margin, so this
+  // inset is the one gap under the header on every page.
   appContainer: {
     flexGrow: 1,
     width: THEME.LAYOUT.CONTENT_WIDTH,
     maxWidth: THEME.LAYOUT.CONTENT_MAX_WIDTH,
-    paddingTop: THEME.SPACE.MD,
+    paddingTop: THEME.SPACE.XXL,
     paddingBottom: THEME.SPACE.XXXL,
     alignSelf: "center",
   },

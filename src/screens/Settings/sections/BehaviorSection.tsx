@@ -59,7 +59,7 @@ export function BehaviorSection() {
       <SectionTitle title={dict.SETTINGS_GENERAL_TITLE} icon="language" />
       <View style={styles.group}>
         <Select
-          label={cleanLabel(dict.SETTINGS_LANGUAGE_SELECT_TITLE)}
+          label={dict.SETTINGS_LANGUAGE_ROW}
           options={languageOptions}
           value={settings.selectedLanguage}
           onChange={(key) => updateSettings({ selectedLanguage: key })}
@@ -78,6 +78,7 @@ export function BehaviorSection() {
         />
       </View>
 
+      <SectionTitle title={dict.SETTINGS_SHORTCUTS_TITLE} icon="mic" />
       <View style={styles.group}>
         <InfoRow
           label={dict.SETTINGS_ASSISTANT_TITLE}

@@ -21,6 +21,8 @@ export const styles = StyleSheet.create({
     width: THEME.LAYOUT.CONTENT_WIDTH,
     maxWidth: THEME.LAYOUT.CONTENT_MAX_WIDTH,
     alignSelf: "center",
+    // Same inset under the header as Settings and Login.
+    paddingTop: THEME.SPACE.XXL,
     paddingBottom: THEME.SPACE.XXXL,
   },
   signedOut: {
@@ -50,10 +52,25 @@ export const styles = StyleSheet.create({
     fontSize: THEME.FONT_SIZE.LIST,
   },
   card: {
-    marginTop: THEME.SPACE.XL,
     borderRadius: CARD_RADIUS,
     backgroundColor: THEME.COLORS.SURFACE,
     overflow: "hidden",
+  },
+  // Floating over the banner so the identity card owns the refresh action
+  // instead of an orphaned full-width bar under it.
+  refreshButton: {
+    position: "absolute",
+    top: THEME.SPACE.MD,
+    right: THEME.SPACE.MD,
+    width: scale(40),
+    height: scale(40),
+    borderRadius: THEME.RADIUS.CIRCLE,
+    backgroundColor: THEME.COLORS.SCRIM,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  refreshButtonBusy: {
+    opacity: THEME.OPACITY.DISABLED,
   },
   banner: {
     height: BANNER_HEIGHT,
@@ -149,21 +166,6 @@ export const styles = StyleSheet.create({
     fontFamily: THEME.FONT_FAMILY.REGULAR,
     fontSize: THEME.FONT_SIZE.BODY,
   },
-  refreshRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: THEME.SPACE.SM,
-    height: scale(48),
-    marginTop: THEME.SPACE.MD,
-    borderRadius: CARD_RADIUS,
-    backgroundColor: THEME.COLORS.SURFACE_SUBTLE,
-  },
-  refreshText: {
-    color: THEME.COLORS.TEXT,
-    fontFamily: THEME.FONT_FAMILY.BOLD,
-    fontSize: THEME.FONT_SIZE.LIST,
-  },
   group: {
     backgroundColor: THEME.COLORS.SURFACE,
     borderRadius: CARD_RADIUS,
@@ -174,12 +176,14 @@ export const styles = StyleSheet.create({
     backgroundColor: THEME.COLORS.HAIRLINE,
     marginLeft: CONTENT_PADDING,
   },
+  // Same row rhythm as Settings and Select: a fixed minimum height with the
+  // vertical air coming from the body (or the min height when the row is a
+  // single line).
   row: {
     flexDirection: "row",
     alignItems: "center",
     minHeight: THEME.LAYOUT.ROW_MIN_HEIGHT,
     paddingHorizontal: CONTENT_PADDING,
-    paddingVertical: THEME.SPACE.SM,
   },
   rowIcon: {
     width: THEME.LAYOUT.ICON_BOX_WIDTH,
@@ -190,7 +194,9 @@ export const styles = StyleSheet.create({
     // Same shrink contract as identityInfo — the linked identity (a long
     // masked email) must wrap/ellipsize before it can push the action out.
     minWidth: 0,
-    gap: THEME.SPACE.XXS,
+    justifyContent: "center",
+    gap: THEME.SPACE.XS,
+    paddingVertical: THEME.SPACE.MD,
   },
   rowLabel: {
     color: THEME.COLORS.TEXT,

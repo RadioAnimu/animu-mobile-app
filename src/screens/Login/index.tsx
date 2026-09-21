@@ -18,6 +18,7 @@ import { useAlert } from "@/contexts/alert/AlertProvider";
 import { useAuth } from "@/contexts/auth/AuthProvider";
 import { AuthFlowCancelled } from "@/core/auth";
 import { isProviderConfigured } from "@/constants/auth";
+import type { Dict } from "@/i18n";
 import { useDict } from "@/hooks/useDict";
 import { useEmailCodeFlow, emailCodeError } from "@/hooks/useEmailCodeFlow";
 import { RootStackParamList } from "@/routes/app.routes";
@@ -28,6 +29,42 @@ type Props = DrawerScreenProps<RootStackParamList, "Login">;
 type Step = "method" | "connect";
 
 const TOTAL_STEPS = 2;
+
+interface CodeActionsProps {
+  dict: Dict;
+  busy: boolean;
+  onResend: () => void;
+  onChangeEmail: () => void;
+}
+
+/** Resend / change-email shortcuts shown once the code step is reached. */
+function CodeActions({ dict, busy, onResend, onChangeEmail }: CodeActionsProps) {
+  return (
+    <View style={styles.codeActions}>
+      <TouchableOpacity
+        accessibilityRole="button"
+        activeOpacity={0.7}
+        disabled={busy}
+        onPress={onResend}
+      >
+        <Text style={[styles.link, busy && styles.linkDisabled]}>
+          {dict.LOGIN_CODE_RESEND}
+        </Text>
+      </TouchableOpacity>
+      <Text style={styles.linkDot}>•</Text>
+      <TouchableOpacity
+        accessibilityRole="button"
+        activeOpacity={0.7}
+        disabled={busy}
+        onPress={onChangeEmail}
+      >
+        <Text style={[styles.link, busy && styles.linkDisabled]}>
+          {dict.LOGIN_CODE_CHANGE_EMAIL}
+        </Text>
+      </TouchableOpacity>
+    </View>
+  );
+}
 
 export function Login({ navigation }: Props) {
   const { toast, error: showError } = useAlert();
@@ -125,8 +162,7 @@ export function Login({ navigation }: Props) {
 
           {step === "method" ? (
             <>
-              <Text style={styles.title}>{dict.LOGIN_TITLE}</Text>
-              <Text style={styles.subtitle}>{dict.LOGIN_SUBTITLE}</Text>
+              <Text style={styles.lead}>{dict.LOGIN_SUBTITLE}</Text>
 
               <View style={styles.methods}>
                 {providers.map((provider) => {
@@ -240,6 +276,15 @@ export function Login({ navigation }: Props) {
                   </Text>
                 )}
               </TouchableOpacity>
+
+              {flow.step === "code" && (
+                <CodeActions
+                  dict={dict}
+                  busy={flow.busy}
+                  onResend={() => void flow.sendCode()}
+                  onChangeEmail={flow.backToEmail}
+                />
+              )}
             </>
           )}
 

@@ -1,5 +1,5 @@
 import MaterialIcons from "@react-native-vector-icons/material-icons/static";
-import { Text, View } from "react-native";
+import { ActivityIndicator, Text, TouchableOpacity, View } from "react-native";
 
 import { Avatar } from "@/components/Avatar";
 import { MaskedValue } from "@/components/MaskedValue";
@@ -19,10 +19,19 @@ interface Props {
   profile: AuthProfile | null;
   /** Bumped on avatar change to bust the image cache. */
   imageVersion: number;
+  /** Pulls the latest profile from the server. */
+  onRefresh: () => void;
+  refreshing: boolean;
 }
 
 /** The signed-in identity card: banner, avatar, name, badges and meta. */
-export function ProfileCard({ user, profile, imageVersion }: Props) {
+export function ProfileCard({
+  user,
+  profile,
+  imageVersion,
+  onRefresh,
+  refreshing,
+}: Props) {
   const dict = useDict();
   const profileUser = profile?.user ?? user;
   const name = getUserName(profileUser);
@@ -41,6 +50,28 @@ export function ProfileCard({ user, profile, imageVersion }: Props) {
         fallbackColor={banner?.color ?? THEME.COLORS.FRAME}
         revision={imageVersion}
       />
+      <TouchableOpacity
+        accessibilityRole="button"
+        accessibilityLabel={dict.ACCOUNT_REFRESH}
+        activeOpacity={0.7}
+        disabled={refreshing}
+        hitSlop={8}
+        onPress={onRefresh}
+        style={[
+          styles.refreshButton,
+          refreshing && styles.refreshButtonBusy,
+        ]}
+      >
+        {refreshing ? (
+          <ActivityIndicator size="small" color={THEME.COLORS.TEXT} />
+        ) : (
+          <MaterialIcons
+            name="sync"
+            size={THEME.ICON.MD}
+            color={THEME.COLORS.TEXT}
+          />
+        )}
+      </TouchableOpacity>
       <View style={styles.identity}>
         <View style={styles.avatarWrap}>
           <Avatar uri={user.avatarUrl} size={AVATAR} />
@@ -97,8 +128,8 @@ export function ProfileCard({ user, profile, imageVersion }: Props) {
           : dict.ACCOUNT_VERIFIED_INFO}
       </Text>
 
-      <View style={styles.meta}>
-        {loginProvider && (
+      {loginProvider && (
+        <View style={styles.meta}>
           <View style={styles.metaRow}>
             <ProviderIcon
               provider={loginProvider}
@@ -109,8 +140,8 @@ export function ProfileCard({ user, profile, imageVersion }: Props) {
               {dict.ACCOUNT_CONNECTED_VIA} {providerLabel(loginProvider)}
             </Text>
           </View>
-        )}
-      </View>
+        </View>
+      )}
     </View>
   );
 }

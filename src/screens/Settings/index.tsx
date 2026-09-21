@@ -31,6 +31,7 @@ export function Settings({ navigation }: Props) {
         <ScrollView contentContainerStyle={styles.appContainer}>
           {/* Account first — the one thing tied to *who* is listening. */}
           <AccountSection
+            first
             user={user}
             profile={profile}
             onPress={() => {

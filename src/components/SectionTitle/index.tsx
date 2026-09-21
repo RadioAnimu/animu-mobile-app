@@ -9,12 +9,18 @@ type MaterialIconName = ComponentProps<typeof MaterialIcons>["name"];
 interface Props {
   title: string;
   icon?: MaterialIconName;
+  /**
+   * Drops the heading's top margin for the first section on a screen, so the
+   * list opens with the same inset every page uses instead of stacking the
+   * margin on top of the content padding.
+   */
+  first?: boolean;
 }
 
 /** Uppercase section heading with a leading icon, used across settings pages. */
-export function SectionTitle({ title, icon }: Props) {
+export function SectionTitle({ title, icon, first }: Props) {
   return (
-    <View style={styles.section}>
+    <View style={[styles.section, first && styles.sectionFirst]}>
       {icon && (
         <View style={styles.iconBox}>
           <MaterialIcons
