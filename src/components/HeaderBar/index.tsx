@@ -1,6 +1,6 @@
 import { useNavigation } from "@react-navigation/native";
 import type { DrawerNavigationProp } from "@react-navigation/drawer";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Animated,
   Easing,
@@ -23,6 +23,7 @@ import {
 } from "@/contexts/player/PlayerProvider";
 import { useIsBackgrounded } from "@/contexts/app-state/AppStateProvider";
 import { useDict } from "@/hooks/useDict";
+import { useSmoothedElapsed } from "@/hooks/useSmoothedElapsed";
 import type { RootStackParamList } from "@/routes/app.routes";
 import { haptics } from "@/utils/haptics";
 
@@ -35,7 +36,13 @@ type Status = "playing" | "paused" | "changing";
 const PULSE_OPACITY = 0.05;
 const PULSE_DURATION = 1750;
 const PULSE_TRAVEL = 50;
-const PROGRESS_ANIM_DURATION = 1000;
+const PROGRESS_ANIM_DURATION = 300;
+/**
+ * A bar move larger than this snaps (setValue) instead of animating — a new
+ * track resetting to 0, or the corrected position when synchronizing ends.
+ * Only the small per-tick advance animates, so the bar never sweeps backwards.
+ */
+const BAR_SNAP_THRESHOLD = 0.03;
 /** "Calculating" bar pulse — how dim it dips and how long each half takes. */
 const SYNC_BLINK_MIN = 0.35;
 const SYNC_BLINK_DURATION = 650;
@@ -52,34 +59,17 @@ export function HeaderBar({ openLiveRequestModal }: Props) {
   const currentTrack = player.currentTrack;
   const currentProgram = player.currentProgram;
   const isBackgrounded = useIsBackgrounded();
+  // Smoothed so the bar advances continuously between the ~1 Hz updates
+  // instead of stuttering on a late/jittery progress value.
+  const smoothedElapsed = useSmoothedElapsed(
+    currentTrackProgress,
+    currentTrack?.raw,
+  );
   /** Still locking the audible clock — the bar is a guess until then. */
   const syncing = player.syncing;
   const showProgressBar =
     !currentProgram?.isLive &&
     !currentTrack?.anime?.toLocaleLowerCase().includes("passagem");
-
-  useEffect(() => {
-    const duration = currentTrack?.duration ?? 0;
-    const hasProgress =
-      currentTrackProgress != null &&
-      Number.isFinite(currentTrackProgress) &&
-      Number.isFinite(duration) &&
-      duration > 0;
-
-    const target = hasProgress
-      ? Math.min(Math.max(currentTrackProgress / duration, 0), 1)
-      : 0;
-
-    // Native-driven `scaleX` (not `width`): the bar interpolates smoothly
-    // across each 1 Hz progress tick on the UI thread, so it never runs
-    // per-frame JS and pauses on its own when the app is backgrounded.
-    Animated.timing(progressAnim, {
-      toValue: target,
-      duration: PROGRESS_ANIM_DURATION,
-      easing: Easing.linear,
-      useNativeDriver: true,
-    }).start();
-  }, [progressAnim, currentTrack, currentTrackProgress]);
 
   const [animation] = useState(() => new Animated.Value(0));
 
@@ -87,6 +77,44 @@ export function HeaderBar({ openLiveRequestModal }: Props) {
   // wrong/empty position reads as "working on it" instead of broken. Stops
   // (and resets to full opacity) the moment sync lands or the app hides.
   const [syncBlink] = useState(() => new Animated.Value(1));
+
+  // Last bar target, to tell a real jump (new track / sync completed) from the
+  // small per-tick advance.
+  const lastBarTarget = useRef(0);
+  const wasSyncing = useRef(player.syncing);
+
+  useEffect(() => {
+    const duration = currentTrack?.duration ?? 0;
+    const hasProgress =
+      smoothedElapsed != null &&
+      Number.isFinite(smoothedElapsed) &&
+      Number.isFinite(duration) &&
+      duration > 0;
+
+    const target = hasProgress
+      ? Math.min(Math.max(smoothedElapsed / duration, 0), 1)
+      : 0;
+
+    const previous = lastBarTarget.current;
+    lastBarTarget.current = target;
+    const justSynced = wasSyncing.current && !syncing;
+    wasSyncing.current = syncing;
+
+    // Spotify-style: a big move — the next track resetting to 0, or the
+    // corrected position once synchronizing finishes — SNAPS so the bar never
+    // sweeps back. Only the slow per-tick advance animates.
+    if (justSynced || Math.abs(target - previous) > BAR_SNAP_THRESHOLD) {
+      progressAnim.setValue(target);
+      return;
+    }
+
+    Animated.timing(progressAnim, {
+      toValue: target,
+      duration: PROGRESS_ANIM_DURATION,
+      easing: Easing.linear,
+      useNativeDriver: true,
+    }).start();
+  }, [progressAnim, currentTrack, smoothedElapsed, syncing]);
 
   useEffect(() => {
     if (!syncing || !showProgressBar || isBackgrounded) {

@@ -197,10 +197,30 @@ describe("ProgressTicker", () => {
     expect(progressStore.getSnapshot().currentTrackProgress).toBeNull();
   });
 
-  it("detects track end and clears progress + native seek bar", () => {
+  it("holds the bar full when the nominal end passes before the next item is audible", () => {
     const fixture = makeTicker();
     fixture.setTrack(
       makeTrack({ startTime: new Date(Date.now() - 999_999) }), // ended
+    );
+
+    fixture.ticker.tick();
+
+    // Held at the duration (bar full / countdown 0) — not blanked — so the bar
+    // visibly completes while the next track is still buffering.
+    expect(progressStore.getSnapshot()).toEqual({
+      currentTrackProgress: 60_000,
+      showProgress: true,
+    });
+    // The native push rides the normal 3-tick cadence.
+    fixture.ticker.tick();
+    fixture.ticker.tick();
+    expect(fixture.pushes).toEqual([{ metadata: METADATA, positionSec: 60 }]);
+  });
+
+  it("clears the bar for a track with no usable duration", () => {
+    const fixture = makeTicker();
+    fixture.setTrack(
+      makeTrack({ startTime: new Date(Date.now() - 1_000), duration: 0 }),
     );
 
     fixture.ticker.tick();

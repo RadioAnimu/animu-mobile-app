@@ -105,7 +105,21 @@ export class ProgressTicker {
     }
 
     const audibleNow = this.options.sync.now();
+    const start = track.startTime?.getTime();
+    const duration = track.duration ?? 0;
     const { elapsedMs, pending } = getSyncedTrackProgress(track, audibleNow);
+    // The track's nominal end passed but the next item is not audible yet
+    // (the API's `duration` and the next `startTime` rarely line up to the
+    // millisecond). Hold the bar full / countdown at zero for that gap
+    // instead of blanking it, so the bar visibly completes.
+    const ended =
+      showProgress &&
+      !pending &&
+      elapsedMs == null &&
+      duration > 0 &&
+      start != null &&
+      Number.isFinite(start) &&
+      audibleNow >= start + duration;
     // The announced track is still buffered — the previous one is what the
     // speaker is finishing. Carry its bar forward in real time instead of
     // snapping to 0: the package helper collapses "not started" and "ended"
@@ -122,6 +136,9 @@ export class ProgressTicker {
         // Cold start mid-change: no previous track to carry.
         elapsed = 0;
       }
+      this.lastElapsedMs = elapsed;
+    } else if (ended) {
+      elapsed = duration;
       this.lastElapsedMs = elapsed;
     } else {
       this.lastElapsedMs = elapsedMs;
@@ -141,9 +158,9 @@ export class ProgressTicker {
       });
     }
 
-    // Track end only applies to real, non-live tracks (live metadata has
-    // no reliable duration, and the radio keeps playing server-side).
-    if (showProgress && elapsedMs == null && !pending) {
+    // Only a track with no usable duration clears the bar; a real ended track
+    // is held full above so the bar completes instead of blanking.
+    if (showProgress && elapsedMs == null && !pending && !ended) {
       this.endProgress();
       return;
     }

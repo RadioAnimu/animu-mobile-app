@@ -6,6 +6,7 @@ import {
 } from "@/contexts/player/PlayerProvider";
 import { useIsBackgrounded } from "@/contexts/app-state/AppStateProvider";
 import { useDict } from "@/hooks/useDict";
+import { useSmoothedElapsed } from "@/hooks/useSmoothedElapsed";
 import { CountdownTimerText } from "@/components/CountdownTimerText";
 import { THEME } from "@/theme";
 
@@ -20,6 +21,10 @@ export function TimeRemaining() {
   const isBackgrounded = useIsBackgrounded();
   const [blink] = useState(() => new Animated.Value(1));
   const syncing = player.syncing;
+  const smoothedElapsed = useSmoothedElapsed(
+    currentTrackProgress,
+    player.currentTrack?.raw,
+  );
 
   // Don't show if it's a live program or if it's a transition track
   const shouldShow =
@@ -68,7 +73,7 @@ export function TimeRemaining() {
       <Animated.Text
         style={[styles.timeLeft, styles.calculating, { opacity: blink }]}
       >
-        {dict.CALCULATING}…
+        {dict.SYNCHRONIZING}…
       </Animated.Text>
     );
   }
@@ -77,9 +82,10 @@ export function TimeRemaining() {
     <Text style={styles.timeLeft}>
       {dict.TIME_REMAINING}:{" "}
       <CountdownTimerText
-        startTime={
-          (player.currentTrack?.duration || 0) - (currentTrackProgress || 0)
-        }
+        startTime={Math.max(
+          0,
+          (player.currentTrack?.duration || 0) - (smoothedElapsed ?? 0),
+        )}
       />
     </Text>
   );

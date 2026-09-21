@@ -131,7 +131,7 @@ const PROGRAMS: Program[] = [
 const DICT: Dict = {
   PROGRAMS,
   TIME_REMAINING: "のこり時間",
-  CALCULATING: "計算中",
+  SYNCHRONIZING: "同調中",
   WITH_DJ: "DJ",
   MENU: "メニュー",
   MENU_PLAYER: "プレーヤー",
