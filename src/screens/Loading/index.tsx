@@ -4,7 +4,7 @@ import { Image } from "expo-image";
 import { THEME } from "@/theme";
 import { hideSplashOnce } from "@/screens/Loading/splash";
 import { FALLBACK_HIDE_MS, styles } from "@/screens/Loading/styles";
-import splashScreenImage from "@app/assets/splash_top.png";
+import splashScreenImage from "@app/assets/splash_top.webp";
 
 export function Loading() {
   useEffect(() => {

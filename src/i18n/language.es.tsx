@@ -3,10 +3,10 @@ import { version } from "@app/package.json";
 import { Program } from "@/api";
 import { PROGRAM_IMAGES } from "@/constants/programs";
 import type { Dict } from "@/i18n/language.en";
-import logo from "@/assets/logo_ES.png";
-import makeRequest from "@/assets/make_request_harukinha_es.png";
-import lastPlayed from "@/assets/last_played-haru_es.png";
-import lastRequested from "@/assets/last_requested-haru_es.png";
+import logo from "@/assets/logo_ES.webp";
+import makeRequest from "@/assets/make_request_harukinha_es.webp";
+import lastPlayed from "@/assets/last_played-haru_es.webp";
+import lastRequested from "@/assets/last_requested-haru_es.webp";
 
 const PROGRAMS: Program[] = [
   {

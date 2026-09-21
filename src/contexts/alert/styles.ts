@@ -28,7 +28,6 @@ export const styles = StyleSheet.create({
     height: IMG_HEIGHT,
     width: "100%",
     borderRadius: THEME.RADIUS.MD,
-    resizeMode: "contain",
     marginBottom: THEME.SPACE.XL,
   },
   text: {

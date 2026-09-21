@@ -8,9 +8,8 @@ import React, {
   useEffect,
   useMemo,
 } from "react";
+import { Image, type ImageSource } from "expo-image";
 import {
-  Image,
-  ImageSourcePropType,
   KeyboardAvoidingView,
   Modal,
   Text,
@@ -18,8 +17,8 @@ import {
   View,
 } from "react-native";
 import MaterialIcons from "@react-native-vector-icons/material-icons/static";
-import HarukaError from "@/assets/error_haruka.png";
-import HarukaSuccess from "@/assets/success_haruka.png";
+import HarukaError from "@/assets/error_haruka.webp";
+import HarukaSuccess from "@/assets/success_haruka.webp";
 import { THEME } from "@/theme";
 import { styles } from "@/contexts/alert/styles";
 import { Portal } from "@/contexts/Portal";
@@ -112,7 +111,7 @@ export const AlertProvider: React.FC<{ children: ReactNode }> = ({
   const clearToast = useCallback(() => setToastState(null), []);
 
   // Render the modal (PopUpStatus) directly within the provider.
-  const haruka: ImageSourcePropType =
+  const haruka: ImageSource =
     alert?.type === "success" ? HarukaSuccess : HarukaError;
 
   const visible: boolean = alert !== null;
@@ -171,7 +170,7 @@ export const AlertProvider: React.FC<{ children: ReactNode }> = ({
                   color={THEME.COLORS.TEXT}
                 />
               </TouchableOpacity>
-              <Image source={haruka} style={styles.img} />
+              <Image contentFit="contain" source={haruka} style={styles.img} />
               <Text style={styles.text}>{alert?.message}</Text>
               <TouchableOpacity
                 accessibilityRole="button"

@@ -1,4 +1,4 @@
-import { Image } from "react-native";
+import { Image } from "expo-image";
 import { styles } from "@/components/Logo/styles";
 import { IMGS } from "@/i18n";
 import { useUserSettings } from "@/contexts/user/UserSettingsProvider";
@@ -17,6 +17,7 @@ export function Logo({ size, img }: Props) {
   const defaultImg = IMGS[settings.selectedLanguage].LOGO;
   return (
     <Image
+      contentFit="contain"
       source={img ? img : defaultImg}
       style={[
         styles.image,

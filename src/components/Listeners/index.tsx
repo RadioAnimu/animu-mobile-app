@@ -1,7 +1,8 @@
 import React from "react";
-import { Image, Text, View } from "react-native";
-import headphones from "@/assets/icons/headphones.png";
-import headphonesWhite from "@/assets/icons/headphones_white.png";
+import { Image } from "expo-image";
+import { Text, View } from "react-native";
+import headphones from "@/assets/icons/headphones.webp";
+import headphonesWhite from "@/assets/icons/headphones_white.webp";
 import { THEME } from "@/theme";
 import { scale } from "@/theme/responsive";
 import { styles } from "@/components/Listeners/styles";

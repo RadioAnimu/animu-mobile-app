@@ -2,10 +2,10 @@ import Svg, { Path, Rect, SvgProps } from "react-native-svg";
 import { version } from "@app/package.json";
 import { Program } from "@/api";
 import { PROGRAM_IMAGES } from "@/constants/programs";
-import logo from "@/assets/logo_EN.png";
-import makeRequest from "@/assets/make_request_harukinha_en.png";
-import lastPlayed from "@/assets/last_played-haru_en.png";
-import lastRequested from "@/assets/last_requested-haru_en.png";
+import logo from "@/assets/logo_EN.webp";
+import makeRequest from "@/assets/make_request_harukinha_en.webp";
+import lastPlayed from "@/assets/last_played-haru_en.webp";
+import lastRequested from "@/assets/last_requested-haru_en.webp";
 
 const PROGRAMS: Program[] = [
   {

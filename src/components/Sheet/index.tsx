@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from "react";
 import {
-  Image,
   Keyboard,
   LayoutAnimation,
   Modal,
@@ -10,7 +9,8 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import DragIcon from "@/assets/icons/drag_down.png";
+import { Image } from "expo-image";
+import DragIcon from "@/assets/icons/drag_down.webp";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useDict } from "@/hooks/useDict";
 import { THEME } from "@/theme";
@@ -134,7 +134,7 @@ export function Sheet({
               style={styles.closeArea}
               onPress={closable ? onClose : undefined}
             >
-              <Image source={DragIcon} style={styles.dragIcon} />
+              <Image contentFit="contain" source={DragIcon} style={styles.dragIcon} />
             </TouchableOpacity>
             {children}
           </View>
@@ -168,6 +168,5 @@ const styles = StyleSheet.create({
   },
   dragIcon: {
     height: DRAG_ICON_HEIGHT,
-    resizeMode: "contain",
   },
 });

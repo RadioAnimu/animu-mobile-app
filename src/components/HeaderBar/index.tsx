@@ -1,18 +1,13 @@
 import { useNavigation } from "@react-navigation/native";
 import type { DrawerNavigationProp } from "@react-navigation/drawer";
 import { useEffect, useMemo, useRef, useState } from "react";
-import {
-  Animated,
-  Easing,
-  Image,
-  TouchableOpacity,
-  View,
-} from "react-native";
+import { Image } from "expo-image";
+import { Animated, Easing, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import menuIcon from "@/assets/icons/menu.png";
-import noteIcon from "@/assets/icons/note.png";
-import playButtonImage from "@/assets/play_square_btn.png";
-import pauseButtonImage from "@/assets/play_triangle_btn.png";
+import menuIcon from "@/assets/icons/menu.webp";
+import noteIcon from "@/assets/icons/note.webp";
+import playButtonImage from "@/assets/play_square_btn.webp";
+import pauseButtonImage from "@/assets/play_triangle_btn.webp";
 import { IMGS } from "@/i18n";
 import { THEME } from "@/theme";
 import { CONTAINER_HEIGHT, ICON_HIT_SLOP, styles } from "@/components/HeaderBar/styles";

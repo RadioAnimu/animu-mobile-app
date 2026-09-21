@@ -24,7 +24,6 @@ export const styles = StyleSheet.create({
   },
   logo: {
     width: "100%",
-    resizeMode: "contain",
   },
   bottom: {
     marginTop: "auto",

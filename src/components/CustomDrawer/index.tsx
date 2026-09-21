@@ -10,7 +10,8 @@ import {
 } from "@react-navigation/native";
 import * as Linking from "expo-linking";
 import { useState } from "react";
-import { Image, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { Image } from "expo-image";
+import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { API } from "@/api";
 import { Avatar } from "@/components/Avatar";
 import { ProviderIcon } from "@/components/ProviderIcon";
@@ -286,6 +287,7 @@ export function CustomDrawerContent(props: DrawerContentComponentProps) {
             }}
           >
             <Image
+              contentFit="contain"
               source={IMGS[settings.selectedLanguage].LOGO}
               style={[styles.logo, logoWidth > 0 && { height: logoWidth / LOGO_ASPECT_RATIO }]}
             />

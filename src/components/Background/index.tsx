@@ -1,7 +1,7 @@
-import { ImageBackground } from "react-native";
+import { ImageBackground } from "expo-image";
 import { styles } from "@/components/Background/styles";
 
-import backgroundImg from "@/assets/background-animu.png";
+import backgroundImg from "@/assets/background-animu.webp";
 
 interface Props {
   children: React.ReactNode;
@@ -9,11 +9,7 @@ interface Props {
 
 export function Background({ children }: Props) {
   return (
-    <ImageBackground
-      defaultSource={backgroundImg}
-      source={backgroundImg}
-      style={styles.container}
-    >
+    <ImageBackground source={backgroundImg} style={styles.container}>
       {children}
     </ImageBackground>
   );
