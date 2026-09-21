@@ -213,6 +213,13 @@ const DICT = {
   SETTINGS_RESET_CONFIRM_TITLE: "Reset settings?",
   SETTINGS_RESET_CONFIRM_MSG: "All settings go back to their defaults.",
   SETTINGS_RESET_CONFIRM: "Reset",
+  SETTINGS_LEGAL_TITLE: "Legal",
+  SETTINGS_PRIVACY_POLICY: "Privacy Policy",
+  SETTINGS_COPYRIGHT_LICENSE: "Copyright & License",
+  SETTINGS_COPYRIGHT_DESC: "Non-profit project · CC BY-NC-SA 4.0",
+  SETTINGS_COPYRIGHT_NOTICE: "© 2018–2026 Rádio Animu",
+  SETTINGS_IMAGE_RIGHTS:
+    "All edited images belong to their respective creators and studios.",
   STORAGE_EXPLAIN:
     "We keep song covers on your device so they load faster and use less data.",
   STORAGE_FREE_UP: "Free up space",

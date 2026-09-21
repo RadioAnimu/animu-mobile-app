@@ -237,3 +237,33 @@ export function InfoRow({ label, description, icon }: InfoRowProps) {
     </View>
   );
 }
+
+interface LinkRowProps {
+  label: string;
+  description?: string;
+  onPress: () => void;
+}
+
+/** Opens an external URL — privacy policy, license, store-required links. */
+export function LinkRow({ label, description, onPress }: LinkRowProps) {
+  return (
+    <TouchableOpacity
+      accessibilityRole="link"
+      activeOpacity={0.7}
+      onPress={onPress}
+      style={styles.row}
+    >
+      <View style={description != null ? styles.rowBody : undefined}>
+        <Text style={styles.rowLabel}>{label}</Text>
+        {description != null && (
+          <Text style={styles.rowDescription}>{description}</Text>
+        )}
+      </View>
+      <MaterialIcons
+        name="open-in-new"
+        size={THEME.ICON.MD}
+        color={THEME.COLORS.TEXT_DIM}
+      />
+    </TouchableOpacity>
+  );
+}

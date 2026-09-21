@@ -214,6 +214,13 @@ const DICT: Dict = {
   SETTINGS_RESET_CONFIRM_TITLE: "Redefinir configurações?",
   SETTINGS_RESET_CONFIRM_MSG: "Todas as configurações voltam ao padrão.",
   SETTINGS_RESET_CONFIRM: "Redefinir",
+  SETTINGS_LEGAL_TITLE: "Legal",
+  SETTINGS_PRIVACY_POLICY: "Política de Privacidade",
+  SETTINGS_COPYRIGHT_LICENSE: "Direitos Autorais e Licença",
+  SETTINGS_COPYRIGHT_DESC: "Projeto sem fins lucrativos · CC BY-NC-SA 4.0",
+  SETTINGS_COPYRIGHT_NOTICE: "© 2018–2026 Rádio Animu",
+  SETTINGS_IMAGE_RIGHTS:
+    "Todas as imagens alteradas pertencem aos seus respectivos criadores, estúdios.",
   STORAGE_EXPLAIN:
     "Guardamos as capas das músicas no seu aparelho para elas carregarem mais rápido e usarem menos dados.",
   STORAGE_FREE_UP: "Liberar espaço",

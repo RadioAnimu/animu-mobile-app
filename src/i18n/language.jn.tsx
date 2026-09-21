@@ -214,6 +214,13 @@ const DICT: Dict = {
   SETTINGS_RESET_CONFIRM_TITLE: "設定をリセットしますか？",
   SETTINGS_RESET_CONFIRM_MSG: "すべての設定が初期状態に戻ります。",
   SETTINGS_RESET_CONFIRM: "リセット",
+  SETTINGS_LEGAL_TITLE: "法的事項",
+  SETTINGS_PRIVACY_POLICY: "プライバシーポリシー",
+  SETTINGS_COPYRIGHT_LICENSE: "著作権とライセンス",
+  SETTINGS_COPYRIGHT_DESC: "非営利プロジェクト · CC BY-NC-SA 4.0",
+  SETTINGS_COPYRIGHT_NOTICE: "© 2018–2026 Rádio Animu",
+  SETTINGS_IMAGE_RIGHTS:
+    "改変された画像はすべて、それぞれの制作者・スタジオに帰属します。",
   STORAGE_EXPLAIN:
     "曲のカバー画像を端末に保存して、すばやく表示し通信量を節約します。",
   STORAGE_FREE_UP: "空き容量を増やす",
