@@ -190,6 +190,13 @@ so **native changes always require a new store build**. `AppDelegate.swift` /
 `MainApplication.kt` load the staged bundle at startup via the library's Expo
 config plugin.
 
+> **App Store policy (2.5.2 / 3.3.2):** over-the-air bundles must be limited to
+> **bug fixes, security fixes and performance work**. Never ship new features,
+> new screens, or remote feature flags that change the app's primary purpose via
+> OTA — Apple treats that as downloading code that changes app functionality and
+> will reject the app. Anything that adds or alters features ships through a
+> normal store build.
+
 ### Voice assistants
 
 Siri (App Intents / App Shortcuts) and Google Assistant (App Actions) both open

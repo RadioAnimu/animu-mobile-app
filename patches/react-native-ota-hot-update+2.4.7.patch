@@ -1,3 +1,36 @@
+diff --git a/node_modules/react-native-ota-hot-update/ios/PrivacyInfo.xcprivacy b/node_modules/react-native-ota-hot-update/ios/PrivacyInfo.xcprivacy
+new file mode 100644
+index 0000000..c39d854
+--- /dev/null
++++ b/node_modules/react-native-ota-hot-update/ios/PrivacyInfo.xcprivacy
+@@ -0,0 +1,27 @@
++<?xml version="1.0" encoding="UTF-8"?>
++<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
++<plist version="1.0">
++<dict>
++	<key>NSPrivacyCollectedDataTypes</key>
++	<array/>
++	<key>NSPrivacyAccessedAPITypes</key>
++	<array>
++		<dict>
++			<key>NSPrivacyAccessedAPIType</key>
++			<string>NSPrivacyAccessedAPICategoryFileTimestamp</string>
++			<key>NSPrivacyAccessedAPITypeReasons</key>
++			<array>
++				<string>0A2A.1</string>
++			</array>
++		</dict>
++		<dict>
++			<key>NSPrivacyAccessedAPIType</key>
++			<string>NSPrivacyAccessedAPICategoryUserDefaults</string>
++			<key>NSPrivacyAccessedAPITypeReasons</key>
++			<array>
++				<string>C56D.1</string>
++			</array>
++		</dict>
++	</array>
++</dict>
++</plist>
 diff --git a/node_modules/react-native-ota-hot-update/lib/commonjs/index.js b/node_modules/react-native-ota-hot-update/lib/commonjs/index.js
 index 8067282..71ead0a 100644
 --- a/node_modules/react-native-ota-hot-update/lib/commonjs/index.js
@@ -46,3 +79,20 @@ index fbd1a0e..435324c 100644
  const LINKING_ERROR = `The package 'react-native-ota-hot-update' doesn't seem to be linked. Make sure: \n\n` + Platform.select({
    ios: "- You have run 'pod install'\n",
    default: ''
+diff --git a/node_modules/react-native-ota-hot-update/react-native-ota-hot-update.podspec b/node_modules/react-native-ota-hot-update/react-native-ota-hot-update.podspec
+index 32c2d5c..072f5f2 100644
+--- a/node_modules/react-native-ota-hot-update/react-native-ota-hot-update.podspec
++++ b/node_modules/react-native-ota-hot-update/react-native-ota-hot-update.podspec
+@@ -19,6 +19,12 @@ Pod::Spec.new do |s|
+   }
+   s.public_header_files = "ios/OtaHotUpdate.h"
+   s.source_files = "ios/**/*.{h,m,mm,cpp}"
++  # Apple Required Reason APIs used by this SDK: NSFileModificationDate
++  # (FileTimestamp) and NSUserDefaults (UserDefaults). Bundled so the manifest
++  # ships inside the built app — see patches/react-native-ota-hot-update+*.patch.
++  s.resource_bundles = {
++    'RNOtaHotUpdatePrivacyInfo' => ['ios/PrivacyInfo.xcprivacy'],
++  }
+   s.dependency 'SSZipArchive', '~> 2.4.3'
+   if ENV['RCT_NEW_ARCH_ENABLED'] == '0'
+     s.exclude_files = "ios/generated"
