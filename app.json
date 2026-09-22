@@ -16,7 +16,16 @@
         "UIBackgroundModes": [
           "audio"
         ],
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "CFBundleSpokenName": "Animu",
+        "INAlternativeAppNames": [
+          {
+            "INAlternativeAppName": "Radio Animu"
+          },
+          {
+            "INAlternativeAppName": "Animu"
+          }
+        ]
       },
       "buildNumber": "4"
     },
