@@ -8,11 +8,9 @@ import {
   CommonActions,
   DrawerActions,
 } from "@react-navigation/native";
-import * as Linking from "expo-linking";
 import { useState } from "react";
 import { Image } from "expo-image";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
-import { API } from "@/api";
 import { Avatar } from "@/components/Avatar";
 import { ProviderIcon } from "@/components/ProviderIcon";
 import { useAuth } from "@/contexts/auth/AuthProvider";
@@ -64,36 +62,6 @@ export function Separator({ sectionTile, Icon }: SeparatorProps) {
         <Text style={styles.sectionText}>{sectionTile.toUpperCase()}</Text>
       )}
     </View>
-  );
-}
-
-export interface LinkMenuItemProps {
-  Icon?: () => JSX.Element;
-  title: string;
-  url: string;
-}
-
-export function LinkMenuItem({ Icon, title, url }: LinkMenuItemProps) {
-  return (
-    <TouchableOpacity
-      accessibilityRole="link"
-      accessibilityLabel={title}
-      activeOpacity={0.7}
-      onPress={() => {
-        void Linking.openURL(url).catch((error) =>
-          console.warn("[Links] openURL failed:", error),
-        );
-      }}
-      style={styles.navItem}
-    >
-      {Icon && <Icon />}
-      <Text style={styles.navItemText}>{title}</Text>
-      <MaterialIcons
-        name="open-in-new"
-        size={scale(16)}
-        color={THEME.COLORS.TEXT_DIM}
-      />
-    </TouchableOpacity>
   );
 }
 
@@ -254,19 +222,6 @@ export function CustomDrawerContent(props: DrawerContentComponentProps) {
     navigation.navigate("Login");
   };
 
-  const LINKS: LinkMenuItemProps[] = [
-    {
-      title: dict.LINKS_WEBSITE,
-      url: API.WEB_URL,
-      Icon: () => <DrawerIcon name="web" />,
-    },
-    {
-      title: dict.LINKS_DISCORD,
-      url: API.DISCORD_URL,
-      Icon: () => <DrawerIcon name="discord" />,
-    },
-  ];
-
   return (
     <DrawerContentScrollView
       {...props}
@@ -299,19 +254,6 @@ export function CustomDrawerContent(props: DrawerContentComponentProps) {
           sectionTile={dict.MENU}
         />
         <NavItems {...props} />
-
-        <Separator
-          Icon={() => <DrawerIcon name="link" size={SECTION_ICON_SIZE} />}
-          sectionTile={dict.LINKS}
-        />
-        {LINKS.map((link) => (
-          <LinkMenuItem
-            key={link.title}
-            Icon={link.Icon}
-            title={link.title}
-            url={link.url}
-          />
-        ))}
       </View>
 
       <AccountRow onOpenLogin={goToLogin} onOpenSettings={goToSettings} />

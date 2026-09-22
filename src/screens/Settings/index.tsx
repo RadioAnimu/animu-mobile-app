@@ -13,6 +13,7 @@ import { BehaviorSection } from "@/screens/Settings/sections/BehaviorSection";
 import { CoverDataSection } from "@/screens/Settings/sections/CoverDataSection";
 import { FooterSection } from "@/screens/Settings/sections/FooterSection";
 import { LegalSection } from "@/screens/Settings/sections/LegalSection";
+import { LinksSection } from "@/screens/Settings/sections/LinksSection";
 import { StorageSection } from "@/screens/Settings/sections/StorageSection";
 import { UpdatesSection } from "@/screens/Settings/sections/UpdatesSection";
 
@@ -49,6 +50,7 @@ export function Settings({ navigation }: Props) {
           <StorageSection
             onOpenStorage={() => navigation.navigate("Storage")}
           />
+          <LinksSection />
           <LegalSection />
           <FooterSection />
         </ScrollView>
