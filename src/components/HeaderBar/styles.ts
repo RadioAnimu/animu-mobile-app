@@ -42,18 +42,15 @@ export const styles = StyleSheet.create({
   playBtn: {
     width: PLAY_BTN,
     height: PLAY_BTN,
-    objectFit: "contain",
     marginHorizontal: PLAY_BTN_MARGIN,
   },
   menuBtn: {
     width: ICON_BTN,
     height: ICON_BTN,
-    objectFit: "contain",
   },
   noteIcon: {
     width: ICON_BTN,
     height: ICON_BTN,
-    objectFit: "contain",
   },
   progressBarView: {
     width: "100%",

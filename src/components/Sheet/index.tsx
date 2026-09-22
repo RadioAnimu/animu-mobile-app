@@ -168,5 +168,7 @@ const styles = StyleSheet.create({
   },
   dragIcon: {
     height: DRAG_ICON_HEIGHT,
+    // expo-image needs an explicit width; it can't infer one from a height.
+    width: DRAG_ICON_HEIGHT * (156 / 92),
   },
 });

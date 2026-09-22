@@ -61,6 +61,7 @@ export const Listeners = React.memo(function Listeners() {
         {currentListeners.value}
       </Text>
       <Image
+        contentFit="contain"
         style={styles.headphones}
         source={highlighted ? headphonesWhite : headphones}
       />

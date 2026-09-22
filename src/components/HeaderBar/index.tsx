@@ -207,7 +207,7 @@ export function HeaderBar({ openLiveRequestModal }: Props) {
               navigation.openDrawer();
             }}
           >
-            <Image style={styles.menuBtn} source={menuIcon} />
+            <Image contentFit="contain" style={styles.menuBtn} source={menuIcon} />
           </TouchableOpacity>
           <TouchableOpacity
             accessibilityRole="button"
@@ -229,6 +229,7 @@ export function HeaderBar({ openLiveRequestModal }: Props) {
             }}
           >
             <Image
+              contentFit="contain"
               style={[
                 styles.playBtn,
                 {
@@ -268,7 +269,7 @@ export function HeaderBar({ openLiveRequestModal }: Props) {
                 <LiveRequestComponent />
               </Animated.View>
             )}
-            <Image style={styles.noteIcon} source={noteIcon} />
+            <Image contentFit="contain" style={styles.noteIcon} source={noteIcon} />
           </TouchableOpacity>
         </View>
       </View>

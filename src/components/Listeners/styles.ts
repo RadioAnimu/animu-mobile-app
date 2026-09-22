@@ -23,6 +23,5 @@ export const styles = StyleSheet.create({
   headphones: {
     width: FONINHO,
     height: FONINHO,
-    objectFit: "contain",
   },
 });
