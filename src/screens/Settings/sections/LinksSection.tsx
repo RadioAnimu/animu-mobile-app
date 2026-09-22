@@ -22,11 +22,13 @@ export function LinksSection() {
       <SectionTitle title={dict.LINKS} icon="link" />
       <View style={styles.group}>
         <LinkRow
+          icon="public"
           label={dict.LINKS_WEBSITE}
           onPress={() => open(API.WEB_URL)}
         />
         <Divider />
         <LinkRow
+          icon="forum"
           label={dict.LINKS_DISCORD}
           onPress={() => open(API.DISCORD_URL)}
         />

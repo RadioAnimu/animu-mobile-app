@@ -1,5 +1,4 @@
 import { Path, Rect, Svg, SvgProps } from "react-native-svg";
-import { version } from "@app/package.json";
 import { Program } from "@/api";
 import { PROGRAM_IMAGES } from "@/constants/programs";
 import type { Dict } from "@/i18n/language.en";
@@ -141,7 +140,6 @@ const DICT: Dict = {
   LINKS: "Links",
   LINKS_DISCORD: "Discord",
   LINKS_WEBSITE: "Página Web",
-  VERSION_TEXT: `Versão v${version} - Desenvolvido com muito ❤️ por`,
   SETTINGS_TITLE: "Configurações",
   SETTINGS_ACCOUNT_TITLE: "Conta",
   SETTINGS_SAVE_DATA_TITLE: "Imagens das capas",
@@ -159,7 +157,8 @@ const DICT: Dict = {
   SETTINGS_BATTERY_TITLE: "Conexão",
   SETTINGS_LIVE_UPDATES_SWITCH: "Informações ao vivo:",
   SETTINGS_MEMORY_TITLE: "Armazenamento",
-  SETTINGS_GENERAL_TITLE: "Idioma",
+  SETTINGS_GENERAL_TITLE: "Geral",
+  SETTINGS_PLAYBACK_TITLE: "Reprodução",
   SETTINGS_OSCILLOSCOPE_TITLE: "Osciloscópio",
   SETTINGS_VISUALIZER_SWITCH: "Onda sonora:",
   SETTINGS_MEMORY_CLEAR_CACHE_SWITCH: "Reutilizar capas baixadas:",
@@ -211,10 +210,24 @@ const DICT: Dict = {
   SETTINGS_UPDATES_RESTART_MSG:
     "A atualização baixada é aplicada após reiniciar o app.",
   SETTINGS_UPDATES_RESTART_CONFIRM: "Reiniciar",
+  SETTINGS_ADVANCED_TITLE: "Avançado",
   SETTINGS_RESET_ROW: "Redefinir para o padrão",
   SETTINGS_RESET_CONFIRM_TITLE: "Redefinir configurações?",
   SETTINGS_RESET_CONFIRM_MSG: "Todas as configurações voltam ao padrão.",
   SETTINGS_RESET_CONFIRM: "Redefinir",
+  SETTINGS_FOOTER_APP_CREDIT: "App mobile por",
+  SETTINGS_FOOTER_TEAM: "Feito de ❤️ com muito ☕️ por Equipe Animu",
+  SETTINGS_FOOTER_FOUNDER: "Founded and Design by Lucas Lopes (LL!)",
+  SETTINGS_FOOTER_DEV:
+    "DEV by Afonso Oliveira (FZero), José Silva (Tossa), João Vitor (Mr.Zapp) and Ricardo Freitas (Ness)",
+  SETTINGS_FOOTER_LOCATION: "Santa Cruz do Capibaribe – Pernambuco, Brasil",
+  SETTINGS_FOOTER_SYSTEM: "Sistema Yuki de Transmissão",
+  SETTINGS_FOOTER_CHIHAYA: "Chihaya Radio Station by",
+  SETTINGS_FOOTER_NONPROFIT:
+    "Projeto sem fins lucrativos · Criado por Amor à Cultura Otaku 💜",
+  SETTINGS_FOOTER_LICENSE: "Licença (BY-NC-SA) 4.0",
+  SETTINGS_FOOTER_SOCIAL: "Redes sociais",
+  SETTINGS_FOOTER_NPC: "NPCpepper",
   SETTINGS_LEGAL_TITLE: "Legal",
   SETTINGS_PRIVACY_POLICY: "Política de Privacidade",
   SETTINGS_COPYRIGHT_LICENSE: "Direitos Autorais e Licença",

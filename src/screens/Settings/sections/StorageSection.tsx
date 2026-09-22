@@ -32,6 +32,7 @@ export function StorageSection({ onOpenStorage }: Props) {
       <SectionTitle title={dict.SETTINGS_MEMORY_TITLE} icon="sd-storage" />
       <View style={styles.group}>
         <SettingsRow
+          icon="save-alt"
           label={cleanLabel(dict.SETTINGS_MEMORY_CLEAR_CACHE_SWITCH)}
           description={dict.SETTINGS_MEMORY_CLEAR_CACHE_DESC}
           value={settings.cacheEnabled}
@@ -44,6 +45,7 @@ export function StorageSection({ onOpenStorage }: Props) {
         {/* Plain-language promise ("Free up space") with the live total as
             proof — the technical breakdown lives one tap into Storage. */}
         <ValueRow
+          icon="folder-open"
           label={dict.SETTINGS_STORAGE_FREE_UP}
           value={measuring ? "· · ·" : formatBytes(snapshot?.totalBytes ?? 0)}
           onPress={onOpenStorage}

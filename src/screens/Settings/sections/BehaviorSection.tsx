@@ -7,10 +7,14 @@ import { useUserSettings } from "@/contexts/user/UserSettingsProvider";
 import { useDict } from "@/hooks/useDict";
 import { LANGS_KEY_VALUE_PAIRS } from "@/i18n";
 import { cleanLabel } from "@/screens/Settings/labels";
-import { InfoRow, SettingsRow } from "@/screens/Settings/rows";
+import { Divider, InfoRow, SettingsRow } from "@/screens/Settings/rows";
 import { styles } from "@/screens/Settings/styles";
 
-/** Visualizer, background updates, language and the voice-assistant hint. */
+/**
+ * Playback behavior (visualizer + live song info) and the app-wide
+ * preferences (language, haptics, voice assistant), combined so a single
+ * card covers each domain instead of one card per toggle.
+ */
 export function BehaviorSection() {
   const { settings, updateSettings } = useUserSettings();
   const dict = useDict();
@@ -31,12 +35,10 @@ export function BehaviorSection() {
 
   return (
     <>
-      <SectionTitle
-        title={dict.SETTINGS_OSCILLOSCOPE_TITLE}
-        icon="graphic-eq"
-      />
+      <SectionTitle title={dict.SETTINGS_PLAYBACK_TITLE} icon="graphic-eq" />
       <View style={styles.group}>
         <SettingsRow
+          icon="graphic-eq"
           label={cleanLabel(dict.SETTINGS_VISUALIZER_SWITCH)}
           description={
             visualizerUnavailable
@@ -49,11 +51,9 @@ export function BehaviorSection() {
             updateSettings({ visualizerHz: settings.visualizerHz > 0 ? 0 : 1 })
           }
         />
-      </View>
-
-      <SectionTitle title={dict.SETTINGS_BATTERY_TITLE} icon="wifi" />
-      <View style={styles.group}>
+        <Divider />
         <SettingsRow
+          icon="wifi"
           label={cleanLabel(dict.SETTINGS_LIVE_UPDATES_SWITCH)}
           description={dict.SETTINGS_LIVE_UPDATES_DESC}
           value={settings.liveUpdatesInBackground}
@@ -65,19 +65,18 @@ export function BehaviorSection() {
         />
       </View>
 
-      <SectionTitle title={dict.SETTINGS_GENERAL_TITLE} icon="language" />
+      <SectionTitle title={dict.SETTINGS_GENERAL_TITLE} icon="tune" />
       <View style={styles.group}>
         <Select
           label={dict.SETTINGS_LANGUAGE_ROW}
+          icon="language"
           options={languageOptions}
           value={settings.selectedLanguage}
           onChange={(key) => updateSettings({ selectedLanguage: key })}
         />
-      </View>
-
-      <SectionTitle title={dict.SETTINGS_FEEDBACK_TITLE} icon="vibration" />
-      <View style={styles.group}>
+        <Divider />
         <SettingsRow
+          icon="vibration"
           label={cleanLabel(dict.SETTINGS_HAPTICS_SWITCH)}
           description={dict.SETTINGS_HAPTICS_DESC}
           value={settings.hapticsEnabled}
@@ -85,14 +84,11 @@ export function BehaviorSection() {
             updateSettings({ hapticsEnabled: !settings.hapticsEnabled })
           }
         />
-      </View>
-
-      <SectionTitle title={dict.SETTINGS_SHORTCUTS_TITLE} icon="mic" />
-      <View style={styles.group}>
+        <Divider />
         <InfoRow
+          icon="record-voice-over"
           label={dict.SETTINGS_ASSISTANT_TITLE}
           description={dict.SETTINGS_ASSISTANT_HINT}
-          icon="mic"
         />
       </View>
     </>

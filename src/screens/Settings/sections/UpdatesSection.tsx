@@ -67,6 +67,7 @@ export function UpdatesSection() {
       <SectionTitle title={dict.SETTINGS_UPDATES_TITLE} icon="system-update" />
       <View style={styles.group}>
         <ValueRow
+          icon="system-update"
           label={dict.SETTINGS_UPDATES_ROW}
           description={dict.SETTINGS_UPDATES_DESC}
           value={value()}

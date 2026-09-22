@@ -1,5 +1,4 @@
 import Svg, { Path, Rect, SvgProps } from "react-native-svg";
-import { version } from "@app/package.json";
 import { Program } from "@/api";
 import { PROGRAM_IMAGES } from "@/constants/programs";
 import type { Dict } from "@/i18n/language.en";
@@ -141,7 +140,6 @@ const DICT: Dict = {
   LINKS: "リンク",
   LINKS_DISCORD: "ディスコード",
   LINKS_WEBSITE: "ウェブサイト",
-  VERSION_TEXT: `バージョン v${version} - みんなの❤️で作られたよ`,
   SETTINGS_TITLE: "設定",
   SETTINGS_ACCOUNT_TITLE: "アカウント",
   SETTINGS_SAVE_DATA_TITLE: "画像の読み込み",
@@ -159,7 +157,8 @@ const DICT: Dict = {
   SETTINGS_BATTERY_TITLE: "接続",
   SETTINGS_LIVE_UPDATES_SWITCH: "リアルタイム情報：",
   SETTINGS_MEMORY_TITLE: "ストレージ",
-  SETTINGS_GENERAL_TITLE: "言語",
+  SETTINGS_GENERAL_TITLE: "一般",
+  SETTINGS_PLAYBACK_TITLE: "再生",
   SETTINGS_OSCILLOSCOPE_TITLE: "ビジュアライザー",
   SETTINGS_VISUALIZER_SWITCH: "音の波形：",
   SETTINGS_MEMORY_CLEAR_CACHE_SWITCH: "ダウンロード済みカバーを再利用：",
@@ -211,10 +210,24 @@ const DICT: Dict = {
   SETTINGS_UPDATES_RESTART_MSG:
     "ダウンロードした更新はアプリの再起動後に適用されます。",
   SETTINGS_UPDATES_RESTART_CONFIRM: "再起動",
+  SETTINGS_ADVANCED_TITLE: "詳細",
   SETTINGS_RESET_ROW: "初期設定に戻す",
   SETTINGS_RESET_CONFIRM_TITLE: "設定をリセットしますか？",
   SETTINGS_RESET_CONFIRM_MSG: "すべての設定が初期状態に戻ります。",
   SETTINGS_RESET_CONFIRM: "リセット",
+  SETTINGS_FOOTER_APP_CREDIT: "モバイルアプリ制作",
+  SETTINGS_FOOTER_TEAM: "Animuチームが❤️とたくさんの☕で制作",
+  SETTINGS_FOOTER_FOUNDER: "設立・デザイン：Lucas Lopes (LL!)",
+  SETTINGS_FOOTER_DEV:
+    "開発：Afonso Oliveira (FZero)、José Silva (Tossa)、João Vitor (Mr.Zapp)、Ricardo Freitas (Ness)",
+  SETTINGS_FOOTER_LOCATION: "サンタクルス・ド・カピバリベ – ペルナンブコ州、ブラジル",
+  SETTINGS_FOOTER_SYSTEM: "Yuki 放送システム",
+  SETTINGS_FOOTER_CHIHAYA: "Chihaya Radio Station by",
+  SETTINGS_FOOTER_NONPROFIT:
+    "非営利プロジェクト · オタク文化への愛から生まれました 💜",
+  SETTINGS_FOOTER_LICENSE: "ライセンス (BY-NC-SA) 4.0",
+  SETTINGS_FOOTER_SOCIAL: "SNS",
+  SETTINGS_FOOTER_NPC: "NPCpepper",
   SETTINGS_LEGAL_TITLE: "法的事項",
   SETTINGS_PRIVACY_POLICY: "プライバシーポリシー",
   SETTINGS_COPYRIGHT_LICENSE: "著作権とライセンス",

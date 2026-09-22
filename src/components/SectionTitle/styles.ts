@@ -8,7 +8,9 @@ export const styles = StyleSheet.create({
   section: {
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: THEME.SPACE.MD,
+    // Same inset + icon column as the rows below, so headings and row labels
+    // share one vertical grid instead of drifting a few pixels apart.
+    paddingHorizontal: THEME.SPACE.LG,
     marginTop: THEME.SPACE.XXL,
     marginBottom: THEME.SPACE.MD,
     paddingBottom: THEME.SPACE.MD,
@@ -20,7 +22,7 @@ export const styles = StyleSheet.create({
   },
   iconBox: {
     width: THEME.LAYOUT.ICON_BOX_WIDTH,
-    alignItems: "center",
+    alignItems: "flex-start",
   },
   sectionText: {
     flex: 1,
@@ -28,6 +30,5 @@ export const styles = StyleSheet.create({
     fontFamily: THEME.FONT_FAMILY.BOLD,
     fontSize: THEME.FONT_SIZE.BODY,
     letterSpacing: scale(1.2),
-    marginLeft: THEME.SPACE.SM,
   },
 });

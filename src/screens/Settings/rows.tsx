@@ -1,6 +1,12 @@
 import { useEffect, useState } from "react";
 import MaterialIcons from "@react-native-vector-icons/material-icons/static";
-import { Animated, Text, TouchableOpacity, View } from "react-native";
+import {
+  ActivityIndicator,
+  Animated,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
 
 import { Avatar } from "@/components/Avatar";
 import { ProviderIcon } from "@/components/ProviderIcon";
@@ -12,8 +18,23 @@ import { providerLabel } from "@/constants/auth";
 import { styles, SWITCH } from "@/screens/Settings/styles";
 import { haptics } from "@/utils/haptics";
 
+type MaterialIconName = React.ComponentProps<typeof MaterialIcons>["name"];
+
 export function Divider() {
   return <View style={styles.divider} />;
+}
+
+/** Leading icon that lines every settings row up with the section headings. */
+function LeadingIcon({ name }: { name: MaterialIconName }) {
+  return (
+    <View style={styles.rowIcon}>
+      <MaterialIcons
+        name={name}
+        size={THEME.ICON.MD}
+        color={THEME.COLORS.TEXT_DIM}
+      />
+    </View>
+  );
 }
 
 interface AccountRowProps {
@@ -77,7 +98,11 @@ export function AccountRow({ user, profile, dict, onPress }: AccountRowProps) {
               color={THEME.COLORS.TEXT}
             />
           </View>
-          <Text style={styles.rowLabel}>{dict.SETTINGS_ACCOUNT_SIGN_IN}</Text>
+          <View style={styles.rowBodySingle}>
+            <Text style={styles.rowLabel}>
+              {dict.SETTINGS_ACCOUNT_SIGN_IN}
+            </Text>
+          </View>
           <MaterialIcons
             name="chevron-right"
             size={THEME.ICON.MD}
@@ -135,6 +160,8 @@ export function Switch({ value, disabled }: SwitchProps) {
 
 interface SettingsRowProps {
   label: string;
+  /** Leading icon that matches the setting to the section's visual language. */
+  icon: MaterialIconName;
   /** Optional short supporting line under the label — only for settings
       whose trade-off isn't obvious from the name (Material guidance). */
   description?: string;
@@ -147,6 +174,7 @@ interface SettingsRowProps {
 
 export function SettingsRow({
   label,
+  icon,
   description,
   value,
   onToggle,
@@ -167,6 +195,7 @@ export function SettingsRow({
       disabled={disabled}
       style={[styles.row, disabled && styles.rowDisabled]}
     >
+      <LeadingIcon name={icon} />
       <View style={bodyStyle}>
         <Text style={styles.rowLabel}>{label}</Text>
         {description != null && (
@@ -180,12 +209,19 @@ export function SettingsRow({
 
 interface ValueRowProps {
   label: string;
+  icon: MaterialIconName;
   value: string;
   description?: string;
   onPress: () => void;
 }
 
-export function ValueRow({ label, value, description, onPress }: ValueRowProps) {
+export function ValueRow({
+  label,
+  icon,
+  value,
+  description,
+  onPress,
+}: ValueRowProps) {
   return (
     <TouchableOpacity
       accessibilityRole="button"
@@ -193,7 +229,8 @@ export function ValueRow({ label, value, description, onPress }: ValueRowProps) 
       onPress={onPress}
       style={styles.row}
     >
-      <View style={description != null ? styles.rowBody : undefined}>
+      <LeadingIcon name={icon} />
+      <View style={description != null ? styles.rowBody : styles.rowBodySingle}>
         <Text style={styles.rowLabel}>{label}</Text>
         {description != null && (
           <Text style={styles.rowDescription}>{description}</Text>
@@ -215,37 +252,34 @@ export function ValueRow({ label, value, description, onPress }: ValueRowProps) 
 
 interface InfoRowProps {
   label: string;
+  icon: MaterialIconName;
   description?: string;
-  icon: React.ComponentProps<typeof MaterialIcons>["name"];
 }
 
 /** Non-interactive row that explains a capability (e.g. voice commands). */
-export function InfoRow({ label, description, icon }: InfoRowProps) {
+export function InfoRow({ label, icon, description }: InfoRowProps) {
   return (
     <View style={styles.row}>
+      <LeadingIcon name={icon} />
       <View style={styles.rowBody}>
         <Text style={styles.rowLabel}>{label}</Text>
         {description != null && (
           <Text style={styles.rowDescription}>{description}</Text>
         )}
       </View>
-      <MaterialIcons
-        name={icon}
-        size={THEME.ICON.MD}
-        color={THEME.COLORS.TEXT_DIM}
-      />
     </View>
   );
 }
 
 interface LinkRowProps {
   label: string;
+  icon: MaterialIconName;
   description?: string;
   onPress: () => void;
 }
 
 /** Opens an external URL — privacy policy, license, store-required links. */
-export function LinkRow({ label, description, onPress }: LinkRowProps) {
+export function LinkRow({ label, icon, description, onPress }: LinkRowProps) {
   return (
     <TouchableOpacity
       accessibilityRole="link"
@@ -253,7 +287,8 @@ export function LinkRow({ label, description, onPress }: LinkRowProps) {
       onPress={onPress}
       style={styles.row}
     >
-      <View style={description != null ? styles.rowBody : undefined}>
+      <LeadingIcon name={icon} />
+      <View style={description != null ? styles.rowBody : styles.rowBodySingle}>
         <Text style={styles.rowLabel}>{label}</Text>
         {description != null && (
           <Text style={styles.rowDescription}>{description}</Text>
@@ -264,6 +299,37 @@ export function LinkRow({ label, description, onPress }: LinkRowProps) {
         size={THEME.ICON.MD}
         color={THEME.COLORS.TEXT_DIM}
       />
+    </TouchableOpacity>
+  );
+}
+
+interface ResetRowProps {
+  label: string;
+  busy?: boolean;
+  onPress: () => void;
+}
+
+/** Destructive outlined action that resets every setting to its default. */
+export function ResetRow({ label, busy, onPress }: ResetRowProps) {
+  return (
+    <TouchableOpacity
+      accessibilityRole="button"
+      accessibilityState={{ disabled: busy || undefined }}
+      activeOpacity={0.7}
+      onPress={onPress}
+      disabled={busy}
+      style={[styles.resetButton, busy && styles.resetButtonDisabled]}
+    >
+      {busy ? (
+        <ActivityIndicator size="small" color={THEME.COLORS.ERROR} />
+      ) : (
+        <MaterialIcons
+          name="restart-alt"
+          size={THEME.ICON.MD}
+          color={THEME.COLORS.ERROR}
+        />
+      )}
+      <Text style={styles.resetLabel}>{label}</Text>
     </TouchableOpacity>
   );
 }

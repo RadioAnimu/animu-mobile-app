@@ -1,5 +1,4 @@
 import Svg, { Path, Rect, SvgProps } from "react-native-svg";
-import { version } from "@app/package.json";
 import { Program } from "@/api";
 import { PROGRAM_IMAGES } from "@/constants/programs";
 import type { Dict } from "@/i18n/language.en";
@@ -141,7 +140,6 @@ const DICT: Dict = {
   LINKS: "Enlaces",
   LINKS_DISCORD: "Discord",
   LINKS_WEBSITE: "Sitio Web",
-  VERSION_TEXT: `Versión v${version} - Desarrollado con mucho ❤️ por`,
   SETTINGS_TITLE: "Ajustes",
   SETTINGS_ACCOUNT_TITLE: "Cuenta",
   SETTINGS_SAVE_DATA_TITLE: "Imágenes de portadas",
@@ -159,7 +157,8 @@ const DICT: Dict = {
   SETTINGS_BATTERY_TITLE: "Conexión",
   SETTINGS_LIVE_UPDATES_SWITCH: "Información en vivo:",
   SETTINGS_MEMORY_TITLE: "Almacenamiento",
-  SETTINGS_GENERAL_TITLE: "Idioma",
+  SETTINGS_GENERAL_TITLE: "General",
+  SETTINGS_PLAYBACK_TITLE: "Reproducción",
   SETTINGS_OSCILLOSCOPE_TITLE: "Visualizador",
   SETTINGS_VISUALIZER_SWITCH: "Onda de sonido:",
   SETTINGS_MEMORY_CLEAR_CACHE_SWITCH: "Reutilizar portadas descargadas:",
@@ -211,10 +210,24 @@ const DICT: Dict = {
   SETTINGS_UPDATES_RESTART_MSG:
     "La actualización descargada se aplica al reiniciar la app.",
   SETTINGS_UPDATES_RESTART_CONFIRM: "Reiniciar",
+  SETTINGS_ADVANCED_TITLE: "Avanzado",
   SETTINGS_RESET_ROW: "Restablecer valores",
   SETTINGS_RESET_CONFIRM_TITLE: "¿Restablecer los ajustes?",
   SETTINGS_RESET_CONFIRM_MSG: "Todos los ajustes vuelven a sus valores originales.",
   SETTINGS_RESET_CONFIRM: "Restablecer",
+  SETTINGS_FOOTER_APP_CREDIT: "App móvil por",
+  SETTINGS_FOOTER_TEAM: "Hecho con ❤️ y mucho ☕ por el Equipo Animu",
+  SETTINGS_FOOTER_FOUNDER: "Fundado y diseñado por Lucas Lopes (LL!)",
+  SETTINGS_FOOTER_DEV:
+    "Desarrollado por Afonso Oliveira (FZero), José Silva (Tossa), João Vitor (Mr.Zapp) y Ricardo Freitas (Ness)",
+  SETTINGS_FOOTER_LOCATION: "Santa Cruz do Capibaribe – Pernambuco, Brasil",
+  SETTINGS_FOOTER_SYSTEM: "Sistema de Transmisión Yuki",
+  SETTINGS_FOOTER_CHIHAYA: "Chihaya Radio Station por",
+  SETTINGS_FOOTER_NONPROFIT:
+    "Proyecto sin fines de lucro · Hecho con amor por la cultura Otaku 💜",
+  SETTINGS_FOOTER_LICENSE: "Licencia (BY-NC-SA) 4.0",
+  SETTINGS_FOOTER_SOCIAL: "Redes sociales",
+  SETTINGS_FOOTER_NPC: "NPCpepper",
   SETTINGS_LEGAL_TITLE: "Legal",
   SETTINGS_PRIVACY_POLICY: "Política de Privacidad",
   SETTINGS_COPYRIGHT_LICENSE: "Derechos de Autor y Licencia",

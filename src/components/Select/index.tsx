@@ -27,6 +27,8 @@ export interface SelectOption<T extends string> {
 
 interface Props<T extends string> {
   label: string;
+  /** Optional leading icon, matching the Settings rows' icon column. */
+  icon?: React.ComponentProps<typeof MaterialIcons>["name"];
   /** Optional helper line under the label, like the other settings rows. */
   description?: string;
   options: SelectOption<T>[];
@@ -47,6 +49,7 @@ interface Props<T extends string> {
  */
 export function Select<T extends string>({
   label,
+  icon,
   description,
   options,
   value,
@@ -102,6 +105,15 @@ export function Select<T extends string>({
         onPress={toggle}
         style={[styles.row, disabled && styles.disabled]}
       >
+        {icon != null && (
+          <View style={styles.rowIcon}>
+            <MaterialIcons
+              name={icon}
+              size={THEME.ICON.MD}
+              color={THEME.COLORS.TEXT_DIM}
+            />
+          </View>
+        )}
         <View style={styles.body}>
           <Text style={styles.label}>{label}</Text>
           {description != null && (

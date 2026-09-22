@@ -14,6 +14,7 @@ import { CoverDataSection } from "@/screens/Settings/sections/CoverDataSection";
 import { FooterSection } from "@/screens/Settings/sections/FooterSection";
 import { LegalSection } from "@/screens/Settings/sections/LegalSection";
 import { LinksSection } from "@/screens/Settings/sections/LinksSection";
+import { ResetSection } from "@/screens/Settings/sections/ResetSection";
 import { StorageSection } from "@/screens/Settings/sections/StorageSection";
 import { UpdatesSection } from "@/screens/Settings/sections/UpdatesSection";
 
@@ -44,14 +45,17 @@ export function Settings({ navigation }: Props) {
               }
             }}
           />
-          <CoverDataSection />
+          {/* Playback + general prefs, app updates, then the data/cache
+              group together. */}
           <BehaviorSection />
           <UpdatesSection />
+          <CoverDataSection />
           <StorageSection
             onOpenStorage={() => navigation.navigate("Storage")}
           />
           <LinksSection />
           <LegalSection />
+          <ResetSection />
           <FooterSection />
         </ScrollView>
       </SafeAreaView>

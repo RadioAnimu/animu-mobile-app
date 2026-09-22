@@ -22,6 +22,11 @@ export const styles = StyleSheet.create({
     minHeight: THEME.LAYOUT.ROW_MIN_HEIGHT,
     paddingHorizontal: THEME.SPACE.LG,
   },
+  // Same fixed leading-icon column the Settings rows use.
+  rowIcon: {
+    width: THEME.LAYOUT.ICON_BOX_WIDTH,
+    alignItems: "flex-start",
+  },
   body: {
     flex: 1,
     gap: THEME.SPACE.XS,

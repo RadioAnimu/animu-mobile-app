@@ -33,7 +33,7 @@ export function CoverDataSection() {
         label: dict[QUALITY_LABEL_KEY[sample.key as CoverQualityKey]],
         meta: `~${formatBytes(sample.sizeBytes)}`,
         badge:
-          sample.key === "high"
+          sample.key === "medium"
             ? dict.SETTINGS_QUALITY_RECOMMENDED
             : undefined,
         thumb: sample.source,
@@ -54,6 +54,7 @@ export function CoverDataSection() {
       <View style={styles.group}>
         <Select
           label={dict.SETTINGS_QUALITY_ROW}
+          icon="high-quality"
           description={dict.SETTINGS_QUALITY_ROW_DESC}
           options={qualityOptions}
           value={settings.liveQualityCover}
@@ -61,6 +62,7 @@ export function CoverDataSection() {
         />
         <Divider />
         <SettingsRow
+          icon="history"
           label={cleanLabel(dict.SETTINGS_COVER_LAST_REQUESTED_SWITCH)}
           value={settings.lastRequestedCovers}
           onToggle={() =>
@@ -71,6 +73,7 @@ export function CoverDataSection() {
         />
         <Divider />
         <SettingsRow
+          icon="music-note"
           label={cleanLabel(dict.SETTINGS_COVER_LAST_PLAYED_SWITCH)}
           value={settings.lastPlayedCovers}
           onToggle={() =>
@@ -79,6 +82,7 @@ export function CoverDataSection() {
         />
         <Divider />
         <SettingsRow
+          icon="search"
           label={cleanLabel(dict.SETTINGS_COVER_REQUESTED_SWITCH)}
           value={settings.coversInRequestSearch}
           onToggle={() =>

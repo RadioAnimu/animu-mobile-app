@@ -73,6 +73,7 @@ export function Storage({ navigation }: Props) {
           <View style={styles.group}>
             <Select
               label={dict.STORAGE_LIMIT_ROW}
+              icon="sd-storage"
               options={limitOptions}
               value={String(settings.coverCacheLimitBytes)}
               disabled={!settings.cacheEnabled}

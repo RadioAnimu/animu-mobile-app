@@ -1,85 +1,140 @@
-import { useState } from "react";
 import * as Linking from "expo-linking";
-import { ActivityIndicator, Alert, Text, TouchableOpacity, View } from "react-native";
+import { Image } from "expo-image";
+import { Text, TouchableOpacity, View } from "react-native";
 
-import { author } from "@app/package.json";
-import { useUserSettings } from "@/contexts/user/UserSettingsProvider";
+import { version } from "@app/package.json";
+import { API } from "@/api";
+import { Logo } from "@/components/Logo";
+import { SocialIcon, type SocialBrand } from "@/components/SocialIcon";
 import { useDict } from "@/hooks/useDict";
 import { styles } from "@/screens/Settings/styles";
 import { THEME } from "@/theme";
-import { haptics } from "@/utils/haptics";
+import { scale } from "@/theme/responsive";
+import ccLicense from "@/assets/cc-by-nc-sa.webp";
 
 /** Dev portfolio — the credits hyperlink target. */
 const PORTFOLIO_URL = "https://rmotafreitas.dev";
 
-/** Quiet reset action plus the version/credits footer. */
-export function FooterSection() {
-  const { resetSettings } = useUserSettings();
-  const dict = useDict();
-  const [resetting, setResetting] = useState(false);
+/** Lead mobile-app maintainer, credited above the whole team. */
+const AUTHOR_NAME = "Ricardo Freitas (Ness)";
 
-  const confirmReset = () => {
-    Alert.alert(
-      dict.SETTINGS_RESET_CONFIRM_TITLE,
-      dict.SETTINGS_RESET_CONFIRM_MSG,
-      [
-        { text: dict.ACCOUNT_CANCEL, style: "cancel" },
-        {
-          text: dict.SETTINGS_RESET_CONFIRM,
-          style: "destructive",
-          onPress: () => {
-            haptics.warning();
-            void (async () => {
-              setResetting(true);
-              try {
-                await resetSettings();
-              } finally {
-                setResetting(false);
-              }
-            })();
-          },
-        },
-      ],
-    );
-  };
+/** Footer wordmark height — same asset as the player and drawer. */
+const LOGO_HEIGHT = scale(56);
+
+const open = (url: string) => {
+  void Linking.openURL(url).catch((error) =>
+    console.warn("[Links] openURL failed:", error),
+  );
+};
+
+interface FooterLinkProps {
+  label: string;
+  url: string;
+}
+
+/** Inline hyperlink — no pill, no icon: the same quiet type as its line. */
+function FooterLink({ label, url }: FooterLinkProps) {
+  return (
+    <Text
+      accessibilityRole="link"
+      style={styles.footerLink}
+      onPress={() => open(url)}
+    >
+      {label}
+    </Text>
+  );
+}
+
+interface SocialLinkProps {
+  brand: SocialBrand;
+  label: string;
+  url: string;
+}
+
+/**
+ * Icon + label link in the social row. Icon-only reads as decoration, so
+ * every entry keeps its word next to the brand mark.
+ */
+function SocialLink({ brand, label, url }: SocialLinkProps) {
+  return (
+    <TouchableOpacity
+      accessibilityRole="link"
+      accessibilityLabel={label}
+      activeOpacity={0.7}
+      onPress={() => open(url)}
+      style={styles.footerSocial}
+    >
+      <SocialIcon brand={brand} size={scale(18)} color={THEME.COLORS.BRAND} />
+      <Text style={styles.footerSocialLabel}>{label}</Text>
+    </TouchableOpacity>
+  );
+}
+
+/**
+ * Page footer modeled on animu.moe: the app author first, then the Animu
+ * team (founder + devs), the copyright/legal notices, the Creative Commons
+ * badge and the radio's social profiles — all in one quiet, centered block.
+ */
+export function FooterSection() {
+  const dict = useDict();
 
   return (
-    <>
-      {/* Reset is its own quiet action at the very bottom — not a fake
-          "About" section (there's nothing else About-ish to group it with).
-          The version footer follows. */}
-      <View style={styles.group}>
+    <View style={styles.footer}>
+      <Logo size={LOGO_HEIGHT} />
+      <Text style={styles.footerVersion}>{`v${version}`}</Text>
+
+      <View style={styles.footerBlock}>
+        <Text style={styles.footerLead}>
+          {dict.SETTINGS_FOOTER_APP_CREDIT}{" "}
+          <FooterLink label={AUTHOR_NAME} url={PORTFOLIO_URL} />
+        </Text>
+        <Text style={styles.footerTeam}>{dict.SETTINGS_FOOTER_TEAM}</Text>
+      </View>
+
+      <View style={styles.footerBlock}>
+        <Text style={styles.footerLegal}>{dict.SETTINGS_FOOTER_FOUNDER}</Text>
+        <Text style={styles.footerLegal}>{dict.SETTINGS_FOOTER_DEV}</Text>
+      </View>
+
+      <View style={styles.footerBlock}>
+        <Text style={styles.footerLegal}>{dict.SETTINGS_COPYRIGHT_NOTICE}</Text>
+        <Text style={styles.footerLegal}>{dict.SETTINGS_FOOTER_LOCATION}</Text>
+        <Text style={styles.footerLegal}>{dict.SETTINGS_FOOTER_SYSTEM}</Text>
+        <Text style={styles.footerLegal}>{dict.SETTINGS_IMAGE_RIGHTS}</Text>
+        <Text style={styles.footerLegal}>
+          {dict.SETTINGS_FOOTER_CHIHAYA}{" "}
+          <FooterLink label={dict.SETTINGS_FOOTER_NPC} url={API.PIXIV_URL} />
+        </Text>
+      </View>
+
+      <View style={styles.footerBlock}>
+        <Text style={styles.footerLegal}>{dict.SETTINGS_FOOTER_NONPROFIT}</Text>
         <TouchableOpacity
-          accessibilityRole="button"
-          accessibilityState={{ disabled: resetting || undefined }}
+          accessibilityRole="link"
+          accessibilityLabel={dict.SETTINGS_FOOTER_LICENSE}
           activeOpacity={0.7}
-          onPress={confirmReset}
-          disabled={resetting}
-          style={[styles.resetRow, resetting && styles.resetRowDisabled]}
+          onPress={() => open(API.LICENSE_URL)}
         >
-          <Text style={styles.resetLabel}>{dict.SETTINGS_RESET_ROW}</Text>
-          {resetting && (
-            <ActivityIndicator size="small" color={THEME.COLORS.ERROR} />
-          )}
+          <Image
+            source={ccLicense}
+            contentFit="contain"
+            style={styles.footerBadge}
+          />
         </TouchableOpacity>
       </View>
 
-      <View style={styles.footer}>
-        <TouchableOpacity
-          accessibilityRole="link"
-          activeOpacity={0.7}
-          onPress={() => {
-            void Linking.openURL(PORTFOLIO_URL).catch((error) =>
-              console.warn("[Links] openURL failed:", error),
-            );
-          }}
-        >
-          <Text style={styles.footerText}>
-            {dict.VERSION_TEXT}{" "}
-            <Text style={styles.footerAuthor}>@{author}</Text>
-          </Text>
-        </TouchableOpacity>
+      <View style={styles.footerBlock}>
+        <Text style={styles.footerLegal}>{dict.SETTINGS_FOOTER_SOCIAL}</Text>
+        <View style={styles.footerSocials}>
+          <SocialLink
+            brand="facebook"
+            label="Facebook"
+            url={API.FACEBOOK_URL}
+          />
+          <SocialLink brand="x" label="X" url={API.X_URL} />
+          <SocialLink brand="bluesky" label="Bluesky" url={API.BLUESKY_URL} />
+        </View>
       </View>
-    </>
+    </View>
   );
 }

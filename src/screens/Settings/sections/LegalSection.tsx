@@ -1,5 +1,5 @@
 import * as Linking from "expo-linking";
-import { Text, View } from "react-native";
+import { View } from "react-native";
 
 import { API } from "@/api";
 import { SectionTitle } from "@/components/SectionTitle";
@@ -16,7 +16,7 @@ const open = (url: string) => {
 /**
  * Store-required legal links: the privacy policy (same URL declared on the
  * Play listing) and the project's copyright/license notice mirrored from the
- * animu.moe footer.
+ * animu.moe footer. The notice text itself lives in the page footer.
  */
 export function LegalSection() {
   const dict = useDict();
@@ -26,20 +26,17 @@ export function LegalSection() {
       <SectionTitle title={dict.SETTINGS_LEGAL_TITLE} icon="gavel" />
       <View style={styles.group}>
         <LinkRow
+          icon="privacy-tip"
           label={dict.SETTINGS_PRIVACY_POLICY}
           onPress={() => open(API.PRIVACY_URL)}
         />
         <Divider />
         <LinkRow
+          icon="copyright"
           label={dict.SETTINGS_COPYRIGHT_LICENSE}
           description={dict.SETTINGS_COPYRIGHT_DESC}
           onPress={() => open(API.LICENSE_URL)}
         />
-      </View>
-
-      <View style={styles.footer}>
-        <Text style={styles.footerText}>{dict.SETTINGS_COPYRIGHT_NOTICE}</Text>
-        <Text style={styles.footerText}>{dict.SETTINGS_IMAGE_RIGHTS}</Text>
       </View>
     </>
   );

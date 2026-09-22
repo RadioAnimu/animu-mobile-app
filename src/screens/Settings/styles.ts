@@ -6,6 +6,10 @@ import { scale } from "@/theme/responsive";
 const CARD_RADIUS = THEME.RADIUS.CARD;
 const CONTENT_PADDING = THEME.SPACE.LG;
 
+/** Creative Commons license badge — the source PNG is 88×31. */
+const BADGE_WIDTH = scale(88);
+const BADGE_HEIGHT = scale(31);
+
 export const SWITCH = {
   TRACK_WIDTH: scale(50),
   TRACK_HEIGHT: scale(30),
@@ -91,6 +95,12 @@ export const styles = StyleSheet.create({
     minHeight: THEME.LAYOUT.ROW_MIN_HEIGHT,
     paddingHorizontal: CONTENT_PADDING,
   },
+  // Fixed leading-icon column shared with Account's rows, so every settings
+  // row lines up on the same vertical grid as the section headings above it.
+  rowIcon: {
+    width: THEME.LAYOUT.ICON_BOX_WIDTH,
+    alignItems: "flex-start",
+  },
   rowDisabled: {
     opacity: THEME.OPACITY.DISABLED,
   },
@@ -126,17 +136,21 @@ export const styles = StyleSheet.create({
     fontSize: THEME.FONT_SIZE.BODY,
     lineHeight: THEME.LINE_HEIGHT.SUBHEAD,
   },
-  // Reset demoted to a plain row — a destructive action that's rarely the
-  // reason someone opens Settings shouldn't shout from a filled banner.
-  resetRow: {
+  // Reset is its own outlined action at the very bottom — a destructive
+  // button that reads as one, without shouting from a filled banner.
+  resetButton: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
-    minHeight: THEME.LAYOUT.ROW_MIN_HEIGHT,
-    paddingHorizontal: CONTENT_PADDING,
+    justifyContent: "flex-start",
     gap: THEME.SPACE.SM,
+    minHeight: scale(52),
+    paddingHorizontal: CONTENT_PADDING,
+    borderRadius: CARD_RADIUS,
+    borderWidth: 1,
+    borderColor: THEME.COLORS.ERROR_BORDER,
+    backgroundColor: THEME.COLORS.ERROR_SUBTLE,
   },
-  resetRowDisabled: {
+  resetButtonDisabled: {
     opacity: THEME.OPACITY.DISABLED,
   },
   resetLabel: {
@@ -175,16 +189,76 @@ export const styles = StyleSheet.create({
   footer: {
     alignItems: "center",
     marginTop: THEME.SPACE.XXXL,
+    paddingTop: THEME.SPACE.XL,
+    gap: THEME.SPACE.XS,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: THEME.COLORS.HAIRLINE,
   },
-  footerText: {
+  footerVersion: {
+    color: THEME.COLORS.TEXT_DIM,
+    fontFamily: THEME.FONT_FAMILY.REGULAR,
+    fontSize: THEME.FONT_SIZE.CAPTION,
+  },
+  // Credited blocks: the lead (author) / team, then the legal notice.
+  footerBlock: {
+    alignItems: "center",
+    gap: THEME.SPACE.XS,
+    marginTop: THEME.SPACE.MD,
+  },
+  footerLead: {
+    color: THEME.COLORS.TEXT,
+    fontFamily: THEME.FONT_FAMILY.REGULAR,
+    fontSize: THEME.FONT_SIZE.BODY,
+    lineHeight: THEME.LINE_HEIGHT.RELAXED,
+    textAlign: "center",
+  },
+  footerTeam: {
     color: THEME.COLORS.TEXT_SOFT,
     fontFamily: THEME.FONT_FAMILY.REGULAR,
     fontSize: THEME.FONT_SIZE.CAPTION,
     textAlign: "center",
   },
   footerAuthor: {
-    color: THEME.COLORS.TEXT,
+    color: THEME.COLORS.BRAND,
     fontFamily: THEME.FONT_FAMILY.BOLD,
     textDecorationLine: "underline",
+  },
+  footerLegal: {
+    color: THEME.COLORS.TEXT_DIM,
+    fontFamily: THEME.FONT_FAMILY.REGULAR,
+    fontSize: THEME.FONT_SIZE.CAPTION,
+    lineHeight: THEME.LINE_HEIGHT.RELAXED,
+    textAlign: "center",
+  },
+  /** Creative Commons badge — 88×31 like the source PNG. */
+  footerBadge: {
+    width: BADGE_WIDTH,
+    height: BADGE_HEIGHT,
+  },
+  /** Inline hyperlink inside a footer legal line (e.g. the artist credit). */
+  footerLink: {
+    color: THEME.COLORS.BRAND,
+    fontFamily: THEME.FONT_FAMILY.BOLD,
+    textDecorationLine: "underline",
+  },
+  footerSocials: {
+    flexDirection: "row",
+    alignItems: "center",
+    flexWrap: "wrap",
+    justifyContent: "center",
+    gap: THEME.SPACE.MD,
+  },
+  /** Icon + word link — a compact row of peers, no bubble chrome. */
+  footerSocial: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: THEME.SPACE.XS,
+    paddingVertical: THEME.SPACE.XS,
+    paddingHorizontal: THEME.SPACE.SM,
+  },
+  footerSocialLabel: {
+    color: THEME.COLORS.TEXT_SOFT,
+    fontFamily: THEME.FONT_FAMILY.BOLD,
+    fontSize: THEME.FONT_SIZE.CAPTION,
   },
 });

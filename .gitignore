@@ -155,3 +155,6 @@ dist/
 web-build/
 # AltStore distribution artifacts (host on your server, not in git)
 altstore/*.ipa
+
+# VS Code
+.vscode/

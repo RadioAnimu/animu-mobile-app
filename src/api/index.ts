@@ -12,6 +12,12 @@ const DISCORD_URL = "https://discord.animu.com.br";
 const PRIVACY_URL = "https://www.animu.com.br/privacypolicy";
 /** Project license shown in the animu.moe footer. */
 const LICENSE_URL = "https://creativecommons.org/licenses/by-nc-sa/4.0/";
+/** Social profiles mirrored from the animu.moe footer. */
+const FACEBOOK_URL = "https://www.facebook.com/radioanimu";
+const X_URL = "https://x.com/RadioAnimu";
+const BLUESKY_URL = "https://bsky.app/profile/animu.moe";
+/** Composer of the Chihaya Radio Station artwork (credited, not a station social). */
+const PIXIV_URL = "https://www.pixiv.net/en/users/3272093";
 
 export const API = {
   WEB_URL,
@@ -19,6 +25,10 @@ export const API = {
   DISCORD_URL,
   PRIVACY_URL,
   LICENSE_URL,
+  FACEBOOK_URL,
+  X_URL,
+  BLUESKY_URL,
+  PIXIV_URL,
 };
 
 /** Program dictionary entry used by the i18n PROGRAMS tables. */

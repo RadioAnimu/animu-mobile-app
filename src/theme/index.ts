@@ -25,6 +25,9 @@ export const THEME = {
     SCRIM: "rgba(0, 0, 0, 0.6)",
 
     ERROR: "#F87171",
+    /** Error at 12% / 40% — destructive buttons that read without shouting. */
+    ERROR_SUBTLE: "rgba(248, 113, 113, 0.12)",
+    ERROR_BORDER: "rgba(248, 113, 113, 0.4)",
 
     /** Oscilloscope stroke — preserved from the original visualizer. */
     VISUALIZER: "#723eb2",

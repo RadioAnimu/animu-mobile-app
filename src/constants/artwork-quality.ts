@@ -12,11 +12,12 @@ export interface CoverQualitySample {
 /** Placeholder artwork shown for the "off" tier (nothing is downloaded). */
 export const DEFAULT_COVER_SOURCE = require("@app/assets/default-cover.png");
 
+/** Ascending quality (and size) so the recommended tier sits mid-list. */
 export const COVER_QUALITY_SAMPLES: CoverQualitySample[] = [
   {
-    key: "high",
-    source: require("@/assets/covers/sample-cover-large.jpg"),
-    sizeBytes: 250121,
+    key: "low",
+    source: require("@/assets/covers/sample-cover-tiny.jpg"),
+    sizeBytes: 3961,
   },
   {
     key: "medium",
@@ -24,8 +25,8 @@ export const COVER_QUALITY_SAMPLES: CoverQualitySample[] = [
     sizeBytes: 53202,
   },
   {
-    key: "low",
-    source: require("@/assets/covers/sample-cover-tiny.jpg"),
-    sizeBytes: 3961,
+    key: "high",
+    source: require("@/assets/covers/sample-cover-large.jpg"),
+    sizeBytes: 250121,
   },
 ];

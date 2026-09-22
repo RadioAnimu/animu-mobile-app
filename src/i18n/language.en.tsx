@@ -1,5 +1,4 @@
 import Svg, { Path, Rect, SvgProps } from "react-native-svg";
-import { version } from "@app/package.json";
 import { Program } from "@/api";
 import { PROGRAM_IMAGES } from "@/constants/programs";
 import logo from "@/assets/logo_EN.webp";
@@ -140,7 +139,6 @@ const DICT = {
   LINKS: "Links",
   LINKS_DISCORD: "Discord",
   LINKS_WEBSITE: "Website",
-  VERSION_TEXT: `Version v${version} - Developed with lots of ❤️ by`,
   SETTINGS_TITLE: "Settings",
   SETTINGS_ACCOUNT_TITLE: "Account",
   SETTINGS_SAVE_DATA_TITLE: "Cover images",
@@ -158,7 +156,8 @@ const DICT = {
   SETTINGS_BATTERY_TITLE: "Connection",
   SETTINGS_LIVE_UPDATES_SWITCH: "Live song info:",
   SETTINGS_MEMORY_TITLE: "Storage",
-  SETTINGS_GENERAL_TITLE: "Language",
+  SETTINGS_GENERAL_TITLE: "General",
+  SETTINGS_PLAYBACK_TITLE: "Playback",
   SETTINGS_OSCILLOSCOPE_TITLE: "Visualizer",
   SETTINGS_VISUALIZER_SWITCH: "Sound wave:",
   SETTINGS_MEMORY_CLEAR_CACHE_SWITCH: "Reuse downloaded covers:",
@@ -210,10 +209,24 @@ const DICT = {
   SETTINGS_UPDATES_RESTART_MSG:
     "The downloaded update is applied after the app restarts.",
   SETTINGS_UPDATES_RESTART_CONFIRM: "Restart",
+  SETTINGS_ADVANCED_TITLE: "Advanced",
   SETTINGS_RESET_ROW: "Reset to default",
   SETTINGS_RESET_CONFIRM_TITLE: "Reset settings?",
   SETTINGS_RESET_CONFIRM_MSG: "All settings go back to their defaults.",
   SETTINGS_RESET_CONFIRM: "Reset",
+  SETTINGS_FOOTER_APP_CREDIT: "Mobile app by",
+  SETTINGS_FOOTER_TEAM: "Made with ❤️ and lots of ☕ by the Animu Team",
+  SETTINGS_FOOTER_FOUNDER: "Founded and designed by Lucas Lopes (LL!)",
+  SETTINGS_FOOTER_DEV:
+    "Developed by Afonso Oliveira (FZero), José Silva (Tossa), João Vitor (Mr.Zapp) and Ricardo Freitas (Ness)",
+  SETTINGS_FOOTER_LOCATION: "Santa Cruz do Capibaribe – Pernambuco, Brazil",
+  SETTINGS_FOOTER_SYSTEM: "Yuki Broadcasting System",
+  SETTINGS_FOOTER_CHIHAYA: "Chihaya Radio Station by",
+  SETTINGS_FOOTER_NONPROFIT:
+    "Non-profit project · Made with love for Otaku culture 💜",
+  SETTINGS_FOOTER_LICENSE: "License (BY-NC-SA) 4.0",
+  SETTINGS_FOOTER_SOCIAL: "Social media",
+  SETTINGS_FOOTER_NPC: "NPCpepper",
   SETTINGS_LEGAL_TITLE: "Legal",
   SETTINGS_PRIVACY_POLICY: "Privacy Policy",
   SETTINGS_COPYRIGHT_LICENSE: "Copyright & License",
