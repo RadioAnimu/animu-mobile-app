@@ -328,6 +328,7 @@ const DICT: Dict = {
   ACCOUNT_VERIFIED_INFO:
     "Só ouvintes verificados podem pedir músicas. Para se verificar, vincule uma conta do Discord e ative o 2FA nela.",
   ACCOUNT_CONNECTED_VIA: "Conectado com",
+  ACCOUNT_LAST_LOGIN: "Último acesso",
   ACCOUNT_SHOW: "Mostrar",
   ACCOUNT_HIDE: "Ocultar",
   ACCOUNT_REFRESH: "Atualizar perfil",
@@ -342,10 +343,10 @@ const DICT: Dict = {
   ACCOUNT_LINK_SUCCESS: "Conta vinculada",
   ACCOUNT_UNLINK_SUCCESS: "Conta desvinculada",
   ACCOUNT_ANIMU_CONNECT: "Animu Connect",
-  ACCOUNT_ANIMU_CONNECT_DESC: "Login e recuperação por e-mail.",
+  ACCOUNT_ANIMU_CONNECT_DESC: "Login sem senha por código de e-mail.",
   ACCOUNT_ANIMU_CONNECT_READY_AS: "Configurado como {email}",
   ACCOUNT_ANIMU_CONNECT_FORM_HINT:
-    "E-mails vinculados à sua conta Animu. E-mails de provedor são automáticos; você pode definir um e-mail extra.",
+    "E-mails de provedor são automáticos. Você pode adicionar um extra.",
   ACCOUNT_EMAILS_TITLE: "E-mails",
   ACCOUNT_DANGER: "Zona de perigo",
   ACCOUNT_LOGOUT: "Sair",
@@ -365,9 +366,7 @@ const DICT: Dict = {
   ACCOUNT_EMAIL_REMOVED: "E-mail removido",
   ACCOUNT_EMAIL_REMOVE_CONFIRM_TITLE: "Remover e-mail?",
   ACCOUNT_EMAIL_REMOVE_CONFIRM_MSG: "Você não poderá mais entrar com {email}.",
-  ACCOUNT_EMAIL_VERIFIED: "Verificado",
-  ACCOUNT_EMAIL_NOT_VERIFIED: "Não verificado",
-  ACCOUNT_EMAIL_PROVIDER: "Provedor",
+  ACCOUNT_EMAIL_EXTRA: "Extra",
   ACCOUNT_EMAIL_EMPTY: "Nenhum e-mail vinculado ainda.",
   SETTINGS_ACCOUNT_SIGN_IN: "Entrar na sua conta",
 };

@@ -51,9 +51,9 @@ export function LinkedAccounts({
             <View key={provider.name}>
               {index > 0 && <View style={styles.divider} />}
               <View style={styles.row}>
-              <View style={styles.rowIconCenter}>
-                <ProviderIcon provider={provider.name} size={THEME.ICON.MD} />
-              </View>
+                <View style={styles.rowIcon}>
+                  <ProviderIcon provider={provider.name} size={THEME.ICON.MD} />
+                </View>
                 <View style={styles.rowBody}>
                   <Text style={styles.rowLabel}>{provider.label}</Text>
                   {linked && display ? (

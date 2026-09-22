@@ -15,12 +15,17 @@ interface Props {
   busy?: boolean;
   /** Optional supporting line under the label. */
   description?: string;
+  /**
+   * Drops the button's own fill/radius so it can be stacked inside a shared
+   * danger-group card (the caller supplies the surface and the divider).
+   */
+  grouped?: boolean;
 }
 
 /**
  * Destructive action shared by Settings (reset) and Account (log out, delete):
- * one outlined error card, left-aligned, so "this cannot be undone" always
- * looks the same across the app.
+ * one solid danger fill, left-aligned, so "this cannot be undone" always looks
+ * the same across the app.
  */
 export function DestructiveAction({
   label,
@@ -28,6 +33,7 @@ export function DestructiveAction({
   onPress,
   busy,
   description,
+  grouped,
 }: Props) {
   return (
     <TouchableOpacity
@@ -36,12 +42,16 @@ export function DestructiveAction({
       activeOpacity={0.7}
       onPress={onPress}
       disabled={busy}
-      style={[styles.action, busy && styles.actionDisabled]}
+      style={[
+        styles.action,
+        grouped && styles.actionGrouped,
+        busy && styles.actionDisabled,
+      ]}
     >
       <MaterialIcons
         name={busy ? "hourglass-top" : icon}
         size={THEME.ICON.MD}
-        color={THEME.COLORS.ERROR}
+        color={THEME.COLORS.TEXT}
       />
       <View style={styles.body}>
         <Text style={styles.label}>{label}</Text>
@@ -49,7 +59,7 @@ export function DestructiveAction({
           <Text style={styles.description}>{description}</Text>
         )}
       </View>
-      {busy && <ActivityIndicator size="small" color={THEME.COLORS.ERROR} />}
+      {busy && <ActivityIndicator size="small" color={THEME.COLORS.TEXT} />}
     </TouchableOpacity>
   );
 }

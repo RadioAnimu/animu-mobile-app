@@ -115,7 +115,7 @@ export const OAUTH_PROVIDERS: Record<string, OauthProviderConfig> = {
   },
 };
 
-/** Animu Connect (native username/password) is not an OAuth provider. */
+/** Animu Connect (passwordless email codes) is not an OAuth provider. */
 export const ANIMU_CONNECT = {
   name: "animu",
   label: "Animu Connect",

@@ -4,8 +4,10 @@ import { THEME } from "@/theme";
 import { scale } from "@/theme/responsive";
 
 const CARD_RADIUS = THEME.RADIUS.CARD;
-const BANNER_HEIGHT = scale(96);
-const AVATAR = scale(84);
+// Twitter header proportions: a wide cover with the avatar hanging off its
+// bottom-left.
+const BANNER_HEIGHT = scale(104);
+const AVATAR = scale(72);
 // Shared content inset + row rhythm with Settings.
 const CONTENT_PADDING = THEME.SPACE.LG;
 
@@ -56,8 +58,16 @@ export const styles = StyleSheet.create({
     backgroundColor: THEME.COLORS.SURFACE,
     overflow: "hidden",
   },
-  // Floating over the banner so the identity card owns the refresh action
-  // instead of an orphaned full-width bar under it.
+  banner: {
+    height: BANNER_HEIGHT,
+    width: "100%",
+  },
+  bannerImage: {
+    width: "100%",
+    height: "100%",
+  },
+  // Floating over the cover so the refresh action stays reachable without an
+  // orphaned toolbar.
   refreshButton: {
     position: "absolute",
     top: THEME.SPACE.MD,
@@ -72,50 +82,40 @@ export const styles = StyleSheet.create({
   refreshButtonBusy: {
     opacity: THEME.OPACITY.DISABLED,
   },
-  banner: {
-    height: BANNER_HEIGHT,
-    width: "100%",
-  },
-  bannerImage: {
-    width: "100%",
-    height: "100%",
-  },
-  identity: {
+  // Avatar sits below the cover's left edge, name block beside it — the
+  // classic Twitter header arrangement. The name/handle column is centered
+  // against the avatar so it reads as one unit with it.
+  headerRow: {
     flexDirection: "row",
-    alignItems: "flex-end",
+    alignItems: "center",
+    gap: THEME.SPACE.LG,
     paddingHorizontal: CONTENT_PADDING,
+    paddingBottom: THEME.SPACE.MD,
   },
   avatarWrap: {
-    marginTop: -AVATAR / 2,
-    borderRadius: THEME.RADIUS.CIRCLE,
-    borderWidth: scale(3),
+    marginTop: -AVATAR * 0.5,
+    borderRadius: scale(14),
+    borderWidth: scale(4),
     borderColor: THEME.COLORS.SURFACE,
     backgroundColor: THEME.COLORS.APP_BG,
   },
   avatar: {
     width: AVATAR,
     height: AVATAR,
-    borderRadius: THEME.RADIUS.CIRCLE,
+    borderRadius: scale(10),
   },
-  verifiedInfo: {
-    color: THEME.COLORS.TEXT_SOFT,
-    fontFamily: THEME.FONT_FAMILY.REGULAR,
-    fontSize: THEME.FONT_SIZE.BODY,
-    lineHeight: THEME.LINE_HEIGHT.RELAXED,
-    paddingHorizontal: CONTENT_PADDING,
-    paddingTop: THEME.SPACE.MD,
-  },
-  identityInfo: {
+  identityText: {
     flex: 1,
-    // minWidth: 0 lets the column shrink below its content width so the
-    // revealed email + eye truncate with an ellipsis instead of pushing the
-    // provider action off-screen at 360dp.
     minWidth: 0,
-    paddingLeft: CONTENT_PADDING,
-    paddingBottom: THEME.SPACE.SM,
     gap: THEME.SPACE.XXS,
   },
+  nameRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: THEME.SPACE.XS,
+  },
   name: {
+    flexShrink: 1,
     color: THEME.COLORS.TEXT,
     fontFamily: THEME.FONT_FAMILY.BOLD,
     fontSize: THEME.FONT_SIZE.HEADING,
@@ -125,41 +125,60 @@ export const styles = StyleSheet.create({
     fontFamily: THEME.FONT_FAMILY.REGULAR,
     fontSize: THEME.FONT_SIZE.BODY,
   },
-  badges: {
-    flexDirection: "row",
-    marginTop: THEME.SPACE.XXS,
+  verifiedInfo: {
+    color: THEME.COLORS.TEXT_SOFT,
+    fontFamily: THEME.FONT_FAMILY.REGULAR,
+    fontSize: THEME.FONT_SIZE.BODY,
+    lineHeight: THEME.LINE_HEIGHT.RELAXED,
+    paddingHorizontal: CONTENT_PADDING,
+    paddingBottom: THEME.SPACE.SM,
   },
-  badge: {
+  // Twitter stats strip: small label over a value, split from the identity
+  // block by a hairline.
+  stats: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: THEME.SPACE.XL,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: THEME.COLORS.HAIRLINE,
+    paddingHorizontal: CONTENT_PADDING,
+    paddingTop: THEME.SPACE.MD,
+    paddingBottom: THEME.SPACE.LG,
+  },
+  statItem: {
+    gap: THEME.SPACE.XXS,
+  },
+  statValueRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: THEME.SPACE.XS,
-    paddingHorizontal: THEME.SPACE.SM,
-    paddingVertical: scale(3),
-    borderRadius: THEME.RADIUS.CIRCLE,
+    gap: THEME.SPACE.SM,
   },
-  badgeSuccess: {
-    backgroundColor: THEME.COLORS.BRAND_SUBTLE,
-  },
-  badgeMuted: {
-    backgroundColor: THEME.COLORS.SURFACE_SUBTLE,
-  },
-  badgeText: {
+  statLabel: {
     color: THEME.COLORS.TEXT_DIM,
-    fontFamily: THEME.FONT_FAMILY.BOLD,
+    fontFamily: THEME.FONT_FAMILY.REGULAR,
     fontSize: THEME.FONT_SIZE.CAPTION,
   },
-  badgeTextSuccess: {
-    color: THEME.COLORS.BRAND,
+  statValue: {
+    color: THEME.COLORS.TEXT,
+    fontFamily: THEME.FONT_FAMILY.BOLD,
+    fontSize: THEME.FONT_SIZE.LIST,
   },
   group: {
     backgroundColor: THEME.COLORS.SURFACE,
     borderRadius: CARD_RADIUS,
     overflow: "hidden",
   },
-  // Danger zone: the destructive actions as separate outlined cards, matching
-  // the reset action on the Settings screen.
-  dangerActions: {
-    gap: THEME.SPACE.MD,
+  // Danger zone: one shared danger card holding the destructive actions,
+  // mirroring the grouped-row pattern used everywhere else.
+  dangerGroup: {
+    backgroundColor: THEME.COLORS.DANGER,
+    borderRadius: CARD_RADIUS,
+    overflow: "hidden",
+  },
+  dangerDivider: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: "rgba(255, 255, 255, 0.2)",
+    marginLeft: CONTENT_PADDING,
   },
   divider: {
     height: StyleSheet.hairlineWidth,
@@ -175,13 +194,11 @@ export const styles = StyleSheet.create({
     minHeight: THEME.LAYOUT.ROW_MIN_HEIGHT,
     paddingHorizontal: CONTENT_PADDING,
   },
-  // Same centered 32px icon slot the Settings rows use, so a provider/brand
-  // mark lines up with the section heading above it.
-  rowIconCenter: {
+  // Left-aligned icon column shared with the section headings so a row icon
+  // sits on the exact same x as the heading icon above it.
+  rowIcon: {
     width: THEME.LAYOUT.ICON_BOX_WIDTH,
-    height: THEME.ICON.MD,
-    alignItems: "center",
-    justifyContent: "center",
+    alignItems: "flex-start",
   },
   rowBody: {
     flex: 1,

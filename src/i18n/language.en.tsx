@@ -322,6 +322,7 @@ const DICT = {
   ACCOUNT_VERIFIED_INFO:
     "Only verified listeners can request songs. To get verified, link a Discord account and enable 2FA on it.",
   ACCOUNT_CONNECTED_VIA: "Signed in with",
+  ACCOUNT_LAST_LOGIN: "Last login",
   ACCOUNT_SHOW: "Show",
   ACCOUNT_HIDE: "Hide",
   ACCOUNT_REFRESH: "Refresh profile",
@@ -336,10 +337,10 @@ const DICT = {
   ACCOUNT_LINK_SUCCESS: "Account linked",
   ACCOUNT_UNLINK_SUCCESS: "Account unlinked",
   ACCOUNT_ANIMU_CONNECT: "Animu Connect",
-  ACCOUNT_ANIMU_CONNECT_DESC: "Email sign-in and recovery.",
+  ACCOUNT_ANIMU_CONNECT_DESC: "Passwordless sign-in by email code.",
   ACCOUNT_ANIMU_CONNECT_READY_AS: "Configured as {email}",
   ACCOUNT_ANIMU_CONNECT_FORM_HINT:
-    "Emails linked to your Animu account. Provider emails are automatic; you can set one extra email.",
+    "Provider emails are automatic. You can add one extra email.",
   ACCOUNT_EMAILS_TITLE: "Emails",
   ACCOUNT_DANGER: "Danger zone",
   ACCOUNT_LOGOUT: "Log out",
@@ -360,9 +361,7 @@ const DICT = {
   ACCOUNT_EMAIL_REMOVE_CONFIRM_TITLE: "Remove email?",
   ACCOUNT_EMAIL_REMOVE_CONFIRM_MSG:
     "You will no longer be able to sign in with {email}.",
-  ACCOUNT_EMAIL_VERIFIED: "Verified",
-  ACCOUNT_EMAIL_NOT_VERIFIED: "Not verified",
-  ACCOUNT_EMAIL_PROVIDER: "Provider",
+  ACCOUNT_EMAIL_EXTRA: "Extra",
   ACCOUNT_EMAIL_EMPTY: "No emails linked yet.",
   SETTINGS_ACCOUNT_SIGN_IN: "Sign in to your account",
 };

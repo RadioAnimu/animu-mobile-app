@@ -25,9 +25,14 @@ export const THEME = {
     SCRIM: "rgba(0, 0, 0, 0.6)",
 
     ERROR: "#F87171",
-    /** Error at 12% / 40% — destructive buttons that read without shouting. */
-    ERROR_SUBTLE: "rgba(248, 113, 113, 0.12)",
-    ERROR_BORDER: "rgba(248, 113, 113, 0.4)",
+    /**
+     * Solid fill for destructive buttons. Derived from the error hue but
+     * shifted slightly cool toward the app's violet surfaces (hue 352°) and
+     * set at 75% saturation / 43% lightness, which lands on ~6.1:1 contrast
+     * with white text (WCAG AA, near AAA) while staying high-chroma so it
+     * reads as a deliberate red rather than a muddy brown.
+     */
+    DANGER: "#C01B31",
 
     /** Oscilloscope stroke — preserved from the original visualizer. */
     VISUALIZER: "#723eb2",

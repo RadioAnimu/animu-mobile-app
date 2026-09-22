@@ -5,8 +5,8 @@ import { Alert, ScrollView, Text, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { AnimuApiError } from "animu-api";
+import { AccountEmails } from "@/components/AccountEmails";
 import { Background } from "@/components/Background";
-import { AnimuConnectSheet } from "@/components/AnimuConnectSheet";
 import { DestructiveAction } from "@/components/DestructiveAction";
 import { ScreenHeader } from "@/components/ScreenHeader";
 import { SectionTitle } from "@/components/SectionTitle";
@@ -30,7 +30,6 @@ export function Account({ navigation }: Props) {
     profile,
     providers,
     isAuthenticated,
-    emails,
     imageVersion,
     logout,
     deleteAccount,
@@ -41,7 +40,6 @@ export function Account({ navigation }: Props) {
   const dict = useDict();
 
   const [busy, setBusy] = useState<string | null>(null);
-  const [connectVisible, setConnectVisible] = useState(false);
 
   const handle = async (key: string, action: () => Promise<void>) => {
     if (busy) return;
@@ -70,9 +68,6 @@ export function Account({ navigation }: Props) {
   // At least one social provider must always remain (Animu Connect does not
   // replace it) — the server refuses the last unlink with `last_provider`.
   const canUnlink = linkedProviders.length > 1;
-
-  const animuConnectEmail =
-    emails.find((email) => email.source === "animu")?.email ?? null;
 
   const confirmDelete = () => {
     Alert.alert(
@@ -175,50 +170,22 @@ export function Account({ navigation }: Props) {
 
           <SectionTitle title={dict.ACCOUNT_EMAILS_TITLE} icon="email" />
           <View style={styles.group}>
-            <TouchableOpacity
-              accessibilityRole="button"
-              activeOpacity={0.7}
-              onPress={() => setConnectVisible(true)}
-              style={styles.row}
-            >
-              <View style={styles.rowIconCenter}>
-                <MaterialIcons
-                  name="alternate-email"
-                  size={THEME.ICON.MD}
-                  color={THEME.COLORS.TEXT_DIM}
-                />
-              </View>
-              <View style={styles.rowBody}>
-                <Text style={styles.rowLabel}>
-                  {dict.ACCOUNT_ANIMU_CONNECT}
-                </Text>
-                <Text style={styles.rowCaption}>
-                  {animuConnectEmail
-                    ? dict.ACCOUNT_ANIMU_CONNECT_READY_AS.replace(
-                        "{email}",
-                        animuConnectEmail,
-                      )
-                    : dict.ACCOUNT_ANIMU_CONNECT_DESC}
-                </Text>
-              </View>
-              <MaterialIcons
-                name="chevron-right"
-                size={THEME.ICON.MD}
-                color={THEME.COLORS.TEXT_DIM}
-              />
-            </TouchableOpacity>
+            <AccountEmails />
           </View>
 
           <SectionTitle title={dict.ACCOUNT_DANGER} icon="warning" />
-          <View style={styles.dangerActions}>
+          <View style={styles.dangerGroup}>
             <DestructiveAction
+              grouped
               icon="logout"
               label={dict.ACCOUNT_LOGOUT}
               description={dict.ACCOUNT_LOGOUT_HINT}
               busy={busy === "logout"}
               onPress={() => void handle("logout", logout)}
             />
+            <View style={styles.dangerDivider} />
             <DestructiveAction
+              grouped
               icon="delete-forever"
               label={dict.ACCOUNT_DELETE}
               description={dict.ACCOUNT_DELETE_HINT}
@@ -227,11 +194,6 @@ export function Account({ navigation }: Props) {
             />
           </View>
         </ScrollView>
-
-        <AnimuConnectSheet
-          visible={connectVisible}
-          onClose={() => setConnectVisible(false)}
-        />
       </SafeAreaView>
     </Background>
   );

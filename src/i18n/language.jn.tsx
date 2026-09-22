@@ -324,6 +324,7 @@ const DICT: Dict = {
   ACCOUNT_VERIFIED_INFO:
     "リクエストできるのは認証済みのリスナーだけだよ。認証するには、ディスコードを連携して2段階認証を有効にしてね。",
   ACCOUNT_CONNECTED_VIA: "接続中:",
+  ACCOUNT_LAST_LOGIN: "最終ログイン",
   ACCOUNT_SHOW: "表示",
   ACCOUNT_HIDE: "隠す",
   ACCOUNT_REFRESH: "プロフィールを更新",
@@ -338,10 +339,10 @@ const DICT: Dict = {
   ACCOUNT_LINK_SUCCESS: "連携したよ",
   ACCOUNT_UNLINK_SUCCESS: "連携を解除したよ",
   ACCOUNT_ANIMU_CONNECT: "Animu Connect",
-  ACCOUNT_ANIMU_CONNECT_DESC: "メールでのログインと復旧。",
+  ACCOUNT_ANIMU_CONNECT_DESC: "メールコードでのパスワードレスログイン。",
   ACCOUNT_ANIMU_CONNECT_READY_AS: "{email} で設定済み",
   ACCOUNT_ANIMU_CONNECT_FORM_HINT:
-    "Animuアカウントに紐づくメール。プロバイダのメールは自動。追加メールを1つ設定できます。",
+    "プロバイダのメールは自動。追加メールを1つ設定できます。",
   ACCOUNT_EMAILS_TITLE: "メール",
   ACCOUNT_DANGER: "危険な操作",
   ACCOUNT_LOGOUT: "ログアウト",
@@ -362,9 +363,7 @@ const DICT: Dict = {
   ACCOUNT_EMAIL_REMOVED: "メールを削除したよ",
   ACCOUNT_EMAIL_REMOVE_CONFIRM_TITLE: "メールを削除する？",
   ACCOUNT_EMAIL_REMOVE_CONFIRM_MSG: "{email} でログインできなくなるよ。",
-  ACCOUNT_EMAIL_VERIFIED: "認証済み",
-  ACCOUNT_EMAIL_NOT_VERIFIED: "未認証",
-  ACCOUNT_EMAIL_PROVIDER: "プロバイダー",
+  ACCOUNT_EMAIL_EXTRA: "追加",
   ACCOUNT_EMAIL_EMPTY: "まだメールが登録されていないよ。",
   SETTINGS_ACCOUNT_SIGN_IN: "アカウントにログイン",
 };

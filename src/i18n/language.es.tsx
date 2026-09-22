@@ -330,6 +330,7 @@ const DICT: Dict = {
   ACCOUNT_VERIFIED_INFO:
     "Solo los oyentes verificados pueden pedir canciones. Para verificarte, vincula una cuenta de Discord y activa el 2FA en ella.",
   ACCOUNT_CONNECTED_VIA: "Sesión con",
+  ACCOUNT_LAST_LOGIN: "Último inicio de sesión",
   ACCOUNT_SHOW: "Mostrar",
   ACCOUNT_HIDE: "Ocultar",
   ACCOUNT_REFRESH: "Actualizar perfil",
@@ -344,10 +345,11 @@ const DICT: Dict = {
   ACCOUNT_LINK_SUCCESS: "Cuenta vinculada",
   ACCOUNT_UNLINK_SUCCESS: "Cuenta desvinculada",
   ACCOUNT_ANIMU_CONNECT: "Animu Connect",
-  ACCOUNT_ANIMU_CONNECT_DESC: "Inicio de sesión y recuperación por correo.",
+  ACCOUNT_ANIMU_CONNECT_DESC:
+    "Inicio de sesión sin contraseña por código de correo.",
   ACCOUNT_ANIMU_CONNECT_READY_AS: "Configurado como {email}",
   ACCOUNT_ANIMU_CONNECT_FORM_HINT:
-    "Correos vinculados a tu cuenta Animu. Los correos del proveedor son automáticos; puedes definir un correo extra.",
+    "Los correos del proveedor son automáticos. Puedes añadir uno extra.",
   ACCOUNT_EMAILS_TITLE: "Correos",
   ACCOUNT_DANGER: "Zona de peligro",
   ACCOUNT_LOGOUT: "Cerrar sesión",
@@ -368,9 +370,7 @@ const DICT: Dict = {
   ACCOUNT_EMAIL_REMOVED: "Correo eliminado",
   ACCOUNT_EMAIL_REMOVE_CONFIRM_TITLE: "¿Eliminar correo?",
   ACCOUNT_EMAIL_REMOVE_CONFIRM_MSG: "Ya no podrás iniciar sesión con {email}.",
-  ACCOUNT_EMAIL_VERIFIED: "Verificado",
-  ACCOUNT_EMAIL_NOT_VERIFIED: "No verificado",
-  ACCOUNT_EMAIL_PROVIDER: "Proveedor",
+  ACCOUNT_EMAIL_EXTRA: "Extra",
   ACCOUNT_EMAIL_EMPTY: "Aún no hay correos vinculados.",
   SETTINGS_ACCOUNT_SIGN_IN: "Inicia sesión en tu cuenta",
 };
