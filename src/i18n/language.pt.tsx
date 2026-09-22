@@ -179,6 +179,7 @@ const DICT: Dict = {
   SETTINGS_QUALITY_ROW_DESC: "Capas mais nítidas usam mais dados",
   SETTINGS_QUALITY_RECOMMENDED: "Recomendado",
   SETTINGS_VISUALIZER_DESC: "Onda sonora enquanto uma música toca",
+  SETTINGS_VISUALIZER_COMING_SOON: "Em breve no iOS",
   SETTINGS_LIVE_UPDATES_DESC: "Atualizações da música com o app em segundo plano",
   SETTINGS_FEEDBACK_TITLE: "Feedback",
   SETTINGS_HAPTICS_SWITCH: "Feedback tátil:",

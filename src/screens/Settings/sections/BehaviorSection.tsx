@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { View } from "react-native";
+import { Platform, View } from "react-native";
 
 import { SectionTitle } from "@/components/SectionTitle";
 import { Select, type SelectOption } from "@/components/Select";
@@ -14,6 +14,10 @@ import { styles } from "@/screens/Settings/styles";
 export function BehaviorSection() {
   const { settings, updateSettings } = useUserSettings();
   const dict = useDict();
+
+  // iOS cannot tap a live AVPlayer stream, so the visualizer is Android-only
+  // for now. The row stays visible but locked with a "coming soon" note.
+  const visualizerUnavailable = Platform.OS === "ios";
 
   const languageOptions = useMemo<
     SelectOption<keyof typeof LANGS_KEY_VALUE_PAIRS>[]
@@ -34,8 +38,13 @@ export function BehaviorSection() {
       <View style={styles.group}>
         <SettingsRow
           label={cleanLabel(dict.SETTINGS_VISUALIZER_SWITCH)}
-          description={dict.SETTINGS_VISUALIZER_DESC}
-          value={settings.visualizerHz > 0}
+          description={
+            visualizerUnavailable
+              ? dict.SETTINGS_VISUALIZER_COMING_SOON
+              : dict.SETTINGS_VISUALIZER_DESC
+          }
+          value={!visualizerUnavailable && settings.visualizerHz > 0}
+          disabled={visualizerUnavailable}
           onToggle={() =>
             updateSettings({ visualizerHz: settings.visualizerHz > 0 ? 0 : 1 })
           }

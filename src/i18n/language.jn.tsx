@@ -179,6 +179,7 @@ const DICT: Dict = {
   SETTINGS_QUALITY_ROW_DESC: "きれいな画像は通信量が増えます",
   SETTINGS_QUALITY_RECOMMENDED: "おすすめ",
   SETTINGS_VISUALIZER_DESC: "再生中に波形を表示します",
+  SETTINGS_VISUALIZER_COMING_SOON: "iOS では近日公開",
   SETTINGS_LIVE_UPDATES_DESC: "バックグラウンドでも曲情報を更新します",
   SETTINGS_FEEDBACK_TITLE: "フィードバック",
   SETTINGS_HAPTICS_SWITCH: "触覚フィードバック:",

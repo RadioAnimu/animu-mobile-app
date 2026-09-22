@@ -178,6 +178,7 @@ const DICT = {
   SETTINGS_QUALITY_ROW_DESC: "Sharper covers use more data",
   SETTINGS_QUALITY_RECOMMENDED: "Recommended",
   SETTINGS_VISUALIZER_DESC: "Sound wave while a song is playing",
+  SETTINGS_VISUALIZER_COMING_SOON: "Coming soon on iOS",
   SETTINGS_LIVE_UPDATES_DESC: "Song updates while the app is in the background",
   SETTINGS_FEEDBACK_TITLE: "Feedback",
   SETTINGS_HAPTICS_SWITCH: "Haptic feedback:",
