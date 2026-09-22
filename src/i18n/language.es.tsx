@@ -232,6 +232,7 @@ const DICT: Dict = {
     "Proyecto sin fines de lucro · Hecho con amor por la cultura Otaku 💜",
   SETTINGS_FOOTER_LICENSE: "Licencia (BY-NC-SA) 4.0",
   SETTINGS_FOOTER_SOCIAL: "Redes sociales",
+  SETTINGS_FOOTER_SOURCE: "Código fuente",
   SETTINGS_FOOTER_NPC: "NPCpepper",
   SETTINGS_LEGAL_TITLE: "Legal",
   SETTINGS_PRIVACY_POLICY: "Política de Privacidad",

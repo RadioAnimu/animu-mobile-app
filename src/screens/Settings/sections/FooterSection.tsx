@@ -135,6 +135,13 @@ export function FooterSection() {
           <SocialLink brand="bluesky" label="Bluesky" url={API.BLUESKY_URL} />
         </View>
       </View>
+
+      <View style={styles.footerBlock}>
+        <Text style={styles.footerLegal}>{dict.SETTINGS_FOOTER_SOURCE}</Text>
+        <View style={styles.footerSocials}>
+          <SocialLink brand="github" label="GitHub" url={API.GITHUB_URL} />
+        </View>
+      </View>
     </View>
   );
 }

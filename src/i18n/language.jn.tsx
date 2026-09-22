@@ -229,6 +229,7 @@ const DICT: Dict = {
     "非営利プロジェクト · オタク文化への愛から生まれました 💜",
   SETTINGS_FOOTER_LICENSE: "ライセンス (BY-NC-SA) 4.0",
   SETTINGS_FOOTER_SOCIAL: "SNS",
+  SETTINGS_FOOTER_SOURCE: "ソースコード",
   SETTINGS_FOOTER_NPC: "NPCpepper",
   SETTINGS_LEGAL_TITLE: "法的事項",
   SETTINGS_PRIVACY_POLICY: "プライバシーポリシー",

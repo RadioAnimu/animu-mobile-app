@@ -134,6 +134,10 @@ function useAuthProviderValue(): AuthContextType {
     async (nextUser: User) => {
       userRef.current = nextUser;
       setUser(nextUser);
+      // A fresh login can carry different avatar/banner media than whatever is
+      // cached for this device (the authenticated media endpoints keep their
+      // URL), so bust the image cache or the previous account's banner sticks.
+      setImageVersion((version) => version + 1);
       startSessionCheck();
       void loadProfile();
       void refreshEmails();
@@ -148,6 +152,10 @@ function useAuthProviderValue(): AuthContextType {
     userRef.current = result.user;
     setUser(result.user);
     setProfile(result.profile);
+    // The server refresh can replace the avatar/banner bytes behind the stable
+    // authenticated URLs (e.g. a newly pulled Discord banner) — bust the image
+    // cache so the fresh media is actually fetched instead of served stale.
+    setImageVersion((version) => version + 1);
     // The provider refresh can rename/verify the auto-registered emails.
     await refreshEmails();
   }, [refreshEmails]);
@@ -267,6 +275,8 @@ function useAuthProviderValue(): AuthContextType {
       setIsAuthenticating(true);
       try {
         await authFacade.linkProvider(provider);
+        // Linking can change the identity source (and thus the avatar/banner).
+        setImageVersion((version) => version + 1);
         await loadProfile();
         // Linking auto-registers the provider's email on Animu Connect.
         await refreshEmails();
@@ -280,6 +290,8 @@ function useAuthProviderValue(): AuthContextType {
   const unlinkProvider = useCallback(
     async (provider: string) => {
       await authFacade.unlinkProvider(provider);
+      // Unlinking can change the identity source (and thus the avatar/banner).
+      setImageVersion((version) => version + 1);
       await loadProfile();
       // Unlinking drops the provider's auto-registered email.
       await refreshEmails();

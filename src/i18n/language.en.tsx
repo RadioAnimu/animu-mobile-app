@@ -227,6 +227,7 @@ const DICT = {
     "Non-profit project · Made with love for Otaku culture 💜",
   SETTINGS_FOOTER_LICENSE: "License (BY-NC-SA) 4.0",
   SETTINGS_FOOTER_SOCIAL: "Social media",
+  SETTINGS_FOOTER_SOURCE: "Source code",
   SETTINGS_FOOTER_NPC: "NPCpepper",
   SETTINGS_LEGAL_TITLE: "Legal",
   SETTINGS_PRIVACY_POLICY: "Privacy Policy",
