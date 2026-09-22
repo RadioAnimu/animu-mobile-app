@@ -1,12 +1,6 @@
 import { useEffect, useState } from "react";
 import MaterialIcons from "@react-native-vector-icons/material-icons/static";
-import {
-  ActivityIndicator,
-  Animated,
-  Text,
-  TouchableOpacity,
-  View,
-} from "react-native";
+import { Animated, Text, TouchableOpacity, View } from "react-native";
 
 import { Avatar } from "@/components/Avatar";
 import { ProviderIcon } from "@/components/ProviderIcon";
@@ -99,9 +93,7 @@ export function AccountRow({ user, profile, dict, onPress }: AccountRowProps) {
             />
           </View>
           <View style={styles.rowBodySingle}>
-            <Text style={styles.rowLabel}>
-              {dict.SETTINGS_ACCOUNT_SIGN_IN}
-            </Text>
+            <Text style={styles.rowLabel}>{dict.SETTINGS_ACCOUNT_SIGN_IN}</Text>
           </View>
           <MaterialIcons
             name="chevron-right"
@@ -133,10 +125,7 @@ export function Switch({ value, disabled }: SwitchProps) {
 
   const translateX = position.interpolate({
     inputRange: [0, 1],
-    outputRange: [
-      0,
-      SWITCH.TRACK_WIDTH - SWITCH.THUMB - SWITCH.PADDING * 2,
-    ],
+    outputRange: [0, SWITCH.TRACK_WIDTH - SWITCH.THUMB - SWITCH.PADDING * 2],
   });
 
   return (
@@ -144,9 +133,7 @@ export function Switch({ value, disabled }: SwitchProps) {
       style={[
         styles.switchTrack,
         {
-          backgroundColor: value
-            ? THEME.COLORS.BRAND
-            : THEME.COLORS.SWITCH_OFF,
+          backgroundColor: value ? THEME.COLORS.BRAND : THEME.COLORS.SWITCH_OFF,
         },
         disabled && styles.switchDisabled,
       ]}
@@ -303,33 +290,8 @@ export function LinkRow({ label, icon, description, onPress }: LinkRowProps) {
   );
 }
 
-interface ResetRowProps {
+interface InfoRowProps {
   label: string;
-  busy?: boolean;
-  onPress: () => void;
-}
-
-/** Destructive outlined action that resets every setting to its default. */
-export function ResetRow({ label, busy, onPress }: ResetRowProps) {
-  return (
-    <TouchableOpacity
-      accessibilityRole="button"
-      accessibilityState={{ disabled: busy || undefined }}
-      activeOpacity={0.7}
-      onPress={onPress}
-      disabled={busy}
-      style={[styles.resetButton, busy && styles.resetButtonDisabled]}
-    >
-      {busy ? (
-        <ActivityIndicator size="small" color={THEME.COLORS.ERROR} />
-      ) : (
-        <MaterialIcons
-          name="restart-alt"
-          size={THEME.ICON.MD}
-          color={THEME.COLORS.ERROR}
-        />
-      )}
-      <Text style={styles.resetLabel}>{label}</Text>
-    </TouchableOpacity>
-  );
+  icon: MaterialIconName;
+  description?: string;
 }

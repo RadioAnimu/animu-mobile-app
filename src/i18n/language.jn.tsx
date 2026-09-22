@@ -148,7 +148,8 @@ const DICT: Dict = {
   SETTINGS_QUALITY_LIVE_LABEL_MEDIUM: "中",
   SETTINGS_QUALITY_LIVE_LABEL_HIGH: "高",
   SETTINGS_QUALITY_LIVE_LABEL_OFF: "オフ",
-  SETTINGS_QUALITY_LIVE_OFF_HINT: "カバーをどこにもダウンロードしない（通信量を節約）",
+  SETTINGS_QUALITY_LIVE_OFF_HINT:
+    "カバーをどこにもダウンロードしない（通信量を節約）",
   SETTINGS_COVER_LAST_REQUESTED_SWITCH: "リクエスト履歴のカバー：",
   SETTINGS_COVER_LAST_PLAYED_SWITCH: "最近流れた曲のカバー：",
   SETTINGS_COVER_REQUESTED_SWITCH: "リクエストするときのカバー：",
@@ -220,7 +221,8 @@ const DICT: Dict = {
   SETTINGS_FOOTER_FOUNDER: "設立・デザイン：Lucas Lopes (LL!)",
   SETTINGS_FOOTER_DEV:
     "開発：Afonso Oliveira (FZero)、José Silva (Tossa)、João Vitor (Mr.Zapp)、Ricardo Freitas (Ness)",
-  SETTINGS_FOOTER_LOCATION: "サンタクルス・ド・カピバリベ – ペルナンブコ州、ブラジル",
+  SETTINGS_FOOTER_LOCATION:
+    "サンタクルス・ド・カピバリベ – ペルナンブコ州、ブラジル",
   SETTINGS_FOOTER_SYSTEM: "Yuki 放送システム",
   SETTINGS_FOOTER_CHIHAYA: "Chihaya Radio Station by",
   SETTINGS_FOOTER_NONPROFIT:
@@ -254,8 +256,7 @@ const DICT: Dict = {
   REQUEST_ERROR_PEDIBLOCK:
     "この曲はもうリクエストされたよ。{time}のあとにまたリクエストできるよ。",
   REQUEST_ERROR_PEDIBLOCK_RECENT: "この曲はさっきリクエストされたばかりだよ。",
-  REQUEST_ERROR_BLOCK_90:
-    "「{detail}」の曲が直近90分で多すぎるよ。",
+  REQUEST_ERROR_BLOCK_90: "「{detail}」の曲が直近90分で多すぎるよ。",
   REQUEST_ERROR_HARUBLOCK: "この曲はAutoDJでさっき流れたばかりだよ。",
   REQUEST_ERROR_ONAIR: "DJが放送中のときはリクエストできないよ。",
   REQUEST_ERROR_BLOCOBLOCK: "今はリクエストをお休みしているよ。",
@@ -320,7 +321,6 @@ const DICT: Dict = {
   ACCOUNT_SIGN_IN: "ログイン",
   ACCOUNT_VERIFIED: "認証済み",
   ACCOUNT_NOT_VERIFIED: "未認証",
-  ACCOUNT_VERIFIED_INFO_OK: "認証済みだからリクエストできるよ。",
   ACCOUNT_VERIFIED_INFO:
     "リクエストできるのは認証済みのリスナーだけだよ。認証するには、ディスコードを連携して2段階認証を有効にしてね。",
   ACCOUNT_CONNECTED_VIA: "接続中:",
@@ -338,13 +338,17 @@ const DICT: Dict = {
   ACCOUNT_LINK_SUCCESS: "連携したよ",
   ACCOUNT_UNLINK_SUCCESS: "連携を解除したよ",
   ACCOUNT_ANIMU_CONNECT: "Animu Connect",
-  ACCOUNT_ANIMU_CONNECT_DESC: "メールコードでログイン。",
+  ACCOUNT_ANIMU_CONNECT_DESC: "メールでのログインと復旧。",
   ACCOUNT_ANIMU_CONNECT_READY_AS: "{email} で設定済み",
   ACCOUNT_ANIMU_CONNECT_FORM_HINT:
-    "Animu アカウントに登録したメールだよ。プロバイダーのメールは自動で、追加のメールを1つ設定できるよ。",
+    "Animuアカウントに紐づくメール。プロバイダのメールは自動。追加メールを1つ設定できます。",
+  ACCOUNT_EMAILS_TITLE: "メール",
   ACCOUNT_DANGER: "危険な操作",
   ACCOUNT_LOGOUT: "ログアウト",
+  ACCOUNT_LOGOUT_HINT:
+    "この端末のセッションを終了します。アカウントは残ります。",
   ACCOUNT_DELETE: "アカウントを削除",
+  ACCOUNT_DELETE_HINT: "プロフィールとセッションを完全に削除します。",
   ACCOUNT_DELETE_CONFIRM_TITLE: "アカウントを削除する？",
   ACCOUNT_DELETE_CONFIRM_MSG:
     "プロフィール・連携アカウント・セッションが完全に削除されるよ。元には戻せないよ。",

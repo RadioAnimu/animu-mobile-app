@@ -147,7 +147,8 @@ const DICT = {
   SETTINGS_QUALITY_LIVE_LABEL_MEDIUM: "Medium",
   SETTINGS_QUALITY_LIVE_LABEL_HIGH: "High",
   SETTINGS_QUALITY_LIVE_LABEL_OFF: "Off",
-  SETTINGS_QUALITY_LIVE_OFF_HINT: "No cover is downloaded anywhere — saves data",
+  SETTINGS_QUALITY_LIVE_OFF_HINT:
+    "No cover is downloaded anywhere — saves data",
   SETTINGS_COVER_LAST_REQUESTED_SWITCH: "Covers on your last requests:",
   SETTINGS_COVER_LAST_PLAYED_SWITCH: "Covers on recently played songs:",
   SETTINGS_COVER_REQUESTED_SWITCH: "Covers when requesting songs:",
@@ -318,7 +319,6 @@ const DICT = {
   ACCOUNT_SIGN_IN: "Sign in",
   ACCOUNT_VERIFIED: "Verified",
   ACCOUNT_NOT_VERIFIED: "Not verified",
-  ACCOUNT_VERIFIED_INFO_OK: "You're verified and can request songs.",
   ACCOUNT_VERIFIED_INFO:
     "Only verified listeners can request songs. To get verified, link a Discord account and enable 2FA on it.",
   ACCOUNT_CONNECTED_VIA: "Signed in with",
@@ -336,13 +336,16 @@ const DICT = {
   ACCOUNT_LINK_SUCCESS: "Account linked",
   ACCOUNT_UNLINK_SUCCESS: "Account unlinked",
   ACCOUNT_ANIMU_CONNECT: "Animu Connect",
-  ACCOUNT_ANIMU_CONNECT_DESC: "Sign in with an email code.",
+  ACCOUNT_ANIMU_CONNECT_DESC: "Email sign-in and recovery.",
   ACCOUNT_ANIMU_CONNECT_READY_AS: "Configured as {email}",
   ACCOUNT_ANIMU_CONNECT_FORM_HINT:
     "Emails linked to your Animu account. Provider emails are automatic; you can set one extra email.",
+  ACCOUNT_EMAILS_TITLE: "Emails",
   ACCOUNT_DANGER: "Danger zone",
   ACCOUNT_LOGOUT: "Log out",
+  ACCOUNT_LOGOUT_HINT: "Sign out on this device. Your account stays intact.",
   ACCOUNT_DELETE: "Delete account",
+  ACCOUNT_DELETE_HINT: "Permanently removes your profile and sessions.",
   ACCOUNT_DELETE_CONFIRM_TITLE: "Delete account?",
   ACCOUNT_DELETE_CONFIRM_MSG:
     "This permanently deletes your profile, linked accounts and sessions. This cannot be undone.",

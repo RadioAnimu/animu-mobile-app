@@ -7,7 +7,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { AnimuApiError } from "animu-api";
 import { Background } from "@/components/Background";
 import { AnimuConnectSheet } from "@/components/AnimuConnectSheet";
-import { ProviderIcon } from "@/components/ProviderIcon";
+import { DestructiveAction } from "@/components/DestructiveAction";
 import { ScreenHeader } from "@/components/ScreenHeader";
 import { SectionTitle } from "@/components/SectionTitle";
 import { useAlert } from "@/contexts/alert/AlertProvider";
@@ -135,7 +135,10 @@ export function Account({ navigation }: Props) {
 
   return (
     <Background>
-      <SafeAreaView style={styles.container} edges={["left", "right", "bottom"]}>
+      <SafeAreaView
+        style={styles.container}
+        edges={["left", "right", "bottom"]}
+      >
         {renderHeader()}
         <ScrollView contentContainerStyle={styles.content}>
           <ProfileCard
@@ -170,7 +173,7 @@ export function Account({ navigation }: Props) {
             }
           />
 
-          <SectionTitle title={dict.ACCOUNT_ANIMU_CONNECT} icon="vpn-key" />
+          <SectionTitle title={dict.ACCOUNT_EMAILS_TITLE} icon="email" />
           <View style={styles.group}>
             <TouchableOpacity
               accessibilityRole="button"
@@ -178,8 +181,12 @@ export function Account({ navigation }: Props) {
               onPress={() => setConnectVisible(true)}
               style={styles.row}
             >
-              <View style={styles.rowIcon}>
-                <ProviderIcon provider="animu" size={18} />
+              <View style={styles.rowIconCenter}>
+                <MaterialIcons
+                  name="alternate-email"
+                  size={THEME.ICON.MD}
+                  color={THEME.COLORS.TEXT_DIM}
+                />
               </View>
               <View style={styles.rowBody}>
                 <Text style={styles.rowLabel}>
@@ -203,46 +210,21 @@ export function Account({ navigation }: Props) {
           </View>
 
           <SectionTitle title={dict.ACCOUNT_DANGER} icon="warning" />
-          <View style={styles.group}>
-            <TouchableOpacity
-              accessibilityRole="button"
-              activeOpacity={0.7}
+          <View style={styles.dangerActions}>
+            <DestructiveAction
+              icon="logout"
+              label={dict.ACCOUNT_LOGOUT}
+              description={dict.ACCOUNT_LOGOUT_HINT}
+              busy={busy === "logout"}
               onPress={() => void handle("logout", logout)}
-              style={styles.row}
-            >
-              <View style={styles.rowIcon}>
-                <MaterialIcons
-                  name="logout"
-                  size={THEME.ICON.MD}
-                  color={THEME.COLORS.ERROR}
-                />
-              </View>
-              <View style={styles.rowBody}>
-                <Text style={[styles.rowLabel, styles.dangerText]}>
-                  {dict.ACCOUNT_LOGOUT}
-                </Text>
-              </View>
-            </TouchableOpacity>
-            <View style={styles.divider} />
-            <TouchableOpacity
-              accessibilityRole="button"
-              activeOpacity={0.7}
+            />
+            <DestructiveAction
+              icon="delete-forever"
+              label={dict.ACCOUNT_DELETE}
+              description={dict.ACCOUNT_DELETE_HINT}
+              busy={busy === "delete"}
               onPress={confirmDelete}
-              style={styles.row}
-            >
-              <View style={styles.rowIcon}>
-                <MaterialIcons
-                  name="delete-forever"
-                  size={THEME.ICON.MD}
-                  color={THEME.COLORS.ERROR}
-                />
-              </View>
-              <View style={styles.rowBody}>
-                <Text style={[styles.rowLabel, styles.dangerText]}>
-                  {dict.ACCOUNT_DELETE}
-                </Text>
-              </View>
-            </TouchableOpacity>
+            />
           </View>
         </ScrollView>
 

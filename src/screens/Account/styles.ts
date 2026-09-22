@@ -151,25 +151,15 @@ export const styles = StyleSheet.create({
   badgeTextSuccess: {
     color: THEME.COLORS.BRAND,
   },
-  meta: {
-    paddingHorizontal: CONTENT_PADDING,
-    paddingVertical: THEME.SPACE.MD,
-    gap: THEME.SPACE.XS,
-  },
-  metaRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: THEME.SPACE.XS,
-  },
-  metaText: {
-    color: THEME.COLORS.TEXT_DIM,
-    fontFamily: THEME.FONT_FAMILY.REGULAR,
-    fontSize: THEME.FONT_SIZE.BODY,
-  },
   group: {
     backgroundColor: THEME.COLORS.SURFACE,
     borderRadius: CARD_RADIUS,
     overflow: "hidden",
+  },
+  // Danger zone: the destructive actions as separate outlined cards, matching
+  // the reset action on the Settings screen.
+  dangerActions: {
+    gap: THEME.SPACE.MD,
   },
   divider: {
     height: StyleSheet.hairlineWidth,
@@ -185,9 +175,13 @@ export const styles = StyleSheet.create({
     minHeight: THEME.LAYOUT.ROW_MIN_HEIGHT,
     paddingHorizontal: CONTENT_PADDING,
   },
-  rowIcon: {
+  // Same centered 32px icon slot the Settings rows use, so a provider/brand
+  // mark lines up with the section heading above it.
+  rowIconCenter: {
     width: THEME.LAYOUT.ICON_BOX_WIDTH,
-    alignItems: "flex-start",
+    height: THEME.ICON.MD,
+    alignItems: "center",
+    justifyContent: "center",
   },
   rowBody: {
     flex: 1,
@@ -230,8 +224,5 @@ export const styles = StyleSheet.create({
     fontFamily: THEME.FONT_FAMILY.BOLD,
     fontSize: THEME.FONT_SIZE.CAPTION,
     paddingLeft: THEME.SPACE.MD,
-  },
-  dangerText: {
-    color: THEME.COLORS.ERROR,
   },
 });

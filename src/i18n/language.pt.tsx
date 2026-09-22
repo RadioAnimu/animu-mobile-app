@@ -148,7 +148,8 @@ const DICT: Dict = {
   SETTINGS_QUALITY_LIVE_LABEL_MEDIUM: "Média",
   SETTINGS_QUALITY_LIVE_LABEL_HIGH: "Alta",
   SETTINGS_QUALITY_LIVE_LABEL_OFF: "Desativada",
-  SETTINGS_QUALITY_LIVE_OFF_HINT: "Nenhuma capa é baixada em lugar nenhum — poupa dados",
+  SETTINGS_QUALITY_LIVE_OFF_HINT:
+    "Nenhuma capa é baixada em lugar nenhum — poupa dados",
   SETTINGS_COVER_LAST_REQUESTED_SWITCH: "Capas nas últimas pedidas:",
   SETTINGS_COVER_LAST_PLAYED_SWITCH: "Capas nas últimas tocadas:",
   SETTINGS_COVER_REQUESTED_SWITCH: "Capas ao pedir músicas:",
@@ -179,7 +180,8 @@ const DICT: Dict = {
   SETTINGS_QUALITY_RECOMMENDED: "Recomendado",
   SETTINGS_VISUALIZER_DESC: "Onda sonora enquanto uma música toca",
   SETTINGS_VISUALIZER_COMING_SOON: "Em breve no iOS",
-  SETTINGS_LIVE_UPDATES_DESC: "Atualizações da música com o app em segundo plano",
+  SETTINGS_LIVE_UPDATES_DESC:
+    "Atualizações da música com o app em segundo plano",
   SETTINGS_FEEDBACK_TITLE: "Feedback",
   SETTINGS_HAPTICS_SWITCH: "Feedback tátil:",
   SETTINGS_HAPTICS_DESC: "Vibração ao tocar e nas ações",
@@ -192,7 +194,8 @@ const DICT: Dict = {
   A11Y_PAUSE: "Pausar",
   A11Y_CLOSE: "Fechar",
   A11Y_SEARCH: "Pesquisar",
-  SETTINGS_MEMORY_CLEAR_CACHE_DESC: "Capas são guardadas para carregar mais rápido",
+  SETTINGS_MEMORY_CLEAR_CACHE_DESC:
+    "Capas são guardadas para carregar mais rápido",
   SETTINGS_UPDATES_TITLE: "Atualizações do app",
   SETTINGS_UPDATES_ROW: "Verificar atualizações",
   SETTINGS_UPDATES_DESC: "Receba as novidades sem reinstalar",
@@ -256,9 +259,9 @@ const DICT: Dict = {
   REQUEST_ERROR_PEDIBLOCK_RECENT: "Essa música foi pedida há pouco tempo.",
   REQUEST_ERROR_BLOCK_90:
     'Muitas músicas de "{detail}" nos últimos 90 minutos.',
-  REQUEST_ERROR_HARUBLOCK:
-    "Essa música tocou recentemente no AutoDJ.",
-  REQUEST_ERROR_ONAIR: "Os pedidos ficam desativados enquanto um DJ está ao vivo.",
+  REQUEST_ERROR_HARUBLOCK: "Essa música tocou recentemente no AutoDJ.",
+  REQUEST_ERROR_ONAIR:
+    "Os pedidos ficam desativados enquanto um DJ está ao vivo.",
   REQUEST_ERROR_BLOCOBLOCK: "Os pedidos estão desativados no momento.",
   REQUEST_ERROR_NOLOGIN: "Sua sessão expirou. Entre novamente.",
   REQUEST_ERROR_NO2FA:
@@ -268,7 +271,8 @@ const DICT: Dict = {
   REQUEST_SUCCESS: "Pedido feito com sucesso!",
   REQUEST_SEARCH_PLACEHOLDER: "Digite aqui para pesquisar",
   REQUEST_SEARCH_EMPTY: "Nenhuma música encontrada. Tente outra busca.",
-  REQUEST_SEARCH_ERROR: "Não foi possível pesquisar agora. Verifique sua conexão.",
+  REQUEST_SEARCH_ERROR:
+    "Não foi possível pesquisar agora. Verifique sua conexão.",
   THEME_WORD: "Tema",
   LOGIN_WORD: "Entrar com",
   HARU_CHAN_TEXT: "HARU-CHAN",
@@ -321,7 +325,6 @@ const DICT: Dict = {
   ACCOUNT_SIGN_IN: "Entrar",
   ACCOUNT_VERIFIED: "Verificado",
   ACCOUNT_NOT_VERIFIED: "Não verificado",
-  ACCOUNT_VERIFIED_INFO_OK: "Você está verificado e pode pedir músicas.",
   ACCOUNT_VERIFIED_INFO:
     "Só ouvintes verificados podem pedir músicas. Para se verificar, vincule uma conta do Discord e ative o 2FA nela.",
   ACCOUNT_CONNECTED_VIA: "Conectado com",
@@ -339,13 +342,16 @@ const DICT: Dict = {
   ACCOUNT_LINK_SUCCESS: "Conta vinculada",
   ACCOUNT_UNLINK_SUCCESS: "Conta desvinculada",
   ACCOUNT_ANIMU_CONNECT: "Animu Connect",
-  ACCOUNT_ANIMU_CONNECT_DESC: "Entre com um código por e-mail.",
+  ACCOUNT_ANIMU_CONNECT_DESC: "Login e recuperação por e-mail.",
   ACCOUNT_ANIMU_CONNECT_READY_AS: "Configurado como {email}",
   ACCOUNT_ANIMU_CONNECT_FORM_HINT:
-    "E-mails vinculados à sua conta Animu. E-mails de provedores são automáticos; você pode definir um e-mail extra.",
+    "E-mails vinculados à sua conta Animu. E-mails de provedor são automáticos; você pode definir um e-mail extra.",
+  ACCOUNT_EMAILS_TITLE: "E-mails",
   ACCOUNT_DANGER: "Zona de perigo",
-  ACCOUNT_LOGOUT: "Sair da conta",
+  ACCOUNT_LOGOUT: "Sair",
+  ACCOUNT_LOGOUT_HINT: "Encerra a sessão neste aparelho. Sua conta continua.",
   ACCOUNT_DELETE: "Excluir conta",
+  ACCOUNT_DELETE_HINT: "Remove permanentemente seu perfil e sessões.",
   ACCOUNT_DELETE_CONFIRM_TITLE: "Excluir conta?",
   ACCOUNT_DELETE_CONFIRM_MSG:
     "Isso apaga permanentemente seu perfil, contas vinculadas e sessões. Não pode ser desfeito.",
@@ -358,8 +364,7 @@ const DICT: Dict = {
   ACCOUNT_EMAIL_REMOVE: "Remover",
   ACCOUNT_EMAIL_REMOVED: "E-mail removido",
   ACCOUNT_EMAIL_REMOVE_CONFIRM_TITLE: "Remover e-mail?",
-  ACCOUNT_EMAIL_REMOVE_CONFIRM_MSG:
-    "Você não poderá mais entrar com {email}.",
+  ACCOUNT_EMAIL_REMOVE_CONFIRM_MSG: "Você não poderá mais entrar com {email}.",
   ACCOUNT_EMAIL_VERIFIED: "Verificado",
   ACCOUNT_EMAIL_NOT_VERIFIED: "Não verificado",
   ACCOUNT_EMAIL_PROVIDER: "Provedor",

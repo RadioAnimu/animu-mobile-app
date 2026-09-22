@@ -148,7 +148,8 @@ const DICT: Dict = {
   SETTINGS_QUALITY_LIVE_LABEL_MEDIUM: "Media",
   SETTINGS_QUALITY_LIVE_LABEL_HIGH: "Alta",
   SETTINGS_QUALITY_LIVE_LABEL_OFF: "Desactivada",
-  SETTINGS_QUALITY_LIVE_OFF_HINT: "Ninguna portada se descarga en ninguna parte — ahorra datos",
+  SETTINGS_QUALITY_LIVE_OFF_HINT:
+    "Ninguna portada se descarga en ninguna parte — ahorra datos",
   SETTINGS_COVER_LAST_REQUESTED_SWITCH: "Últimas solicitudes de portadas:",
   SETTINGS_COVER_LAST_PLAYED_SWITCH: "Últimas reproducciones de portadas:",
   SETTINGS_COVER_REQUESTED_SWITCH: "Hacer solicitudes con portadas:",
@@ -179,7 +180,8 @@ const DICT: Dict = {
   SETTINGS_QUALITY_RECOMMENDED: "Recomendado",
   SETTINGS_VISUALIZER_DESC: "Onda de sonido mientras suena una canción",
   SETTINGS_VISUALIZER_COMING_SOON: "Próximamente en iOS",
-  SETTINGS_LIVE_UPDATES_DESC: "Novedades de canciones con la app en segundo plano",
+  SETTINGS_LIVE_UPDATES_DESC:
+    "Novedades de canciones con la app en segundo plano",
   SETTINGS_FEEDBACK_TITLE: "Respuesta",
   SETTINGS_HAPTICS_SWITCH: "Respuesta háptica:",
   SETTINGS_HAPTICS_DESC: "Vibración al tocar y en las acciones",
@@ -192,7 +194,8 @@ const DICT: Dict = {
   A11Y_PAUSE: "Pausar",
   A11Y_CLOSE: "Cerrar",
   A11Y_SEARCH: "Buscar",
-  SETTINGS_MEMORY_CLEAR_CACHE_DESC: "Las portadas se guardan para cargar más rápido",
+  SETTINGS_MEMORY_CLEAR_CACHE_DESC:
+    "Las portadas se guardan para cargar más rápido",
   SETTINGS_UPDATES_TITLE: "Actualizaciones de la app",
   SETTINGS_UPDATES_ROW: "Buscar actualizaciones",
   SETTINGS_UPDATES_DESC: "Recibe las novedades sin reinstalar",
@@ -203,7 +206,8 @@ const DICT: Dict = {
   SETTINGS_UPDATES_CHECKING: "Comprobando…",
   SETTINGS_UPDATES_DOWNLOADING: "Descargando…",
   SETTINGS_UPDATES_UP_TO_DATE: "Estás al día",
-  SETTINGS_UPDATES_DOWNLOADED: "Actualización descargada — reinicia para aplicar",
+  SETTINGS_UPDATES_DOWNLOADED:
+    "Actualización descargada — reinicia para aplicar",
   SETTINGS_UPDATES_READY: "Actualización lista",
   SETTINGS_UPDATES_ERROR: "No se pudieron buscar actualizaciones",
   SETTINGS_UPDATES_RESTART_TITLE: "¿Reiniciar ahora?",
@@ -213,7 +217,8 @@ const DICT: Dict = {
   SETTINGS_ADVANCED_TITLE: "Avanzado",
   SETTINGS_RESET_ROW: "Restablecer valores",
   SETTINGS_RESET_CONFIRM_TITLE: "¿Restablecer los ajustes?",
-  SETTINGS_RESET_CONFIRM_MSG: "Todos los ajustes vuelven a sus valores originales.",
+  SETTINGS_RESET_CONFIRM_MSG:
+    "Todos los ajustes vuelven a sus valores originales.",
   SETTINGS_RESET_CONFIRM: "Restablecer",
   SETTINGS_FOOTER_APP_CREDIT: "App móvil por",
   SETTINGS_FOOTER_TEAM: "Hecho con ❤️ y mucho ☕ por el Equipo Animu",
@@ -256,10 +261,11 @@ const DICT: Dict = {
   REQUEST_ERROR_PEDIBLOCK_RECENT: "Esta canción fue solicitada hace muy poco.",
   REQUEST_ERROR_BLOCK_90:
     'Demasiadas canciones de "{detail}" en los últimos 90 minutos.',
-  REQUEST_ERROR_HARUBLOCK:
-    "Esta canción sonó hace muy poco en el AutoDJ.",
-  REQUEST_ERROR_ONAIR: "Las solicitudes están desactivadas mientras hay un DJ en vivo.",
-  REQUEST_ERROR_BLOCOBLOCK: "Las solicitudes están desactivadas por el momento.",
+  REQUEST_ERROR_HARUBLOCK: "Esta canción sonó hace muy poco en el AutoDJ.",
+  REQUEST_ERROR_ONAIR:
+    "Las solicitudes están desactivadas mientras hay un DJ en vivo.",
+  REQUEST_ERROR_BLOCOBLOCK:
+    "Las solicitudes están desactivadas por el momento.",
   REQUEST_ERROR_NOLOGIN: "Tu sesión expiró. Inicia sesión de nuevo.",
   REQUEST_ERROR_NO2FA:
     "Necesitas tener la 2FA activada en Discord para hacer solicitudes.",
@@ -268,8 +274,7 @@ const DICT: Dict = {
   REQUEST_SUCCESS: "¡Solicitud realizada con éxito!",
   REQUEST_SEARCH_PLACEHOLDER: "Escribe aquí para buscar",
   REQUEST_SEARCH_EMPTY: "No se encontraron canciones. Prueba otra búsqueda.",
-  REQUEST_SEARCH_ERROR:
-    "No se pudo buscar ahora. Revisa tu conexión.",
+  REQUEST_SEARCH_ERROR: "No se pudo buscar ahora. Revisa tu conexión.",
   HARU_CHAN_TEXT: "HARU-CHAN",
   THEME_WORD: "Tema",
   LOGIN_WORD: "Ingresar al",
@@ -322,7 +327,6 @@ const DICT: Dict = {
   ACCOUNT_SIGN_IN: "Iniciar sesión",
   ACCOUNT_VERIFIED: "Verificado",
   ACCOUNT_NOT_VERIFIED: "No verificado",
-  ACCOUNT_VERIFIED_INFO_OK: "Estás verificado y puedes pedir canciones.",
   ACCOUNT_VERIFIED_INFO:
     "Solo los oyentes verificados pueden pedir canciones. Para verificarte, vincula una cuenta de Discord y activa el 2FA en ella.",
   ACCOUNT_CONNECTED_VIA: "Sesión con",
@@ -340,13 +344,17 @@ const DICT: Dict = {
   ACCOUNT_LINK_SUCCESS: "Cuenta vinculada",
   ACCOUNT_UNLINK_SUCCESS: "Cuenta desvinculada",
   ACCOUNT_ANIMU_CONNECT: "Animu Connect",
-  ACCOUNT_ANIMU_CONNECT_DESC: "Inicia sesión con un código por correo.",
+  ACCOUNT_ANIMU_CONNECT_DESC: "Inicio de sesión y recuperación por correo.",
   ACCOUNT_ANIMU_CONNECT_READY_AS: "Configurado como {email}",
   ACCOUNT_ANIMU_CONNECT_FORM_HINT:
-    "Correos vinculados a tu cuenta de Animu. Los correos de proveedores son automáticos; puedes definir un correo extra.",
+    "Correos vinculados a tu cuenta Animu. Los correos del proveedor son automáticos; puedes definir un correo extra.",
+  ACCOUNT_EMAILS_TITLE: "Correos",
   ACCOUNT_DANGER: "Zona de peligro",
   ACCOUNT_LOGOUT: "Cerrar sesión",
+  ACCOUNT_LOGOUT_HINT:
+    "Cierra la sesión en este dispositivo. Tu cuenta sigue igual.",
   ACCOUNT_DELETE: "Eliminar cuenta",
+  ACCOUNT_DELETE_HINT: "Elimina permanentemente tu perfil y sesiones.",
   ACCOUNT_DELETE_CONFIRM_TITLE: "¿Eliminar cuenta?",
   ACCOUNT_DELETE_CONFIRM_MSG:
     "Esto elimina permanentemente tu perfil, cuentas vinculadas y sesiones. No se puede deshacer.",
@@ -359,8 +367,7 @@ const DICT: Dict = {
   ACCOUNT_EMAIL_REMOVE: "Eliminar",
   ACCOUNT_EMAIL_REMOVED: "Correo eliminado",
   ACCOUNT_EMAIL_REMOVE_CONFIRM_TITLE: "¿Eliminar correo?",
-  ACCOUNT_EMAIL_REMOVE_CONFIRM_MSG:
-    "Ya no podrás iniciar sesión con {email}.",
+  ACCOUNT_EMAIL_REMOVE_CONFIRM_MSG: "Ya no podrás iniciar sesión con {email}.",
   ACCOUNT_EMAIL_VERIFIED: "Verificado",
   ACCOUNT_EMAIL_NOT_VERIFIED: "No verificado",
   ACCOUNT_EMAIL_PROVIDER: "Proveedor",

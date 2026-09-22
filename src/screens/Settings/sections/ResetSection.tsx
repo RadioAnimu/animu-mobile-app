@@ -1,10 +1,10 @@
 import { useState } from "react";
 import { Alert } from "react-native";
 
+import { DestructiveAction } from "@/components/DestructiveAction";
 import { SectionTitle } from "@/components/SectionTitle";
 import { useUserSettings } from "@/contexts/user/UserSettingsProvider";
 import { useDict } from "@/hooks/useDict";
-import { ResetRow } from "@/screens/Settings/rows";
 import { haptics } from "@/utils/haptics";
 
 /** Advanced section holding the destructive "reset everything" action. */
@@ -41,7 +41,8 @@ export function ResetSection() {
   return (
     <>
       <SectionTitle title={dict.SETTINGS_ADVANCED_TITLE} icon="tune" />
-      <ResetRow
+      <DestructiveAction
+        icon="restart-alt"
         label={dict.SETTINGS_RESET_ROW}
         busy={resetting}
         onPress={confirmReset}

@@ -136,28 +136,6 @@ export const styles = StyleSheet.create({
     fontSize: THEME.FONT_SIZE.BODY,
     lineHeight: THEME.LINE_HEIGHT.SUBHEAD,
   },
-  // Reset is its own outlined action at the very bottom — a destructive
-  // button that reads as one, without shouting from a filled banner.
-  resetButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "flex-start",
-    gap: THEME.SPACE.SM,
-    minHeight: scale(52),
-    paddingHorizontal: CONTENT_PADDING,
-    borderRadius: CARD_RADIUS,
-    borderWidth: 1,
-    borderColor: THEME.COLORS.ERROR_BORDER,
-    backgroundColor: THEME.COLORS.ERROR_SUBTLE,
-  },
-  resetButtonDisabled: {
-    opacity: THEME.OPACITY.DISABLED,
-  },
-  resetLabel: {
-    color: THEME.COLORS.ERROR,
-    fontFamily: THEME.FONT_FAMILY.BOLD,
-    fontSize: THEME.FONT_SIZE.LIST,
-  },
   rowValue: {
     flexDirection: "row",
     alignItems: "center",
