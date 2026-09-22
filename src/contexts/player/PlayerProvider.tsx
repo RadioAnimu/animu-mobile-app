@@ -125,6 +125,27 @@ export const PlayerProvider: React.FC<{
   useEffect(() => {
     let cancelled = false;
     let unsubscribeAssistant: (() => void) | null = null;
+    // A Siri/Google deep link can land before the player has a stream to
+    // resolve (cold start via an App Intent). Buffer it instead of dropping it.
+    let assistantPlayPending = false;
+
+    const playFromAssistant = () => {
+      playerServiceInstance.play().catch((error) => {
+        console.warn("[PlayerProvider] Assistant play failed:", error);
+      });
+    };
+
+    // Phone assistants (Siri / Google) deep-link into playback. Subscribe
+    // BEFORE bootstrap: a deep-link "url" event that arrives while the player
+    // is still booting would otherwise fire with no listener attached.
+    unsubscribeAssistant = subscribeAssistantActions((action) => {
+      if (action !== "play") return;
+      if (playerServiceInstance.isReady) {
+        playFromAssistant();
+      } else {
+        assistantPlayPending = true;
+      }
+    });
 
     const initializePlayer = async () => {
       try {
@@ -154,15 +175,11 @@ export const PlayerProvider: React.FC<{
 
         if (cancelled) return;
 
-        // Phone assistants (Siri / Google) deep-link into playback. Subscribed
-        // only after setup so `play()` always has a stream to resolve.
-        unsubscribeAssistant = subscribeAssistantActions((action) => {
-          if (action === "play") {
-            playerServiceInstance.play().catch((error) => {
-              console.warn("[PlayerProvider] Assistant play failed:", error);
-            });
-          }
-        });
+        // Drain a deep link that arrived while the player was still booting.
+        if (assistantPlayPending) {
+          assistantPlayPending = false;
+          playFromAssistant();
+        }
       } catch (error) {
         console.error("[PlayerProvider] Player initialization failed:", error);
         // The service never flipped its initialized flag, so the store
