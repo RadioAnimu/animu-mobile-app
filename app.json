@@ -9,7 +9,7 @@
     "backgroundColor": "#270051",
     "scheme": "animuapp",
     "ios": {
-      "supportsTablet": true,
+      "supportsTablet": false,
       "bundleIdentifier": "com.nessjs.animu",
       "appleTeamId": "RWDZC8478Q",
       "infoPlist": {

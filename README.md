@@ -143,6 +143,8 @@ src/
 - [Expo CLI](https://docs.expo.dev/more/create-expo/) and an Expo account (for EAS)
 - Android Studio / Xcode toolchains for native builds
 - A device or emulator. The app targets a live station backend, so most features require network access to `animu.moe`.
+- The licensed **Proxima Nova** font files — they are commercial and are not
+  committed to this repository. See [`src/assets/fonts/README.md`](src/assets/fonts/README.md).
 
 ### Install & run
 
@@ -230,8 +232,23 @@ All station endpoints are wrapped by the [`animu-api`](https://github.com/RadioA
 - [ ] Push notifications for program/live events
 - [ ] Expanded localization coverage
 
+## Store submission
+
+Release checklists and review notes for both stores:
+
+- [`STORE_SUBMISSION.md`](STORE_SUBMISSION.md) — master checklist, data inventory, privacy-policy edits
+- [`APP_STORE_REVIEW_NOTES.md`](APP_STORE_REVIEW_NOTES.md) — Apple review notes + App Privacy
+- [`PLAY_STORE_REVIEW_NOTES.md`](PLAY_STORE_REVIEW_NOTES.md) — Play Data safety, data deletion, content rating
+
 ## License
 
-[MIT](LICENSE) © 2023 RadioAnimu.
+The app's source code is [MIT](LICENSE) © 2023 RadioAnimu. The MIT license
+covers the source code only — see [NOTICE](NOTICE) for the full scope.
 
-Rádio Animu is a non-profit community project; all artwork belongs to its respective creators and studios.
+Rádio Animu is a non-profit community project. The station's original content
+is licensed [CC BY-NC-SA 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/).
+Artwork and media owned by others are **not** covered by that license — see
+[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) for attributions. The bundled
+Proxima Nova font is commercial and is not included in this repository (see
+[`src/assets/fonts/README.md`](src/assets/fonts/README.md)). The `animu-api`
+submodule is a separate MIT-licensed repository.

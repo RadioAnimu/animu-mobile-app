@@ -1,0 +1,38 @@
+Animu Mobile App
+================
+
+This NOTICE describes what the MIT license in LICENSE covers, and what it does
+not. The MIT license covers the application source code in this repository only.
+
+Not covered by the MIT license
+------------------------------
+
+1. Brand
+   The "Rádio Animu" / "Animu" name, logo and brand. No trademark or brand
+   rights are granted by the MIT license; forks may not present themselves as
+   the official app or station.
+
+2. Station content
+   The station's original content is licensed under Creative Commons
+   Attribution-NonCommercial-ShareAlike 4.0 (CC BY-NC-SA 4.0):
+   https://creativecommons.org/licenses/by-nc-sa/4.0/
+
+3. Third-party artwork and media
+   Some bundled assets are third-party works (for example the sample cover
+   artwork and the request-screen background collage) and belong to their
+   respective creators and studios. They are not covered by the MIT or
+   CC BY-NC-SA licenses. See THIRD_PARTY_NOTICES.md for details and the rights
+   holders' contact.
+
+4. Fonts
+   This repository does not include the Proxima Nova typefaces. Proxima Nova
+   is a commercial font (Copyright (c) Mark Simonson, 2005, all rights
+   reserved) and its license does not permit redistribution in a public
+   repository. The app's licensed font files are supplied locally and at build
+   time — see src/assets/fonts/README.md.
+
+The animu-api package
+---------------------
+
+The `animu-api` git submodule (packages/animu-api) is a separate repository,
+licensed under MIT — see packages/animu-api/LICENSE.

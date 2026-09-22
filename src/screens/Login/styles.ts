@@ -67,9 +67,6 @@ export const styles = StyleSheet.create({
     borderRadius: CARD_RADIUS,
     backgroundColor: THEME.COLORS.SURFACE,
   },
-  methodDisabled: {
-    opacity: THEME.OPACITY.DISABLED,
-  },
   methodIcon: {
     width: THEME.LAYOUT.ICON_BOX_WIDTH,
     alignItems: "flex-start",
@@ -80,11 +77,6 @@ export const styles = StyleSheet.create({
     fontFamily: THEME.FONT_FAMILY.BOLD,
     fontSize: THEME.FONT_SIZE.LIST,
     paddingRight: THEME.SPACE.MD,
-  },
-  soon: {
-    color: THEME.COLORS.TEXT_DIM,
-    fontFamily: THEME.FONT_FAMILY.REGULAR,
-    fontSize: THEME.FONT_SIZE.CAPTION,
   },
   divider: {
     flexDirection: "row",

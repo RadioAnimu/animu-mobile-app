@@ -11,6 +11,8 @@
     "install:apk": "adb uninstall com.nessjs.animu; adb install $(ls -t *.apk | head -1)",
     "lint": "expo lint",
     "build:api": "npm run build --prefix packages/animu-api",
+    "fonts": "node scripts/fetch-fonts.mjs",
+    "eas-build-pre-install": "node scripts/fetch-fonts.mjs",
     "splash": "node scripts/generate-splash.mjs",
     "ota:ios": "npx expo export:embed --platform ios --entry-file index.js --bundle-output dist/ios/main.jsbundle --assets-dest dist/ios --dev false --minify --bytecode",
     "ota:android": "npx expo export:embed --platform android --entry-file index.js --bundle-output dist/android/index.android.bundle --assets-dest dist/android --dev false --minify --bytecode",

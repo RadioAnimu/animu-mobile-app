@@ -236,10 +236,5 @@ export const styles = StyleSheet.create({
   rowActionDisabled: {
     opacity: THEME.OPACITY.DISABLED,
   },
-  soon: {
-    color: THEME.COLORS.TEXT_DIM,
-    fontFamily: THEME.FONT_FAMILY.BOLD,
-    fontSize: THEME.FONT_SIZE.CAPTION,
-    paddingLeft: THEME.SPACE.MD,
-  },
+
 });

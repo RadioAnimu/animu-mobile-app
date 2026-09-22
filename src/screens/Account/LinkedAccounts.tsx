@@ -34,16 +34,21 @@ export function LinkedAccounts({
 }: Props) {
   const dict = useDict();
 
+  // Unconfigured providers are omitted entirely rather than rendered as a
+  // disabled "soon" row (App Review flags placeholder text, 2.1(a)).
+  const visibleProviders = providers.filter((provider) =>
+    isProviderConfigured(provider.name),
+  );
+
   return (
     <>
       <SectionTitle title={dict.ACCOUNT_LINKED_ACCOUNTS} icon="link" />
       <View style={styles.group}>
-        {providers.map((provider, index) => {
+        {visibleProviders.map((provider, index) => {
           const linkedInfo = linkedProviders.find(
             (entry) => entry.provider === provider.name,
           );
           const linked = !!linkedInfo;
-          const configured = isProviderConfigured(provider.name);
           const linkable = isProviderLinkable(provider.name);
           const rowBusy = busy === `link-${provider.name}`;
           const display = linkedInfo ? providerDisplay(linkedInfo) : null;
@@ -100,7 +105,7 @@ export function LinkedAccounts({
                       }
                     />
                   </TouchableOpacity>
-                ) : configured && linkable ? (
+                ) : linkable ? (
                   <TouchableOpacity
                     accessibilityRole="button"
                     accessibilityLabel={`${dict.ACCOUNT_LINK} ${provider.label}`}
@@ -119,10 +124,6 @@ export function LinkedAccounts({
                       color={THEME.COLORS.BRAND}
                     />
                   </TouchableOpacity>
-                ) : !configured ? (
-                  <Text style={styles.soon}>
-                    {dict.LOGIN_PROVIDER_UNAVAILABLE}
-                  </Text>
                 ) : null}
               </View>
             </View>

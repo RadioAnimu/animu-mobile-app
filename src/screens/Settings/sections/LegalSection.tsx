@@ -14,9 +14,11 @@ const open = (url: string) => {
 };
 
 /**
- * Store-required legal links: the privacy policy (same URL declared on the
- * Play listing) and the project's copyright/license notice mirrored from the
- * animu.moe footer. The notice text itself lives in the page footer.
+ * Store-required legal links. The station's content license (CC BY-NC-SA 4.0,
+ * mirrored from the animu.moe footer) and this app's source-code license (MIT)
+ * are called out separately, plus the third-party notices for artwork/media
+ * that neither license covers. The privacy policy is the same URL declared on
+ * the Play listing; the copyright notice text itself lives in the page footer.
  */
 export function LegalSection() {
   const dict = useDict();
@@ -33,9 +35,23 @@ export function LegalSection() {
         <Divider />
         <LinkRow
           icon="copyright"
-          label={dict.SETTINGS_COPYRIGHT_LICENSE}
-          description={dict.SETTINGS_COPYRIGHT_DESC}
-          onPress={() => open(API.LICENSE_URL)}
+          label={dict.SETTINGS_CONTENT_LICENSE}
+          description={dict.SETTINGS_CONTENT_LICENSE_DESC}
+          onPress={() => open(API.CONTENT_LICENSE_URL)}
+        />
+        <Divider />
+        <LinkRow
+          icon="code"
+          label={dict.SETTINGS_SOURCE_LICENSE}
+          description={dict.SETTINGS_SOURCE_LICENSE_DESC}
+          onPress={() => open(API.SOURCE_LICENSE_URL)}
+        />
+        <Divider />
+        <LinkRow
+          icon="attribution"
+          label={dict.SETTINGS_THIRD_PARTY_NOTICES}
+          description={dict.SETTINGS_THIRD_PARTY_NOTICES_DESC}
+          onPress={() => open(API.THIRD_PARTY_NOTICES_URL)}
         />
       </View>
     </>

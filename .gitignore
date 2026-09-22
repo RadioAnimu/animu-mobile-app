@@ -158,3 +158,9 @@ altstore/*.ipa
 
 # VS Code
 .vscode/
+
+# Licensed commercial fonts — must not be redistributed in the public repo.
+# Supply them locally (see src/assets/fonts/README.md) or via the
+# PROXIMA_NOVA_FONTS_URL EAS secret at build time (scripts/fetch-fonts.mjs).
+src/assets/fonts/*.ttf
+src/assets/fonts/*.otf

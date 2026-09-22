@@ -19,9 +19,10 @@ export function BehaviorSection() {
   const { settings, updateSettings } = useUserSettings();
   const dict = useDict();
 
-  // iOS cannot tap a live AVPlayer stream, so the visualizer is Android-only
-  // for now. The row stays visible but locked with a "coming soon" note.
-  const visualizerUnavailable = Platform.OS === "ios";
+  // iOS cannot tap a live AVPlayer stream, so the visualizer is Android-only.
+  // The row is omitted entirely on iOS rather than shipped as a disabled
+  // "coming soon" placeholder (App Review flags placeholder features, 2.1(a)).
+  const isIOS = Platform.OS === "ios";
 
   const languageOptions = useMemo<
     SelectOption<keyof typeof LANGS_KEY_VALUE_PAIRS>[]
@@ -37,21 +38,22 @@ export function BehaviorSection() {
     <>
       <SectionTitle title={dict.SETTINGS_PLAYBACK_TITLE} icon="graphic-eq" />
       <View style={styles.group}>
-        <SettingsRow
-          icon="graphic-eq"
-          label={cleanLabel(dict.SETTINGS_VISUALIZER_SWITCH)}
-          description={
-            visualizerUnavailable
-              ? dict.SETTINGS_VISUALIZER_COMING_SOON
-              : dict.SETTINGS_VISUALIZER_DESC
-          }
-          value={!visualizerUnavailable && settings.visualizerHz > 0}
-          disabled={visualizerUnavailable}
-          onToggle={() =>
-            updateSettings({ visualizerHz: settings.visualizerHz > 0 ? 0 : 1 })
-          }
-        />
-        <Divider />
+        {!isIOS && (
+          <>
+            <SettingsRow
+              icon="graphic-eq"
+              label={cleanLabel(dict.SETTINGS_VISUALIZER_SWITCH)}
+              description={dict.SETTINGS_VISUALIZER_DESC}
+              value={settings.visualizerHz > 0}
+              onToggle={() =>
+                updateSettings({
+                  visualizerHz: settings.visualizerHz > 0 ? 0 : 1,
+                })
+              }
+            />
+            <Divider />
+          </>
+        )}
         <SettingsRow
           icon="wifi"
           label={cleanLabel(dict.SETTINGS_LIVE_UPDATES_SWITCH)}
@@ -88,7 +90,11 @@ export function BehaviorSection() {
         <InfoRow
           icon="record-voice-over"
           label={dict.SETTINGS_ASSISTANT_TITLE}
-          description={dict.SETTINGS_ASSISTANT_HINT}
+          description={
+            isIOS
+              ? dict.SETTINGS_ASSISTANT_HINT_IOS
+              : dict.SETTINGS_ASSISTANT_HINT_ANDROID
+          }
         />
       </View>
     </>

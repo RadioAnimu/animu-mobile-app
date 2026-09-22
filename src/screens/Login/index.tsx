@@ -165,45 +165,38 @@ export function Login({ navigation }: Props) {
               <Text style={styles.lead}>{dict.LOGIN_SUBTITLE}</Text>
 
               <View style={styles.methods}>
-                {providers.map((provider) => {
-                  const configured = isProviderConfigured(provider.name);
-                  const busy = busyProvider === provider.name;
-                  return (
-                    <TouchableOpacity
-                      key={provider.name}
-                      accessibilityRole="button"
-                      accessibilityState={{ disabled: !configured }}
-                      activeOpacity={0.7}
-                      disabled={!configured || isAuthenticating}
-                      onPress={() => handleProvider(provider.name)}
-                      style={[
-                        styles.method,
-                        !configured && styles.methodDisabled,
-                      ]}
-                    >
-                      <View style={styles.methodIcon}>
-                        <ProviderIcon
-                          provider={provider.name}
-                          size={THEME.ICON.LG}
-                        />
-                      </View>
-                      <Text style={styles.methodLabel}>{provider.label}</Text>
-                      {busy ? (
-                        <ActivityIndicator color={THEME.COLORS.TEXT} />
-                      ) : configured ? (
-                        <MaterialIcons
-                          name="chevron-right"
-                          size={THEME.ICON.MD}
-                          color={THEME.COLORS.TEXT_DIM}
-                        />
-                      ) : (
-                        <Text style={styles.soon}>
-                          {dict.LOGIN_PROVIDER_UNAVAILABLE}
-                        </Text>
-                      )}
-                    </TouchableOpacity>
-                  );
-                })}
+                {providers
+                  .filter((provider) => isProviderConfigured(provider.name))
+                  .map((provider) => {
+                    const busy = busyProvider === provider.name;
+                    return (
+                      <TouchableOpacity
+                        key={provider.name}
+                        accessibilityRole="button"
+                        activeOpacity={0.7}
+                        disabled={isAuthenticating}
+                        onPress={() => handleProvider(provider.name)}
+                        style={styles.method}
+                      >
+                        <View style={styles.methodIcon}>
+                          <ProviderIcon
+                            provider={provider.name}
+                            size={THEME.ICON.LG}
+                          />
+                        </View>
+                        <Text style={styles.methodLabel}>{provider.label}</Text>
+                        {busy ? (
+                          <ActivityIndicator color={THEME.COLORS.TEXT} />
+                        ) : (
+                          <MaterialIcons
+                            name="chevron-right"
+                            size={THEME.ICON.MD}
+                            color={THEME.COLORS.TEXT_DIM}
+                          />
+                        )}
+                      </TouchableOpacity>
+                    );
+                  })}
               </View>
 
               <View style={styles.divider}>

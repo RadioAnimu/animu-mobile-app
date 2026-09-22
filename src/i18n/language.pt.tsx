@@ -179,7 +179,6 @@ const DICT: Dict = {
   SETTINGS_QUALITY_ROW_DESC: "Capas mais nítidas usam mais dados",
   SETTINGS_QUALITY_RECOMMENDED: "Recomendado",
   SETTINGS_VISUALIZER_DESC: "Onda sonora enquanto uma música toca",
-  SETTINGS_VISUALIZER_COMING_SOON: "Em breve no iOS",
   SETTINGS_LIVE_UPDATES_DESC:
     "Atualizações da música com o app em segundo plano",
   SETTINGS_FEEDBACK_TITLE: "Feedback",
@@ -200,8 +199,8 @@ const DICT: Dict = {
   SETTINGS_UPDATES_ROW: "Verificar atualizações",
   SETTINGS_UPDATES_DESC: "Receba as novidades sem reinstalar",
   SETTINGS_ASSISTANT_TITLE: "Assistente de voz",
-  SETTINGS_ASSISTANT_HINT:
-    'Peça "Hey Siri, tocar Rádio Animu" ou "Ok Google, tocar Rádio Animu"',
+  SETTINGS_ASSISTANT_HINT_IOS: 'Peça "Ei Siri, tocar Rádio Animu"',
+  SETTINGS_ASSISTANT_HINT_ANDROID: 'Peça "Ok Google, tocar Rádio Animu"',
   SETTINGS_SHORTCUTS_TITLE: "Atalhos",
   SETTINGS_UPDATES_CHECKING: "Verificando…",
   SETTINGS_UPDATES_DOWNLOADING: "Baixando…",
@@ -234,8 +233,12 @@ const DICT: Dict = {
   SETTINGS_FOOTER_NPC: "NPCpepper",
   SETTINGS_LEGAL_TITLE: "Legal",
   SETTINGS_PRIVACY_POLICY: "Política de Privacidade",
-  SETTINGS_COPYRIGHT_LICENSE: "Direitos Autorais e Licença",
-  SETTINGS_COPYRIGHT_DESC: "Projeto sem fins lucrativos · CC BY-NC-SA 4.0",
+  SETTINGS_CONTENT_LICENSE: "Conteúdo da rádio",
+  SETTINGS_CONTENT_LICENSE_DESC: "Projeto sem fins lucrativos · CC BY-NC-SA 4.0",
+  SETTINGS_SOURCE_LICENSE: "Código-fonte do app",
+  SETTINGS_SOURCE_LICENSE_DESC: "Licença MIT",
+  SETTINGS_THIRD_PARTY_NOTICES: "Avisos de terceiros",
+  SETTINGS_THIRD_PARTY_NOTICES_DESC: "Créditos de imagens e mídia",
   SETTINGS_COPYRIGHT_NOTICE: "© 2018–2026 Rádio Animu",
   SETTINGS_IMAGE_RIGHTS:
     "Todas as imagens alteradas pertencem aos seus respectivos criadores, estúdios.",
@@ -304,7 +307,6 @@ const DICT: Dict = {
   LOGIN_MISSING_FIELDS: "Preencha todos os campos para continuar.",
   LOGIN_TITLE: "Entrar",
   LOGIN_SUBTITLE: "Escolha como você quer continuar",
-  LOGIN_PROVIDER_UNAVAILABLE: "Em breve",
   LOGIN_OR: "ou",
   LOGIN_WITH_ANIMU_CONNECT: "Continuar com Animu Connect",
   LOGIN_ANIMU_CONNECT_HINT:

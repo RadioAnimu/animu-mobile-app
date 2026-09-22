@@ -179,7 +179,6 @@ const DICT: Dict = {
   SETTINGS_QUALITY_ROW_DESC: "Portadas más nítidas usan más datos",
   SETTINGS_QUALITY_RECOMMENDED: "Recomendado",
   SETTINGS_VISUALIZER_DESC: "Onda de sonido mientras suena una canción",
-  SETTINGS_VISUALIZER_COMING_SOON: "Próximamente en iOS",
   SETTINGS_LIVE_UPDATES_DESC:
     "Novedades de canciones con la app en segundo plano",
   SETTINGS_FEEDBACK_TITLE: "Respuesta",
@@ -200,8 +199,9 @@ const DICT: Dict = {
   SETTINGS_UPDATES_ROW: "Buscar actualizaciones",
   SETTINGS_UPDATES_DESC: "Recibe las novedades sin reinstalar",
   SETTINGS_ASSISTANT_TITLE: "Asistente de voz",
-  SETTINGS_ASSISTANT_HINT:
-    'Di "Hey Siri, reproducir Rádio Animu" u "Ok Google, reproducir Rádio Animu"',
+  SETTINGS_ASSISTANT_HINT_IOS: 'Di "Oye Siri, reproducir Rádio Animu"',
+  SETTINGS_ASSISTANT_HINT_ANDROID:
+    'Di "Ok Google, reproducir Rádio Animu"',
   SETTINGS_SHORTCUTS_TITLE: "Atajos",
   SETTINGS_UPDATES_CHECKING: "Comprobando…",
   SETTINGS_UPDATES_DOWNLOADING: "Descargando…",
@@ -236,8 +236,12 @@ const DICT: Dict = {
   SETTINGS_FOOTER_NPC: "NPCpepper",
   SETTINGS_LEGAL_TITLE: "Legal",
   SETTINGS_PRIVACY_POLICY: "Política de Privacidad",
-  SETTINGS_COPYRIGHT_LICENSE: "Derechos de Autor y Licencia",
-  SETTINGS_COPYRIGHT_DESC: "Proyecto sin fines de lucro · CC BY-NC-SA 4.0",
+  SETTINGS_CONTENT_LICENSE: "Contenido de la radio",
+  SETTINGS_CONTENT_LICENSE_DESC: "Proyecto sin fines de lucro · CC BY-NC-SA 4.0",
+  SETTINGS_SOURCE_LICENSE: "Código fuente de la app",
+  SETTINGS_SOURCE_LICENSE_DESC: "Licencia MIT",
+  SETTINGS_THIRD_PARTY_NOTICES: "Avisos de terceros",
+  SETTINGS_THIRD_PARTY_NOTICES_DESC: "Créditos de imágenes y medios",
   SETTINGS_COPYRIGHT_NOTICE: "© 2018–2026 Rádio Animu",
   SETTINGS_IMAGE_RIGHTS:
     "Todas las imágenes editadas pertenecen a sus respectivos creadores y estudios.",
@@ -306,7 +310,6 @@ const DICT: Dict = {
   LOGIN_MISSING_FIELDS: "Completa todos los campos para continuar.",
   LOGIN_TITLE: "Iniciar sesión",
   LOGIN_SUBTITLE: "Elige cómo quieres continuar",
-  LOGIN_PROVIDER_UNAVAILABLE: "Pronto",
   LOGIN_OR: "o",
   LOGIN_WITH_ANIMU_CONNECT: "Continuar con Animu Connect",
   LOGIN_ANIMU_CONNECT_HINT:

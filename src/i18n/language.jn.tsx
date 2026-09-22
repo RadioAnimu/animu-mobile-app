@@ -179,7 +179,6 @@ const DICT: Dict = {
   SETTINGS_QUALITY_ROW_DESC: "きれいな画像は通信量が増えます",
   SETTINGS_QUALITY_RECOMMENDED: "おすすめ",
   SETTINGS_VISUALIZER_DESC: "再生中に波形を表示します",
-  SETTINGS_VISUALIZER_COMING_SOON: "iOS では近日公開",
   SETTINGS_LIVE_UPDATES_DESC: "バックグラウンドでも曲情報を更新します",
   SETTINGS_FEEDBACK_TITLE: "フィードバック",
   SETTINGS_HAPTICS_SWITCH: "触覚フィードバック:",
@@ -198,8 +197,9 @@ const DICT: Dict = {
   SETTINGS_UPDATES_ROW: "更新を確認",
   SETTINGS_UPDATES_DESC: "再インストールせずに最新の変更を受け取れます",
   SETTINGS_ASSISTANT_TITLE: "音声アシスタント",
-  SETTINGS_ASSISTANT_HINT:
-    "「Hey Siri、Rádio Animuを再生」「Ok Google、Rádio Animuを再生」と話しかけてください",
+  SETTINGS_ASSISTANT_HINT_IOS: "「Hey Siri、Rádio Animuを再生」と話しかけてください",
+  SETTINGS_ASSISTANT_HINT_ANDROID:
+    "「Ok Google、Rádio Animuを再生」と話しかけてください",
   SETTINGS_SHORTCUTS_TITLE: "ショートカット",
   SETTINGS_UPDATES_CHECKING: "確認中…",
   SETTINGS_UPDATES_DOWNLOADING: "ダウンロード中…",
@@ -233,8 +233,12 @@ const DICT: Dict = {
   SETTINGS_FOOTER_NPC: "NPCpepper",
   SETTINGS_LEGAL_TITLE: "法的事項",
   SETTINGS_PRIVACY_POLICY: "プライバシーポリシー",
-  SETTINGS_COPYRIGHT_LICENSE: "著作権とライセンス",
-  SETTINGS_COPYRIGHT_DESC: "非営利プロジェクト · CC BY-NC-SA 4.0",
+  SETTINGS_CONTENT_LICENSE: "ラジオのコンテンツ",
+  SETTINGS_CONTENT_LICENSE_DESC: "非営利プロジェクト · CC BY-NC-SA 4.0",
+  SETTINGS_SOURCE_LICENSE: "アプリのソースコード",
+  SETTINGS_SOURCE_LICENSE_DESC: "MITライセンス",
+  SETTINGS_THIRD_PARTY_NOTICES: "サードパーティ表記",
+  SETTINGS_THIRD_PARTY_NOTICES_DESC: "画像・メディアのクレジット",
   SETTINGS_COPYRIGHT_NOTICE: "© 2018–2026 Rádio Animu",
   SETTINGS_IMAGE_RIGHTS:
     "改変された画像はすべて、それぞれの制作者・スタジオに帰属します。",
@@ -300,7 +304,6 @@ const DICT: Dict = {
   LOGIN_MISSING_FIELDS: "全部の項目を入力してね。",
   LOGIN_TITLE: "ログイン",
   LOGIN_SUBTITLE: "続ける方法を選んでね",
-  LOGIN_PROVIDER_UNAVAILABLE: "準備中",
   LOGIN_OR: "または",
   LOGIN_WITH_ANIMU_CONNECT: "Animu Connect で続ける",
   LOGIN_ANIMU_CONNECT_HINT:

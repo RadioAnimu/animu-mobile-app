@@ -113,7 +113,7 @@ export function FooterSection() {
           accessibilityRole="link"
           accessibilityLabel={dict.SETTINGS_FOOTER_LICENSE}
           activeOpacity={0.7}
-          onPress={() => open(API.LICENSE_URL)}
+          onPress={() => open(API.CONTENT_LICENSE_URL)}
         >
           <Image
             source={ccLicense}
