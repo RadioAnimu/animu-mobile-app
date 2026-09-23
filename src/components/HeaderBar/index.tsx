@@ -18,7 +18,9 @@ import {
 } from "@/contexts/player/PlayerProvider";
 import { useIsBackgrounded } from "@/contexts/app-state/AppStateProvider";
 import { useDict } from "@/hooks/useDict";
+import { useBlink } from "@/hooks/useBlink";
 import { useSmoothedElapsed } from "@/hooks/useSmoothedElapsed";
+import { isFillerTransition } from "@/core/domain/track";
 import type { RootStackParamList } from "@/routes/app.routes";
 import { haptics } from "@/utils/haptics";
 
@@ -38,9 +40,6 @@ const PROGRESS_ANIM_DURATION = 300;
  * Only the small per-tick advance animates, so the bar never sweeps backwards.
  */
 const BAR_SNAP_THRESHOLD = 0.03;
-/** "Calculating" bar pulse — how dim it dips and how long each half takes. */
-const SYNC_BLINK_MIN = 0.35;
-const SYNC_BLINK_DURATION = 650;
 
 export function HeaderBar({ openLiveRequestModal }: Props) {
   const navigation =
@@ -63,15 +62,14 @@ export function HeaderBar({ openLiveRequestModal }: Props) {
   /** Still locking the audible clock — the bar is a guess until then. */
   const syncing = player.syncing;
   const showProgressBar =
-    !currentProgram?.isLive &&
-    !currentTrack?.anime?.toLocaleLowerCase().includes("passagem");
+    !currentProgram?.isLive && !isFillerTransition(currentTrack);
 
   const [animation] = useState(() => new Animated.Value(0));
 
   // Pulse the bar while the audible clock is still being measured, so a
   // wrong/empty position reads as "working on it" instead of broken. Stops
   // (and resets to full opacity) the moment sync lands or the app hides.
-  const [syncBlink] = useState(() => new Animated.Value(1));
+  const syncBlink = useBlink(syncing && showProgressBar && !isBackgrounded);
 
   // Last bar target, to tell a real jump (new track / sync completed) from the
   // small per-tick advance.
@@ -110,35 +108,6 @@ export function HeaderBar({ openLiveRequestModal }: Props) {
       useNativeDriver: true,
     }).start();
   }, [progressAnim, currentTrack, smoothedElapsed, syncing]);
-
-  useEffect(() => {
-    if (!syncing || !showProgressBar || isBackgrounded) {
-      syncBlink.setValue(1);
-      return;
-    }
-    const loop = Animated.loop(
-      Animated.sequence([
-        Animated.timing(syncBlink, {
-          toValue: SYNC_BLINK_MIN,
-          duration: SYNC_BLINK_DURATION,
-          easing: Easing.inOut(Easing.ease),
-          useNativeDriver: true,
-        }),
-        Animated.timing(syncBlink, {
-          toValue: 1,
-          duration: SYNC_BLINK_DURATION,
-          easing: Easing.inOut(Easing.ease),
-          useNativeDriver: true,
-        }),
-      ]),
-    );
-    loop.start();
-
-    return () => {
-      loop.stop();
-      syncBlink.setValue(1);
-    };
-  }, [syncing, showProgressBar, isBackgrounded, syncBlink]);
 
   const showLiveBadge = Boolean(currentProgram?.isLive && openLiveRequestModal);
 

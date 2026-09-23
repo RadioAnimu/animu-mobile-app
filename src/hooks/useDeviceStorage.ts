@@ -8,7 +8,6 @@ import {
 
 export interface DeviceStorageState {
   capacity: DiskCapacity;
-  measure: () => void;
 }
 
 /**
@@ -27,9 +26,5 @@ export function useDeviceStorage(): DeviceStorageState {
     }, []),
   );
 
-  const measure = useCallback(() => {
-    setCapacity(readDiskCapacity());
-  }, []);
-
-  return { capacity, measure };
+  return { capacity };
 }

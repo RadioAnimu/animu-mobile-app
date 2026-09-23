@@ -41,7 +41,7 @@ export function useCoverStorageSnapshot(): {
       const next = await coverDiskStorage.computeSnapshot(maxBytes, partitions);
       if (aliveRef.current) setSnapshot(next);
     } catch (error) {
-      console.warn("[CoverStorageCard] measure failed:", error);
+      console.warn("[useCoverStorage] measure failed:", error);
       if (aliveRef.current) setSnapshot(null);
     } finally {
       if (aliveRef.current) setMeasuring(false);

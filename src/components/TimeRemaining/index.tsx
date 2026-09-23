@@ -1,25 +1,21 @@
-import { useEffect, useState } from "react";
-import { Animated, Easing, StyleSheet, Text } from "react-native";
+import { Animated, StyleSheet, Text } from "react-native";
 import {
   usePlayer,
   useTrackProgress,
 } from "@/contexts/player/PlayerProvider";
 import { useIsBackgrounded } from "@/contexts/app-state/AppStateProvider";
 import { useDict } from "@/hooks/useDict";
+import { useBlink } from "@/hooks/useBlink";
 import { useSmoothedElapsed } from "@/hooks/useSmoothedElapsed";
 import { CountdownTimerText } from "@/components/CountdownTimerText";
+import { isFillerTransition } from "@/core/domain/track";
 import { THEME } from "@/theme";
-
-/** "Calculating" pulse — how dim it dips and how long each half takes. */
-const BLINK_MIN = 0.35;
-const BLINK_DURATION = 650;
 
 export function TimeRemaining() {
   const player = usePlayer();
   const { currentTrackProgress } = useTrackProgress();
   const dict = useDict();
   const isBackgrounded = useIsBackgrounded();
-  const [blink] = useState(() => new Animated.Value(1));
   const syncing = player.syncing;
   const smoothedElapsed = useSmoothedElapsed(
     currentTrackProgress,
@@ -29,37 +25,9 @@ export function TimeRemaining() {
   // Don't show if it's a live program or if it's a transition track
   const shouldShow =
     !player.currentProgram?.isLive &&
-    !player.currentTrack?.anime?.toLowerCase().includes("passagem");
+    !isFillerTransition(player.currentTrack);
 
-  useEffect(() => {
-    // Only pulse while the syncing label is actually rendered and visible.
-    if (!syncing || !shouldShow || isBackgrounded) {
-      blink.setValue(1);
-      return;
-    }
-    const loop = Animated.loop(
-      Animated.sequence([
-        Animated.timing(blink, {
-          toValue: BLINK_MIN,
-          duration: BLINK_DURATION,
-          easing: Easing.inOut(Easing.ease),
-          useNativeDriver: true,
-        }),
-        Animated.timing(blink, {
-          toValue: 1,
-          duration: BLINK_DURATION,
-          easing: Easing.inOut(Easing.ease),
-          useNativeDriver: true,
-        }),
-      ]),
-    );
-    loop.start();
-
-    return () => {
-      loop.stop();
-      blink.setValue(1);
-    };
-  }, [syncing, shouldShow, isBackgrounded, blink]);
+  const blink = useBlink(syncing && shouldShow && !isBackgrounded);
 
   if (!shouldShow || !player.currentTrack) {
     return null;
