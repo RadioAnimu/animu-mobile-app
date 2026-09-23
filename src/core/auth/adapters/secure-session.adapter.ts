@@ -136,7 +136,15 @@ export class SecureSessionStore implements SessionStorePort {
     // Projection first: a crash between the two writes must not leave an
     // orphan token with no user (which `load` would reject anyway).
     await AsyncStorage.setItem(USER_KEY, JSON.stringify(session.user));
-    await store.setItemAsync(TOKEN_KEY, session.sessionToken);
+    await store.setItemAsync(TOKEN_KEY, session.sessionToken, {
+      // Device-scoped: the token must not travel to another device via an
+      // unencrypted iOS backup/transfer. AFTER_FIRST_UNLOCK keeps it readable
+      // once the device has been unlocked since boot — background session
+      // checks still work — while excluding backup migration. The constant
+      // rides the dynamically-imported namespace; a static value import
+      // would eagerly evaluate native constants (see `resolveSecureStore`).
+      keychainAccessible: store.AFTER_FIRST_UNLOCK_THIS_DEVICE_ONLY,
+    });
     // A previous save may have degraded to the plaintext blob (transient
     // secure-store probe failure): now that the keychain took the token,
     // erase that plaintext copy so it never outlives the session.

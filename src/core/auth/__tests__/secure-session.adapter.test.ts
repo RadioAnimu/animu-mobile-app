@@ -21,6 +21,9 @@ vi.mock("@react-native-async-storage/async-storage", () => ({
 }));
 
 vi.mock("expo-secure-store", () => ({
+  // The adapter reads the accessibility constant from the dynamically
+  // imported namespace — mirror it (value matches expo's implementation).
+  AFTER_FIRST_UNLOCK_THIS_DEVICE_ONLY: 2,
   isAvailableAsync: vi.fn(async () => secureAvailable),
   getItemAsync: vi.fn(async (key: string) => secure.get(key) ?? null),
   setItemAsync: vi.fn(async (key: string, value: string) => {
@@ -50,6 +53,20 @@ describe("SecureSessionStore", () => {
     expect(secure.get(TOKEN_KEY)).toBe("tok-1");
     expect(memory.get(USER_KEY)).toContain("haru");
     expect(memory.has(LEGACY_KEY)).toBe(false);
+  });
+
+  it("writes the token with device-scoped keychain accessibility", async () => {
+    const SecureStore = await import("expo-secure-store");
+
+    await new SecureSessionStore().save(SESSION);
+
+    expect(SecureStore.setItemAsync).toHaveBeenCalledWith(
+      TOKEN_KEY,
+      "tok-1",
+      expect.objectContaining({
+        keychainAccessible: 2, // AFTER_FIRST_UNLOCK_THIS_DEVICE_ONLY
+      }),
+    );
   });
 
   it("round-trips a saved session", async () => {
