@@ -120,13 +120,18 @@ export class AudioSampler implements VisualizerSampler {
   >();
 
   /**
-   * Reusable frame buffers. Every window is a fixed 1024-point array, so the
-   * two latest windows live in two long-lived buffers — zero allocation in
-   * the steady state.
+   * Reusable frame buffers, ROTATED THROUGHS. The published previous/target
+   * pair stays live in the consumer across the whole native interval (the
+   * WebView interpolates from it per frame), so a two-slot ping-pong would
+   * mutate the previous wave mid-frame when the next window resamples.
+   * A third slot is always free of a published reference — zero allocation
+   * in the steady state with zero aliasing.
    */
-  private readonly waveBufs: [number[], number[]] = [[], []];
+  private readonly waveBufs: [number[], number[], number[]] = [[], [], []];
   /** Index of the buffer that currently holds the newest target window. */
   private targetIndex = 0;
+  /** Index of the buffer the last publish named as the PREVIOUS window. */
+  private prevIndex = 0;
   /** Whether at least one window has been published (powers interpolation). */
   private hadWindow = false;
   private targetLevel = 0;
@@ -249,14 +254,21 @@ export class AudioSampler implements VisualizerSampler {
     }
 
     // Publish the previous window + the new one; the visualizer interpolates
-    // between them across `nativeIntervalMs` at its own rAF rate.
-    const nextIndex = 1 - this.targetIndex;
+    // between them across `nativeIntervalMs` at its own rAF rate. The fresh
+    // resample must land in the slot NOT referenced by the last published
+    // pair: with two occupied slots, 3 - a - b is the free one. The first
+    // window (and degenerate same-slot state) rotates one ahead instead.
+    const nextIndex =
+      this.hadWindow && this.prevIndex !== this.targetIndex
+        ? 3 - this.prevIndex - this.targetIndex
+        : (this.targetIndex + 1) % 3;
     const target = resampleWaveformInto(
       frames,
       WAVE_POINTS,
       this.waveBufs[nextIndex],
     );
     const previous = this.hadWindow ? this.waveBufs[this.targetIndex] : target;
+    this.prevIndex = this.targetIndex;
     this.targetIndex = nextIndex;
     this.hadWindow = true;
     this.targetLevel = rms(frames);

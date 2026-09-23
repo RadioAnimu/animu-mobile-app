@@ -119,6 +119,8 @@ export class ArtworkResolver {
   private readonly fileMap: CoverFileCache;
   /** In-flight downloads — concurrent callers share one download per URL. */
   private readonly inFlight = new Map<string, Promise<string>>();
+  /** Spread-identity cache for `apply` — track object → stable wrapper. */
+  private readonly appliedTracks = new WeakMap<Track, Track>();
   /** Remote URL until the bundled default cover resolves (see `init`). */
   private defaultCoverValue = CONFIG.DEFAULT_COVER;
   private initPromise: Promise<void> | null = null;
@@ -178,7 +180,17 @@ export class ArtworkResolver {
   apply(track: Track | null | undefined): Track | null | undefined {
     if (!track?.artwork) return track;
     const local = this.fileMap.peek(track.artwork);
-    return local ? { ...track, artwork: local } : track;
+    if (!local) return track;
+    // Spread identity cache: `apply` runs on every service emit and the
+    // player store diffs snapshots shallowly — a fresh `{...track}` per
+    // call would read as "currentTrack changed" forever, re-rendering
+    // every consumer on poll ticks with zero real changes. The cached
+    // wrapper is returned while the underlying resolution is unchanged.
+    const cached = this.appliedTracks.get(track);
+    if (cached && cached.artwork === local) return cached;
+    const next = { ...track, artwork: local };
+    this.appliedTracks.set(track, next);
+    return next;
   }
 
   /**

@@ -149,7 +149,7 @@ describe("AudioSampler windows", () => {
     expect(window.previousWave).toBe(window.targetWave);
   });
 
-  it("reuses two buffers across windows (no per-window allocation)", () => {
+  it("reuses exactly three rotating buffers (no per-window allocation, no aliasing)", () => {
     const { sampler, emit } = activeSampler();
     const targets: number[][] = [];
     sampler.subscribeWindows((window) => targets.push(window.targetWave));
@@ -158,7 +158,10 @@ describe("AudioSampler windows", () => {
       emit(sample(new Array(64).fill(0.1)));
     }
 
-    expect(new Set(targets).size).toBe(2);
+    // Three slots rotate so the fresh resample never mutates a buffer the
+    // published previous/target pair still references while the WebView
+    // interpolates from it mid-frame.
+    expect(new Set(targets).size).toBe(3);
   });
 
   it("down-mixes stereo channels like the web analyser", () => {

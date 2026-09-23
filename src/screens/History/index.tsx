@@ -23,7 +23,6 @@ import { IMGS } from "@/i18n";
 import { THEME } from "@/theme";
 import { useUserSettings } from "@/contexts/user/UserSettingsProvider";
 import { useCopyToClipboard } from "@/hooks/useCopyToClipboard";
-import { useDict } from "@/hooks/useDict";
 import { usePlayer, useStation } from "@/contexts/player/PlayerProvider";
 import type { StationSnapshot } from "@/core/player";
 import { useRouteReselect } from "@/hooks/useRouteReselect";
@@ -41,7 +40,6 @@ export function History({ route }: Props) {
   const player = usePlayer();
   const { settings } = useUserSettings();
   const copyText = useCopyToClipboard();
-  const dict = useDict();
   const [refreshing, setRefreshing] = useState(false);
 
   // Re-tapping the drawer's active history item jumps back to the newest row.
@@ -87,7 +85,6 @@ export function History({ route }: Props) {
           )}
           <TouchableOpacity
             accessibilityRole="button"
-            accessibilityHint={dict.TEXT_COPIED}
             activeOpacity={0.7}
             onPress={() => copyText(item.raw)}
             style={styles.nameTouchable}
@@ -107,7 +104,6 @@ export function History({ route }: Props) {
       ),
     [
       copyText,
-      dict.TEXT_COPIED,
       isRequestHistory,
       settings.lastRequestedCovers,
       settings.lastPlayedCovers,

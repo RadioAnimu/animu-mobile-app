@@ -40,8 +40,10 @@ export class StreamPreferences {
   async restore(options: Stream[]): Promise<void> {
     const stored = await this.readStored();
     // Same existence guard as load(): a station that renamed/removed the
-    // relay must not send playback to a dead URL.
-    if (stored && (options.length === 0 || options.some((o) => o.id === stored.id))) {
+    // relay must not send playback to a dead URL. An empty fetched list
+    // verifies nothing (and selects nothing) — the current value (already
+    // validated by load(), else the hardcoded default) stays in place.
+    if (stored && options.some((o) => o.id === stored.id)) {
       this.currentStream = stored;
     } else if (options.length > 0) {
       this.currentStream = options[0];

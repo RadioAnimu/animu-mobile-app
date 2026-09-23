@@ -82,6 +82,9 @@ export function Sheet({
   withKeyboard = false,
   maxHeight,
   children,
+  // Destructure the rest of the Modal surface explicitly so override props
+  // (animationType, transparent, statusBarTranslucent, …) can't silently
+  // come back through `rest` and win over the sheet's invariants.
   ...rest
 }: Props) {
   const keyboardPadding = useKeyboardPadding(withKeyboard && visible);
@@ -97,11 +100,12 @@ export function Sheet({
   return (
     <Modal
       visible={visible}
+      {...rest}
+      // Sensitive props stay authoritative — after `rest` on purpose.
       animationType="slide"
       transparent
       statusBarTranslucent
       onRequestClose={closable ? onClose : undefined}
-      {...rest}
     >
       {body(
         <>

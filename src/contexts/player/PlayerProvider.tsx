@@ -61,12 +61,18 @@ type PlayerContextType = PlayerSnapshot & {
   reportVisualizerDelay: (appliedMs: number) => void;
 };
 
+// Silent sentinels for consumers that mount before bootstrap finishes:
+// the expected pre-init call is swallowed; an ACCIDENTAL call logs loudly
+// (an unhandled string rejection would vanish without a trace instead).
+const notInitialized = () =>
+  Promise.reject(new Error("[PlayerProvider] player not initialized"));
+
 const PlayerContext = createContext<PlayerContextType>({
-  play: () => Promise.reject("Player not initialized"),
-  pause: () => Promise.reject("Player not initialized"),
-  changeStream: () => Promise.reject("Player not initialized"),
-  refreshData: () => Promise.reject("Player not initialized"),
-  refreshHistory: () => Promise.reject("Player not initialized"),
+  play: notInitialized,
+  pause: notInitialized,
+  changeStream: notInitialized,
+  refreshData: notInitialized,
+  refreshHistory: notInitialized,
   defaultArtwork: "",
   visualizerSupported: false,
   subscribeVisualizerWindows: () => () => {},

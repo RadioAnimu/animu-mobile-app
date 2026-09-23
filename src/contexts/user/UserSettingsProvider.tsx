@@ -70,68 +70,64 @@ export const UserSettingsProvider: React.FC<{ children: React.ReactNode }> = ({
   const updateChainRef = useRef<Promise<void> | null>(null);
 
   const updateSettings = useCallback(async (newSettings: Partial<UserSettings>) => {
-    const previous = settingsRef.current;
-    const updatedSettings = { ...previous, ...newSettings };
-    // Turning the cache OFF must wipe it, not only stop writing — the user's
-    // intent is "nothing kept from now on". The provider is the single
-    // choke point every toggle funnels through, so the wipe (image caches +
-    // registry) runs BEFORE the handoff: no surface can cache mid-wipe, and
-    // covers re-render with policy "none" right after.
-    const cacheTurningOff = previous.cacheEnabled && !updatedSettings.cacheEnabled;
-    const wipeIfNeeded = async () => {
-      if (!cacheTurningOff) return;
-      // Non-fatal: a failed wipe must not leave the toggle dead — the
-      // "none" policy still stops new writes and the wipe stays retryable
-      // via the storage card's clean button until it succeeds.
-      await coverDiskStorage.clearAll().catch((error) => {
-        console.warn("[UserSettings] cache wipe on disable failed:", error);
-      });
-    };
-
-    // A NEW or LOWERED limit — or a partition customization — trims right
-    // away: picking "250 MB" with 800 MB cached must not wait for the
-    // next screen focus. A raised limit needs no pass (under budget
-    // already). Cache-off turns take the wipe path above instead —
-    // trimming into a wipe is meaningless.
-    const limitChanged =
-      previous.cacheEnabled &&
-      updatedSettings.cacheEnabled &&
-      (previous.coverCacheLimitBytes !== updatedSettings.coverCacheLimitBytes ||
-        previous.coverCachePartitionBytes !==
-          updatedSettings.coverCachePartitionBytes);
-    const trimIfNeeded = async () => {
-      if (!limitChanged) return;
-      await coverDiskStorage
-        .trim(
-          updatedSettings.coverCacheLimitBytes,
-          updatedSettings.coverCachePartitionBytes,
-        )
-        .catch((error) => {
-          console.warn("[UserSettings] cache trim on limit change failed:", error);
-        });
-    };
-
-    // Changing the artwork quality invalidates every cached cover URL:
-    // each tier caches under its own URL key, so switching high→low (or
-    // any) without a wipe would leave a mix of old-tier files around.
-    // The wipe is full clearAll (memory + disk + registry) — the exact
-    // "clear cached covers" path. Non-fatal: the new tier still applies
-    // and surfaces just re-download what they miss. Runs in the SAME
-    // chain as every other cache mutation, and the quality sheet stays
-    // open on screen until this prompt resolves.
-    const qualityChanged =
-      previous.liveQualityCover !== updatedSettings.liveQualityCover;
-    const wipeOnQualityChange = async () => {
-      if (!qualityChanged) return;
-      await coverDiskStorage.clearAll().catch((error) => {
-        console.warn("[UserSettings] cache wipe on quality change failed:", error);
-      });
-    };
-
+    // Serialize: interleaved updates (a slow OFF wipe vs a fast ON) must
+    // persist and apply strictly in call order, or a stale write clobbers
+    // the newer one and storage/UI disagree.
     const run = (updateChainRef.current ?? Promise.resolve()).then(async () => {
-      await wipeIfNeeded();
-      await trimIfNeeded();
-      await wipeOnQualityChange();
+      // Merge base read at CHAIN time, not call time — everything queued
+      // before us already applied, so `settingsRef.current` is the newest
+      // agreed state. Capturing before the chain would re-apply stale
+      // attribute values and clobber the update queued just before ours.
+      const previous = settingsRef.current;
+      const updatedSettings = { ...previous, ...newSettings };
+
+      // Turning the cache OFF must wipe it, not only stop writing — the
+      // user's intent is "nothing kept from now on". The wipe runs BEFORE
+      // the handoff: no surface can cache mid-wipe, and covers re-render
+      // with policy "none" right after. Non-fatal: a failed wipe must not
+      // leave the toggle dead — the "none" policy still stops new writes
+      // and the wipe stays retryable via the storage card's clean button.
+      const cacheTurningOff =
+        previous.cacheEnabled && !updatedSettings.cacheEnabled;
+      if (cacheTurningOff) {
+        await coverDiskStorage.clearAll().catch((error) => {
+          console.warn("[UserSettings] cache wipe on disable failed:", error);
+        });
+      }
+
+      // A NEW or LOWERED limit — or a partition customization — trims right
+      // away: picking "250 MB" with 800 MB cached must not wait for the
+      // next screen focus. A raised limit needs no pass (under budget
+      // already). Cache-off turns take the wipe path above instead —
+      // trimming into a wipe is meaningless.
+      const limitChanged =
+        previous.cacheEnabled &&
+        updatedSettings.cacheEnabled &&
+        (previous.coverCacheLimitBytes !== updatedSettings.coverCacheLimitBytes ||
+          previous.coverCachePartitionBytes !==
+            updatedSettings.coverCachePartitionBytes);
+      if (limitChanged) {
+        await coverDiskStorage
+          .trim(
+            updatedSettings.coverCacheLimitBytes,
+            updatedSettings.coverCachePartitionBytes,
+          )
+          .catch((error) => {
+            console.warn("[UserSettings] cache trim on limit change failed:", error);
+          });
+      }
+
+      // Changing the artwork quality invalidates every cached cover URL:
+      // each tier caches under its own URL key, so switching high→low (or
+      // any) without a wipe would leave a mix of old-tier files around.
+      // Full clearAll — the exact "clear cached covers" path. Non-fatal:
+      // the new tier still applies and surfaces re-download what they miss.
+      if (previous.liveQualityCover !== updatedSettings.liveQualityCover) {
+        await coverDiskStorage.clearAll().catch((error) => {
+          console.warn("[UserSettings] cache wipe on quality change failed:", error);
+        });
+      }
+
       try {
         await userSettingsService.updateSettings(updatedSettings);
         applySettings(updatedSettings);

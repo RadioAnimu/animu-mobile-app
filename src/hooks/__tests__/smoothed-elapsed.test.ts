@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  snapToTarget,
   stepSmoothed,
   type SmoothedState,
 } from "@/hooks/smoothed-elapsed";
@@ -40,5 +41,23 @@ describe("stepSmoothed", () => {
     );
     // One step is bounded by MAX_STEP_MS of real time.
     expect(next.value).toBeLessThan(2_000);
+  });
+});
+
+describe("snapToTarget", () => {
+  it("re-anchors value and timestamps to the fresh fact in one step", () => {
+    // Minutes elapsed off-screen (background/lock): the displayed value is
+    // stale and the next authoritative update is minutes ahead. Easing would
+    // sweep the countdown through numbers that were never real — the
+    // re-anchor snaps value to target and zeroes both clocks at `now`.
+    const next = snapToTarget(
+      base({ target: 5_000, targetAt: 750, value: 5_000, tickAt: 750 }),
+      300_000,
+      310_000,
+    );
+    expect(next.value).toBe(300_000);
+    expect(next.target).toBe(300_000);
+    expect(next.targetAt).toBe(310_000);
+    expect(next.tickAt).toBe(310_000);
   });
 });

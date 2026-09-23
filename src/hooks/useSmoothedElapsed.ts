@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { useIsBackgrounded } from "@/contexts/app-state/AppStateProvider";
 import {
+  MAX_PROJECT_MS,
+  snapToTarget,
   stepSmoothed,
   type SmoothedState,
 } from "@/hooks/smoothed-elapsed";
@@ -55,6 +57,21 @@ export function useSmoothedElapsed(
     if (targetMs == null) {
       // react-doctor-disable-next-line no-adjust-state-on-prop-change -- null IS this prop's value.
       setValue(null);
+      return;
+    }
+    // The last authoritative update is from before a long silent stretch —
+    // background freeze, app switch, lock screen or a network stall — so the
+    // truth moved off-screen. The ease-catch-up is sized for sub-8s calendar
+    // gaps; fading a minutes-long correction sweeps the countdown through
+    // numbers that were never real. The fact changed off-screen: snap to it.
+    // The next update (~1 Hz) restores normal advance+ease smoothing.
+    if (s.targetAt > 0 && now - s.targetAt > MAX_PROJECT_MS) {
+      const next = snapToTarget(s, targetMs, now);
+      s.target = next.target;
+      s.targetAt = next.targetAt;
+      s.value = next.value;
+      s.tickAt = next.tickAt;
+      setValue(targetMs);
       return;
     }
     s.target = targetMs;

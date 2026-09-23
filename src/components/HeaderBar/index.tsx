@@ -1,6 +1,6 @@
 import { useNavigation } from "@react-navigation/native";
 import type { DrawerNavigationProp } from "@react-navigation/drawer";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Image } from "expo-image";
 import { Animated, Easing, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -21,6 +21,7 @@ import { useDict } from "@/hooks/useDict";
 import { useBlink } from "@/hooks/useBlink";
 import { useSmoothedElapsed } from "@/hooks/useSmoothedElapsed";
 import { isFillerTransition } from "@/core/domain/track";
+import { progressRatio, isBarCorrection } from "@/utils/progress";
 import type { RootStackParamList } from "@/routes/app.routes";
 import { haptics } from "@/utils/haptics";
 
@@ -34,25 +35,25 @@ const PULSE_OPACITY = 0.05;
 const PULSE_DURATION = 1750;
 const PULSE_TRAVEL = 50;
 const PROGRESS_ANIM_DURATION = 300;
-/**
- * A bar move larger than this snaps (setValue) instead of animating — a new
- * track resetting to 0, or the corrected position when synchronizing ends.
- * Only the small per-tick advance animates, so the bar never sweeps backwards.
- */
-const BAR_SNAP_THRESHOLD = 0.03;
 
 export function HeaderBar({ openLiveRequestModal }: Props) {
   const navigation =
     useNavigation<DrawerNavigationProp<RootStackParamList>>();
   const insets = useSafeAreaInsets();
   const dict = useDict();
-  const progressAnim = useMemo(() => new Animated.Value(0), []);
-  const [status, setStatus] = useState<Status>("playing");
   const player = usePlayer();
-  const { currentTrackProgress } = useTrackProgress();
+  const isBackgrounded = useIsBackgrounded();
   const currentTrack = player.currentTrack;
   const currentProgram = player.currentProgram;
-  const isBackgrounded = useIsBackgrounded();
+  const { currentTrackProgress } = useTrackProgress();
+  // The bar spawns AT the live ratio (cold start, screen switch, thaw after
+  // a background freeze) — no first frame at 0 that then snaps forward.
+  const [progressAnim] = useState(() =>
+    new Animated.Value(
+      progressRatio(currentTrackProgress, currentTrack?.duration),
+    ),
+  );
+  const [status, setStatus] = useState<Status>("playing");
   // Smoothed so the bar advances continuously between the ~1 Hz updates
   // instead of stuttering on a late/jittery progress value.
   const smoothedElapsed = useSmoothedElapsed(
@@ -74,6 +75,7 @@ export function HeaderBar({ openLiveRequestModal }: Props) {
   // Last bar target, to tell a real jump (new track / sync completed) from the
   // small per-tick advance.
   const lastBarTarget = useRef(0);
+  const lastBarRun = useRef(0);
   const wasSyncing = useRef(player.syncing);
 
   useEffect(() => {
@@ -84,19 +86,22 @@ export function HeaderBar({ openLiveRequestModal }: Props) {
       Number.isFinite(duration) &&
       duration > 0;
 
-    const target = hasProgress
-      ? Math.min(Math.max(smoothedElapsed / duration, 0), 1)
-      : 0;
+    const target = hasProgress ? progressRatio(smoothedElapsed, duration) : 0;
 
     const previous = lastBarTarget.current;
     lastBarTarget.current = target;
+    const nowMs = Date.now();
+    const sinceEffect = lastBarRun.current ? nowMs - lastBarRun.current : 0;
+    lastBarRun.current = nowMs;
     const justSynced = wasSyncing.current && !syncing;
     wasSyncing.current = syncing;
 
-    // Spotify-style: a big move — the next track resetting to 0, or the
-    // corrected position once synchronizing finishes — SNAPS so the bar never
-    // sweeps back. Only the slow per-tick advance animates.
-    if (justSynced || Math.abs(target - previous) > BAR_SNAP_THRESHOLD) {
+    // Spotify-style: a move bigger than real playback could have produced
+    // since the last render — the next track resetting to 0, or the
+    // corrected position once synchronizing finishes — SNAPS so the bar
+    // never sweeps back. Normal per-tick advances animate, which keeps
+    // short tracks smooth along with long ones.
+    if (justSynced || isBarCorrection(target - previous, sinceEffect, duration)) {
       progressAnim.setValue(target);
       return;
     }
@@ -188,12 +193,19 @@ export function HeaderBar({ openLiveRequestModal }: Props) {
               if (status === "changing") return;
               setStatus("changing");
               haptics.tap();
-              if (!player.isPlaying) {
-                await player.play();
-                setStatus("playing");
-              } else {
-                await player.pause();
-                setStatus("paused");
+              // try/finally: a failed toggle must not leave the button
+              // stuck "changing" (permanently disabled) — fall back to
+              // whatever the player snapshot says the state IS.
+              try {
+                if (!player.isPlaying) {
+                  await player.play();
+                } else {
+                  await player.pause();
+                }
+              } catch (error) {
+                console.warn("[HeaderBar] play/pause failed:", error);
+              } finally {
+                setStatus(player.isPlaying ? "playing" : "paused");
               }
             }}
           >

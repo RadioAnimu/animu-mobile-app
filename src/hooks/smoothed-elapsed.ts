@@ -53,3 +53,18 @@ export function stepSmoothed(
     tickAt: now,
   };
 }
+
+/**
+ * Hard re-anchor after the display has gone stale and the truth moved
+ * underneath it (a long background, app freeze, network stall). The gap to
+ * the authoritative value is far past what easing was meant to bridge, so
+ * animating the correction would show the countdown sweeping through wrong
+ * numbers for seconds — the business fact changed off-screen; show it NOW.
+ */
+export function snapToTarget(
+  state: SmoothedState,
+  target: number,
+  now: number,
+): SmoothedState {
+  return { ...state, target, targetAt: now, value: target, tickAt: now };
+}
