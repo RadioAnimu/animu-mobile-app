@@ -121,4 +121,20 @@ export interface SessionStorePort {
   load(): Promise<StoredSession | null>;
   save(session: StoredSession): Promise<void>;
   clear(): Promise<void>;
+
+  /**
+   * Marks that a server-provider browser flow was just launched. Cold-start
+   * bounces are only adopted when a FRESH marker exists — without it, any
+   * `animuapp://redirect` URL delivered at launch (a spoofed notification,
+   * chat link or SDK intent) would adopt its token and overwrite the user's
+   * real session. The adapter stamps a wall-clock time and enforces a TTL.
+   */
+  markServerAuthPending(): Promise<void>;
+  /** The flow resolved in-app (login or cancel) — remove the marker. */
+  discardServerAuthPending(): Promise<void>;
+  /**
+   * Takes the marker: `true` only when a flow was armed recently (within the
+   * adapter's TTL) and never consumed — the marker is removed.
+   */
+  takeServerAuthPending(): Promise<boolean>;
 }

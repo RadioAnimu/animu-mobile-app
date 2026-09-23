@@ -89,6 +89,27 @@ function downloadUrl(manifest: OtaManifest): string | undefined {
 }
 
 /**
+ * The manifest is attacker-capturable-origin data (a repo-wide token, a
+ * polluted release asset or a typo'd origin field would otherwise become
+ * arbitrary JS on every user's next launch), so the bundle URL must point at
+ * THIS repository's release assets over HTTPS — the same rule the hardcoded
+ * manifest URL already follows.
+ */
+export function isTrustedDownloadUrl(raw: string | undefined): boolean {
+  if (!raw) return false;
+  try {
+    const url = new URL(raw);
+    return (
+      url.protocol === "https:" &&
+      url.hostname === "github.com" &&
+      url.pathname.startsWith("/RadioAnimu/animu-mobile-app/releases/download/")
+    );
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Resolves whether a newer bundle is available for this binary. Never throws —
  * update checks must not break app startup — so failures come back as
  * `{ status: "error" }`.
@@ -108,15 +129,20 @@ export async function checkForOtaUpdate(): Promise<OtaCheckResult> {
     }
 
     // The bundle targets a runtime this binary is not — refuse it rather than
-    // risking a crash on a mismatched native API surface.
+    // risking a crash on a mismatched native API surface. The field is
+    // REQUIRED: a manifest omitting it must never be adopted (an omission
+    // would silently opt this binary into whatever the feed shipped).
     const runtime = expectedRuntime(manifest);
-    if (runtime && runtime !== getRuntimeVersion()) {
+    if (!runtime || runtime !== getRuntimeVersion()) {
       return { status: "incompatible", version: manifest.version };
     }
 
     const url = downloadUrl(manifest);
     if (!url) {
       return { status: "up-to-date", version: current };
+    }
+    if (!isTrustedDownloadUrl(url)) {
+      return { status: "incompatible", version: manifest.version };
     }
 
     return {

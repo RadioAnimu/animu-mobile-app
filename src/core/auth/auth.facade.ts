@@ -140,9 +140,8 @@ export class AuthFacade {
    * id, SDK or signing-certificate registration is involved.
    */
   private async loginWithMobileProvider(provider: string): Promise<User> {
-    const callbackUrl = await this.oauth.openSession(
+    const callbackUrl = await this.runBrowserFlow(
       this.api.mobileStartUrl(provider),
-      AUTH_REDIRECT_URI,
     );
     if (!callbackUrl) throw new AuthFlowCancelled();
     return this.adoptMobileCallback(callbackUrl);
@@ -153,12 +152,36 @@ export class AuthFacade {
    * the app while the auth browser was open, the `animuapp://redirect` bounce
    * is delivered as the app's launch URL instead of resolving the in-flight
    * `openSession` promise — without this the user lands on the login screen
-   * with no way to adopt the already-issued token. Guarded on the redirect
-   * prefix, so any other launch URL (or none) is a no-op.
+   * with no way to adopt the already-issued token.
+   *
+   * A bounce is only adoptable when a FRESH pending-flow marker exists (see
+   * {@link runBrowserFlow}): the URL itself is unauthenticated input, and
+   * adopting any token found in it would let a spoofed notification/link
+   * overwrite the user's session with the attacker's.
    */
   async resumeServerAuth(url: string | null | undefined): Promise<User | null> {
     if (!url || !url.startsWith("animuapp://redirect")) return null;
+    if (!(await this.store.takeServerAuthPending())) return null;
     return this.adoptMobileCallback(url);
+  }
+
+  /**
+   * Opens the auth browser with a pending-flow marker ARMED FIRST: the marker
+   * stamps that the user launched this flow and persists across process
+   * death, so `resumeServerAuth` can adopt the OS-delivered cold-start bounce
+   * — while every other `animuapp://redirect` source stays unadoptable.
+   */
+  private async runBrowserFlow(startUrl: string): Promise<string | null> {
+    await this.store.markServerAuthPending();
+    try {
+      return await this.oauth.openSession(startUrl, AUTH_REDIRECT_URI);
+    } finally {
+      // Resolved in-app (login, dismissal or thrown): the flow ended, so the
+      // marker must not authorize a LATER cold-start adoption. The app being
+      // killed mid-flow runs nothing — the marker legitimately persists for
+      // `resumeServerAuth`, until its adapter TTL.
+      await this.store.discardServerAuthPending();
+    }
   }
 
   private async adoptMobileCallback(callbackUrl: string): Promise<User> {
@@ -257,9 +280,8 @@ export class AuthFacade {
     const sessionToken = this.api.getSessionToken();
     if (!sessionToken) throw new Error("Not authenticated");
 
-    const callbackUrl = await this.oauth.openSession(
+    const callbackUrl = await this.runBrowserFlow(
       this.api.mobileStartUrl(provider, sessionToken),
-      AUTH_REDIRECT_URI,
     );
     if (!callbackUrl) throw new AuthFlowCancelled();
 

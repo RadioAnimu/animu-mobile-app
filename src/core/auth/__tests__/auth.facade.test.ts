@@ -101,6 +101,9 @@ const profile = (user = authUser()): AuthProfile =>
 
 // ─── Fakes ───
 
+/** Fresh-pending-marker slot, reset between tests (see beforeEach). */
+let pendingServerAuthAt: number | null = null;
+
 /** Every port method as a vitest mock, so tests can assert calls/returns. */
 type Mocked<T> = { [K in keyof T]: Mock };
 type ApiFake = Mocked<AuthApiPort>;
@@ -156,6 +159,19 @@ const makeStore = (over: Record<string, unknown> = {}): StoreFake =>
     load: vi.fn(async () => null),
     save: vi.fn(async () => {}),
     clear: vi.fn(async () => {}),
+    // Marker state modeled with the same semantics as SecureSessionStore
+    // (fresh marker adopts; after discard, nothing adopts).
+    markServerAuthPending: vi.fn(() => {
+      pendingServerAuthAt = Date.now();
+    }),
+    discardServerAuthPending: vi.fn(() => {
+      pendingServerAuthAt = null;
+    }),
+    takeServerAuthPending: vi.fn(() => {
+      const fresh = pendingServerAuthAt != null;
+      pendingServerAuthAt = null;
+      return fresh;
+    }),
     ...over,
   }) as unknown as StoreFake;
 
@@ -186,6 +202,7 @@ const okRedirect = (token = "tok-123"): MobileAuthRedirect => ({
 
 beforeEach(() => {
   vi.clearAllMocks();
+  pendingServerAuthAt = null;
 });
 
 // ─── Session ───
@@ -368,6 +385,24 @@ describe("AuthFacade.loginWithProvider", () => {
     expect(api.setSessionToken).toHaveBeenCalledWith("tok-123");
   });
 
+  it("arms a pending-flow marker before the browser opens and discards it after", async () => {
+    const openSession = vi.fn(async () => null);
+    const { store, facade } = build({
+      oauth: makeOAuth({ openSession }),
+    });
+
+    await facade.loginWithProvider("discord").catch(() => {});
+
+    expect(store.markServerAuthPending).toHaveBeenCalledTimes(1);
+    expect(store.markServerAuthPending.mock.invocationCallOrder[0]).toBeLessThan(
+      openSession.mock.invocationCallOrder[0],
+    );
+    expect(store.discardServerAuthPending).toHaveBeenCalledTimes(1);
+    expect(store.discardServerAuthPending.mock.invocationCallOrder[0]).toBeGreaterThan(
+      openSession.mock.invocationCallOrder[0],
+    );
+  });
+
   it("throws AuthFlowCancelled when the browser flow is dismissed", async () => {
     const { facade } = build({
       oauth: makeOAuth({ openSession: vi.fn(async () => null) }),
@@ -443,17 +478,36 @@ describe("AuthFacade.loginWithProvider", () => {
 
 describe("AuthFacade.resumeServerAuth", () => {
   it("ignores launch URLs that are not the auth redirect", async () => {
-    const { api, facade } = build();
+    const { api, facade, store } = build();
 
     await expect(facade.resumeServerAuth("animuapp://other")).resolves.toBeNull();
     await expect(facade.resumeServerAuth(null)).resolves.toBeNull();
     expect(api.completeMobileAuth).not.toHaveBeenCalled();
+    // Non-redirect URLs must not consume the pending marker either.
+    expect(store.takeServerAuthPending).not.toHaveBeenCalled();
   });
 
-  it("adopts the session from a cold-start auth bounce", async () => {
-    const { api, facade } = build({
+  it("ignores a redirect bounce when no server flow is pending (spoof protection)", async () => {
+    const { api, store, facade } = build({
+      api: makeApi({ completeMobileAuth: vi.fn(() => okRedirect("attacker")) }),
+    });
+    // No user-initiated flow: the marker was never armed.
+
+    await expect(
+      facade.resumeServerAuth("animuapp://redirect?token=attacker"),
+    ).resolves.toBeNull();
+    expect(api.completeMobileAuth).not.toHaveBeenCalled();
+    expect(api.setSessionToken).not.toHaveBeenCalled();
+    expect(store.save).not.toHaveBeenCalled();
+  });
+
+  it("adopts the session from a cold-start auth bounce armed by the user's flow", async () => {
+    const { api, facade, store } = build({
       api: makeApi({ completeMobileAuth: vi.fn(() => okRedirect("cold-token")) }),
     });
+    // The OS killed the app mid-flow: the listener's promise died, only the
+    // marker and the launch URL remain.
+    store.markServerAuthPending();
 
     const user = await facade.resumeServerAuth(
       "animuapp://redirect?token=cold-token",
@@ -461,6 +515,10 @@ describe("AuthFacade.resumeServerAuth", () => {
 
     expect(user?.sessionToken).toBe("cold-token");
     expect(api.setSessionToken).toHaveBeenCalledWith("cold-token");
+    // One bounce, one marker: a second bounce cannot adopt without another flow.
+    await expect(
+      facade.resumeServerAuth("animuapp://redirect?token=cold-token"),
+    ).resolves.toBeNull();
   });
 });
 

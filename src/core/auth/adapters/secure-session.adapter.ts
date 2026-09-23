@@ -9,6 +9,16 @@ const TOKEN_KEY = "auth.sessionToken";
 const USER_KEY = "auth.sessionUser";
 /** Pre-SecureStore plaintext blob (`{ sessionToken, user }`), migrated on read. */
 const LEGACY_KEY = "auth.session";
+/** Wall-clock mark that a server-provider browser flow is in flight. */
+const PENDING_KEY = "auth.serverFlowPendingAt";
+/** A marker older than this can never adopt a cold-start bounce. */
+const PENDING_TTL_MS = 10 * 60_000;
+
+function pendingFresh(raw: string | null, now: number): boolean {
+  if (!raw) return false;
+  const armedAt = Number(raw);
+  return Number.isFinite(armedAt) && armedAt > 0 && now - armedAt <= PENDING_TTL_MS;
+}
 
 function parseUser(raw: string | null): User | null {
   if (!raw) return null;
@@ -127,6 +137,10 @@ export class SecureSessionStore implements SessionStorePort {
     // orphan token with no user (which `load` would reject anyway).
     await AsyncStorage.setItem(USER_KEY, JSON.stringify(session.user));
     await store.setItemAsync(TOKEN_KEY, session.sessionToken);
+    // A previous save may have degraded to the plaintext blob (transient
+    // secure-store probe failure): now that the keychain took the token,
+    // erase that plaintext copy so it never outlives the session.
+    await AsyncStorage.removeItem(LEGACY_KEY).catch(() => {});
   }
 
   async clear(): Promise<void> {
@@ -135,7 +149,35 @@ export class SecureSessionStore implements SessionStorePort {
       store ? store.deleteItemAsync(TOKEN_KEY).catch(() => {}) : Promise.resolve(),
       AsyncStorage.removeItem(USER_KEY).catch(() => {}),
       AsyncStorage.removeItem(LEGACY_KEY).catch(() => {}),
+      AsyncStorage.removeItem(PENDING_KEY).catch(() => {}),
     ]);
+  }
+
+  // ─── Server-auth flow marker ───
+  // Plain storage is fine for this: it is a timestamp, not a secret — its only
+  // job is proving the USER initiated a browser flow recently enough for a
+  // cold-start bounce to be the legit continuation of it.
+
+  async markServerAuthPending(): Promise<void> {
+    await AsyncStorage.setItem(PENDING_KEY, String(Date.now()));
+  }
+
+  async discardServerAuthPending(): Promise<void> {
+    await AsyncStorage.removeItem(PENDING_KEY).catch(() => {});
+  }
+
+  async takeServerAuthPending(): Promise<boolean> {
+    try {
+      const raw = await AsyncStorage.getItem(PENDING_KEY);
+      if (!pendingFresh(raw, Date.now())) {
+        await AsyncStorage.removeItem(PENDING_KEY).catch(() => {});
+        return false;
+      }
+      await AsyncStorage.removeItem(PENDING_KEY).catch(() => {});
+      return true;
+    } catch {
+      return false;
+    }
   }
 
   private async readToken(): Promise<string | null> {

@@ -194,19 +194,26 @@ function useAuthProviderValue(): AuthContextType {
 
         // Cold-start recovery: if the OS killed the app during a server
         // provider's browser flow, the `animuapp://redirect` bounce arrives as
-        // the launch URL. Adopt it before falling back to the cached session.
+        // the launch URL. The facade only adopts it when a pending-flow
+        // marker proves the user started that flow (spoofed links and
+        // SDK intents are ignored), and it still falls back to the cached
+        // session otherwise.
         const launchUrl = await Linking.getInitialURL().catch(() => null);
         const resumedUser = await authFacade.resumeServerAuth(launchUrl);
-        if (resumedUser) {
-          if (!cancelled) await adoptUser(resumedUser);
-          return;
-        }
+        const activeUser = resumedUser ?? storedUser;
 
         if (cancelled) return;
 
-        if (storedUser) {
-          userRef.current = storedUser;
-          setUser(storedUser);
+        if (activeUser) {
+          userRef.current = activeUser;
+          if (!cancelled) setUser(activeUser);
+          if (resumedUser) {
+            // A fresh login can swap the account media: bust the image cache.
+            setImageVersion((version) => version + 1);
+          }
+          // Server-side validation still gates the session: a bounce whose
+          // token the server does not recognize drops here instead of
+          // silently living until the next launch.
           try {
             if (await authFacade.getSessionStatus()) {
               startSessionCheck();
@@ -233,13 +240,7 @@ function useAuthProviderValue(): AuthContextType {
       cancelled = true;
       backgroundService.stopTask(SESSION_CHECK_TASK_ID);
     };
-  }, [
-    adoptUser,
-    clearSession,
-    loadProfile,
-    refreshEmails,
-    startSessionCheck,
-  ]);
+  }, [clearSession, loadProfile, refreshEmails, startSessionCheck]);
 
   const loginWithProvider = useCallback(
     async (provider: string) => {
