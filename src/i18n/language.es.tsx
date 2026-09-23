@@ -21,7 +21,7 @@ const PROGRAMS: Program[] = [
     img: PROGRAM_IMAGES[1],
     name: "Jiyuu Jikan",
     dj: "Cualquier miembro del equipo de locución",
-    theme: "¡Cualquiera (¡siendo otaku es lo que cuenta!) (BRT)",
+    theme: "¡Cualquiera (¡siendo otaku es lo que cuenta!)",
     dayAndTime: "En cualquier momento",
     information:
       "¡El programa donde invadimos la programación del DJ Haruka y le decimos que tome ese cafecito! Y puede ser en cualquier momento y a cualquier hora, en la radio más moe de Brasil!",
@@ -75,7 +75,7 @@ const PROGRAMS: Program[] = [
     img: PROGRAM_IMAGES[7],
     name: "Yoake",
     dj: "Haruka Yuki",
-    theme: "Bloque Musical ",
+    theme: "Bloque Musical",
     dayAndTime: "Todos los días de 05:00 a 07:00 horas (BRT)",
     information:
       "¡Nuestro amanecer! ¡Yoake está hecho para animar el comienzo de tu día con mucha buena música y donde tú también comandas la secuencia en vivo! 🌄",
@@ -84,7 +84,7 @@ const PROGRAMS: Program[] = [
     img: PROGRAM_IMAGES[8],
     name: "Kohi",
     dj: "Haruka Yuki",
-    theme: "Bloque Musical ",
+    theme: "Bloque Musical",
     dayAndTime: "Todos los días de 07:00 a 09:00 horas (BRT)",
     information:
       "¡El bloque que te despierta en tus mañanas otaku! ¡Prepara tu cafecito y haz la secuencia junto con nuestra Haru-chan ☕",
@@ -93,7 +93,7 @@ const PROGRAMS: Program[] = [
     img: PROGRAM_IMAGES[9],
     name: "Animu Ohayou",
     dj: "Haruka Yuki",
-    theme: "Bloque Musical ",
+    theme: "Bloque Musical",
     dayAndTime: "Todos los días de 09:00 a 12:00 horas (BRT)",
     information:
       "¡Nuestra mañana dirigida por ti! ¡La mejor manera de disfrutar la mejor parte del día aquí en la más moe de Brasil! ☀️",
@@ -102,7 +102,7 @@ const PROGRAMS: Program[] = [
     img: PROGRAM_IMAGES[10],
     name: "Gohan desu!",
     dj: "Haruka Yuki",
-    theme: "Bloque Musical ",
+    theme: "Bloque Musical",
     dayAndTime: "Todos los días de 12:00 a 14:00 horas (BRT)",
     information:
       "¡Tu hora del almuerzo más animada aquí en tu Animu 😋🍴 ¡El almuerzo es muy sagrado para nosotros y por eso en este horario es dueño de su propio bloque musical!",
@@ -111,7 +111,7 @@ const PROGRAMS: Program[] = [
     img: PROGRAM_IMAGES[11],
     name: "Oyatsu",
     dj: "Haruka Yuki",
-    theme: "Bloque Musical ",
+    theme: "Bloque Musical",
     dayAndTime: "Todos los días de 16:00 a 18:00 horas (BRT)",
     information:
       "¡Tu tarde más dulce y divertida en la más moe de Brasil! 🍰 La hora de tu merienda donde haces la secuencia en las tardes con nuestra Haru-chan",
@@ -120,7 +120,7 @@ const PROGRAMS: Program[] = [
     img: PROGRAM_IMAGES[12],
     name: "Nemukunai",
     dj: "Haruka Yuki",
-    theme: "Bloque Musical ",
+    theme: "Bloque Musical",
     dayAndTime: "Todos los días de 00:00 a 05:00 horas (BRT)",
     information:
       "¡Nuestra madrugada que no duerme! 🌙 Nemukunai es el bloque de Animu perfecto para oyentes que están despiertos y quieren escuchar sus canciones favoritas junto con Haru-chan en vivo en la más moe de Brasil 💜",
