@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 import type { Track } from "@/core/domain/track";
-import { getTrackProgress, isRealTrack } from "@/core/domain/track";
+import {
+  getTrackProgress,
+  isFillerTransition,
+  isRealTrack,
+} from "@/core/domain/track";
+
+const NOW = 1_800_000_000_000;
 
 const makeTrack = (overrides: Partial<Track> = {}): Track => ({
   id: "1",
@@ -12,36 +18,34 @@ const makeTrack = (overrides: Partial<Track> = {}): Track => ({
   artwork: "cover.jpg",
   duration: 60_000,
   isRequest: false,
-  startTime: new Date(),
+  startTime: new Date(NOW),
   playlistName: "",
   ...overrides,
 });
 
 describe("getTrackProgress", () => {
   it("returns elapsed ms for a running track", () => {
-    const track = makeTrack({ startTime: new Date(Date.now() - 5_000) });
-    const progress = getTrackProgress(track);
-    expect(progress).toBeGreaterThanOrEqual(4_999);
-    expect(progress).toBeLessThan(5_100);
+    const track = makeTrack({ startTime: new Date(NOW - 5_000) });
+    expect(getTrackProgress(track, NOW)).toBe(5_000);
   });
 
   it("returns null before the track starts", () => {
-    const track = makeTrack({ startTime: new Date(Date.now() + 5_000) });
-    expect(getTrackProgress(track)).toBeNull();
+    const track = makeTrack({ startTime: new Date(NOW + 5_000) });
+    expect(getTrackProgress(track, NOW)).toBeNull();
   });
 
   it("returns null after the track ended", () => {
     const track = makeTrack({
-      startTime: new Date(Date.now() - 61_000),
+      startTime: new Date(NOW - 61_000),
       duration: 60_000,
     });
-    expect(getTrackProgress(track)).toBeNull();
+    expect(getTrackProgress(track, NOW)).toBeNull();
   });
 
   it("returns null for invalid durations", () => {
-    expect(getTrackProgress(makeTrack({ duration: 0 }))).toBeNull();
-    expect(getTrackProgress(makeTrack({ duration: -1 }))).toBeNull();
-    expect(getTrackProgress(undefined)).toBeNull();
+    expect(getTrackProgress(makeTrack({ duration: 0 }), NOW)).toBeNull();
+    expect(getTrackProgress(makeTrack({ duration: -1 }), NOW)).toBeNull();
+    expect(getTrackProgress(undefined, NOW)).toBeNull();
   });
 });
 
@@ -68,5 +72,22 @@ describe("isRealTrack", () => {
   it("rejects missing tracks", () => {
     expect(isRealTrack(null)).toBe(false);
     expect(isRealTrack(undefined)).toBe(false);
+  });
+});
+
+describe("isFillerTransition", () => {
+  it("flags 'passagem' beat transitions regardless of case", () => {
+    expect(isFillerTransition({ anime: "Passagem Musical" })).toBe(true);
+    expect(isFillerTransition({ anime: "passagem" })).toBe(true);
+  });
+
+  it("accepts real tracks", () => {
+    expect(isFillerTransition({ anime: "Naruto" })).toBe(false);
+  });
+
+  it("treats a missing anime as not a filler transition", () => {
+    expect(isFillerTransition(null)).toBe(false);
+    expect(isFillerTransition(undefined)).toBe(false);
+    expect(isFillerTransition({})).toBe(false);
   });
 });

@@ -33,7 +33,6 @@ function freshRegistry() {
 describe("CoverCacheRegistry", () => {
   beforeEach(() => {
     memory.clear();
-    vi.mocked(memory.clear);
   });
 
   it("groups URLs by the category that displayed them", () => {

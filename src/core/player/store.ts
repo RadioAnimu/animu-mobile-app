@@ -84,14 +84,6 @@ function createStore<T extends Record<string, unknown>>(initialSnapshot: T) {
       notify();
     },
 
-    /** Shallow-merge partial updates into the current snapshot. */
-    update(partial: Partial<T>): void {
-      const next = { ...snapshot, ...partial } as T;
-      if (shallowEqual(snapshot, next)) return;
-      snapshot = next;
-      notify();
-    },
-
     subscribe(listener: Listener): () => void {
       listeners.add(listener);
       return () => {

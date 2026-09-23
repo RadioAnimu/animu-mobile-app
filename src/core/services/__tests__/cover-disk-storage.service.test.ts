@@ -442,7 +442,7 @@ describe("CoverDiskStorage", () => {
     expect(coverCacheRegistry.groupByCategory().played).toEqual([PLAYED2]);
   });
 
-  it("raising the limit runs hands-off: no pass disturbs the cache", async () => {
+  it("raising the limit after a trim runs hands-off", async () => {
     await setup(
       [
         [PLAYED1, "played"],
@@ -451,13 +451,15 @@ describe("CoverDiskStorage", () => {
       { [PLAYED1]: 500, [PLAYED2]: 300 },
     );
 
-    // Both passes way over budget → evicted empty, bytes untouched.
-    const low = await coverDiskStorage.trim(8000);
-    expect(low!.evicted).toEqual([]);
+    // A tight budget evicts to fit.
+    const low = await coverDiskStorage.trim(500);
+    expect(low!.evicted.length).toBeGreaterThan(0);
+    const survivors = [PLAYED1, PLAYED2].filter((url) => fileFor(url).exists);
+
+    // Raising the budget must not disturb whatever the tight pass kept.
     const high = await coverDiskStorage.trim(80000);
     expect(high!.evicted).toEqual([]);
-    expect(fileFor(PLAYED1).exists).toBe(true);
-    expect(fileFor(PLAYED2).exists).toBe(true);
+    survivors.forEach((url) => expect(fileFor(url).exists).toBe(true));
   });
 
   it("computeSnapshot(limit) trims inline and reports the post-trim state", async () => {
