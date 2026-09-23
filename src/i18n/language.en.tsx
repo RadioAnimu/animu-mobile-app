@@ -313,7 +313,6 @@ const DICT = {
   FORM_PLACEHOLDER_MUSIC: "Enter the song name",
   FORM_PLACEHOLDER_ANIME: "Enter the anime, visual novel or game",
   FORM_PLACEHOLDER_REQUEST: "Leave a message for the DJ",
-  LOAD_MORE_RESULTS: "Load more results",
   OK_BUTTON: "OK",
   ERROR_TITLE: "Something went wrong 💜",
   ERROR_MESSAGE: "The app ran into an unexpected error. Try again.",

@@ -289,27 +289,18 @@ export function MakeRequest() {
                     />
                   }
                   ListFooterComponent={
-                    searchState.pagination?.nextPageParams ? (
-                      <TouchableOpacity
-                        accessibilityRole="button"
-                        accessibilityState={{
-                          disabled: searchState.status === "loadingMore",
-                          busy: searchState.status === "loadingMore",
-                        }}
-                        style={styles.loadMoreBtn}
-                        onPress={handleLoadMore}
-                        disabled={searchState.status === "loadingMore"}
-                      >
-                        {searchState.status === "loadingMore" ? (
-                          <ActivityIndicator color={THEME.COLORS.TEXT} />
-                        ) : (
-                          <Text style={styles.loadMoreText}>
-                            {dict.LOAD_MORE_RESULTS}
-                          </Text>
-                        )}
-                      </TouchableOpacity>
+                    searchState.status === "loadingMore" ? (
+                      <ActivityIndicator
+                        color={THEME.COLORS.TEXT}
+                        style={styles.loadMoreSpinner}
+                      />
                     ) : null
                   }
+                  // Endless scroll: fetch the next page as the user nears the
+                  // end of the list. `handleLoadMore` is re-entrancy-guarded
+                  // (status check) and a no-op when there is no next page.
+                  onEndReached={handleLoadMore}
+                  onEndReachedThreshold={0.5}
                 />
               </TrackRequestContext.Provider>
             )}

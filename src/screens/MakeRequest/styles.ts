@@ -68,16 +68,7 @@ export const styles = StyleSheet.create({
     fontSize: THEME.FONT_SIZE.LIST,
     marginTop: THEME.SPACE.LG,
   },
-  loadMoreBtn: {
-    backgroundColor: THEME.COLORS.INPUT_BG,
-    padding: THEME.SPACE.MD,
-    borderRadius: THEME.RADIUS.LG,
+  loadMoreSpinner: {
     margin: THEME.SPACE.MD,
-  },
-  loadMoreText: {
-    color: THEME.COLORS.TEXT,
-    textAlign: "center",
-    fontFamily: THEME.FONT_FAMILY.BOLD,
-    fontSize: THEME.FONT_SIZE.BODY,
   },
 });

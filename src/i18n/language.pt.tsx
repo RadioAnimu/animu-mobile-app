@@ -320,7 +320,6 @@ const DICT: Dict = {
   FORM_PLACEHOLDER_MUSIC: "Digite o nome da música",
   FORM_PLACEHOLDER_ANIME: "Digite o nome do anime, visual novel ou jogo",
   FORM_PLACEHOLDER_REQUEST: "Digite um recado para o locutor",
-  LOAD_MORE_RESULTS: "Carregar mais resultados",
   OK_BUTTON: "OK",
   ERROR_TITLE: "Algo deu errado 💜",
   ERROR_MESSAGE: "O app encontrou um erro inesperado. Tente novamente.",

@@ -317,7 +317,6 @@ const DICT: Dict = {
   FORM_PLACEHOLDER_MUSIC: "曲名を入力してね",
   FORM_PLACEHOLDER_ANIME: "アニメ/ノベルゲー/ゲーム名を入力してね",
   FORM_PLACEHOLDER_REQUEST: "DJへのメッセージを書いてね",
-  LOAD_MORE_RESULTS: "もっと読み込む",
   OK_BUTTON: "OK",
   ERROR_TITLE: "エラーが発生しちゃった💜",
   ERROR_MESSAGE: "予期しないエラーが発生したよ。もう一度試してね。",
