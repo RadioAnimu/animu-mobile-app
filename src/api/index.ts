@@ -11,7 +11,8 @@ const DISCORD_URL = "https://discord.animu.com.br";
 /** Same policy URL declared on the Google Play production listing. */
 const PRIVACY_URL = "https://www.animu.com.br/privacypolicy";
 /** Station content license, mirrored from the animu.moe footer: CC BY-NC-SA 4.0. */
-const CONTENT_LICENSE_URL = "https://creativecommons.org/licenses/by-nc-sa/4.0/";
+const CONTENT_LICENSE_URL =
+  "https://creativecommons.org/licenses/by-nc-sa/4.0/";
 /** This app's source-code license: MIT (see the repository LICENSE file). */
 const SOURCE_LICENSE_URL =
   "https://github.com/RadioAnimu/animu-mobile-app/blob/main/LICENSE";
@@ -21,8 +22,6 @@ const X_URL = "https://x.com/RadioAnimu";
 const BLUESKY_URL = "https://bsky.app/profile/animu.moe";
 /** Open-source repository for this app. */
 const GITHUB_URL = "https://github.com/RadioAnimu/animu-mobile-app";
-/** Third-party asset attributions and non-coverage notices (repository file). */
-const THIRD_PARTY_NOTICES_URL = `${GITHUB_URL}/blob/main/THIRD_PARTY_NOTICES.md`;
 /** Composer of the Chihaya Radio Station artwork (credited, not a station social). */
 const PIXIV_URL = "https://www.pixiv.net/en/users/3272093";
 
@@ -37,7 +36,6 @@ export const API = {
   X_URL,
   BLUESKY_URL,
   GITHUB_URL,
-  THIRD_PARTY_NOTICES_URL,
   PIXIV_URL,
 };
 

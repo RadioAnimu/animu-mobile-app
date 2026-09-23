@@ -25,7 +25,7 @@ function LeadingIcon({ name }: { name: MaterialIconName }) {
       <MaterialIcons
         name={name}
         size={THEME.ICON.MD}
-        color={THEME.COLORS.TEXT_DIM}
+        color={THEME.COLORS.TEXT}
       />
     </View>
   );
@@ -66,7 +66,7 @@ export function AccountRow({ user, profile, dict, onPress }: AccountRowProps) {
               <ProviderIcon
                 provider={profile?.session.loginProvider ?? "animu"}
                 size={14}
-                color={THEME.COLORS.TEXT_DIM}
+                color={THEME.COLORS.TEXT}
               />
               <Text style={styles.accountCaption}>
                 {profile?.session.loginProvider
@@ -288,10 +288,4 @@ export function LinkRow({ label, icon, description, onPress }: LinkRowProps) {
       />
     </TouchableOpacity>
   );
-}
-
-interface InfoRowProps {
-  label: string;
-  icon: MaterialIconName;
-  description?: string;
 }

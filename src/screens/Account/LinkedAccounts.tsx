@@ -101,7 +101,7 @@ export function LinkedAccounts({
                       color={
                         !canUnlink || !!busy
                           ? THEME.COLORS.TEXT_DIM
-                          : THEME.COLORS.TEXT_SOFT
+                          : THEME.COLORS.TEXT
                       }
                     />
                   </TouchableOpacity>

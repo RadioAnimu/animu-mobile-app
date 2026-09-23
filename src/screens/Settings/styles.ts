@@ -6,10 +6,6 @@ import { scale } from "@/theme/responsive";
 const CARD_RADIUS = THEME.RADIUS.CARD;
 const CONTENT_PADDING = THEME.SPACE.LG;
 
-/** Creative Commons license badge — the source PNG is 88×31. */
-const BADGE_WIDTH = scale(88);
-const BADGE_HEIGHT = scale(31);
-
 export const SWITCH = {
   TRACK_WIDTH: scale(50),
   TRACK_HEIGHT: scale(30),
@@ -163,80 +159,5 @@ export const styles = StyleSheet.create({
     backgroundColor: THEME.COLORS.TEXT,
     position: "absolute",
     left: SWITCH.PADDING,
-  },
-  footer: {
-    alignItems: "center",
-    marginTop: THEME.SPACE.XXXL,
-    paddingTop: THEME.SPACE.XL,
-    gap: THEME.SPACE.XS,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: THEME.COLORS.HAIRLINE,
-  },
-  footerVersion: {
-    color: THEME.COLORS.TEXT_DIM,
-    fontFamily: THEME.FONT_FAMILY.REGULAR,
-    fontSize: THEME.FONT_SIZE.CAPTION,
-  },
-  // Credited blocks: the lead (author) / team, then the legal notice.
-  footerBlock: {
-    alignItems: "center",
-    gap: THEME.SPACE.XS,
-    marginTop: THEME.SPACE.MD,
-  },
-  footerLead: {
-    color: THEME.COLORS.TEXT,
-    fontFamily: THEME.FONT_FAMILY.REGULAR,
-    fontSize: THEME.FONT_SIZE.BODY,
-    lineHeight: THEME.LINE_HEIGHT.RELAXED,
-    textAlign: "center",
-  },
-  footerTeam: {
-    color: THEME.COLORS.TEXT_SOFT,
-    fontFamily: THEME.FONT_FAMILY.REGULAR,
-    fontSize: THEME.FONT_SIZE.CAPTION,
-    textAlign: "center",
-  },
-  footerAuthor: {
-    color: THEME.COLORS.BRAND,
-    fontFamily: THEME.FONT_FAMILY.BOLD,
-    textDecorationLine: "underline",
-  },
-  footerLegal: {
-    color: THEME.COLORS.TEXT_DIM,
-    fontFamily: THEME.FONT_FAMILY.REGULAR,
-    fontSize: THEME.FONT_SIZE.CAPTION,
-    lineHeight: THEME.LINE_HEIGHT.RELAXED,
-    textAlign: "center",
-  },
-  /** Creative Commons badge — 88×31 like the source PNG. */
-  footerBadge: {
-    width: BADGE_WIDTH,
-    height: BADGE_HEIGHT,
-  },
-  /** Inline hyperlink inside a footer legal line (e.g. the artist credit). */
-  footerLink: {
-    color: THEME.COLORS.BRAND,
-    fontFamily: THEME.FONT_FAMILY.BOLD,
-    textDecorationLine: "underline",
-  },
-  footerSocials: {
-    flexDirection: "row",
-    alignItems: "center",
-    flexWrap: "wrap",
-    justifyContent: "center",
-    gap: THEME.SPACE.MD,
-  },
-  /** Icon + word link — a compact row of peers, no bubble chrome. */
-  footerSocial: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: THEME.SPACE.XS,
-    paddingVertical: THEME.SPACE.XS,
-    paddingHorizontal: THEME.SPACE.SM,
-  },
-  footerSocialLabel: {
-    color: THEME.COLORS.TEXT_SOFT,
-    fontFamily: THEME.FONT_FAMILY.BOLD,
-    fontSize: THEME.FONT_SIZE.CAPTION,
   },
 });

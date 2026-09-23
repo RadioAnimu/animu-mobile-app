@@ -8,12 +8,10 @@ import { useAuth } from "@/contexts/auth/AuthProvider";
 import { useDict } from "@/hooks/useDict";
 import { RootStackParamList } from "@/routes/app.routes";
 import { styles } from "@/screens/Settings/styles";
+import { AboutSection } from "@/screens/Settings/sections/AboutSection";
 import { AccountSection } from "@/screens/Settings/sections/AccountSection";
 import { BehaviorSection } from "@/screens/Settings/sections/BehaviorSection";
 import { CoverDataSection } from "@/screens/Settings/sections/CoverDataSection";
-import { FooterSection } from "@/screens/Settings/sections/FooterSection";
-import { LegalSection } from "@/screens/Settings/sections/LegalSection";
-import { LinksSection } from "@/screens/Settings/sections/LinksSection";
 import { ResetSection } from "@/screens/Settings/sections/ResetSection";
 import { StorageSection } from "@/screens/Settings/sections/StorageSection";
 import { UpdatesSection } from "@/screens/Settings/sections/UpdatesSection";
@@ -26,7 +24,10 @@ export function Settings({ navigation }: Props) {
 
   return (
     <Background>
-      <SafeAreaView style={styles.container} edges={["left", "right", "bottom"]}>
+      <SafeAreaView
+        style={styles.container}
+        edges={["left", "right", "bottom"]}
+      >
         <ScreenHeader
           title={dict.SETTINGS_TITLE}
           onBack={() => navigation.goBack()}
@@ -53,10 +54,9 @@ export function Settings({ navigation }: Props) {
           <StorageSection
             onOpenStorage={() => navigation.navigate("Storage")}
           />
-          <LinksSection />
-          <LegalSection />
+          {/* Informational rows second-to-last, destructive reset terminally. */}
+          <AboutSection onPress={() => navigation.navigate("About")} />
           <ResetSection />
-          <FooterSection />
         </ScrollView>
       </SafeAreaView>
     </Background>

@@ -6,8 +6,8 @@ is licensed by this project; the others are governed elsewhere.
 
 | Layer | What it covers | License |
 | --- | --- | --- |
-| Source code | `src/`, config, tooling | MIT — see [LICENSE](LICENSE) |
-| Station content | Rádio Animu's original content and branding | CC BY-NC-SA 4.0 — see [NOTICE](NOTICE) |
+| Source code | `src/`, config, tooling | MIT — see [LICENSE](../LICENSE) |
+| Station content | Rádio Animu's original content and branding | CC BY-NC-SA 4.0 — see [NOTICE](../NOTICE) |
 | Third-party works | artwork and media owned by others | **Not licensed here** |
 
 A Creative Commons license can only be applied to works whose copyright you own
@@ -46,7 +46,7 @@ Fonts
 
 Proxima Nova is a commercial typeface (Copyright (c) Mark Simonson, 2005, all
 rights reserved). It is **not** included in this repository and is not licensed
-by it — see [src/assets/fonts/README.md](src/assets/fonts/README.md).
+by it — see [src/assets/fonts/README.md](../src/assets/fonts/README.md).
 
 Rights holders
 --------------

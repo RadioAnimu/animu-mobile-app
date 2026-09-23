@@ -10,6 +10,7 @@ import { Settings } from "@/screens/Settings";
 import { Storage } from "@/screens/Storage";
 import { Login } from "@/screens/Login";
 import { Account } from "@/screens/Account";
+import { About } from "@/screens/About";
 import { useDict } from "@/hooks/useDict";
 import { HistoryType } from "@/@types/history-type";
 
@@ -22,6 +23,7 @@ type SettingsProps = undefined;
 type StorageProps = undefined;
 type LoginProps = undefined;
 type AccountProps = undefined;
+type AboutProps = undefined;
 
 export type RootStackParamList = {
   Home: HomeProps;
@@ -32,6 +34,7 @@ export type RootStackParamList = {
   Storage: StorageProps;
   Login: LoginProps;
   Account: AccountProps;
+  About: AboutProps;
 };
 
 const { Navigator, Screen } = createDrawerNavigator<RootStackParamList>();
@@ -57,7 +60,9 @@ export function AppRoutes() {
       <Screen
         options={{
           drawerLabel: dict.MENU_PLAYER,
-          drawerIcon: ({ color }) => <DrawerIcon name="play-circle" color={color} />,
+          drawerIcon: ({ color }) => (
+            <DrawerIcon name="play-circle" color={color} />
+          ),
         }}
         name="Home"
         component={Home}
@@ -65,7 +70,9 @@ export function AppRoutes() {
       <Screen
         options={{
           drawerLabel: dict.MENU_LAST_REQUESTED,
-          drawerIcon: ({ color }) => <DrawerIcon name="queue-music" color={color} />,
+          drawerIcon: ({ color }) => (
+            <DrawerIcon name="queue-music" color={color} />
+          ),
         }}
         name="LastRequested"
         component={History}
@@ -74,7 +81,9 @@ export function AppRoutes() {
       <Screen
         options={{
           drawerLabel: dict.MENU_LAST_PLAYED,
-          drawerIcon: ({ color }) => <DrawerIcon name="history" color={color} />,
+          drawerIcon: ({ color }) => (
+            <DrawerIcon name="history" color={color} />
+          ),
         }}
         name="LastPlayed"
         component={History}
@@ -125,6 +134,15 @@ export function AppRoutes() {
         }}
         name="Account"
         component={Account}
+      />
+      <Screen
+        options={{
+          drawerItemStyle: {
+            display: "none",
+          },
+        }}
+        name="About"
+        component={About}
       />
     </Navigator>
   );

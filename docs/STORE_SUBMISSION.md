@@ -6,7 +6,7 @@ Master checklist and shared facts for releasing the Animu mobile app on the
 - Apple → [`APP_STORE_REVIEW_NOTES.md`](APP_STORE_REVIEW_NOTES.md)
 - Google Play → [`PLAY_STORE_REVIEW_NOTES.md`](PLAY_STORE_REVIEW_NOTES.md)
 
-Shared licensing/attribution docs: [`LICENSE`](LICENSE), [`NOTICE`](NOTICE),
+Shared licensing/attribution docs: [`LICENSE`](../LICENSE), [`NOTICE`](../NOTICE),
 [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md).
 
 ---
@@ -78,7 +78,7 @@ The policy at <https://www.animu.com.br/privacypolicy> must match the inventory:
 - [ ] Store screenshots use only artwork you have rights to
 - [ ] `npm run lint` + `npx tsc --noEmit` + `npm test` green
 - [ ] iOS/Android builds include the licensed Proxima Nova font
-      (`src/assets/fonts/README.md`; EAS secret or local files)
+      (`../src/assets/fonts/README.md`; EAS secret or local files)
 
 ### Apple
 - [ ] App Privacy answers set from the inventory (see Apple doc)

@@ -78,7 +78,7 @@ function NavItems({ state, descriptors, navigation }: DrawerContentComponentProp
           typeof options.drawerLabel === "string"
             ? options.drawerLabel
             : (options.title ?? route.name);
-        const accent = focused ? THEME.COLORS.SURFACE : THEME.COLORS.TEXT_SOFT;
+        const accent = focused ? THEME.COLORS.SURFACE : THEME.COLORS.TEXT;
 
         const onPress = () => {
           navigation.dispatch({
@@ -164,7 +164,7 @@ function AccountRow({ onOpenLogin, onOpenSettings }: AccountRowProps) {
                 <ProviderIcon
                   provider={loginProvider ?? "animu"}
                   size={scale(14)}
-                  color={THEME.COLORS.TEXT_DIM}
+                  color={THEME.COLORS.TEXT}
                 />
               )}
               <Text style={styles.accountCaption} numberOfLines={1}>

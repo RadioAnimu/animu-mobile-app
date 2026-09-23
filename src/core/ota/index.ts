@@ -1,6 +1,8 @@
 export {
   checkForOtaUpdate,
   downloadOtaUpdate,
+  getCurrentOtaVersion,
+  getRuntimeVersion,
   isOtaSupported,
   restartForOtaUpdate,
   type OtaCheckResult,

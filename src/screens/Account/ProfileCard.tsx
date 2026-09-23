@@ -148,7 +148,7 @@ export function ProfileCard({
               <ProviderIcon
                 provider={loginProvider}
                 size={THEME.ICON.MD}
-                color={THEME.COLORS.TEXT_SOFT}
+                color={THEME.COLORS.TEXT}
               />
               <Text style={styles.statValue}>
                 {providerLabel(loginProvider)}

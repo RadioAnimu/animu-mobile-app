@@ -26,7 +26,7 @@ export function SectionTitle({ title, icon, first }: Props) {
           <MaterialIcons
             name={icon}
             size={SECTION_ICON_SIZE}
-            color={THEME.COLORS.TEXT_SOFT}
+            color={THEME.COLORS.TEXT}
           />
         </View>
       )}

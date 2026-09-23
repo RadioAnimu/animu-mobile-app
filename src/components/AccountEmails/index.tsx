@@ -53,7 +53,7 @@ function EmailRow({
         <MaterialIcons
           name={isExtra ? "alternate-email" : "mail"}
           size={THEME.ICON.MD}
-          color={THEME.COLORS.TEXT_DIM}
+          color={THEME.COLORS.TEXT}
           style={styles.iconGlyph}
         />
       </View>
@@ -108,7 +108,7 @@ function ProviderMarks({
           <ProviderIcon
             provider={provider}
             size={scale(16)}
-            color={THEME.COLORS.TEXT_DIM}
+            color={THEME.COLORS.TEXT}
           />
         </View>
       ))}
@@ -319,7 +319,7 @@ export function AccountEmails() {
           <MaterialIcons
             name="alternate-email"
             size={THEME.ICON.MD}
-            color={THEME.COLORS.TEXT_DIM}
+            color={THEME.COLORS.TEXT}
             style={styles.iconGlyph}
           />
         </View>

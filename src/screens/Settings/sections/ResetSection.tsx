@@ -40,7 +40,7 @@ export function ResetSection() {
 
   return (
     <>
-      <SectionTitle title={dict.SETTINGS_ADVANCED_TITLE} icon="tune" />
+      <SectionTitle title={dict.SETTINGS_ADVANCED_TITLE} icon="settings" />
       <DestructiveAction
         icon="restart-alt"
         label={dict.SETTINGS_RESET_ROW}

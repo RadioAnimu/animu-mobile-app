@@ -110,7 +110,7 @@ export function Select<T extends string>({
             <MaterialIcons
               name={icon}
               size={THEME.ICON.MD}
-              color={THEME.COLORS.TEXT_DIM}
+              color={THEME.COLORS.TEXT}
             />
           </View>
         )}
