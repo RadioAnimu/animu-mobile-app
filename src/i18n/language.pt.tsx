@@ -192,7 +192,7 @@ const DICT: Dict = {
   A11Y_PLAY: "Reproduzir",
   A11Y_PAUSE: "Pausar",
   A11Y_CLOSE: "Fechar",
-  A11Y_SEARCH: "Pesquisar",
+  A11Y_CLEAR_SEARCH: "Limpar pesquisa",
   SETTINGS_MEMORY_CLEAR_CACHE_DESC:
     "Capas são guardadas para carregar mais rápido",
   SETTINGS_UPDATES_TITLE: "Atualizações do app",
@@ -298,6 +298,9 @@ const DICT: Dict = {
     "O painel da rádio está temporariamente indisponível. Tente novamente em instantes.",
   REQUEST_SUCCESS: "Pedido feito com sucesso!",
   REQUEST_SEARCH_PLACEHOLDER: "Digite aqui para pesquisar",
+  REQUEST_SEARCH_MIN: "Digite pelo menos 3 letras",
+  REQUEST_SEARCH_RECENT: "Pesquisas recentes",
+  REQUEST_SEARCH_RECENT_CLEAR: "Limpar",
   REQUEST_SEARCH_EMPTY: "Nenhuma música encontrada. Tente outra busca.",
   REQUEST_SEARCH_ERROR:
     "Não foi possível pesquisar agora. Verifique sua conexão.",

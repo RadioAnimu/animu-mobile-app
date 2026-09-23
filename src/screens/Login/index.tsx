@@ -147,6 +147,7 @@ export function Login({ navigation }: Props) {
         <ScrollView
           contentContainerStyle={styles.content}
           keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
         >
           <View style={styles.stepper}>
             {Array.from({ length: TOTAL_STEPS }).map((_, index) => (

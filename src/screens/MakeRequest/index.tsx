@@ -1,9 +1,9 @@
 import MaterialIcons from "@react-native-vector-icons/material-icons/static";
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
-  RefreshControl,
+  Keyboard,
   Text,
   TextInput,
   TouchableOpacity,
@@ -25,6 +25,8 @@ import { useAuth } from "@/contexts/auth/AuthProvider";
 import { useUserSettings } from "@/contexts/user/UserSettingsProvider";
 import { useDict } from "@/hooks/useDict";
 import { useLatestRequest } from "@/hooks/useLatestRequest";
+import { useRecentSearches } from "@/hooks/useRecentSearches";
+import { useRouteReselect } from "@/hooks/useRouteReselect";
 import {
   MusicRequest,
   MusicRequestPagination,
@@ -35,11 +37,124 @@ import {
   musicRequestService,
 } from "@/core/services/music-request.service";
 import { IMGS } from "@/i18n";
+import type { Dict } from "@/i18n";
 import { THEME } from "@/theme";
 import { scale } from "@/theme/responsive";
+import { haptics } from "@/utils/haptics";
 import { styles } from "@/screens/MakeRequest/styles";
+import { RecentSearches } from "@/screens/MakeRequest/RecentSearches";
+import { ResultsList } from "@/screens/MakeRequest/ResultsList";
 
 const LOGO_HEIGHT = scale(150);
+
+/** Below this many characters a title search matches too much to be useful. */
+const MIN_SEARCH_LENGTH = 3;
+
+/**
+ * Search field. One in-field icon slot: a decorative magnifier while the
+ * field is empty (tap just focuses), swapping to a clear button once there
+ * is text. Searching itself happens on the keyboard's search key only —
+ * `onSubmitEditing`.
+ */
+function SearchBar({
+  dict,
+  query,
+  onChangeText,
+  onSubmit,
+  onClear,
+  onFocusChange,
+}: {
+  dict: Dict;
+  query: string;
+  onChangeText: (query: string) => void;
+  onSubmit: () => void;
+  onClear: () => void;
+  onFocusChange: (focused: boolean) => void;
+}) {
+  const inputRef = useRef<TextInput | null>(null);
+  const hasQuery = query !== "";
+
+  return (
+    <View style={styles.inputContainer}>
+      <View style={styles.searchField}>
+        <TextInput
+          ref={inputRef}
+          style={styles.input}
+          placeholder={dict.REQUEST_SEARCH_PLACEHOLDER}
+          placeholderTextColor={THEME.COLORS.TEXT}
+          accessibilityLabel={dict.REQUEST_SEARCH_PLACEHOLDER}
+          value={query}
+          onChangeText={onChangeText}
+          onSubmitEditing={onSubmit}
+          onFocus={() => onFocusChange(true)}
+          onBlur={() => onFocusChange(false)}
+          // Titles are proper nouns/romaji — spellcheck mangles them.
+          autoCorrect={false}
+          autoCapitalize="none"
+          returnKeyType="search"
+          // Grays the Enter key out while the field is empty (iOS).
+          enablesReturnKeyAutomatically
+          // Enter runs the search and drops the keyboard out of the way so
+          // the results are visible immediately.
+          blurOnSubmit
+        />
+        {hasQuery ? (
+          <TouchableOpacity
+            accessibilityRole="button"
+            accessibilityLabel={dict.A11Y_CLEAR_SEARCH}
+            hitSlop={8}
+            onPress={onClear}
+            style={styles.fieldIcon}
+          >
+            <MaterialIcons
+              name="cancel"
+              size={THEME.ICON.MD}
+              color={THEME.COLORS.TEXT_DIM}
+            />
+          </TouchableOpacity>
+        ) : (
+          <TouchableOpacity
+            accessibilityRole="none"
+            accessible={false}
+            hitSlop={8}
+            onPress={() => inputRef.current?.focus()}
+            style={styles.fieldIcon}
+          >
+            <MaterialIcons
+              name="search"
+              size={THEME.ICON.MD}
+              color={THEME.COLORS.TEXT}
+            />
+          </TouchableOpacity>
+        )}
+      </View>
+    </View>
+  );
+}
+
+/** Failed-search banner with the retry shortcut. */
+function SearchErrorBanner({
+  dict,
+  onRetry,
+}: {
+  dict: Dict;
+  onRetry: () => void;
+}) {
+  return (
+    <View style={styles.errorBanner}>
+      <Text style={styles.errorText}>{dict.REQUEST_SEARCH_ERROR}</Text>
+      <TouchableOpacity
+        accessibilityRole="button"
+        accessibilityLabel={dict.ERROR_RETRY}
+        hitSlop={8}
+        onPress={onRetry}
+        style={styles.retryButton}
+      >
+        <Text style={styles.retryText}>{dict.ERROR_RETRY}</Text>
+      </TouchableOpacity>
+    </View>
+  );
+}
 
 export function MakeRequest() {
   const { user } = useAuth();
@@ -66,34 +181,70 @@ export function MakeRequest() {
   const [selectedTrack, setSelectedTrack] = useState<MusicRequest | undefined>(
     undefined,
   );
+  /** Whether the field is focused — reveals the recent-searches list. */
+  const [searchFocused, setSearchFocused] = useState(false);
+
+  /** Scroll position of the results list — reset when a fresh search lands. */
+  const listRef = useRef<FlatList<MusicRequest> | null>(null);
+
+  const { recent, addRecent, clearRecent } = useRecentSearches();
+
+  // Re-tapping the drawer's active item jumps the results back to the top.
+  useRouteReselect("MakeRequest", () =>
+    listRef.current?.scrollToOffset({ offset: 0, animated: true }),
+  );
 
   // Only the newest search/load-more may write results.
   const { begin, isCurrent } = useLatestRequest();
 
-  const handleSearch = useCallback(async () => {
-    const query = searchState.query;
-    if (!query) return;
-    const requestId = begin();
-    setHasSearched(true);
-    setSearchFailed(false);
-    setSearchState((prev) => ({ ...prev, status: "loading" }));
-    try {
-      const response = await musicRequestService.searchTracksByTitle(query);
-      if (!isCurrent(requestId)) return;
-      setSearchState({
-        query,
-        results: response.results,
-        pagination: response,
-        status: "idle",
-      });
-    } catch (err) {
-      console.error(err);
-      if (!isCurrent(requestId)) return;
-      setSearchFailed(true);
-      setSearchState((prev) => ({ ...prev, status: "idle" }));
-      showError(dict.REQUEST_SEARCH_ERROR);
-    }
-  }, [begin, isCurrent, searchState.query, showError, dict]);
+  const runSearch = useCallback(
+    async (rawQuery: string) => {
+      const query = rawQuery.trim();
+      // Searching on one or two letters returns a useless wall of matches.
+      if (query.length < MIN_SEARCH_LENGTH) return;
+      const requestId = begin();
+      setHasSearched(true);
+      setSearchFailed(false);
+      setSearchState((prev) => ({ ...prev, query, status: "loading" }));
+      try {
+        const response = await musicRequestService.searchTracksByTitle(query);
+        if (!isCurrent(requestId)) return;
+        setSearchState({
+          query,
+          results: response.results,
+          pagination: response,
+          status: "idle",
+        });
+        // A fresh search starts reading from the top.
+        listRef.current?.scrollToOffset({ offset: 0, animated: false });
+        addRecent(query);
+      } catch (err) {
+        console.error(err);
+        if (!isCurrent(requestId)) return;
+        setSearchFailed(true);
+        setSearchState((prev) => ({ ...prev, status: "idle" }));
+        haptics.error();
+        showError(dict.REQUEST_SEARCH_ERROR);
+      }
+    },
+    [addRecent, begin, isCurrent, showError, dict],
+  );
+
+  const handleSearch = useCallback(
+    () => void runSearch(searchState.query),
+    [runSearch, searchState.query],
+  );
+
+  /** Tapping a recent search re-runs it (keyboard down, field filled). */
+  const handlePickRecent = useCallback(
+    (query: string) => {
+      Keyboard.dismiss();
+      haptics.select();
+      setSearchState((prev) => ({ ...prev, query }));
+      void runSearch(query);
+    },
+    [runSearch],
+  );
 
   const handleLoadMore = useCallback(async () => {
     if (searchState.status !== "idle") return;
@@ -123,8 +274,8 @@ export function MakeRequest() {
   const [refreshing, setRefreshing] = useState(false);
 
   const handleRefresh = useCallback(async () => {
-    const query = searchState.query;
-    if (!query) return;
+    const query = searchState.query.trim();
+    if (query.length < MIN_SEARCH_LENGTH) return;
     const requestId = begin();
     setRefreshing(true);
     try {
@@ -136,6 +287,7 @@ export function MakeRequest() {
         pagination: response,
         status: "idle",
       });
+      listRef.current?.scrollToOffset({ offset: 0, animated: false });
     } catch (err) {
       console.error(err);
       showError(dict.REQUEST_SEARCH_ERROR);
@@ -143,6 +295,14 @@ export function MakeRequest() {
       setRefreshing(false);
     }
   }, [begin, isCurrent, searchState.query, showError, dict]);
+
+  /** One tap empties the field, the old results and every error state. */
+  const handleClearSearch = useCallback(() => {
+    haptics.select();
+    setSearchState({ query: "", results: [], status: "idle" });
+    setHasSearched(false);
+    setSearchFailed(false);
+  }, []);
 
   const handleSubmitRequest = useCallback(
     async (message: string): Promise<{ success: boolean; message: string }> => {
@@ -223,84 +383,53 @@ export function MakeRequest() {
             />
           </View>
 
-          <View style={styles.inputContainer}>
-            <TextInput
-              style={styles.input}
-              placeholder={
-                dict.REQUEST_SEARCH_PLACEHOLDER
-              }
-              placeholderTextColor={THEME.COLORS.TEXT}
-              accessibilityLabel={dict.REQUEST_SEARCH_PLACEHOLDER}
-              value={searchState.query}
-              onChangeText={(query) =>
-                setSearchState((prev) => ({ ...prev, query }))
-              }
-              onSubmitEditing={handleSearch}
-            />
-            <TouchableOpacity
-              accessibilityRole="button"
-              accessibilityLabel={dict.A11Y_SEARCH}
-              hitSlop={8}
-              onPress={handleSearch}
-              style={styles.searchIcon}
-            >
-              <MaterialIcons
-                name="search"
-                size={THEME.ICON.LG}
-                color={THEME.COLORS.TEXT}
-              />
-            </TouchableOpacity>
-          </View>
+          <SearchBar
+            dict={dict}
+            query={searchState.query}
+            onChangeText={(query) =>
+              setSearchState((prev) => ({ ...prev, query }))
+            }
+            onSubmit={handleSearch}
+            onClear={handleClearSearch}
+            onFocusChange={setSearchFocused}
+          />
+
+          {searchState.query.trim().length > 0 &&
+            searchState.query.trim().length < MIN_SEARCH_LENGTH && (
+              <Text style={styles.minHint}>{dict.REQUEST_SEARCH_MIN}</Text>
+            )}
+
+          {searchFailed && (
+            <SearchErrorBanner dict={dict} onRetry={handleSearch} />
+          )}
 
           <View style={styles.listWrapper}>
-            {searchState.status === "loading" ? (
+            {searchFocused && searchState.query === "" && recent.length > 0 ? (
+              <RecentSearches
+                dict={dict}
+                items={recent}
+                onPick={handlePickRecent}
+                onClear={clearRecent}
+              />
+            ) : searchState.status === "loading" ? (
               <ActivityIndicator color={THEME.COLORS.TEXT} />
             ) : (
               <TrackRequestContext.Provider value={handleRequestTrack}>
-                <FlatList
+                <ResultsList
+                  listRef={listRef}
                   data={searchState.results}
-                  keyExtractor={(item) => item.id}
-                  contentContainerStyle={styles.list}
                   renderItem={renderRequestTrack}
-                  // Rows wrap to show the full title, so they vary in height
-                  // and cannot be described by `getItemLayout`.
-                  // Virtualization tuning for long searches: render only
-                  // what is on screen plus a short lead in/out.
-                  initialNumToRender={10}
-                  maxToRenderPerBatch={10}
-                  windowSize={7}
-                  ListEmptyComponent={
+                  showEmpty={
                     hasSearched &&
                     !searchFailed &&
                     searchState.status === "idle" &&
-                    searchState.query.trim() !== "" ? (
-                      <Text style={styles.emptyText}>
-                        {dict.REQUEST_SEARCH_EMPTY}
-                      </Text>
-                    ) : null
+                    searchState.query.trim().length >= MIN_SEARCH_LENGTH
                   }
-                  refreshControl={
-                    <RefreshControl
-                      refreshing={refreshing}
-                      onRefresh={handleRefresh}
-                      tintColor={THEME.COLORS.TEXT}
-                      colors={[THEME.COLORS.BRAND]}
-                      progressBackgroundColor={THEME.COLORS.SURFACE}
-                    />
-                  }
-                  ListFooterComponent={
-                    searchState.status === "loadingMore" ? (
-                      <ActivityIndicator
-                        color={THEME.COLORS.TEXT}
-                        style={styles.loadMoreSpinner}
-                      />
-                    ) : null
-                  }
-                  // Endless scroll: fetch the next page as the user nears the
-                  // end of the list. `handleLoadMore` is re-entrancy-guarded
-                  // (status check) and a no-op when there is no next page.
+                  emptyLabel={dict.REQUEST_SEARCH_EMPTY}
+                  refreshing={refreshing}
+                  onRefresh={handleRefresh}
+                  loadingMore={searchState.status === "loadingMore"}
                   onEndReached={handleLoadMore}
-                  onEndReachedThreshold={0.5}
                 />
               </TrackRequestContext.Provider>
             )}

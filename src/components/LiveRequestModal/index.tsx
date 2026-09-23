@@ -201,6 +201,7 @@ export function LiveRequestModal({ visible, handleClose }: Props) {
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
       >
         <Text style={styles.title}>{t.LIVE_REQUEST_TITLE}</Text>
         {FORM_BUILDER_MAPPER.map((item) => (

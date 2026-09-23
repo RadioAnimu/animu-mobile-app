@@ -192,7 +192,7 @@ const DICT: Dict = {
   A11Y_PLAY: "Reproducir",
   A11Y_PAUSE: "Pausar",
   A11Y_CLOSE: "Cerrar",
-  A11Y_SEARCH: "Buscar",
+  A11Y_CLEAR_SEARCH: "Borrar búsqueda",
   SETTINGS_MEMORY_CLEAR_CACHE_DESC:
     "Las portadas se guardan para cargar más rápido",
   SETTINGS_UPDATES_TITLE: "Actualizaciones de la app",
@@ -301,6 +301,9 @@ const DICT: Dict = {
     "El panel de la radio está temporalmente no disponible. Inténtalo de nuevo en un momento.",
   REQUEST_SUCCESS: "¡Solicitud realizada con éxito!",
   REQUEST_SEARCH_PLACEHOLDER: "Escribe aquí para buscar",
+  REQUEST_SEARCH_MIN: "Escribe al menos 3 letras",
+  REQUEST_SEARCH_RECENT: "Búsquedas recientes",
+  REQUEST_SEARCH_RECENT_CLEAR: "Borrar",
   REQUEST_SEARCH_EMPTY: "No se encontraron canciones. Prueba otra búsqueda.",
   REQUEST_SEARCH_ERROR: "No se pudo buscar ahora. Revisa tu conexión.",
   HARU_CHAN_TEXT: "HARU-CHAN",

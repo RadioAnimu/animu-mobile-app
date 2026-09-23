@@ -44,6 +44,10 @@ export function EmailCodeFields({ flow }: { flow: EmailCodeFlow }) {
           keyboardType="email-address"
           autoCapitalize="none"
           autoCorrect={false}
+          // Lets the OS/keyboard offer the saved address instead of retyping.
+          autoComplete="email"
+          textContentType="emailAddress"
+          returnKeyType="send"
           editable={!flow.busy}
           accessibilityLabel={dict.LOGIN_EMAIL}
           placeholder={dict.LOGIN_EMAIL_PLACEHOLDER}

@@ -17,9 +17,11 @@ import { useAuth } from "@/contexts/auth/AuthProvider";
 import { useUserSettings } from "@/contexts/user/UserSettingsProvider";
 import { useDict } from "@/hooks/useDict";
 import { getUserName } from "@/core/domain/user";
+import { emitReselect } from "@/core/navigation/reselect";
 import { providerLabel } from "@/constants/auth";
 import { IMGS } from "@/i18n";
 import { THEME } from "@/theme";
+import { haptics } from "@/utils/haptics";
 import { scale } from "@/theme/responsive";
 import { styles } from "@/components/CustomDrawer/styles";
 
@@ -81,6 +83,10 @@ function NavItems({ state, descriptors, navigation }: DrawerContentComponentProp
         const accent = focused ? THEME.COLORS.SURFACE : THEME.COLORS.TEXT;
 
         const onPress = () => {
+          haptics.select();
+          // Re-tapping the screen already on top scrolls it to the top
+          // instead of just closing the drawer.
+          if (focused) emitReselect(route.name);
           navigation.dispatch({
             ...(focused
               ? DrawerActions.closeDrawer()

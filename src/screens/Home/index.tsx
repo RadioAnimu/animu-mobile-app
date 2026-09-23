@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { ScrollView, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -19,6 +19,7 @@ import { TimeRemaining } from "@/components/TimeRemaining";
 // Styles
 import { styles } from "@/screens/Home/styles";
 import { scale } from "@/theme/responsive";
+import { useRouteReselect } from "@/hooks/useRouteReselect";
 
 const LOGO_HEIGHT = scale(127);
 
@@ -26,6 +27,12 @@ export const Home = () => {
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [isLiveRequestModalVisible, setIsLiveRequestModalVisible] =
     useState(false);
+
+  // Re-tapping the drawer's active item scrolls this page back to the top.
+  const scrollRef = useRef<ScrollView | null>(null);
+  useRouteReselect("Home", () =>
+    scrollRef.current?.scrollTo({ y: 0, animated: true }),
+  );
 
   // UI Handlers
   const handleOpenProgramModal = useCallback(() => {
@@ -43,7 +50,7 @@ export const Home = () => {
   return (
     <Background>
       <SafeAreaView style={styles.container} edges={["left", "right", "bottom"]}>
-        <ScrollView>
+        <ScrollView ref={scrollRef}>
           <HeaderBar
             openLiveRequestModal={() => handleLiveRequestModal(true)}
           />

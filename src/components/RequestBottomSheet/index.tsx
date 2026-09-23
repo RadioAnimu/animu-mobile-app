@@ -182,6 +182,7 @@ export function RequestBottomSheet({
       <ScrollView
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
         contentContainerStyle={styles.scrollContent}
       >
         {track && <TrackSummary track={track} />}

@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import {
   FlatList,
   RefreshControl,
@@ -26,6 +26,7 @@ import { useCopyToClipboard } from "@/hooks/useCopyToClipboard";
 import { useDict } from "@/hooks/useDict";
 import { usePlayer, useStation } from "@/contexts/player/PlayerProvider";
 import type { StationSnapshot } from "@/core/player";
+import { useRouteReselect } from "@/hooks/useRouteReselect";
 
 type Props = DrawerScreenProps<
   RootStackParamList,
@@ -42,6 +43,14 @@ export function History({ route }: Props) {
   const copyText = useCopyToClipboard();
   const dict = useDict();
   const [refreshing, setRefreshing] = useState(false);
+
+  // Re-tapping the drawer's active history item jumps back to the newest row.
+  const listRef = useRef<FlatList<
+    NonNullable<StationSnapshot["lastRequestedTracks"]>[number]
+  > | null>(null);
+  useRouteReselect(route.name, () =>
+    listRef.current?.scrollToOffset({ offset: 0, animated: true }),
+  );
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -130,6 +139,7 @@ export function History({ route }: Props) {
           />
           <View style={styles.listWrapper}>
             <FlatList
+              ref={listRef}
               data={listData}
               keyExtractor={(item) =>
                 `${item.raw}-${new Date(item.startTime).getTime()}`
