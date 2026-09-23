@@ -122,7 +122,7 @@ export const ANIMU_CONNECT = {
 } as const;
 
 /** Rendered when `getProviders()` is unreachable, so the UI still works. */
-export const FALLBACK_PROVIDERS = ["discord", "google", "apple"] as const;
+export const FALLBACK_PROVIDERS = ["discord", "google", "fluxer", "apple"] as const;
 
 /** Initial button list, replaced by `getProviders()` once it resolves. */
 export const DEFAULT_PROVIDERS = FALLBACK_PROVIDERS.map((name) => ({
