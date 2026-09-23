@@ -57,5 +57,10 @@ describe("userSettingsService.initialize", () => {
     const settings = await userSettingsService.initialize();
 
     expect(settings).toEqual(DEFAULT_USER_SETTINGS);
+    // The singleton must ADOPT the fallback, not merely return it — a later
+    // reader (getCurrentSettings) must not see a stale prior value.
+    expect(userSettingsService.getCurrentSettings()).toEqual(
+      DEFAULT_USER_SETTINGS,
+    );
   });
 });

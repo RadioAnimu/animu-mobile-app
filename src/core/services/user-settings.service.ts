@@ -23,7 +23,11 @@ class UserSettingsService {
       }
       return this.settings;
     } catch {
-      return DEFAULT_USER_SETTINGS;
+      // Corrupt/unreadable store: ADOPT the defaults in memory too — this is a
+      // singleton, so returning them without assigning would leave a stale
+      // value for every later getCurrentSettings() reader this session.
+      this.settings = DEFAULT_USER_SETTINGS;
+      return this.settings;
     }
   }
 
