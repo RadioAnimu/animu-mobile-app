@@ -34,8 +34,13 @@ export function isBarCorrection(
   sinceEffectMs: number,
   durationMs: number | undefined,
 ): boolean {
+  // Real playback only ever ADVANCES the bar: any backward move is a
+  // correction (new track reset, sync re-lock after a thaw), never natural
+  // travel — so it snaps regardless of duration/timing, above the floor.
+  if (move < 0) return Math.abs(move) > SNAP_FLOOR_RATIO;
   if (!durationMs || !Number.isFinite(durationMs) || durationMs <= 0) {
-    return move > SNAP_FLOOR_RATIO && move < 0.95;
+    // No duration to scale by — fall back to the flat floor.
+    return move > SNAP_FLOOR_RATIO;
   }
   const expected = (Math.max(0, Math.min(sinceEffectMs, MAX_SINCE_MS)) / durationMs) * REALTIME_TOLERANCE;
   return Math.abs(move) > Math.max(SNAP_FLOOR_RATIO, expected);

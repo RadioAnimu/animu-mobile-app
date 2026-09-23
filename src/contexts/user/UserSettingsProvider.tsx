@@ -54,20 +54,26 @@ export const UserSettingsProvider: React.FC<{ children: React.ReactNode }> = ({
     playerService().setVisualizerEnabled(settings.visualizerHz > 0);
   }, [settings.visualizerHz]);
 
-  useEffect(() => {
-    const initializeSettings = async () => {
-      const initialSettings = await userSettingsService.initialize();
-      applySettings(initialSettings);
-    };
-
-    initializeSettings();
-  }, []);
-
   /** Serialization chain — interleaved updates (a slow OFF wipe vs a fast
       ON) must persist and apply strictly in call order, or a stale write
       clobbers the newer one and storage/UI disagree. Lazily initialized
       (allocation happens once, not eagerly at every ref decl). */
   const updateChainRef = useRef<Promise<void> | null>(null);
+
+  // Seeding the chain with initialization is what makes the serialization
+  // real: a toggle landing before `initialize()` resolves queues BEHIND the
+  // load instead of racing it — otherwise the update would persist defaults
+  // + change, then the load's late `applySettings` would clobber the UI while
+  // disk kept the change (or vice versa).
+  useEffect(() => {
+    const run = (async () => {
+      const initialSettings = await userSettingsService.initialize();
+      applySettings(initialSettings);
+    })();
+    updateChainRef.current = run.catch((error) => {
+      console.error("Settings initialization failed:", error);
+    });
+  }, []);
 
   const updateSettings = useCallback(async (newSettings: Partial<UserSettings>) => {
     // Serialize: interleaved updates (a slow OFF wipe vs a fast ON) must

@@ -268,7 +268,10 @@ export class ArtworkResolver {
     void this.resolve(previewUrl)
       .then((local) => {
         // Map/paint only while the full file is still missing — if it landed
-        // first it wins, and the preview must not shadow it.
+        // first it wins, and the preview must not shadow it. A reset may have
+        // run while the download was in flight; a destroyed resolver must
+        // not repopulate its map or paint into a dead consumer.
+        if (this.disposed) return;
         if (local !== previewUrl && !this.fileMap.peek(fullUrl)) {
           this.fileMap.track(fullUrl, local);
           onPreview?.(local);

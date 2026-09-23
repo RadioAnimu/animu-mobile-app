@@ -61,9 +61,10 @@ type PlayerContextType = PlayerSnapshot & {
   reportVisualizerDelay: (appliedMs: number) => void;
 };
 
-// Silent sentinels for consumers that mount before bootstrap finishes:
-// the expected pre-init call is swallowed; an ACCIDENTAL call logs loudly
-// (an unhandled string rejection would vanish without a trace instead).
+// Pre-bootstrap sentinels: callers that mount before `setupPlayer` resolves
+// hit a real Error (with a stack) instead of a bare string reason that would
+// vanish silently if the rejection goes unhandled. Consumers that legitimately
+// race bootstrap already `.catch()` these.
 const notInitialized = () =>
   Promise.reject(new Error("[PlayerProvider] player not initialized"));
 

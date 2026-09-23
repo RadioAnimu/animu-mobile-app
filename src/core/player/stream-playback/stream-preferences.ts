@@ -28,6 +28,12 @@ export class StreamPreferences {
       return;
     }
 
+    // An empty fetched list verifies and selects nothing (degraded API): keep
+    // the hardcoded default in memory WITHOUT persisting it — overwriting the
+    // stored preference with a fallback would lose the user's choice the next
+    // time a real list arrives. A non-empty list is authoritative.
+    if (options.length === 0) return;
+
     // First launch or stored stream no longer exists — pick first from API
     this.currentStream = options[0] ?? CONFIG.DEFAULT_STREAM_OPTION;
     await this.persist();

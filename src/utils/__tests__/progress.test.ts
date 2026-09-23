@@ -46,6 +46,20 @@ describe("isBarCorrection", () => {
     expect(isBarCorrection(0.05, 10, LONG)).toBe(true);
   });
 
+  it("without a duration the flat floor applies in both directions", () => {
+    expect(isBarCorrection(0.05, 250, undefined)).toBe(true);
+    // Track change resetting to 0 with no known duration must snap, not sweep.
+    expect(isBarCorrection(-0.4, 250, 0)).toBe(true);
+    expect(isBarCorrection(-0.01, 250, undefined)).toBe(false);
+  });
+
+  it("any backward move above the floor is a correction, even within the real-time window", () => {
+    // A sync re-lock after a thaw can pull the bar back; real playback never
+    // travels backwards, so this must snap on short tracks too.
+    expect(isBarCorrection(-0.05, 250, SHORT)).toBe(true);
+    expect(isBarCorrection(-0.01, 250, SHORT)).toBe(false);
+  });
+
   it("a late update crossing the max real-time window still animates", () => {
     // 2s of silent wall time on a 8s track: expected ≈ 37.5%… beyond that
     // the correction is a real re-anchor.

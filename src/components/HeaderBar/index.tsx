@@ -77,6 +77,8 @@ export function HeaderBar({ openLiveRequestModal }: Props) {
   const lastBarTarget = useRef(0);
   const lastBarRun = useRef(0);
   const wasSyncing = useRef(player.syncing);
+  /** Re-entrancy guard: two taps in one frame must not toggle twice. */
+  const changingRef = useRef(false);
 
   useEffect(() => {
     const duration = currentTrack?.duration ?? 0;
@@ -190,22 +192,28 @@ export function HeaderBar({ openLiveRequestModal }: Props) {
             }
             accessibilityState={{ disabled: status === "changing" }}
             onPress={async () => {
-              if (status === "changing") return;
+              if (changingRef.current) return;
+              changingRef.current = true;
               setStatus("changing");
               haptics.tap();
-              // try/finally: a failed toggle must not leave the button
-              // stuck "changing" (permanently disabled) — fall back to
-              // whatever the player snapshot says the state IS.
+              // Capture the pre-toggle truth: after the await the render
+              // closure's `player.isPlaying` is stale (the store moved, this
+              // render did not), so re-reading it would report the WRONG
+              // state. On failure revert to that same truth; the provider
+              // already logs, the catch is the defensive backstop.
+              const wasPlaying = player.isPlaying;
               try {
-                if (!player.isPlaying) {
-                  await player.play();
-                } else {
+                if (wasPlaying) {
                   await player.pause();
+                } else {
+                  await player.play();
                 }
+                setStatus(wasPlaying ? "paused" : "playing");
               } catch (error) {
                 console.warn("[HeaderBar] play/pause failed:", error);
+                setStatus(wasPlaying ? "playing" : "paused");
               } finally {
-                setStatus(player.isPlaying ? "playing" : "paused");
+                changingRef.current = false;
               }
             }}
           >
