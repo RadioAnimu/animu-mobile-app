@@ -31,7 +31,7 @@ export function useSmoothedElapsed(
     key: resetKey,
     value: targetMs ?? 0,
     target: targetMs ?? 0,
-    // Timestamps are set in the effects below (Date.now is impure at render).
+    // Timestamps are set at sync time (Date.now is impure at first render).
     targetAt: 0,
     tickAt: 0,
     active: targetMs != null,
@@ -53,6 +53,7 @@ export function useSmoothedElapsed(
     }
     s.active = targetMs != null;
     if (targetMs == null) {
+      // react-doctor-disable-next-line no-adjust-state-on-prop-change -- null IS this prop's value.
       setValue(null);
       return;
     }

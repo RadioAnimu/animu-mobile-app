@@ -153,14 +153,14 @@ const DICT: Dict = {
   SETTINGS_COVER_LAST_REQUESTED_SWITCH: "Últimas solicitudes de portadas:",
   SETTINGS_COVER_LAST_PLAYED_SWITCH: "Últimas reproducciones de portadas:",
   SETTINGS_COVER_REQUESTED_SWITCH: "Hacer solicitudes con portadas:",
-  SETTINGS_LANGUAGE_SELECT_TITLE: "Selección de Idioma",
+
   SETTINGS_LANGUAGE_ROW: "Idioma de la app",
-  SETTINGS_BATTERY_TITLE: "Conexión",
+
   SETTINGS_LIVE_UPDATES_SWITCH: "Información en vivo:",
   SETTINGS_MEMORY_TITLE: "Almacenamiento",
   SETTINGS_GENERAL_TITLE: "General",
   SETTINGS_PLAYBACK_TITLE: "Reproducción",
-  SETTINGS_OSCILLOSCOPE_TITLE: "Visualizador",
+
   SETTINGS_VISUALIZER_SWITCH: "Onda de sonido:",
   SETTINGS_MEMORY_CLEAR_CACHE_SWITCH: "Reutilizar portadas descargadas:",
   SETTINGS_STORAGE_TOTAL: "Portadas guardadas",
@@ -181,7 +181,7 @@ const DICT: Dict = {
   SETTINGS_VISUALIZER_DESC: "Onda de sonido mientras suena una canción",
   SETTINGS_LIVE_UPDATES_DESC:
     "Novedades de canciones con la app en segundo plano",
-  SETTINGS_FEEDBACK_TITLE: "Respuesta",
+
   SETTINGS_HAPTICS_SWITCH: "Respuesta háptica:",
   SETTINGS_HAPTICS_DESC: "Vibración al tocar y en las acciones",
   A11Y_BACK: "Atrás",
@@ -201,7 +201,7 @@ const DICT: Dict = {
   SETTINGS_ASSISTANT_TITLE: "Asistente de voz",
   SETTINGS_ASSISTANT_HINT_IOS: 'Di "Oye Siri, reproducir Rádio Animu"',
   SETTINGS_ASSISTANT_HINT_ANDROID: 'Di "Ok Google, reproducir Rádio Animu"',
-  SETTINGS_SHORTCUTS_TITLE: "Atajos",
+
   SETTINGS_UPDATES_CHECKING: "Comprobando…",
   SETTINGS_UPDATES_DOWNLOADING: "Descargando…",
   SETTINGS_UPDATES_UP_TO_DATE: "Estás al día",
@@ -219,7 +219,7 @@ const DICT: Dict = {
   SETTINGS_RESET_CONFIRM_MSG:
     "Todos los ajustes vuelven a sus valores originales.",
   SETTINGS_RESET_CONFIRM: "Restablecer",
-  SETTINGS_FOOTER_APP_CREDIT: "App móvil por",
+
   SETTINGS_FOOTER_TEAM: "Hecho con ❤️ y mucho ☕ por el Equipo Animu",
   SETTINGS_FOOTER_FOUNDER: "Fundado y diseñado por Lucas Lopes (LL!)",
   SETTINGS_FOOTER_DEV:
@@ -251,25 +251,20 @@ const DICT: Dict = {
   ABOUT_RELEASE_APK: "APK (sideload)",
   ABOUT_RELEASE_UNKNOWN: "Desconocido",
   ABOUT_CREDITS_TITLE: "Créditos",
-  ABOUT_ROLE_FOUNDER: "Fundador y diseño",
-  ABOUT_ROLE_DEVELOPER: "Desarrollador",
+
   ABOUT_ROLE_MAINTAINER: "Mantenedor de la app",
-  ABOUT_ROLE_ARTWORK: "Arte",
+
   ABOUT_DONORS_TITLE: "Donantes",
   ABOUT_DONORS_INTRO:
     "Un agradecimiento de corazón a todos los que hicieron posible esta app. Las personas de abajo apoyaron el proyecto con donaciones entre el 15 y el 18 de febrero de 2024, haciendo posible el lanzamiento para Android y, después, para iOS.",
-  ABOUT_NOTICE: "NOTICE",
-  ABOUT_NOTICE_DESC: "Qué cubre la licencia MIT (y qué no)",
+
   SETTINGS_FOOTER_NPC: "NPCpepper",
   SETTINGS_LEGAL_TITLE: "Legal",
   SETTINGS_PRIVACY_POLICY: "Política de Privacidad",
   SETTINGS_CONTENT_LICENSE: "Contenido de la radio",
   SETTINGS_CONTENT_LICENSE_DESC:
     "Proyecto sin fines de lucro · CC BY-NC-SA 4.0",
-  SETTINGS_SOURCE_LICENSE: "Código fuente de la app",
-  SETTINGS_SOURCE_LICENSE_DESC: "Licencia MIT",
-  SETTINGS_THIRD_PARTY_NOTICES: "Avisos de terceros",
-  SETTINGS_THIRD_PARTY_NOTICES_DESC: "Créditos de imágenes y medios",
+
   SETTINGS_COPYRIGHT_NOTICE: "© 2018–2026 Rádio Animu",
   SETTINGS_IMAGE_RIGHTS:
     "Todas las imágenes editadas pertenecen a sus respectivos creadores y estudios.",
@@ -347,7 +342,7 @@ const DICT: Dict = {
   LOGIN_EMAIL_PLACEHOLDER: "tu@ejemplo.com",
   LOGIN_SEND_CODE: "Enviar código",
   LOGIN_CODE: "Código",
-  LOGIN_CODE_PLACEHOLDER: "Código de 4 dígitos",
+
   LOGIN_CODE_SENT: "Enviamos un código a tu correo.",
   LOGIN_CODE_SUBTITLE: "Escribe el código enviado a {email}",
   LOGIN_CODE_RESEND: "Reenviar código",
@@ -357,8 +352,7 @@ const DICT: Dict = {
   ACCOUNT_TITLE: "Cuenta",
   ACCOUNT_SIGNED_OUT: "No has iniciado sesión.",
   ACCOUNT_SIGN_IN: "Iniciar sesión",
-  ACCOUNT_VERIFIED: "Verificado",
-  ACCOUNT_NOT_VERIFIED: "No verificado",
+
   ACCOUNT_VERIFIED_INFO:
     "Solo los oyentes verificados pueden pedir canciones. Para verificarte, vincula una cuenta de Discord y activa el 2FA en ella.",
   ACCOUNT_CONNECTED_VIA: "Sesión con",

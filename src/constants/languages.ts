@@ -10,5 +10,3 @@ export const LANGUAGE_LABELS = {
   ES: "Español",
   JN: "日本語",
 } as const;
-
-export type LanguageKey = keyof typeof LANGUAGE_LABELS;

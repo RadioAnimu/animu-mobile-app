@@ -3,7 +3,6 @@ import { useState } from "react";
 import {
   ActivityIndicator,
   Image,
-  LayoutAnimation,
   Text,
   TouchableOpacity,
   View,
@@ -11,6 +10,7 @@ import {
 } from "react-native";
 
 import { THEME } from "@/theme";
+import { layoutEase } from "@/utils/layout-animation";
 import { styles } from "@/components/Select/styles";
 import { haptics } from "@/utils/haptics";
 
@@ -63,11 +63,7 @@ export function Select<T extends string>({
 
   const selected = options.find((option) => option.key === value);
 
-  const animate = () =>
-    LayoutAnimation.configureNext({
-      duration: 180,
-      update: { type: LayoutAnimation.Types.easeInEaseOut },
-    });
+  const animate = layoutEase;
 
   const toggle = () => {
     animate();

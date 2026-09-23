@@ -5,7 +5,6 @@ import * as Linking from "expo-linking";
 import { DrawerScreenProps } from "@react-navigation/drawer";
 import { Image } from "expo-image";
 import {
-  LayoutAnimation,
   ScrollView,
   Text,
   TouchableOpacity,
@@ -25,6 +24,7 @@ import { RootStackParamList } from "@/routes/app.routes";
 import { haptics } from "@/utils/haptics";
 import { Divider, InfoRow, LinkRow, ValueRow } from "@/screens/Settings/rows";
 import { THEME } from "@/theme";
+import { layoutEase } from "@/utils/layout-animation";
 import { scale } from "@/theme/responsive";
 import ccLicense from "@/assets/cc-by-nc-sa.webp";
 import { DONORS } from "@/screens/About/credits";
@@ -110,11 +110,7 @@ function SocialRow({ brand, label, url }: SocialRowProps) {
 function DonorDisclosure({ label, intro }: { label: string; intro: string }) {
   const [open, setOpen] = useState(false);
 
-  const animate = () =>
-    LayoutAnimation.configureNext({
-      duration: 180,
-      update: { type: LayoutAnimation.Types.easeInEaseOut },
-    });
+  const animate = layoutEase;
 
   const toggle = () => {
     haptics.select();

@@ -8,7 +8,6 @@ import { Dimensions } from "react-native";
  * proportions on every phone instead of looking sparse on large screens.
  */
 export const DESIGN_WIDTH = 393;
-export const DESIGN_HEIGHT = 852;
 
 /**
  * Tablets are far wider than a phone. Scaling 1:1 would turn the phone
@@ -17,7 +16,7 @@ export const DESIGN_HEIGHT = 852;
  */
 export const MAX_SCALE = 1.3;
 
-const { width, height } = Dimensions.get("window");
+const { width } = Dimensions.get("window");
 
 /** Uniform scale factor, clamped for tablets. */
 const ratio = Math.min(width / DESIGN_WIDTH, MAX_SCALE);
@@ -28,14 +27,8 @@ const ratio = Math.min(width / DESIGN_WIDTH, MAX_SCALE);
  */
 export const scale = (size: number): number => size * ratio;
 
-/** Scales along the height axis. Rarely needed; prefer `scale`. */
-export const verticalScale = (size: number): number =>
-  size * Math.min(height / DESIGN_HEIGHT, MAX_SCALE);
-
 /** Full device width — for full-bleed surfaces (header bar, ticker). */
 export const SCREEN_WIDTH = width;
-
-export const SCREEN_HEIGHT = height;
 
 /**
  * Width of the centered content column. Equals the device width on

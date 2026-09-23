@@ -135,9 +135,11 @@ export class CoverCacheSeeder {
       // Register under BOTH spellings the endpoints emit — the seeded
       // bytes must satisfy whichever journey asks next, not just the one
       // that triggered the download.
-      for (const key of artworkKeyVariants(remoteUrl)) {
-        await this.diskCache.writeCache(localUri, key);
-      }
+      await Promise.all(
+        artworkKeyVariants(remoteUrl).map((key) =>
+          this.diskCache.writeCache(localUri, key),
+        ),
+      );
     } catch (error) {
       console.warn("[CoverImageCache] seed failed:", error);
     }

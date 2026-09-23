@@ -61,6 +61,7 @@ const playerScopedFetch: typeof expoFetch = async (input, init) => {
   const abort = () => controller.abort();
   for (const source of sources) {
     if (source.aborted) controller.abort();
+    // react-doctor-disable-next-line rn-no-dimensions-get -- AbortSignal listener, not Dimensions.
     else source.addEventListener("abort", abort, { once: true });
   }
   try {

@@ -1,12 +1,6 @@
 import type { AuthUser } from "animu-api";
 
-export type {
-  AuthProfile,
-  AuthSession,
-  AuthUser,
-  LinkedProvider,
-  ProviderInfo,
-} from "animu-api";
+export type { AuthProfile, AuthUser } from "animu-api";
 
 /**
  * App session user: the Auth API v5 user plus the session token and a derived

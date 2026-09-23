@@ -153,14 +153,14 @@ const DICT: Dict = {
   SETTINGS_COVER_LAST_REQUESTED_SWITCH: "リクエスト履歴のカバー：",
   SETTINGS_COVER_LAST_PLAYED_SWITCH: "最近流れた曲のカバー：",
   SETTINGS_COVER_REQUESTED_SWITCH: "リクエストするときのカバー：",
-  SETTINGS_LANGUAGE_SELECT_TITLE: "言語設定",
+
   SETTINGS_LANGUAGE_ROW: "アプリの言語",
-  SETTINGS_BATTERY_TITLE: "接続",
+
   SETTINGS_LIVE_UPDATES_SWITCH: "リアルタイム情報：",
   SETTINGS_MEMORY_TITLE: "ストレージ",
   SETTINGS_GENERAL_TITLE: "一般",
   SETTINGS_PLAYBACK_TITLE: "再生",
-  SETTINGS_OSCILLOSCOPE_TITLE: "ビジュアライザー",
+
   SETTINGS_VISUALIZER_SWITCH: "音の波形：",
   SETTINGS_MEMORY_CLEAR_CACHE_SWITCH: "ダウンロード済みカバーを再利用：",
   SETTINGS_STORAGE_TOTAL: "キャッシュされたカバー",
@@ -180,7 +180,7 @@ const DICT: Dict = {
   SETTINGS_QUALITY_RECOMMENDED: "おすすめ",
   SETTINGS_VISUALIZER_DESC: "再生中に波形を表示します",
   SETTINGS_LIVE_UPDATES_DESC: "バックグラウンドでも曲情報を更新します",
-  SETTINGS_FEEDBACK_TITLE: "フィードバック",
+
   SETTINGS_HAPTICS_SWITCH: "触覚フィードバック:",
   SETTINGS_HAPTICS_DESC: "タップや操作時の振動",
   A11Y_BACK: "戻る",
@@ -201,7 +201,7 @@ const DICT: Dict = {
     "「Hey Siri、Rádio Animuを再生」と話しかけてください",
   SETTINGS_ASSISTANT_HINT_ANDROID:
     "「Ok Google、Rádio Animuを再生」と話しかけてください",
-  SETTINGS_SHORTCUTS_TITLE: "ショートカット",
+
   SETTINGS_UPDATES_CHECKING: "確認中…",
   SETTINGS_UPDATES_DOWNLOADING: "ダウンロード中…",
   SETTINGS_UPDATES_UP_TO_DATE: "最新です",
@@ -217,7 +217,7 @@ const DICT: Dict = {
   SETTINGS_RESET_CONFIRM_TITLE: "設定をリセットしますか？",
   SETTINGS_RESET_CONFIRM_MSG: "すべての設定が初期状態に戻ります。",
   SETTINGS_RESET_CONFIRM: "リセット",
-  SETTINGS_FOOTER_APP_CREDIT: "モバイルアプリ制作",
+
   SETTINGS_FOOTER_TEAM: "Animuチームが❤️とたくさんの☕で制作",
   SETTINGS_FOOTER_FOUNDER: "設立・デザイン：Lucas Lopes (LL!)",
   SETTINGS_FOOTER_DEV:
@@ -250,24 +250,19 @@ const DICT: Dict = {
   ABOUT_RELEASE_APK: "APK（サイドロード）",
   ABOUT_RELEASE_UNKNOWN: "不明",
   ABOUT_CREDITS_TITLE: "クレジット",
-  ABOUT_ROLE_FOUNDER: "創設・デザイン",
-  ABOUT_ROLE_DEVELOPER: "開発",
+
   ABOUT_ROLE_MAINTAINER: "アプリ管理者",
-  ABOUT_ROLE_ARTWORK: "アート",
+
   ABOUT_DONORS_TITLE: "支援者",
   ABOUT_DONORS_INTRO:
     "このアプリを実現してくれた皆さんに心から感謝します。下記の方々は2024年2月15日〜18日のご寄付でプロジェクトを支え、Android版、そしてiOS版のリリースを可能にしてくれました。",
-  ABOUT_NOTICE: "NOTICE",
-  ABOUT_NOTICE_DESC: "MITライセンスが対象とするもの（と対象外）",
+
   SETTINGS_FOOTER_NPC: "NPCpepper",
   SETTINGS_LEGAL_TITLE: "法的事項",
   SETTINGS_PRIVACY_POLICY: "プライバシーポリシー",
   SETTINGS_CONTENT_LICENSE: "ラジオのコンテンツ",
   SETTINGS_CONTENT_LICENSE_DESC: "非営利プロジェクト · CC BY-NC-SA 4.0",
-  SETTINGS_SOURCE_LICENSE: "アプリのソースコード",
-  SETTINGS_SOURCE_LICENSE_DESC: "MITライセンス",
-  SETTINGS_THIRD_PARTY_NOTICES: "サードパーティ表記",
-  SETTINGS_THIRD_PARTY_NOTICES_DESC: "画像・メディアのクレジット",
+
   SETTINGS_COPYRIGHT_NOTICE: "© 2018–2026 Rádio Animu",
   SETTINGS_IMAGE_RIGHTS:
     "改変された画像はすべて、それぞれの制作者・スタジオに帰属します。",
@@ -342,7 +337,7 @@ const DICT: Dict = {
   LOGIN_EMAIL_PLACEHOLDER: "you@example.com",
   LOGIN_SEND_CODE: "コードを送る",
   LOGIN_CODE: "コード",
-  LOGIN_CODE_PLACEHOLDER: "4桁のコード",
+
   LOGIN_CODE_SENT: "メールにコードを送ったよ。",
   LOGIN_CODE_SUBTITLE: "{email} に送ったコードを入力してね",
   LOGIN_CODE_RESEND: "コードを再送",
@@ -352,8 +347,7 @@ const DICT: Dict = {
   ACCOUNT_TITLE: "アカウント",
   ACCOUNT_SIGNED_OUT: "ログインしていないよ。",
   ACCOUNT_SIGN_IN: "ログイン",
-  ACCOUNT_VERIFIED: "認証済み",
-  ACCOUNT_NOT_VERIFIED: "未認証",
+
   ACCOUNT_VERIFIED_INFO:
     "リクエストできるのは認証済みのリスナーだけだよ。認証するには、ディスコードを連携して2段階認証を有効にしてね。",
   ACCOUNT_CONNECTED_VIA: "接続中:",

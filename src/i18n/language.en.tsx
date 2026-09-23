@@ -152,14 +152,14 @@ const DICT = {
   SETTINGS_COVER_LAST_REQUESTED_SWITCH: "Covers on your last requests:",
   SETTINGS_COVER_LAST_PLAYED_SWITCH: "Covers on recently played songs:",
   SETTINGS_COVER_REQUESTED_SWITCH: "Covers when requesting songs:",
-  SETTINGS_LANGUAGE_SELECT_TITLE: "Language Selection",
+
   SETTINGS_LANGUAGE_ROW: "App language",
-  SETTINGS_BATTERY_TITLE: "Connection",
+
   SETTINGS_LIVE_UPDATES_SWITCH: "Live song info:",
   SETTINGS_MEMORY_TITLE: "Storage",
   SETTINGS_GENERAL_TITLE: "General",
   SETTINGS_PLAYBACK_TITLE: "Playback",
-  SETTINGS_OSCILLOSCOPE_TITLE: "Visualizer",
+
   SETTINGS_VISUALIZER_SWITCH: "Sound wave:",
   SETTINGS_MEMORY_CLEAR_CACHE_SWITCH: "Reuse downloaded covers:",
   SETTINGS_STORAGE_TOTAL: "Cached covers",
@@ -179,7 +179,7 @@ const DICT = {
   SETTINGS_QUALITY_RECOMMENDED: "Recommended",
   SETTINGS_VISUALIZER_DESC: "Sound wave while a song is playing",
   SETTINGS_LIVE_UPDATES_DESC: "Song updates while the app is in the background",
-  SETTINGS_FEEDBACK_TITLE: "Feedback",
+
   SETTINGS_HAPTICS_SWITCH: "Haptic feedback:",
   SETTINGS_HAPTICS_DESC: "Vibration on taps and actions",
   A11Y_BACK: "Back",
@@ -198,7 +198,7 @@ const DICT = {
   SETTINGS_ASSISTANT_TITLE: "Voice assistant",
   SETTINGS_ASSISTANT_HINT_IOS: 'Ask "Hey Siri, play Rádio Animu"',
   SETTINGS_ASSISTANT_HINT_ANDROID: 'Say "Ok Google, play Rádio Animu"',
-  SETTINGS_SHORTCUTS_TITLE: "Shortcuts",
+
   SETTINGS_UPDATES_CHECKING: "Checking…",
   SETTINGS_UPDATES_DOWNLOADING: "Downloading…",
   SETTINGS_UPDATES_UP_TO_DATE: "You're up to date",
@@ -214,7 +214,7 @@ const DICT = {
   SETTINGS_RESET_CONFIRM_TITLE: "Reset settings?",
   SETTINGS_RESET_CONFIRM_MSG: "All settings go back to their defaults.",
   SETTINGS_RESET_CONFIRM: "Reset",
-  SETTINGS_FOOTER_APP_CREDIT: "Mobile app by",
+
   SETTINGS_FOOTER_TEAM: "Made with ❤️ and lots of ☕ by the Animu Team",
   SETTINGS_FOOTER_FOUNDER: "Founded and designed by Lucas Lopes (LL!)",
   SETTINGS_FOOTER_DEV:
@@ -246,24 +246,19 @@ const DICT = {
   ABOUT_RELEASE_APK: "APK (sideload)",
   ABOUT_RELEASE_UNKNOWN: "Unknown",
   ABOUT_CREDITS_TITLE: "Credits",
-  ABOUT_ROLE_FOUNDER: "Founder & design",
-  ABOUT_ROLE_DEVELOPER: "Developer",
+
   ABOUT_ROLE_MAINTAINER: "Mobile app maintainer",
-  ABOUT_ROLE_ARTWORK: "Artwork",
+
   ABOUT_DONORS_TITLE: "Donors",
   ABOUT_DONORS_INTRO:
     "A heartfelt thank you to everyone who helped make this app possible. The people below supported the project with donations between February 15 and 18, 2024, enabling the Android launch and, later, the iOS launch.",
-  ABOUT_NOTICE: "NOTICE",
-  ABOUT_NOTICE_DESC: "What the MIT license covers (and doesn't)",
+
   SETTINGS_FOOTER_NPC: "NPCpepper",
   SETTINGS_LEGAL_TITLE: "Legal",
   SETTINGS_PRIVACY_POLICY: "Privacy Policy",
   SETTINGS_CONTENT_LICENSE: "Station content",
   SETTINGS_CONTENT_LICENSE_DESC: "Non-profit project · CC BY-NC-SA 4.0",
-  SETTINGS_SOURCE_LICENSE: "App source code",
-  SETTINGS_SOURCE_LICENSE_DESC: "MIT License",
-  SETTINGS_THIRD_PARTY_NOTICES: "Third-party notices",
-  SETTINGS_THIRD_PARTY_NOTICES_DESC: "Artwork and media credits",
+
   SETTINGS_COPYRIGHT_NOTICE: "© 2018–2026 Rádio Animu",
   SETTINGS_IMAGE_RIGHTS:
     "All edited images belong to their respective creators and studios.",
@@ -338,7 +333,7 @@ const DICT = {
   LOGIN_EMAIL_PLACEHOLDER: "you@example.com",
   LOGIN_SEND_CODE: "Send code",
   LOGIN_CODE: "Code",
-  LOGIN_CODE_PLACEHOLDER: "4-digit code",
+
   LOGIN_CODE_SENT: "We sent a sign-in code to your email.",
   LOGIN_CODE_SUBTITLE: "Enter the code we sent to {email}",
   LOGIN_CODE_RESEND: "Resend code",
@@ -348,8 +343,7 @@ const DICT = {
   ACCOUNT_TITLE: "Account",
   ACCOUNT_SIGNED_OUT: "You are not signed in.",
   ACCOUNT_SIGN_IN: "Sign in",
-  ACCOUNT_VERIFIED: "Verified",
-  ACCOUNT_NOT_VERIFIED: "Not verified",
+
   ACCOUNT_VERIFIED_INFO:
     "Only verified listeners can request songs. To get verified, link a Discord account and enable 2FA on it.",
   ACCOUNT_CONNECTED_VIA: "Signed in with",

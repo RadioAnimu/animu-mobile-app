@@ -4,7 +4,6 @@ import { scale } from "@/theme/responsive";
 
 export const DRAWER_GRID = {
   SCREEN_MARGIN: scale(12),
-  CONTENT_INSET: scale(20),
 };
 
 export const styles = StyleSheet.create({

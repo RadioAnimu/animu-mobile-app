@@ -43,7 +43,9 @@ export function CodeInput({
   textStyle,
 }: Props) {
   const [focused, setFocused] = useState(false);
-  const caret = useRef(new Animated.Value(1)).current;
+  const caretRef = useRef<Animated.Value | null>(null);
+  if (caretRef.current === null) caretRef.current = new Animated.Value(1);
+  const caret = caretRef.current;
 
   const digits = value.replace(/\D/g, "").slice(0, length);
   const chars = Array.from({ length }, (_, index) => digits[index] ?? "");

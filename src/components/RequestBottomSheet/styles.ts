@@ -64,11 +64,6 @@ export const styles = StyleSheet.create({
   inputDisabled: {
     opacity: THEME.OPACITY.DISABLED,
   },
-  bottomRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
   userRow: {
     flexDirection: "row",
     alignItems: "center",

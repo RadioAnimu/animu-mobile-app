@@ -40,11 +40,6 @@ export const styles = StyleSheet.create({
     borderRadius: CARD_RADIUS,
     overflow: "hidden",
   },
-  divider: {
-    height: StyleSheet.hairlineWidth,
-    backgroundColor: THEME.COLORS.HAIRLINE,
-    marginLeft: CONTENT_PADDING,
-  },
   // Read-only key/value row (no chevron, no press).
   row: {
     flexDirection: "row",

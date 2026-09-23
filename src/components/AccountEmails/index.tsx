@@ -4,7 +4,6 @@ import type { AuthAccountEmail } from "animu-api";
 import {
   ActivityIndicator,
   Alert,
-  LayoutAnimation,
   Text,
   TouchableOpacity,
   View,
@@ -21,6 +20,7 @@ import {
 import type { Dict } from "@/i18n";
 import { THEME } from "@/theme";
 import { scale } from "@/theme/responsive";
+import { layoutEase } from "@/utils/layout-animation";
 import { EmailCodeFields } from "@/components/EmailCodeFields";
 import { ProviderIcon } from "@/components/ProviderIcon";
 import { styles } from "@/components/AccountEmails/styles";
@@ -199,6 +199,94 @@ function EmailCodeForm({
   );
 }
 
+/** The expandable panel: email list, add action or the add-email form. */
+function EmailsPanel({
+  dict,
+  loading,
+  screen,
+  flow,
+  emails,
+  extraEmail,
+  busy,
+  onRemove,
+  onAdd,
+  onCancelEdit,
+}: {
+  dict: Dict;
+  loading: boolean;
+  screen: Screen;
+  flow: EmailCodeFlow;
+  emails: AuthAccountEmail[];
+  /** The single extra `animu` email, when it exists. */
+  extraEmail: AuthAccountEmail | null;
+  busy: boolean;
+  onRemove: (item: AuthAccountEmail) => void;
+  onAdd: () => void;
+  onCancelEdit: () => void;
+}) {
+  return (
+    <View style={styles.panel}>
+      <Text style={styles.hint}>
+        {screen === "form" && flow.step === "code"
+          ? dict.LOGIN_CODE_SUBTITLE.replace("{email}", flow.email.trim())
+          : dict.ACCOUNT_ANIMU_CONNECT_FORM_HINT}
+      </Text>
+
+      {loading ? (
+        <ActivityIndicator
+          color={THEME.COLORS.TEXT_DIM}
+          style={styles.loading}
+        />
+      ) : screen === "list" ? (
+        <>
+          {emails.length === 0 ? (
+            <Text style={styles.empty}>{dict.ACCOUNT_EMAIL_EMPTY}</Text>
+          ) : (
+            groupEmails(emails).map((group) => (
+              <EmailRow
+                key={group.email}
+                email={group.email}
+                providers={group.providers}
+                isExtra={group.isExtra}
+                removableItem={group.removableItem}
+                dict={dict}
+                busy={busy}
+                onRemove={onRemove}
+              />
+            ))
+          )}
+
+          {flow.error && <Text style={styles.error}>{flow.error}</Text>}
+
+          {/*
+            The server allows only ONE extra email and rejects a new add
+            while it exists, so the action is hidden until the current one
+            is removed (the row above carries the delete button).
+          */}
+          {!extraEmail && (
+            <TouchableOpacity
+              accessibilityRole="button"
+              activeOpacity={0.7}
+              disabled={busy}
+              onPress={onAdd}
+              style={[styles.addButton, busy && styles.disabled]}
+            >
+              <MaterialIcons
+                name="add"
+                size={THEME.ICON.MD}
+                color={THEME.COLORS.TEXT}
+              />
+              <Text style={styles.addText}>{dict.ACCOUNT_EMAIL_ADD}</Text>
+            </TouchableOpacity>
+          )}
+        </>
+      ) : (
+        <EmailCodeForm flow={flow} dict={dict} onCancel={onCancelEdit} />
+      )}
+    </View>
+  );
+}
+
 /**
  * Inline email management for the Account screen: the expandable row reveals
  * the account's Animu Connect addresses in place — no modal, matching the
@@ -221,6 +309,11 @@ export function AccountEmails() {
   const [screen, setScreen] = useState<Screen>("list");
   const [removing, setRemoving] = useState(false);
 
+  const mapEmailError = (error: unknown) =>
+    emailCodeError(dict, error, dict.ACCOUNT_ACTION_FAILED, {
+      taken: dict.ACCOUNT_EMAIL_TAKEN,
+    });
+
   const flow = useEmailCodeFlow({
     requestCode: requestAddEmail,
     verifyCode: verifyAddEmail,
@@ -229,14 +322,8 @@ export function AccountEmails() {
       toast(dict.ACCOUNT_EMAIL_SAVED);
       setScreen("list");
     },
-    mapRequestError: (error) =>
-      emailCodeError(dict, error, dict.ACCOUNT_ACTION_FAILED, {
-        taken: dict.ACCOUNT_EMAIL_TAKEN,
-      }),
-    mapVerifyError: (error) =>
-      emailCodeError(dict, error, dict.ACCOUNT_ACTION_FAILED, {
-        taken: dict.ACCOUNT_EMAIL_TAKEN,
-      }),
+    mapRequestError: mapEmailError,
+    mapVerifyError: mapEmailError,
   });
 
   const busy = flow.busy || removing;
@@ -255,11 +342,7 @@ export function AccountEmails() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
-  const animate = () =>
-    LayoutAnimation.configureNext({
-      duration: 180,
-      update: { type: LayoutAnimation.Types.easeInEaseOut },
-    });
+  const animate = layoutEase;
 
   const toggle = () => {
     animate();
@@ -337,77 +420,26 @@ export function AccountEmails() {
       </TouchableOpacity>
 
       {open && (
-        <View style={styles.panel}>
-          <Text style={styles.hint}>
-            {screen === "form" && flow.step === "code"
-              ? dict.LOGIN_CODE_SUBTITLE.replace("{email}", flow.email.trim())
-              : dict.ACCOUNT_ANIMU_CONNECT_FORM_HINT}
-          </Text>
-
-          {loading ? (
-            <ActivityIndicator
-              color={THEME.COLORS.TEXT_DIM}
-              style={styles.loading}
-            />
-          ) : screen === "list" ? (
-            <>
-              {emails.length === 0 ? (
-                <Text style={styles.empty}>{dict.ACCOUNT_EMAIL_EMPTY}</Text>
-              ) : (
-                groupEmails(emails).map((group) => (
-                  <EmailRow
-                    key={group.email}
-                    email={group.email}
-                    providers={group.providers}
-                    isExtra={group.isExtra}
-                    removableItem={group.removableItem}
-                    dict={dict}
-                    busy={busy}
-                    onRemove={confirmRemove}
-                  />
-                ))
-              )}
-
-              {flow.error && <Text style={styles.error}>{flow.error}</Text>}
-
-              {/*
-                The server allows only ONE extra email and rejects a new add
-                while it exists, so the action is hidden until the current one
-                is removed (the row above carries the delete button).
-              */}
-              {!extraEmail && (
-                <TouchableOpacity
-                  accessibilityRole="button"
-                  activeOpacity={0.7}
-                  disabled={busy}
-                  onPress={() => {
-                    animate();
-                    flow.reset();
-                    setScreen("form");
-                  }}
-                  style={[styles.addButton, busy && styles.disabled]}
-                >
-                  <MaterialIcons
-                    name="add"
-                    size={THEME.ICON.MD}
-                    color={THEME.COLORS.TEXT}
-                  />
-                  <Text style={styles.addText}>{dict.ACCOUNT_EMAIL_ADD}</Text>
-                </TouchableOpacity>
-              )}
-            </>
-          ) : (
-            <EmailCodeForm
-              flow={flow}
-              dict={dict}
-              onCancel={() => {
-                animate();
-                flow.reset();
-                setScreen("list");
-              }}
-            />
-          )}
-        </View>
+        <EmailsPanel
+          dict={dict}
+          loading={loading}
+          screen={screen}
+          flow={flow}
+          emails={emails}
+          extraEmail={extraEmail}
+          busy={busy}
+          onRemove={confirmRemove}
+          onAdd={() => {
+            animate();
+            flow.reset();
+            setScreen("form");
+          }}
+          onCancelEdit={() => {
+            animate();
+            flow.reset();
+            setScreen("list");
+          }}
+        />
       )}
     </View>
   );

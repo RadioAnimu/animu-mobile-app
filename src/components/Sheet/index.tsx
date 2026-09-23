@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from "react";
 import {
   Keyboard,
-  LayoutAnimation,
   Modal,
   ModalProps,
   Platform,
@@ -14,6 +13,7 @@ import DragIcon from "@/assets/icons/drag_down.webp";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useDict } from "@/hooks/useDict";
 import { THEME } from "@/theme";
+import { layoutEase } from "@/utils/layout-animation";
 import { scale } from "@/theme/responsive";
 
 const CLOSE_AREA_HEIGHT = scale(35);
@@ -38,11 +38,7 @@ function useKeyboardPadding(enabled: boolean): number {
       return;
     }
 
-    const animate = () =>
-      LayoutAnimation.configureNext({
-        duration: 200,
-        update: { type: LayoutAnimation.Types.easeInEaseOut },
-      });
+    const animate = () => layoutEase(200);
 
     const subscriptions = [
       Keyboard.addListener(

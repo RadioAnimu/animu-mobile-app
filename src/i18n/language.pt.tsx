@@ -153,14 +153,14 @@ const DICT: Dict = {
   SETTINGS_COVER_LAST_REQUESTED_SWITCH: "Capas nas últimas pedidas:",
   SETTINGS_COVER_LAST_PLAYED_SWITCH: "Capas nas últimas tocadas:",
   SETTINGS_COVER_REQUESTED_SWITCH: "Capas ao pedir músicas:",
-  SETTINGS_LANGUAGE_SELECT_TITLE: "Seleção de idioma",
+
   SETTINGS_LANGUAGE_ROW: "Idioma do app",
-  SETTINGS_BATTERY_TITLE: "Conexão",
+
   SETTINGS_LIVE_UPDATES_SWITCH: "Informações ao vivo:",
   SETTINGS_MEMORY_TITLE: "Armazenamento",
   SETTINGS_GENERAL_TITLE: "Geral",
   SETTINGS_PLAYBACK_TITLE: "Reprodução",
-  SETTINGS_OSCILLOSCOPE_TITLE: "Osciloscópio",
+
   SETTINGS_VISUALIZER_SWITCH: "Onda sonora:",
   SETTINGS_MEMORY_CLEAR_CACHE_SWITCH: "Reutilizar capas baixadas:",
   SETTINGS_STORAGE_TOTAL: "Capas guardadas",
@@ -181,7 +181,7 @@ const DICT: Dict = {
   SETTINGS_VISUALIZER_DESC: "Onda sonora enquanto uma música toca",
   SETTINGS_LIVE_UPDATES_DESC:
     "Atualizações da música com o app em segundo plano",
-  SETTINGS_FEEDBACK_TITLE: "Feedback",
+
   SETTINGS_HAPTICS_SWITCH: "Feedback tátil:",
   SETTINGS_HAPTICS_DESC: "Vibração ao tocar e nas ações",
   A11Y_BACK: "Voltar",
@@ -201,7 +201,7 @@ const DICT: Dict = {
   SETTINGS_ASSISTANT_TITLE: "Assistente de voz",
   SETTINGS_ASSISTANT_HINT_IOS: 'Peça "Ei Siri, tocar Rádio Animu"',
   SETTINGS_ASSISTANT_HINT_ANDROID: 'Peça "Ok Google, tocar Rádio Animu"',
-  SETTINGS_SHORTCUTS_TITLE: "Atalhos",
+
   SETTINGS_UPDATES_CHECKING: "Verificando…",
   SETTINGS_UPDATES_DOWNLOADING: "Baixando…",
   SETTINGS_UPDATES_UP_TO_DATE: "Você está atualizado",
@@ -217,7 +217,7 @@ const DICT: Dict = {
   SETTINGS_RESET_CONFIRM_TITLE: "Redefinir configurações?",
   SETTINGS_RESET_CONFIRM_MSG: "Todas as configurações voltam ao padrão.",
   SETTINGS_RESET_CONFIRM: "Redefinir",
-  SETTINGS_FOOTER_APP_CREDIT: "App mobile por",
+
   SETTINGS_FOOTER_TEAM: "Feito de ❤️ com muito ☕️ por Equipe Animu",
   SETTINGS_FOOTER_FOUNDER: "Founded and Design by Lucas Lopes (LL!)",
   SETTINGS_FOOTER_DEV:
@@ -249,25 +249,20 @@ const DICT: Dict = {
   ABOUT_RELEASE_APK: "APK (sideload)",
   ABOUT_RELEASE_UNKNOWN: "Desconhecido",
   ABOUT_CREDITS_TITLE: "Créditos",
-  ABOUT_ROLE_FOUNDER: "Fundador e design",
-  ABOUT_ROLE_DEVELOPER: "Desenvolvedor",
+
   ABOUT_ROLE_MAINTAINER: "Mantenedor do app",
-  ABOUT_ROLE_ARTWORK: "Arte",
+
   ABOUT_DONORS_TITLE: "Doadores",
   ABOUT_DONORS_INTRO:
     "Um agradecimento especial a todos que tornaram este app possível. As pessoas abaixo apoiaram o projeto com doações entre 15 e 18 de fevereiro de 2024, viabilizando o lançamento para Android e, depois, para iOS.",
-  ABOUT_NOTICE: "NOTICE",
-  ABOUT_NOTICE_DESC: "O que a licença MIT cobre (e o que não cobre)",
+
   SETTINGS_FOOTER_NPC: "NPCpepper",
   SETTINGS_LEGAL_TITLE: "Legal",
   SETTINGS_PRIVACY_POLICY: "Política de Privacidade",
   SETTINGS_CONTENT_LICENSE: "Conteúdo da rádio",
   SETTINGS_CONTENT_LICENSE_DESC:
     "Projeto sem fins lucrativos · CC BY-NC-SA 4.0",
-  SETTINGS_SOURCE_LICENSE: "Código-fonte do app",
-  SETTINGS_SOURCE_LICENSE_DESC: "Licença MIT",
-  SETTINGS_THIRD_PARTY_NOTICES: "Avisos de terceiros",
-  SETTINGS_THIRD_PARTY_NOTICES_DESC: "Créditos de imagens e mídia",
+
   SETTINGS_COPYRIGHT_NOTICE: "© 2018–2026 Rádio Animu",
   SETTINGS_IMAGE_RIGHTS:
     "Todas as imagens alteradas pertencem aos seus respectivos criadores, estúdios.",
@@ -345,7 +340,7 @@ const DICT: Dict = {
   LOGIN_EMAIL_PLACEHOLDER: "voce@exemplo.com",
   LOGIN_SEND_CODE: "Enviar código",
   LOGIN_CODE: "Código",
-  LOGIN_CODE_PLACEHOLDER: "Código de 4 dígitos",
+
   LOGIN_CODE_SENT: "Enviamos um código para o seu e-mail.",
   LOGIN_CODE_SUBTITLE: "Digite o código enviado para {email}",
   LOGIN_CODE_RESEND: "Reenviar código",
@@ -355,8 +350,7 @@ const DICT: Dict = {
   ACCOUNT_TITLE: "Conta",
   ACCOUNT_SIGNED_OUT: "Você não está conectado.",
   ACCOUNT_SIGN_IN: "Entrar",
-  ACCOUNT_VERIFIED: "Verificado",
-  ACCOUNT_NOT_VERIFIED: "Não verificado",
+
   ACCOUNT_VERIFIED_INFO:
     "Só ouvintes verificados podem pedir músicas. Para se verificar, vincule uma conta do Discord e ative o 2FA nela.",
   ACCOUNT_CONNECTED_VIA: "Conectado com",
