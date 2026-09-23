@@ -5,8 +5,8 @@
     "slug": "animu",
     "orientation": "portrait",
     "icon": "./assets/icon_top.png",
-    "userInterfaceStyle": "automatic",
-    "backgroundColor": "#270051",
+    "userInterfaceStyle": "dark",
+    "backgroundColor": "#270052",
     "scheme": "animuapp",
     "ios": {
       "supportsTablet": false,
@@ -32,7 +32,7 @@
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon-top.png",
-        "backgroundColor": "#270051"
+        "backgroundColor": "#270052"
       },
       "package": "com.nessjs.animu",
       "versionCode": 13,
@@ -47,7 +47,7 @@
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#270051",
+          "backgroundColor": "#270052",
           "image": "./assets/splash_top.png",
           "resizeMode": "contain",
           "enableFullScreenImage_legacy": true,

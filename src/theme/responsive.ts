@@ -31,8 +31,25 @@ export const scale = (size: number): number => size * ratio;
 export const SCREEN_WIDTH = width;
 
 /**
- * Width of the centered content column. Equals the device width on
- * phones; on tablets it stops at `DESIGN_WIDTH * MAX_SCALE` so bars and
- * rows stay a comfortable width instead of stretching edge to edge.
+ * Fraction of the screen the page content column occupies before the cap.
+ * Mirrors `THEME.LAYOUT.CONTENT_WIDTH` ("88%") — one column spec, used by
+ * both the full-screen pages and the header's icon row.
  */
-export const CONTENT_WIDTH = Math.min(width, DESIGN_WIDTH * MAX_SCALE);
+export const CONTENT_WIDTH_RATIO = 0.88;
+
+/** Tablet cap on the content column. Single source for `THEME.LAYOUT.CONTENT_MAX_WIDTH`. */
+export const CONTENT_MAX_WIDTH = scale(560);
+
+/**
+ * Width of the shared centered content column.
+ *
+ * On phones the column is the full device width (the header stays full-bleed
+ * and pages are inset by `CONTENT_WIDTH_RATIO` via their own style). Once the
+ * device is wider than the column cap — a tablet — this returns the SAME
+ * `min(88%, cap)` the pages use, so the header's icons align with the page
+ * content instead of ending up narrower than it.
+ */
+export const CONTENT_WIDTH =
+  width > CONTENT_MAX_WIDTH
+    ? Math.min(width * CONTENT_WIDTH_RATIO, CONTENT_MAX_WIDTH)
+    : width;

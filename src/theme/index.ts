@@ -1,4 +1,4 @@
-import { scale } from "@/theme/responsive";
+import { CONTENT_MAX_WIDTH, scale } from "@/theme/responsive";
 
 export const THEME = {
   COLORS: {
@@ -107,6 +107,6 @@ export const THEME = {
     ROW_MIN_HEIGHT: scale(64),
     /** Centered content column shared by the full-screen pages. */
     CONTENT_WIDTH: "88%" as const,
-    CONTENT_MAX_WIDTH: scale(560),
+    CONTENT_MAX_WIDTH,
   },
 };
