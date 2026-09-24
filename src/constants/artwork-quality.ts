@@ -17,7 +17,7 @@ export const COVER_QUALITY_SAMPLES: CoverQualitySample[] = [
   {
     key: "low",
     source: require("@/assets/covers/sample-cover-tiny.jpg"),
-    sizeBytes: 3961,
+    sizeBytes: 3684,
   },
   {
     key: "medium",
@@ -27,6 +27,6 @@ export const COVER_QUALITY_SAMPLES: CoverQualitySample[] = [
   {
     key: "high",
     source: require("@/assets/covers/sample-cover-large.jpg"),
-    sizeBytes: 250121,
+    sizeBytes: 114537,
   },
 ];

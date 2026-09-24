@@ -31,7 +31,6 @@ npm install        # applies native patches via postinstall and builds animu-api
 npm run start      # Expo dev client
 npm run android    # build & run on Android
 npm run ios        # build & run on iOS
-npm run web        # Expo web (limited; some native modules are unavailable)
 ```
 
 > This project uses a **development client** (`expo start --dev-client`) rather
@@ -49,7 +48,6 @@ npm run web        # Expo web (limited; some native modules are unavailable)
 | --- | --- |
 | `npm run start` | Expo dev client |
 | `npm run android` / `npm run ios` | Native build & run |
-| `npm run web` | Expo web |
 | `npm test` | Vitest (player core, services, domain, hooks, plugins) |
 | `npm run lint` | `expo lint` (flat ESLint config) |
 | `npm run build:api` | Build the `animu-api` submodule |

@@ -1,4 +1,5 @@
 import { StyleSheet } from "react-native";
+import { THEME } from "@/theme";
 import { scale } from "@/theme/responsive";
 
 export const FALLBACK_HIDE_MS = 3000;
@@ -6,7 +7,7 @@ export const FALLBACK_HIDE_MS = 3000;
 export const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#270051",
+    backgroundColor: THEME.COLORS.SURFACE,
   },
   image: {
     position: "absolute",

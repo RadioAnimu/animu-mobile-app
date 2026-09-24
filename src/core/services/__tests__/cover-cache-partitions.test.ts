@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  automaticSharePercent,
   resolvePartitionCaps,
 } from "@/core/services/cover-cache-partitions";
 
@@ -44,15 +43,6 @@ describe("resolvePartitionCaps", () => {
   it("clamps negative overrides to zero", () => {
     const caps = resolvePartitionCaps(1000, { live: -50 })!;
     expect(caps.live).toBe(0);
-  });
-});
-
-describe("automaticSharePercent", () => {
-  it("reports the default weights as whole percents", () => {
-    expect(automaticSharePercent("live")).toBe(30);
-    expect(automaticSharePercent("requested")).toBe(15);
-    expect(automaticSharePercent("played")).toBe(25);
-    expect(automaticSharePercent("search")).toBe(30);
   });
 });
 

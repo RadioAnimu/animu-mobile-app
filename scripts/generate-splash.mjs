@@ -24,7 +24,7 @@ async function main() {
   const splashPlugin = (app.plugins ?? []).find(
     (plugin) => Array.isArray(plugin) && plugin[0] === "expo-splash-screen",
   );
-  const background = splashPlugin?.[1]?.backgroundColor ?? "#270051";
+  const background = splashPlugin?.[1]?.backgroundColor ?? "#270052";
   const label = process.env.SPLASH_LABEL ?? `v${version}`;
 
   if (!GlobalFonts.registerFromPath(FONT_FILE, "ProximaNovaBold")) {

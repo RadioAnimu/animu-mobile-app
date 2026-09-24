@@ -36,7 +36,7 @@ type MarqueeProps = {
 };
 
 /** Rounding guard: don't animate for sub-pixel overflows. */
-const OVERFLOW_TRESHOLD = 1;
+const OVERFLOW_THRESHOLD = 1;
 
 type GroupApi = {
   register: () => number;
@@ -139,7 +139,7 @@ export const Marquee = React.memo(function Marquee({
   const overflows =
     containerWidth > 0 &&
     textWidth > 0 &&
-    textWidth - containerWidth > OVERFLOW_TRESHOLD;
+    textWidth - containerWidth > OVERFLOW_THRESHOLD;
 
   const passDuration = ((textWidth + spacer) / speed) * 1000;
 

@@ -29,7 +29,9 @@ class BackgroundService {
     // StrictMode remounts)
     this.stopTask(task.id);
 
-    console.info(`[BackgroundService] Starting task ${task.id}`);
+    if (process.env.NODE_ENV !== "production") {
+      console.info(`[BackgroundService] Starting task ${task.id}`);
+    }
     this.tasks.set(task.id, task);
     this.scheduleRun(task.id);
   }
@@ -40,13 +42,15 @@ class BackgroundService {
       clearTimeout(timeout);
       this.timeouts.delete(taskId);
     }
-    if (this.tasks.delete(taskId)) {
+    if (this.tasks.delete(taskId) && process.env.NODE_ENV !== "production") {
       console.info(`[BackgroundService] Stopping task ${taskId}`);
     }
   }
 
   stopAllTasks(): void {
-    console.info("[BackgroundService] Stopping all tasks");
+    if (process.env.NODE_ENV !== "production") {
+      console.info("[BackgroundService] Stopping all tasks");
+    }
     for (const taskId of [...this.tasks.keys()]) {
       this.stopTask(taskId);
     }

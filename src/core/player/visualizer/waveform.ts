@@ -45,13 +45,6 @@ export function downmixChannels(channels: number[][]): number[] {
  *
  * Picks evenly spaced samples (rather than peak buckets) so the line keeps the
  * signal's shape. Returns a zeroed array when there is no signal yet.
- */
-export function resampleWaveform(frames: number[], points: number): number[] {
-  return resampleWaveformInto(frames, points, []);
-}
-
-/**
- * Buffer-reusing variant of `resampleWaveform`.
  *
  * The sampler emits up to one frame per display refresh; allocating a fresh
  * 1024-number array each time made the GC run hot on low-RAM devices. The

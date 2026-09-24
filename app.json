@@ -31,7 +31,7 @@
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon-top.png",
+        "foregroundImage": "./assets/icon_top.png",
         "backgroundColor": "#270052"
       },
       "package": "com.nessjs.animu",

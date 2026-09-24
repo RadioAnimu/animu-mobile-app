@@ -85,12 +85,3 @@ export function resolvePartitionCaps(
 
   return caps;
 }
-
-/**
- * The automatic share of one partition, as a fraction of the total, when
- * nothing is customized. Used to label "Automatic (30%)" before a custom
- * override shifts the split.
- */
-export function automaticSharePercent(key: CoverCacheCategory): number {
-  return Math.round(PARTITION_WEIGHTS[key] * 100);
-}

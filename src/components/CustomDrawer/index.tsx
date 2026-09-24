@@ -52,16 +52,16 @@ export function DrawerIcon({
 }
 
 export interface SeparatorProps {
-  sectionTile?: string;
+  sectionTitle?: string;
   Icon?: () => JSX.Element;
 }
 
-export function Separator({ sectionTile, Icon }: SeparatorProps) {
+export function Separator({ sectionTitle, Icon }: SeparatorProps) {
   return (
     <View style={styles.section}>
       {Icon && <Icon />}
-      {sectionTile && (
-        <Text style={styles.sectionText}>{sectionTile.toUpperCase()}</Text>
+      {sectionTitle && (
+        <Text style={styles.sectionText}>{sectionTitle.toUpperCase()}</Text>
       )}
     </View>
   );
@@ -257,7 +257,7 @@ export function CustomDrawerContent(props: DrawerContentComponentProps) {
 
         <Separator
           Icon={() => <DrawerIcon name="queue-music" size={SECTION_ICON_SIZE} />}
-          sectionTile={dict.MENU}
+          sectionTitle={dict.MENU}
         />
         <NavItems {...props} />
       </View>

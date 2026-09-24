@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
   downmixChannels,
-  resampleWaveform,
   resampleWaveformInto,
   rms,
 } from "@/core/player/visualizer/waveform";
@@ -25,30 +24,30 @@ describe("downmixChannels", () => {
   });
 });
 
-describe("resampleWaveform", () => {
+describe("resampleWaveformInto (sampling)", () => {
   it("returns the requested number of points", () => {
-    expect(resampleWaveform([0, 0.5, -0.5, 1], 8)).toHaveLength(8);
+    expect(resampleWaveformInto([0, 0.5, -0.5, 1], 8, [])).toHaveLength(8);
   });
 
   it("returns zeros when there is no signal", () => {
-    expect(resampleWaveform([], 4)).toEqual([0, 0, 0, 0]);
+    expect(resampleWaveformInto([], 4, [])).toEqual([0, 0, 0, 0]);
   });
 
   it("preserves the signal shape by evenly sampling the window", () => {
     const frames = [0, 1, 0, -1];
-    expect(resampleWaveform(frames, 4)).toEqual([0, 1, 0, -1]);
+    expect(resampleWaveformInto(frames, 4, [])).toEqual([0, 1, 0, -1]);
   });
 
   it("clamps samples outside the normalized range", () => {
-    expect(resampleWaveform([5, -5], 2)).toEqual([1, -1]);
+    expect(resampleWaveformInto([5, -5], 2, [])).toEqual([1, -1]);
   });
 
   it("handles a zero-point request", () => {
-    expect(resampleWaveform([0, 1], 0)).toEqual([]);
+    expect(resampleWaveformInto([0, 1], 0, [])).toEqual([]);
   });
 });
 
-describe("resampleWaveformInto", () => {
+describe("resampleWaveformInto (buffer)", () => {
   it("writes into the caller's buffer without allocating", () => {
     const out: number[] = [];
     const result = resampleWaveformInto([0, 1, 0, -1], 4, out);

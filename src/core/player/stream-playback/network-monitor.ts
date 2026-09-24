@@ -46,7 +46,9 @@ export class NetworkMonitor {
       this.wasConnected = online;
 
       if (wasConnected === false && online) {
-        console.info("[NetworkMonitor] Network restored");
+        if (process.env.NODE_ENV !== "production") {
+          console.info("[NetworkMonitor] Network restored");
+        }
         this.onRestore();
       }
     });

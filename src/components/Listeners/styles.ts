@@ -2,7 +2,7 @@ import { StyleSheet } from "react-native";
 import { THEME } from "@/theme";
 import { scale } from "@/theme/responsive";
 
-const FONINHO = scale(20);
+const HEADPHONES_ICON = scale(20);
 
 export const styles = StyleSheet.create({
   container: {
@@ -21,7 +21,7 @@ export const styles = StyleSheet.create({
     textAlign: "center",
   },
   headphones: {
-    width: FONINHO,
-    height: FONINHO,
+    width: HEADPHONES_ICON,
+    height: HEADPHONES_ICON,
   },
 });
