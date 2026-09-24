@@ -275,6 +275,7 @@ const DICT: Dict = {
   STORAGE_CLEAR_CONFIRM: "削除",
   STORAGE_LIMIT_ROW: "最大サイズ",
   STORAGE_DEVICE_FREE: "この端末では {total} 中 {free} 空き",
+  STORAGE_DEVICE_CACHED: "キャッシュ済みカバー：{cached}（この端末の {pct}%）",
   STORAGE_ADVANCED_TITLE: "詳細設定",
   STORAGE_PARTITION_CUSTOM_LABEL: "パーティションを個別に設定",
   STORAGE_PARTITION_CUSTOM_DESC: "上限をセクションごとに配分できます",

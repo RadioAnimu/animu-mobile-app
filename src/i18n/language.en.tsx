@@ -271,6 +271,7 @@ const DICT = {
   STORAGE_CLEAR_CONFIRM: "Delete",
   STORAGE_LIMIT_ROW: "Maximum size",
   STORAGE_DEVICE_FREE: "{free} free of {total} on this device",
+  STORAGE_DEVICE_CACHED: "Cached covers: {cached} · {pct}% of this device",
   STORAGE_ADVANCED_TITLE: "Advanced",
   STORAGE_PARTITION_CUSTOM_LABEL: "Custom partitions",
   STORAGE_PARTITION_CUSTOM_DESC: "Set how the limit is split between sections",

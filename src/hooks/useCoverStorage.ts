@@ -49,6 +49,14 @@ export function useCoverStorageSnapshot(
   const partitions = settings.coverCachePartitionBytes;
 
   const measure = useCallback(async () => {
+    // A drawer screen stays MOUNTED across navigations, so a blurred
+    // instance's shape/cache effects still fire while the user changes
+    // settings on the other screen. Letting that instance measure leaves
+    // it STUCK (the alive guard skips the snapshot commit but not the
+    // in-flight `measuring`) and fires its freed toast for work the
+    // focused screen already reported. The focus re-measure on return
+    // owns the blurred screen's numbers.
+    if (!aliveRef.current) return null;
     setMeasuring(true);
     try {
       // The limit rides along the same serialized pass: an over-budget
@@ -92,7 +100,8 @@ export function useCoverStorageSnapshot(
   // trim runs in its own settings chain — measure queued behind it shows
   // the result on the card immediately, without leaving the screen).
   // A shrink against the last settled total is the user's reclaim — the
-  // freed amount rides back to the screen through `onFreed`.
+  // freed amount rides back to the screen through `onFreed`. A skipped
+  // (blurred) or failed measure returns no snapshot — never a freed claim.
   const lastShape = useRef(`${maxBytes}|${JSON.stringify(partitions)}`);
   useEffect(() => {
     const shape = `${maxBytes}|${JSON.stringify(partitions)}`;
@@ -101,8 +110,8 @@ export function useCoverStorageSnapshot(
     if (!settings.cacheEnabled) return;
     const before = lastTotalRef.current;
     void measure().then((next) => {
-      if (before > 0) {
-        const freed = before - (next?.totalBytes ?? 0);
+      if (before > 0 && next) {
+        const freed = before - next.totalBytes;
         if (freed > 0) onFreedRef.current?.(freed);
       }
     });
@@ -114,8 +123,8 @@ export function useCoverStorageSnapshot(
     lastCache.current = settings.cacheEnabled;
     const before = lastTotalRef.current;
     void measure().then((next) => {
-      if (before > 0) {
-        const freed = before - (next?.totalBytes ?? 0);
+      if (before > 0 && next) {
+        const freed = before - next.totalBytes;
         if (freed > 0) onFreedRef.current?.(freed);
       }
     });

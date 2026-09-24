@@ -1,4 +1,4 @@
-import { Fragment, useCallback, useMemo } from "react";
+import { Fragment, useCallback, useEffect, useRef, useMemo, useSyncExternalStore } from "react";
 import type { ComponentProps } from "react";
 import { DrawerScreenProps } from "@react-navigation/drawer";
 import { ScrollView, Text, View } from "react-native";
@@ -12,8 +12,10 @@ import { CoverStorageCard } from "@/components/CoverStorageCard";
 import { useAlert } from "@/contexts/alert/AlertProvider";
 import { useUserSettings } from "@/contexts/user/UserSettingsProvider";
 import { useDeviceStorage } from "@/hooks/useDeviceStorage";
+import { useCoverStorageSnapshot } from "@/hooks/useCoverStorage";
 import { useDict } from "@/hooks/useDict";
 import { maxSelectableLimitBytes } from "@/core/services/device-storage.service";
+import { coverDiskStorage } from "@/core/services/cover-disk-storage.service";
 import type { CoverCacheCategory } from "@/core/services/cover-cache-registry.service";
 import {
   CATEGORY_ORDER,
@@ -63,9 +65,40 @@ function defaultPartitions(limitBytes: number): CoverCachePartitions {
  */
 export function Storage({ navigation }: Props) {
   const { settings, updateSettings } = useUserSettings();
-  const { capacity } = useDeviceStorage();
+  const { capacity, refresh } = useDeviceStorage();
   const dict = useDict();
   const { toast } = useAlert();
+
+  // Wipe-in-progress flag — also the signal that device space just moved
+  // (the clean button's wipe and the cache-off wipe both pass through it).
+  const cacheWiping = useSyncExternalStore(
+    (listener) => coverDiskStorage.subscribe(listener),
+    () => coverDiskStorage.isClearing,
+  );
+
+  // The device bar and the selectable limit tiers must reflect free space
+  // as soon as storage work settles — a wipe, or the trim the provider
+  // runs behind a limit/partition change — not wait for the next
+  // navigation. Both settle BEFORE the settings render with new values,
+  // so re-reading on those transitions is enough. The initial values are
+  // the mount state — the focus read already owns them.
+  const settledOnce = useRef(false);
+  useEffect(() => {
+    if (!cacheWiping && settledOnce.current) refresh();
+    settledOnce.current = true;
+  }, [cacheWiping, refresh]);
+  useEffect(() => {
+    if (!settledOnce.current) {
+      settledOnce.current = true;
+      return;
+    }
+    refresh();
+  }, [
+    refresh,
+    settings.coverCacheLimitBytes,
+    settings.coverCachePartitionBytes,
+    settings.cacheEnabled,
+  ]);
 
   const showFreedToast = useCallback(
     (freedBytes: number) => {
@@ -75,6 +108,14 @@ export function Storage({ navigation }: Props) {
     },
     [toast, dict],
   );
+
+  // One measurement pass feeds the card above AND the device bar below —
+  // the card's cached-covers share rides the same snapshot.
+  const { snapshot, measuring, measure } = useCoverStorageSnapshot({
+    onFreed: showFreedToast,
+  });
+  const cachedBytes = snapshot?.totalBytes ?? 0;
+  const cachedPct = percentOf(cachedBytes, capacity.totalBytes);
 
   const limitBytes = settings.coverCacheLimitBytes;
   const partitions = settings.coverCachePartitionBytes;
@@ -148,7 +189,11 @@ export function Storage({ navigation }: Props) {
         />
 
         <ScrollView contentContainerStyle={styles.appContainer}>
-          <CoverStorageCard onFreed={showFreedToast} />
+          <CoverStorageCard
+            snapshot={snapshot}
+            measuring={measuring}
+            measure={measure}
+          />
 
           <SectionTitle
             title={dict.SETTINGS_STORAGE_LIMIT_TITLE}
@@ -215,7 +260,18 @@ export function Storage({ navigation }: Props) {
           )}
 
           {capacity.totalBytes > 0 && (
-            <View style={styles.deviceBarTrack}>
+            <View
+              style={styles.deviceBarTrack}
+              accessibilityRole="progressbar"
+              accessibilityValue={{
+                min: 0,
+                max: capacity.totalBytes,
+                now: capacity.usedBytes,
+              }}
+            >
+              {/* Used space, split: everything else in the dim fill, the
+                  cached-covers share highlighted in the app's purple at the
+                  end of the used span. */}
               <View
                 style={[
                   styles.deviceBarFill,
@@ -226,7 +282,19 @@ export function Storage({ navigation }: Props) {
                     )}%`,
                   },
                 ]}
-              />
+              >
+                <View
+                  style={[
+                    styles.deviceBarOther,
+                    { flex: Math.max(capacity.usedBytes - cachedBytes, 0) },
+                  ]}
+                />
+                {cachedBytes > 0 && (
+                  <View
+                    style={[styles.deviceBarCached, { flex: cachedBytes }]}
+                  />
+                )}
+              </View>
             </View>
           )}
           <Text style={styles.deviceCaption}>
@@ -235,6 +303,16 @@ export function Storage({ navigation }: Props) {
               total: formatBytes(capacity.totalBytes),
             })}
           </Text>
+          {capacity.totalBytes > 0 && (
+            <Text style={[styles.deviceCaption, styles.deviceCachedCaption]}>
+              {measuring && !snapshot
+                ? "· · ·"
+                : interpolate(dict.STORAGE_DEVICE_CACHED, {
+                    cached: formatBytes(cachedBytes),
+                    pct: cachedPct,
+                  })}
+            </Text>
+          )}
         </ScrollView>
       </SafeAreaView>
     </Background>

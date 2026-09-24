@@ -13,6 +13,14 @@ import {
 
 export type { CoverCachePartitions };
 
+/**
+ * Grace window for a freshly-tagged URL whose bytes are still seeding into
+ * the image cache (the resolver's `writeCache` races this measure). Absent
+ * this window the measure would prune the tag before the bytes land, and
+ * nothing would ever re-tag that cover.
+ */
+const SEED_GRACE_MS = 60_000;
+
 export type CoverStorageKey = CoverCacheCategory;
 
 export interface CoverStorageSlice {
@@ -208,10 +216,16 @@ export class CoverDiskStorage {
 
       // Positively-absent files (Glide evicted them at its own will) are
       // pruned exactly like before; evicted-by-limit URLs join the same
-      // batch so the registry forgets them in one persist.
+      // batch so the registry forgets them in one persist. A freshly-
+      // tagged URL rides out the seed grace instead — its bytes may be
+      // mid-write into the image cache.
       const missing = [...statByUrl.entries()]
         .filter(([url, stat]) => stat.state === "absent" && !evictedSet.has(url))
-        .map(([url]) => url);
+        .map(([url]) => url)
+        .filter((url) => {
+          const taggedAt = coverCacheRegistry.taggedAt(url);
+          return taggedAt == null || taggedAt <= Date.now() - SEED_GRACE_MS;
+        });
       await coverCacheRegistry.prune([...evictedSet, ...missing]);
 
       const freshGroups = coverCacheRegistry.groupByCategory();

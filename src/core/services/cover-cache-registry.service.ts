@@ -99,6 +99,11 @@ export class CoverCacheRegistry {
     return [...this.entries.keys()];
   }
 
+  /** When the URL was last tagged (recency timestamp), for the measure's seed-grace check. */
+  taggedAt(url: string): number | undefined {
+    return this.entries.get(url)?.at;
+  }
+
   /** URLs grouped by category, in tag order (oldest first per group). */
   groupByCategory(): Record<CoverCacheCategory, string[]> {
     const groups: Record<CoverCacheCategory, string[]> = {

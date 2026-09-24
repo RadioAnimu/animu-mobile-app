@@ -15,7 +15,6 @@ import {
 } from "@/constants/covers";
 import { formatBytes, interpolate, percentOf } from "@/utils/format";
 import { THEME } from "@/theme";
-import { useCoverStorageSnapshot } from "@/hooks/useCoverStorage";
 import { useDict } from "@/hooks/useDict";
 import { haptics } from "@/utils/haptics";
 import { styles } from "@/components/CoverStorageCard/styles";
@@ -53,15 +52,19 @@ function LegendRow({
  * proportional bar showing what is taking space, a colour-keyed legend, and
  * a single "free up space" action that confirms before it wipes anything.
  * The raw byte limit + per-section controls live behind the Storage screen's
- * Advanced area.
+ * Advanced area. The screen owns the measurement (the device bar below it
+ * renders the same snapshot) — this card is a pure view of it.
  */
 export function CoverStorageCard({
-  onFreed,
+  snapshot,
+  measuring,
+  measure,
 }: {
-  onFreed?: (freedBytes: number) => void;
+  snapshot: CoverStorageSnapshot | null;
+  measuring: boolean;
+  measure: () => Promise<CoverStorageSnapshot | null>;
 }) {
   const { settings } = useUserSettings();
-  const { snapshot, measuring, measure } = useCoverStorageSnapshot({ onFreed });
   const dict = useDict();
   const totalBytes = snapshot?.totalBytes ?? 0;
   const hasData = totalBytes > 0;
@@ -145,7 +148,8 @@ function CleanButton({
       await coverDiskStorage.clearAll();
       const after = await measure();
       haptics.success();
-      const freed = before - (after?.totalBytes ?? 0);
+      // A skipped/failed measure returns no snapshot — never a freed claim.
+      const freed = after ? before - after.totalBytes : 0;
       if (freed > 0) {
         toast(
           interpolate(dict.STORAGE_FREED, { freed: formatBytes(freed) }),

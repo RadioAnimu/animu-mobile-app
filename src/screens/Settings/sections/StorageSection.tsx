@@ -1,4 +1,4 @@
-import { useCallback, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useRef, useSyncExternalStore } from "react";
 import { View } from "react-native";
 
 import { useAlert } from "@/contexts/alert/AlertProvider";
@@ -39,9 +39,23 @@ export function StorageSection({ onOpenStorage }: Props) {
     (listener) => coverDiskStorage.subscribe(listener),
     () => coverDiskStorage.isClearing,
   );
-  const { snapshot, measuring } = useCoverStorageSnapshot({
+  const { snapshot, measuring, measure } = useCoverStorageSnapshot({
     onFreed: showFreedToast,
   });
+
+  // Wipes started on THIS screen (the cache-off toggle, a cover-quality
+  // change) settle without a navigation — re-measure when they do, or the
+  // row would keep the pre-wipe total until the next screen change. The
+  // initial false is the mount state, not a settled wipe — the focus
+  // measure already owns it, so skip the first run.
+  const wipeSettledOnce = useRef(false);
+  useEffect(() => {
+    if (!wipeSettledOnce.current) {
+      wipeSettledOnce.current = true;
+      return;
+    }
+    if (!cacheWiping) void measure();
+  }, [cacheWiping, measure]);
 
   return (
     <>

@@ -275,6 +275,7 @@ const DICT: Dict = {
   STORAGE_CLEAR_CONFIRM: "Apagar",
   STORAGE_LIMIT_ROW: "Tamanho máximo",
   STORAGE_DEVICE_FREE: "{free} livres de {total} neste aparelho",
+  STORAGE_DEVICE_CACHED: "Capas em cache: {cached} · {pct}% deste aparelho",
   STORAGE_ADVANCED_TITLE: "Avançado",
   STORAGE_PARTITION_CUSTOM_LABEL: "Partições personalizadas",
   STORAGE_PARTITION_CUSTOM_DESC: "Defina como o limite é dividido entre as seções",

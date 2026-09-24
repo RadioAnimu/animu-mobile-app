@@ -5,6 +5,7 @@ import type { Track } from "@/core/domain/track";
 import type { Stream } from "@/core/domain/stream";
 import { animuService } from "@/core/services/animu.service";
 import { userSettingsService } from "@/core/services/user-settings.service";
+import { coverCacheRegistry } from "@/core/services/cover-cache-registry.service";
 import { API } from "@/api";
 import { animuApi, setServerSkewListener } from "@/api/client";
 import { CONFIG, debugLog } from "@/utils/player.config";
@@ -1335,7 +1336,19 @@ export const createPlayerService = (): PlayerService => {
   const coverLookup = new CachedCoverLookup(coverDiskCache);
   const coverSeeder = new CoverCacheSeeder(coverDiskCache);
   const artwork = new ArtworkResolver({
-    onResolved: coverSeeder.seed.bind(coverSeeder),
+    onResolved: (localUri, remoteUrl) => {
+      // Attribute the resolver's download to the live surface at the seam
+      // where the remote URL is still known: the in-app player frame
+      // renders the local `file://` URI and the registry only accepts
+      // remote URLs, so display-time tagging can never see this cover —
+      // the live partition would report 0 forever. The media session's
+      // downloads are gated by the same cache setting as every other
+      // surface's tags; the seed keeps its unconditional bridging role.
+      if (userSettingsService.getCurrentSettings().cacheEnabled) {
+        coverCacheRegistry.tag(remoteUrl, "live");
+      }
+      return coverSeeder.seed(localUri, remoteUrl);
+    },
     findCachedCoverFile: coverLookup.find.bind(coverLookup),
   });
   // Holds the announced track back until the speaker reaches it, so the

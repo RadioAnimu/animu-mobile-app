@@ -8,6 +8,10 @@ import {
 
 export interface DeviceStorageState {
   capacity: DiskCapacity;
+  /** Re-reads the native getters now — the bar and the selectable limit
+      tiers follow storage work (a wipe, a trim) that settled without a
+      navigation, so they never wait for the next screen focus. */
+  refresh: () => void;
 }
 
 /**
@@ -26,5 +30,7 @@ export function useDeviceStorage(): DeviceStorageState {
     }, []),
   );
 
-  return { capacity };
+  const refresh = useCallback(() => setCapacity(readDiskCapacity()), []);
+
+  return { capacity, refresh };
 }

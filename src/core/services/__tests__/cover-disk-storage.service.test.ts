@@ -422,6 +422,26 @@ describe("CoverDiskStorage", () => {
     expect(coverDiskStorage.isClearing).toBe(false);
   });
 
+  it("a freshly-tagged URL rides out the seed grace instead of being pruned as absent", async () => {
+    await setup([[LIVE1, "live"]], { [LIVE1]: 0 });
+    // No file on disk yet — the resolver's seed write is still in flight.
+
+    // Recently tagged → the grace window keeps it registered.
+    coverCacheRegistry.tag(LIVE1, "live");
+    await coverDiskStorage.computeSnapshot(0);
+    expect(coverCacheRegistry.groupByCategory().live).toContain(LIVE1);
+
+    // Same state past the grace → positively absent → pruned.
+    const registry = coverCacheRegistry as unknown as {
+      entries: Map<string, { category: string; at: number }>;
+    };
+    const entry = registry.entries.get(LIVE1);
+    expect(entry).toBeDefined();
+    registry.entries.set(LIVE1, { ...entry!, at: Date.now() - 61_000 });
+    await coverDiskStorage.computeSnapshot(0);
+    expect(coverCacheRegistry.groupByCategory().live).not.toContain(LIVE1);
+  });
+
   it("pathological overrides (sum above the user's total) degrade to sums the un-customized singles can live with", async () => {
     await setup(
       [

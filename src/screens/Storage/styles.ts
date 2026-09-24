@@ -35,7 +35,19 @@ export const styles = StyleSheet.create({
   deviceBarFill: {
     height: "100%",
     borderRadius: 999,
+    overflow: "hidden",
+    flexDirection: "row",
+  },
+  /** Everything on the device that is NOT this app's cover cache. */
+  deviceBarOther: {
+    height: "100%",
     backgroundColor: THEME.COLORS.TEXT_DIM,
+  },
+  /** The app's cached-covers share — the propagated purple so the bar and
+      the caption below it read as one story. */
+  deviceBarCached: {
+    height: "100%",
+    backgroundColor: THEME.COLORS.VISUALIZER,
   },
   deviceCaption: {
     color: THEME.COLORS.TEXT_DIM,
@@ -44,5 +56,8 @@ export const styles = StyleSheet.create({
     marginTop: THEME.SPACE.SM,
     // Sits on the same grid as the rows above it.
     paddingHorizontal: THEME.SPACE.LG,
+  },
+  deviceCachedCaption: {
+    color: THEME.COLORS.VISUALIZER,
   },
 });
