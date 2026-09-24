@@ -1,4 +1,5 @@
 import type { CoverCacheCategory } from "@/core/services/cover-cache-registry.service";
+import { MB } from "@/utils/format";
 
 /** Stable display / iteration order for the four cover-cache partitions. */
 export const CATEGORY_ORDER: CoverCacheCategory[] = [
@@ -84,4 +85,21 @@ export function resolvePartitionCaps(
   }
 
   return caps;
+}
+
+/**
+ * Seeds the Advanced editor (Storage screen) with the weighted automatic
+ * split. Derived from {@link resolvePartitionCaps} so the seeds can never
+ * drift from the caps the trim engine actually enforces; floored to whole
+ * MB (1 MB minimum per partition) so the seeded total never exceeds the
+ * user's limit.
+ */
+export function defaultPartitions(maxBytes: number): CoverCachePartitions {
+  const caps = resolvePartitionCaps(maxBytes);
+  const seeded: CoverCachePartitions = {};
+  if (!caps) return seeded;
+  for (const key of CATEGORY_ORDER) {
+    seeded[key] = Math.max(MB, Math.floor(caps[key] / MB) * MB);
+  }
+  return seeded;
 }

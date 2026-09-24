@@ -8,11 +8,11 @@ import { DICT, type LanguageKey } from "@/i18n";
 import { animuApi, createApiClient } from "@/api/client";
 import { interpolate } from "@/utils/format";
 import { userSettingsService } from "@/core/services/user-settings.service";
+import { RequestSubmitGuard } from "@/core/services/request-submit-guard";
 
 class MusicRequestService {
-  /** Re-entrancy latch — mirrors `LiveRequestService` (same double-submit hole: two
-      triggers inside one commit both observed `idle` and POSTed twice). */
-  private isSubmitting = false;
+  /** Shared double-submit latch (see `RequestSubmitGuard`). */
+  private readonly guard = new RequestSubmitGuard();
 
   /**
    * A fresh client per search carrying the user's cover-quality setting
@@ -42,25 +42,7 @@ class MusicRequestService {
   async submitRequest(
     submission: MusicRequestSubmission,
   ): Promise<RequestSubmitResult> {
-    // Service-level re-entrancy guard: the UI's idle check reads a closure,
-    // so double-tap/Enter-before-re-render could fire this twice. Mirrors
-    // `live-request.service`. The cooldown is server-counted — a duplicate
-    // POST would spend the user's request window on a PEDIBLOCK.
-    if (this.isSubmitting) {
-      return { success: false, error: "IN_PROGRESS" };
-    }
-    try {
-      this.isSubmitting = true;
-      return await animuApi.submitMusicRequest(submission);
-    } catch (error) {
-      console.error("Request submission error:", error);
-      return {
-        success: false,
-        error: "REQUEST_ERROR",
-      };
-    } finally {
-      this.isSubmitting = false;
-    }
+    return this.guard.run(() => animuApi.submitMusicRequest(submission));
   }
 }
 

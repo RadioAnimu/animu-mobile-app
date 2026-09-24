@@ -1,7 +1,7 @@
 import { StyleSheet } from "react-native";
 
 import { THEME } from "@/theme";
-import { SCREEN_STYLES } from "@/theme/screen";
+import { SCREEN_STYLES, ROW_STYLES } from "@/theme/screen";
 import { scale } from "@/theme/responsive";
 
 const CONTENT_PADDING = THEME.SPACE.LG;
@@ -17,11 +17,7 @@ export const styles = StyleSheet.create({
   container: SCREEN_STYLES.container,
   appContainer: SCREEN_STYLES.content,
   group: SCREEN_STYLES.group,
-  divider: {
-    height: StyleSheet.hairlineWidth,
-    backgroundColor: THEME.COLORS.HAIRLINE,
-    marginLeft: CONTENT_PADDING,
-  },
+  divider: ROW_STYLES.divider,
   accountRow: {
     paddingVertical: CONTENT_PADDING,
   },
@@ -55,28 +51,13 @@ export const styles = StyleSheet.create({
     alignItems: "center",
     gap: THEME.SPACE.XS,
   },
-  accountServiceIcon: {
-    width: THEME.LAYOUT.ICON_BOX_WIDTH,
-    alignItems: "flex-start",
-  },
-  accountCaption: {
-    color: THEME.COLORS.TEXT_DIM,
-    fontFamily: THEME.FONT_FAMILY.REGULAR,
-    fontSize: THEME.FONT_SIZE.BODY,
-  },
+  accountServiceIcon: ROW_STYLES.iconBox,
+  accountCaption: ROW_STYLES.caption,
   row: {
-    flexDirection: "row",
-    alignItems: "center",
+    ...ROW_STYLES.row,
     justifyContent: "space-between",
-    minHeight: THEME.LAYOUT.ROW_MIN_HEIGHT,
-    paddingHorizontal: CONTENT_PADDING,
   },
-  // Fixed leading-icon column shared with Account's rows, so every settings
-  // row lines up on the same vertical grid as the section headings above it.
-  rowIcon: {
-    width: THEME.LAYOUT.ICON_BOX_WIDTH,
-    alignItems: "flex-start",
-  },
+  rowIcon: ROW_STYLES.iconBox,
   rowDisabled: {
     opacity: THEME.OPACITY.DISABLED,
   },
@@ -106,12 +87,7 @@ export const styles = StyleSheet.create({
     justifyContent: "center",
     paddingRight: CONTENT_PADDING,
   },
-  rowDescription: {
-    color: THEME.COLORS.TEXT_DIM,
-    fontFamily: THEME.FONT_FAMILY.REGULAR,
-    fontSize: THEME.FONT_SIZE.BODY,
-    lineHeight: THEME.LINE_HEIGHT.SUBHEAD,
-  },
+  rowDescription: ROW_STYLES.description,
   rowValue: {
     flexDirection: "row",
     alignItems: "center",

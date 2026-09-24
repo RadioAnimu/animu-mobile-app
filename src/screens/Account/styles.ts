@@ -1,7 +1,7 @@
 import { StyleSheet } from "react-native";
 
 import { THEME } from "@/theme";
-import { SCREEN_STYLES } from "@/theme/screen";
+import { SCREEN_STYLES, ROW_STYLES } from "@/theme/screen";
 import { scale } from "@/theme/responsive";
 
 // Twitter header proportions: a wide cover with the avatar hanging off its
@@ -165,26 +165,10 @@ export const styles = StyleSheet.create({
     backgroundColor: "rgba(255, 255, 255, 0.2)",
     marginLeft: CONTENT_PADDING,
   },
-  divider: {
-    height: StyleSheet.hairlineWidth,
-    backgroundColor: THEME.COLORS.HAIRLINE,
-    marginLeft: CONTENT_PADDING,
-  },
-  // Same row rhythm as Settings and Select: a fixed minimum height with the
-  // vertical air coming from the body (or the min height when the row is a
-  // single line).
-  row: {
-    flexDirection: "row",
-    alignItems: "center",
-    minHeight: THEME.LAYOUT.ROW_MIN_HEIGHT,
-    paddingHorizontal: CONTENT_PADDING,
-  },
-  // Left-aligned icon column shared with the section headings so a row icon
-  // sits on the exact same x as the heading icon above it.
-  rowIcon: {
-    width: THEME.LAYOUT.ICON_BOX_WIDTH,
-    alignItems: "flex-start",
-  },
+  divider: ROW_STYLES.divider,
+  // Same row rhythm as Settings and Select (see `ROW_STYLES`).
+  row: ROW_STYLES.row,
+  rowIcon: ROW_STYLES.iconBox,
   rowBody: {
     flex: 1,
     // Same shrink contract as identityInfo — the linked identity (a long
@@ -194,16 +178,8 @@ export const styles = StyleSheet.create({
     gap: THEME.SPACE.XS,
     paddingVertical: THEME.SPACE.MD,
   },
-  rowLabel: {
-    color: THEME.COLORS.TEXT,
-    fontFamily: THEME.FONT_FAMILY.BOLD,
-    fontSize: THEME.FONT_SIZE.LIST,
-  },
-  rowCaption: {
-    color: THEME.COLORS.TEXT_DIM,
-    fontFamily: THEME.FONT_FAMILY.REGULAR,
-    fontSize: THEME.FONT_SIZE.BODY,
-  },
+  rowLabel: ROW_STYLES.label,
+  rowCaption: ROW_STYLES.caption,
   // Icon-only link/unlink affordance: a fixed 40px square keeps the tap
   // target generous while freeing the horizontal budget a text action used
   // to eat at small widths (the rowCaption's whole wrapping problem).

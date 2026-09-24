@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  defaultPartitions,
   resolvePartitionCaps,
 } from "@/core/services/cover-cache-partitions";
 
@@ -51,5 +52,36 @@ describe("MB-scale sanity", () => {
     const caps = resolvePartitionCaps(250 * MB)!;
     const sum = Object.values(caps).reduce((a, b) => a + b, 0);
     expect(sum).toBe(250 * MB);
+  });
+});
+
+describe("defaultPartitions", () => {
+  it("seeds the weighted automatic split in whole MB steps", () => {
+    const seeded = defaultPartitions(50 * MB);
+    for (const bytes of Object.values(seeded)) {
+      expect(bytes % MB).toBe(0);
+      expect(bytes).toBeGreaterThanOrEqual(MB);
+    }
+    // The engine caps the same limit; every seed must match its cap's
+    // MB-floored value so the editor starts where the trim engine lands.
+    const caps = resolvePartitionCaps(50 * MB)!;
+    expect(seeded).toEqual({
+      live: Math.floor(caps.live / MB) * MB,
+      requested: Math.floor(caps.requested / MB) * MB,
+      played: Math.floor(caps.played / MB) * MB,
+      search: Math.floor(caps.search / MB) * MB,
+    });
+  });
+
+  it("never seeds more than the user's limit", () => {
+    for (const limit of [50, 100, 250, 500, 1024]) {
+      const seeded = defaultPartitions(limit * MB);
+      const sum = Object.values(seeded).reduce((a, b) => a + b, 0);
+      expect(sum).toBeLessThanOrEqual(limit * MB);
+    }
+  });
+
+  it("returns an empty override set for an unlimited limit", () => {
+    expect(defaultPartitions(0)).toEqual({});
   });
 });

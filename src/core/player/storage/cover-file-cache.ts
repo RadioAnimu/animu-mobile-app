@@ -2,7 +2,7 @@ import type { CoverFileCache } from "@/core/player/storage/cover-ports";
 
 /** In-memory lookup cap. The underlying files live in OS/SDK-owned cache
  * directories — only this lookup map is bounded here. */
-export const DEFAULT_COVER_FILE_CACHE_CAPACITY = 64;
+const DEFAULT_COVER_FILE_CACHE_CAPACITY = 64;
 
 /**
  * The concrete hashmap behind {@link CoverFileCache}: insertion-ordered

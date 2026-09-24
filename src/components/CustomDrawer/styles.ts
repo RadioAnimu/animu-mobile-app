@@ -1,5 +1,6 @@
 import { StyleSheet } from "react-native";
 import { THEME } from "@/theme";
+import { ROW_STYLES } from "@/theme/screen";
 import { scale } from "@/theme/responsive";
 
 export const DRAWER_GRID = {
@@ -72,11 +73,7 @@ export const styles = StyleSheet.create({
     gap: THEME.SPACE.XXS,
     marginLeft: THEME.SPACE.MD,
   },
-  accountName: {
-    color: THEME.COLORS.TEXT,
-    fontFamily: THEME.FONT_FAMILY.BOLD,
-    fontSize: THEME.FONT_SIZE.LIST,
-  },
+  accountName: ROW_STYLES.label,
   accountService: {
     flexDirection: "row",
     alignItems: "center",

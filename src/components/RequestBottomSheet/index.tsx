@@ -9,10 +9,9 @@ import {
   View,
 } from "react-native";
 
-import { useUserSettings } from "@/contexts/user/UserSettingsProvider";
 import { MusicRequest } from "@/core/domain/music-request";
 import { User } from "@/core/domain/user";
-import { DICT } from "@/i18n";
+import { useDict } from "@/hooks/useDict";
 import { THEME } from "@/theme";
 import { Avatar } from "@/components/Avatar";
 import { Cover } from "@/components/Cover";
@@ -125,8 +124,7 @@ export function RequestBottomSheet({
   onSubmit,
   onRequestSuccess,
 }: Props) {
-  const { settings } = useUserSettings();
-  const lang = settings.selectedLanguage;
+  const dict = useDict();
 
   const [message, setMessage] = useState("");
   const [status, setStatus] = useState<SubmitStatus>("idle");
@@ -165,7 +163,7 @@ export function RequestBottomSheet({
     } catch {
       haptics.error();
       setStatus("error");
-      setStatusMessage(DICT[lang].REQUEST_ERROR);
+      setStatusMessage(dict.REQUEST_ERROR);
     }
   };
 
@@ -196,11 +194,11 @@ export function RequestBottomSheet({
         ) : (
           <>
             <View style={styles.noteBox}>
-              <Text style={styles.noteText}>{DICT[lang].INFO_REQUEST}</Text>
+              <Text style={styles.noteText}>{dict.INFO_REQUEST}</Text>
             </View>
             <TextInput
               style={[styles.input, isSubmitting && styles.inputDisabled]}
-              placeholder={DICT[lang].SEND_REQUEST_PLACEHOLDER}
+              placeholder={dict.SEND_REQUEST_PLACEHOLDER}
               placeholderTextColor={THEME.COLORS.TEXT_ON_LIGHT}
               value={message}
               onChangeText={setMessage}
@@ -214,7 +212,7 @@ export function RequestBottomSheet({
         <RequestActionButton
           submitting={isSubmitting}
           error={status === "error"}
-          label={isDone ? DICT[lang].OK_BUTTON : DICT[lang].SEND_REQUEST_BUTTON_TEXT}
+          label={isDone ? dict.OK_BUTTON : dict.SEND_REQUEST_BUTTON_TEXT}
           onPress={isDone ? onClose : handleSubmit}
         />
       </ScrollView>

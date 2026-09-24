@@ -1,23 +1,14 @@
 import { StyleSheet } from "react-native";
 import { THEME } from "@/theme";
+import { FLOW_STYLES } from "@/theme/screen";
 import { scale } from "@/theme/responsive";
 
 const INPUT_HEIGHT = scale(44);
 const FIELD_ICON = scale(22);
 
 export const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  appContainer: {
-    flex: 1,
-    flexDirection: "column",
-    justifyContent: "center",
-    alignItems: "center",
-    width: "85%",
-    marginBottom: THEME.SPACE.LG,
-    alignSelf: "center",
-  },
+  container: FLOW_STYLES.container,
+  appContainer: FLOW_STYLES.appContainer,
   logoWrapper: {
     marginVertical: THEME.SPACE.LG,
   },
@@ -27,10 +18,7 @@ export const styles = StyleSheet.create({
     width: "100%",
     marginBottom: THEME.SPACE.LG,
   },
-  listWrapper: {
-    width: "100%",
-    flex: 1,
-  },
+  listWrapper: FLOW_STYLES.listWrapper,
   list: {
     flexGrow: 1,
     gap: THEME.SPACE.MD,

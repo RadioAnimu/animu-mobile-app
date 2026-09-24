@@ -30,3 +30,69 @@ export const SCREEN_STYLES = StyleSheet.create({
     overflow: "hidden",
   },
 });
+
+/**
+ * Flow screens (MakeRequest, History): a plain full-height container, a
+ * centered 85% content column, and the full-width flex wrapper the
+ * scrollable results render into.
+ */
+export const FLOW_STYLES = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
+  appContainer: {
+    flex: 1,
+    flexDirection: "column",
+    justifyContent: "center",
+    alignItems: "center",
+    width: "85%",
+    marginBottom: THEME.SPACE.LG,
+    alignSelf: "center",
+  },
+  listWrapper: {
+    width: "100%",
+    flex: 1,
+  },
+});
+
+/**
+ * The row rhythm shared by every settings-style screen (Settings, Account,
+ * Select, About, AccountEmails, the drawer): a fixed-minimum-height row with
+ * the same leading icon column, so a row icon sits on the exact same x as
+ * the section heading icon above it and rows line up on one vertical grid
+ * across all screens that compose them. The vertical air comes from the
+ * row body (or the min height when the row is a single line).
+ */
+export const ROW_STYLES = StyleSheet.create({
+  row: {
+    flexDirection: "row",
+    alignItems: "center",
+    minHeight: THEME.LAYOUT.ROW_MIN_HEIGHT,
+    paddingHorizontal: THEME.SPACE.LG,
+  },
+  iconBox: {
+    width: THEME.LAYOUT.ICON_BOX_WIDTH,
+    alignItems: "flex-start",
+  },
+  label: {
+    color: THEME.COLORS.TEXT,
+    fontFamily: THEME.FONT_FAMILY.BOLD,
+    fontSize: THEME.FONT_SIZE.LIST,
+  },
+  caption: {
+    color: THEME.COLORS.TEXT_DIM,
+    fontFamily: THEME.FONT_FAMILY.REGULAR,
+    fontSize: THEME.FONT_SIZE.BODY,
+  },
+  description: {
+    color: THEME.COLORS.TEXT_DIM,
+    fontFamily: THEME.FONT_FAMILY.REGULAR,
+    fontSize: THEME.FONT_SIZE.BODY,
+    lineHeight: THEME.LINE_HEIGHT.SUBHEAD,
+  },
+  divider: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: THEME.COLORS.HAIRLINE,
+    marginLeft: THEME.SPACE.LG,
+  },
+});

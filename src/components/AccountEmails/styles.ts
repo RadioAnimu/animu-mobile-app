@@ -1,6 +1,7 @@
 import { StyleSheet } from "react-native";
 
 import { THEME } from "@/theme";
+import { ROW_STYLES } from "@/theme/screen";
 import { scale } from "@/theme/responsive";
 
 const CONTENT_PADDING = THEME.SPACE.LG;
@@ -10,17 +11,9 @@ const CONTENT_PADDING = THEME.SPACE.LG;
  * normal 64px row, the unfolded panel is a tonal card inset in the group.
  */
 export const styles = StyleSheet.create({
-  trigger: {
-    flexDirection: "row",
-    alignItems: "center",
-    minHeight: THEME.LAYOUT.ROW_MIN_HEIGHT,
-    paddingHorizontal: CONTENT_PADDING,
-  },
+  trigger: ROW_STYLES.row,
   // Left-aligned icon column matching the section heading and Account rows.
-  triggerIcon: {
-    width: THEME.LAYOUT.ICON_BOX_WIDTH,
-    alignItems: "flex-start",
-  },
+  triggerIcon: ROW_STYLES.iconBox,
   /** Collapse an icon font's extra leading so it centers on the row. */
   iconGlyph: {
     lineHeight: THEME.ICON.MD,
@@ -33,16 +26,8 @@ export const styles = StyleSheet.create({
     paddingVertical: THEME.SPACE.MD,
     paddingRight: CONTENT_PADDING,
   },
-  triggerLabel: {
-    color: THEME.COLORS.TEXT,
-    fontFamily: THEME.FONT_FAMILY.BOLD,
-    fontSize: THEME.FONT_SIZE.LIST,
-  },
-  triggerCaption: {
-    color: THEME.COLORS.TEXT_DIM,
-    fontFamily: THEME.FONT_FAMILY.REGULAR,
-    fontSize: THEME.FONT_SIZE.BODY,
-  },
+  triggerLabel: ROW_STYLES.label,
+  triggerCaption: ROW_STYLES.caption,
   panel: {
     marginHorizontal: THEME.SPACE.MD,
     marginBottom: THEME.SPACE.MD,
@@ -72,10 +57,7 @@ export const styles = StyleSheet.create({
     paddingVertical: THEME.SPACE.SM,
   },
   // Same left-aligned icon column as the trigger and the provider marks.
-  emailIcon: {
-    width: THEME.LAYOUT.ICON_BOX_WIDTH,
-    alignItems: "flex-start",
-  },
+  emailIcon: ROW_STYLES.iconBox,
   // flex 1 so the address eats the free space and the marks stay flush right.
   emailValue: {
     flex: 1,

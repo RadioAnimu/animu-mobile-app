@@ -50,7 +50,7 @@ export function normalizeArtworkKey(url: string): string {
 }
 
 /** The canonical form and the URL's own spelling (both cache keys). */
-export function artworkKeyVariants(url: string): string[] {
+function artworkKeyVariants(url: string): string[] {
   const normalized = normalizeArtworkKey(url);
   return normalized === url ? [url] : [normalized, url];
 }

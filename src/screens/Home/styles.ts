@@ -1,4 +1,5 @@
 import { StyleSheet } from "react-native";
+import { FLOW_STYLES } from "@/theme/screen";
 import { scale } from "@/theme/responsive";
 
 /** Designer's vertical rhythm between the player sections. */
@@ -12,9 +13,7 @@ const RHYTHM = {
 };
 
 export const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
+  container: FLOW_STYLES.container,
   containerApp: {
     flexDirection: "column",
     justifyContent: "center",

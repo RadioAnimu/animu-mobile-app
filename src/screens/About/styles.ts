@@ -1,7 +1,7 @@
 import { StyleSheet } from "react-native";
 
 import { THEME } from "@/theme";
-import { SCREEN_STYLES } from "@/theme/screen";
+import { SCREEN_STYLES, ROW_STYLES } from "@/theme/screen";
 import { scale } from "@/theme/responsive";
 
 const CONTENT_PADDING = THEME.SPACE.LG;
@@ -19,28 +19,14 @@ export const styles = StyleSheet.create({
     fontFamily: THEME.FONT_FAMILY.BOLD,
     fontSize: THEME.FONT_SIZE.SUBHEAD,
   },
-  headerVersion: {
-    color: THEME.COLORS.TEXT_DIM,
-    fontFamily: THEME.FONT_FAMILY.REGULAR,
-    fontSize: THEME.FONT_SIZE.BODY,
-  },
+  headerVersion: ROW_STYLES.caption,
   group: SCREEN_STYLES.group,
   // Read-only key/value row (no chevron, no press).
-  row: {
-    flexDirection: "row",
-    alignItems: "center",
-    minHeight: THEME.LAYOUT.ROW_MIN_HEIGHT,
-    paddingHorizontal: CONTENT_PADDING,
-  },
-  rowIcon: {
-    width: THEME.LAYOUT.ICON_BOX_WIDTH,
-    alignItems: "flex-start",
-  },
+  row: ROW_STYLES.row,
+  rowIcon: ROW_STYLES.iconBox,
   rowLabel: {
+    ...ROW_STYLES.label,
     flex: 1,
-    color: THEME.COLORS.TEXT,
-    fontFamily: THEME.FONT_FAMILY.BOLD,
-    fontSize: THEME.FONT_SIZE.LIST,
   },
   rowValue: {
     flexShrink: 1,
@@ -74,10 +60,8 @@ export const styles = StyleSheet.create({
     fontSize: THEME.FONT_SIZE.BODY,
   },
   donorNote: {
+    ...ROW_STYLES.caption,
     flexShrink: 1,
-    color: THEME.COLORS.TEXT_DIM,
-    fontFamily: THEME.FONT_FAMILY.REGULAR,
-    fontSize: THEME.FONT_SIZE.BODY,
   },
   // Footer block of the page (copyright etc.).
   footer: {

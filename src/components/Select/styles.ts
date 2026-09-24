@@ -1,6 +1,7 @@
 import { StyleSheet } from "react-native";
 
 import { THEME } from "@/theme";
+import { ROW_STYLES } from "@/theme/screen";
 import { scale } from "@/theme/responsive";
 
 // Big enough to actually judge a quality tier at a glance (the old 52 read
@@ -16,34 +17,19 @@ const THUMB = scale(76);
  */
 export const styles = StyleSheet.create({
   row: {
-    flexDirection: "row",
-    alignItems: "center",
+    ...ROW_STYLES.row,
     justifyContent: "space-between",
-    minHeight: THEME.LAYOUT.ROW_MIN_HEIGHT,
-    paddingHorizontal: THEME.SPACE.LG,
   },
   // Same fixed leading-icon column the Settings rows use.
-  rowIcon: {
-    width: THEME.LAYOUT.ICON_BOX_WIDTH,
-    alignItems: "flex-start",
-  },
+  rowIcon: ROW_STYLES.iconBox,
   body: {
     flex: 1,
     gap: THEME.SPACE.XS,
     paddingVertical: THEME.SPACE.MD,
     paddingRight: THEME.SPACE.LG,
   },
-  label: {
-    color: THEME.COLORS.TEXT,
-    fontFamily: THEME.FONT_FAMILY.BOLD,
-    fontSize: THEME.FONT_SIZE.LIST,
-  },
-  description: {
-    color: THEME.COLORS.TEXT_DIM,
-    fontFamily: THEME.FONT_FAMILY.REGULAR,
-    fontSize: THEME.FONT_SIZE.BODY,
-    lineHeight: THEME.LINE_HEIGHT.SUBHEAD,
-  },
+  label: ROW_STYLES.label,
+  description: ROW_STYLES.description,
   // A pill, not a bordered square: rounded fully, tone-on-tone, no outline.
   value: {
     flexDirection: "row",

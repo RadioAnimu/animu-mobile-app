@@ -18,7 +18,7 @@ import { maxSelectableLimitBytes } from "@/core/services/device-storage.service"
 import type { CoverCacheCategory } from "@/core/services/cover-cache-registry.service";
 import {
   CATEGORY_ORDER,
-  PARTITION_WEIGHTS,
+  defaultPartitions,
   resolvePartitionCaps,
   type CoverCachePartitions,
 } from "@/core/services/cover-cache-partitions";
@@ -43,18 +43,6 @@ const PARTITION_ICONS: Record<CoverCacheCategory, IconName> = {
   played: "history",
   search: "search",
 };
-
-/** Seeds the Advanced editor with the weighted automatic split, whole MB. */
-function defaultPartitions(limitBytes: number): CoverCachePartitions {
-  const seeded: CoverCachePartitions = {};
-  for (const key of CATEGORY_ORDER) {
-    seeded[key] = Math.max(
-      MB,
-      Math.round((limitBytes * PARTITION_WEIGHTS[key]) / MB) * MB,
-    );
-  }
-  return seeded;
-}
 
 /**
  * Storage: the plain-language cache summary (what is cached, why, one

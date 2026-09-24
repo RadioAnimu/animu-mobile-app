@@ -1,23 +1,14 @@
 import { StyleSheet } from "react-native";
 import { THEME } from "@/theme";
+import { FLOW_STYLES } from "@/theme/screen";
 import { scale } from "@/theme/responsive";
 
 const HEADER_IMAGE_HEIGHT = scale(127);
 const ROW_COVER = scale(50);
 
 export const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  appContainer: {
-    flex: 1,
-    flexDirection: "column",
-    justifyContent: "center",
-    alignItems: "center",
-    width: "85%",
-    marginBottom: THEME.SPACE.LG,
-    alignSelf: "center",
-  },
+  container: FLOW_STYLES.container,
+  appContainer: FLOW_STYLES.appContainer,
   headerImage: {
     width: "100%",
     height: HEADER_IMAGE_HEIGHT,
@@ -37,10 +28,7 @@ export const styles = StyleSheet.create({
   containerList: {
     gap: THEME.SPACE.MD,
   },
-  listWrapper: {
-    width: "100%",
-    flex: 1,
-  },
+  listWrapper: FLOW_STYLES.listWrapper,
   trackTime: {
     color: THEME.COLORS.TEXT,
     fontSize: THEME.FONT_SIZE.LIST,
