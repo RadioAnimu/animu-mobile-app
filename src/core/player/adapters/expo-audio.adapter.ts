@@ -6,6 +6,7 @@ import {
   type AudioSource,
   type AudioStatus as ExpoAudioStatus,
 } from "expo-audio";
+import SILENCE_LOOP from "@app/assets/silence-loop.wav";
 import { CONFIG } from "@/utils/player.config";
 import { LIVE_FORWARD_BUFFER_SECONDS } from "@/core/player/stream-playback/live-buffer";
 import type {
@@ -26,6 +27,20 @@ const PLAYER_TICK_INTERVAL_MS = 1000;
 const buildStreamSource = (url: string): AudioSource => ({
   uri: url,
   headers: { "User-Agent": CONFIG.USER_AGENT },
+});
+
+/** Options every player shares (session must never be torn down on pause/end). */
+const buildPlayerOptions = () => ({
+  updateInterval: PLAYER_TICK_INTERVAL_MS,
+  // A radio stream must never tear its audio session down. Without this,
+  // iOS deactivates the AVAudioSession whenever the player pauses or the
+  // item briefly ends — an inactive session in the background lets iOS
+  // suspend the app, which also freezes the JS reconnect path, so
+  // playback never comes back. (iOS-only; ignored on Android.)
+  keepAudioSessionActive: true,
+  // Start the stream ASAP (see `live-buffer.*`). On Android the native
+  // tap applies this as an ExoPlayer buffer cap only when > 0.
+  preferredForwardBufferDuration: LIVE_FORWARD_BUFFER_SECONDS,
 });
 
 /**
@@ -69,6 +84,8 @@ export class ExpoAudioAdapter implements AudioEnginePort {
   /** Desired sampling state, applied lazily once a player exists. */
   private samplingRequested = false;
   private audioModeReady = false;
+  /** Dedicated silent loop that keeps the audio session rendering (see port). */
+  private keepalive: AudioPlayer | null = null;
 
   get hasPlayer(): boolean {
     return this.player != null;
@@ -109,18 +126,7 @@ export class ExpoAudioAdapter implements AudioEnginePort {
       this.player.replace(source);
       return;
     }
-    this.player = createAudioPlayer(source, {
-      updateInterval: PLAYER_TICK_INTERVAL_MS,
-      // A radio stream must never tear its audio session down. Without this,
-      // iOS deactivates the AVAudioSession whenever the player pauses or the
-      // item briefly ends — an inactive session in the background lets iOS
-      // suspend the app, which also freezes the JS reconnect path, so
-      // playback never comes back. (iOS-only; ignored on Android.)
-      keepAudioSessionActive: true,
-      // Start the stream ASAP (see `live-buffer.*`). On Android the native
-      // tap applies this as an ExoPlayer buffer cap only when > 0.
-      preferredForwardBufferDuration: LIVE_FORWARD_BUFFER_SECONDS,
-    });
+    this.player = createAudioPlayer(source, buildPlayerOptions());
     this.attachStatusListener();
     this.attachSampleListener();
     // The visualizer may have been armed before the player existed.
@@ -163,6 +169,41 @@ export class ExpoAudioAdapter implements AudioEnginePort {
     };
   }
 
+  /**
+   * Starts the silent keepalive loop (idempotent). The loop is a dedicated
+   * looping player playing the bundled near-silent track at zero volume —
+   * genuinely silent samples are avoided (1 LSB amplitude) so no pipeline
+   * can optimize zero frames away, and the volume is 0 so the loop can
+   * never be heard on any platform.
+   */
+  startKeepalive(): void {
+    if (this.keepalive) return;
+    try {
+      const player = createAudioPlayer(
+        SILENCE_LOOP as unknown as AudioSource,
+        buildPlayerOptions(),
+      );
+      player.loop = true;
+      player.volume = 0;
+      player.play();
+      this.keepalive = player;
+    } catch (error) {
+      console.warn("[ExpoAudioAdapter] keepalive start failed:", error);
+    }
+  }
+
+  stopKeepalive(): void {
+    const keepalive = this.keepalive;
+    if (!keepalive) return;
+    this.keepalive = null;
+    try {
+      keepalive.pause();
+      keepalive.remove();
+    } catch (error) {
+      console.warn("[ExpoAudioAdapter] keepalive stop failed:", error);
+    }
+  }
+
   /** Removes listeners and destroys the native player. */
   dispose(): void {
     this.statusSubscription?.remove();
@@ -171,6 +212,8 @@ export class ExpoAudioAdapter implements AudioEnginePort {
     this.sampleSubscription = null;
     this.sampleHandler = null;
     this.samplingRequested = false;
+    this.keepalive?.remove();
+    this.keepalive = null;
     this.player?.remove();
     this.player = null;
   }

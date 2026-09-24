@@ -116,6 +116,16 @@ export interface AudioEnginePort {
   setSamplingEnabled(enabled: boolean): void;
   /** Subscribes to decoded PCM windows; returns an unsubscribe function. */
   onSample(handler: (sample: AudioSample) => void): () => void;
+  /**
+   * Loop a near-silent track so the audio session keeps rendering while the
+   * real stream is unreachable. iOS suspends a backgrounded app seconds after
+   * it stops producing audio — freezing the JS reconnect chain with it, so a
+   * tunnel outage would otherwise end in a suspended app that never wakes
+   * (nothing on iOS re-runs JS on network restore). Idempotent.
+   */
+  startKeepalive(): void;
+  /** Stops the keepalive loop. Safe when it never started. */
+  stopKeepalive(): void;
   /** Removes listeners and destroys the native player. */
   dispose(): void;
 }

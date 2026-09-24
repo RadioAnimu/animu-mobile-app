@@ -94,6 +94,14 @@ const LIVE_STALL_REOPEN_MS = 2000;
  */
 const CONNECTING_WATCHDOG_MS = 4000;
 /**
+ * Consecutive watchdog windows spent in `connecting` after which the source
+ * itself is re-opened, not just resumed. AVPlayer never recovers a broken
+ * progressive (ICY) socket by itself — a stalled connection can sit in
+ * "waiting to play" forever, and `resume()` on that dead item does nothing.
+ * Three windows (~12s) is well past any healthy cold start.
+ */
+const CONNECTING_REOPEN_WINDOWS = 3;
+/**
  * How old the last measurement may be before a resume is treated as stale and
  * the clock is re-synced. A stream that was paused (or suspended in the
  * background) past this window is re-opened at the live edge, so the retained
@@ -178,6 +186,12 @@ export class PlayerService {
    * leave the app silently "paused".
    */
   private connectingSince: number | null = null;
+  /**
+   * Consecutive watchdog windows the transport has spent in `connecting`.
+   * Powers the escalation from "force a native start" (cheap, may not take)
+   * to "re-open the source" (the only thing that heals a broken socket).
+   */
+  private connectingWindows = 0;
   /**
    * Whether the app UI is foregrounded. While backgrounded, store emissions
    * are suppressed so nothing reconciles in the hidden tree; the native
@@ -341,6 +355,40 @@ export class PlayerService {
     this.deps.repository.setLiveStreamActive(wanted);
   }
 
+  // ── Background-suspension keepalive ──
+
+  /**
+   * Keeps the audio session RENDERING while audio is wanted but cannot flow:
+   * a near-silent looping track at zero volume, so iOS never suspends the
+   * backgrounded app mid-outage.
+   *
+   * Why this is the load-bearing fix for the "music stops in a tunnel and
+   * never comes back" report: iOS suspends a backgrounded app seconds after
+   * it stops producing audio, and suspension freezes EVERYTHING — the JS
+   * backoff timers, the NetInfo restore edge, even native status events.
+   * Nothing on iOS re-runs JS when the network returns, so a suspended app
+   * stays silent until the user manually reopens it. With the keepalive the
+   * app stays awake through the outage: the watchdog keeps forcing re-opens
+   * and `handleNetworkRestore` fires the instant the signal returns, so the
+   * stream picks up by itself (like a real radio would).
+   *
+   * The gate mirrors `updateLiveStreamLifecycle`: only while the app is
+   * backgrounded, the user's last action was play, and audio is not
+   * actually flowing. A user pause must end it — a suspended app is the
+   * correct outcome of a deliberate pause.
+   */
+  private updateKeepalive(): void {
+    const wanted =
+      !this.appActive &&
+      this.deps.state.isPlayingIntent &&
+      this.deps.state.state !== "playing";
+    if (wanted) {
+      this.deps.audio.startKeepalive();
+    } else {
+      this.deps.audio.stopKeepalive();
+    }
+  }
+
   // ── Lifecycle ──
 
   /**
@@ -360,11 +408,25 @@ export class PlayerService {
     // Visibility is part of the realtime-surface battery policy: once
     // paused, backgrounding may drop the connection (see the setting).
     this.updateLiveStreamLifecycle();
+    // The keepalive gate includes visibility: backgrounding with audio
+    // wanted (but not flowing) starts the silent loop; foregrounding stops
+    // it — a foregrounded app cannot be suspended.
+    this.updateKeepalive();
     if (active) {
       this.deps.audible.adoptIfDue();
       this.emitPlayer();
       this.emitStation();
       this.emitProgress();
+      // Post-suspension catch-up: iOS can suspend a backgrounded app during
+      // an outage (no audio rendered). If the user then opens the app while
+      // audio is still wanted but not flowing, reconnect NOW — the backoff
+      // chain's pending timer is from before the suspension and may be
+      // minutes away from firing, and a dead socket will never revive itself
+      // (AVPlayer does not recover progressive streams on its own).
+      if (this.deps.state.isPlayingIntent && this.deps.state.state !== "playing") {
+        this.deps.reconnect.reset();
+        void this.attemptReconnect();
+      }
     }
   }
 
@@ -465,6 +527,7 @@ export class PlayerService {
     this.interruptionPending = false;
     this.stalledSince = null;
     this.setupPromise = null;
+    this.connectingWindows = 0;
 
     if (!this.isReady) {
       // Half-set-up or already destroyed: release whatever exists.
@@ -526,6 +589,7 @@ export class PlayerService {
     this.userPaused = false;
     this.interruptionPending = false;
     this.stalledSince = null;
+    this.connectingWindows = 0;
 
     try {
       // Ensure audio mode + media session are set up, then resolve the
@@ -830,6 +894,10 @@ export class PlayerService {
    */
   heartbeat(): void {
     this.deps.audible.adoptIfDue();
+    // Watchdog from the JS driver too: native status events are the usual
+    // watchdog clock, but a stall can leave them sparse (a dead socket has
+    // no time progress to report) — the 1 Hz fallback must still escalate.
+    this.enforceConnectingWatchdog();
     this.deps.heartbeat.beat();
   }
 
@@ -880,6 +948,7 @@ export class PlayerService {
       if (this.connectingSince == null) this.connectingSince = Date.now();
     } else {
       this.connectingSince = null;
+      this.connectingWindows = 0;
     }
     // Sampling follows play intent — the visualizer only runs with audio.
     this.deps.sampler.setPlaying(this.deps.state.isPlayingIntent);
@@ -887,6 +956,10 @@ export class PlayerService {
     // battery policy: resuming playback re-opens the connection even when
     // the app stays hidden behind the lock screen.
     this.updateLiveStreamLifecycle();
+    // The keepalive follows the same gate: while audio is wanted but not
+    // flowing (underground, reconnecting) the silent loop must render so
+    // iOS does not suspend the app mid-reconnect.
+    this.updateKeepalive();
     // Any state change is UI-visible: isPlaying and playbackState derive
     // from the state machine.
     this.emitPlayer();
@@ -1094,11 +1167,25 @@ export class PlayerService {
     ) {
       return;
     }
+    // Restart the clock so a failed retry waits another full window.
+    this.connectingSince = Date.now();
+    this.connectingWindows += 1;
+    // Escalation: the first windows only force a native start (cheap), but
+    // a broken socket can sit in "waiting" forever with `resume()` doing
+    // nothing — AVPlayer never recovers a progressive stream on its own.
+    // Past CONNECTING_REOPEN_WINDOWS the source itself is re-opened, the
+    // only action that can actually heal the connection.
+    if (this.connectingWindows >= CONNECTING_REOPEN_WINDOWS) {
+      console.warn(
+        "[PlayerService] transport stuck connecting — forcing source re-open",
+      );
+      this.connectingWindows = 0;
+      void this.attemptReconnect();
+      return;
+    }
     console.warn(
       "[PlayerService] transport stuck connecting — forcing native start",
     );
-    // Restart the clock so a failed retry waits another full window.
-    this.connectingSince = Date.now();
     this.deps.audio.resume();
   }
 

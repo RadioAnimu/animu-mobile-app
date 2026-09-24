@@ -107,6 +107,8 @@ const makeDeps = () => {
     pause: vi.fn(),
     setSamplingEnabled: vi.fn(),
     onSample: vi.fn(() => () => {}),
+    startKeepalive: vi.fn(),
+    stopKeepalive: vi.fn(),
     dispose: vi.fn(),
   };
   const publisher = {
@@ -117,7 +119,7 @@ const makeDeps = () => {
     pushStatus: vi.fn(),
     end: vi.fn(async () => {}),
   };
-  const ticker = { tick: vi.fn(), reset: vi.fn() };
+  const ticker = { tick: vi.fn(), setUiVisible: vi.fn(), reset: vi.fn() };
   const repository = {
     onChange: vi.fn(),
     currentTrack: makeTrack() as Track | null,
@@ -656,6 +658,106 @@ describe("PlayerService stream-loss handling", () => {
 
       expect(transport.play).not.toHaveBeenCalled();
       expect(deps.state.state).toBe("playing");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});
+
+describe("PlayerService background-outage recovery", () => {
+  it("starts the keepalive when backgrounded with audio wanted but stalled", async () => {
+    const { deps, transport } = makeDeps();
+    const service = new PlayerService(deps);
+    await service.play();
+    const handler = wiredHandler(transport);
+    handler({ playing: true } as AudioPlaybackStatus);
+
+    // Audio flowing → nothing to keep alive.
+    service.setAppActive(false);
+    expect(transport.startKeepalive).not.toHaveBeenCalled();
+
+    // The link dies in the background: audio wanted, not flowing — the
+    // silent loop must render so iOS does not suspend the app mid-outage.
+    handler({ playing: true, isBuffering: true } as AudioPlaybackStatus);
+    expect(transport.startKeepalive).toHaveBeenCalled();
+    expect(deps.state.state).toBe("connecting");
+  });
+
+  it("stops the keepalive once audio flows again", async () => {
+    const { deps, transport } = makeDeps();
+    const service = new PlayerService(deps);
+    await service.play();
+    const handler = wiredHandler(transport);
+    handler({ playing: true } as AudioPlaybackStatus);
+    service.setAppActive(false);
+    handler({ playing: true, isBuffering: true } as AudioPlaybackStatus);
+    transport.stopKeepalive.mockClear();
+
+    handler({ playing: true, isBuffering: false } as AudioPlaybackStatus);
+    expect(transport.stopKeepalive).toHaveBeenCalled();
+  });
+
+  it("stops the keepalive and reconnects when the app is foregrounded mid-outage", async () => {
+    const { deps, transport } = makeDeps();
+    const service = new PlayerService(deps);
+    await service.play();
+    const handler = wiredHandler(transport);
+    handler({ playing: true } as AudioPlaybackStatus);
+    service.setAppActive(false);
+    handler({ playing: true, isBuffering: true } as AudioPlaybackStatus); // stalled, keepalive on
+    transport.play.mockClear();
+    transport.stopKeepalive.mockClear();
+
+    // The user opens the app: audio is still wanted but not flowing — the
+    // suspension catch-up must reconnect NOW (the backoff timer is stale).
+    service.setAppActive(true);
+
+    expect(transport.stopKeepalive).toHaveBeenCalled();
+    expect(transport.play).toHaveBeenCalledWith(
+      deps.streamPreferences.current.url,
+    );
+    expect(deps.state.state).toBe("connecting");
+  });
+
+  it("never starts the keepalive after an explicit user pause", async () => {
+    const { deps, transport } = makeDeps();
+    const service = new PlayerService(deps);
+    await service.play();
+    await service.pause();
+    transport.startKeepalive.mockClear();
+
+    service.setAppActive(false);
+    expect(transport.startKeepalive).not.toHaveBeenCalled();
+  });
+
+  it("escalates a stuck connecting transport from resume() to a source re-open", async () => {
+    vi.useFakeTimers();
+    try {
+      const { deps, transport } = makeDeps();
+      const service = new PlayerService(deps);
+      await service.play();
+      const handler = wiredHandler(transport);
+      transport.resume.mockClear();
+      transport.play.mockClear();
+
+      // The socket is broken: the player keeps reporting buffering forever
+      // (AVPlayer does not resume a dead progressive stream by itself).
+      handler({ playing: true, isBuffering: true } as AudioPlaybackStatus);
+
+      // Window 1 and 2: cheap native starts only.
+      vi.advanceTimersByTime(4000);
+      handler({ playing: true, isBuffering: true } as AudioPlaybackStatus);
+      vi.advanceTimersByTime(4000);
+      handler({ playing: true, isBuffering: true } as AudioPlaybackStatus);
+      expect(transport.resume).toHaveBeenCalledTimes(2);
+      expect(transport.play).not.toHaveBeenCalled();
+
+      // Window 3: resume() clearly isn't taking — re-open the source.
+      vi.advanceTimersByTime(4000);
+      handler({ playing: true, isBuffering: true } as AudioPlaybackStatus);
+      expect(transport.play).toHaveBeenCalledWith(
+        deps.streamPreferences.current.url,
+      );
     } finally {
       vi.useRealTimers();
     }
