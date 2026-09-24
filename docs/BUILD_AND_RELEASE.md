@@ -9,9 +9,9 @@ platform build numbers:
 
 | Field | File | Current |
 | --- | --- | --- |
-| `expo.version` | `app.json` / `package.json` | `2.2.0` |
-| `expo.ios.buildNumber` | `app.json` | `4` |
-| `expo.android.versionCode` | `app.json` | `13` |
+| `expo.version` | `app.json` / `package.json` | `3.0.0` |
+| `expo.ios.buildNumber` | `app.json` | `5` |
+| `expo.android.versionCode` | `app.json` | `14` |
 
 `eas.json` sets `appVersionSource: "local"` and `autoIncrement: false`, so
 **bump these by hand** before a store build. The OTA runtime version is derived
