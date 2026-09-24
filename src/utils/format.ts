@@ -1,5 +1,6 @@
 const KB = 1024;
-const MB = KB * 1024;
+/** Byte size of one megabyte — shared by the storage/limit UIs. */
+export const MB = KB * 1024;
 const GB = MB * 1024;
 
 /** Human-friendly size: B / KB / MB / GB, one decimal under 10 units. */

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 
-const RETRY_DELAY_MS = 3000;
+/** Delay between automatic image-load retries (shared with `Cover`). */
+export const RETRY_DELAY_MS = 3000;
 const MAX_RETRIES = 2;
 
 /**

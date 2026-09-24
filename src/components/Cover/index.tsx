@@ -5,12 +5,12 @@ import DEFAULT_COVER from "@app/assets/default-cover.png";
 import { styles } from "@/components/Cover/styles";
 import { THEME } from "@/theme";
 import { useUserSettings } from "@/contexts/user/UserSettingsProvider";
+import { RETRY_DELAY_MS } from "@/hooks/useBoundedRetry";
 import {
   coverCacheRegistry,
   type CoverCacheCategory,
 } from "@/core/services/cover-cache-registry.service";
 
-const RETRY_DELAY_MS = 3000;
 const MAX_FAILURES = 2;
 
 type CachePolicy = "none" | "disk" | "memory" | "memory-disk";

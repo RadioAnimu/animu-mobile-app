@@ -1,6 +1,7 @@
-import { useSyncExternalStore } from "react";
+import { useCallback, useSyncExternalStore } from "react";
 import { View } from "react-native";
 
+import { useAlert } from "@/contexts/alert/AlertProvider";
 import { SectionTitle } from "@/components/SectionTitle";
 import { useUserSettings } from "@/contexts/user/UserSettingsProvider";
 import { coverDiskStorage } from "@/core/services/cover-disk-storage.service";
@@ -9,7 +10,7 @@ import { useDict } from "@/hooks/useDict";
 import { cleanLabel } from "@/screens/Settings/labels";
 import { Divider, SettingsRow, ValueRow } from "@/screens/Settings/rows";
 import { styles } from "@/screens/Settings/styles";
-import { formatBytes } from "@/utils/format";
+import { formatBytes, interpolate } from "@/utils/format";
 
 interface Props {
   onOpenStorage: () => void;
@@ -19,13 +20,28 @@ interface Props {
 export function StorageSection({ onOpenStorage }: Props) {
   const { settings, updateSettings } = useUserSettings();
   const dict = useDict();
+  const { toast } = useAlert();
+
+  // Turning the cache off triggers the provider's wipe — the freed amount
+  // is the toggle's visible payoff, same feedback the Storage card gives.
+  const showFreedToast = useCallback(
+    (freedBytes: number) => {
+      toast(
+        interpolate(dict.STORAGE_FREED, { freed: formatBytes(freedBytes) }),
+      );
+    },
+    [toast, dict],
+  );
+
   // Wipe-in-progress from the storage service — disables the cache toggle
   // (both tap paths: the clean button and the automatic cache-off wipe).
   const cacheWiping = useSyncExternalStore(
     (listener) => coverDiskStorage.subscribe(listener),
     () => coverDiskStorage.isClearing,
   );
-  const { snapshot, measuring } = useCoverStorageSnapshot();
+  const { snapshot, measuring } = useCoverStorageSnapshot({
+    onFreed: showFreedToast,
+  });
 
   return (
     <>

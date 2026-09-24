@@ -2,14 +2,18 @@ import { useSyncExternalStore } from "react";
 import MaterialIcons from "@react-native-vector-icons/material-icons/static";
 import { Alert, Text, TouchableOpacity, View } from "react-native";
 
+import { useAlert } from "@/contexts/alert/AlertProvider";
 import { useUserSettings } from "@/contexts/user/UserSettingsProvider";
 import {
   coverDiskStorage,
-  type CoverStorageKey,
   type CoverStorageSlice,
+  type CoverStorageSnapshot,
 } from "@/core/services/cover-disk-storage.service";
-import { COVER_CATEGORY_COLORS } from "@/constants/covers";
-import { formatBytes, percentOf } from "@/utils/format";
+import {
+  COVER_CATEGORY_COLORS,
+  coverCategoryLabel,
+} from "@/constants/covers";
+import { formatBytes, interpolate, percentOf } from "@/utils/format";
 import { THEME } from "@/theme";
 import { useCoverStorageSnapshot } from "@/hooks/useCoverStorage";
 import { useDict } from "@/hooks/useDict";
@@ -33,7 +37,7 @@ function LegendRow({
         ]}
       />
       <Text style={styles.legendLabel} numberOfLines={1}>
-        {legendLabel(dict, slice.key)}
+        {coverCategoryLabel(dict, slice.key)}
       </Text>
       <Text style={styles.legendValue}>
         {slice.bytes > 0
@@ -44,27 +48,6 @@ function LegendRow({
   );
 }
 
-/** Only the metadata labels this card reads — structural, so any language dict fits. */
-interface StorageDicts {
-  SETTINGS_STORAGE_LIVE: string;
-  SETTINGS_STORAGE_REQUESTED: string;
-  SETTINGS_STORAGE_PLAYED: string;
-  SETTINGS_STORAGE_SEARCH: string;
-}
-
-function legendLabel(dict: StorageDicts, key: CoverStorageKey): string {
-  switch (key) {
-    case "live":
-      return dict.SETTINGS_STORAGE_LIVE;
-    case "requested":
-      return dict.SETTINGS_STORAGE_REQUESTED;
-    case "played":
-      return dict.SETTINGS_STORAGE_PLAYED;
-    case "search":
-      return dict.SETTINGS_STORAGE_SEARCH;
-  }
-}
-
 /**
  * The friendly face of the cover cache: a big plain-language total, one
  * proportional bar showing what is taking space, a colour-keyed legend, and
@@ -72,9 +55,13 @@ function legendLabel(dict: StorageDicts, key: CoverStorageKey): string {
  * The raw byte limit + per-section controls live behind the Storage screen's
  * Advanced area.
  */
-export function CoverStorageCard() {
+export function CoverStorageCard({
+  onFreed,
+}: {
+  onFreed?: (freedBytes: number) => void;
+}) {
   const { settings } = useUserSettings();
-  const { snapshot, measuring, measure } = useCoverStorageSnapshot();
+  const { snapshot, measuring, measure } = useCoverStorageSnapshot({ onFreed });
   const dict = useDict();
   const totalBytes = snapshot?.totalBytes ?? 0;
   const hasData = totalBytes > 0;
@@ -127,19 +114,22 @@ export function CoverStorageCard() {
         <LegendRow key={slice.key} slice={slice} totalBytes={totalBytes} />
       ))}
 
-      <CleanButton hasData={hasData} measure={measure} />
+      <CleanButton totalBytes={totalBytes} hasData={hasData} measure={measure} />
     </View>
   );
 }
 
 function CleanButton({
+  totalBytes,
   hasData,
   measure,
 }: {
+  totalBytes: number;
   hasData: boolean;
-  measure: () => Promise<void>;
+  measure: () => Promise<CoverStorageSnapshot | null>;
 }) {
   const dict = useDict();
+  const { toast } = useAlert();
   // One store-wide wipe flag — drives both the clean button and the
   // Settings toggle (the provider's automatic wipe is included).
   const clearing = useSyncExternalStore(
@@ -150,10 +140,17 @@ function CleanButton({
   const onClean = async () => {
     // Button and toggle read the shared flag; overlapping wipes are
     // harmless here because both routes only clear.
+    const before = totalBytes;
     try {
       await coverDiskStorage.clearAll();
-      await measure();
+      const after = await measure();
       haptics.success();
+      const freed = before - (after?.totalBytes ?? 0);
+      if (freed > 0) {
+        toast(
+          interpolate(dict.STORAGE_FREED, { freed: formatBytes(freed) }),
+        );
+      }
     } catch (error) {
       console.warn("[CoverStorageCard] clear failed:", error);
     }

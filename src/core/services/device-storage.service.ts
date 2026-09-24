@@ -1,4 +1,5 @@
 import { Paths } from "expo-file-system";
+import { MB } from "@/utils/format";
 
 /** Device-wide internal-storage figures, in bytes. */
 export interface DiskCapacity {
@@ -6,8 +7,6 @@ export interface DiskCapacity {
   availableBytes: number;
   usedBytes: number;
 }
-
-const MB = 1024 * 1024;
 
 /**
  * Reads the device's internal storage synchronously (native props, no

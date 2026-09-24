@@ -23,7 +23,7 @@ export interface UserSettings {
    * weighted share of the total limit. Customized values take their
    * absolute bytes off the top; the rest share the remaining budget
    * proportionally, so the total the user defined never grows. Only
-   * reachable behind the "advanced" toggle in the limit sheet.
+   * reachable behind the Storage screen's Advanced section.
    */
   coverCachePartitionBytes: Partial<
     Record<CoverCacheCategory, number>
