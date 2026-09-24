@@ -113,16 +113,27 @@ describe("CoverCacheRegistry", () => {
     expect(setItem.mock.calls.length).toBe(afterFirstStable);
   });
 
-  it("urlsByRecency() walks the FIFO ring oldest-first (re-tag moves to the tail)", () => {
+  it("tag() keeps the FIFO ring honest: re-tag moves the entry to the tail", () => {
     const registry = freshRegistry();
-    registry.tag(URLS.live, "live");
-    registry.tag(URLS.search, "search");
-    registry.tag(URLS.played, "played");
-    expect(registry.urlsByRecency()).toEqual([URLS.live, URLS.search, URLS.played]);
+    // Iteration order is observable through groupByCategory() (oldest first
+    // per group) — re-displaying the oldest cover moves it to the ring's tail.
+    vi.useFakeTimers();
+    try {
+      registry.tag(URLS.live, "live");
+      registry.tag(URLS.search, "search");
+      registry.tag(URLS.played, "played");
+      expect(registry.groupByCategory().live).toEqual([URLS.live]);
 
-    // Re-displaying the oldest cover moves it to the ring's tail.
-    registry.tag(URLS.live, "live");
-    expect(registry.urlsByRecency()).toEqual([URLS.search, URLS.played, URLS.live]);
+      // Same (url, category) re-tag, a moment later: fresh recency timestamp.
+      vi.advanceTimersByTime(1000);
+      registry.tag(URLS.live, "live");
+      expect(registry.groupByCategory().live).toEqual([URLS.live]);
+      expect(registry.taggedAt(URLS.live)).toBeGreaterThan(
+        registry.taggedAt(URLS.search)!,
+      );
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("prune() drops evicted URLs from memory and storage", async () => {

@@ -13,6 +13,5 @@ export const styles = StyleSheet.create({
     height: scale(127),
     position: "absolute",
     top: 0,
-    justifyContent: "center",
   },
 });

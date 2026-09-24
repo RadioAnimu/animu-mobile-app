@@ -10,7 +10,10 @@ import type {
   SeedCoverCache,
 } from "@/core/player/storage/cover-ports";
 import { CoverFileHashMap } from "@/core/player/storage/cover-file-cache";
-import { normalizeArtworkKey } from "@/core/player/storage/cover-image-cache";
+import {
+  ARTWORK_SIZE_RANK,
+  normalizeArtworkKey,
+} from "@/core/player/storage/cover-image-cache";
 
 export interface ArtworkResolverOptions {
   /**
@@ -69,8 +72,6 @@ function deadline<T>(promise: Promise<T>, ms: number): Promise<T> {
   return Promise.race([promise, expiry]).finally(() => clearTimeout(timer));
 }
 
-const SIZE_RANK: Record<string, number> = { tiny: 1, medium: 2, large: 3 };
-
 /**
  * The lowest-rank cover the API actually reported that is smaller than
  * `url` — the progressive-preview candidate.
@@ -85,13 +86,13 @@ export function pickPreviewArtwork(
   artworks?: Artworks | null,
 ): string | null {
   if (!url || !artworks) return null;
-  const current = SIZE_RANK[artworkSizeRank(url)];
+  const current = ARTWORK_SIZE_RANK[artworkSizeRank(url)];
   for (const size of ["tiny", "medium", "large"] as const) {
     const candidate = artworks[size];
     if (
       candidate &&
       candidate !== url &&
-      SIZE_RANK[artworkSizeRank(candidate)] < current
+      ARTWORK_SIZE_RANK[artworkSizeRank(candidate)] < current
     ) {
       return candidate;
     }

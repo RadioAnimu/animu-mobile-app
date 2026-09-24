@@ -1,25 +1,14 @@
 import { StyleSheet } from "react-native";
 
 import { THEME } from "@/theme";
+import { SCREEN_STYLES } from "@/theme/screen";
 import { scale } from "@/theme/responsive";
 
-const CARD_RADIUS = THEME.RADIUS.CARD;
 const CONTENT_PADDING = THEME.SPACE.LG;
 
 export const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: THEME.COLORS.BG_DEEP,
-  },
-  // Same 88% column and insets as Settings/Account.
-  appContainer: {
-    flexGrow: 1,
-    width: THEME.LAYOUT.CONTENT_WIDTH,
-    maxWidth: THEME.LAYOUT.CONTENT_MAX_WIDTH,
-    alignSelf: "center",
-    paddingTop: THEME.SPACE.XXL,
-    paddingBottom: THEME.SPACE.XXXL,
-  },
+  container: SCREEN_STYLES.container,
+  appContainer: SCREEN_STYLES.content,
   header: {
     alignItems: "center",
     gap: THEME.SPACE.XS,
@@ -35,11 +24,7 @@ export const styles = StyleSheet.create({
     fontFamily: THEME.FONT_FAMILY.REGULAR,
     fontSize: THEME.FONT_SIZE.BODY,
   },
-  group: {
-    backgroundColor: THEME.COLORS.SURFACE,
-    borderRadius: CARD_RADIUS,
-    overflow: "hidden",
-  },
+  group: SCREEN_STYLES.group,
   // Read-only key/value row (no chevron, no press).
   row: {
     flexDirection: "row",

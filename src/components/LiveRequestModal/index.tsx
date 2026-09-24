@@ -64,6 +64,8 @@ function Input({
       editable={!disabled}
       placeholder={placeholder}
       accessibilityLabel={accessibilityLabel}
+      multiline={multiline}
+      numberOfLines={multiline ? 3 : 1}
     />
   );
 }

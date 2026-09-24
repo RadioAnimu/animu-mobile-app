@@ -1,12 +1,10 @@
 import NetInfo from "@react-native-community/netinfo";
-import { openBrowserAsync } from "expo-web-browser";
 import type { HistoryType } from "@/@types/history-type.d";
 import type { Track } from "@/core/domain/track";
 import type { Stream } from "@/core/domain/stream";
 import { animuService } from "@/core/services/animu.service";
 import { userSettingsService } from "@/core/services/user-settings.service";
 import { coverCacheRegistry } from "@/core/services/cover-cache-registry.service";
-import { API } from "@/api";
 import { animuApi, setServerSkewListener } from "@/api/client";
 import { CONFIG, debugLog } from "@/utils/player.config";
 import type {
@@ -286,7 +284,7 @@ export class PlayerService {
     return this.deps.sampler.isSupported;
   }
 
-/**
+  /**
    * Enables/disables the oscilloscope. The emission rate is uncapped (the
    * renderer paces itself at the display's vsync, like the web player).
    */
@@ -860,10 +858,6 @@ export class PlayerService {
   /** Bundled default cover as a loadable URI (see `ArtworkResolver`). */
   get defaultArtwork(): string {
     return this.deps.artwork.defaultCover;
-  }
-
-  async openPedidosURL(): Promise<void> {
-    await openBrowserAsync(API.REQUESTS_URL);
   }
 
   // ── Event handlers (wired in the constructor) ──

@@ -96,31 +96,26 @@ export function useCoverStorageSnapshot(
     }, []),
   );
 
-  // Re-measure right after a limit or partition change (the provider's
-  // trim runs in its own settings chain — measure queued behind it shows
-  // the result on the card immediately, without leaving the screen).
-  // A shrink against the last settled total is the user's reclaim — the
-  // freed amount rides back to the screen through `onFreed`. A skipped
-  // (blurred) or failed measure returns no snapshot — never a freed claim.
+  // Re-measure right after a limit/partition change (the provider's trim
+  // runs in its own settings chain — measure queued behind it shows the
+  // result on the card immediately, without leaving the screen) or a cache
+  // toggle (the provider's wipe on disable runs right here; a re-enable
+  // re-seeds the totals). A shrink against the last settled total is the
+  // user's reclaim — the freed amount rides back to the screen through
+  // `onFreed`. A skipped (blurred) or failed measure returns no snapshot —
+  // never a freed claim.
   const lastShape = useRef(`${maxBytes}|${JSON.stringify(partitions)}`);
-  useEffect(() => {
-    const shape = `${maxBytes}|${JSON.stringify(partitions)}`;
-    if (lastShape.current === shape) return;
-    lastShape.current = shape;
-    if (!settings.cacheEnabled) return;
-    const before = lastTotalRef.current;
-    void measure().then((next) => {
-      if (before > 0 && next) {
-        const freed = before - next.totalBytes;
-        if (freed > 0) onFreedRef.current?.(freed);
-      }
-    });
-  }, [maxBytes, partitions, measure, settings.cacheEnabled]);
-
   const lastCache = useRef(settings.cacheEnabled);
   useEffect(() => {
-    if (lastCache.current === settings.cacheEnabled) return;
+    const shape = `${maxBytes}|${JSON.stringify(partitions)}`;
+    const shapeChanged = lastShape.current !== shape;
+    const cacheChanged = lastCache.current !== settings.cacheEnabled;
+    if (!shapeChanged && !cacheChanged) return;
+    lastShape.current = shape;
     lastCache.current = settings.cacheEnabled;
+    // A limit/partition change with the cache off has nothing to trim —
+    // only the toggle (either direction) measures in that state.
+    if (shapeChanged && !cacheChanged && !settings.cacheEnabled) return;
     const before = lastTotalRef.current;
     void measure().then((next) => {
       if (before > 0 && next) {
@@ -128,7 +123,7 @@ export function useCoverStorageSnapshot(
         if (freed > 0) onFreedRef.current?.(freed);
       }
     });
-  }, [settings.cacheEnabled, measure]);
+  }, [maxBytes, partitions, settings.cacheEnabled, measure]);
 
   return { snapshot, measuring, measure };
 }

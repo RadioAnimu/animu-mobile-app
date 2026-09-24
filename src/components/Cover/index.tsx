@@ -13,14 +13,10 @@ import {
 
 const MAX_FAILURES = 2;
 
-type CachePolicy = "none" | "disk" | "memory" | "memory-disk";
-
 interface Props {
   cover: string;
   /** Overrides the default (now-playing) frame — e.g. list rows. */
   style?: StyleProp<ImageStyle>;
-  /** Overrides the cacheEnabled setting when provided. */
-  cachePolicy?: CachePolicy;
   /**
    * Stable per-item key so expo-image recycles the native view in lists.
    * Falls back to the cover URL: expo-image deliberately keeps the previous
@@ -58,7 +54,7 @@ interface Props {
  * renders the bundled asset at intrinsic size inside a transparent
  * frame (small logo, background showing through).
  */
-export function Cover({ cover, style, cachePolicy, recyclingKey, category }: Props) {
+export function Cover({ cover, style, recyclingKey, category }: Props) {
   const { settings } = useUserSettings();
   // Failure count lives per URL in a ref, NOT in the state that derives the
   // fallback: clearing that state to retry used to discard the count and the
@@ -106,7 +102,7 @@ export function Cover({ cover, style, cachePolicy, recyclingKey, category }: Pro
           setFailedUrl(null);
         }
       }}
-      cachePolicy={cachePolicy ?? (settings.cacheEnabled ? "disk" : "none")}
+      cachePolicy={settings.cacheEnabled ? "disk" : "none"}
       contentFit="cover"
       recyclingKey={recyclingKey ?? cover}
     />

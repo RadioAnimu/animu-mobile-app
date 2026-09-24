@@ -1,9 +1,9 @@
 import { StyleSheet } from "react-native";
 
 import { THEME } from "@/theme";
+import { SCREEN_STYLES } from "@/theme/screen";
 import { scale } from "@/theme/responsive";
 
-const CARD_RADIUS = THEME.RADIUS.CARD;
 // Twitter header proportions: a wide cover with the avatar hanging off its
 // bottom-left.
 const BANNER_HEIGHT = scale(104);
@@ -14,19 +14,8 @@ const CONTENT_PADDING = THEME.SPACE.LG;
 export { AVATAR };
 
 export const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: THEME.COLORS.BG_DEEP,
-  },
-  content: {
-    flexGrow: 1,
-    width: THEME.LAYOUT.CONTENT_WIDTH,
-    maxWidth: THEME.LAYOUT.CONTENT_MAX_WIDTH,
-    alignSelf: "center",
-    // Same inset under the header as Settings and Login.
-    paddingTop: THEME.SPACE.XXL,
-    paddingBottom: THEME.SPACE.XXXL,
-  },
+  container: SCREEN_STYLES.container,
+  content: SCREEN_STYLES.content,
   signedOut: {
     flex: 1,
     alignItems: "center",
@@ -43,7 +32,7 @@ export const styles = StyleSheet.create({
   primaryButton: {
     height: scale(48),
     paddingHorizontal: THEME.SPACE.XXL,
-    borderRadius: CARD_RADIUS,
+    borderRadius: THEME.RADIUS.CARD,
     backgroundColor: THEME.COLORS.BRAND,
     alignItems: "center",
     justifyContent: "center",
@@ -54,7 +43,7 @@ export const styles = StyleSheet.create({
     fontSize: THEME.FONT_SIZE.LIST,
   },
   card: {
-    borderRadius: CARD_RADIUS,
+    borderRadius: THEME.RADIUS.CARD,
     backgroundColor: THEME.COLORS.SURFACE,
     overflow: "hidden",
   },
@@ -163,16 +152,12 @@ export const styles = StyleSheet.create({
     fontFamily: THEME.FONT_FAMILY.BOLD,
     fontSize: THEME.FONT_SIZE.LIST,
   },
-  group: {
-    backgroundColor: THEME.COLORS.SURFACE,
-    borderRadius: CARD_RADIUS,
-    overflow: "hidden",
-  },
+  group: SCREEN_STYLES.group,
   // Danger zone: one shared danger card holding the destructive actions,
   // mirroring the grouped-row pattern used everywhere else.
   dangerGroup: {
     backgroundColor: THEME.COLORS.DANGER,
-    borderRadius: CARD_RADIUS,
+    borderRadius: THEME.RADIUS.CARD,
     overflow: "hidden",
   },
   dangerDivider: {

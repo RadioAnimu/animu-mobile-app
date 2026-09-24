@@ -111,7 +111,7 @@ interface SwitchProps {
   disabled?: boolean;
 }
 
-export function Switch({ value, disabled }: SwitchProps) {
+function Switch({ value, disabled }: SwitchProps) {
   const [position] = useState(() => new Animated.Value(value ? 1 : 0));
 
   useEffect(() => {

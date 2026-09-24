@@ -15,7 +15,7 @@ export function ChooseBitrateSection() {
           handleChangeStream={() => {
             changeStream(item);
           }}
-          selected={item.url === currentStream?.url || false}
+          selected={item.url === currentStream?.url}
           category={item.category}
           kbps={item.bitrate}
         />

@@ -9,7 +9,6 @@ import {
 } from "animu-api";
 import type { Program } from "@/core/domain/program";
 import { DICT } from "@/i18n";
-import type { Program as ProgramDictionaryEntry } from "@/api";
 import { abortPlayerRequests, createApiClient } from "@/api/client";
 import { userSettingsService } from "@/core/services/user-settings.service";
 
@@ -51,7 +50,7 @@ class AnimuService {
     const program = await this.getProgramClient().getProgram();
     return {
       ...program,
-      raw: findRawProgram(program.name),
+      programIndex: findProgramIndex(program.name),
     };
   }
 
@@ -146,13 +145,11 @@ class AnimuService {
   }
 }
 
-const findRawProgram = (
-  programName: string,
-): ProgramDictionaryEntry | undefined => {
-  if (!programName) return undefined;
+const findProgramIndex = (programName: string): number => {
+  if (!programName) return -1;
 
   const programNameLower = programName.trim().toLowerCase();
-  return DICT["PT"].PROGRAMS.find(
+  return DICT["PT"].PROGRAMS.findIndex(
     (program) => program.name.trim().toLowerCase() === programNameLower,
   );
 };

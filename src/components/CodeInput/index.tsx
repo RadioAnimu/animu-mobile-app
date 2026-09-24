@@ -1,13 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import {
-  Animated,
-  Text,
-  TextInput,
-  View,
-  type StyleProp,
-  type TextStyle,
-  type ViewStyle,
-} from "react-native";
+import { Animated, Text, TextInput, View } from "react-native";
 
 import { styles } from "@/components/CodeInput/styles";
 
@@ -17,12 +9,8 @@ export const CODE_LENGTH = 4;
 interface Props {
   value: string;
   onChangeText: (value: string) => void;
-  /** Number of boxes — also the maximum number of digits. */
-  length?: number;
   editable?: boolean;
   accessibilityLabel?: string;
-  style?: StyleProp<ViewStyle>;
-  textStyle?: StyleProp<TextStyle>;
 }
 
 /**
@@ -36,20 +24,17 @@ interface Props {
 export function CodeInput({
   value,
   onChangeText,
-  length = CODE_LENGTH,
   editable = true,
   accessibilityLabel,
-  style,
-  textStyle,
 }: Props) {
   const [focused, setFocused] = useState(false);
   const caretRef = useRef<Animated.Value | null>(null);
   if (caretRef.current === null) caretRef.current = new Animated.Value(1);
   const caret = caretRef.current;
 
-  const digits = value.replace(/\D/g, "").slice(0, length);
-  const chars = Array.from({ length }, (_, index) => digits[index] ?? "");
-  const activeIndex = digits.length < length ? digits.length : -1;
+  const digits = value.replace(/\D/g, "").slice(0, CODE_LENGTH);
+  const chars = Array.from({ length: CODE_LENGTH }, (_, index) => digits[index] ?? "");
+  const activeIndex = digits.length < CODE_LENGTH ? digits.length : -1;
 
   useEffect(() => {
     if (!focused || !editable) {
@@ -75,7 +60,7 @@ export function CodeInput({
   }, [caret, editable, focused]);
 
   return (
-    <View style={[styles.row, style]}>
+    <View style={styles.row}>
       {chars.map((char, index) => (
         <View
           key={index}
@@ -88,7 +73,7 @@ export function CodeInput({
           ]}
         >
           {char ? (
-            <Text style={[styles.digit, textStyle]}>{char}</Text>
+            <Text style={styles.digit}>{char}</Text>
           ) : focused && index === activeIndex ? (
             <Animated.View style={[styles.caret, { opacity: caret }]} />
           ) : null}
@@ -98,13 +83,13 @@ export function CodeInput({
       <TextInput
         value={digits}
         onChangeText={(text) =>
-          onChangeText(text.replace(/\D/g, "").slice(0, length))
+          onChangeText(text.replace(/\D/g, "").slice(0, CODE_LENGTH))
         }
         keyboardType="number-pad"
         inputMode="numeric"
         textContentType="oneTimeCode"
         autoComplete="one-time-code"
-        maxLength={length}
+        maxLength={CODE_LENGTH}
         editable={editable}
         caretHidden
         autoCorrect={false}

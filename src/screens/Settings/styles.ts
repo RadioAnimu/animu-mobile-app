@@ -1,9 +1,9 @@
 import { StyleSheet } from "react-native";
 
 import { THEME } from "@/theme";
+import { SCREEN_STYLES } from "@/theme/screen";
 import { scale } from "@/theme/responsive";
 
-const CARD_RADIUS = THEME.RADIUS.CARD;
 const CONTENT_PADDING = THEME.SPACE.LG;
 
 export const SWITCH = {
@@ -14,29 +14,9 @@ export const SWITCH = {
 };
 
 export const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: THEME.COLORS.BG_DEEP,
-  },
-  // 88% column like Account — keeps groups off the screen edges so the
-  // content breathes. The first section drops its own top margin, so this
-  // inset is the one gap under the header on every page.
-  appContainer: {
-    flexGrow: 1,
-    width: THEME.LAYOUT.CONTENT_WIDTH,
-    maxWidth: THEME.LAYOUT.CONTENT_MAX_WIDTH,
-    paddingTop: THEME.SPACE.XXL,
-    paddingBottom: THEME.SPACE.XXXL,
-    alignSelf: "center",
-  },
-  // Borderless surface card, identical to Account's groups — the hairline
-  // dividers inside carry the separation, a box outline around the whole
-  // group just adds noise.
-  group: {
-    backgroundColor: THEME.COLORS.SURFACE,
-    borderRadius: CARD_RADIUS,
-    overflow: "hidden",
-  },
+  container: SCREEN_STYLES.container,
+  appContainer: SCREEN_STYLES.content,
+  group: SCREEN_STYLES.group,
   divider: {
     height: StyleSheet.hairlineWidth,
     backgroundColor: THEME.COLORS.HAIRLINE,

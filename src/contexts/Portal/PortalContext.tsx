@@ -1,10 +1,13 @@
 import * as React from "react";
-interface Element {
+
+/** One mounted portal slot: the Portal host renders `component` under `name`. */
+export interface PortalElement {
   name: string;
   component: React.ReactNode;
 }
+
 const PortalContext = React.createContext({
-  addComponent: (element: Element) => {},
+  addComponent: (element: PortalElement) => {},
   removeComponent: (name: string) => {},
 });
 export default PortalContext;

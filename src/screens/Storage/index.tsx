@@ -1,4 +1,4 @@
-import { Fragment, useCallback, useEffect, useRef, useMemo, useSyncExternalStore } from "react";
+import { Fragment, useEffect, useRef, useMemo } from "react";
 import type { ComponentProps } from "react";
 import { DrawerScreenProps } from "@react-navigation/drawer";
 import { ScrollView, Text, View } from "react-native";
@@ -9,13 +9,12 @@ import { SectionTitle } from "@/components/SectionTitle";
 import { Select } from "@/components/Select";
 import { ScreenHeader } from "@/components/ScreenHeader";
 import { CoverStorageCard } from "@/components/CoverStorageCard";
-import { useAlert } from "@/contexts/alert/AlertProvider";
 import { useUserSettings } from "@/contexts/user/UserSettingsProvider";
 import { useDeviceStorage } from "@/hooks/useDeviceStorage";
 import { useCoverStorageSnapshot } from "@/hooks/useCoverStorage";
+import { useCoverDiskClearing, useFreedCoverToast } from "@/hooks/useCoverDisk";
 import { useDict } from "@/hooks/useDict";
 import { maxSelectableLimitBytes } from "@/core/services/device-storage.service";
-import { coverDiskStorage } from "@/core/services/cover-disk-storage.service";
 import type { CoverCacheCategory } from "@/core/services/cover-cache-registry.service";
 import {
   CATEGORY_ORDER,
@@ -67,14 +66,10 @@ export function Storage({ navigation }: Props) {
   const { settings, updateSettings } = useUserSettings();
   const { capacity, refresh } = useDeviceStorage();
   const dict = useDict();
-  const { toast } = useAlert();
 
   // Wipe-in-progress flag — also the signal that device space just moved
   // (the clean button's wipe and the cache-off wipe both pass through it).
-  const cacheWiping = useSyncExternalStore(
-    (listener) => coverDiskStorage.subscribe(listener),
-    () => coverDiskStorage.isClearing,
-  );
+  const cacheWiping = useCoverDiskClearing();
 
   // The device bar and the selectable limit tiers must reflect free space
   // as soon as storage work settles — a wipe, or the trim the provider
@@ -100,14 +95,7 @@ export function Storage({ navigation }: Props) {
     settings.cacheEnabled,
   ]);
 
-  const showFreedToast = useCallback(
-    (freedBytes: number) => {
-      toast(
-        interpolate(dict.STORAGE_FREED, { freed: formatBytes(freedBytes) }),
-      );
-    },
-    [toast, dict],
-  );
+  const showFreedToast = useFreedCoverToast();
 
   // One measurement pass feeds the card above AND the device bar below —
   // the card's cached-covers share rides the same snapshot.

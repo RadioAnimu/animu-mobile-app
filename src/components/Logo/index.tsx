@@ -1,6 +1,5 @@
 import { Image as RNImage } from "react-native";
 import { Image } from "expo-image";
-import { styles } from "@/components/Logo/styles";
 import { IMGS } from "@/i18n";
 import { useUserSettings } from "@/contexts/user/UserSettingsProvider";
 import { scale } from "@/theme/responsive";
@@ -33,13 +32,10 @@ export function Logo({ size, img }: Props) {
     <Image
       contentFit="contain"
       source={source}
-      style={[
-        styles.image,
-        {
-          height,
-          width: height * aspectRatio,
-        },
-      ]}
+      style={{
+        height,
+        width: height * aspectRatio,
+      }}
     />
   );
 }

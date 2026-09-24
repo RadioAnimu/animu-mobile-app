@@ -175,7 +175,6 @@ function addSwiftSource(config, projectName) {
     filepath: relativePath,
     groupName: projectName,
     project,
-    verbose: true,
   });
 }
 

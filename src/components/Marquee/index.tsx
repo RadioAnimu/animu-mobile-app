@@ -27,13 +27,14 @@ type MarqueeProps = {
   style?: StyleProp<TextStyle>;
   /** Scroll speed in pixels per second — constant no matter how long the text is. */
   speed?: number;
-  /** Milliseconds the text holds still at the starting position between cycles. */
-  delay?: number;
   /** Gap between the two scrolling copies, in pixels. */
   spacer?: number;
   /** Called when the marquee line is tapped (e.g. to copy the text). */
   onPress?: () => void;
 };
+
+/** Standalone hold (outside a {@link MarqueeGroup}): milliseconds at rest. */
+const STANDALONE_DELAY = 2500;
 
 /** Rounding guard: don't animate for sub-pixel overflows. */
 const OVERFLOW_THRESHOLD = 1;
@@ -124,7 +125,6 @@ export const Marquee = React.memo(function Marquee({
   text,
   style,
   speed = scale(60),
-  delay,
   spacer = scale(20),
   onPress,
 }: MarqueeProps) {
@@ -134,7 +134,7 @@ export const Marquee = React.memo(function Marquee({
   const [textWidth, setTextWidth] = useState(0);
   const translateX = useMemo(() => new Animated.Value(0), []);
 
-  const holdDelay = group ? group.delay : (delay ?? 2500);
+  const holdDelay = group ? group.delay : STANDALONE_DELAY;
 
   const overflows =
     containerWidth > 0 &&

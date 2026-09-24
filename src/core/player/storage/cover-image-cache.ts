@@ -1,6 +1,6 @@
 import { Image } from "expo-image";
 import { artworkSizeRank, deriveArtworkVariants } from "animu-api";
-
+import { toFileUri } from "@/utils/file-uri";
 import type { CoverDiskCache } from "@/core/player/storage/cover-ports";
 
 /**
@@ -19,16 +19,6 @@ import type { CoverDiskCache } from "@/core/player/storage/cover-ports";
  * Both are zero-cost best efforts: cache misses, probes and eviction
  * races degrade to the caller's regular download/render path.
  */
-
-/**
- * expo-image's Android impl returns Glide's `file.absolutePath` — a bare
- * path with no scheme. Every consumer of these bridges treats the result
- * as a loadable URI (media-session artwork, expo-file-system `File`),
- * which require an absolute `file://` URI, so normalize here.
- */
-function toFileUri(path: string): string {
-  return /^file:\/\//.test(path) ? path : `file://${path}`;
-}
 
 /** expo-image impl of the disk-cache port. */
 export class ExpoImageCoverDiskCache implements CoverDiskCache {
@@ -65,7 +55,8 @@ export function artworkKeyVariants(url: string): string[] {
   return normalized === url ? [url] : [normalized, url];
 }
 
-const MIN_RANK: Record<"tiny" | "medium" | "large", number> = {
+/** Numeric rank per artwork size — one shared table for every size comparison. */
+export const ARTWORK_SIZE_RANK: Record<"tiny" | "medium" | "large", number> = {
   tiny: 1,
   medium: 2,
   large: 3,
@@ -84,7 +75,7 @@ export class CachedCoverLookup {
   constructor(private readonly diskCache: CoverDiskCache) {}
 
   async find(url: string): Promise<string | null> {
-    const needed = MIN_RANK[artworkSizeRank(url)];
+    const needed = ARTWORK_SIZE_RANK[artworkSizeRank(url)];
 
     const candidates: string[] = [...artworkKeyVariants(url)];
     const siblings = deriveArtworkVariants(url);
@@ -92,7 +83,7 @@ export class CachedCoverLookup {
       for (const size of RANK_ORDER) {
         if (
           siblings[size] &&
-          MIN_RANK[artworkSizeRank(siblings[size]!)] >= needed
+          ARTWORK_SIZE_RANK[artworkSizeRank(siblings[size]!)] >= needed
         ) {
           candidates.push(...artworkKeyVariants(siblings[size] as string));
         }

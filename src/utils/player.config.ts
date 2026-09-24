@@ -1,5 +1,8 @@
 import { Stream } from "@/core/domain/stream";
-import { DEFAULT_COVER as API_DEFAULT_COVER } from "animu-api";
+import {
+  DEFAULT_COVER as API_DEFAULT_COVER,
+  FALLBACK_STREAMS as API_FALLBACK_STREAMS,
+} from "animu-api";
 
 /**
  * React Native's dev flag — Metro defines it in every bundle (and inlines
@@ -22,29 +25,14 @@ const DEFAULT_COVER: string = API_DEFAULT_COVER;
 
 /**
  * Hardcoded fallback streams used when the remote endpoint
- * (https://stream.animu.moe/?json=1) is unreachable.
+ * (https://stream.animu.moe/?json=1) is unreachable. The single source of
+ * truth lives in the API package (`FALLBACK_STREAMS`) — the app spreads it
+ * into mutable `Stream[]`s so the player can rebuild the list freely.
  * These should rarely be needed — production streams are fetched at startup.
  */
-const FALLBACK_STREAM_OPTIONS: Stream[] = [
-  {
-    id: "320",
-    bitrate: 320,
-    category: "MP3",
-    url: "https://stream.animu.moe/320",
-  },
-  {
-    id: "192",
-    bitrate: 192,
-    category: "MP3",
-    url: "https://stream.animu.moe/192",
-  },
-  {
-    id: "64",
-    bitrate: 64,
-    category: "AAC+",
-    url: "https://stream.animu.moe/64",
-  },
-];
+const FALLBACK_STREAM_OPTIONS: Stream[] = API_FALLBACK_STREAMS.map(
+  (stream) => ({ ...stream }),
+);
 
 const DEFAULT_STREAM_OPTION: Stream = FALLBACK_STREAM_OPTIONS[0]; // 320 kbps MP3
 

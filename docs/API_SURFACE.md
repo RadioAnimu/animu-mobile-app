@@ -3,7 +3,7 @@
 The app talks to the station through the standalone
 [`animu-api`](https://github.com/RadioAnimu/animu-api) TypeScript client, consumed
 here as a git submodule at `packages/animu-api`. The package owns all HTTP, wire
-DTOs, zod schemas and DTO→domain mapping; the app only keeps UI-facing URLs in
+DTOs, valibot schemas and DTO→domain mapping; the app only keeps UI-facing URLs in
 `src/api/index.ts`.
 
 Full schemas and business rules: [`animu-api` API reference](https://github.com/RadioAnimu/animu-api/blob/main/API.md).

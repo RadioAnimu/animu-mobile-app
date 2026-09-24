@@ -237,7 +237,6 @@ const metadataKey = (
   [
     metadata.title,
     metadata.artist,
-    metadata.album,
     metadata.artwork,
     metadata.durationSec ?? "",
     metadata.isLiveStream ? "live" : "",

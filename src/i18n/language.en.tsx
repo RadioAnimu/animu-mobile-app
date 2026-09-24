@@ -149,19 +149,19 @@ const DICT = {
   SETTINGS_QUALITY_LIVE_LABEL_OFF: "Off",
   SETTINGS_QUALITY_LIVE_OFF_HINT:
     "No cover is downloaded anywhere — saves data",
-  SETTINGS_COVER_LAST_REQUESTED_SWITCH: "Covers on your last requests:",
-  SETTINGS_COVER_LAST_PLAYED_SWITCH: "Covers on recently played songs:",
-  SETTINGS_COVER_REQUESTED_SWITCH: "Covers when requesting songs:",
+  SETTINGS_COVER_LAST_REQUESTED_SWITCH: "Covers on your last requests",
+  SETTINGS_COVER_LAST_PLAYED_SWITCH: "Covers on recently played songs",
+  SETTINGS_COVER_REQUESTED_SWITCH: "Covers when requesting songs",
 
   SETTINGS_LANGUAGE_ROW: "App language",
 
-  SETTINGS_LIVE_UPDATES_SWITCH: "Live song info:",
+  SETTINGS_LIVE_UPDATES_SWITCH: "Live song info",
   SETTINGS_MEMORY_TITLE: "Storage",
   SETTINGS_GENERAL_TITLE: "General",
   SETTINGS_PLAYBACK_TITLE: "Playback",
 
-  SETTINGS_VISUALIZER_SWITCH: "Sound wave:",
-  SETTINGS_MEMORY_CLEAR_CACHE_SWITCH: "Reuse downloaded covers:",
+  SETTINGS_VISUALIZER_SWITCH: "Sound wave",
+  SETTINGS_MEMORY_CLEAR_CACHE_SWITCH: "Reuse downloaded covers",
   SETTINGS_STORAGE_TOTAL: "Cached covers",
   SETTINGS_STORAGE_FILES: "files",
   SETTINGS_STORAGE_LIVE: "Now playing (live)",
@@ -180,7 +180,7 @@ const DICT = {
   SETTINGS_VISUALIZER_DESC: "Sound wave while a song is playing",
   SETTINGS_LIVE_UPDATES_DESC: "Song updates while the app is in the background",
 
-  SETTINGS_HAPTICS_SWITCH: "Haptic feedback:",
+  SETTINGS_HAPTICS_SWITCH: "Haptic feedback",
   SETTINGS_HAPTICS_DESC: "Vibration on taps and actions",
   A11Y_BACK: "Back",
   A11Y_OPEN_MENU: "Open menu",

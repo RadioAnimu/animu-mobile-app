@@ -26,9 +26,9 @@ import { Toast } from "@/components/Toast";
 import { useDict } from "@/hooks/useDict";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-export type AlertType = "success" | "error" | null;
+type AlertType = "success" | "error" | null;
 
-export interface Alert {
+interface Alert {
   message: string;
   type: AlertType;
 }
@@ -40,9 +40,6 @@ interface ToastState {
 }
 
 interface AlertContextProps {
-  alert: Alert | null;
-  setAlert: (message: string, type: AlertType) => void;
-  clearAlert: () => void;
   success: (message: string) => void;
   error: (message: string) => void;
   /** Minimalist flash card at the bottom — auto-dismisses, no interaction. */
@@ -50,9 +47,6 @@ interface AlertContextProps {
 }
 
 const AlertContext = createContext<AlertContextProps>({
-  alert: null,
-  setAlert: () => {},
-  clearAlert: () => {},
   success: () => {},
   error: () => {},
   toast: () => {},
@@ -124,8 +118,8 @@ export const AlertProvider: React.FC<{ children: ReactNode }> = ({
   const dict = useDict();
 
   const value = useMemo(
-    () => ({ alert, setAlert, clearAlert, success, error, toast }),
-    [alert, setAlert, clearAlert, success, error, toast],
+    () => ({ success, error, toast }),
+    [success, error, toast],
   );
 
   return (

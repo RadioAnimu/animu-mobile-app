@@ -138,8 +138,6 @@ const makeApi = (over: Record<string, unknown> = {}): ApiFake => {
     requestAddEmail: vi.fn(),
     verifyAddEmail: vi.fn(),
     removeEmail: vi.fn(),
-    uploadAvatar: vi.fn(),
-    resetAvatar: vi.fn(),
     logout: vi.fn(async () => {}),
     deleteAccount: vi.fn(async () => {}),
     ...over,

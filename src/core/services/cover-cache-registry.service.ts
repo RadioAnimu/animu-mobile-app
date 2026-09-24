@@ -89,16 +89,6 @@ export class CoverCacheRegistry {
     if (!identical) void this.softPersist();
   }
 
-  /**
-   * Every tracked URL, oldest display first. The Map re-inserts on each
-   * tag (delete + set), so plain key iteration order IS the FIFO ring
-   * the byte-limit trimmer walks: evicting from the front frees the
-   * least-recently displayed covers first.
-   */
-  urlsByRecency(): string[] {
-    return [...this.entries.keys()];
-  }
-
   /** When the URL was last tagged (recency timestamp), for the measure's seed-grace check. */
   taggedAt(url: string): number | undefined {
     return this.entries.get(url)?.at;

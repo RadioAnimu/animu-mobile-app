@@ -100,17 +100,6 @@ export class AnimuAuthAdapter implements AuthApiPort {
     return this.client.removeEmail(emailId);
   }
 
-  uploadAvatar(params: {
-    avatar: Blob;
-    filename?: string;
-  }): Promise<string | null> {
-    return this.client.uploadAvatar(params);
-  }
-
-  resetAvatar(): Promise<string | null> {
-    return this.client.resetAvatar();
-  }
-
   async logout(): Promise<void> {
     await this.client.logout();
   }

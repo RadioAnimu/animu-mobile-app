@@ -6,7 +6,6 @@ import { Select, type SelectOption } from "@/components/Select";
 import { useUserSettings } from "@/contexts/user/UserSettingsProvider";
 import { useDict } from "@/hooks/useDict";
 import { LANGS_KEY_VALUE_PAIRS } from "@/i18n";
-import { cleanLabel } from "@/screens/Settings/labels";
 import { Divider, InfoRow, SettingsRow } from "@/screens/Settings/rows";
 import { styles } from "@/screens/Settings/styles";
 
@@ -42,7 +41,7 @@ export function BehaviorSection() {
           <>
             <SettingsRow
               icon="graphic-eq"
-              label={cleanLabel(dict.SETTINGS_VISUALIZER_SWITCH)}
+              label={dict.SETTINGS_VISUALIZER_SWITCH}
               description={dict.SETTINGS_VISUALIZER_DESC}
               value={settings.visualizerHz > 0}
               onToggle={() =>
@@ -56,7 +55,7 @@ export function BehaviorSection() {
         )}
         <SettingsRow
           icon="wifi"
-          label={cleanLabel(dict.SETTINGS_LIVE_UPDATES_SWITCH)}
+          label={dict.SETTINGS_LIVE_UPDATES_SWITCH}
           description={dict.SETTINGS_LIVE_UPDATES_DESC}
           value={settings.liveUpdatesInBackground}
           onToggle={() =>
@@ -79,7 +78,7 @@ export function BehaviorSection() {
         <Divider />
         <SettingsRow
           icon="vibration"
-          label={cleanLabel(dict.SETTINGS_HAPTICS_SWITCH)}
+          label={dict.SETTINGS_HAPTICS_SWITCH}
           description={dict.SETTINGS_HAPTICS_DESC}
           value={settings.hapticsEnabled}
           onToggle={() =>

@@ -101,11 +101,6 @@ export interface AuthApiPort {
   verifyAddEmail(params: AuthEmailCodeParams): Promise<AuthEmailsResult>;
   /** Removes the extra (`source: "animu"`) email by id. */
   removeEmail(emailId: number): Promise<AuthRemoveEmailResult>;
-  uploadAvatar(params: {
-    avatar: Blob;
-    filename?: string;
-  }): Promise<string | null>;
-  resetAvatar(): Promise<string | null>;
   logout(): Promise<void>;
   deleteAccount(): Promise<void>;
 }

@@ -63,10 +63,9 @@ export function Select<T extends string>({
 
   const selected = options.find((option) => option.key === value);
 
-  const animate = layoutEase;
 
   const toggle = () => {
-    animate();
+    layoutEase();
     setOpen((current) => !current);
   };
 
@@ -75,14 +74,14 @@ export function Select<T extends string>({
     haptics.select();
     // Re-pressing the current value mutates nothing — just fold the list.
     if (key === value) {
-      animate();
+      layoutEase();
       setOpen(false);
       return;
     }
     setApplyingKey(key);
     try {
       await onChange(key);
-      animate();
+      layoutEase();
       setOpen(false);
     } catch (error) {
       console.warn("[Select] change failed:", error);

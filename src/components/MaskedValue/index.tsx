@@ -1,13 +1,7 @@
 import MaterialIcons from "@react-native-vector-icons/material-icons/static";
 import { useEffect, useState } from "react";
 import type { StyleProp, TextStyle } from "react-native";
-import {
-  Animated,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-} from "react-native";
+import { Animated, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 
 import { THEME } from "@/theme";
 import { scale } from "@/theme/responsive";
@@ -23,7 +17,6 @@ interface Props {
   /** Text style so the value matches whatever row it sits in. */
   textStyle?: StyleProp<TextStyle>;
   iconSize?: number;
-  hint?: string;
 }
 
 const AUTO_HIDE_MS = 5000;
@@ -40,10 +33,8 @@ export function MaskedValue({
   hideLabel,
   textStyle,
   iconSize = scale(16),
-  hint,
 }: Props) {
   const [revealed, setRevealed] = useState(false);
-  const [hintVisible, setHintVisible] = useState(Boolean(hint));
   const [motion] = useState(() => new Animated.Value(0));
 
   useEffect(() => {
@@ -64,7 +55,6 @@ export function MaskedValue({
   }, [revealed]);
 
   const toggle = () => {
-    setHintVisible(false);
     setRevealed((current) => !current);
   };
 
@@ -101,7 +91,6 @@ export function MaskedValue({
           />
         </TouchableOpacity>
       </Animated.View>
-      {hint && hintVisible && <Text style={styles.hint}>{hint}</Text>}
     </View>
   );
 }
@@ -117,11 +106,5 @@ const styles = StyleSheet.create({
   },
   value: {
     flexShrink: 1,
-  },
-  hint: {
-    color: THEME.COLORS.TEXT_DIM,
-    fontFamily: THEME.FONT_FAMILY.REGULAR,
-    fontSize: THEME.FONT_SIZE.CAPTION,
-    marginTop: THEME.SPACE.XXS,
   },
 });

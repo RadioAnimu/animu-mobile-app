@@ -150,19 +150,19 @@ const DICT: Dict = {
   SETTINGS_QUALITY_LIVE_LABEL_OFF: "Desactivada",
   SETTINGS_QUALITY_LIVE_OFF_HINT:
     "Ninguna portada se descarga en ninguna parte — ahorra datos",
-  SETTINGS_COVER_LAST_REQUESTED_SWITCH: "Últimas solicitudes de portadas:",
-  SETTINGS_COVER_LAST_PLAYED_SWITCH: "Últimas reproducciones de portadas:",
-  SETTINGS_COVER_REQUESTED_SWITCH: "Hacer solicitudes con portadas:",
+  SETTINGS_COVER_LAST_REQUESTED_SWITCH: "Últimas solicitudes de portadas",
+  SETTINGS_COVER_LAST_PLAYED_SWITCH: "Últimas reproducciones de portadas",
+  SETTINGS_COVER_REQUESTED_SWITCH: "Hacer solicitudes con portadas",
 
   SETTINGS_LANGUAGE_ROW: "Idioma de la app",
 
-  SETTINGS_LIVE_UPDATES_SWITCH: "Información en vivo:",
+  SETTINGS_LIVE_UPDATES_SWITCH: "Información en vivo",
   SETTINGS_MEMORY_TITLE: "Almacenamiento",
   SETTINGS_GENERAL_TITLE: "General",
   SETTINGS_PLAYBACK_TITLE: "Reproducción",
 
-  SETTINGS_VISUALIZER_SWITCH: "Onda de sonido:",
-  SETTINGS_MEMORY_CLEAR_CACHE_SWITCH: "Reutilizar portadas descargadas:",
+  SETTINGS_VISUALIZER_SWITCH: "Onda de sonido",
+  SETTINGS_MEMORY_CLEAR_CACHE_SWITCH: "Reutilizar portadas descargadas",
   SETTINGS_STORAGE_TOTAL: "Portadas guardadas",
   SETTINGS_STORAGE_FILES: "archivos",
   SETTINGS_STORAGE_LIVE: "Reproduciendo (en vivo)",
@@ -182,7 +182,7 @@ const DICT: Dict = {
   SETTINGS_LIVE_UPDATES_DESC:
     "Novedades de canciones con la app en segundo plano",
 
-  SETTINGS_HAPTICS_SWITCH: "Respuesta háptica:",
+  SETTINGS_HAPTICS_SWITCH: "Respuesta háptica",
   SETTINGS_HAPTICS_DESC: "Vibración al tocar y en las acciones",
   A11Y_BACK: "Atrás",
   A11Y_OPEN_MENU: "Abrir menú",

@@ -319,14 +319,6 @@ export class AuthFacade {
     return this.api.removeEmail(emailId);
   }
 
-  uploadAvatar(avatar: Blob, filename?: string): Promise<string | null> {
-    return this.api.uploadAvatar({ avatar, filename });
-  }
-
-  resetAvatar(): Promise<string | null> {
-    return this.api.resetAvatar();
-  }
-
   // ─── Teardown ─────────────────────────────────────────────────────────
 
   async logout(): Promise<void> {

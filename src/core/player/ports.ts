@@ -70,7 +70,6 @@ export interface AudioSample {
 export interface NowPlayingMetadata {
   title: string;
   artist?: string;
-  album?: string;
   artwork?: string;
   durationSec?: number;
   isLiveStream?: boolean;

@@ -1,8 +1,6 @@
-import { useSyncExternalStore } from "react";
 import MaterialIcons from "@react-native-vector-icons/material-icons/static";
 import { Alert, Text, TouchableOpacity, View } from "react-native";
 
-import { useAlert } from "@/contexts/alert/AlertProvider";
 import { useUserSettings } from "@/contexts/user/UserSettingsProvider";
 import {
   coverDiskStorage,
@@ -13,8 +11,12 @@ import {
   COVER_CATEGORY_COLORS,
   coverCategoryLabel,
 } from "@/constants/covers";
-import { formatBytes, interpolate, percentOf } from "@/utils/format";
+import { formatBytes, percentOf } from "@/utils/format";
 import { THEME } from "@/theme";
+import {
+  useCoverDiskClearing,
+  useFreedCoverToast,
+} from "@/hooks/useCoverDisk";
 import { useDict } from "@/hooks/useDict";
 import { haptics } from "@/utils/haptics";
 import { styles } from "@/components/CoverStorageCard/styles";
@@ -132,13 +134,10 @@ function CleanButton({
   measure: () => Promise<CoverStorageSnapshot | null>;
 }) {
   const dict = useDict();
-  const { toast } = useAlert();
+  const notifyFreed = useFreedCoverToast();
   // One store-wide wipe flag — drives both the clean button and the
   // Settings toggle (the provider's automatic wipe is included).
-  const clearing = useSyncExternalStore(
-    (listener) => coverDiskStorage.subscribe(listener),
-    () => coverDiskStorage.isClearing,
-  );
+  const clearing = useCoverDiskClearing();
 
   const onClean = async () => {
     // Button and toggle read the shared flag; overlapping wipes are
@@ -150,11 +149,7 @@ function CleanButton({
       haptics.success();
       // A skipped/failed measure returns no snapshot — never a freed claim.
       const freed = after ? before - after.totalBytes : 0;
-      if (freed > 0) {
-        toast(
-          interpolate(dict.STORAGE_FREED, { freed: formatBytes(freed) }),
-        );
-      }
+      if (freed > 0) notifyFreed(freed);
     } catch (error) {
       console.warn("[CoverStorageCard] clear failed:", error);
     }

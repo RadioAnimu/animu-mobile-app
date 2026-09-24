@@ -1,16 +1,17 @@
-import { useCallback, useEffect, useRef, useSyncExternalStore } from "react";
+import { useEffect, useRef } from "react";
 import { View } from "react-native";
 
-import { useAlert } from "@/contexts/alert/AlertProvider";
 import { SectionTitle } from "@/components/SectionTitle";
 import { useUserSettings } from "@/contexts/user/UserSettingsProvider";
-import { coverDiskStorage } from "@/core/services/cover-disk-storage.service";
 import { useCoverStorageSnapshot } from "@/hooks/useCoverStorage";
+import {
+  useCoverDiskClearing,
+  useFreedCoverToast,
+} from "@/hooks/useCoverDisk";
 import { useDict } from "@/hooks/useDict";
-import { cleanLabel } from "@/screens/Settings/labels";
 import { Divider, SettingsRow, ValueRow } from "@/screens/Settings/rows";
 import { styles } from "@/screens/Settings/styles";
-import { formatBytes, interpolate } from "@/utils/format";
+import { formatBytes } from "@/utils/format";
 
 interface Props {
   onOpenStorage: () => void;
@@ -20,25 +21,11 @@ interface Props {
 export function StorageSection({ onOpenStorage }: Props) {
   const { settings, updateSettings } = useUserSettings();
   const dict = useDict();
-  const { toast } = useAlert();
-
-  // Turning the cache off triggers the provider's wipe — the freed amount
-  // is the toggle's visible payoff, same feedback the Storage card gives.
-  const showFreedToast = useCallback(
-    (freedBytes: number) => {
-      toast(
-        interpolate(dict.STORAGE_FREED, { freed: formatBytes(freedBytes) }),
-      );
-    },
-    [toast, dict],
-  );
+  const showFreedToast = useFreedCoverToast();
 
   // Wipe-in-progress from the storage service — disables the cache toggle
   // (both tap paths: the clean button and the automatic cache-off wipe).
-  const cacheWiping = useSyncExternalStore(
-    (listener) => coverDiskStorage.subscribe(listener),
-    () => coverDiskStorage.isClearing,
-  );
+  const cacheWiping = useCoverDiskClearing();
   const { snapshot, measuring, measure } = useCoverStorageSnapshot({
     onFreed: showFreedToast,
   });
@@ -63,7 +50,7 @@ export function StorageSection({ onOpenStorage }: Props) {
       <View style={styles.group}>
         <SettingsRow
           icon="save-alt"
-          label={cleanLabel(dict.SETTINGS_MEMORY_CLEAR_CACHE_SWITCH)}
+          label={dict.SETTINGS_MEMORY_CLEAR_CACHE_SWITCH}
           description={dict.SETTINGS_MEMORY_CLEAR_CACHE_DESC}
           value={settings.cacheEnabled}
           disabled={cacheWiping}

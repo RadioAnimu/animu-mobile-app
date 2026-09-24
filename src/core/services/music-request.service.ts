@@ -6,6 +6,7 @@ import type { RequestSubmitResult } from "@/core/domain/request-result";
 import type { MusicRequestSubmission } from "animu-api";
 import { DICT, type LanguageKey } from "@/i18n";
 import { animuApi, createApiClient } from "@/api/client";
+import { interpolate } from "@/utils/format";
 import { userSettingsService } from "@/core/services/user-settings.service";
 
 class MusicRequestService {
@@ -76,17 +77,16 @@ export const getSubmissionErrorMessage = (
 ): string => {
   const t = DICT[lang];
   const withDetail = (template: string) =>
-    template.replace("{detail}", detail ?? "");
+    interpolate(template, { detail: detail ?? "" });
 
   // Server sends raw lowercase spellings (`erro: "harublock"`); the package
   // normalizes known blocks to uppercased codes — match both.
   switch (error?.toUpperCase()) {
     case "PEDIBLOCK":
       return detail
-        ? t.REQUEST_ERROR_PEDIBLOCK.replace(
-            "{time}",
-            new Date(detail + "Z").toLocaleTimeString(),
-          )
+        ? interpolate(t.REQUEST_ERROR_PEDIBLOCK, {
+            time: new Date(detail + "Z").toLocaleTimeString(),
+          })
         : t.REQUEST_ERROR_PEDIBLOCK_RECENT;
     case "ANIBLOCK":
     case "ARTISTBLOCK":

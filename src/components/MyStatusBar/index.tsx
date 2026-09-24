@@ -1,4 +1,4 @@
-import { StatusBar, StatusBarProps } from "react-native";
+import { StatusBar } from "react-native";
 
 /**
  * Edge-to-edge means no native status bar background: the color behind
@@ -7,6 +7,4 @@ import { StatusBar, StatusBarProps } from "react-native";
  * edge-to-edge (mandatory since SDK 57 / RN 0.86), so only the bar style
  * is configured here.
  */
-export const MyStatusBar = (props: StatusBarProps) => (
-  <StatusBar barStyle="light-content" {...props} />
-);
+export const MyStatusBar = () => <StatusBar barStyle="light-content" />;

@@ -33,7 +33,9 @@ type Status = "playing" | "paused" | "changing";
 
 const PULSE_OPACITY = 0.05;
 const PULSE_DURATION = 1750;
+/** Resting vertical offset of the live badge; the pulse bobs it up and back. */
 const PULSE_TRAVEL = 50;
+const PULSE_BOB = PULSE_TRAVEL * 2 * PULSE_OPACITY;
 const PROGRESS_ANIM_DURATION = 300;
 
 export function HeaderBar({ openLiveRequestModal }: Props) {
@@ -153,8 +155,8 @@ export function HeaderBar({ openLiveRequestModal }: Props) {
   }, [showLiveBadge, isBackgrounded, animation]);
 
   const translateY = animation.interpolate({
-    inputRange: [0, 1],
-    outputRange: [PULSE_TRAVEL, -PULSE_TRAVEL],
+    inputRange: [0, PULSE_OPACITY],
+    outputRange: [PULSE_TRAVEL, PULSE_TRAVEL - PULSE_BOB],
   });
 
   const { settings } = useUserSettings();

@@ -25,7 +25,6 @@ interface AuthContextType {
   user: User | null;
   profile: AuthProfile | null;
   providers: ProviderInfo[];
-  isLoading: boolean;
   isAuthenticating: boolean;
   isAuthenticated: boolean;
   /**
@@ -53,8 +52,6 @@ interface AuthContextType {
   requestAddEmail: (email: string) => Promise<AuthEmailRequestResult>;
   verifyAddEmail: (email: string, code: string) => Promise<AuthEmailsResult>;
   removeEmail: (emailId: number) => Promise<AuthRemoveEmailResult>;
-  uploadAvatar: (avatar: Blob, filename?: string) => Promise<void>;
-  resetAvatar: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -74,7 +71,6 @@ function useAuthProviderValue(): AuthContextType {
   );
   const [emails, setEmails] = useState<AuthAccountEmail[]>([]);
   const [imageVersion, setImageVersion] = useState(0);
-  const [isLoading, setIsLoading] = useState(true);
   const [isAuthenticating, setIsAuthenticating] = useState(false);
 
   // Ref avoids stale closures in the background task callback
@@ -229,8 +225,6 @@ function useAuthProviderValue(): AuthContextType {
         }
       } catch (error) {
         console.error("[AuthProvider] Initialization failed:", error);
-      } finally {
-        if (!cancelled) setIsLoading(false);
       }
     };
 
@@ -323,27 +317,11 @@ function useAuthProviderValue(): AuthContextType {
     [],
   );
 
-  const uploadAvatar = useCallback(
-    async (avatar: Blob, filename?: string) => {
-      await authFacade.uploadAvatar(avatar, filename);
-      setImageVersion((version) => version + 1);
-      await loadProfile();
-    },
-    [loadProfile],
-  );
-
-  const resetAvatar = useCallback(async () => {
-    await authFacade.resetAvatar();
-    setImageVersion((version) => version + 1);
-    await loadProfile();
-  }, [loadProfile]);
-
   return useMemo<AuthContextType>(
     () => ({
       user,
       profile,
       providers,
-      isLoading,
       isAuthenticating,
       isAuthenticated: !!user,
       imageVersion,
@@ -360,14 +338,11 @@ function useAuthProviderValue(): AuthContextType {
       requestAddEmail,
       verifyAddEmail,
       removeEmail,
-      uploadAvatar,
-      resetAvatar,
     }),
     [
       user,
       profile,
       providers,
-      isLoading,
       isAuthenticating,
       imageVersion,
       loginWithProvider,
@@ -383,8 +358,6 @@ function useAuthProviderValue(): AuthContextType {
       requestAddEmail,
       verifyAddEmail,
       removeEmail,
-      uploadAvatar,
-      resetAvatar,
     ],
   );
 }

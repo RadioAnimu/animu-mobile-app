@@ -110,11 +110,10 @@ function SocialRow({ brand, label, url }: SocialRowProps) {
 function DonorDisclosure({ label, intro }: { label: string; intro: string }) {
   const [open, setOpen] = useState(false);
 
-  const animate = layoutEase;
 
   const toggle = () => {
     haptics.select();
-    animate();
+    layoutEase();
     setOpen((current) => !current);
   };
 

@@ -13,7 +13,7 @@ with plain fakes.
 | **Auth** | `src/core/auth` | Ports & adapters around the Animu Auth API v5 plus an `AuthFacade` that owns OAuth→session exchange, persistence and account rules. |
 | **Player core** | `src/core/player` | The playback engine — small, focused units composed by a thin orchestrator. |
 | **Services** | `src/core/services` | Application orchestration — API facade, music/live requests, background tasks and user settings. |
-| **Data** | `packages/animu-api` | The `animu-api` submodule owns all HTTP, wire DTOs, zod schemas and DTO→domain mapping. |
+| **Data** | `packages/animu-api` | The `animu-api` submodule owns all HTTP, wire DTOs, valibot schemas and DTO→domain mapping. |
 | **UI** | `src/screens`, `src/components`, `src/contexts`, `src/theme` | React Native screens, reusable components, providers and design tokens. |
 
 ![Architecture diagram](SCREENSHOT: a diagram of the layers above — Domain, Auth, Player core, Services, animu-api submodule and UI — with arrows showing UI → services/contexts → core → animu-api)
@@ -133,7 +133,7 @@ keeps using relative requires.
 - **Custom HTTP layer instead of a third-party client.** The `animu-api`
   package ships a small `fetch`-based client with `AbortController` timeouts, an
   in-memory GET micro-cache, structured request logging and typed errors — zero
-  runtime dependencies (`zod` is the only peer), so there is no HTTP client
+  runtime dependencies (`valibot` is the only peer), so there is no HTTP client
   package to keep current.
 - **`expo/fetch` for background reliability.** The shared client injects
   `expo/fetch`, whose dedicated native OkHttp stack keeps working while the app
@@ -227,7 +227,7 @@ keeps using relative requires.
 | Realtime | `animu-api` SSE stream (`animu.live`) with HTTP polling fallback |
 | Networking | `expo/fetch` + `AbortController` · `@react-native-community/netinfo` (connectivity) |
 | Updates | `react-native-ota-hot-update` + `react-native-blob-util` (OTA bundle download) |
-| API client | `animu-api` submodule (zod-validated DTOs) |
+| API client | `animu-api` submodule (valibot-validated DTOs) |
 | Background | JS task runner gated by app visibility + native playback-status heartbeat (no OS background-task module) |
 | i18n | Custom dictionary-based localization (PT/EN/ES/JP) |
 | Testing | Vitest (player core, services, domain, hooks, plugins) |

@@ -7,7 +7,7 @@
     "android": "expo run:android",
     "ios": "expo run:ios",
     "postinstall": "patch-package && if [ ! -f packages/animu-api/dist/esm/index.js ] || find packages/animu-api/src -newer packages/animu-api/dist/esm/index.js -print -quit | grep -q .; then npm install --prefix packages/animu-api --no-audit --no-fund && npm run build:api; fi",
-    "install:apk": "adb uninstall com.nessjs.animu; adb install $(ls -t *.apk | head -1)",
+    "install:apk": "adb uninstall com.nessjs.animu; adb install $(ls -t dist/*.apk 2>/dev/null | head -1)",
     "lint": "expo lint",
     "build:api": "npm run build --prefix packages/animu-api",
     "fonts": "node scripts/fetch-fonts.mjs",
@@ -16,7 +16,7 @@
     "ota:ios": "npx expo export:embed --platform ios --entry-file index.js --bundle-output dist/ios/main.jsbundle --assets-dest dist/ios --dev false --minify --bytecode",
     "ota:android": "npx expo export:embed --platform android --entry-file index.js --bundle-output dist/android/index.android.bundle --assets-dest dist/android --dev false --minify --bytecode",
     "test": "vitest run",
-    "doctor": "npx react-doctor@latest"
+    "doctor": "npx react-doctor@0.9.14"
   },
   "dependencies": {
     "@react-native-async-storage/async-storage": "2.2.0",

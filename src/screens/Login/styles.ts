@@ -1,25 +1,14 @@
 import { StyleSheet } from "react-native";
 
 import { THEME } from "@/theme";
+import { SCREEN_STYLES } from "@/theme/screen";
 import { scale } from "@/theme/responsive";
 
-// Shared content inset and card radius with Settings/Account.
-const CARD_RADIUS = THEME.RADIUS.CARD;
 const CONTENT_PADDING = THEME.SPACE.LG;
 
 export const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: THEME.COLORS.BG_DEEP,
-  },
-  content: {
-    flexGrow: 1,
-    width: THEME.LAYOUT.CONTENT_WIDTH,
-    maxWidth: THEME.LAYOUT.CONTENT_MAX_WIDTH,
-    alignSelf: "center",
-    paddingTop: THEME.SPACE.XXL,
-    paddingBottom: THEME.SPACE.XXXL,
-  },
+  container: SCREEN_STYLES.container,
+  content: SCREEN_STYLES.content,
   stepper: {
     flexDirection: "row",
     alignSelf: "center",
@@ -64,7 +53,7 @@ export const styles = StyleSheet.create({
     alignItems: "center",
     minHeight: THEME.LAYOUT.ROW_MIN_HEIGHT,
     paddingHorizontal: CONTENT_PADDING,
-    borderRadius: CARD_RADIUS,
+    borderRadius: THEME.RADIUS.CARD,
     backgroundColor: THEME.COLORS.SURFACE,
   },
   methodIcon: {
@@ -107,7 +96,7 @@ export const styles = StyleSheet.create({
   submit: {
     height: scale(52),
     marginTop: THEME.SPACE.XXL,
-    borderRadius: CARD_RADIUS,
+    borderRadius: THEME.RADIUS.CARD,
     backgroundColor: THEME.COLORS.BRAND,
     alignItems: "center",
     justifyContent: "center",

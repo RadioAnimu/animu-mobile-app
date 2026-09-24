@@ -1,18 +1,16 @@
 import React, { useCallback, useMemo, useState } from "react";
-import PortalContext from "@/contexts/Portal/PortalContext";
+import PortalContext, {
+  type PortalElement,
+} from "@/contexts/Portal/PortalContext";
 interface PortalProviderProps {
   children: React.ReactNode;
-}
-interface Element {
-  name: string;
-  component: React.ReactNode;
 }
 const PortalProvider: React.FC<PortalProviderProps> = ({ children }) => {
   const [components, setComponents] = useState<Record<string, React.ReactNode>>(
     {}
   );
 
-  const addComponent = useCallback(({ name, component }: Element) => {
+  const addComponent = useCallback(({ name, component }: PortalElement) => {
     setComponents((prev) => ({ ...prev, [name]: component }));
   }, []);
 

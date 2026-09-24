@@ -150,19 +150,19 @@ const DICT: Dict = {
   SETTINGS_QUALITY_LIVE_LABEL_OFF: "Desativada",
   SETTINGS_QUALITY_LIVE_OFF_HINT:
     "Nenhuma capa é baixada em lugar nenhum — poupa dados",
-  SETTINGS_COVER_LAST_REQUESTED_SWITCH: "Capas nas últimas pedidas:",
-  SETTINGS_COVER_LAST_PLAYED_SWITCH: "Capas nas últimas tocadas:",
-  SETTINGS_COVER_REQUESTED_SWITCH: "Capas ao pedir músicas:",
+  SETTINGS_COVER_LAST_REQUESTED_SWITCH: "Capas nas últimas pedidas",
+  SETTINGS_COVER_LAST_PLAYED_SWITCH: "Capas nas últimas tocadas",
+  SETTINGS_COVER_REQUESTED_SWITCH: "Capas ao pedir músicas",
 
   SETTINGS_LANGUAGE_ROW: "Idioma do app",
 
-  SETTINGS_LIVE_UPDATES_SWITCH: "Informações ao vivo:",
+  SETTINGS_LIVE_UPDATES_SWITCH: "Informações ao vivo",
   SETTINGS_MEMORY_TITLE: "Armazenamento",
   SETTINGS_GENERAL_TITLE: "Geral",
   SETTINGS_PLAYBACK_TITLE: "Reprodução",
 
-  SETTINGS_VISUALIZER_SWITCH: "Onda sonora:",
-  SETTINGS_MEMORY_CLEAR_CACHE_SWITCH: "Reutilizar capas baixadas:",
+  SETTINGS_VISUALIZER_SWITCH: "Onda sonora",
+  SETTINGS_MEMORY_CLEAR_CACHE_SWITCH: "Reutilizar capas baixadas",
   SETTINGS_STORAGE_TOTAL: "Capas guardadas",
   SETTINGS_STORAGE_FILES: "arquivos",
   SETTINGS_STORAGE_LIVE: "Tocando agora (ao vivo)",
@@ -182,7 +182,7 @@ const DICT: Dict = {
   SETTINGS_LIVE_UPDATES_DESC:
     "Atualizações da música com o app em segundo plano",
 
-  SETTINGS_HAPTICS_SWITCH: "Feedback tátil:",
+  SETTINGS_HAPTICS_SWITCH: "Feedback tátil",
   SETTINGS_HAPTICS_DESC: "Vibração ao tocar e nas ações",
   A11Y_BACK: "Voltar",
   A11Y_OPEN_MENU: "Abrir menu",

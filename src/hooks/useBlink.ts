@@ -1,12 +1,10 @@
 import { useEffect, useState } from "react";
 import { Animated, Easing } from "react-native";
 
-interface Options {
-  /** How dim the pulse dips (defaults to the shared "calculating" pulse). */
-  min?: number;
-  /** Length of each half of the pulse, in ms. */
-  duration?: number;
-}
+/** How dim the "calculating" pulse dips. */
+const BLINK_MIN = 0.35;
+/** Length of each half of the pulse, in ms. */
+const BLINK_HALF_MS = 650;
 
 /**
  * "Calculating" pulse: fades an Animated.Value towards `min` and back while
@@ -14,7 +12,7 @@ interface Options {
  * Stops — and resets to full opacity — whenever `active` turns false, so
  * renderers can hide behind `active` without stale mid-pulse opacity.
  */
-export function useBlink(active: boolean, { min = 0.35, duration = 650 }: Options = {}) {
+export function useBlink(active: boolean) {
   const [blink] = useState(() => new Animated.Value(1));
 
   useEffect(() => {
@@ -25,14 +23,14 @@ export function useBlink(active: boolean, { min = 0.35, duration = 650 }: Option
     const loop = Animated.loop(
       Animated.sequence([
         Animated.timing(blink, {
-          toValue: min,
-          duration,
+          toValue: BLINK_MIN,
+          duration: BLINK_HALF_MS,
           easing: Easing.inOut(Easing.ease),
           useNativeDriver: true,
         }),
         Animated.timing(blink, {
           toValue: 1,
-          duration,
+          duration: BLINK_HALF_MS,
           easing: Easing.inOut(Easing.ease),
           useNativeDriver: true,
         }),
@@ -44,7 +42,7 @@ export function useBlink(active: boolean, { min = 0.35, duration = 650 }: Option
       loop.stop();
       blink.setValue(1);
     };
-  }, [active, blink, min, duration]);
+  }, [active, blink]);
 
   return blink;
 }

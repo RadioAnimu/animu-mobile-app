@@ -9,13 +9,13 @@ import { scale } from "@/theme/responsive";
  * moment and fades itself out. Purely informational — pointerEvents="none"
  * so it never intercepts touches, and no dismiss button.
  */
+const TOAST_HOLD_MS = 1800;
+
 export const Toast = React.memo(function Toast({
   message,
-  duration = 1800,
   onDone,
 }: {
   message: string;
-  duration?: number;
   onDone?: () => void;
 }) {
   const progress = useMemo(() => new Animated.Value(0), []);
@@ -28,7 +28,7 @@ export const Toast = React.memo(function Toast({
         easing: Easing.out(Easing.ease),
         useNativeDriver: true,
       }),
-      Animated.delay(duration),
+      Animated.delay(TOAST_HOLD_MS),
       Animated.timing(progress, {
         toValue: 0,
         duration: 240,
@@ -40,7 +40,7 @@ export const Toast = React.memo(function Toast({
       if (finished) onDone?.();
     });
     return () => animation.stop();
-  }, [progress, duration, onDone]);
+  }, [progress, onDone]);
 
   const rise = progress.interpolate({
     inputRange: [0, 1],

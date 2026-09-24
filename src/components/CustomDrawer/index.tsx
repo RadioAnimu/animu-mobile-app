@@ -51,12 +51,12 @@ export function DrawerIcon({
   );
 }
 
-export interface SeparatorProps {
+interface SeparatorProps {
   sectionTitle?: string;
   Icon?: () => JSX.Element;
 }
 
-export function Separator({ sectionTitle, Icon }: SeparatorProps) {
+function Separator({ sectionTitle, Icon }: SeparatorProps) {
   return (
     <View style={styles.section}>
       {Icon && <Icon />}

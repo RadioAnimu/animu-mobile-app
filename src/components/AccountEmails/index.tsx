@@ -90,14 +90,14 @@ function EmailRow({
 }
 
 /** One provider mark per provider, in the order the server returned them. */
+const PROVIDER_MARKS_MAX = 3;
+
 function ProviderMarks({
   providers,
-  max = 3,
 }: {
   providers: NonNullable<AuthAccountEmail["provider"]>[];
-  max?: number;
 }) {
-  const shown = providers.slice(0, max);
+  const shown = providers.slice(0, PROVIDER_MARKS_MAX);
   const overflow = providers.length - shown.length;
   return (
     <View style={styles.providerMarks}>
@@ -342,10 +342,9 @@ export function AccountEmails() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
-  const animate = layoutEase;
 
   const toggle = () => {
-    animate();
+    layoutEase();
     if (open) {
       flow.reset();
       setScreen("list");
@@ -430,12 +429,12 @@ export function AccountEmails() {
           busy={busy}
           onRemove={confirmRemove}
           onAdd={() => {
-            animate();
+            layoutEase();
             flow.reset();
             setScreen("form");
           }}
           onCancelEdit={() => {
-            animate();
+            layoutEase();
             flow.reset();
             setScreen("list");
           }}

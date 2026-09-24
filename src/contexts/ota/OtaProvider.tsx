@@ -40,15 +40,12 @@ export type OtaOutcome =
 
 type OtaContextValue = {
   status: OtaStatus;
-  /** Version of the last update seen (available, staged, or running). */
-  version: number | null;
   checkNow: (auto?: boolean) => Promise<OtaOutcome>;
   applyNow: () => void;
 };
 
 const OtaContext = createContext<OtaContextValue>({
   status: "idle",
-  version: null,
   checkNow: async () => "unsupported",
   applyNow: () => {},
 });
@@ -57,7 +54,6 @@ export const OtaProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
   const [status, setStatusState] = useState<OtaStatus>("idle");
-  const [version, setVersion] = useState<number | null>(null);
   // Mirror `status` in a ref so `checkNow` stays referentially stable: it only
   // needs the current value, not to be re-created on every status change.
   const statusRef = useRef<OtaStatus>("idle");
@@ -109,12 +105,9 @@ export const OtaProvider: React.FC<{ children: React.ReactNode }> = ({
       }
 
       if (result.status === "up-to-date") {
-        setVersion(result.version);
         setStatus("up-to-date");
         return "up-to-date";
       }
-
-      setVersion(result.version);
 
       // Background checks only auto-download on Wi-Fi — a ~6 MB bundle on
       // cellular is a real cost for a data-conscious radio app. A manual check
@@ -152,8 +145,8 @@ export const OtaProvider: React.FC<{ children: React.ReactNode }> = ({
   }, []);
 
   const value = useMemo<OtaContextValue>(
-    () => ({ status, version, checkNow, applyNow }),
-    [status, version, checkNow, applyNow],
+    () => ({ status, checkNow, applyNow }),
+    [status, checkNow, applyNow],
   );
 
   return <OtaContext.Provider value={value}>{children}</OtaContext.Provider>;

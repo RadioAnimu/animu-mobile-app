@@ -10,7 +10,6 @@ import {
 } from "@/constants/artwork-quality";
 import { useUserSettings } from "@/contexts/user/UserSettingsProvider";
 import { useDict } from "@/hooks/useDict";
-import { cleanLabel } from "@/screens/Settings/labels";
 import { Divider, SettingsRow } from "@/screens/Settings/rows";
 import { styles } from "@/screens/Settings/styles";
 import { formatBytes } from "@/utils/format";
@@ -63,7 +62,7 @@ export function CoverDataSection() {
         <Divider />
         <SettingsRow
           icon="history"
-          label={cleanLabel(dict.SETTINGS_COVER_LAST_REQUESTED_SWITCH)}
+          label={dict.SETTINGS_COVER_LAST_REQUESTED_SWITCH}
           value={settings.lastRequestedCovers}
           onToggle={() =>
             updateSettings({
@@ -74,7 +73,7 @@ export function CoverDataSection() {
         <Divider />
         <SettingsRow
           icon="music-note"
-          label={cleanLabel(dict.SETTINGS_COVER_LAST_PLAYED_SWITCH)}
+          label={dict.SETTINGS_COVER_LAST_PLAYED_SWITCH}
           value={settings.lastPlayedCovers}
           onToggle={() =>
             updateSettings({ lastPlayedCovers: !settings.lastPlayedCovers })
@@ -83,7 +82,7 @@ export function CoverDataSection() {
         <Divider />
         <SettingsRow
           icon="search"
-          label={cleanLabel(dict.SETTINGS_COVER_REQUESTED_SWITCH)}
+          label={dict.SETTINGS_COVER_REQUESTED_SWITCH}
           value={settings.coversInRequestSearch}
           onToggle={() =>
             updateSettings({

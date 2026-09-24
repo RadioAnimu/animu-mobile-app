@@ -1,6 +1,6 @@
 import { Image } from "expo-image";
 import { File } from "expo-file-system";
-
+import { toFileUri } from "@/utils/file-uri";
 import {
   coverCacheRegistry,
   type CoverCacheCategory,
@@ -59,16 +59,6 @@ type CachedStat =
   | { state: "found"; bytes: number }
   | { state: "absent" }
   | { state: "unknown" };
-
-/**
- * expo-image's Android impl returns Glide's `file.absolutePath` — a bare
- * filesystem path with no scheme. The new expo-file-system `File` class
- * requires an absolute URI ("URI is not absolute" otherwise), so prefix
- * the scheme here while leaving existing `file://` strings untouched.
- */
-function toFileUri(path: string): string {
-  return /^file:\/\//.test(path) ? path : `file://${path}`;
-}
 
 /** Disk bytes for one URL via expo-image's own cache-key lookup. */
 async function cachedFileBytes(url: string): Promise<CachedStat> {

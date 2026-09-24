@@ -55,6 +55,11 @@ vi.mock("animu-api", () => ({
   },
   clientUserAgent: () => "ua",
   DEFAULT_COVER: "https://cdn.animu.test/default.jpg",
+  FALLBACK_STREAMS: [
+    { id: "320", bitrate: 320, category: "MP3", url: "https://stream.animu.test/320" },
+    { id: "192", bitrate: 192, category: "MP3", url: "https://stream.animu.test/192" },
+    { id: "64", bitrate: 64, category: "AAC+", url: "https://stream.animu.test/64" },
+  ],
 }));
 
 /** Resolves immediately while the fetch stays pending: "pending" = no abort. */
