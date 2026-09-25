@@ -422,7 +422,7 @@ index d265606..4ff7bdb 100644
            if !keepAudioSessionActive {
              self?.deactivateSession()
 diff --git a/node_modules/expo-audio/ios/AudioPlayer.swift b/node_modules/expo-audio/ios/AudioPlayer.swift
-index 0742943..c3e4d03 100644
+index 0742943..d068d46 100644
 --- a/node_modules/expo-audio/ios/AudioPlayer.swift
 +++ b/node_modules/expo-audio/ios/AudioPlayer.swift
 @@ -24,6 +24,12 @@ public class AudioPlayer: SharedRef<AVPlayer>, Playable {
@@ -626,7 +626,26 @@ index 0742943..c3e4d03 100644
    }
  
    private func enqueueNextLoopItem() {
-@@ -496,10 +634,15 @@ public class AudioPlayer: SharedRef<AVPlayer>, Playable {
+@@ -467,6 +605,18 @@ public class AudioPlayer: SharedRef<AVPlayer>, Playable {
+           "didJustFinish": true
+         ])
+         self.onPlaybackComplete?()
++      } else if finishedItem == self.ref.currentItem {
++        // PATCH: looping must not depend on queue semantics. `.advance` +
++        // `enqueueNextLoopItem()` can run dry — the re-enqueue guard
++        // (`items().count <= 1`) sees the retained played item after the
++        // first advance and never refills the queue, so the loop stops
++        // mid-session (observed with the outage keepalive: the app's only
++        // renderer went silent after ~10 loops). Restart the finished
++        // current item from zero instead — looping no longer relies on the
++        // enqueued-next-item dance.
++        finishedItem.seek(to: CMTime.zero) { [weak self] _ in
++          self?.ref.play()
++        }
+       }
+     }
+   }
+@@ -496,10 +646,15 @@ public class AudioPlayer: SharedRef<AVPlayer>, Playable {
    }
  
    func pause() {

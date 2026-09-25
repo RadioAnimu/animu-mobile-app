@@ -222,6 +222,11 @@ export class PlayerService {
    */
   private silentStallHandled = true;
   /**
+   * Last decision the keepalive gate made — the gate only acts on change,
+   * so reconcile-time calls never spam the native layer.
+   */
+  private keepaliveActive = false;
+  /**
    * Whether the app UI is foregrounded. While backgrounded, store emissions
    * are suppressed so nothing reconciles in the hidden tree; the native
    * player and media session keep running. Restored emissions happen on the
@@ -409,8 +414,9 @@ export class PlayerService {
    * deliberate pause).
    */
   private updateKeepalive(): void {
-    const wanted =
-      !this.appActive && this.deps.state.isPlayingIntent;
+    const wanted = !this.appActive && this.deps.state.isPlayingIntent;
+    if (wanted === this.keepaliveActive) return;
+    this.keepaliveActive = wanted;
     if (wanted) {
       this.deps.audio.startKeepalive();
     } else {

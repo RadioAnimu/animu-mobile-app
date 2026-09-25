@@ -172,10 +172,17 @@ export class ExpoAudioAdapter implements AudioEnginePort {
 
   /**
    * Starts the silent keepalive loop (idempotent). The loop is a dedicated
-   * looping player playing the bundled near-silent track at zero volume —
-   * genuinely silent samples are avoided (1 LSB amplitude) so no pipeline
-   * can optimize zero frames away, and the volume is 0 so the loop can
-   * never be heard on any platform.
+   * looping player playing the bundled near-silent track — genuinely silent
+   * samples are avoided (1 LSB amplitude ≈ -90 dBFS) so no pipeline can
+   * optimize zero frames away and the loop is inaudible at any volume.
+   *
+   * Volume must be NONZERO: iOS background-audio enforcement requires the
+   * app to be actively rendering audio, and a player at volume 0 can be
+   * treated as idle — the app is then suspended seconds after the real
+   * stream goes silent (observed: player dismissed ~12s into an outage).
+   * The 1-LSB samples keep the loop inaudible even at full volume, so a
+   * small nonzero volume is used as a belt-and-braces guarantee that the
+   * OS counts this as active playback.
    *
    * iOS-only. On Android the playback foreground service already keeps the
    * process alive through outages, and a second ExoPlayer instance would
@@ -190,7 +197,7 @@ export class ExpoAudioAdapter implements AudioEnginePort {
         buildPlayerOptions(),
       );
       player.loop = true;
-      player.volume = 0;
+      player.volume = 0.01;
       player.play();
       this.keepalive = player;
     } catch (error) {
