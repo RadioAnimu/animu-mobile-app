@@ -102,6 +102,20 @@ const CONNECTING_WATCHDOG_MS = 4000;
  */
 const CONNECTING_REOPEN_WINDOWS = 3;
 /**
+ * Silence (ms) after the last native status frame while the state machine
+ * still claims `playing` before the frame is treated as a stall.
+ *
+ * While a stream FLOWS, AVPlayer's periodic time observer emits a frame every
+ * tick — but it stops the instant the playhead freezes, so a network death
+ * can leave JS with NO frame at all: no `isBuffering`, no dead state, nothing.
+ * The state machine then stays `playing` forever and every recovery gate
+ * keyed on "not playing" stays closed (the tunnel bug: iOS starts its
+ * suspension countdown because the app renders silence, and once suspended
+ * the JS chain never runs again). A 5s gap is impossible for a healthy
+ * 1 Hz-playing transport, so silence itself is the stall signal.
+ */
+const SILENT_STALL_MS = 5000;
+/**
  * How old the last measurement may be before a resume is treated as stale and
  * the clock is re-synced. A stream that was paused (or suspended in the
  * background) past this window is re-opened at the live edge, so the retained
@@ -192,6 +206,21 @@ export class PlayerService {
    * to "re-open the source" (the only thing that heals a broken socket).
    */
   private connectingWindows = 0;
+  /**
+   * Date.now() of the last native status frame — ANY frame (buffering,
+   * playing, paused, dead). Powers the silent-stall detector: while audio
+   * flows the periodic time observer emits ~1 Hz, so a gap past
+   * `SILENT_STALL_MS` means the playhead froze and native went quiet
+   * (exactly what a background network death looks like — no frame at all).
+   */
+  private lastStatusAt: number = Date.now();
+  /**
+   * Whether the silent-stall detector has already reconciled the current
+   * silent gap into `connecting`. One-shot per gap: a stall produces no
+   * further frames until audio recovers, so without this latch the detector
+   * would re-fire every heartbeat.
+   */
+  private silentStallHandled = true;
   /**
    * Whether the app UI is foregrounded. While backgrounded, store emissions
    * are suppressed so nothing reconciles in the hidden tree; the native
@@ -358,30 +387,30 @@ export class PlayerService {
   // ── Background-suspension keepalive ──
 
   /**
-   * Keeps the audio session RENDERING while audio is wanted but cannot flow:
-   * a near-silent looping track at zero volume, so iOS never suspends the
-   * backgrounded app mid-outage.
+   * Keeps the audio session RENDERING while the app is backgrounded and the
+   * user wants audio: a near-silent looping track at zero volume, so iOS
+   * never suspends the app — outage or not.
    *
    * Why this is the load-bearing fix for the "music stops in a tunnel and
    * never comes back" report: iOS suspends a backgrounded app seconds after
    * it stops producing audio, and suspension freezes EVERYTHING — the JS
    * backoff timers, the NetInfo restore edge, even native status events.
    * Nothing on iOS re-runs JS when the network returns, so a suspended app
-   * stays silent until the user manually reopens it. With the keepalive the
-   * app stays awake through the outage: the watchdog keeps forcing re-opens
-   * and `handleNetworkRestore` fires the instant the signal returns, so the
-   * stream picks up by itself (like a real radio would).
+   * stays silent until the user manually reopens it.
    *
-   * The gate mirrors `updateLiveStreamLifecycle`: only while the app is
-   * backgrounded, the user's last action was play, and audio is not
-   * actually flowing. A user pause must end it — a suspended app is the
-   * correct outcome of a deliberate pause.
+   * The gate is deliberately NOT keyed on "not playing": a background stall
+   * stops the periodic time observer's frames entirely, so the state machine
+   * can stay `playing` while the speaker is silent (the stall is detected
+   * separately by the silent-stall detector). Keying the keepalive on the
+   * state would repeat exactly that race — the previous attempt's bug. A
+   * backgrounded session with play intent keeps the loop running: the
+   * battery cost of a silent 8 kHz loop next to an active stream is noise,
+   * and a user pause ends it (a suspended app is the correct outcome of a
+   * deliberate pause).
    */
   private updateKeepalive(): void {
     const wanted =
-      !this.appActive &&
-      this.deps.state.isPlayingIntent &&
-      this.deps.state.state !== "playing";
+      !this.appActive && this.deps.state.isPlayingIntent;
     if (wanted) {
       this.deps.audio.startKeepalive();
     } else {
@@ -426,7 +455,22 @@ export class PlayerService {
       if (this.deps.state.isPlayingIntent && this.deps.state.state !== "playing") {
         this.deps.reconnect.reset();
         void this.attemptReconnect();
+      } else if (
+        this.deps.state.state === "playing" &&
+        Date.now() - this.lastStatusAt >= SILENT_STALL_MS
+      ) {
+        // The suspension can also land while the state machine still claims
+        // `playing` (the stall was invisible — no native frame ever arrived).
+        // A `playing` label with no frame for this long is a label from
+        // before the outage: fold it into the stall path and reconnect now.
+        this.silentStallHandled = true;
+        this.reconcile("connecting");
+        this.deps.reconnect.reset();
+        void this.attemptReconnect();
       }
+      // Re-arm the detector from NOW: the next real native frame re-syncs.
+      this.lastStatusAt = Date.now();
+      this.silentStallHandled = false;
     }
   }
 
@@ -528,6 +572,8 @@ export class PlayerService {
     this.stalledSince = null;
     this.setupPromise = null;
     this.connectingWindows = 0;
+    this.lastStatusAt = Date.now();
+    this.silentStallHandled = true;
 
     if (!this.isReady) {
       // Half-set-up or already destroyed: release whatever exists.
@@ -590,6 +636,8 @@ export class PlayerService {
     this.interruptionPending = false;
     this.stalledSince = null;
     this.connectingWindows = 0;
+    this.lastStatusAt = Date.now();
+    this.silentStallHandled = true;
 
     try {
       // Ensure audio mode + media session are set up, then resolve the
@@ -898,7 +946,43 @@ export class PlayerService {
     // watchdog clock, but a stall can leave them sparse (a dead socket has
     // no time progress to report) — the 1 Hz fallback must still escalate.
     this.enforceConnectingWatchdog();
+    // Silence detection: a background stall stops native frames entirely
+    // while the state machine still says `playing` — the 1 Hz JS fallback is
+    // the only clock that can notice (see `checkSilentStall`).
+    this.checkSilentStall();
     this.deps.heartbeat.beat();
+  }
+
+  /**
+   * The silent-stall detector. While the state machine claims `playing` and
+   * the user wants audio, native frames are expected ~1 Hz; a gap past
+   * `SILENT_STALL_MS` means the playhead froze and the periodic time
+   * observer went quiet — the shape of a background network death, where NO
+   * status (not even `isBuffering`) ever arrives.
+   *
+   * Reconciliation folds the invisible stall into the same path an explicit
+   * buffering stall takes (`handleBuffering`): state → `connecting`, the
+   * connecting watchdog armed — which escalates to a source re-open if
+   * native never recovers — and the marker consumed so the one-shot cannot
+   * loop. A later native frame re-arms the detector (`lastStatusAt` reset in
+   * `handlePlaybackStatus`); recovery then flows through the ordinary
+   * stall/live-edge logic.
+   */
+  private checkSilentStall(): void {
+    if (
+      this.silentStallHandled ||
+      !this.deps.state.isPlayingIntent ||
+      this.deps.state.state !== "playing" ||
+      Date.now() - this.lastStatusAt < SILENT_STALL_MS
+    ) {
+      return;
+    }
+    this.silentStallHandled = true;
+    console.warn(
+      "[PlayerService] no native status frame while 'playing' — treating as stall",
+    );
+    this.stalledSince = Date.now();
+    this.reconcile("connecting");
   }
 
   // ── Artwork (shared resolver for the now-playing UI) ──
@@ -978,6 +1062,12 @@ export class PlayerService {
     // Straggler native event after teardown — a destroyed instance must
     // not tick, poll or transition.
     if (this.disposed) return;
+
+    // ANY native frame is proof the transport still ticks — re-arm the
+    // silent-stall detector (see `checkSilentStall`). Must run before the
+    // branches so even a "paused"/dead frame clears a pending stall.
+    this.lastStatusAt = Date.now();
+    this.silentStallHandled = false;
 
     // Feed the audible-clock estimate on EVERY native frame (including
     // buffering ones): the offset is what shifts progress, the countdown and

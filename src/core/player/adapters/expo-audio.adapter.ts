@@ -6,6 +6,7 @@ import {
   type AudioSource,
   type AudioStatus as ExpoAudioStatus,
 } from "expo-audio";
+import { Platform } from "react-native";
 import SILENCE_LOOP from "@app/assets/silence-loop.wav";
 import { CONFIG } from "@/utils/player.config";
 import { LIVE_FORWARD_BUFFER_SECONDS } from "@/core/player/stream-playback/live-buffer";
@@ -175,8 +176,13 @@ export class ExpoAudioAdapter implements AudioEnginePort {
    * genuinely silent samples are avoided (1 LSB amplitude) so no pipeline
    * can optimize zero frames away, and the volume is 0 so the loop can
    * never be heard on any platform.
+   *
+   * iOS-only. On Android the playback foreground service already keeps the
+   * process alive through outages, and a second ExoPlayer instance would
+   * just burn battery against nothing.
    */
   startKeepalive(): void {
+    if (Platform.OS !== "ios") return;
     if (this.keepalive) return;
     try {
       const player = createAudioPlayer(

@@ -422,7 +422,7 @@ index d265606..4ff7bdb 100644
            if !keepAudioSessionActive {
              self?.deactivateSession()
 diff --git a/node_modules/expo-audio/ios/AudioPlayer.swift b/node_modules/expo-audio/ios/AudioPlayer.swift
-index 0742943..106bd60 100644
+index 0742943..c3e4d03 100644
 --- a/node_modules/expo-audio/ios/AudioPlayer.swift
 +++ b/node_modules/expo-audio/ios/AudioPlayer.swift
 @@ -24,6 +24,12 @@ public class AudioPlayer: SharedRef<AVPlayer>, Playable {
@@ -587,7 +587,27 @@ index 0742943..106bd60 100644
        "error": nil
      ]
    }
-@@ -228,6 +348,9 @@ public class AudioPlayer: SharedRef<AVPlayer>, Playable {
+@@ -198,6 +318,19 @@ public class AudioPlayer: SharedRef<AVPlayer>, Playable {
+   }
+ 
+   private func setupPublisher() {
++    // PATCH: the periodic time observer is the ONLY regular status clock and
++    // it stops the instant the playhead freezes — a live stream whose network
++    // link dies stalls with NO status frame at all, so JS (reconnect chain,
++    // keepalive gating) can never see the stall. KVO the time-control status
++    // so every playing⇄waiting/paused flip — including the stall itself and
++    // the recovery frame when AVPlayer's own retry succeeds — emits a status.
++    ref.publisher(for: \.timeControlStatus)
++      .removeDuplicates()
++      .sink { [weak self] _ in
++        self?.updateStatus(with: [:])
++      }
++      .store(in: &cancellables)
++
+     ref.publisher(for: \.currentItem?.status)
+       .sink { [weak self] status in
+         guard let self, let status else {
+@@ -228,6 +361,9 @@ public class AudioPlayer: SharedRef<AVPlayer>, Playable {
          guard let self else {
            return
          }
@@ -597,7 +617,7 @@ index 0742943..106bd60 100644
          if self.isLooping {
            self.enqueueNextLoopItem()
            self.addPlaybackEndNotification()
-@@ -413,6 +536,8 @@ public class AudioPlayer: SharedRef<AVPlayer>, Playable {
+@@ -413,6 +549,8 @@ public class AudioPlayer: SharedRef<AVPlayer>, Playable {
      } else {
        ref.replaceCurrentItem(with: item)
      }
@@ -606,7 +626,7 @@ index 0742943..106bd60 100644
    }
  
    private func enqueueNextLoopItem() {
-@@ -496,10 +621,15 @@ public class AudioPlayer: SharedRef<AVPlayer>, Playable {
+@@ -496,10 +634,15 @@ public class AudioPlayer: SharedRef<AVPlayer>, Playable {
    }
  
    func pause() {

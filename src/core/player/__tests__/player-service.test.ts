@@ -19,6 +19,9 @@ vi.mock("expo-audio", () => ({
   })),
   setAudioModeAsync: vi.fn(),
 }));
+// The audio adapter reads Platform.OS to gate the iOS-only keepalive; the
+// real entry is Flow source vitest cannot parse.
+vi.mock("react-native", () => ({ Platform: { OS: "ios" } }));
 vi.mock("expo-asset", () => ({
   Asset: {
     fromModule: vi.fn(() => ({
@@ -665,39 +668,46 @@ describe("PlayerService stream-loss handling", () => {
 });
 
 describe("PlayerService background-outage recovery", () => {
-  it("starts the keepalive when backgrounded with audio wanted but stalled", async () => {
+  it("starts the keepalive when backgrounded with play intent — even while 'playing'", async () => {
     const { deps, transport } = makeDeps();
     const service = new PlayerService(deps);
     await service.play();
     const handler = wiredHandler(transport);
     handler({ playing: true } as AudioPlaybackStatus);
+    transport.startKeepalive.mockClear();
 
-    // Audio flowing → nothing to keep alive.
+    // The gate must NOT depend on seeing a stall: a background network death
+    // stops native status frames entirely, so the state machine can stay
+    // 'playing' while the speaker is silent — and iOS starts its suspension
+    // countdown the moment the app stops rendering audio.
     service.setAppActive(false);
-    expect(transport.startKeepalive).not.toHaveBeenCalled();
-
-    // The link dies in the background: audio wanted, not flowing — the
-    // silent loop must render so iOS does not suspend the app mid-outage.
-    handler({ playing: true, isBuffering: true } as AudioPlaybackStatus);
     expect(transport.startKeepalive).toHaveBeenCalled();
-    expect(deps.state.state).toBe("connecting");
-  });
 
-  it("stops the keepalive once audio flows again", async () => {
-    const { deps, transport } = makeDeps();
-    const service = new PlayerService(deps);
-    await service.play();
-    const handler = wiredHandler(transport);
-    handler({ playing: true } as AudioPlaybackStatus);
-    service.setAppActive(false);
-    handler({ playing: true, isBuffering: true } as AudioPlaybackStatus);
-    transport.stopKeepalive.mockClear();
-
-    handler({ playing: true, isBuffering: false } as AudioPlaybackStatus);
+    // Paused in the background → the loop must end (a suspended app is the
+    // correct outcome of a deliberate pause).
+    await service.pause();
     expect(transport.stopKeepalive).toHaveBeenCalled();
   });
 
-  it("stops the keepalive and reconnects when the app is foregrounded mid-outage", async () => {
+  it("keeps the keepalive running through a background stall (foregrounding stops it)", async () => {
+    const { deps, transport } = makeDeps();
+    const service = new PlayerService(deps);
+    await service.play();
+    const handler = wiredHandler(transport);
+    handler({ playing: true } as AudioPlaybackStatus);
+    service.setAppActive(false);
+    transport.stopKeepalive.mockClear();
+
+    // Audio wanted, not flowing — the loop keeps rendering either way.
+    handler({ playing: true, isBuffering: true } as AudioPlaybackStatus);
+    expect(transport.stopKeepalive).not.toHaveBeenCalled();
+
+    // The user opens the app: a foregrounded app cannot be suspended.
+    service.setAppActive(true);
+    expect(transport.stopKeepalive).toHaveBeenCalled();
+  });
+
+  it("reconnects when the app is foregrounded mid-outage (state left 'connecting')", async () => {
     const { deps, transport } = makeDeps();
     const service = new PlayerService(deps);
     await service.play();
@@ -719,6 +729,35 @@ describe("PlayerService background-outage recovery", () => {
     expect(deps.state.state).toBe("connecting");
   });
 
+  it("reconnects when the app is foregrounded after an INVISIBLE suspension (state stuck 'playing')", async () => {
+    vi.useFakeTimers();
+    try {
+      const { deps, transport } = makeDeps();
+      const service = new PlayerService(deps);
+      await service.play();
+      const handler = wiredHandler(transport);
+      handler({ playing: true } as AudioPlaybackStatus);
+      service.setAppActive(false);
+      transport.play.mockClear();
+
+      // The link dies with no native frame at all (playhead frozen → the
+      // periodic observer stops): the state machine stays 'playing' through
+      // the outage and iOS suspends the app.
+      vi.advanceTimersByTime(60_000);
+
+      // The user reopens the app: 'playing' is a label from before the
+      // outage — the foreground catch-up must reconnect NOW.
+      service.setAppActive(true);
+
+      expect(transport.play).toHaveBeenCalledWith(
+        deps.streamPreferences.current.url,
+      );
+      expect(deps.state.state).toBe("connecting");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("never starts the keepalive after an explicit user pause", async () => {
     const { deps, transport } = makeDeps();
     const service = new PlayerService(deps);
@@ -728,6 +767,59 @@ describe("PlayerService background-outage recovery", () => {
 
     service.setAppActive(false);
     expect(transport.startKeepalive).not.toHaveBeenCalled();
+  });
+
+  it("reconciles a silent stall (no native frame) from the 1 Hz JS driver", async () => {
+    vi.useFakeTimers();
+    try {
+      const { deps, transport } = makeDeps();
+      const service = new PlayerService(deps);
+      await service.play();
+      const handler = wiredHandler(transport);
+      handler({ playing: true } as AudioPlaybackStatus);
+      transport.play.mockClear();
+
+      // The playhead froze: native frames stop entirely while the state
+      // machine still claims 'playing'. The heartbeat's silent-stall
+      // detector must fold the gap into the stall path.
+      vi.advanceTimersByTime(5_000);
+      service.heartbeat();
+      expect(deps.state.state).toBe("connecting");
+
+      // One-shot: further heartbeats in the same gap must not re-fire.
+      vi.advanceTimersByTime(5_000);
+      service.heartbeat();
+      expect(deps.state.state).toBe("connecting");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("re-opens at the live edge when audio recovers after a silent stall", async () => {
+    vi.useFakeTimers();
+    try {
+      const { deps, transport } = makeDeps();
+      const service = new PlayerService(deps);
+      await service.play();
+      const handler = wiredHandler(transport);
+      handler({ playing: true } as AudioPlaybackStatus);
+
+      // Silent stall detected from the JS driver…
+      vi.advanceTimersByTime(5_000);
+      service.heartbeat();
+      expect(deps.state.state).toBe("connecting");
+
+      // …then native recovers on its own — the stall outlived the live-edge
+      // threshold, so the recovery must re-open the source, not adopt it.
+      transport.play.mockClear();
+      vi.advanceTimersByTime(2_100);
+      handler({ playing: true, isBuffering: false } as AudioPlaybackStatus);
+      expect(transport.play).toHaveBeenCalledWith(
+        deps.streamPreferences.current.url,
+      );
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("escalates a stuck connecting transport from resume() to a source re-open", async () => {
