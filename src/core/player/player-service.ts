@@ -4,6 +4,7 @@ import type { Track } from "@/core/domain/track";
 import type { Stream } from "@/core/domain/stream";
 import { animuService } from "@/core/services/animu.service";
 import { userSettingsService } from "@/core/services/user-settings.service";
+import { listenStatsService } from "@/core/services/listen-stats.service";
 import { coverCacheRegistry } from "@/core/services/cover-cache-registry.service";
 import { animuApi, setServerSkewListener } from "@/api/client";
 import { CONFIG, debugLog } from "@/utils/player.config";
@@ -137,6 +138,12 @@ export interface PlayerServiceDependencies {
   artwork: ArtworkResolver;
   sync: StreamSyncEngine;
   audible: AudibleTrackResolver;
+  /**
+   * On-device listen-stats recorder (optional — test fixtures omit it).
+   * Fed the transport lifecycle and audible-track changes so listening
+   * minutes/sessions/requests accrue without any extra polling.
+   */
+  stats?: typeof listenStatsService;
 }
 
 /**
@@ -516,6 +523,8 @@ export class PlayerService {
       }),
       userSettingsService.initialize(), // pre-warm cache
       this.deps.artwork.init(), // pre-warm the local default cover
+      // Listen stats load lazily-and-once; recording waits for it.
+      this.deps.stats?.initialize(),
     ]);
     // Destroyed while bootstrapping (e.g. unmount mid-setup) — bail
     // before touching any state or store.
@@ -580,6 +589,8 @@ export class PlayerService {
     this.connectingWindows = 0;
     this.lastStatusAt = Date.now();
     this.silentStallHandled = true;
+    // Close any open stats session before teardown (pending counts flush).
+    this.deps.stats?.onPlaybackStopped();
 
     if (!this.isReady) {
       // Half-set-up or already destroyed: release whatever exists.
@@ -1033,6 +1044,15 @@ export class PlayerService {
    */
   private reconcile(next: TransportState): void {
     if (!this.deps.state.transition(next)) return;
+    // Listen stats ride the same transitions: entering `playing` anchors the
+    // audible segment; pausing/idle closes the counting session. Brief
+    // connecting/reconnecting hops do NOT split a session — the user's
+    // listening continues across a stall.
+    if (next === "playing") {
+      this.deps.stats?.onPlaybackStarted();
+    } else if (next === "paused" || next === "idle") {
+      this.deps.stats?.onPlaybackStopped();
+    }
     // Arm/disarm the "connecting" watchdog on the effective state.
     if (this.deps.state.state === "connecting") {
       if (this.connectingSince == null) this.connectingSince = Date.now();
@@ -1399,6 +1419,12 @@ export class PlayerService {
    * session so title, cover, lock screen and seek bar all move together.
    */
   private handleDisplayedTrackChange(): void {
+    // A new track reached the speaker — count it if audio is flowing (a
+    // track announced/adopted while paused was not actually heard).
+    this.deps.stats?.onTrackHeard(
+      this.deps.audible.track,
+      this.deps.state.state === "playing",
+    );
     this.emitPlayer();
     this.emitProgress();
     void this.updateMetadata();
@@ -1559,6 +1585,13 @@ export const createPlayerService = (): PlayerService => {
     ticker,
     isPlayingIntent: () => state.isPlayingIntent,
     stateLabel: () => state.state,
+    // Listen stats: every processed beat closes out one ~1s audible segment
+    // while the transport is `playing`. Native status events keep beating
+    // in the background, so backgrounded listening accrues too.
+    onBeat: () => {
+      if (state.state !== "playing") return;
+      listenStatsService.onAudibleTick(Date.now());
+    },
     debug: CONFIG.DEBUG,
   });
 
@@ -1576,6 +1609,7 @@ export const createPlayerService = (): PlayerService => {
     artwork,
     sync,
     audible,
+    stats: listenStatsService,
   });
 };
 

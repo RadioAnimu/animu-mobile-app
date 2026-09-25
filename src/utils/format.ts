@@ -33,3 +33,18 @@ export function interpolate(
     key in variables ? String(variables[key]) : match,
   );
 }
+
+/** Minutes → human listening duration: "3h 24m", "45m", "2d 5h". */
+export function formatListenDuration(minutes: number): string {
+  if (!Number.isFinite(minutes) || minutes < 1) return "0m";
+  const total = Math.round(minutes);
+  if (total < 60) return `${total}m`;
+  const hours = Math.floor(total / 60);
+  if (hours < 24) {
+    const rest = total % 60;
+    return rest > 0 ? `${hours}h ${rest}m` : `${hours}h`;
+  }
+  const days = Math.floor(hours / 24);
+  const restH = hours % 24;
+  return restH > 0 ? `${days}d ${restH}h` : `${days}d`;
+}

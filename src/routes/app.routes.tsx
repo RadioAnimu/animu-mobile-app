@@ -7,6 +7,7 @@ import { Home } from "@/screens/Home";
 import { History } from "@/screens/History";
 import { THEME } from "@/theme";
 import { Settings } from "@/screens/Settings";
+import { Stats } from "@/screens/Stats";
 import { Storage } from "@/screens/Storage";
 import { Login } from "@/screens/Login";
 import { Account } from "@/screens/Account";
@@ -20,6 +21,7 @@ interface HistoryProps {
 }
 type MakeRequestProps = undefined;
 type SettingsProps = undefined;
+type StatsProps = undefined;
 type StorageProps = undefined;
 type LoginProps = undefined;
 type AccountProps = undefined;
@@ -31,6 +33,7 @@ export type RootStackParamList = {
   LastPlayed: HistoryProps;
   MakeRequest: MakeRequestProps;
   Settings: SettingsProps;
+  Stats: StatsProps;
   Storage: StorageProps;
   Login: LoginProps;
   Account: AccountProps;
@@ -107,6 +110,15 @@ export function AppRoutes() {
         }}
         name="Settings"
         component={Settings}
+      />
+      <Screen
+        options={{
+          drawerItemStyle: {
+            display: "none",
+          },
+        }}
+        name="Stats"
+        component={Stats}
       />
       <Screen
         options={{

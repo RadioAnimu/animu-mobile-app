@@ -38,6 +38,13 @@ export interface HeartbeatSchedulerOptions {
   isPlayingIntent: () => boolean;
   /** Transport state label for the sampled debug line. */
   stateLabel?: () => string;
+  /**
+   * Processed-beat hook (after the ≤1 Hz gate) — the on-device listen-stats
+   * recorder closes out one audible segment per playing beat here. The
+   * hook sees every processed beat (playing or paused); the consumer gates
+   * on the transport state itself.
+   */
+  onBeat?: () => void;
   /** Verbose sampled diagnostics. Off by default — prod logs stay quiet. */
   debug?: boolean;
 }
@@ -92,6 +99,7 @@ export class HeartbeatScheduler {
     // even when the tick itself is a no-op.
     this.options.repository.expireStuckRefresh();
     this.options.ticker.tick();
+    this.options.onBeat?.();
 
     if (this.options.debug) {
       this.sampleCount++;

@@ -12,6 +12,7 @@ import { AboutSection } from "@/screens/Settings/sections/AboutSection";
 import { AccountSection } from "@/screens/Settings/sections/AccountSection";
 import { BehaviorSection } from "@/screens/Settings/sections/BehaviorSection";
 import { CoverDataSection } from "@/screens/Settings/sections/CoverDataSection";
+import { ListenStatsSection } from "@/screens/Settings/sections/ListenStatsSection";
 import { ResetSection } from "@/screens/Settings/sections/ResetSection";
 import { StorageSection } from "@/screens/Settings/sections/StorageSection";
 import { UpdatesSection } from "@/screens/Settings/sections/UpdatesSection";
@@ -45,6 +46,10 @@ export function Settings({ navigation }: Props) {
                 navigation.navigate("Login");
               }
             }}
+          />
+          {/* Listen stats — on-device, right after the identity card. */}
+          <ListenStatsSection
+            onPress={() => navigation.navigate("Stats")}
           />
           {/* Playback + general prefs, app updates, then the data/cache
               group together. */}
