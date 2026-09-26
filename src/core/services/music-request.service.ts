@@ -42,13 +42,19 @@ class MusicRequestService {
    */
   async submitRequest(
     submission: MusicRequestSubmission,
+    artworkUrl?: string,
   ): Promise<RequestSubmitResult> {
     const result = await this.guard.run(() =>
       animuApi.submitMusicRequest(submission),
     );
     // The single choke point for "requests sent" stats — only
-    // server-confirmed submissions count.
-    listenStatsService.onRequestSubmitted(result.success);
+    // server-confirmed submissions count (track id + artwork feed the
+    // share card's top-requests ranking).
+    listenStatsService.onRequestSubmitted(
+      result.success,
+      submission.trackId,
+      artworkUrl,
+    );
     return result;
   }
 }

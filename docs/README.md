@@ -15,7 +15,6 @@ this folder holds the detail.
 | [Store Submission](STORE_SUBMISSION.md) | Master checklist, data inventory and privacy-policy edits |
 | [App Store Review Notes](APP_STORE_REVIEW_NOTES.md) | Apple review notes, App Privacy and age rating |
 | [Play Store Review Notes](PLAY_STORE_REVIEW_NOTES.md) | Play Data safety, data deletion and content rating |
-| [Third-Party Notices](THIRD_PARTY_NOTICES.md) | Artwork, media and font attributions |
 
 ## Screenshot placeholders
 

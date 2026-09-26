@@ -59,6 +59,7 @@ export function Heatmap({
   const weeks: Cell[][] = [];
   const monthLabels: ({ index: number; label: string } | null)[] = [];
   let lastMonth = -1;
+  let lastLabelAt = -3;
   for (let w = 0; w < HEAT_WEEKS; w++) {
     const columnStart = firstMs + w * 7 * 86_400_000;
     const column: Cell[] = [];
@@ -74,11 +75,14 @@ export function Heatmap({
     }
     weeks.push(column);
     const month = new Date(columnStart).getMonth();
-    monthLabels.push(
-      month !== lastMonth
-        ? { index: w, label: dict.STATS_MONTHS[month] }
-        : null,
-    );
+    // Skip a label when the previous one is too close (consecutive weeks
+    // changing month would overlap at one column apart).
+    if (month !== lastMonth && w - lastLabelAt >= 2) {
+      monthLabels.push({ index: w, label: dict.STATS_MONTHS[month] });
+      lastLabelAt = w;
+    } else {
+      monthLabels.push(null);
+    }
     lastMonth = month;
   }
 

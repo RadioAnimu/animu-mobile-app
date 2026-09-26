@@ -101,7 +101,15 @@
       "expo-localization",
       "react-native-ota-hot-update",
       "react-native-blob-util",
-      "expo-secure-store"
+      "expo-secure-store",
+      "expo-sharing",
+      [
+        "expo-media-library",
+        {
+          "savePhotosPermission": "Allows Rádio Animu to save your listening stats card to your photo library.",
+          "isAccessMediaLocationEnabled": false
+        }
+      ]
     ],
     "extra": {
       "eas": {

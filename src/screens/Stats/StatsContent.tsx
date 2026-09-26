@@ -1,5 +1,7 @@
-import { Text, View } from "react-native";
+import { useState } from "react";
+import { Alert, Text, View } from "react-native";
 
+import { DestructiveAction } from "@/components/DestructiveAction";
 import { SectionTitle } from "@/components/SectionTitle";
 import type { ListenStatsSnapshot } from "@/core/services/listen-stats.service";
 import type { Dict } from "@/i18n";
@@ -8,6 +10,7 @@ import { Heatmap } from "@/screens/Stats/Heatmap";
 import type { ProfileBar } from "@/screens/Stats/ProfileBars";
 import { ProfileBars } from "@/screens/Stats/ProfileBars";
 import { styles } from "@/screens/Stats/styles";
+import { haptics } from "@/utils/haptics";
 import { formatListenDuration, interpolate } from "@/utils/format";
 
 /** Overview grid rows: [label, value] pairs. */
@@ -29,7 +32,8 @@ const buildHourBars = (snap: ListenStatsSnapshot): ProfileBar[] =>
   Array.from({ length: 24 }, (_, h) => ({
     id: `hour-${h}`,
     value: Object.values(snap.days).reduce((sum, d) => sum + d.hours[h], 0),
-    label: h % 3 === 0 ? `${h}` : "",
+    // Label every 6 hours — 24 labels wrap at this bar width.
+    label: h % 6 === 0 ? `${h}` : "",
   }));
 
 /** Summed per-weekday listening across all recorded days. */
@@ -56,6 +60,7 @@ interface Props {
   dict: Dict;
   selectedDay: string | null;
   onSelectDay: (day: string | null) => void;
+  onReset: () => void;
 }
 
 /** The data-backed body of the stats screen (everything but the empty state). */
@@ -64,12 +69,39 @@ export function StatsContent({
   dict,
   selectedDay,
   onSelectDay,
+  onReset,
 }: Props) {
+  const [resetting, setResetting] = useState(false);
   const selectedData = selectedDay != null ? snap.days[selectedDay] : undefined;
+
+  const confirmReset = () => {
+    Alert.alert(
+      dict.STATS_RESET_CONFIRM_TITLE,
+      dict.STATS_RESET_CONFIRM_MSG,
+      [
+        { text: dict.ACCOUNT_CANCEL, style: "cancel" },
+        {
+          text: dict.STATS_RESET_CONFIRM,
+          style: "destructive",
+          onPress: () => {
+            haptics.warning();
+            void (async () => {
+              setResetting(true);
+              try {
+                await onReset();
+              } finally {
+                setResetting(false);
+              }
+            })();
+          },
+        },
+      ],
+    );
+  };
 
   return (
     <>
-      <SectionTitle title={dict.STATS_OVERVIEW_TITLE} icon="bar-chart" first />
+      <SectionTitle title={dict.STATS_OVERVIEW_TITLE} icon="bar-chart" />
       <View style={[styles.group, styles.overview]}>
         {buildOverview(snap, dict).map(([label, value]) => (
           <View key={label} style={styles.statItem}>
@@ -131,6 +163,14 @@ export function StatsContent({
           />
         </View>
       </View>
+
+      <SectionTitle title={dict.SETTINGS_ADVANCED_TITLE} icon="settings" />
+      <DestructiveAction
+        icon="delete-sweep"
+        label={dict.STATS_RESET_ROW}
+        busy={resetting}
+        onPress={confirmReset}
+      />
 
       <Text style={styles.footnote}>{dict.STATS_ON_DEVICE}</Text>
     </>

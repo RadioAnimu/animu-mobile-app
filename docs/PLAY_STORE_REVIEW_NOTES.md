@@ -85,13 +85,11 @@ Minor: `READ_EXTERNAL_STORAGE` / `WRITE_EXTERNAL_STORAGE` leak in from
 - **Full description:** reuse the Play listing text (non-profit Brazilian otaku
   radio, anime songs / openings / endings / vocaloid / rhythm-game music, live
   DJ schedule, listener requests, Discord community).
-- **Screenshots:** use only artwork you have rights to (see residual IP item).
-
 ## Update-review checklist
 
 - [ ] Data safety corrected
 - [ ] Data deletion URL set
 - [ ] Content rating confirmed
 - [ ] `versionCode` bumped
-- [ ] Release build includes the licensed font
+- [ ] Release build includes the Proxima Nova font
 - [ ] Release notes honest (bug fixes vs features)

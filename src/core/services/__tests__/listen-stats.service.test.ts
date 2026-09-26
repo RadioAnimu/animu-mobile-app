@@ -5,6 +5,7 @@ import {
   MIN_SESSION_MS,
   dayKeyOf,
 } from "@/core/services/listen-stats.service";
+import type { Track } from "@/core/domain/track";
 
 const memory = new Map<string, string>();
 
@@ -40,15 +41,31 @@ const dayStart = (offsetDays = 0): number => {
   return now.getTime();
 };
 
+const makeTrack = (
+  id: string,
+  anime = "Attack on Titan",
+  raw = `raw-${id}`,
+): Track => ({
+  id,
+  raw,
+  title: `Title ${id}`,
+  artist: "Artist",
+  anime,
+  artworks: {},
+  artwork: "",
+  duration: 180_000,
+  isRequest: false,
+  startTime: new Date(),
+  playlistName: "",
+});
+
 const hearTrack = (
   service: ListenStatsService,
   id: string,
   isRequest = false,
 ): void => {
-  service.onTrackHeard(
-    { id, raw: `raw-${id}`, isRequest, anime: "Attack on Titan" },
-    true,
-  );
+  const track = { ...makeTrack(id), isRequest };
+  service.onTrackHeard(track, true);
 };
 
 describe("listenStatsService", () => {
@@ -143,11 +160,12 @@ describe("listenStatsService", () => {
     hearTrack(service, "a");
     hearTrack(service, "a"); // re-announcement → deduped
     hearTrack(service, "b", true); // a listener request
+    service.onTrackHeard(makeTrack("c", "passagem"), true); // filler transition
     service.onTrackHeard(
-      { id: "c", raw: "raw-c", isRequest: false, anime: "passagem" },
+      makeTrack("d", "Station idents", "Rádio Animu ident 01"),
       true,
-    ); // filler
-    service.onTrackHeard({ id: "d", raw: "raw-d", isRequest: false, anime: "x" }, false); // paused
+    ); // station ident
+    service.onTrackHeard(makeTrack("e"), false); // paused
 
     const snap = service.getSnapshot();
     expect(snap.totalTracks).toBe(2);
@@ -165,6 +183,28 @@ describe("listenStatsService", () => {
     const snap = service.getSnapshot();
     expect(snap.totalSubmitted).toBe(1);
     expect(snap.totalShouts).toBe(1);
+  });
+
+  it("ranks the top-5 most-requested tracks' artworks", async () => {
+    const service = await makeService();
+
+    // a×3, b×2, c×1, d×1 — plus 17 one-off tracks to hit the cap.
+    for (let i = 0; i < 3; i++) service.onRequestSubmitted(true, "a", "img://a");
+    for (let i = 0; i < 2; i++) service.onRequestSubmitted(true, "b", "img://b");
+    service.onRequestSubmitted(true, "c", "img://c");
+    service.onRequestSubmitted(true, "d"); // no artwork — excluded from strip
+    for (let i = 0; i < 17; i++) {
+      service.onRequestSubmitted(true, `x${i}`, `img://x${i}`);
+    }
+    // Same track re-requested with a new artwork → artwork updates, count grows.
+    service.onRequestSubmitted(true, "a", "img://a2");
+
+    const snap = service.getSnapshot();
+    expect(snap.topRequests).toEqual([
+      "img://a2", // 4 requests
+      "img://b", // 2 requests
+      "img://x0", "img://x1", "img://x2", // 1 each, insertion order
+    ]);
   });
 
   it("persists to storage and reloads in a fresh instance", async () => {

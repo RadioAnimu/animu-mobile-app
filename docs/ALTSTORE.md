@@ -49,9 +49,7 @@ https://radioanimu.github.io/animu-mobile-app/source.json
      `localizedDescription`, `downloadURL`, `size`, `minOSVersion` and the
      `assetURLs`;
    - update `source.json` / `classic.json`.
-4. Update `screenshots/*` if the UI changed (see the residual IP note in
-   [Store Submission](STORE_SUBMISSION.md#licensing--ip) — screenshots must not
-   depict artwork you don't have rights to).
+4. Update `screenshots/*` if the UI changed.
 5. Commit and push — the Pages workflow redeploys automatically.
 
 `altstore/*.ipa` is gitignored: IPAs are hosted on GitHub Releases, not committed.

@@ -244,6 +244,20 @@ const DICT = {
     "Play the radio and your listening time, sessions and songs heard will build up here. Everything is measured on this device only.",
   STATS_ON_DEVICE:
     "Measured on this device — nothing is uploaded or linked to your account.",
+  STATS_RESET_ROW: "Reset listen stats",
+  STATS_RESET_CONFIRM_TITLE: "Reset listening stats?",
+  STATS_RESET_CONFIRM_MSG:
+    "All listening recorded on this device will be deleted.",
+  STATS_RESET_CONFIRM: "Reset",
+  STATS_CARD_REQUESTS: "Top 5 requests",
+  STATS_CARD_TITLE: "Listening card",
+  STATS_CARD_SHARE: "Share",
+  STATS_CARD_DOWNLOAD: "Download",
+  STATS_CARD_SAVED: "Card saved to your photos",
+  STATS_CARD_FAILED: "Couldn't create the card",
+  STATS_CARD_LOCKED_TITLE: "Unlock your listening card",
+  STATS_CARD_LOCKED_DESC:
+    "Sign in to turn your listening into a card you can share with friends.",
   STATS_DOW: ["S", "M", "T", "W", "T", "F", "S"],
   STATS_MONTHS: [
     "Jan",

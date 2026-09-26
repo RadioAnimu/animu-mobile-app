@@ -63,7 +63,7 @@ npm run lint       # expo lint
 ```
 
 Requires Node 20+ and a device/emulator with network access to `animu.moe`. The
-licensed **Proxima Nova** fonts are not committed — see
+**Proxima Nova** fonts are not committed — see
 [Development](docs/DEVELOPMENT.md#fonts).
 
 ## Documentation
@@ -80,7 +80,6 @@ licensed **Proxima Nova** fonts are not committed — see
 | [Store Submission](docs/STORE_SUBMISSION.md) | Master checklist and data inventory |
 | [App Store Review Notes](docs/APP_STORE_REVIEW_NOTES.md) | Apple review notes + App Privacy |
 | [Play Store Review Notes](docs/PLAY_STORE_REVIEW_NOTES.md) | Play Data safety + content rating |
-| [Third-Party Notices](docs/THIRD_PARTY_NOTICES.md) | Artwork, media and font attributions |
 
 ## Roadmap
 
@@ -91,11 +90,5 @@ licensed **Proxima Nova** fonts are not committed — see
 ## License
 
 The app's source code is [MIT](LICENSE) © 2023 RadioAnimu. The MIT license
-covers the source code only — see [NOTICE](NOTICE) for the full scope.
-
-Rádio Animu is a non-profit community project. The station's original content is
-licensed [CC BY-NC-SA 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/).
-Artwork and media owned by others are **not** covered by that license — see
-[THIRD_PARTY_NOTICES.md](docs/THIRD_PARTY_NOTICES.md). The bundled Proxima Nova
-font is commercial and is not included in this repository. The `animu-api`
-submodule is a separate MIT-licensed repository.
+covers the source code only — see [NOTICE](NOTICE). The `animu-api` submodule is
+a separate MIT-licensed repository.

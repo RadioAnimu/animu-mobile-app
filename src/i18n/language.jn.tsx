@@ -247,6 +247,20 @@ const DICT: Dict = {
     "ラジオを再生すると、視聴時間・セッション・聴いた曲がここに記録されていきます。すべて端末内でのみ記録されます。",
   STATS_ON_DEVICE:
     "この端末でのみ記録 — アップロードもアカウントとの連携もされません。",
+  STATS_RESET_ROW: "統計をリセット",
+  STATS_RESET_CONFIRM_TITLE: "視聴統計をリセットしますか？",
+  STATS_RESET_CONFIRM_MSG:
+    "この端末に記録されたすべての視聴データが削除されます。",
+  STATS_RESET_CONFIRM: "リセット",
+  STATS_CARD_REQUESTS: "リクエスト TOP 5",
+  STATS_CARD_TITLE: "リスニングカード",
+  STATS_CARD_SHARE: "シェア",
+  STATS_CARD_DOWNLOAD: "保存",
+  STATS_CARD_SAVED: "カードを写真に保存しました",
+  STATS_CARD_FAILED: "カードを作成できませんでした",
+  STATS_CARD_LOCKED_TITLE: "リスニングカードを解放",
+  STATS_CARD_LOCKED_DESC:
+    "ログインすると視聴データをシェアできるカードが作られます。",
   STATS_DOW: ["日", "月", "火", "水", "木", "金", "土"],
   STATS_MONTHS: [
     "1月",

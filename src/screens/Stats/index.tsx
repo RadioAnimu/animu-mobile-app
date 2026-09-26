@@ -10,20 +10,24 @@ import {
   listenStatsService,
   type ListenStatsSnapshot,
 } from "@/core/services/listen-stats.service";
+import { useAuth } from "@/contexts/auth/AuthProvider";
 import { useDict } from "@/hooks/useDict";
 import { RootStackParamList } from "@/routes/app.routes";
+import { ShareCardSection } from "@/screens/Stats/ShareCardSection";
 import { StatsContent } from "@/screens/Stats/StatsContent";
 import { styles } from "@/screens/Stats/styles";
 
 type Props = DrawerScreenProps<RootStackParamList, "Stats">;
 
 /**
- * On-device listening stats: overview, six-month heatmap with day
- * drill-down, streaks and an hour/weekday listening profile. Everything
- * shown is measured locally — nothing leaves the phone.
+ * On-device listening stats: the shareable listening card, overview,
+ * six-month heatmap with day drill-down, streaks and an hour/weekday
+ * listening profile. Everything shown is measured locally — nothing
+ * leaves the phone.
  */
 export function Stats({ navigation }: Props) {
   const dict = useDict();
+  const { user, profile, imageVersion } = useAuth();
   const [snap, setSnap] = useState<ListenStatsSnapshot | null>(null);
   const [selectedDay, setSelectedDay] = useState<string | null>(null);
 
@@ -46,6 +50,12 @@ export function Stats({ navigation }: Props) {
   const hasData =
     (snap?.totalMs ?? 0) > 0 || (snap?.totalSubmitted ?? 0) > 0;
 
+  const handleReset = useCallback(async () => {
+    await listenStatsService.reset();
+    setSnap(listenStatsService.getSnapshot());
+    setSelectedDay(null);
+  }, []);
+
   return (
     <Background>
       <SafeAreaView
@@ -57,15 +67,25 @@ export function Stats({ navigation }: Props) {
           onBack={() => navigation.goBack()}
         />
         <ScrollView contentContainerStyle={styles.content}>
+          {/* The shareable card is always the hero — even with no stats yet
+              (signed-out users get the unlock prompt instead). */}
+          <ShareCardSection
+            user={user}
+            profile={profile}
+            imageVersion={imageVersion}
+            snap={snap ?? listenStatsService.getSnapshot()}
+            onSignIn={() => navigation.navigate("Login")}
+          />
           {hasData && snap ? (
             <StatsContent
               snap={snap}
               dict={dict}
               selectedDay={selectedDay}
               onSelectDay={setSelectedDay}
+              onReset={handleReset}
             />
           ) : (
-            <View style={[styles.group, styles.emptyCard]}>
+            <View style={[styles.group, styles.emptyCard, styles.afterCardGap]}>
               <Text style={styles.emptyTitle}>{dict.STATS_EMPTY_TITLE}</Text>
               <Text style={styles.emptyText}>{dict.STATS_EMPTY}</Text>
             </View>

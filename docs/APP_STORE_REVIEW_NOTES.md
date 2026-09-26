@@ -95,9 +95,3 @@ email sign-in codes, satisfying the equivalent-login requirement.
 - No "Coming soon"/"Soon" text ships; the Android-only visualizer row is omitted
   on iOS and unavailable providers are hidden.
 - The iOS assistant hint shows only the Siri phrase (no "Ok Google").
-
-## Intellectual property — residual (5.2.1 / 2.3.9)
-
-See the residual IP item in
-[`STORE_SUBMISSION.md`](STORE_SUBMISSION.md#licensing--ip). Store screenshots
-must not depict artwork you don't have rights to.

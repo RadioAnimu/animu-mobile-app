@@ -247,6 +247,20 @@ const DICT: Dict = {
     "Toque no play e seu tempo de escuta, sessões e músicas ouvidas vão se acumular aqui. Tudo é medido apenas neste aparelho.",
   STATS_ON_DEVICE:
     "Medido neste aparelho — nada é enviado ou vinculado à sua conta.",
+  STATS_RESET_ROW: "Apagar estatísticas",
+  STATS_RESET_CONFIRM_TITLE: "Apagar estatísticas de escuta?",
+  STATS_RESET_CONFIRM_MSG:
+    "Todo o histórico de escuta gravado neste aparelho será apagado.",
+  STATS_RESET_CONFIRM: "Apagar",
+  STATS_CARD_REQUESTS: "Top 5 pedidas",
+  STATS_CARD_TITLE: "Cartão de escuta",
+  STATS_CARD_SHARE: "Compartilhar",
+  STATS_CARD_DOWNLOAD: "Baixar",
+  STATS_CARD_SAVED: "Cartão salvo nas suas fotos",
+  STATS_CARD_FAILED: "Não foi possível criar o cartão",
+  STATS_CARD_LOCKED_TITLE: "Desbloqueie seu cartão de escuta",
+  STATS_CARD_LOCKED_DESC:
+    "Entre na sua conta para transformar sua escuta em um cartão para compartilhar com os amigos.",
   STATS_DOW: ["D", "S", "T", "Q", "Q", "S", "S"],
   STATS_MONTHS: [
     "Jan",

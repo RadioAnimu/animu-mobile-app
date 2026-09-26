@@ -249,6 +249,20 @@ const DICT: Dict = {
     "Dale play a la radio y tu tiempo de escucha, sesiones y canciones escuchadas se acumularán aquí. Todo se mide solo en este dispositivo.",
   STATS_ON_DEVICE:
     "Medido en este dispositivo — nada se sube ni se vincula a tu cuenta.",
+  STATS_RESET_ROW: "Restablecer estadísticas",
+  STATS_RESET_CONFIRM_TITLE: "¿Restablecer estadísticas de escucha?",
+  STATS_RESET_CONFIRM_MSG:
+    "Se borrará todo el historial de escucha grabado en este dispositivo.",
+  STATS_RESET_CONFIRM: "Restablecer",
+  STATS_CARD_REQUESTS: "Top 5 solicitadas",
+  STATS_CARD_TITLE: "Tarjeta de escucha",
+  STATS_CARD_SHARE: "Compartir",
+  STATS_CARD_DOWNLOAD: "Descargar",
+  STATS_CARD_SAVED: "Tarjeta guardada en tus fotos",
+  STATS_CARD_FAILED: "No se pudo crear la tarjeta",
+  STATS_CARD_LOCKED_TITLE: "Desbloquea tu tarjeta de escucha",
+  STATS_CARD_LOCKED_DESC:
+    "Inicia sesión para convertir tu escucha en una tarjeta para compartir con tus amigos.",
   STATS_DOW: ["D", "L", "M", "M", "J", "V", "S"],
   STATS_MONTHS: [
     "Ene",

@@ -1,26 +1,18 @@
 # Fonts
 
-The `.ttf` files in this folder are **not committed** to this repository.
+The `.ttf` files in this folder are **not committed** to this repository; they
+are listed in the root `.gitignore`.
 
-The app uses **Proxima Nova** by Mark Simonson Studio. It is a commercial
-typeface: the files are Copyright (c) Mark Simonson, 2005, all rights reserved,
-and the font license does **not** permit redistribution in a public repository
-(including embedding the files in an open-source project). Committing them here
-would violate that license, so they are listed in the root `.gitignore`.
+The app uses **Proxima Nova** for all text.
 
 ## Local development
 
-1. Purchase an **App license** for Proxima Nova at
-   <https://www.marksimonson.com/fonts/view/proxima-nova> (priced per app title;
-   one license covers both iOS and Android).
-2. Export/install the **TrueType (`.ttf`)** or **OpenType (`.otf`)** styles
-   `Regular` and `Bold`.
-3. Place them here as:
+Place the `Regular` and `Bold` styles here as:
 
-   ```
-   src/assets/fonts/proximanova-reg.ttf
-   src/assets/fonts/proximanova-bold.ttf
-   ```
+```
+src/assets/fonts/proximanova-reg.ttf
+src/assets/fonts/proximanova-bold.ttf
+```
 
 `app.json` (the `expo-font` config plugin) and `scripts/generate-splash.mjs`
 expect exactly these two paths.

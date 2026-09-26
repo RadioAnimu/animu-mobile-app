@@ -1,5 +1,5 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { isFillerTransition } from "@/core/domain/track";
+import { isRealTrack, type Track } from "@/core/domain/track";
 
 // ─── Data model ───
 //
@@ -56,10 +56,23 @@ const EMPTY_DAY = (): ListenDay => ({
   hours: Array<number>(HOUR_SLOTS).fill(0),
 });
 
+/** Track entries kept for the share-card "top requests" ranking. */
+const MAX_TRACKED_REQUESTS = 20;
+/** How many top artworks the share card shows. */
+export const TOP_REQUESTS_SHOWN = 5;
+
+/** A track's request count + latest artwork (for the share card ranking). */
+interface TrackedRequest {
+  n: number;
+  art: string;
+}
+
 interface ListenStatsBlob {
   version: number;
   /** Day key ("YYYY-MM-DD") → that day's data, oldest first. */
   days: Record<string, ListenDay>;
+  /** Most-requested tracks, keyed by track id (share card "Top 5"). */
+  topRequests?: Record<string, TrackedRequest>;
 }
 
 // ─── Day-key helpers (local calendar) ───
@@ -127,6 +140,8 @@ export interface ListenStatsSnapshot {
   activeDays: number;
   /** Epoch ms of the first stored day (0 when empty). */
   firstDayAt: number;
+  /** Artwork URLs of the most-requested tracks, most-requested first. */
+  topRequests: string[];
 }
 
 const parseDayKey = (key: string): number => {
@@ -228,7 +243,7 @@ export class ListenStatsService {
     if (typeof value !== "object" || value === null) {
       return { version: SCHEMA_VERSION, days: {} };
     }
-    const raw = value as { days?: unknown };
+    const raw = value as { days?: unknown; topRequests?: unknown };
     const days: Record<string, ListenDay> = {};
     if (typeof raw.days === "object" && raw.days !== null) {
       for (const [key, val] of Object.entries(raw.days as Record<string, unknown>)) {
@@ -238,7 +253,21 @@ export class ListenStatsService {
         if (day) days[key] = day;
       }
     }
-    return { version: SCHEMA_VERSION, days };
+    const topRequests: Record<string, TrackedRequest> = {};
+    if (typeof raw.topRequests === "object" && raw.topRequests !== null) {
+      for (const [id, val] of Object.entries(
+        raw.topRequests as Record<string, unknown>,
+      )) {
+        if (typeof val !== "object" || val === null) continue;
+        const { n, art } = val as { n?: unknown; art?: unknown };
+        if (typeof n !== "number" || !Number.isFinite(n) || n <= 0) continue;
+        topRequests[id] = {
+          n: Math.floor(n),
+          art: typeof art === "string" ? art : "",
+        };
+      }
+    }
+    return { version: SCHEMA_VERSION, days, topRequests };
   }
 
   private ensureDay(day: string): ListenDay {
@@ -330,13 +359,11 @@ export class ListenStatsService {
   }
 
   /** A track reached the speaker while audio was playing. */
-  onTrackHeard(
-    track: { id: string; raw: string; isRequest: boolean; anime?: string } | null,
-    isPlaying: boolean,
-  ): void {
+  onTrackHeard(track: Track | null, isPlaying: boolean): void {
     if (!this.loaded || !isPlaying || !track) return;
-    // "Passagem" beat transitions between tracks are filler, not music.
-    if (isFillerTransition(track)) return;
+    // Station rule for real programming (jingles / idents / filler
+    // transitions are not music — see the package's `isRealTrack`).
+    if (!isRealTrack(track)) return;
     // De-dupe: the same track can be re-announced (poll + SSE race).
     const key = `${track.id}|${track.raw}`;
     const now = Date.now();
@@ -352,10 +379,35 @@ export class ListenStatsService {
     this.scheduleFlush();
   }
 
-  /** A music request the user submitted was accepted by the server. */
-  onRequestSubmitted(success: boolean): void {
+  /**
+   * A music request the user submitted was accepted by the server. Tracks
+   * accrue per id (count + latest artwork) so the share card can rank the
+   * listener's actual most-requested songs.
+   */
+  onRequestSubmitted(
+    success: boolean,
+    trackId?: string,
+    artworkUrl?: string,
+  ): void {
     if (!this.loaded || !success) return;
     this.ensureDay(dayKeyOf(Date.now())).submitted += 1;
+    if (trackId) {
+      const top = this.blob.topRequests ?? {};
+      const entry = top[trackId] ?? { n: 0, art: "" };
+      entry.n += 1;
+      if (artworkUrl) entry.art = artworkUrl;
+      top[trackId] = entry;
+      // Bound the map: drop the least-requested track past the cap.
+      const ids = Object.keys(top);
+      if (ids.length > MAX_TRACKED_REQUESTS) {
+        let weakest = ids[0];
+        for (const id of ids) {
+          if (top[id].n < top[weakest].n) weakest = id;
+        }
+        delete top[weakest];
+      }
+      this.blob.topRequests = top;
+    }
     this.scheduleFlush();
   }
 
@@ -396,6 +448,12 @@ export class ListenStatsService {
       if (firstDayAt === 0 || at < firstDayAt) firstDayAt = at;
     }
     const { currentStreak, maxStreak } = this.streaks(keys);
+    // Share-card ranking: most-requested tracks' artworks, best first.
+    const topRequests = Object.entries(this.blob.topRequests ?? {})
+      .filter(([, entry]) => entry.art)
+      .sort((a, b) => b[1].n - a[1].n)
+      .slice(0, TOP_REQUESTS_SHOWN)
+      .map(([, entry]) => entry.art);
     return {
       days: this.blob.days,
       totalMs,
@@ -409,6 +467,7 @@ export class ListenStatsService {
       bestDayMs,
       activeDays: keys.filter((k) => this.blob.days[k].ms > 0).length,
       firstDayAt,
+      topRequests,
     };
   }
 
@@ -477,7 +536,7 @@ export class ListenStatsService {
 
   /** Clears all stats (destructive — used by a future reset action). */
   async reset(): Promise<void> {
-    this.blob = { version: SCHEMA_VERSION, days: {} };
+    this.blob = { version: SCHEMA_VERSION, days: {}, topRequests: {} };
     this.segmentStart = null;
     this.currentSessionMs = 0;
     this.inSession = false;

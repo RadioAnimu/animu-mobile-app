@@ -326,7 +326,10 @@ export function MakeRequest() {
         sessionId: user.sessionToken,
       };
 
-      const result = await musicRequestService.submitRequest(submission);
+      const result = await musicRequestService.submitRequest(
+        submission,
+        selectedTrack.artwork,
+      );
 
       if (!result.success) {
         return {

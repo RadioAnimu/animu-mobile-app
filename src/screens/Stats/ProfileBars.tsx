@@ -43,7 +43,7 @@ export function ProfileBars({
       </View>
       <View style={styles.barsLabels}>
         {bars.map((bar) => (
-          <Text key={bar.id} style={styles.barLabel}>
+          <Text key={bar.id} numberOfLines={1} style={styles.barLabel}>
             {bar.label}
           </Text>
         ))}

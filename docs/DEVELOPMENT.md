@@ -10,8 +10,8 @@ project-specific gotchas.
 - **Android Studio** / **Xcode** toolchains for native builds.
 - A device or emulator. The app targets a live station backend, so most features
   require network access to `animu.moe`.
-- The licensed **Proxima Nova** font files — they are commercial and are **not**
-  committed to this repository. See [Fonts](#fonts).
+- The **Proxima Nova** font files — they are **not** committed to this
+  repository. See [Fonts](#fonts).
 
 ## Clone & install
 
@@ -51,7 +51,7 @@ npm run ios        # build & run on iOS
 | `npm test` | Vitest (player core, services, domain, hooks, plugins) |
 | `npm run lint` | `expo lint` (flat ESLint config) |
 | `npm run build:api` | Build the `animu-api` submodule |
-| `npm run fonts` | Fetch the licensed fonts (`scripts/fetch-fonts.mjs`) |
+| `npm run fonts` | Fetch the Proxima Nova fonts (`scripts/fetch-fonts.mjs`) |
 | `npm run splash` | Regenerate splash assets |
 | `npm run ota:ios` / `ota:android` | Export Hermes bytecode bundles locally |
 | `npm run doctor` | React Doctor health scan |
@@ -83,13 +83,10 @@ keeps using relative requires.
 
 ## Fonts
 
-The app uses **Proxima Nova** by Mark Simonson Studio. It is a commercial
-typeface and its license does **not** permit redistribution in a public
-repository, so the files are gitignored.
+The app uses **Proxima Nova**. The files are gitignored (not committed to this
+repository), so add them locally or supply them at build time.
 
-1. Purchase an **App license** at
-   <https://www.marksimonson.com/fonts/view/proxima-nova>.
-2. Place `Regular` and `Bold` here:
+1. Place `Regular` and `Bold` here:
 
    ```
    src/assets/fonts/proximanova-reg.ttf

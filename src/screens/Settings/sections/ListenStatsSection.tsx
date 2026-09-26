@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { useCallback, useState } from "react";
+import { useFocusEffect } from "@react-navigation/native";
 import { View } from "react-native";
 
 import { SectionTitle } from "@/components/SectionTitle";
@@ -14,26 +15,32 @@ interface Props {
 
 /**
  * Listen stats entry point — a ValueRow whose trailing value is the
- * all-time listening total, opened right after the Account card.
+ * all-time listening total, opened right after the Account card. The value
+ * re-reads on every focus, so a listening session that ended since the last
+ * visit is reflected without an app restart (drawer screens stay mounted).
  */
 export function ListenStatsSection({ onPress }: Props) {
   const dict = useDict();
-  const [totalLabel, setTotalLabel] = useState<string | null>(null);
+  const [totalLabel, setTotalLabel] = useState<string>("—");
 
-  useEffect(() => {
-    let alive = true;
-    listenStatsService
-      .initialize()
-      .then(() => {
-        if (!alive) return;
-        const { totalMs } = listenStatsService.getSnapshot();
-        setTotalLabel(totalMs > 0 ? formatListenDuration(totalMs / 60_000) : "—");
-      })
-      .catch(() => {});
-    return () => {
-      alive = false;
-    };
-  }, []);
+  useFocusEffect(
+    useCallback(() => {
+      let alive = true;
+      listenStatsService
+        .initialize()
+        .then(() => {
+          if (!alive) return;
+          const { totalMs } = listenStatsService.getSnapshot();
+          setTotalLabel(
+            totalMs > 0 ? formatListenDuration(totalMs / 60_000) : "—",
+          );
+        })
+        .catch(() => {});
+      return () => {
+        alive = false;
+      };
+    }, []),
+  );
 
   return (
     <>
@@ -42,7 +49,7 @@ export function ListenStatsSection({ onPress }: Props) {
         <ValueRow
           label={dict.STATS_SETTINGS_ROW}
           icon="insights"
-          value={totalLabel ?? "—"}
+          value={totalLabel}
           onPress={onPress}
         />
       </View>

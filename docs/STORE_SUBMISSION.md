@@ -6,8 +6,7 @@ Master checklist and shared facts for releasing the Animu mobile app on the
 - Apple → [`APP_STORE_REVIEW_NOTES.md`](APP_STORE_REVIEW_NOTES.md)
 - Google Play → [`PLAY_STORE_REVIEW_NOTES.md`](PLAY_STORE_REVIEW_NOTES.md)
 
-Shared licensing/attribution docs: [`LICENSE`](../LICENSE), [`NOTICE`](../NOTICE),
-[`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md).
+Shared docs: [`LICENSE`](../LICENSE), [`NOTICE`](../NOTICE).
 
 ---
 
@@ -59,25 +58,12 @@ The policy at <https://www.animu.com.br/privacypolicy> must match the inventory:
 - **Deletion:** mention the in-app **Account → Delete account** path in addition
   to the web request form.
 
-## Licensing / IP
-
-- App **source code**: MIT (`LICENSE`). Station **content**: CC BY-NC-SA 4.0.
-- Third-party artwork and the commercial Proxima Nova font are documented in
-  `THIRD_PARTY_NOTICES.md`; the font is not shipped in the repo.
-- **Residual IP item:** the binary bundles a commercial anime cover
-  (`src/assets/covers/sample-cover-*.jpg`) and a third-party anime collage
-  background (`src/assets/make_request_harukinha_*.webp`), and the AltStore
-  screenshots embed copyrighted anime covers. Replace with the station's own art
-  or document permission before submitting (both stores reject unlicensed
-  third-party content).
-
 ## Pre-submission checklist
 
 ### Shared
 - [ ] Privacy policy updated per the edits above
-- [ ] Store screenshots use only artwork you have rights to
 - [ ] `npm run lint` + `npx tsc --noEmit` + `npm test` green
-- [ ] iOS/Android builds include the licensed Proxima Nova font
+- [ ] iOS/Android builds include the Proxima Nova font
       (`../src/assets/fonts/README.md`; EAS secret or local files)
 
 ### Apple
