@@ -9,7 +9,6 @@ import { UserSettingsProvider } from "@/contexts/user/UserSettingsProvider";
 import { AlertProvider } from "@/contexts/alert/AlertProvider";
 import { AuthProvider } from "@/contexts/auth/AuthProvider";
 import { PortalProvider } from "@/contexts/Portal";
-import { OtaProvider } from "@/contexts/ota/OtaProvider";
 import { MyStatusBar } from "@/components/MyStatusBar";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
@@ -25,11 +24,9 @@ export default function App() {
                 <AlertProvider>
                   <PlayerProvider>
                     <AuthProvider>
-                      <OtaProvider>
-                        <AppStateGate>
-                          <Routes />
-                        </AppStateGate>
-                      </OtaProvider>
+                      <AppStateGate>
+                        <Routes />
+                      </AppStateGate>
                     </AuthProvider>
                   </PlayerProvider>
                 </AlertProvider>

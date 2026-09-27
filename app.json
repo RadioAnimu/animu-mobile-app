@@ -73,8 +73,7 @@
             "targetSdkVersion": 36,
             "buildToolsVersion": "36.0.0",
             "enableMinifyInReleaseBuilds": true,
-            "enableShrinkResourcesInReleaseBuilds": true,
-            "extraProguardRules": "# OTA hot-update module (react-native-ota-hot-update). It has no\n# consumer ProGuard rules and its TurboModule is resolved by name at\n# runtime, so R8 full mode must not strip or rename it.\n-keep class com.otahotupdate.** { *; }\n-keep class com.jakewharton.processphoenix.** { *; }\n# react-native-blob-util: TurboModule resolved by name from JS.\n-keep class com.ReactNativeBlobUtil.** { *; }\n"
+            "enableShrinkResourcesInReleaseBuilds": true
           }
         }
       ],
@@ -103,8 +102,6 @@
       "./plugins/withIOSAppIntents",
       "./plugins/withAndroidAppActions",
       "expo-localization",
-      "react-native-ota-hot-update",
-      "react-native-blob-util",
       "expo-secure-store",
       "expo-sharing",
       [

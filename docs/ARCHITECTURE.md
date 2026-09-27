@@ -101,13 +101,12 @@ src/
 ├── api/                  # App-level URLs + the shared animu-api client (expo/fetch)
 ├── assets/               # Localized artwork, fonts and icons
 ├── components/           # Reusable UI (player, sheets, drawer, dialogs, avatar…)
-├── constants/            # Auth/OAuth provider metadata, OTA feed, default settings
+├── constants/            # Auth/OAuth provider metadata, default settings
 ├── contexts/             # Player, Auth, UserSettings, Alert, Portal providers
 ├── core/
 │   ├── assistant/        # Deep-link handler for Siri / Google Assistant
 │   ├── auth/             # AuthFacade + ports (API, OAuth, session store)
 │   ├── domain/           # Thin re-exports of animu-api entities + helpers
-│   ├── ota/              # Over-the-air bundle service (runtime-version guard)
 │   ├── player/           # Playback engine (transport, repository, orchestrator…)
 │   └── services/         # API facade, requests, background tasks, settings
 ├── hooks/                # Shared hooks (dict, retry, clipboard, request flows)
@@ -226,7 +225,6 @@ keeps using relative requires.
 | Storage | `expo-secure-store` (session token) · `@react-native-async-storage/async-storage` (settings + profile projection) |
 | Realtime | `animu-api` SSE stream (`animu.live`) with HTTP polling fallback |
 | Networking | `expo/fetch` + `AbortController` · `@react-native-community/netinfo` (connectivity) |
-| Updates | `react-native-ota-hot-update` + `react-native-blob-util` (OTA bundle download) |
 | API client | `animu-api` submodule (valibot-validated DTOs) |
 | Background | JS task runner gated by app visibility + native playback-status heartbeat (no OS background-task module) |
 | i18n | Custom dictionary-based localization (PT/EN/ES/JP) |

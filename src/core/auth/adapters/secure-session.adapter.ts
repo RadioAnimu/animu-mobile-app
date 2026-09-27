@@ -51,9 +51,9 @@ function parseBlob(raw: string | null): StoredSession | null {
  * single-blob layout so the app still works.
  *
  * The native module is resolved lazily (first use, not import): it evaluates
- * its native constants eagerly, so a bundle a binary does not support — e.g.
- * an OTA applied to the wrong runtime — must degrade to plain storage instead
- * of throwing at import and crashing every launch.
+ * its native constants eagerly, so running on a binary that does not support
+ * the module must degrade to plain storage instead of throwing at import and
+ * crashing every launch.
  */
 export class SecureSessionStore implements SessionStorePort {
   /** `undefined` = not resolved yet; `null` = native module unavailable. */

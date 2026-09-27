@@ -74,7 +74,7 @@ Requires Node 20+ and a device/emulator with network access to `animu.moe`. The
 | [Features](docs/FEATURES.md) | Every capability, screen by screen |
 | [Architecture](docs/ARCHITECTURE.md) | Layers, player core, stores, key decisions |
 | [Development](docs/DEVELOPMENT.md) | Setup, scripts, tests, aliases, patches, fonts |
-| [Build & Release](docs/BUILD_AND_RELEASE.md) | EAS profiles, versioning, OTA, voice assistants |
+| [Build & Release](docs/BUILD_AND_RELEASE.md) | EAS profiles, versioning, voice assistants |
 | [API Surface](docs/API_SURFACE.md) | Station endpoints and the `animu-api` submodule |
 | [AltStore](docs/ALTSTORE.md) | Self-hosted iOS distribution |
 | [Store Submission](docs/STORE_SUBMISSION.md) | Master checklist and data inventory |

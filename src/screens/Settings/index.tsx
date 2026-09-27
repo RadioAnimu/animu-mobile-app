@@ -14,7 +14,6 @@ import { CoverDataSection } from "@/screens/Settings/sections/CoverDataSection";
 import { ListenStatsSection } from "@/screens/Settings/sections/ListenStatsSection";
 import { ResetSection } from "@/screens/Settings/sections/ResetSection";
 import { StorageSection } from "@/screens/Settings/sections/StorageSection";
-import { UpdatesSection } from "@/screens/Settings/sections/UpdatesSection";
 
 type Props = DrawerScreenProps<RootStackParamList, "Settings">;
 
@@ -48,10 +47,8 @@ export function Settings({ navigation }: Props) {
           <ListenStatsSection
             onPress={() => navigation.navigate("Stats")}
           />
-          {/* Playback + general prefs, app updates, then the data/cache
-              group together. */}
+          {/* Playback + general prefs, then the data/cache group together. */}
           <BehaviorSection />
-          <UpdatesSection />
           <CoverDataSection />
           <StorageSection
             onOpenStorage={() => navigation.navigate("Storage")}

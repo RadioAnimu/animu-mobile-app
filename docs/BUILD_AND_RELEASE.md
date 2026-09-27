@@ -14,8 +14,7 @@ platform build numbers:
 | `expo.android.versionCode` | `app.json` | `14` |
 
 `eas.json` sets `appVersionSource: "local"` and `autoIncrement: false`, so
-**bump these by hand** before a store build. The OTA runtime version is derived
-as `<version>+<buildNumber|versionCode>`.
+**bump these by hand** before a store build.
 
 ## EAS Build
 
@@ -41,41 +40,6 @@ The font files are gitignored, so EAS builds supply them through the
 `eas-build-pre-install` hook — set `PROXIMA_NOVA_FONTS_URL` or
 `PROXIMA_NOVA_FONTS_DIR` as an EAS secret/environment variable. See
 [Development → Fonts](DEVELOPMENT.md#fonts).
-
-## Over-the-air updates
-
-JS/TS/asset-only changes ship without a store review through
-[`react-native-ota-hot-update`](https://github.com/vantuan88291/react-native-ota-hot-update).
-`.github/workflows/ota.yml` exports Hermes bytecode bundles for both platforms
-and overwrites the rolling `ota` GitHub Release (`main.jsbundle.zip`,
-`index.android.bundle.zip`, `update.json`).
-
-- The app polls `releases/download/ota/update.json`
-  (`src/constants/ota.ts`) and applies a downloaded bundle on the next cold
-  start. Background checks auto-download on **Wi-Fi only**; a manual check from
-  Settings downloads on any connection.
-- Publish with **Actions → Publish OTA bundle → Run workflow** (or push an
-  `ota-v*` tag).
-- The manifest carries the native runtime version (`<version>+<build>`); a
-  bundle is ignored on a binary with a different runtime, so **native changes
-  always require a new store build**.
-- The native side keeps the last `OTA_MAX_BUNDLE_VERSIONS` (3) bundles for
-  rollback; a crash in a freshly applied bundle automatically falls back to the
-  previous one.
-- `AppDelegate.swift` / `MainApplication.kt` load the staged bundle at startup
-  via the library's Expo config plugin.
-
-### Store policy for OTA
-
-> **App Store (2.5.2 / 3.3.2) & Play:** over-the-air bundles must be limited to
-> **bug fixes, security fixes and performance work**. Never ship new features,
-> new screens, or remote feature flags that change the app's primary purpose via
-> OTA — Apple treats that as downloading code that changes app functionality and
-> will reject the app. Anything that adds or alters features ships through a
-> normal store build.
-
-Keep the runtime-version guard in `src/core/ota/ota.service.ts` and keep the
-release notes honest.
 
 ## Voice assistants
 

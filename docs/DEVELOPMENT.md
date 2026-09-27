@@ -53,7 +53,6 @@ npm run ios        # build & run on iOS
 | `npm run build:api` | Build the `animu-api` submodule |
 | `npm run fonts` | Fetch the Proxima Nova fonts (`scripts/fetch-fonts.mjs`) |
 | `npm run splash` | Regenerate splash assets |
-| `npm run ota:ios` / `ota:android` | Export Hermes bytecode bundles locally |
 | `npm run doctor` | React Doctor health scan |
 | `npm run install:apk` | Uninstall + install the newest local `.apk` on a connected device |
 
@@ -113,8 +112,6 @@ Native patches live in `patches/` and are applied automatically by
   races a `file://` URI under scoped storage).
 - **`expo-audio`** — permission-free Android PCM sampling for the visualizer
   (see [Architecture](ARCHITECTURE.md#key-engineering-decisions)).
-- **`react-native-ota-hot-update`** — adds the missing iOS
-  `PrivacyInfo.xcprivacy` privacy manifest.
 
 If you change a patch, regenerate it with `npx patch-package <package>` and
 verify a clean `npm install` still applies it.

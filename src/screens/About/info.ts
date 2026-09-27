@@ -2,11 +2,6 @@ import { useEffect, useState } from "react";
 import { Platform } from "react-native";
 import * as Application from "expo-application";
 
-import {
-  getCurrentOtaVersion,
-  isOtaSupported,
-} from "@/core/ota";
-
 /** Which channel this install came from, best-effort per platform. */
 export type ReleaseChannel =
   | "app-store"
@@ -23,9 +18,6 @@ export interface AppInfo {
   appVersion: string | null;
   /** Native build number / version code. */
   buildVersion: string | null;
-  /** Current OTA bundle number; `0` means the embedded bundle is running. */
-  otaVersion: number | null;
-  otaSupported: boolean;
   release: ReleaseChannel;
   applicationId: string | null;
 }
@@ -67,24 +59,14 @@ async function resolveRelease(): Promise<ReleaseChannel> {
 }
 
 /**
- * Installed-app facts for the About screen: native version/build, OTA bundle
- * number, runtime and distribution channel. Everything is read once on mount.
+ * Installed-app facts for the About screen: native version/build and
+ * distribution channel. Everything is read once on mount.
  */
 export function useAppInfo(): AppInfo {
-  const otaSupported = isOtaSupported();
-  const [otaVersion, setOtaVersion] = useState<number | null>(null);
   const [release, setRelease] = useState<ReleaseChannel>("unknown");
 
   useEffect(() => {
     let cancelled = false;
-
-    if (otaSupported) {
-      void getCurrentOtaVersion()
-        .then((version) => {
-          if (!cancelled) setOtaVersion(version);
-        })
-        .catch((error) => console.warn("[About] OTA version failed:", error));
-    }
 
     void resolveRelease().then((channel) => {
       if (!cancelled) setRelease(channel);
@@ -93,13 +75,11 @@ export function useAppInfo(): AppInfo {
     return () => {
       cancelled = true;
     };
-  }, [otaSupported]);
+  }, []);
 
   return {
     appVersion: Application.nativeApplicationVersion,
     buildVersion: Application.nativeBuildVersion,
-    otaVersion,
-    otaSupported,
     release,
     applicationId: Application.applicationId,
   };

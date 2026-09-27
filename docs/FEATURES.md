@@ -105,11 +105,11 @@ with a per-screen cover-art toggle.
 ## Preferences & localisation
 
 Per-view cover-art quality (`off` / `low` / `medium` / `high`), history/search
-cover toggles, language selection and an OTA-update section — all persisted
+cover toggles and language selection — all persisted
 locally. UI and artwork are localised in **Portuguese, English, Spanish and
 Japanese**.
 
-![Settings](SCREENSHOT: Settings screen showing the section list — Account, Behavior, Updates, Cover data, Storage, Links, Legal, Reset and About)
+![Settings](SCREENSHOT: Settings screen showing the section list — Account, Behavior, Cover data, Storage, Links, Legal, Reset and About)
 
 ![Storage](SCREENSHOT: Storage screen with the cover-cache partitions, sizes and the per-partition clear actions)
 

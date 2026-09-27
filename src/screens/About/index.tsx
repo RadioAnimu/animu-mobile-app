@@ -17,11 +17,10 @@ import { Logo } from "@/components/Logo";
 import { ScreenHeader } from "@/components/ScreenHeader";
 import { SectionTitle } from "@/components/SectionTitle";
 import { SocialIcon, type SocialBrand } from "@/components/SocialIcon";
-import { useOtaUpdate } from "@/hooks/useOtaUpdate";
 import { useDict } from "@/hooks/useDict";
 import { RootStackParamList } from "@/routes/app.routes";
 import { haptics } from "@/utils/haptics";
-import { Divider, InfoRow, LinkRow, ValueRow } from "@/screens/Settings/rows";
+import { Divider, InfoRow, LinkRow } from "@/screens/Settings/rows";
 import { THEME } from "@/theme";
 import { layoutEase } from "@/utils/layout-animation";
 import { scale } from "@/theme/responsive";
@@ -166,7 +165,6 @@ function DonorDisclosure({ label, intro }: { label: string; intro: string }) {
 export function About({ navigation }: Props) {
   const dict = useDict();
   const info = useAppInfo();
-  const { value: otaStatusValue, check } = useOtaUpdate();
 
   const releaseLabel: string = {
     "app-store": dict.ABOUT_RELEASE_APP_STORE,
@@ -179,16 +177,9 @@ export function About({ navigation }: Props) {
     unknown: dict.ABOUT_RELEASE_UNKNOWN,
   }[info.release];
 
-  const otaVersionLabel =
-    info.otaVersion == null
-      ? dict.ABOUT_OTA_LOADING
-      : info.otaVersion === 0
-        ? dict.ABOUT_OTA_BUILTIN
-        : String(info.otaVersion);
-
   const versionLabel = info.appVersion
     ? `v${info.appVersion}${info.buildVersion ? ` (${info.buildVersion})` : ""}`
-    : dict.ABOUT_OTA_LOADING;
+    : dict.ABOUT_VERSION_LOADING;
 
   return (      <SafeAreaView
         style={styles.container}
@@ -205,21 +196,9 @@ export function About({ navigation }: Props) {
             <Text style={styles.headerVersion}>{versionLabel}</Text>
           </View>
 
-          {/* App facts, Android "about phone" style — identity + update check
-              in one card. */}
+          {/* App facts, Android "about phone" style — identity card. */}
           <SectionTitle title={dict.ABOUT_APP_INFO_TITLE} icon="info" first />
           <View style={styles.group}>
-            {info.otaSupported && (
-              <>
-                <ValueRow
-                  icon="system-update"
-                  label={dict.SETTINGS_UPDATES_ROW}
-                  value={otaStatusValue()}
-                  onPress={() => void check()}
-                />
-                <Divider />
-              </>
-            )}
             <DetailRow
               icon="numbers"
               label={dict.ABOUT_VERSION_ROW}
@@ -231,16 +210,6 @@ export function About({ navigation }: Props) {
               label={dict.ABOUT_RELEASE_ROW}
               value={releaseLabel}
             />
-            {info.otaSupported && (
-              <>
-                <Divider />
-                <DetailRow
-                  icon="system-update"
-                  label={dict.ABOUT_OTA_VERSION_ROW}
-                  value={otaVersionLabel}
-                />
-              </>
-            )}
             {info.applicationId && (
               <>
                 <Divider />

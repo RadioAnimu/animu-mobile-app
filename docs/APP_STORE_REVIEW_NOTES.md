@@ -72,13 +72,6 @@ social-media capability questions are mandatory for submissions and updates.
   covers.
 - Korea (from Oct 2026): "infrequent mature or suggestive themes" moves to 12+.
 
-## Over-the-air updates — policy to keep (2.5.2)
-
-- Ship only bug fixes, security fixes and performance work over OTA.
-- Never ship new features, screens or purpose-changing flags via OTA.
-- Keep the runtime-version guard in `src/core/ota/ota.service.ts`.
-- `.github/workflows/ota.yml` publishes the bundles; keep release notes honest.
-
 ## Platform (2.4.1)
 
 iPhone-only (`ios.supportsTablet: false`) → runs on iPad in compatibility mode.
