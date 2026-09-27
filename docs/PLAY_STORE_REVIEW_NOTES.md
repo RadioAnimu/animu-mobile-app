@@ -23,6 +23,10 @@ must be corrected to match the [data inventory](STORE_SUBMISSION.md#data-invento
 - **Device or other IDs:** not declared — the app sends device model, OS, app
   version, language and region in request headers, but no device/advertising
   identifier.
+- **Photos note:** the app never reads or uploads photos. The row above covers
+  account avatars/banners (uploaded via the website, fetched for display). The
+  stats-card save writes to the device's own photo library via MediaStore and
+  transmits nothing; it adds no collection.
 - **Not collected:** location, financial info, health, messages, contacts,
   calendar, web browsing, files/docs.
 - **Shared:** none with third parties from the app (data goes to the station's

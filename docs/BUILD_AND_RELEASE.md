@@ -10,8 +10,8 @@ platform build numbers:
 | Field | File | Current |
 | --- | --- | --- |
 | `expo.version` | `app.json` / `package.json` | `3.0.0` |
-| `expo.ios.buildNumber` | `app.json` | `5` |
-| `expo.android.versionCode` | `app.json` | `14` |
+| `expo.ios.buildNumber` | `app.json` | `6` |
+| `expo.android.versionCode` | `app.json` | `15` |
 
 `eas.json` sets `appVersionSource: "local"` and `autoIncrement: false`, so
 **bump these by hand** before a store build.
@@ -35,6 +35,37 @@ eas build --profile production    # Play Store AAB
 
 Production artifacts are submitted with `eas submit` and published to Google
 Play as `com.nessjs.animu`.
+
+### Signing (Play uploads)
+
+EAS injects the project's EAS-managed upload keystore into every cloud build,
+so `eas build --profile production` produces a store-uploadable, release-signed
+AAB. **Local `gradlew bundleRelease` output on a fresh prebuild is signed with
+the template's debug keystore** (`android/app/build.gradle` → `signingConfigs
+.debug`) and Play rejects it — do not upload locally assembled release output.
+
+- Verify any production artifact before uploading:
+  `keytool -printcert -jarfile app.aab` → the cert must NOT be
+  `CN=Android Debug, O=Android, C=US`.
+- The last cloud builds predate the current release train; produce and verify a
+  fresh `eas build --profile production` (or `eas build --local`, which applies
+  the same EAS credentials) before the next Play upload.
+
+### Fonts on cloud builds
+
+Cloud builds currently have **no `PROXIMA_NOVA_FONTS_URL` / `PROXIMA_NOVA_FONTS_DIR`
+environment variable configured**, so the `eas-build-pre-install` hook fails
+before the build starts. Either set one of those in
+`eas env:create --environment production` (and preview), or build with
+`eas build --local` from a checkout that has the fonts in `src/assets/fonts/`.
+
+### expo-dev-client in release builds
+
+`expo-dev-client` is a normal dependency so `eas build --profile development`
+can produce dev clients. In release builds the dev launcher/menu compile to the
+upstream no-op stubs — `expo.devlauncher.configureInRelease` is never set, the
+Android release sources use `src/disableInRelease`, and the iOS pods are
+`debugOnly` — so no developer tooling ships. No action needed.
 
 The font files are gitignored, so EAS builds supply them through the
 `eas-build-pre-install` hook — set `PROXIMA_NOVA_FONTS_URL` or

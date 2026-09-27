@@ -51,6 +51,9 @@ tracking:**
 - **Tracking:** No → no ATT prompt.
 - **Data linked to the user:** Yes for the items above.
 - **Data used to track you:** No.
+- **Photos note:** the app never reads or uploads photos — the Photos row
+  covers account avatars/banners fetched from the provider/backend for display;
+  the stats-card save writes to the local photo library only.
 - Request content posted to the public Discord server is a disclosure to a
   third-party platform — reflect it under the User Content row.
 

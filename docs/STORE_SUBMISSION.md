@@ -43,25 +43,60 @@ Key point: account and request data are **optional but retained** (until
 deletion, or publicly displayed for requests) — not temporary. Local caches are
 temporary and never transmitted.
 
-## Privacy policy — required edits
+## Privacy policy — exact edits (live at <https://www.animu.com.br/privacypolicy>)
 
-The policy at <https://www.animu.com.br/privacypolicy> must match the inventory:
+The live policy is Termly boilerplate and does not match the app. Apply these
+four edits (paste-ready text) before submission:
 
-- **Retention:** replace the generic "as long as necessary" with concrete
-  periods (e.g. account data until deletion; request content retained for
-  moderation + public display).
-- **Public display:** keep the statement that requests are shown on the public
-  Discord server and station homepage (already present).
-- **Consistency:** the US-state table marks Identifiers/Personal info as "NO"
-  while the section above lists them as collected — fix so it is internally
-  consistent.
-- **Deletion:** mention the in-app **Account → Delete account** path in addition
-  to the web request form.
+**1. §1 "WHAT INFORMATION DO WE COLLECT?" — replace the bullet list with:**
+
+> The personal information we collect depends on how you use the Services and
+> may include:
+>
+> - usernames and display names;
+> - email addresses (only if you sign in with Animu Connect or link an email);
+> - sign-in provider identifiers (e.g. Discord, Google or Apple account IDs and
+>   profile handles), plus avatar and banner images associated with the account;
+> - content of music requests and live requests/shout-outs (including the name,
+>   city, artist, song and message you choose to provide);
+> - date and time of requests;
+> - IP addresses;
+> - device and app operational data sent with every request (app version,
+>   platform, operating system, device model, language and region).
+
+**2. §6 "HOW LONG DO WE KEEP YOUR INFORMATION?" — replace the "In Short" line
+and first paragraph with:**
+
+> In Short: We keep account data until you delete your account; request content
+> is kept for moderation and public display; server logs are kept briefly.
+>
+> We retain account information (sign-in identifiers, username, email, avatar
+> and banner) for as long as your account exists and until you delete it.
+> Music and live request content is retained for moderation purposes and, where
+> it has been published, remains displayed on our public Discord server and
+> homepage (removable on request). Server logs containing IP addresses are kept
+> for a limited period for security and moderation. Local data on your device
+> (session token, settings, cached artwork) stays on your device until you log
+> out, clear it, or delete the account.
+
+**3. §8 / §14 — add the in-app deletion route.** After the sentence about
+submitting a data subject access request, add:
+
+> You can also delete your account and associated data directly in the mobile
+> app: **Account → Delete account**. The app clears your local session and the
+> server deletes the account and its personal data.
+
+**4. §10 US-state table — fix the contradiction.** The table currently marks
+**A. Identifiers** and **B. Personal information** as "NO" while §1 states
+usernames, IP addresses and Discord account IDs are collected. Mark **A** and
+**B** as collected and keep the retention note ("Category A/B – as long as the
+user has an account with us"); leave the remaining categories "NO".
 
 ## Pre-submission checklist
 
 ### Shared
-- [ ] Privacy policy updated per the edits above
+- [ ] Privacy policy updated per the four edits above (they are **not yet
+      applied** to the live page)
 - [ ] `npm run lint` + `npx tsc --noEmit` + `npm test` green
 - [ ] iOS/Android builds include the Proxima Nova font
       (`../src/assets/fonts/README.md`; EAS secret or local files)
@@ -74,8 +109,9 @@ The policy at <https://www.animu.com.br/privacypolicy> must match the inventory:
 - [ ] Privacy manifest present; iPhone-only build
 
 ### Google Play
-- [ ] **Data safety** corrected (currently "No data collected" — inaccurate)
+- [ ] **Data safety** corrected in the live listing (declares "No data
+      collected" today — inaccurate; answer from the table in the Play doc)
 - [ ] **Data deletion** web URL set in Play Console
 - [ ] Content rating questionnaire answered
-- [ ] `versionCode` bumped (currently 14)
+- [ ] `versionCode` bumped (currently 15)
 - [ ] Target API 36 / foreground service `mediaPlayback` (already configured)
