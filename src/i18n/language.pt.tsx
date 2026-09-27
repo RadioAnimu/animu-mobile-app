@@ -252,7 +252,7 @@ const DICT: Dict = {
   STATS_RESET_CONFIRM_MSG:
     "Todo o histórico de escuta gravado neste aparelho será apagado.",
   STATS_RESET_CONFIRM: "Apagar",
-  STATS_CARD_REQUESTS: "Top 5 pedidas",
+  STATS_CARD_REQUESTS: "Top pedidas",
   STATS_CARD_TITLE: "Cartão de escuta",
   STATS_CARD_SHARE: "Compartilhar",
   STATS_CARD_DOWNLOAD: "Baixar",

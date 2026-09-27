@@ -249,7 +249,7 @@ const DICT = {
   STATS_RESET_CONFIRM_MSG:
     "All listening recorded on this device will be deleted.",
   STATS_RESET_CONFIRM: "Reset",
-  STATS_CARD_REQUESTS: "Top 5 requests",
+  STATS_CARD_REQUESTS: "Top requests",
   STATS_CARD_TITLE: "Listening card",
   STATS_CARD_SHARE: "Share",
   STATS_CARD_DOWNLOAD: "Download",

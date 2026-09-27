@@ -326,15 +326,22 @@ export const styles = StyleSheet.create({
   shareCardCoverOverlap: {
     marginLeft: -scale(12),
   },
-  shareCardLogo: {
-    height: scale(30),
-    marginBottom: THEME.SPACE.XXS,
-    width: scale(104),
+  shareCardLogoWrap: {
+    height: scale(38),
+    width: scale(132),
   },
-  shareActions: {
-    flexDirection: "row",
-    gap: THEME.SPACE.MD,
-    marginTop: THEME.SPACE.MD,
+  // Dark blurred copy of the logo PNG behind the artwork — alpha-shaped
+  // contrast boost instead of a rectangular chip/shadow.
+  shareCardLogoShadow: {
+    height: scale(38),
+    left: 0,
+    position: "absolute",
+    top: scale(2.5),
+    width: scale(132),
+  },
+  shareCardLogo: {
+    height: scale(38),
+    width: scale(132),
   },
   // Floating action buttons over the card's top-right corner (same recipe
   // as the Account profile's floating refresh): scrim circle, white icon.
@@ -368,9 +375,6 @@ export const styles = StyleSheet.create({
     justifyContent: "center",
     minHeight: scale(44),
     paddingHorizontal: THEME.SPACE.LG,
-  },
-  shareActionDisabled: {
-    opacity: THEME.OPACITY.DISABLED,
   },
   shareActionLabel: {
     color: THEME.COLORS.TEXT_ON_LIGHT,

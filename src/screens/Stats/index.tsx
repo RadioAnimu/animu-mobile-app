@@ -47,6 +47,12 @@ export function Stats({ navigation }: Props) {
     }, []),
   );
 
+  /** Card refresh action — re-reads the on-device snapshot. */
+  const refreshStats = useCallback(async () => {
+    await listenStatsService.initialize();
+    setSnap(listenStatsService.getSnapshot());
+  }, []);
+
   const hasData =
     (snap?.totalMs ?? 0) > 0 || (snap?.totalSubmitted ?? 0) > 0;
 
@@ -74,6 +80,7 @@ export function Stats({ navigation }: Props) {
             profile={profile}
             imageVersion={imageVersion}
             snap={snap ?? listenStatsService.getSnapshot()}
+            onRefreshStats={refreshStats}
             onSignIn={() => navigation.navigate("Login")}
           />
           {hasData && snap ? (

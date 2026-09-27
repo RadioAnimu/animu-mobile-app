@@ -252,7 +252,7 @@ const DICT: Dict = {
   STATS_RESET_CONFIRM_MSG:
     "この端末に記録されたすべての視聴データが削除されます。",
   STATS_RESET_CONFIRM: "リセット",
-  STATS_CARD_REQUESTS: "リクエスト TOP 5",
+  STATS_CARD_REQUESTS: "リクエスト TOP",
   STATS_CARD_TITLE: "リスニングカード",
   STATS_CARD_SHARE: "シェア",
   STATS_CARD_DOWNLOAD: "保存",

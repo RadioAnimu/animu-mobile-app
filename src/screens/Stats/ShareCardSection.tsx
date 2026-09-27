@@ -15,6 +15,7 @@ import { SectionTitle } from "@/components/SectionTitle";
 import type { ListenStatsSnapshot } from "@/core/services/listen-stats.service";
 import type { AuthProfile, User } from "@/core/domain/user";
 import { useAlert } from "@/contexts/alert/AlertProvider";
+import { useAuth } from "@/contexts/auth/AuthProvider";
 import { IMGS } from "@/i18n";
 import { useDict } from "@/hooks/useDict";
 import { useUserSettings } from "@/contexts/user/UserSettingsProvider";
@@ -37,6 +38,8 @@ interface Props {
   /** Bumped on avatar/banner change — cache-busts the card's banner. */
   imageVersion: number;
   snap: ListenStatsSnapshot;
+  /** Re-reads the on-device stats snapshot (the card may be stale). */
+  onRefreshStats: () => Promise<void> | void;
   onSignIn: () => void;
 }
 
@@ -53,14 +56,18 @@ export function ShareCardSection({
   profile,
   imageVersion,
   snap,
+  onRefreshStats,
   onSignIn,
 }: Props) {
   const dict = useDict();
   const { settings } = useUserSettings();
+  const { refreshProfile } = useAuth();
   const { toast } = useAlert();
   const cardRef = useRef<View | null>(null);
   const cardSize = useRef<{ width: number; height: number } | null>(null);
-  const [busy, setBusy] = useState<"share" | "download" | null>(null);
+  const [busy, setBusy] = useState<"refresh" | "share" | "download" | null>(
+    null,
+  );
 
   const captureCard = useCallback(async (): Promise<string> => {
     if (!cardRef.current) throw new Error("card not mounted");
@@ -114,6 +121,23 @@ export function ShareCardSection({
     },
     [captureCard, dict, toast],
   );
+
+  // Pull a fresh profile (banner/avatar) and re-read the on-device stats —
+  // the card may have been on screen through a whole listening session.
+  const refreshCard = useCallback(async () => {
+    haptics.select();
+    setBusy("refresh");
+    try {
+      await refreshProfile();
+      await onRefreshStats();
+      toast(dict.ACCOUNT_REFRESHED);
+    } catch (error) {
+      console.warn("[ShareCard] refresh failed:", error);
+      toast(dict.STATS_CARD_FAILED);
+    } finally {
+      setBusy(null);
+    }
+  }, [dict, onRefreshStats, refreshProfile, toast]);
 
   if (!user) {
     return (
@@ -186,13 +210,19 @@ export function ShareCardSection({
             )}
             accentColor={banner?.color ?? undefined}
             logoSource={IMGS[settings.selectedLanguage].LOGO}
-            actionsInset={androidDownload ? scale(96) : scale(52)}
+            actionsInset={androidDownload ? scale(152) : scale(104)}
             snap={snap}
             dict={dict}
           />
         </View>
         {/* Siblings of the captured view — never part of the shared image. */}
         <View style={styles.cardActions} pointerEvents="box-none">
+          <CardActionButton
+            icon="sync"
+            accessibilityLabel={dict.ACCOUNT_REFRESH}
+            busy={busy === "refresh"}
+            onPress={() => void refreshCard()}
+          />
           <CardActionButton
             icon="share"
             accessibilityLabel={dict.STATS_CARD_SHARE}

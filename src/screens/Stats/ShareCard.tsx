@@ -52,6 +52,25 @@ export function ShareCard({
       ? dict.STATS_STREAK_DAY
       : interpolate(dict.STATS_STREAK_DAYS, { n: snap.maxStreak });
   const covers = snap.topRequests.slice(0, 5);
+  // Alpha-shaped logo shadow: a dark, slightly blurred copy of the same
+  // transparent PNG sits just behind and below the artwork — the rectangle
+  // chip/boxShadow washed out or boxed the logo, this follows its shape.
+  const logo = (
+    <View style={styles.shareCardLogoWrap}>
+      <Image
+        source={logoSource}
+        style={styles.shareCardLogoShadow}
+        contentFit="contain"
+        tintColor="rgba(22, 1, 53, 0.7)"
+        blurRadius={3}
+      />
+      <Image
+        source={logoSource}
+        style={styles.shareCardLogo}
+        contentFit="contain"
+      />
+    </View>
+  );
   // The handle only adds information when it differs from the display name
   // ("Ness" + "@ness.js" reads well; "ness.js" + "@ness.js" is noise).
   const handleLine =
@@ -71,6 +90,9 @@ export function ShareCard({
           source={bannerSource}
           style={styles.shareCardBanner}
           contentFit="cover"
+          // Banners are low-res; a whisper of blur hides the pixelation
+          // without reading as "blurred".
+          blurRadius={3}
           recyclingKey={String(bannerSource.uri ?? "")}
         />
       ) : null}
@@ -148,19 +170,11 @@ export function ShareCard({
                 ))}
               </View>
             </View>
-            <Image
-              source={logoSource}
-              style={styles.shareCardLogo}
-              contentFit="contain"
-            />
+            {logo}
           </View>
         ) : (
           <View style={[styles.shareCardFooter, { justifyContent: "flex-end" }]}>
-            <Image
-              source={logoSource}
-              style={styles.shareCardLogo}
-              contentFit="contain"
-            />
+            {logo}
           </View>
         )}
       </View>

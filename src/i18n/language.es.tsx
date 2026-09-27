@@ -254,7 +254,7 @@ const DICT: Dict = {
   STATS_RESET_CONFIRM_MSG:
     "Se borrará todo el historial de escucha grabado en este dispositivo.",
   STATS_RESET_CONFIRM: "Restablecer",
-  STATS_CARD_REQUESTS: "Top 5 solicitadas",
+  STATS_CARD_REQUESTS: "Top solicitadas",
   STATS_CARD_TITLE: "Tarjeta de escucha",
   STATS_CARD_SHARE: "Compartir",
   STATS_CARD_DOWNLOAD: "Descargar",
