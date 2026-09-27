@@ -2,6 +2,7 @@ import React, { useCallback, useRef, useState } from "react";
 import MaterialIcons from "@react-native-vector-icons/material-icons/static";
 import * as MediaLibrary from "expo-media-library";
 import * as Sharing from "expo-sharing";
+import { File } from "expo-file-system";
 import { captureRef } from "react-native-view-shot";
 import {
   ActivityIndicator,
@@ -87,6 +88,15 @@ export function ShareCardSection({
     });
   }, []);
 
+  /** Best-effort delete of the raster's temp file once consumers are done. */
+  const discardTmpFile = useCallback((uri: string) => {
+    try {
+      new File(uri.startsWith("file://") ? uri : `file://${uri}`).delete();
+    } catch {
+      // The OS clears tmp anyway — a failed unlink must not fail the action.
+    }
+  }, []);
+
   const run = useCallback(
     async (kind: "share" | "download") => {
       haptics.select();
@@ -112,6 +122,10 @@ export function ShareCardSection({
           await MediaLibrary.Asset.create(uri);
           toast(dict.STATS_CARD_SAVED);
         }
+        // The consumer (share sheet / gallery) has the bytes now — the
+        // raster's temp file has no further use. Repeated shares otherwise
+        // accumulate tmp files until the OS housekeeping runs.
+        discardTmpFile(uri);
       } catch (error) {
         console.warn("[ShareCard] failed:", error);
         toast(dict.STATS_CARD_FAILED);
@@ -119,7 +133,7 @@ export function ShareCardSection({
         setBusy(null);
       }
     },
-    [captureCard, dict, toast],
+    [captureCard, discardTmpFile, dict, toast],
   );
 
   // Pull a fresh profile (banner/avatar) and re-read the on-device stats —
@@ -217,16 +231,21 @@ export function ShareCardSection({
         </View>
         {/* Siblings of the captured view — never part of the shared image. */}
         <View style={styles.cardActions} pointerEvents="box-none">
+          {/* One shared capture pipeline: any action in flight locks all of
+              them out, so a second tap can never run a concurrent capture
+              (and overwrite the busy flag mid-flight). */}
           <CardActionButton
             icon="sync"
             accessibilityLabel={dict.ACCOUNT_REFRESH}
             busy={busy === "refresh"}
+            disabled={busy != null}
             onPress={() => void refreshCard()}
           />
           <CardActionButton
             icon="share"
             accessibilityLabel={dict.STATS_CARD_SHARE}
             busy={busy === "share"}
+            disabled={busy != null}
             onPress={() => void run("share")}
           />
           {androidDownload && (
@@ -234,6 +253,7 @@ export function ShareCardSection({
               icon="download"
               accessibilityLabel={dict.STATS_CARD_DOWNLOAD}
               busy={busy === "download"}
+              disabled={busy != null}
               onPress={() => void run("download")}
             />
           )}
@@ -247,6 +267,7 @@ interface ActionProps {
   icon: MaterialIconName;
   accessibilityLabel: string;
   busy: boolean;
+  disabled?: boolean;
   onPress: () => void;
 }
 
@@ -254,14 +275,16 @@ function CardActionButton({
   icon,
   accessibilityLabel,
   busy,
+  disabled = busy,
   onPress,
 }: ActionProps) {
   return (
     <TouchableOpacity
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel}
+      accessibilityState={{ disabled: disabled || undefined, busy: busy || undefined }}
       activeOpacity={0.7}
-      disabled={busy}
+      disabled={disabled || busy}
       onPress={onPress}
       style={[
         styles.cardActionButton,

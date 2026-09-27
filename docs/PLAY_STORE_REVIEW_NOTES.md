@@ -63,12 +63,9 @@ content. Re-rate only if the questionnaire answers change.
 | Foreground service type | `FOREGROUND_SERVICE_MEDIA_PLAYBACK` + `foregroundServiceType="mediaPlayback"` (from `react-native-playback-controls`) ✅ |
 | Permission forms | None required — only normal permissions (INTERNET, WAKE_LOCK, VIBRATE, MODIFY_AUDIO_SETTINGS, FGS) ✅ |
 | `RECORD_AUDIO` | Blocked ✅ |
-| `versionCode` | Bump before upload (currently 13) ✅ |
+| Media/storage permissions | `READ_MEDIA_*` and `READ_EXTERNAL_STORAGE` blocked in `app.json` (save-only photo flow); `WRITE_EXTERNAL_STORAGE` kept at `maxSdkVersion 32` for legacy saves ✅ |
+| `versionCode` | Bump before upload (currently 14) ✅ |
 | AAB | Production profile builds an app bundle ✅ |
-
-Minor: `READ_EXTERNAL_STORAGE` / `WRITE_EXTERNAL_STORAGE` leak in from
-`react-native-blob-util`; harmless on modern Android, can be added to
-`blockedPermissions` if unused.
 
 ## Notes for review (Play Console → App review → Notes)
 

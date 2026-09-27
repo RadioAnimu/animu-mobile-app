@@ -12,7 +12,6 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 
 // Components
-import { Background } from "@/components/Background";
 import { HeaderBar } from "@/components/HeaderBar";
 import { Logo } from "@/components/Logo";
 import { RequestBottomSheet } from "@/components/RequestBottomSheet";
@@ -219,7 +218,7 @@ export function MakeRequest() {
         listRef.current?.scrollToOffset({ offset: 0, animated: false });
         addRecent(query);
       } catch (err) {
-        console.error(err);
+        console.error("[MakeRequest] search failed:", err);
         if (!isCurrent(requestId)) return;
         setSearchFailed(true);
         setSearchState((prev) => ({ ...prev, status: "idle" }));
@@ -264,7 +263,7 @@ export function MakeRequest() {
         status: "idle",
       }));
     } catch (err) {
-      console.error(err);
+      console.error("[MakeRequest] search failed:", err);
       if (!isCurrent(requestId)) return;
       setSearchState((prev) => ({ ...prev, status: "idle" }));
       showError(dict.REQUEST_SEARCH_ERROR);
@@ -289,7 +288,13 @@ export function MakeRequest() {
       });
       listRef.current?.scrollToOffset({ offset: 0, animated: false });
     } catch (err) {
-      console.error(err);
+      console.error("[MakeRequest] search failed:", err);
+      // Same staleness rules as `runSearch`: a slow refresh landing after a
+      // newer search must not toast over the newer state, and the error
+      // banner rides the same failure flag so the UI stays consistent.
+      if (!isCurrent(requestId)) return;
+      setSearchFailed(true);
+      setSearchState((prev) => ({ ...prev, status: "idle" }));
       showError(dict.REQUEST_SEARCH_ERROR);
     } finally {
       setRefreshing(false);
@@ -374,9 +379,7 @@ export function MakeRequest() {
     [],
   );
 
-  return (
-    <Background>
-      <SafeAreaView style={styles.container} edges={["left", "right", "bottom"]}>
+  return (      <SafeAreaView style={styles.container} edges={["left", "right", "bottom"]}>
         <HeaderBar />
         <View style={styles.appContainer}>
           <View style={styles.logoWrapper}>
@@ -448,6 +451,5 @@ export function MakeRequest() {
           onRequestSuccess={handleRequestSuccess}
         />
       </SafeAreaView>
-    </Background>
   );
 }

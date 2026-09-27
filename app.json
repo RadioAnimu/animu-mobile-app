@@ -13,6 +13,7 @@
       "bundleIdentifier": "com.nessjs.animu",
       "appleTeamId": "RWDZC8478Q",
       "infoPlist": {
+        "LSMinimumSystemVersion": "16.4",
         "UIBackgroundModes": [
           "audio"
         ],
@@ -37,7 +38,10 @@
       "package": "com.nessjs.animu",
       "versionCode": 14,
       "blockedPermissions": [
-        "android.permission.RECORD_AUDIO"
+        "android.permission.RECORD_AUDIO",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.READ_MEDIA_VISUAL_USER_SELECTED",
+        "android.permission.SYSTEM_ALERT_WINDOW"
       ]
     },
     "web": {
@@ -107,7 +111,9 @@
         "expo-media-library",
         {
           "savePhotosPermission": "Allows Rádio Animu to save your listening stats card to your photo library.",
-          "isAccessMediaLocationEnabled": false
+          "isAccessMediaLocationEnabled": false,
+          "photosPermission": false,
+          "granularPermissions": []
         }
       ]
     ],

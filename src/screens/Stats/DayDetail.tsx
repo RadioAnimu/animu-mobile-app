@@ -3,7 +3,7 @@ import { Text, View } from "react-native";
 import type { ListenDay } from "@/core/services/listen-stats.service";
 import type { Dict } from "@/i18n";
 import { styles } from "@/screens/Stats/styles";
-import { formatListenDuration } from "@/utils/format";
+import { formatListenDuration, listenDurationUnits } from "@/utils/format";
 
 /**
  * Drill-down for one heatmap day: totals row plus the 24-hour mini
@@ -29,7 +29,7 @@ export function DayDetail({
   const weekdayLabel = dict.STATS_DOW[date.getDay()];
 
   const stats: [string, string][] = [
-    [dict.STATS_TOTAL, formatListenDuration(day.ms / 60_000)],
+    [dict.STATS_TOTAL, formatListenDuration(day.ms / 60_000, listenDurationUnits(dict))],
     [dict.STATS_SESSIONS, `${day.sessions}`],
     [dict.STATS_SONGS, `${day.tracks}`],
   ];

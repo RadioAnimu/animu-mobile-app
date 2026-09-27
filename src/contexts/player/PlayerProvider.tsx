@@ -4,15 +4,16 @@ import React, {
   useEffect,
   useMemo,
   useCallback,
-  useState,
   useSyncExternalStore,
 } from "react";
-import { AppState, type AppStateStatus } from "react-native";
 import { Stream } from "@/core/domain/stream";
 import { playerService } from "@/core/player";
 import { backgroundService } from "@/core/services/background.service";
 import { subscribeAssistantActions } from "@/core/assistant";
-import { useIsBackgrounded } from "@/contexts/app-state/AppStateProvider";
+import {
+  useAppStateStatus,
+  useIsBackgrounded,
+} from "@/contexts/app-state/AppStateProvider";
 import {
   playerStore,
   progressStore,
@@ -115,9 +116,10 @@ export const PlayerProvider: React.FC<{
   );
 
   // ─── App visibility — gates the poll lifecycle (see the effect below) ───
-  const [appState, setAppState] = useState<AppStateStatus>(
-    AppState.currentState,
-  );
+  // Raw status comes from AppStateProvider — the app's single native
+  // AppState listener (a second one here would double-subscribe for the
+  // same information).
+  const appState = useAppStateStatus();
   const isBackgrounded = useIsBackgrounded();
 
   // ─── Background UI freeze: stop store emissions while hidden ───
@@ -196,24 +198,10 @@ export const PlayerProvider: React.FC<{
 
     initializePlayer();
 
-    // ── Foreground refresh: fresh data the moment the app is visible ──
-    // JS timers freeze while backgrounded (iOS) or drift while the OS
-    // throttles them (Android Doze), so the last poll can be minutes old.
-    const appStateSubscription = AppState.addEventListener(
-      "change",
-      (nextAppState) => {
-        setAppState(nextAppState);
-        if (nextAppState === "active" && playerServiceInstance.isReady) {
-          void playerServiceInstance.refreshData().catch(console.error);
-        }
-      },
-    );
-
     return () => {
       cancelled = true;
 
       unsubscribeAssistant?.();
-      appStateSubscription?.remove();
       backgroundService.stopTask("heartbeat");
       playerServiceInstance.setRemoteHandlers({
         play: async () => {},
@@ -225,6 +213,17 @@ export const PlayerProvider: React.FC<{
       playerServiceInstance.destroy().catch(console.error);
     };
   }, [playerServiceInstance]);
+
+  // ─── Foreground refresh: fresh data the moment the app is visible ───
+  // JS timers freeze while backgrounded (iOS) or drift while the OS
+  // throttles them (Android Doze), so the last poll can be minutes old.
+  // The listener lives in AppStateProvider; this effect re-derives the
+  // foreground edge from the raw status it exposes.
+  useEffect(() => {
+    if (appState === "active" && playerServiceInstance.isReady) {
+      void playerServiceInstance.refreshData().catch(console.error);
+    }
+  }, [appState, playerServiceInstance]);
 
   // ─── Dismiss the native splash once the first real screen can render ───
   useEffect(() => {

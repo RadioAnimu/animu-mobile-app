@@ -6,8 +6,12 @@ import { Animated, Easing, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import menuIcon from "@/assets/icons/menu.webp";
 import noteIcon from "@/assets/icons/note.webp";
-import playButtonImage from "@/assets/play_square_btn.webp";
-import pauseButtonImage from "@/assets/play_triangle_btn.webp";
+// Named for the ACTION they afford, not the glyph: the square (pause bars)
+// renders while PLAYING, the triangle renders while PAUSED. The file names
+// ("play_square_btn" / "play_triangle_btn") describe the paused/play button
+// pair, which reads backwards at the call site otherwise.
+import pauseAffordanceImage from "@/assets/play_square_btn.webp";
+import playAffordanceImage from "@/assets/play_triangle_btn.webp";
 import { IMGS } from "@/i18n";
 import { THEME } from "@/theme";
 import { CONTAINER_HEIGHT, ICON_HIT_SLOP, styles } from "@/components/HeaderBar/styles";
@@ -227,7 +231,7 @@ export function HeaderBar({ openLiveRequestModal }: Props) {
                   opacity: status === "changing" ? THEME.OPACITY.DISABLED : 1,
                 },
               ]}
-              source={!player.isPlaying ? pauseButtonImage : playButtonImage}
+              source={!player.isPlaying ? playAffordanceImage : pauseAffordanceImage}
             />
           </TouchableOpacity>
 

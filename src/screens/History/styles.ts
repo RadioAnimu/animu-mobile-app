@@ -28,6 +28,13 @@ export const styles = StyleSheet.create({
   containerList: {
     gap: THEME.SPACE.MD,
   },
+  emptyText: {
+    color: THEME.COLORS.TEXT_DIM,
+    fontSize: THEME.FONT_SIZE.BODY,
+    fontFamily: THEME.FONT_FAMILY.REGULAR,
+    textAlign: "center",
+    paddingVertical: THEME.SPACE.XL,
+  },
   listWrapper: FLOW_STYLES.listWrapper,
   trackTime: {
     color: THEME.COLORS.TEXT,

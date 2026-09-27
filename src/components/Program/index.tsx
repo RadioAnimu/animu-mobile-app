@@ -22,7 +22,9 @@ export const Program = React.memo(function Program({ handleClick }: Props) {
   return (
     <TouchableOpacity
       accessibilityRole="button"
-      accessibilityLabel={program.name}
+      // The visible content includes the DJ line; the overriding label must
+      // carry it too or VoiceOver/TalkBack silently drops it.
+      accessibilityLabel={`${program.name}. ${dict.WITH_DJ}: ${program.dj}`}
       onPress={handleClick}
       style={styles.container}
     >

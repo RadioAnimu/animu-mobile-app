@@ -160,7 +160,8 @@ export function RequestBottomSheet({
         setStatus("error");
         setStatusMessage(result.message);
       }
-    } catch {
+    } catch (error) {
+      console.warn("[RequestBottomSheet] submit failed:", error);
       haptics.error();
       setStatus("error");
       setStatusMessage(dict.REQUEST_ERROR);
@@ -200,6 +201,7 @@ export function RequestBottomSheet({
               style={[styles.input, isSubmitting && styles.inputDisabled]}
               placeholder={dict.SEND_REQUEST_PLACEHOLDER}
               placeholderTextColor={THEME.COLORS.TEXT_ON_LIGHT}
+              accessibilityLabel={dict.SEND_REQUEST_PLACEHOLDER}
               value={message}
               onChangeText={setMessage}
               editable={!isSubmitting}

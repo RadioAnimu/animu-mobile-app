@@ -7,7 +7,7 @@ import { listenStatsService } from "@/core/services/listen-stats.service";
 import { useDict } from "@/hooks/useDict";
 import { ValueRow } from "@/screens/Settings/rows";
 import { styles } from "@/screens/Settings/styles";
-import { formatListenDuration } from "@/utils/format";
+import { formatListenDuration, listenDurationUnits } from "@/utils/format";
 
 interface Props {
   onPress: () => void;
@@ -32,14 +32,16 @@ export function ListenStatsSection({ onPress }: Props) {
           if (!alive) return;
           const { totalMs } = listenStatsService.getSnapshot();
           setTotalLabel(
-            totalMs > 0 ? formatListenDuration(totalMs / 60_000) : "—",
+            totalMs > 0
+              ? formatListenDuration(totalMs / 60_000, listenDurationUnits(dict))
+              : "—",
           );
         })
         .catch(() => {});
       return () => {
         alive = false;
       };
-    }, []),
+    }, [dict]),
   );
 
   return (

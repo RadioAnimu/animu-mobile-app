@@ -13,7 +13,7 @@ import { Login } from "@/screens/Login";
 import { Account } from "@/screens/Account";
 import { About } from "@/screens/About";
 import { useDict } from "@/hooks/useDict";
-import { HistoryType } from "@/@types/history-type";
+import type { HistoryType } from "animu-api";
 
 type HomeProps = undefined;
 interface HistoryProps {

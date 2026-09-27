@@ -16,7 +16,7 @@ export const DONORS: Donor[] = [
   { name: "j4p0n「ジャポン」" },
   { name: "um_pato_qualquer", note: "Jean" },
   { name: "Julio Sawada" },
-  { name: "senhorzinho", note: "Senhorzinho" },
+  { name: "senhorzinho" },
   { name: "Hud C.A", note: "Tagger Animu" },
   { name: "Rin", note: "Tags bandori, im@s, pjsk" },
   { name: "Elis" },
@@ -25,6 +25,6 @@ export const DONORS: Donor[] = [
   { name: "ChiiChan", note: "Leandro" },
   { name: "ER1C52x ☕", note: "Cafeicultor Animu" },
   { name: "Vitor" },
-  { name: "vigne", note: "Vigne" },
+  { name: "vigne" },
   { name: "Bene" },
 ];

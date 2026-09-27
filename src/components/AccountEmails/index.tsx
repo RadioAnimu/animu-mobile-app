@@ -8,7 +8,6 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-
 import { useAlert } from "@/contexts/alert/AlertProvider";
 import { useAuth } from "@/contexts/auth/AuthProvider";
 import { useDict } from "@/hooks/useDict";
@@ -21,9 +20,15 @@ import type { Dict } from "@/i18n";
 import { THEME } from "@/theme";
 import { scale } from "@/theme/responsive";
 import { layoutEase } from "@/utils/layout-animation";
+import { interpolate } from "@/utils/format";
 import { EmailCodeFields } from "@/components/EmailCodeFields";
 import { ProviderIcon } from "@/components/ProviderIcon";
 import { styles } from "@/components/AccountEmails/styles";
+
+/** The extra Animu Connect address rides `source: "animu"` (the provider
+ * rows carry their own sources) — one predicate so both reads stay in step. */
+const isExtraEmail = (item: AuthAccountEmail): boolean =>
+  item.source === "animu";
 
 type Screen = "list" | "form";
 
@@ -145,7 +150,7 @@ function groupEmails(emails: AuthAccountEmail[]): EmailGroup[] {
     groups.set(key, {
       email: item.email,
       providers: item.provider ? [item.provider] : [],
-      isExtra: item.source === "animu",
+      isExtra: isExtraEmail(item),
       removableItem: item.removable ? item : null,
     });
   }
@@ -228,7 +233,7 @@ function EmailsPanel({
     <View style={styles.panel}>
       <Text style={styles.hint}>
         {screen === "form" && flow.step === "code"
-          ? dict.LOGIN_CODE_SUBTITLE.replace("{email}", flow.email.trim())
+          ? interpolate(dict.LOGIN_CODE_SUBTITLE, { email: flow.email.trim() })
           : dict.ACCOUNT_ANIMU_CONNECT_FORM_HINT}
       </Text>
 
@@ -354,12 +359,12 @@ export function AccountEmails() {
 
   // There is at most ONE extra `animu` email — when it exists the action
   // replaces it rather than adding another.
-  const extraEmail = emails.find((item) => item.source === "animu") ?? null;
+  const extraEmail = emails.find(isExtraEmail) ?? null;
 
   const confirmRemove = (target: AuthAccountEmail) => {
     Alert.alert(
       dict.ACCOUNT_EMAIL_REMOVE_CONFIRM_TITLE,
-      dict.ACCOUNT_EMAIL_REMOVE_CONFIRM_MSG.replace("{email}", target.email),
+      interpolate(dict.ACCOUNT_EMAIL_REMOVE_CONFIRM_MSG, { email: target.email }),
       [
         { text: dict.ACCOUNT_CANCEL, style: "cancel" },
         {
@@ -385,7 +390,7 @@ export function AccountEmails() {
   };
 
   const extraSummary = extraEmail
-    ? dict.ACCOUNT_ANIMU_CONNECT_READY_AS.replace("{email}", extraEmail.email)
+    ? interpolate(dict.ACCOUNT_ANIMU_CONNECT_READY_AS, { email: extraEmail.email })
     : dict.ACCOUNT_ANIMU_CONNECT_DESC;
 
   return (

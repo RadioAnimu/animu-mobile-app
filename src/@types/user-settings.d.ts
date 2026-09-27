@@ -1,5 +1,5 @@
-import { LANGS_KEY_VALUE_PAIRS } from "@/i18n";
-import { ArtworkQuality } from "@/@types/artwork-quality";
+import { LANGUAGE_LABELS } from "@/constants/languages";
+import type { ArtworkQuality } from "animu-api";
 import type { CoverCacheCategory } from "@/core/services/cover-cache-registry.service";
 
 export interface UserSettings {
@@ -7,7 +7,7 @@ export interface UserSettings {
   lastRequestedCovers: boolean;
   lastPlayedCovers: boolean;
   coversInRequestSearch: boolean;
-  selectedLanguage: keyof typeof LANGS_KEY_VALUE_PAIRS;
+  selectedLanguage: keyof typeof LANGUAGE_LABELS;
   cacheEnabled: boolean;
   /**
    * Total FIFO byte ceiling for the cover cache. `0` (default) = uncapped —

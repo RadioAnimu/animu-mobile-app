@@ -1,6 +1,6 @@
 import React from "react";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
-import { DICT, selectedLanguage } from "@/i18n";
+import { DICT, FALLBACK_LANGUAGE } from "@/i18n";
 import { THEME } from "@/theme";
 
 interface Props {
@@ -41,7 +41,7 @@ class ErrorBoundary extends React.Component<Props, State> {
       return this.props.children;
     }
 
-    const t = DICT[selectedLanguage];
+    const t = DICT[FALLBACK_LANGUAGE];
 
     return (
       <View style={styles.container}>

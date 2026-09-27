@@ -199,7 +199,14 @@ export function LiveRequestModal({ visible, handleClose }: Props) {
   ];
 
   return (
-    <Sheet visible={visible} onClose={closeAndReset} withKeyboard>
+    <Sheet
+      visible={visible}
+      onClose={closeAndReset}
+      // Mid-submit dismissal is blocked like the music-request sheet: a
+      // close while the POST is in flight would orphan the outcome toast.
+      closable={!isSubmitting}
+      withKeyboard
+    >
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         keyboardShouldPersistTaps="handled"

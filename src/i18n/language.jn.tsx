@@ -137,6 +137,7 @@ const DICT: Dict = {
   MENU_LAST_REQUESTED: "最後のリクエスト",
   MENU_LAST_PLAYED: "最後に流れた曲",
   MENU_MAKE_REQUEST: "リクエストする",
+  HISTORY_EMPTY: "まだ何もありません",
   LINKS: "リンク",
   LINKS_DISCORD: "ディスコード",
   LINKS_WEBSITE: "ウェブサイト",
@@ -234,6 +235,9 @@ const DICT: Dict = {
   STATS_STREAK_LONGEST: "最長連続記録",
   STATS_STREAK_DAYS: "{n} 日",
   STATS_STREAK_DAY: "1 日",
+  STATS_UNIT_DAYS: "日",
+  STATS_UNIT_HOURS: "時間",
+  STATS_UNIT_MINUTES: "分",
   STATS_HEATMAP_TITLE: "ヒートマップ",
   STATS_HEATMAP_HINT: "過去6ヶ月 — 日をタップすると詳細を表示",
   STATS_LESS: "少ない",
@@ -465,7 +469,7 @@ const DICT: Dict = {
 };
 
 const OnAirLabel = (props: SvgProps) => (
-  <Svg width="41" height="92" viewBox="0 0 41 92" fill="none">
+  <Svg width="41" height="92" viewBox="0 0 41 92" fill="none" {...props}>
     <Rect width="41" height="92" fill="#FF0000" />
     <Path
       d="M13.021 8.291C13.75 8.399 14.911 8.453 15.829 8.453C17.53 8.453 24.631 8.453 26.197 8.453C27.061 8.453 28.384 8.399 29.113 8.291V11.801C28.411 11.747 27.142 11.693 26.143 11.693C24.658 11.693 17.422 11.693 15.829 11.693C14.938 11.693 13.804 11.72 13.021 11.801V8.291ZM31.408 16.148C31.219 16.499 30.976 16.985 30.895 17.255C30.058 19.874 28.897 22.52 26.899 24.734C24.172 27.785 20.716 29.594 17.26 30.593L14.56 27.542C18.637 26.678 21.85 24.923 23.929 22.79C25.36 21.332 26.224 19.631 26.683 18.146C25.333 18.146 16.072 18.146 13.669 18.146C12.994 18.146 11.644 18.173 10.51 18.254V14.744C11.671 14.852 12.805 14.933 13.669 14.933C15.505 14.933 25.171 14.933 27.007 14.933C27.898 14.933 28.627 14.825 29.005 14.636L31.408 16.148Z"
@@ -484,7 +488,7 @@ const OnAirLabel = (props: SvgProps) => (
 
 const LiveRequestsEnabled = (props: SvgProps) => {
   return (
-    <Svg width="81" height="23" viewBox="0 0 81 23" fill="none">
+    <Svg width="81" height="23" viewBox="0 0 81 23" fill="none" {...props}>
       <Rect width="76.1881" height="23" rx="4" fill="#6BDB00" />
       <Path d="M81 11.5L76.1881 16L76.1881 7L81 11.5Z" fill="#6BDB00" />
       <Path
@@ -497,7 +501,7 @@ const LiveRequestsEnabled = (props: SvgProps) => {
 
 const LiveRequestsDisabled = (props: SvgProps) => {
   return (
-    <Svg width="81" height="23" viewBox="0 0 81 23" fill="none">
+    <Svg width="81" height="23" viewBox="0 0 81 23" fill="none" {...props}>
       <Rect width="76.1881" height="23" rx="4" fill="#6BDB00" />
       <Path d="M81 11.5L76.1881 16L76.1881 7L81 11.5Z" fill="#6BDB00" />
       <Path

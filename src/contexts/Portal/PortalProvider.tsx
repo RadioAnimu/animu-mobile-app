@@ -1,7 +1,8 @@
-import React, { useCallback, useMemo, useState } from "react";
+import React, { useCallback, useMemo, useState, Fragment } from "react";
 import PortalContext, {
   type PortalElement,
 } from "@/contexts/Portal/PortalContext";
+
 interface PortalProviderProps {
   children: React.ReactNode;
 }
@@ -30,7 +31,12 @@ const PortalProvider: React.FC<PortalProviderProps> = ({ children }) => {
   return (
     <PortalContext.Provider value={value}>
       {children}
-      {Object.values(components)}
+      {/* Keyed by slot name: two portals (toast + alert) are always
+          registered, so an unkeyed array would warn and key children by
+          position instead of identity. */}
+      {Object.entries(components).map(([name, node]) => (
+        <Fragment key={name}>{node}</Fragment>
+      ))}
     </PortalContext.Provider>
   );
 };

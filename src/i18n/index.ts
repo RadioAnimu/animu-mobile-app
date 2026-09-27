@@ -24,4 +24,10 @@ export type LanguageKey = keyof typeof DICT;
 
 export type { Dict } from "@/i18n/language.en";
 
-export const selectedLanguage: keyof typeof DICT = "EN";
+/**
+ * Language shown when no setting can be read yet — e.g. the ErrorBoundary
+ * rendering before settings load. Matches `DEFAULT_USER_SETTINGS
+ * .selectedLanguage` so a crash screen lands in the same language the rest
+ * of the app boots into.
+ */
+export const FALLBACK_LANGUAGE: keyof typeof DICT = "PT";

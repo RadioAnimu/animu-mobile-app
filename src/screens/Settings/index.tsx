@@ -2,7 +2,6 @@ import { DrawerScreenProps } from "@react-navigation/drawer";
 import { ScrollView } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-import { Background } from "@/components/Background";
 import { ScreenHeader } from "@/components/ScreenHeader";
 import { useAuth } from "@/contexts/auth/AuthProvider";
 import { useDict } from "@/hooks/useDict";
@@ -23,9 +22,7 @@ export function Settings({ navigation }: Props) {
   const { user, profile } = useAuth();
   const dict = useDict();
 
-  return (
-    <Background>
-      <SafeAreaView
+  return (      <SafeAreaView
         style={styles.container}
         edges={["left", "right", "bottom"]}
       >
@@ -64,6 +61,5 @@ export function Settings({ navigation }: Props) {
           <ResetSection />
         </ScrollView>
       </SafeAreaView>
-    </Background>
   );
 }

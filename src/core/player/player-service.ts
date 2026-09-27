@@ -1,5 +1,5 @@
 import NetInfo from "@react-native-community/netinfo";
-import type { HistoryType } from "@/@types/history-type.d";
+import type { HistoryType } from "animu-api";
 import type { Track } from "@/core/domain/track";
 import type { Stream } from "@/core/domain/stream";
 import { animuService } from "@/core/services/animu.service";

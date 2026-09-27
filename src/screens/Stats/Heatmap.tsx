@@ -11,6 +11,10 @@ import {
   HEAT_WEEKS,
   styles,
 } from "@/screens/Stats/styles";
+import {
+  formatListenDuration,
+  listenDurationUnits,
+} from "@/utils/format";
 
 interface Cell {
   key: string;
@@ -129,13 +133,19 @@ export function Heatmap({
                     return <View key={cell.key} style={styles.heatCell} />;
                   }
                   const isSelected = cell.key === selected;
+                  // Localized date + duration, not a raw ISO key and an
+                  // English "min" — this is what screen readers announce.
+                  const a11yLabel = `${new Date(
+                    dayStartMs(cell.key),
+                  ).toLocaleDateString()}: ${formatListenDuration(
+                    cell.ms / 60_000,
+                    listenDurationUnits(dict),
+                  )}`;
                   return (
                     <TouchableOpacity
                       key={cell.key}
                       accessibilityRole="button"
-                      accessibilityLabel={`${cell.key}: ${Math.round(
-                        cell.ms / 60_000,
-                      )} min`}
+                      accessibilityLabel={a11yLabel}
                       activeOpacity={0.7}
                       onPress={() =>
                         onSelect(isSelected ? null : cell.key)

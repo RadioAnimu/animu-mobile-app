@@ -1,4 +1,4 @@
-import type { ArtworkQuality } from "@/@types/artwork-quality";
+import type { ArtworkQuality } from "animu-api";
 
 /** Quality tiers that ship a bundled preview (everything but "off"). */
 export type CoverQualityKey = Exclude<ArtworkQuality, "off">;

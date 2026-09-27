@@ -8,7 +8,6 @@ import {
   type ListRenderItem,
 } from "react-native";
 
-import { Background } from "@/components/Background";
 import { styles } from "@/screens/History/styles";
 
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -26,11 +25,21 @@ import { useCopyToClipboard } from "@/hooks/useCopyToClipboard";
 import { usePlayer, useStation } from "@/contexts/player/PlayerProvider";
 import type { StationSnapshot } from "@/core/player";
 import { useRouteReselect } from "@/hooks/useRouteReselect";
+import { useAlert } from "@/contexts/alert/AlertProvider";
+import { useDict } from "@/hooks/useDict";
 
 type Props = DrawerScreenProps<
   RootStackParamList,
   "LastRequested" | "LastPlayed"
 >;
+
+type HistoryTrack = NonNullable<
+  StationSnapshot["lastRequestedTracks"]
+>[number];
+
+/** Stable row identity: the same track can re-air, so time disambiguates. */
+const rowKey = (item: HistoryTrack): string =>
+  `${item.raw}-${new Date(item.startTime).getTime()}`;
 
 export function History({ route }: Props) {
   const { historyType } = route.params;
@@ -40,12 +49,12 @@ export function History({ route }: Props) {
   const player = usePlayer();
   const { settings } = useUserSettings();
   const copyText = useCopyToClipboard();
+  const dict = useDict();
+  const { toast } = useAlert();
   const [refreshing, setRefreshing] = useState(false);
 
   // Re-tapping the drawer's active history item jumps back to the newest row.
-  const listRef = useRef<FlatList<
-    NonNullable<StationSnapshot["lastRequestedTracks"]>[number]
-  > | null>(null);
+  const listRef = useRef<FlatList<HistoryTrack> | null>(null);
   useRouteReselect(route.name, () =>
     listRef.current?.scrollToOffset({ offset: 0, animated: true }),
   );
@@ -61,14 +70,15 @@ export function History({ route }: Props) {
       } else {
         await player.refreshHistory("played");
       }
+    } catch (error) {
+      console.warn("[History] refresh failed:", error);
+      toast(dict.REQUEST_ERROR);
     } finally {
       setRefreshing(false);
     }
-  }, [player, isRequestHistory]);
+  }, [player, isRequestHistory, toast, dict.REQUEST_ERROR]);
 
-  const renderItem: ListRenderItem<
-    NonNullable<StationSnapshot["lastRequestedTracks"]>[number]
-  > = useCallback(
+  const renderItem: ListRenderItem<HistoryTrack> = useCallback(
     ({ item }) =>
       (
         <View style={styles.metadata}>
@@ -77,7 +87,7 @@ export function History({ route }: Props) {
             <Cover
               cover={item.artwork}
               style={styles.image}
-              recyclingKey={`${item.raw}-${new Date(item.startTime).getTime()}`}
+              recyclingKey={rowKey(item)}
               category={isRequestHistory ? "requested" : "played"}
             />
           ) : (
@@ -119,48 +129,47 @@ export function History({ route }: Props) {
   );
 
   return (
-    <Background>
-      <SafeAreaView style={styles.container} edges={["left", "right", "bottom"]}>
-        <HeaderBar />
-        <View style={styles.appContainer}>
-          <Image
-            source={
-              isRequestHistory
-                ? IMGS[settings.selectedLanguage].LAST_REQUEST
-                : IMGS[settings.selectedLanguage].LAST_PLAYED
+    <SafeAreaView style={styles.container} edges={["left", "right", "bottom"]}>
+      <HeaderBar />
+      <View style={styles.appContainer}>
+        <Image
+          source={
+            isRequestHistory
+              ? IMGS[settings.selectedLanguage].LAST_REQUEST
+              : IMGS[settings.selectedLanguage].LAST_PLAYED
+          }
+          style={styles.headerImage}
+          contentFit="contain"
+          cachePolicy={"none"}
+        />
+        <View style={styles.listWrapper}>
+          <FlatList
+            ref={listRef}
+            data={listData}
+            keyExtractor={rowKey}
+            contentContainerStyle={styles.containerList}
+            renderItem={renderItem}
+            ListEmptyComponent={
+              <Text style={styles.emptyText}>{dict.HISTORY_EMPTY}</Text>
             }
-            style={styles.headerImage}
-            contentFit="contain"
-            cachePolicy={"none"}
+            // Rows wrap to show the full title, so they vary in height and
+            // cannot be described by `getItemLayout`.
+            // Lists hold ~dozens of rows; render a tight window
+            initialNumToRender={10}
+            maxToRenderPerBatch={10}
+            windowSize={7}
+            refreshControl={
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={onRefresh}
+                tintColor={THEME.COLORS.TEXT}
+                colors={[THEME.COLORS.BRAND]}
+                progressBackgroundColor={THEME.COLORS.SURFACE}
+              />
+            }
           />
-          <View style={styles.listWrapper}>
-            <FlatList
-              ref={listRef}
-              data={listData}
-              keyExtractor={(item) =>
-                `${item.raw}-${new Date(item.startTime).getTime()}`
-              }
-              contentContainerStyle={styles.containerList}
-              renderItem={renderItem}
-              // Rows wrap to show the full title, so they vary in height and
-              // cannot be described by `getItemLayout`.
-              // Lists hold ~dozens of rows; render a tight window
-              initialNumToRender={10}
-              maxToRenderPerBatch={10}
-              windowSize={7}
-              refreshControl={
-                <RefreshControl
-                  refreshing={refreshing}
-                  onRefresh={onRefresh}
-                  tintColor={THEME.COLORS.TEXT}
-                  colors={[THEME.COLORS.BRAND]}
-                  progressBackgroundColor={THEME.COLORS.SURFACE}
-                />
-              }
-            />
-          </View>
         </View>
-      </SafeAreaView>
-    </Background>
+      </View>
+    </SafeAreaView>
   );
 }

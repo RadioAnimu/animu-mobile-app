@@ -3,7 +3,6 @@ import { ScrollView, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 // Components
-import { Background } from "@/components/Background";
 import { ChooseBitrateSection } from "@/components/ChooseBitrateSection";
 import { TrackCover } from "@/components/TrackCover";
 import { HeaderBar } from "@/components/HeaderBar";
@@ -48,8 +47,7 @@ export const Home = () => {
   }, []);
 
   return (
-    <Background>
-      <SafeAreaView style={styles.container} edges={["left", "right", "bottom"]}>
+    <SafeAreaView style={styles.container} edges={["left", "right", "bottom"]}>
         <ScrollView ref={scrollRef}>
           <HeaderBar
             openLiveRequestModal={() => handleLiveRequestModal(true)}
@@ -95,6 +93,5 @@ export const Home = () => {
           handleClose={handleCloseProgramModal}
         />
       </SafeAreaView>
-    </Background>
   );
 };

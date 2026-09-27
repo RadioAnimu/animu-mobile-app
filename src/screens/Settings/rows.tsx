@@ -31,6 +31,24 @@ function LeadingIcon({ name }: { name: MaterialIconName }) {
   );
 }
 
+/** The label + optional supporting line every row type renders mid-row. */
+function RowBody({
+  label,
+  description,
+}: {
+  label: string;
+  description?: string;
+}) {
+  return (
+    <View style={description != null ? styles.rowBody : styles.rowBodySingle}>
+      <Text style={styles.rowLabel}>{label}</Text>
+      {description != null && (
+        <Text style={styles.rowDescription}>{description}</Text>
+      )}
+    </View>
+  );
+}
+
 interface AccountRowProps {
   user: User | null;
   profile: AuthProfile | null;
@@ -167,9 +185,6 @@ export function SettingsRow({
   onToggle,
   disabled,
 }: SettingsRowProps) {
-  // A description makes the row tall and top-heavy; without one the label
-  // centers cleanly against the switch on the plain 64px row.
-  const bodyStyle = description != null ? styles.rowBody : styles.rowBodySingle;
   return (
     <TouchableOpacity
       accessibilityRole="switch"
@@ -183,12 +198,7 @@ export function SettingsRow({
       style={[styles.row, disabled && styles.rowDisabled]}
     >
       <LeadingIcon name={icon} />
-      <View style={bodyStyle}>
-        <Text style={styles.rowLabel}>{label}</Text>
-        {description != null && (
-          <Text style={styles.rowDescription}>{description}</Text>
-        )}
-      </View>
+      <RowBody label={label} description={description} />
       <Switch value={value} disabled={disabled} />
     </TouchableOpacity>
   );
@@ -217,12 +227,7 @@ export function ValueRow({
       style={styles.row}
     >
       <LeadingIcon name={icon} />
-      <View style={description != null ? styles.rowBody : styles.rowBodySingle}>
-        <Text style={styles.rowLabel}>{label}</Text>
-        {description != null && (
-          <Text style={styles.rowDescription}>{description}</Text>
-        )}
-      </View>
+      <RowBody label={label} description={description} />
       <View style={styles.rowValue}>
         <Text style={styles.rowValueText} numberOfLines={1}>
           {value}
@@ -248,12 +253,7 @@ export function InfoRow({ label, icon, description }: InfoRowProps) {
   return (
     <View style={styles.row}>
       <LeadingIcon name={icon} />
-      <View style={styles.rowBody}>
-        <Text style={styles.rowLabel}>{label}</Text>
-        {description != null && (
-          <Text style={styles.rowDescription}>{description}</Text>
-        )}
-      </View>
+      <RowBody label={label} description={description} />
     </View>
   );
 }
@@ -275,12 +275,7 @@ export function LinkRow({ label, icon, description, onPress }: LinkRowProps) {
       style={styles.row}
     >
       <LeadingIcon name={icon} />
-      <View style={description != null ? styles.rowBody : styles.rowBodySingle}>
-        <Text style={styles.rowLabel}>{label}</Text>
-        {description != null && (
-          <Text style={styles.rowDescription}>{description}</Text>
-        )}
-      </View>
+      <RowBody label={label} description={description} />
       <MaterialIcons
         name="open-in-new"
         size={THEME.ICON.MD}

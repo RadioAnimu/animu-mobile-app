@@ -20,30 +20,39 @@ import { AppState, type AppStateStatus } from "react-native";
  * events (Control Center, notification shade) where the UI is still visible.
  */
 const AppBackgroundContext = createContext(false);
+const AppStatusContext = createContext<AppStateStatus>("active");
 
 export const AppStateProvider: React.FC<{ children: ReactNode }> = ({
   children,
 }) => {
-  const [isBackgrounded, setIsBackgrounded] = useState(
-    () => AppState.currentState === "background",
+  const [state, setState] = useState<AppStateStatus>(() =>
+    AppState.currentState === "unknown" ? "active" : AppState.currentState,
   );
 
   useEffect(() => {
     const subscription = AppState.addEventListener(
       "change",
       (nextState: AppStateStatus) => {
-        setIsBackgrounded(nextState === "background");
+        setState(nextState);
       },
     );
     return () => subscription.remove();
   }, []);
 
+  const isBackgrounded = state === "background";
+
   return (
-    <AppBackgroundContext.Provider value={isBackgrounded}>
-      {children}
-    </AppBackgroundContext.Provider>
+    <AppStatusContext.Provider value={state}>
+      <AppBackgroundContext.Provider value={isBackgrounded}>
+        {children}
+      </AppBackgroundContext.Provider>
+    </AppStatusContext.Provider>
   );
 };
 
 export const useIsBackgrounded = (): boolean =>
   useContext(AppBackgroundContext);
+
+/** The raw AppState value ("active" / "inactive" / "background"). */
+export const useAppStateStatus = (): AppStateStatus =>
+  useContext(AppStatusContext);

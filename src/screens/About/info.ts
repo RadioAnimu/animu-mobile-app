@@ -4,7 +4,6 @@ import * as Application from "expo-application";
 
 import {
   getCurrentOtaVersion,
-  getRuntimeVersion,
   isOtaSupported,
 } from "@/core/ota";
 
@@ -24,8 +23,6 @@ export interface AppInfo {
   appVersion: string | null;
   /** Native build number / version code. */
   buildVersion: string | null;
-  /** `"2.2.0+13"` — the OTA runtime the binary accepts. */
-  runtimeVersion: string;
   /** Current OTA bundle number; `0` means the embedded bundle is running. */
   otaVersion: number | null;
   otaSupported: boolean;
@@ -101,7 +98,6 @@ export function useAppInfo(): AppInfo {
   return {
     appVersion: Application.nativeApplicationVersion,
     buildVersion: Application.nativeBuildVersion,
-    runtimeVersion: getRuntimeVersion(),
     otaVersion,
     otaSupported,
     release,

@@ -77,5 +77,5 @@ The policy at <https://www.animu.com.br/privacypolicy> must match the inventory:
 - [ ] **Data safety** corrected (currently "No data collected" — inaccurate)
 - [ ] **Data deletion** web URL set in Play Console
 - [ ] Content rating questionnaire answered
-- [ ] `versionCode` bumped (currently 13)
+- [ ] `versionCode` bumped (currently 14)
 - [ ] Target API 36 / foreground service `mediaPlayback` (already configured)

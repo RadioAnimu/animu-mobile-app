@@ -335,11 +335,6 @@ export class ListenStatsService {
       if (d.firstAt == null || now < d.firstAt) d.firstAt = now;
       if (d.lastAt == null || now > d.lastAt) d.lastAt = now;
     }
-    if (!this.inSession) {
-      this.inSession = true;
-      // A session only counts once it accumulates MIN_SESSION_MS; the
-      // count is granted lazily when the threshold is crossed.
-    }
     this.scheduleFlush();
   }
 

@@ -8,7 +8,11 @@ import type { Dict } from "@/i18n";
 import { cardThemeFromAccent } from "@/screens/Stats/card-theme";
 import { styles } from "@/screens/Stats/styles";
 import { THEME } from "@/theme";
-import { formatListenDuration, interpolate } from "@/utils/format";
+import {
+  formatStreakLabel,
+  formatListenDuration,
+  listenDurationUnits,
+} from "@/utils/format";
 
 interface Props {
   /** Account display name (username) — the big line. */
@@ -47,10 +51,7 @@ export function ShareCard({
   dict,
 }: Props) {
   const theme = cardThemeFromAccent(accentColor);
-  const streakLabel =
-    snap.maxStreak === 1
-      ? dict.STATS_STREAK_DAY
-      : interpolate(dict.STATS_STREAK_DAYS, { n: snap.maxStreak });
+  const streakLabel = formatStreakLabel(snap.maxStreak, dict);
   const covers = snap.topRequests.slice(0, 5);
   // Alpha-shaped logo shadow: a dark, slightly blurred copy of the same
   // transparent PNG sits just behind and below the artwork — the rectangle
@@ -129,7 +130,10 @@ export function ShareCard({
               {dict.STATS_TOTAL}
             </Text>
             <Text style={[styles.shareCardStatValue, { color: theme.text }]}>
-              {formatListenDuration(snap.totalMs / 60_000)}
+              {formatListenDuration(
+                snap.totalMs / 60_000,
+                listenDurationUnits(dict),
+              )}
             </Text>
           </View>
           <View

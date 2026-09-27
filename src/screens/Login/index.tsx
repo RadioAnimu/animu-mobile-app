@@ -10,7 +10,6 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-import { Background } from "@/components/Background";
 import { EmailCodeFields } from "@/components/EmailCodeFields";
 import { ProviderIcon } from "@/components/ProviderIcon";
 import { ScreenHeader } from "@/components/ScreenHeader";
@@ -21,6 +20,7 @@ import { isProviderConfigured } from "@/constants/auth";
 import type { Dict } from "@/i18n";
 import { useDict } from "@/hooks/useDict";
 import { useEmailCodeFlow, emailCodeError } from "@/hooks/useEmailCodeFlow";
+import { interpolate } from "@/utils/format";
 import { RootStackParamList } from "@/routes/app.routes";
 import { THEME } from "@/theme";
 import { styles } from "@/screens/Login/styles";
@@ -139,9 +139,7 @@ export function Login({ navigation }: Props) {
   const stepIndex = step === "method" ? 1 : 2;
   const errorMessage = providerError ?? flow.error;
 
-  return (
-    <Background>
-      <SafeAreaView style={styles.container} edges={["left", "right", "bottom"]}>
+  return (      <SafeAreaView style={styles.container} edges={["left", "right", "bottom"]}>
         <ScreenHeader title={dict.LOGIN_TITLE} onBack={goBack} />
 
         <ScrollView
@@ -240,10 +238,9 @@ export function Login({ navigation }: Props) {
               <Text style={styles.subtitle}>
                 {flow.step === "email"
                   ? dict.LOGIN_CONNECT_SUBTITLE
-                  : dict.LOGIN_CODE_SUBTITLE.replace(
-                      "{email}",
-                      flow.email.trim(),
-                    )}
+                  : interpolate(dict.LOGIN_CODE_SUBTITLE, {
+                      email: flow.email.trim(),
+                    })}
               </Text>
 
               <View style={styles.form}>
@@ -285,6 +282,5 @@ export function Login({ navigation }: Props) {
           {errorMessage && <Text style={styles.error}>{errorMessage}</Text>}
         </ScrollView>
       </SafeAreaView>
-    </Background>
   );
 }

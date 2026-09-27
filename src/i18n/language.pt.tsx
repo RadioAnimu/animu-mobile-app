@@ -137,6 +137,7 @@ const DICT: Dict = {
   MENU_LAST_REQUESTED: "Últimas Pedidas",
   MENU_LAST_PLAYED: "Últimas Tocadas",
   MENU_MAKE_REQUEST: "Fazer Pedido",
+  HISTORY_EMPTY: "Nada por aqui ainda",
   LINKS: "Links",
   LINKS_DISCORD: "Discord",
   LINKS_WEBSITE: "Página Web",
@@ -234,6 +235,9 @@ const DICT: Dict = {
   STATS_STREAK_LONGEST: "Maior sequência",
   STATS_STREAK_DAYS: "{n} dias",
   STATS_STREAK_DAY: "1 dia",
+  STATS_UNIT_DAYS: "d",
+  STATS_UNIT_HOURS: "h",
+  STATS_UNIT_MINUTES: "min",
   STATS_HEATMAP_TITLE: "Mapa de calor",
   STATS_HEATMAP_HINT: "Últimos 6 meses — toque num dia para ver detalhes",
   STATS_LESS: "Menos",
@@ -478,7 +482,7 @@ const OnAirLabel = (props: SvgProps) => (
 
 const LiveRequestsEnabled = (props: SvgProps) => {
   return (
-    <Svg width="79" height="23" viewBox="0 0 79 23" fill="none">
+    <Svg width="79" height="23" viewBox="0 0 79 23" fill="none" {...props}>
       <Rect width="73" height="23" rx="4" fill="#6BDB00" />
       <Path d="M79 11.5L73 16L73 7L79 11.5Z" fill="#6BDB00" />
       <Path
@@ -491,7 +495,7 @@ const LiveRequestsEnabled = (props: SvgProps) => {
 
 const LiveRequestsDisabled = (props: SvgProps) => {
   return (
-    <Svg width="86" height="19" viewBox="0 0 86 19" fill="none">
+    <Svg width="86" height="19" viewBox="0 0 86 19" fill="none" {...props}>
       <Rect width="81" height="19" rx="4" fill="#6BDB00" />
       <Path
         d="M86 9.49999L80.8317 13.2644L80.8317 5.73557L86 9.49999Z"

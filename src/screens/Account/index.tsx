@@ -6,7 +6,6 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 import { AnimuApiError } from "animu-api";
 import { AccountEmails } from "@/components/AccountEmails";
-import { Background } from "@/components/Background";
 import { DestructiveAction } from "@/components/DestructiveAction";
 import { ScreenHeader } from "@/components/ScreenHeader";
 import { SectionTitle } from "@/components/SectionTitle";
@@ -99,7 +98,6 @@ export function Account({ navigation }: Props) {
 
   if (!isAuthenticated || !user) {
     return (
-      <Background>
         <SafeAreaView
           style={styles.container}
           edges={["left", "right", "bottom"]}
@@ -124,12 +122,10 @@ export function Account({ navigation }: Props) {
             </TouchableOpacity>
           </View>
         </SafeAreaView>
-      </Background>
     );
   }
 
   return (
-    <Background>
       <SafeAreaView
         style={styles.container}
         edges={["left", "right", "bottom"]}
@@ -195,6 +191,5 @@ export function Account({ navigation }: Props) {
           </View>
         </ScrollView>
       </SafeAreaView>
-    </Background>
   );
 }

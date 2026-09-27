@@ -137,6 +137,7 @@ const DICT: Dict = {
   MENU_LAST_REQUESTED: "Últimas Solicitudes",
   MENU_LAST_PLAYED: "Últimas Reproducciones",
   MENU_MAKE_REQUEST: "Hacer Pedido",
+  HISTORY_EMPTY: "Nada por aquí todavía",
   LINKS: "Enlaces",
   LINKS_DISCORD: "Discord",
   LINKS_WEBSITE: "Sitio Web",
@@ -236,6 +237,9 @@ const DICT: Dict = {
   STATS_STREAK_LONGEST: "Racha más larga",
   STATS_STREAK_DAYS: "{n} días",
   STATS_STREAK_DAY: "1 día",
+  STATS_UNIT_DAYS: "d",
+  STATS_UNIT_HOURS: "h",
+  STATS_UNIT_MINUTES: "min",
   STATS_HEATMAP_TITLE: "Mapa de calor",
   STATS_HEATMAP_HINT: "Últimos 6 meses — toca un día para ver detalles",
   STATS_LESS: "Menos",
@@ -471,7 +475,7 @@ const DICT: Dict = {
 };
 
 const OnAirLabel = (props: SvgProps) => (
-  <Svg width="41" height="92" viewBox="0 0 41 92" fill="none">
+  <Svg width="41" height="92" viewBox="0 0 41 92" fill="none" {...props}>
     <Rect width="41" height="92" fill="#FF0000" />
     <Path
       d="M28 70.9753L28 74.5393L25.514 75.4413L25.514 81.7333L28 82.6573L28 86.2213L13.326 80.5453L13.326 76.6293L28 70.9753ZM22.764 76.2993L16.45 78.5873L22.764 80.8753L22.764 76.2993ZM28 60.2923L28 69.6203L13.326 69.6203L13.326 66.4963L25.25 66.4963L25.25 60.2923L28 60.2923ZM28 38.7917L28 42.3557L25.514 43.2577L25.514 49.5497L28 50.4737L28 54.0377L13.326 48.3617L13.326 44.4457L28 38.7917ZM22.764 44.1157L16.45 46.4037L22.764 48.6917L22.764 44.1157ZM28 34.3127L28 37.4367L13.326 37.4367L13.326 34.3127L28 34.3127ZM28 19.5196L28 23.1056L22.786 25.9876L22.786 28.2756L28 28.2756L28 31.3996L13.326 31.3996L13.326 24.5356C13.326 23.0249 13.766 21.8296 14.646 20.9496C15.526 20.0549 16.6627 19.6076 18.056 19.6076C19.2587 19.6076 20.234 19.9229 20.982 20.5536C21.73 21.1696 22.2067 21.9249 22.412 22.8196L28 19.5196ZM20.036 24.9976C20.036 24.3522 19.86 23.8242 19.508 23.4136C19.1413 23.0029 18.6573 22.7976 18.056 22.7976C17.4547 22.7976 16.978 23.0029 16.626 23.4136C16.2593 23.8242 16.076 24.3522 16.076 24.9976L16.076 28.2756L20.036 28.2756L20.036 24.9976ZM28 6.87884L28 17.2628L13.326 17.2628L13.326 6.87884L16.076 6.87884L16.076 14.1388L19.178 14.1388L19.178 7.03284L21.928 7.03284L21.928 14.1388L25.25 14.1388L25.25 6.87884L28 6.87884Z"
@@ -482,7 +486,7 @@ const OnAirLabel = (props: SvgProps) => (
 
 const LiveRequestsEnabled = (props: SvgProps) => {
   return (
-    <Svg width="81" height="23" viewBox="0 0 81 23" fill="none">
+    <Svg width="81" height="23" viewBox="0 0 81 23" fill="none" {...props}>
       <Rect width="76.1881" height="23" rx="4" fill="#6BDB00" />
       <Path d="M81 11.5L76.1881 16L76.1881 7L81 11.5Z" fill="#6BDB00" />
       <Path
@@ -495,7 +499,7 @@ const LiveRequestsEnabled = (props: SvgProps) => {
 
 const LiveRequestsDisabled = (props: SvgProps) => {
   return (
-    <Svg width="81" height="23" viewBox="0 0 81 23" fill="none">
+    <Svg width="81" height="23" viewBox="0 0 81 23" fill="none" {...props}>
       <Rect width="76.1881" height="23" rx="4" fill="#6BDB00" />
       <Path d="M81 11.5L76.1881 16L76.1881 7L81 11.5Z" fill="#6BDB00" />
       <Path

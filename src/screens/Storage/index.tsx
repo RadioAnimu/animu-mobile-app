@@ -4,7 +4,6 @@ import { DrawerScreenProps } from "@react-navigation/drawer";
 import { ScrollView, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-import { Background } from "@/components/Background";
 import { SectionTitle } from "@/components/SectionTitle";
 import { Select } from "@/components/Select";
 import { ScreenHeader } from "@/components/ScreenHeader";
@@ -65,16 +64,27 @@ export function Storage({ navigation }: Props) {
   // navigation. Both settle BEFORE the settings render with new values,
   // so re-reading on those transitions is enough. The initial values are
   // the mount state — the focus read already owns them.
-  const settledOnce = useRef(false);
+  const wipedOnce = useRef(false);
   useEffect(() => {
-    if (!cacheWiping && settledOnce.current) refresh();
-    settledOnce.current = true;
-  }, [cacheWiping, refresh]);
-  useEffect(() => {
-    if (!settledOnce.current) {
-      settledOnce.current = true;
-      return;
+    // First run is the mount state; a Wipe completing flips the flag and
+    // every later "no wipe running" transition re-reads the device numbers.
+    if (!cacheWiping) {
+      if (wipedOnce.current) refresh();
+      wipedOnce.current = true;
     }
+  }, [cacheWiping, refresh]);
+
+  const lastSettingsKey = useRef<string | null>(null);
+  useEffect(() => {
+    const key = `${settings.coverCacheLimitBytes}|${
+      settings.coverCachePartitionBytes
+        ? JSON.stringify(settings.coverCachePartitionBytes)
+        : ""
+    }|${settings.cacheEnabled}`;
+    if (lastSettingsKey.current === key) return;
+    const isFirst = lastSettingsKey.current === null;
+    lastSettingsKey.current = key;
+    if (isFirst) return;
     refresh();
   }, [
     refresh,
@@ -156,9 +166,7 @@ export function Storage({ navigation }: Props) {
     });
   };
 
-  return (
-    <Background>
-      <SafeAreaView style={styles.container} edges={["left", "right", "bottom"]}>
+  return (      <SafeAreaView style={styles.container} edges={["left", "right", "bottom"]}>
         <ScreenHeader
           title={dict.STORAGE_TITLE}
           onBack={() => navigation.goBack()}
@@ -291,6 +299,5 @@ export function Storage({ navigation }: Props) {
           )}
         </ScrollView>
       </SafeAreaView>
-    </Background>
   );
 }

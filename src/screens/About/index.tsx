@@ -13,7 +13,6 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { API } from "@/api";
-import { Background } from "@/components/Background";
 import { Logo } from "@/components/Logo";
 import { ScreenHeader } from "@/components/ScreenHeader";
 import { SectionTitle } from "@/components/SectionTitle";
@@ -108,20 +107,20 @@ function SocialRow({ brand, label, url }: SocialRowProps) {
  * place — no modal, no portal.
  */
 function DonorDisclosure({ label, intro }: { label: string; intro: string }) {
-  const [open, setOpen] = useState(false);
+  const [expanded, setExpanded] = useState(false);
 
 
   const toggle = () => {
     haptics.select();
     layoutEase();
-    setOpen((current) => !current);
+    setExpanded((current) => !current);
   };
 
   return (
     <View>
       <TouchableOpacity
         accessibilityRole="button"
-        accessibilityState={{ expanded: open }}
+        accessibilityState={{ expanded }}
         activeOpacity={0.7}
         onPress={toggle}
       >
@@ -138,14 +137,14 @@ function DonorDisclosure({ label, intro }: { label: string; intro: string }) {
             {DONORS.length}
           </Text>
           <MaterialIcons
-            name={open ? "expand-less" : "expand-more"}
+            name={expanded ? "expand-less" : "expand-more"}
             size={THEME.ICON.MD}
             color={THEME.COLORS.TEXT_DIM}
           />
         </View>
       </TouchableOpacity>
 
-      {open && (
+      {expanded && (
         <View>
           <Text style={styles.paragraph}>{intro}</Text>
           {DONORS.map((donor) => (
@@ -191,9 +190,7 @@ export function About({ navigation }: Props) {
     ? `v${info.appVersion}${info.buildVersion ? ` (${info.buildVersion})` : ""}`
     : dict.ABOUT_OTA_LOADING;
 
-  return (
-    <Background>
-      <SafeAreaView
+  return (      <SafeAreaView
         style={styles.container}
         edges={["left", "right", "bottom"]}
       >
@@ -356,6 +353,5 @@ export function About({ navigation }: Props) {
           </View>
         </ScrollView>
       </SafeAreaView>
-    </Background>
   );
 }

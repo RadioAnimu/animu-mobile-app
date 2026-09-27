@@ -11,14 +11,17 @@ import type { ProfileBar } from "@/screens/Stats/ProfileBars";
 import { ProfileBars } from "@/screens/Stats/ProfileBars";
 import { styles } from "@/screens/Stats/styles";
 import { haptics } from "@/utils/haptics";
-import { formatListenDuration, interpolate } from "@/utils/format";
+import { formatStreakLabel, formatListenDuration, listenDurationUnits } from "@/utils/format";
 
 /** Overview grid rows: [label, value] pairs. */
 const buildOverview = (
   snap: ListenStatsSnapshot,
   dict: Dict,
 ): [string, string][] => [
-  [dict.STATS_TOTAL, formatListenDuration(snap.totalMs / 60_000)],
+  [
+    dict.STATS_TOTAL,
+    formatListenDuration(snap.totalMs / 60_000, listenDurationUnits(dict)),
+  ],
   [dict.STATS_DAYS, `${snap.activeDays}`],
   [dict.STATS_SESSIONS, `${snap.totalSessions}`],
   [dict.STATS_SONGS, `${snap.totalTracks}`],
@@ -50,10 +53,7 @@ const buildWeekdayBars = (snap: ListenStatsSnapshot, dict: Dict): ProfileBar[] =
   }));
 };
 
-const streakLabel = (days: number, dict: Dict): string =>
-  days === 1
-    ? dict.STATS_STREAK_DAY
-    : interpolate(dict.STATS_STREAK_DAYS, { n: days });
+const streakLabel = formatStreakLabel;
 
 interface Props {
   snap: ListenStatsSnapshot;

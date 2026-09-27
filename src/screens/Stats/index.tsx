@@ -1,10 +1,9 @@
-import { useCallback, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { DrawerScreenProps } from "@react-navigation/drawer";
 import { useFocusEffect } from "@react-navigation/native";
 import { ScrollView, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-import { Background } from "@/components/Background";
 import { ScreenHeader } from "@/components/ScreenHeader";
 import {
   listenStatsService,
@@ -56,15 +55,22 @@ export function Stats({ navigation }: Props) {
   const hasData =
     (snap?.totalMs ?? 0) > 0 || (snap?.totalSubmitted ?? 0) > 0;
 
+  // The share card needs a snapshot the moment it is signed in, even before
+  // the focus effect's first read resolves. Memoized off `snap` so the
+  // fallback is built once (getSnapshot() re-reads/prunes the store — not
+  // something to run on every render) and keeps a stable prop identity.
+  const fallbackSnap = useMemo(
+    () => (snap ? null : listenStatsService.getSnapshot()),
+    [snap],
+  );
+
   const handleReset = useCallback(async () => {
     await listenStatsService.reset();
     setSnap(listenStatsService.getSnapshot());
     setSelectedDay(null);
   }, []);
 
-  return (
-    <Background>
-      <SafeAreaView
+  return (      <SafeAreaView
         style={styles.container}
         edges={["left", "right", "bottom"]}
       >
@@ -79,7 +85,7 @@ export function Stats({ navigation }: Props) {
             user={user}
             profile={profile}
             imageVersion={imageVersion}
-            snap={snap ?? listenStatsService.getSnapshot()}
+            snap={snap ?? fallbackSnap!}
             onRefreshStats={refreshStats}
             onSignIn={() => navigation.navigate("Login")}
           />
@@ -99,6 +105,5 @@ export function Stats({ navigation }: Props) {
           )}
         </ScrollView>
       </SafeAreaView>
-    </Background>
   );
 }

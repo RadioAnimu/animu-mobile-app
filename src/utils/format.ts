@@ -1,3 +1,6 @@
+/** Listening-stats dictionary subset used by the duration/streak formatters. */
+import type { Dict } from "@/i18n";
+
 const KB = 1024;
 /** Byte size of one megabyte — shared by the storage/limit UIs. */
 export const MB = KB * 1024;
@@ -34,17 +37,60 @@ export function interpolate(
   );
 }
 
-/** Minutes → human listening duration: "3h 24m", "45m", "2d 5h". */
-export function formatListenDuration(minutes: number): string {
-  if (!Number.isFinite(minutes) || minutes < 1) return "0m";
+/** Localized duration units, as surfaced by the listening-stats screens. */
+export interface ListenDurationUnits {
+  days: string;
+  hours: string;
+  minutes: string;
+}
+
+/** The localized unit set for `formatListenDuration` from a dictionary. */
+export function listenDurationUnits(
+  dict: Pick<
+    Dict,
+    "STATS_UNIT_DAYS" | "STATS_UNIT_HOURS" | "STATS_UNIT_MINUTES"
+  >,
+): ListenDurationUnits {
+  return {
+    days: dict.STATS_UNIT_DAYS,
+    hours: dict.STATS_UNIT_HOURS,
+    minutes: dict.STATS_UNIT_MINUTES,
+  };
+}
+
+/**
+ * Minutes → human listening duration: "3h 24m", "45m", "2d 5h".
+ * Pass `listenDurationUnits(dict)` for the user's language (Japanese gets
+ * "3時間 24分" instead of English letters).
+ */
+export function formatListenDuration(
+  minutes: number,
+  units?: ListenDurationUnits,
+): string {
+  const u = units ?? { days: "d", hours: "h", minutes: "m" };
+  if (!Number.isFinite(minutes) || minutes < 1) return `0${u.minutes}`;
   const total = Math.round(minutes);
-  if (total < 60) return `${total}m`;
+  if (total < 60) return `${total}${u.minutes}`;
   const hours = Math.floor(total / 60);
   if (hours < 24) {
     const rest = total % 60;
-    return rest > 0 ? `${hours}h ${rest}m` : `${hours}h`;
+    return rest > 0
+      ? `${hours}${u.hours} ${rest}${u.minutes}`
+      : `${hours}${u.hours}`;
   }
   const days = Math.floor(hours / 24);
   const restH = hours % 24;
-  return restH > 0 ? `${days}d ${restH}h` : `${days}d`;
+  return restH > 0
+    ? `${days}${u.days} ${restH}${u.hours}`
+    : `${days}${u.days}`;
+}
+
+/** Localized "N days / 1 day" streak label, shared by the stats surfaces. */
+export function formatStreakLabel(
+  days: number,
+  dict: Pick<Dict, "STATS_STREAK_DAY" | "STATS_STREAK_DAYS">,
+): string {
+  return days === 1
+    ? dict.STATS_STREAK_DAY
+    : interpolate(dict.STATS_STREAK_DAYS, { n: days });
 }
