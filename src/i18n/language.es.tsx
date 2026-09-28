@@ -429,10 +429,8 @@ const DICT: Dict = {
   ACCOUNT_ANIMU_CONNECT: "Animu Connect",
   ACCOUNT_ANIMU_CONNECT_DESC:
     "Inicio de sesión sin contraseña por código de correo.",
-  ACCOUNT_ANIMU_CONNECT_READY_AS: "Configurado como {email}",
   ACCOUNT_ANIMU_CONNECT_FORM_HINT:
     "Los correos del proveedor son automáticos. Puedes añadir uno extra.",
-  ACCOUNT_EMAILS_TITLE: "Correos",
   ACCOUNT_DANGER: "Zona de peligro",
   ACCOUNT_LOGOUT: "Cerrar sesión",
   ACCOUNT_LOGOUT_HINT:

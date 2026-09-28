@@ -164,7 +164,10 @@ export function Account({ navigation }: Props) {
             }
           />
 
-          <SectionTitle title={dict.ACCOUNT_EMAILS_TITLE} icon="email" />
+          <SectionTitle
+            title={dict.ACCOUNT_ANIMU_CONNECT}
+            icon="alternate-email"
+          />
           <View style={styles.group}>
             <AccountEmails />
           </View>

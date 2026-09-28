@@ -424,10 +424,8 @@ const DICT: Dict = {
   ACCOUNT_UNLINK_SUCCESS: "連携を解除したよ",
   ACCOUNT_ANIMU_CONNECT: "Animu Connect",
   ACCOUNT_ANIMU_CONNECT_DESC: "メールコードでのパスワードレスログイン。",
-  ACCOUNT_ANIMU_CONNECT_READY_AS: "{email} で設定済み",
   ACCOUNT_ANIMU_CONNECT_FORM_HINT:
     "プロバイダのメールは自動。追加メールを1つ設定できます。",
-  ACCOUNT_EMAILS_TITLE: "メール",
   ACCOUNT_DANGER: "危険な操作",
   ACCOUNT_LOGOUT: "ログアウト",
   ACCOUNT_LOGOUT_HINT:

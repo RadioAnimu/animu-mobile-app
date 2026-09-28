@@ -420,10 +420,8 @@ const DICT = {
   ACCOUNT_UNLINK_SUCCESS: "Account unlinked",
   ACCOUNT_ANIMU_CONNECT: "Animu Connect",
   ACCOUNT_ANIMU_CONNECT_DESC: "Passwordless sign-in by email code.",
-  ACCOUNT_ANIMU_CONNECT_READY_AS: "Configured as {email}",
   ACCOUNT_ANIMU_CONNECT_FORM_HINT:
     "Provider emails are automatic. You can add one extra email.",
-  ACCOUNT_EMAILS_TITLE: "Emails",
   ACCOUNT_DANGER: "Danger zone",
   ACCOUNT_LOGOUT: "Log out",
   ACCOUNT_LOGOUT_HINT: "Sign out on this device. Your account stays intact.",

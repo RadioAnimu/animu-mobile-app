@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import MaterialIcons from "@react-native-vector-icons/material-icons/static";
-import type { AuthAccountEmail } from "animu-api";
+import type { AuthAccountEmail, LinkedProvider } from "animu-api";
 import {
   ActivityIndicator,
   Alert,
@@ -17,11 +17,14 @@ import {
   type EmailCodeFlow,
 } from "@/hooks/useEmailCodeFlow";
 import type { Dict } from "@/i18n";
+import { providerLabel } from "@/constants/auth";
 import { THEME } from "@/theme";
 import { scale } from "@/theme/responsive";
 import { layoutEase } from "@/utils/layout-animation";
 import { interpolate } from "@/utils/format";
+import { maskEmail } from "@/utils/mask";
 import { EmailCodeFields } from "@/components/EmailCodeFields";
+import { MaskedValue } from "@/components/MaskedValue";
 import { ProviderIcon } from "@/components/ProviderIcon";
 import { styles } from "@/components/AccountEmails/styles";
 
@@ -55,27 +58,28 @@ function EmailRow({
   return (
     <View style={styles.emailRow}>
       <View style={styles.emailIcon}>
-        <MaterialIcons
-          name={isExtra ? "alternate-email" : "mail"}
-          size={THEME.ICON.MD}
-          color={THEME.COLORS.TEXT}
-          style={styles.iconGlyph}
+        <LeadingMarks providers={providers} />
+      </View>
+      <View style={styles.emailBody}>
+        {/* Masked by default: the address is personal, the reveal is one tap. */}
+        <MaskedValue
+          value={email}
+          mask={maskEmail}
+          textStyle={styles.emailValue}
+          showLabel={dict.ACCOUNT_SHOW}
+          hideLabel={dict.ACCOUNT_HIDE}
+          iconSize={14}
         />
       </View>
-      <Text style={styles.emailValue} numberOfLines={1}>
-        {email}
-      </Text>
-      {/* Marks sit flush right so a long address never pushes them around. */}
       <View style={styles.emailTrailing}>
-        {isExtra ? (
+        {isExtra && (
           <Text style={styles.badge}>{dict.ACCOUNT_EMAIL_EXTRA}</Text>
-        ) : (
-          <ProviderMarks providers={providers} />
         )}
         {removableItem && (
           <TouchableOpacity
             accessibilityRole="button"
-            accessibilityLabel={`${dict.ACCOUNT_EMAIL_REMOVE} ${email}`}
+            // The masked form, or the label would undo the hidden address.
+            accessibilityLabel={`${dict.ACCOUNT_EMAIL_REMOVE} ${maskEmail(email)}`}
             activeOpacity={0.7}
             disabled={busy}
             hitSlop={8}
@@ -94,30 +98,76 @@ function EmailRow({
   );
 }
 
-/** One provider mark per provider, in the order the server returned them. */
-const PROVIDER_MARKS_MAX = 3;
+/** The four corners of the leading square, filled in this order. */
+const MARK_CORNERS = [
+  styles.markTopRight,
+  styles.markBottomLeft,
+  styles.markTopLeft,
+  styles.markBottomRight,
+];
 
-function ProviderMarks({
+/**
+ * The row's leading slot: the providers that registered the address, laid out
+ * diagonally in the square's corners (top-right, then bottom-left, then the
+ * remaining two) so several marks share the one icon column. A single
+ * provider renders bare, matching the Linked Accounts rows; a fifth would
+ * collapse into a `+N` chip. The extra Animu Connect address has no provider
+ * and shows an envelope instead.
+ */
+function LeadingMarks({
   providers,
 }: {
   providers: NonNullable<AuthAccountEmail["provider"]>[];
 }) {
-  const shown = providers.slice(0, PROVIDER_MARKS_MAX);
+  if (providers.length === 0) {
+    return (
+      <MaterialIcons
+        name="mail"
+        size={THEME.ICON.MD}
+        color={THEME.COLORS.TEXT}
+        style={styles.iconGlyph}
+      />
+    );
+  }
+
+  const label = providers
+    .map((provider) => providerLabel(provider))
+    .join(", ");
+
+  if (providers.length === 1) {
+    return (
+      <View accessible accessibilityLabel={label}>
+        <ProviderIcon
+          provider={providers[0]}
+          size={THEME.ICON.MD}
+          color={THEME.COLORS.TEXT}
+        />
+      </View>
+    );
+  }
+
+  const shown =
+    providers.length > MARK_CORNERS.length
+      ? providers.slice(0, MARK_CORNERS.length - 1)
+      : providers;
   const overflow = providers.length - shown.length;
+
   return (
-    <View style={styles.providerMarks}>
-      {shown.map((provider) => (
-        /* A fixed square per mark keeps glyph and SVG brands on the same
-           optical center and gives them a consistent footprint. */
-        <View key={provider} style={styles.providerMark}>
+    <View accessible accessibilityLabel={label} style={styles.markGrid}>
+      {shown.map((provider, index) => (
+        <View key={provider} style={[styles.markChip, MARK_CORNERS[index]]}>
           <ProviderIcon
             provider={provider}
-            size={scale(16)}
+            size={scale(13)}
             color={THEME.COLORS.TEXT}
           />
         </View>
       ))}
-      {overflow > 0 && <Text style={styles.providerOverflow}>+{overflow}</Text>}
+      {overflow > 0 && (
+        <View style={[styles.markChip, MARK_CORNERS[shown.length]]}>
+          <Text style={styles.markOverflow}>+{overflow}</Text>
+        </View>
+      )}
     </View>
   );
 }
@@ -133,9 +183,15 @@ interface EmailGroup {
 /**
  * Collapses the server's row-per-(email, provider) list into one entry per
  * address, so the same address registered by e.g. Google and Apple shows once
- * with both marks instead of duplicating.
+ * with both marks instead of duplicating. A deployment that reports only one
+ * provider per address is reconciled against the linked providers that carry
+ * the same `providerEmail`, so no mark is lost.
  */
-function groupEmails(emails: AuthAccountEmail[]): EmailGroup[] {
+function groupEmails(
+  emails: AuthAccountEmail[],
+  linkedProviders: LinkedProvider[],
+  providerOrder: string[],
+): EmailGroup[] {
   const groups = new Map<string, EmailGroup>();
   for (const item of emails) {
     const key = item.email.toLowerCase();
@@ -154,6 +210,25 @@ function groupEmails(emails: AuthAccountEmail[]): EmailGroup[] {
       removableItem: item.removable ? item : null,
     });
   }
+
+  // Available-provider order: the marks then read in the same sequence as the
+  // Linked Accounts rows above, not in whatever order the addresses arrived.
+  const order = new Map(providerOrder.map((name, index) => [name, index]));
+
+  for (const group of groups.values()) {
+    const key = group.email.toLowerCase();
+    for (const linked of linkedProviders) {
+      if (!linked.providerEmail) continue;
+      if (linked.providerEmail.trim().toLowerCase() !== key) continue;
+      if (!group.providers.includes(linked.provider)) {
+        group.providers.push(linked.provider);
+      }
+    }
+    group.providers.sort(
+      (a, b) => (order.get(a) ?? Infinity) - (order.get(b) ?? Infinity),
+    );
+  }
+
   return [...groups.values()];
 }
 
@@ -204,103 +279,17 @@ function EmailCodeForm({
   );
 }
 
-/** The expandable panel: email list, add action or the add-email form. */
-function EmailsPanel({
-  dict,
-  loading,
-  screen,
-  flow,
-  emails,
-  extraEmail,
-  busy,
-  onRemove,
-  onAdd,
-  onCancelEdit,
-}: {
-  dict: Dict;
-  loading: boolean;
-  screen: Screen;
-  flow: EmailCodeFlow;
-  emails: AuthAccountEmail[];
-  /** The single extra `animu` email, when it exists. */
-  extraEmail: AuthAccountEmail | null;
-  busy: boolean;
-  onRemove: (item: AuthAccountEmail) => void;
-  onAdd: () => void;
-  onCancelEdit: () => void;
-}) {
-  return (
-    <View style={styles.panel}>
-      <Text style={styles.hint}>
-        {screen === "form" && flow.step === "code"
-          ? interpolate(dict.LOGIN_CODE_SUBTITLE, { email: flow.email.trim() })
-          : dict.ACCOUNT_ANIMU_CONNECT_FORM_HINT}
-      </Text>
-
-      {loading ? (
-        <ActivityIndicator
-          color={THEME.COLORS.TEXT_DIM}
-          style={styles.loading}
-        />
-      ) : screen === "list" ? (
-        <>
-          {emails.length === 0 ? (
-            <Text style={styles.empty}>{dict.ACCOUNT_EMAIL_EMPTY}</Text>
-          ) : (
-            groupEmails(emails).map((group) => (
-              <EmailRow
-                key={group.email}
-                email={group.email}
-                providers={group.providers}
-                isExtra={group.isExtra}
-                removableItem={group.removableItem}
-                dict={dict}
-                busy={busy}
-                onRemove={onRemove}
-              />
-            ))
-          )}
-
-          {flow.error && <Text style={styles.error}>{flow.error}</Text>}
-
-          {/*
-            The server allows only ONE extra email and rejects a new add
-            while it exists, so the action is hidden until the current one
-            is removed (the row above carries the delete button).
-          */}
-          {!extraEmail && (
-            <TouchableOpacity
-              accessibilityRole="button"
-              activeOpacity={0.7}
-              disabled={busy}
-              onPress={onAdd}
-              style={[styles.addButton, busy && styles.disabled]}
-            >
-              <MaterialIcons
-                name="add"
-                size={THEME.ICON.MD}
-                color={THEME.COLORS.TEXT}
-              />
-              <Text style={styles.addText}>{dict.ACCOUNT_EMAIL_ADD}</Text>
-            </TouchableOpacity>
-          )}
-        </>
-      ) : (
-        <EmailCodeForm flow={flow} dict={dict} onCancel={onCancelEdit} />
-      )}
-    </View>
-  );
-}
-
 /**
- * Inline email management for the Account screen: the expandable row reveals
- * the account's Animu Connect addresses in place — no modal, matching the
- * Settings dropdowns (e.g. cover quality). Provider emails are automatic; at
- * most one extra address can be added.
+ * Animu Connect management, listed in place on the Account screen: every
+ * address with the providers that registered it (masked until revealed), the
+ * optional single extra address with its delete action, and the inline add
+ * form. No collapse and no modal, matching the other Account groups.
  */
 export function AccountEmails() {
   const {
     emails,
+    profile,
+    providers,
     refreshEmails,
     requestAddEmail,
     verifyAddEmail,
@@ -309,8 +298,7 @@ export function AccountEmails() {
   const { toast, error: showError } = useAlert();
   const dict = useDict();
 
-  const [open, setOpen] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [screen, setScreen] = useState<Screen>("list");
   const [removing, setRemoving] = useState(false);
 
@@ -334,32 +322,25 @@ export function AccountEmails() {
   const busy = flow.busy || removing;
 
   useEffect(() => {
-    if (!open) return;
     let cancelled = false;
     setLoading(true);
-    flow.setError(null);
     void refreshEmails().finally(() => {
       if (!cancelled) setLoading(false);
     });
     return () => {
       cancelled = true;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open]);
-
-
-  const toggle = () => {
-    layoutEase();
-    if (open) {
-      flow.reset();
-      setScreen("list");
-    }
-    setOpen((current) => !current);
-  };
+  }, [refreshEmails]);
 
   // There is at most ONE extra `animu` email — when it exists the action
   // replaces it rather than adding another.
   const extraEmail = emails.find(isExtraEmail) ?? null;
+
+  const groups = groupEmails(
+    emails,
+    profile?.linkedProviders ?? [],
+    providers.map((provider) => provider.name),
+  );
 
   const confirmRemove = (target: AuthAccountEmail) => {
     Alert.alert(
@@ -389,61 +370,80 @@ export function AccountEmails() {
     );
   };
 
-  const extraSummary = extraEmail
-    ? interpolate(dict.ACCOUNT_ANIMU_CONNECT_READY_AS, { email: extraEmail.email })
-    : dict.ACCOUNT_ANIMU_CONNECT_DESC;
-
   return (
     <View>
-      <TouchableOpacity
-        accessibilityRole="button"
-        accessibilityState={{ expanded: open }}
-        activeOpacity={0.7}
-        onPress={toggle}
-        style={styles.trigger}
-      >
-        <View style={styles.triggerIcon}>
-          <MaterialIcons
-            name="alternate-email"
-            size={THEME.ICON.MD}
-            color={THEME.COLORS.TEXT}
-            style={styles.iconGlyph}
-          />
-        </View>
-        <View style={styles.triggerBody}>
-          <Text style={styles.triggerLabel}>{dict.ACCOUNT_ANIMU_CONNECT}</Text>
-          <Text style={styles.triggerCaption} numberOfLines={1}>
-            {extraSummary}
-          </Text>
-        </View>
-        <MaterialIcons
-          name={open ? "expand-less" : "expand-more"}
-          size={THEME.ICON.MD}
-          color={THEME.COLORS.TEXT_DIM}
-        />
-      </TouchableOpacity>
+      <Text style={styles.hint}>
+        {screen === "form"
+          ? flow.step === "code"
+            ? interpolate(dict.LOGIN_CODE_SUBTITLE, { email: flow.email.trim() })
+            : dict.ACCOUNT_ANIMU_CONNECT_FORM_HINT
+          : dict.ACCOUNT_ANIMU_CONNECT_DESC}
+      </Text>
 
-      {open && (
-        <EmailsPanel
-          dict={dict}
-          loading={loading}
-          screen={screen}
+      {screen === "form" ? (
+        <EmailCodeForm
           flow={flow}
-          emails={emails}
-          extraEmail={extraEmail}
-          busy={busy}
-          onRemove={confirmRemove}
-          onAdd={() => {
-            layoutEase();
-            flow.reset();
-            setScreen("form");
-          }}
-          onCancelEdit={() => {
+          dict={dict}
+          onCancel={() => {
             layoutEase();
             flow.reset();
             setScreen("list");
           }}
         />
+      ) : loading && emails.length === 0 ? (
+        <ActivityIndicator
+          color={THEME.COLORS.TEXT_DIM}
+          style={styles.loading}
+        />
+      ) : (
+        <>
+          {groups.length === 0 ? (
+            <Text style={styles.empty}>{dict.ACCOUNT_EMAIL_EMPTY}</Text>
+          ) : (
+            groups.map((group, index) => (
+              <View key={group.email}>
+                {index > 0 && <View style={styles.divider} />}
+                <EmailRow
+                  email={group.email}
+                  providers={group.providers}
+                  isExtra={group.isExtra}
+                  removableItem={group.removableItem}
+                  dict={dict}
+                  busy={busy}
+                  onRemove={confirmRemove}
+                />
+              </View>
+            ))
+          )}
+
+          {flow.error && <Text style={styles.error}>{flow.error}</Text>}
+
+          {/*
+            The server allows only ONE extra email and rejects a new add
+            while it exists, so the action is hidden until the current one
+            is removed (the row above carries the delete button).
+          */}
+          {!extraEmail && (
+            <TouchableOpacity
+              accessibilityRole="button"
+              activeOpacity={0.7}
+              disabled={busy}
+              onPress={() => {
+                layoutEase();
+                flow.reset();
+                setScreen("form");
+              }}
+              style={[styles.addButton, busy && styles.disabled]}
+            >
+              <MaterialIcons
+                name="add"
+                size={THEME.ICON.MD}
+                color={THEME.COLORS.TEXT}
+              />
+              <Text style={styles.addText}>{dict.ACCOUNT_EMAIL_ADD}</Text>
+            </TouchableOpacity>
+          )}
+        </>
       )}
     </View>
   );

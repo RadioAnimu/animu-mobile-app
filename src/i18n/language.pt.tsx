@@ -427,10 +427,8 @@ const DICT: Dict = {
   ACCOUNT_UNLINK_SUCCESS: "Conta desvinculada",
   ACCOUNT_ANIMU_CONNECT: "Animu Connect",
   ACCOUNT_ANIMU_CONNECT_DESC: "Login sem senha por código de e-mail.",
-  ACCOUNT_ANIMU_CONNECT_READY_AS: "Configurado como {email}",
   ACCOUNT_ANIMU_CONNECT_FORM_HINT:
     "E-mails de provedor são automáticos. Você pode adicionar um extra.",
-  ACCOUNT_EMAILS_TITLE: "E-mails",
   ACCOUNT_DANGER: "Zona de perigo",
   ACCOUNT_LOGOUT: "Sair",
   ACCOUNT_LOGOUT_HINT: "Encerra a sessão neste aparelho. Sua conta continua.",
