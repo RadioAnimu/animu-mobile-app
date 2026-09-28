@@ -12,20 +12,20 @@ export const styles = StyleSheet.create({
     justifyContent: "center",
     gap: THEME.SPACE.SM,
   },
+  // Same field recipe as the app's inputs: INPUT_BG with the deeper
+  // INPUT_BORDER and the shared MD radius.
   box: {
     flex: 1,
     maxWidth: BOX_MAX,
     aspectRatio: 1,
-    borderRadius: THEME.RADIUS.LG,
+    borderRadius: THEME.RADIUS.MD,
     backgroundColor: THEME.COLORS.INPUT_BG,
-    borderWidth: scale(1.5),
+    borderWidth: 1,
     borderColor: THEME.COLORS.INPUT_BORDER,
     alignItems: "center",
     justifyContent: "center",
   },
-  boxFocused: {
-    borderColor: THEME.COLORS.HAIRLINE,
-  },
+  // The box being typed: the brand hue on the same border.
   boxActive: {
     borderColor: THEME.COLORS.BRAND,
   },
@@ -45,13 +45,21 @@ export const styles = StyleSheet.create({
   },
   // Invisible full-row field on top of the boxes: the OS sees one focusable
   // input (one keyboard, one value) while the digits paint into the boxes.
+  // Transparent text (not `opacity: 0`, which would drop the field from the
+  // accessibility tree on both platforms) keeps the node readable to
+  // screen readers while the boxes carry the visuals.
   input: {
     position: "absolute",
     top: 0,
     right: 0,
     bottom: 0,
     left: 0,
-    color: "transparent",
+    // Android's TextInput ignores the alpha channel of `color` (transparent
+    // text still paints opaque black), so the field is hidden with an
+    // imperceptible opacity instead. Kept just above zero — `opacity: 0`
+    // drops the node from the accessibility tree on both platforms — and the
+    // boxes carry every visual.
+    opacity: 0.01,
     backgroundColor: "transparent",
     padding: 0,
   },

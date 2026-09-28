@@ -119,6 +119,10 @@ export function useEmailCodeFlow(
       reset();
       onVerified();
     } catch (err) {
+      // The entry is spent: empty the boxes so the auto-submit re-arms and a
+      // retry is a plain retype. (Forms with a visible submit button get the
+      // same clean slate, which is the standard OTP retry.)
+      setCode("");
       setError(mapVerifyError(err));
     } finally {
       setBusy(false);

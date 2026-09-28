@@ -1,67 +1,15 @@
-import React, { useEffect, useState } from "react";
-import {
-  Keyboard,
-  Modal,
-  ModalProps,
-  Platform,
-  StyleSheet,
-  TouchableOpacity,
-  View,
-} from "react-native";
+import React from "react";
+import { Modal, ModalProps, StyleSheet, TouchableOpacity, View } from "react-native";
 import { Image } from "expo-image";
 import DragIcon from "@/assets/icons/drag_down.webp";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useDict } from "@/hooks/useDict";
+import { useKeyboardPadding } from "@/hooks/useKeyboardPadding";
 import { THEME } from "@/theme";
-import { layoutEase } from "@/utils/layout-animation";
 import { scale } from "@/theme/responsive";
 
 const CLOSE_AREA_HEIGHT = scale(35);
 const DRAG_ICON_HEIGHT = scale(14);
-
-/**
- * Bottom padding equal to the software keyboard height.
- *
- * We don't use RN's `KeyboardAvoidingView`: on Android edge-to-edge (SDK 57,
- * targetSdk 36) it handles `keyboardDidHide` through `_onKeyboardChange`, so it
- * recomputes padding from the hide event's `screenY` — which is reported wrong
- * in edge-to-edge — and leaves a transparent gap behind after the keyboard
- * closes (the sheet stays "floating"). Here the hide event is always ignored
- * and the padding is reset to 0.
- */
-function useKeyboardPadding(enabled: boolean): number {
-  const [padding, setPadding] = useState(0);
-
-  useEffect(() => {
-    if (!enabled) {
-      setPadding(0);
-      return;
-    }
-
-    const animate = () => layoutEase(200);
-
-    const subscriptions = [
-      Keyboard.addListener(
-        Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow",
-        (event) => {
-          animate();
-          setPadding(event.endCoordinates.height);
-        },
-      ),
-      Keyboard.addListener(
-        Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide",
-        () => {
-          animate();
-          setPadding(0);
-        },
-      ),
-    ];
-
-    return () => subscriptions.forEach((subscription) => subscription.remove());
-  }, [enabled]);
-
-  return enabled ? padding : 0;
-}
 
 interface Props extends ModalProps {
   visible: boolean;
