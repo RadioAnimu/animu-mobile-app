@@ -61,3 +61,7 @@ altstore/*.ipa
 # time (scripts/fetch-fonts.mjs).
 src/assets/fonts/*.ttf
 src/assets/fonts/*.otf
+
+# CI release signing scratch (Jenkins workspace only)
+.signing/
+.signing.json

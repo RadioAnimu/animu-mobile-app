@@ -1,15 +1,18 @@
-// Release pipeline for the Animu Android app.
+// Release pipeline for the Animu Android app — fully local, no EAS.
 //
 // Produces the same artifact set as the manual GitHub releases:
 //   animu-<version>-code<versionCode>.aab  (Play Store upload)
 //   animu-<version>-code<versionCode>.apk  (universal direct-install)
 // a SHA-256 checksum for each, and a RELEASE_NOTES.md with the artifact table,
-// Play-optimised per-device sizes (bundletool), and the checksums.
+// Play per-device download sizes (bundletool), and the checksums.
 //
 // Runs natively on the `animu-android-native` host agent (Node + JDK + Android
-// SDK/NDK), so the Gradle build gets the full machine and a persistent cache;
-// no Docker layer. Signing uses the EAS-managed upload keystore via
-// `eas build --local` and the EXPO_TOKEN credential.
+// SDK/NDK). The Gradle project directory is stable across runs, so rebuilds are
+// incremental instead of starting from scratch.
+//
+// Signing uses the project's Android upload keystore, read from the
+// `android-upload-keystore` credential and injected into the Gradle build the
+// same way EAS does (an extra `signingConfigs.release` + `apply from`).
 //
 // Parameters
 //   VERSION               Marketing version, e.g. 3.0.1 (must match app.json)
@@ -42,18 +45,18 @@ pipeline {
   environment {
     CI = 'true'
     EXPO_NO_TELEMETRY = '1'
-    EAS_NO_VCS = '1'
-    EAS_LOCAL_BUILD_SKIP_CLEANUP = '1'
     ARTIFACT_DIR = 'release-artifacts'
-    // /tmp is a small tmpfs; point every EAS/Gradle temp at the real disk so
-    // large Android builds don't run out of space. Must be OUTSIDE the
-    // workspace: EAS shallow-clones the project into TMPDIR.
+    // /tmp is a small tmpfs; point temp at the real disk.
     TMPDIR = '/home/rmotafreitas/jenkins-tmp'
     TMP = '/home/rmotafreitas/jenkins-tmp'
     // Persistent Gradle cache so rebuilds are incremental instead of cold.
     GRADLE_USER_HOME = "${WORKSPACE}/.gradle-home"
     // Give Gradle the whole machine and a real daemon heap.
     GRADLE_OPTS = '-Dorg.gradle.daemon=true -Dorg.gradle.parallel=true -Dorg.gradle.caching=true -Dorg.gradle.workers.max=12'
+    ANDROID_HOME = '/home/rmotafreitas/Android/Sdk'
+    ANDROID_SDK_ROOT = '/home/rmotafreitas/Android/Sdk'
+    // Match the EAS SDK 57 Android toolchain (JDK 17, not the host's JDK 21).
+    JAVA_HOME = '/home/rmotafreitas/.sdkman/candidates/java/17.0.20-tem'
   }
 
   stages {
@@ -100,23 +103,33 @@ pipeline {
       steps {
         // The Proxima Nova fonts are licensed and gitignored. They are staged
         // on the host outside the repo and copied into the workspace here.
-        // `eas build --local` runs with EAS_NO_VCS=1 and .easignore keeps them,
-        // so the archive includes them.
-        sh '''
-          set -eux
-          FONTS_STAGE="${FONTS_STAGE:-$HOME/.animu-secrets/fonts}"
-          if [ -d "$FONTS_STAGE" ]; then
-            mkdir -p src/assets/fonts
-            cp "$FONTS_STAGE"/proximanova-reg.ttf "$FONTS_STAGE"/proximanova-bold.ttf src/assets/fonts/
-          fi
-          node scripts/fetch-fonts.mjs
-          for f in proximanova-reg.ttf proximanova-bold.ttf; do
-            test -f "src/assets/fonts/$f" || { echo "missing font: $f (stage it in $FONTS_STAGE)"; exit 1; }
-          done
-          npm ci --prefix packages/animu-api
-          npm run build --prefix packages/animu-api
-          npm ci
-        '''
+        withCredentials([string(credentialsId: 'android-upload-keystore', variable: 'ANDROID_UPLOAD_KEYSTORE_B64')]) {
+          sh '''
+            set -eux
+            FONTS_STAGE="${FONTS_STAGE:-$HOME/.animu-secrets/fonts}"
+            if [ -d "$FONTS_STAGE" ]; then
+              mkdir -p src/assets/fonts
+              cp "$FONTS_STAGE"/proximanova-reg.ttf "$FONTS_STAGE"/proximanova-bold.ttf src/assets/fonts/
+            fi
+            node scripts/fetch-fonts.mjs
+            for f in proximanova-reg.ttf proximanova-bold.ttf; do
+              test -f "src/assets/fonts/$f" || { echo "missing font: $f (stage it in $FONTS_STAGE)"; exit 1; }
+            done
+            npm ci --prefix packages/animu-api
+            npm run build --prefix packages/animu-api
+            npm ci
+
+            # Decode the upload keystore once, into a workspace-local path the
+            # Gradle signing injection reads. Removed after the build.
+            mkdir -p "$WORKSPACE/.signing"
+            echo "$ANDROID_UPLOAD_KEYSTORE_B64" | base64 -d > "$WORKSPACE/.signing.json"
+            node -e '
+              const fs = require("fs");
+              const j = JSON.parse(fs.readFileSync(process.env.WORKSPACE + "/.signing.json", "utf8"));
+              fs.writeFileSync(process.env.WORKSPACE + "/.signing/upload.jks", Buffer.from(j.keystore, "base64"));
+            '
+          '''
+        }
       }
     }
 
@@ -158,73 +171,113 @@ pipeline {
       }
     }
 
+    stage('Prebuild + inject signing') {
+      steps {
+        sh '''
+          set -eux
+
+
+          # Generate the native project from app.json + config plugins, same as
+          # EAS did. Reuse an existing android/ when present so Gradle stays
+          # incremental; regenerate only when missing or FORCE_PREBUILD=1.
+          if [ ! -d android ] || [ "${FORCE_PREBUILD:-0}" = "1" ]; then
+            npx expo prebuild --platform android --clean --no-install
+          else
+            echo "Reusing existing android/ (set FORCE_PREBUILD=1 to regenerate)"
+          fi
+
+          # Make sure node_modules match the generated project (patch-package
+          # and the animu-api build run from the postinstall hook).
+          npm install --no-audit --no-fund
+
+          # Inject the release signing config the same way EAS does: a small
+          # Gradle script that adds a `release` signingConfig and applies it.
+          node -e '
+            const fs = require("fs");
+            const path = require("path");
+            const j = JSON.parse(fs.readFileSync(process.env.WORKSPACE + "/.signing.json", "utf8"));
+            const androidDir = path.join(process.env.WORKSPACE, "android", "app");
+            const keystorePath = path.join(process.env.WORKSPACE, ".signing", "upload.jks");
+
+            const script = `
+// CI signing injection (equivalent to eas-build-inject-android-credentials.gradle)
+android {
+  signingConfigs {
+    release {
+      storeFile file(${JSON.stringify(keystorePath)})
+      storePassword ${JSON.stringify(j.keystorePassword)}
+      keyAlias ${JSON.stringify(j.keyAlias)}
+      keyPassword ${JSON.stringify(j.keyPassword || j.keystorePassword)}
+    }
+  }
+  buildTypes {
+    release { signingConfig android.signingConfigs.release }
+  }
+}
+`;
+            fs.writeFileSync(path.join(androidDir, "ci-signing.gradle"), script);
+            const buildGradle = path.join(androidDir, "build.gradle");
+            let g = fs.readFileSync(buildGradle, "utf8");
+            if (!g.includes("ci-signing.gradle")) {
+              g += "\napply from: \"./ci-signing.gradle\"\n";
+              fs.writeFileSync(buildGradle, g);
+            }
+          '
+        '''
+      }
+    }
+
     stage('Build signed AAB (production, Play upload)') {
       steps {
-        withCredentials([string(credentialsId: 'expo-token', variable: 'EXPO_TOKEN')]) {
-          sh '''
-            set -eux
-            export EXPO_TOKEN
-            mkdir -p "$ARTIFACT_DIR" "$GRADLE_USER_HOME" "$TMPDIR"
-            npx --yes eas-cli@latest build \
-              --platform android \
-              --profile production \
-              --local \
-              --non-interactive \
-              --output "$ARTIFACT_DIR/animu-${VERSION}-code${VERSION_CODE}.aab"
-          '''
-        }
+        sh '''
+          set -eux
+
+          mkdir -p "$ARTIFACT_DIR" "$GRADLE_USER_HOME" "$TMPDIR"
+          cd android
+          ./gradlew :app:bundleRelease --no-daemon
+          cd ..
+          cp android/app/build/outputs/bundle/release/app-release.aab \
+             "$ARTIFACT_DIR/animu-${VERSION}-code${VERSION_CODE}.aab"
+          ls -la "$ARTIFACT_DIR"
+        '''
       }
     }
 
     // Derive the universal APK from the AAB with bundletool instead of running
-    // a second full Gradle build. Signing uses the EAS-managed upload keystore
-    // (presented by the android-upload-keystore credential), so the APK carries
-    // the same signer as the AAB/Play and stays updatable.
+    // a second Gradle build. Signing uses the same upload keystore, so the APK
+    // carries the same signer as the AAB/Play and stays updatable.
     stage('Derive universal APK from AAB') {
       steps {
-        withCredentials([string(credentialsId: 'android-upload-keystore', variable: 'ANDROID_UPLOAD_KEYSTORE_B64')]) {
-          sh '''
-            set -eux
-            AAB="$ARTIFACT_DIR/animu-${VERSION}-code${VERSION_CODE}.aab"
-            APK="$ARTIFACT_DIR/animu-${VERSION}-code${VERSION_CODE}.apk"
-            TOOLS="$WORKSPACE/.tools"
-            BUNDLETOOL_VERSION=1.18.1
-            BUNDLETOOL_JAR="$TOOLS/bundletool.jar"
-            mkdir -p "$TOOLS" "$TMPDIR"
+        sh '''
+          set -eux
+          AAB="$ARTIFACT_DIR/animu-${VERSION}-code${VERSION_CODE}.aab"
+          APK="$ARTIFACT_DIR/animu-${VERSION}-code${VERSION_CODE}.apk"
+          TOOLS="$WORKSPACE/.tools"
+          BUNDLETOOL_VERSION=1.18.1
+          BUNDLETOOL_JAR="$TOOLS/bundletool.jar"
+          mkdir -p "$TOOLS" "$TMPDIR"
 
-            if [ ! -f "$BUNDLETOOL_JAR" ]; then
-              curl -fsSL -o "$BUNDLETOOL_JAR" \
-                "https://github.com/google/bundletool/releases/download/${BUNDLETOOL_VERSION}/bundletool-all-${BUNDLETOOL_VERSION}.jar"
-            fi
+          if [ ! -f "$BUNDLETOOL_JAR" ]; then
+            curl -fsSL -o "$BUNDLETOOL_JAR" \
+              "https://github.com/google/bundletool/releases/download/${BUNDLETOOL_VERSION}/bundletool-all-${BUNDLETOOL_VERSION}.jar"
+          fi
 
-            # Decode the EAS upload keystore + passwords from the credential.
-            echo "$ANDROID_UPLOAD_KEYSTORE_B64" | base64 -d > "$TMPDIR/keystore.json"
-            KS="$TMPDIR/upload.jks"
-            node -e '
-              const fs = require("fs");
-              const j = JSON.parse(fs.readFileSync(process.env.TMPDIR + "/keystore.json", "utf8"));
-              fs.writeFileSync(process.env.TMPDIR + "/upload.jks", Buffer.from(j.keystore, "base64"));
-              fs.writeFileSync(process.env.TMPDIR + "/ks.alias", j.keyAlias);
-              fs.writeFileSync(process.env.TMPDIR + "/ks.storepass", j.keystorePassword);
-              fs.writeFileSync(process.env.TMPDIR + "/ks.keypass", j.keyPassword || j.keystorePassword);
-            '
+          APKS="$TMPDIR/universal.apks"
+          rm -f "$APKS"
+          KS="$WORKSPACE/.signing/upload.jks"
+          SP=$(node -p "require(process.env.WORKSPACE + '/.signing.json').keystorePassword")
+          KP=$(node -p "(require(process.env.WORKSPACE + '/.signing.json').keyPassword) || (require(process.env.WORKSPACE + '/.signing.json').keystorePassword)")
+          ALIAS=$(node -p "require(process.env.WORKSPACE + '/.signing.json').keyAlias")
 
-            APKS="$TMPDIR/universal.apks"
-            rm -f "$APKS"
-            java -jar "$BUNDLETOOL_JAR" build-apks \
-              --bundle="$AAB" --output="$APKS" --mode=universal \
-              --ks="$KS" \
-              --ks-pass="pass:$(cat "$TMPDIR/ks.storepass")" \
-              --ks-key-alias="$(cat "$TMPDIR/ks.alias")" \
-              --key-pass="pass:$(cat "$TMPDIR/ks.keypass")"
+          java -jar "$BUNDLETOOL_JAR" build-apks \
+            --bundle="$AAB" --output="$APKS" --mode=universal \
+            --ks="$KS" --ks-pass="pass:$SP" --ks-key-alias="$ALIAS" --key-pass="pass:$KP"
 
-            rm -rf "$TMPDIR/universal-extract"
-            unzip -o -q "$APKS" -d "$TMPDIR/universal-extract"
-            cp "$TMPDIR/universal-extract/universal.apk" "$APK"
-            rm -f "$TMPDIR/upload.jks" "$TMPDIR/keystore.json" "$TMPDIR/ks.alias" "$TMPDIR/ks.storepass" "$TMPDIR/ks.keypass"
-            ls -la "$APK"
-          '''
-        }
+          rm -rf "$TMPDIR/universal-extract"
+          unzip -o -q "$APKS" -d "$TMPDIR/universal-extract"
+          cp "$TMPDIR/universal-extract/universal.apk" "$APK"
+          ls -la "$APK"
+        '''
       }
     }
 
@@ -289,28 +342,16 @@ pipeline {
           BUNDLETOOL_VERSION=1.18.1
           TOOLS="$WORKSPACE/.tools"
           BUNDLETOOL_JAR="$TOOLS/bundletool.jar"
-          mkdir -p "$TOOLS"
-          if [ ! -f "$BUNDLETOOL_JAR" ]; then
-            curl -fsSL -o "$BUNDLETOOL_JAR" \
-              "https://github.com/google/bundletool/releases/download/${BUNDLETOOL_VERSION}/bundletool-all-${BUNDLETOOL_VERSION}.jar"
-          fi
-
-          # bundletool signs the split APKs it generates for size measurement
-          # with a throwaway key; only the sizes are reported, not the output.
-          KS="$TOOLS/sizecheck.keystore"
-          if [ ! -f "$KS" ]; then
-            keytool -genkeypair -keystore "$KS" -alias sizecheck \
-              -keyalg RSA -keysize 2048 -validity 30 \
-              -storepass sizecheck -keypass sizecheck \
-              -dname "CN=Bundle Size Check, O=Animu, C=BR" >/dev/null 2>&1
-          fi
+          KS="$WORKSPACE/.signing/upload.jks"
+          SP=$(node -p "require(process.env.WORKSPACE + '/.signing.json').keystorePassword")
+          KP=$(node -p "(require(process.env.WORKSPACE + '/.signing.json').keyPassword) || (require(process.env.WORKSPACE + '/.signing.json').keystorePassword)")
+          ALIAS=$(node -p "require(process.env.WORKSPACE + '/.signing.json').keyAlias")
 
           APKS="$TMPDIR/animu-size.apks"
           rm -f "$APKS"
           java -jar "$BUNDLETOOL_JAR" build-apks \
             --bundle="$AAB" --output="$APKS" --mode=default \
-            --ks="$KS" --ks-pass=pass:sizecheck \
-            --ks-key-alias=sizecheck --key-pass=pass:sizecheck >/dev/null
+            --ks="$KS" --ks-pass="pass:$SP" --ks-key-alias="$ALIAS" --key-pass="pass:$KP" >/dev/null
 
           # One device spec per line: abi|density|sdk. bundletool's get-size
           # total reports the min/max COMPRESSED download size for the matched
@@ -333,7 +374,7 @@ pipeline {
           {
             echo "## Android release ${TAG} (versionCode ${VERSION_CODE})"
             echo ""
-            echo "Built on Jenkins, signed with the EAS-managed Play upload key."
+            echo "Built on Jenkins, signed with the Play upload key."
             echo ""
             echo "### Artifacts"
             echo "| File | Size | SHA-256 | Use |"
@@ -390,6 +431,8 @@ pipeline {
   post {
     always {
       sh '''
+        # Never leave keystore material in the workspace.
+        rm -rf "$WORKSPACE/.signing" "$WORKSPACE/.signing.json" 2>/dev/null || true
         if [ -d "$ARTIFACT_DIR" ]; then ls -la "$ARTIFACT_DIR"; fi
       '''
       archiveArtifacts artifacts: 'release-artifacts/*', allowEmptyArchive: true, fingerprint: true

@@ -71,3 +71,7 @@ release-artifacts/
 .gradle-home/
 .tools/
 .tmp/
+
+# CI release signing scratch (Jenkins workspace only)
+.signing/
+.signing.json
