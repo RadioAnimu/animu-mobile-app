@@ -18,6 +18,9 @@ pipeline {
     timeout(time: 30, unit: 'MINUTES')
     disableConcurrentBuilds()
     buildDiscarder(logRotator(numToKeepStr: '5', artifactNumToKeepStr: '5'))
+    // Share the lock with the release job: both are memory-heavy and run on the
+    // same physical host, so they must not overlap.
+    lock('animu-build-host')
   }
 
   environment {

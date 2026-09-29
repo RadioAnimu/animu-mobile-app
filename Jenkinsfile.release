@@ -44,6 +44,10 @@ pipeline {
     disableConcurrentBuilds()
     buildDiscarder(logRotator(numToKeepStr: '5', artifactNumToKeepStr: '5'))
     skipDefaultCheckout(true)
+    // Native builds are memory-hungry; the CI job (built-in node) and this
+    // release job share the same physical host. Serialize them so their Kotlin/
+    // R8/CMake workers never run at once and OOM-kill each other's daemons.
+    lock('animu-build-host')
   }
 
   environment {
@@ -339,18 +343,19 @@ pipeline {
           # Gradle script that adds a `release` signingConfig and applies it.
           node scripts/inject-android-signing.mjs
 
-          # Give the Gradle JVM more heap: the prebuild default (2g) is tight for
-          # R8/minify and parallel Kotlin compilation on a 16 GB machine.
-          if ! grep -q "animu-ci-tuning" android/gradle.properties; then
-            {
-              echo ""
-              echo "# animu-ci-tuning (added by the release pipeline)"
-              echo "org.gradle.jvmargs=-Xmx6g -XX:MaxMetaspaceSize=1g -XX:+UseParallelGC"
-              echo "org.gradle.parallel=true"
-              echo "org.gradle.caching=true"
-              echo "org.gradle.workers.max=8"
-            } >> android/gradle.properties
-          fi
+          # Give the Gradle JVM a bounded heap. The prebuild default (2g) is
+          # tight for R8/minify, but 6g plus Kotlin/R8 workers plus a concurrent
+          # CI job overruns this 16 GB host and the kernel OOM-kills the daemon.
+          # Rewrite the block each run so tuning changes take effect even when a
+          # previous android/ is reused.
+          sed -i '/# animu-ci-tuning/,$d' android/gradle.properties
+          {
+            echo "# animu-ci-tuning (added by the release pipeline)"
+            echo "org.gradle.jvmargs=-Xmx4g -XX:MaxMetaspaceSize=768m -XX:+UseParallelGC"
+            echo "org.gradle.parallel=true"
+            echo "org.gradle.caching=true"
+            echo "org.gradle.workers.max=6"
+          } >> android/gradle.properties
         '''
       }
     }
