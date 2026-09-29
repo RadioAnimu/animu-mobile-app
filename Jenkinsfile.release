@@ -51,8 +51,10 @@ pipeline {
     TMP = '/home/rmotafreitas/jenkins-tmp'
     // Persistent Gradle cache so rebuilds are incremental instead of cold.
     GRADLE_USER_HOME = "${WORKSPACE}/.gradle-home"
-    // Give Gradle the whole machine and a real daemon heap.
-    GRADLE_OPTS = '-Dorg.gradle.daemon=true -Dorg.gradle.parallel=true -Dorg.gradle.caching=true -Dorg.gradle.configuration-cache=true -Dorg.gradle.workers.max=12'
+    // Give Gradle the whole machine and a real daemon heap. The configuration
+    // cache is intentionally NOT enabled: the RN/Expo Gradle plugins spawn
+    // `node` at configuration time, which Gradle's config cache forbids.
+    GRADLE_OPTS = '-Dorg.gradle.daemon=true -Dorg.gradle.parallel=true -Dorg.gradle.caching=true -Dorg.gradle.workers.max=12'
     ANDROID_HOME = '/home/rmotafreitas/Android/Sdk'
     ANDROID_SDK_ROOT = '/home/rmotafreitas/Android/Sdk'
     // Match the EAS SDK 57 Android toolchain (JDK 17, not the host's JDK 21).
