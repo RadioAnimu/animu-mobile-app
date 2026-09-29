@@ -79,3 +79,4 @@ release-artifacts/
 # CI stamps (Jenkins workspace only)
 .deps-stamp
 .native-stamp
+.animu-api-stamp

@@ -67,3 +67,4 @@ src/assets/fonts/*.otf
 .signing.json
 .deps-stamp
 .native-stamp
+.animu-api-stamp

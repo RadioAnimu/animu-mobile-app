@@ -32,6 +32,8 @@ pipeline {
     booleanParam(name: 'CREATE_GITHUB_RELEASE', defaultValue: false, description: 'Create the GitHub release and upload the signed artifacts.')
     booleanParam(name: 'DRAFT', defaultValue: true, description: 'Create the GitHub release as a draft (only used when CREATE_GITHUB_RELEASE is true).')
     booleanParam(name: 'PRERELEASE', defaultValue: false, description: 'Mark the GitHub release as a pre-release (only used when CREATE_GITHUB_RELEASE is true).')
+    booleanParam(name: 'TRUST_CI', defaultValue: true, description: 'Skip the pre-release checks when the CI job has a passing build for this exact commit.')
+    string(name: 'CI_JOB_NAME', defaultValue: 'animu-mobile-app', description: 'Jenkins CI job whose passing build satisfies the pre-release gate.')
   }
 
   options {
@@ -59,6 +61,8 @@ pipeline {
     ANDROID_SDK_ROOT = '/home/rmotafreitas/Android/Sdk'
     // Match the EAS SDK 57 Android toolchain (JDK 17, not the host's JDK 21).
     JAVA_HOME = '/home/rmotafreitas/.sdkman/candidates/java/17.0.20-tem'
+    // Jenkins user for the CI-status lookup (token supplied per-stage).
+    JENKINS_USER = 'rmotafreitas'
   }
 
   stages {
@@ -118,12 +122,12 @@ pipeline {
               test -f "src/assets/fonts/$f" || { echo "missing font: $f (stage it in $FONTS_STAGE)"; exit 1; }
             done
 
-            # Install dependencies only when the lockfile (or the animu-api
-            # submodule commit) changed. node_modules churn invalidates Gradle's
-            # JS/native task caches, so a no-op install must stay a no-op.
+            # Install dependencies only when the lockfile changed. node_modules
+            # churn invalidates Gradle's JS/native task caches, so a no-op
+            # install must stay a no-op. (The animu-api dep is a symlink, so a
+            # submodule rev change does not need a reinstall — handled below.)
             STAMP="$WORKSPACE/.deps-stamp"
-            ANIMU_REV=$(git -C packages/animu-api rev-parse HEAD 2>/dev/null || echo none)
-            WANT="$(sha256sum package-lock.json | cut -d" " -f1) $ANIMU_REV"
+            WANT="$(sha256sum package-lock.json | cut -d" " -f1)"
             HAVE="$( [ -f "$STAMP" ] && cat "$STAMP" || echo none )"
             if [ "$WANT" != "$HAVE" ] || [ ! -d node_modules ]; then
               echo "Dependencies changed (or first run): installing"
@@ -133,11 +137,19 @@ pipeline {
               echo "Dependencies unchanged; reusing node_modules"
             fi
 
-            # The root postinstall builds animu-api when its dist is stale; make
-            # sure it exists regardless (fresh clones have no dist/).
-            if [ ! -f packages/animu-api/dist/esm/index.js ]; then
+            # Build animu-api only when its pinned submodule commit changed (or
+            # its dist is missing). An unchanged pin is never rebuilt, even if
+            # the checkout refreshed file mtimes.
+            ANIMU_REV=$(git -C packages/animu-api rev-parse HEAD 2>/dev/null || echo none)
+            ANIMU_STAMP="$WORKSPACE/.animu-api-stamp"
+            BUILT_REV="$( [ -f "$ANIMU_STAMP" ] && cat "$ANIMU_STAMP" || echo none )"
+            if [ ! -f packages/animu-api/dist/esm/index.js ] || [ "$ANIMU_REV" != "$BUILT_REV" ]; then
+              echo "Building animu-api (rev $ANIMU_REV, was $BUILT_REV)"
               npm ci --prefix packages/animu-api
               npm run build --prefix packages/animu-api
+              printf "%s" "$ANIMU_REV" > "$ANIMU_STAMP"
+            else
+              echo "animu-api unchanged (rev $ANIMU_REV); reusing dist/"
             fi
 
             # Decode the upload keystore once, into a workspace-local path the
@@ -163,8 +175,28 @@ pipeline {
       }
     }
 
-    // Hard gate: never ship a release that fails the same checks as CI.
+    // Trust an already-green CI build for this exact commit: if the CI job has
+    // a SUCCESS build for HEAD, skip the checks below. Otherwise they run.
+    stage('Check CI status for this commit') {
+      when { expression { return params.TRUST_CI } }
+      steps {
+        withCredentials([string(credentialsId: 'jenkins-api-token', variable: 'JENKINS_API_TOKEN')]) {
+          script {
+            def verified = sh(
+              script: 'node scripts/check-ci-build.mjs "$CI_JOB_NAME" "$(git rev-parse HEAD)"',
+              returnStdout: true
+            ).trim()
+            env.CI_VERIFIED = verified
+            echo "CI verified for this commit: ${verified}"
+          }
+        }
+      }
+    }
+
+    // Hard gate: never ship a release that fails the same checks as CI — unless
+    // a passing CI build for this commit was verified above.
     stage('Pre-release checks') {
+      when { expression { return !(params.TRUST_CI && env.CI_VERIFIED == 'true') } }
       steps {
         sh '''
           set -eux
@@ -225,8 +257,7 @@ pipeline {
           # Make sure node_modules match the generated project. Reuse the stamp
           # from the Install stage so we only install when something changed.
           STAMP="$WORKSPACE/.deps-stamp"
-          ANIMU_REV=$(git -C packages/animu-api rev-parse HEAD 2>/dev/null || echo none)
-          WANT="$(sha256sum package-lock.json | cut -d" " -f1) $ANIMU_REV"
+          WANT="$(sha256sum package-lock.json | cut -d" " -f1)"
           HAVE="$( [ -f "$STAMP" ] && cat "$STAMP" || echo none )"
           if [ "$WANT" != "$HAVE" ] || [ ! -d node_modules ]; then
             npm install --no-audit --no-fund
