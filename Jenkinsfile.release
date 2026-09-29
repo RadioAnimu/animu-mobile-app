@@ -26,9 +26,11 @@ pipeline {
   agent { label 'animu-android-native' }
 
   parameters {
-    string(name: 'VERSION', defaultValue: '', description: 'Marketing version (e.g. 3.0.1). Must match app.json.')
-    string(name: 'VERSION_CODE', defaultValue: '', description: 'Android versionCode (e.g. 16). Must match app.json.')
-    string(name: 'TAG', defaultValue: '', description: 'Git/release tag (e.g. v3.0.1).')
+    string(name: 'VERSION', defaultValue: '', description: 'Marketing version (e.g. 3.0.1). Leave blank to use app.json (or to let BUMP set it).')
+    string(name: 'VERSION_CODE', defaultValue: '', description: 'Android versionCode (e.g. 16). Leave blank to use app.json (or to let BUMP set it).')
+    string(name: 'TAG', defaultValue: '', description: 'Git/release tag (e.g. v3.0.1). Leave blank to derive "v<VERSION>".')
+    choice(name: 'BUMP', choices: ['none', 'versionCode', 'patch', 'minor', 'major'], description: 'Auto-increment app.json before building. patch/minor/major also increment versionCode.')
+    booleanParam(name: 'COMMIT_BUMP', defaultValue: false, description: 'Commit the bumped app.json back to the branch (only used when BUMP is not none).')
     booleanParam(name: 'CREATE_GITHUB_RELEASE', defaultValue: false, description: 'Create the GitHub release and upload the signed artifacts.')
     booleanParam(name: 'DRAFT', defaultValue: true, description: 'Create the GitHub release as a draft (only used when CREATE_GITHUB_RELEASE is true).')
     booleanParam(name: 'PRERELEASE', defaultValue: false, description: 'Mark the GitHub release as a pre-release (only used when CREATE_GITHUB_RELEASE is true).')
@@ -71,6 +73,24 @@ pipeline {
   }
 
   stages {
+    stage('Resolve version') {
+      steps {
+        script {
+          // Bump/derive the version from app.json (or the parameters) and expose
+          // the result to later stages. Runs before anything reads VERSION.
+          def bumpArgs = "--bump '${params.BUMP ?: "none"}'"
+          if (params.VERSION) bumpArgs += " --version '${params.VERSION}'"
+          if (params.VERSION_CODE) bumpArgs += " --code '${params.VERSION_CODE}'"
+          def out = sh(script: "node scripts/bump-version.mjs ${bumpArgs}", returnStdout: true).trim()
+          def resolved = readJSON(text: out)
+          env.VERSION = String(resolved.version)
+          env.VERSION_CODE = String(resolved.versionCode)
+          env.TAG = params.TAG ?: "v${resolved.version}"
+          echo "Resolved VERSION=${env.VERSION} VERSION_CODE=${env.VERSION_CODE} TAG=${env.TAG}"
+        }
+      }
+    }
+
     stage('Validate parameters') {
       steps {
         sh '''
@@ -238,7 +258,10 @@ pipeline {
       }
     }
 
-    stage('Verify app.json matches parameters') {
+    // app.json is the source of truth: the version-resolution stage either
+    // bumped it or adopted it, so these must agree. Guards against a stale
+    // app.json on the branch silently shipping the wrong version.
+    stage('Verify app.json matches resolved version') {
       steps {
         sh '''
           set -eux
@@ -250,6 +273,29 @@ pipeline {
             echo "app.json versionCode ($APP_CODE) != VERSION_CODE ($VERSION_CODE)"; exit 1; }
           echo "app.json matches VERSION=$VERSION VERSION_CODE=$VERSION_CODE"
         '''
+      }
+    }
+
+    stage('Commit bumped version') {
+      when {
+        expression { return params.BUMP != 'none' && params.COMMIT_BUMP }
+      }
+      steps {
+        withCredentials([string(credentialsId: 'github-release-token', variable: 'GH_TOKEN')]) {
+          sh '''
+            set -eux
+            if git diff --quiet -- app.json; then
+              echo "app.json unchanged; nothing to commit"
+              exit 0
+            fi
+            git config user.name "Animu CI"
+            git config user.email "ci@animu.moe"
+            git add app.json
+            git commit -m "chore(release): v${VERSION} (versionCode ${VERSION_CODE})"
+            # Push with the token so the branch protection/HTTP auth is satisfied.
+            git push "https://x-access-token:${GH_TOKEN}@github.com/RadioAnimu/animu-mobile-app.git" HEAD:main
+          '''
+        }
       }
     }
 
@@ -437,9 +483,12 @@ pipeline {
             --ks="$KS" --ks-pass="file:$WORKSPACE/.signing/storepass" \
             --ks-key-alias="$ALIAS" --key-pass="file:$WORKSPACE/.signing/keypass" >/dev/null
 
-          # One device spec per line: abi|density|sdk. bundletool's get-size
-          # total reports the min/max COMPRESSED download size for the matched
-          # splits (what a device actually downloads from Play).
+          # One device spec per line: abi|density|sdk.
+          #   Download: bundletool get-size total reports the min/max COMPRESSED
+          #             size of the splits Play serves to the device.
+          #   Install:  sum of the UNCOMPRESSED contents of the same splits
+          #             (what the device stores once installed). bundletool has
+          #             no install-size command, so extract-apks + unzip sums it.
           SIZE_TABLE=""
           for spec in \
             "arm64-v8a|480|34" "armeabi-v7a|480|34" "x86_64|480|34" \
@@ -447,11 +496,30 @@ pipeline {
             abi=${spec%%|*}; rest=${spec#*|}; dpi=${rest%%|*}; sdk=${rest#*|}
             printf '{"supportedAbis":["%s"],"supportedLocales":["en-US"],"screenDensity":%s,"sdkVersion":%s}\n' \
               "$abi" "$dpi" "$sdk" > "$TMPDIR/dev.json"
-            row=$(java -jar "$BUNDLETOOL_JAR" get-size total \
+
+            download=$(java -jar "$BUNDLETOOL_JAR" get-size total \
               --apks="$APKS" --device-spec="$TMPDIR/dev.json" 2>/dev/null \
               | awk -F, 'NR==2 {printf "%.1f MB", $1/1048576}')
-            if [ -n "$row" ]; then
-              SIZE_TABLE="${SIZE_TABLE}| ${abi} · ${dpi}dpi · SDK ${sdk} | ${row} |\n"
+
+            rm -rf "$TMPDIR/dev-splits"
+            mkdir -p "$TMPDIR/dev-splits"
+            if java -jar "$BUNDLETOOL_JAR" extract-apks \
+                 --apks="$APKS" --output-dir="$TMPDIR/dev-splits" \
+                 --device-spec="$TMPDIR/dev.json" >/dev/null 2>&1; then
+              bytes=0
+              for split in "$TMPDIR/dev-splits"/*.apk; do
+                [ -f "$split" ] || continue
+                sz=$(unzip -l "$split" 2>/dev/null \
+                  | awk 'NF>=4 && $1 ~ /^[0-9]+$/ {s+=$1} END {print s+0}')
+                bytes=$((bytes + sz))
+              done
+              install=$(awk -v b="$bytes" 'BEGIN{printf "%.1f MB", b/1048576}')
+            else
+              install="-"
+            fi
+
+            if [ -n "$download" ]; then
+              SIZE_TABLE="${SIZE_TABLE}| ${abi} · ${dpi}dpi · SDK ${sdk} | ${download} | ${install} |\n"
             fi
           done
 
@@ -467,11 +535,11 @@ pipeline {
             echo "| ${APK} | ${APK_SIZE} | ${APK_SHA} | Direct install (universal APK) |"
             echo ""
             if [ -n "$SIZE_TABLE" ]; then
-              echo "### Play Store download size per device (bundletool ${BUNDLETOOL_VERSION})"
-              echo "Compressed download size of the splits Play serves to the matched device."
+              echo "### Play Store sizes per device (bundletool ${BUNDLETOOL_VERSION})"
+              echo "Download = compressed splits served by Play; install = their uncompressed contents."
               echo ""
-              echo "| Device | Download |"
-              echo "|---|---|"
+              echo "| Device | Download | Install |"
+              echo "|---|---|---|"
               printf '%b' "$SIZE_TABLE"
             else
               echo "_(bundletool per-device sizes unavailable for this build)_"

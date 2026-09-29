@@ -6,6 +6,13 @@ pipeline {
     }
   }
 
+  // A parameter (even a free-text one) makes Jenkins expose this job via
+  // "Build with Parameters" so it gets a parameterized play button like the
+  // release job. It has no effect on the build.
+  parameters {
+    string(name: 'NOTE', defaultValue: '', description: 'Optional note for this run (unused).')
+  }
+
   options {
     timestamps()
     timeout(time: 30, unit: 'MINUTES')
