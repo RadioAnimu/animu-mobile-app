@@ -1,7 +1,9 @@
 pipeline {
   // `agent none` so the shared lock is acquired BEFORE an executor is
-  // allocated. With a top-level agent the lock would be taken after the
-  // executor is assigned, so waiting builds would hold executors.
+  // allocated. With a top-level agent the lock is taken after the executor is
+  // assigned, so waiting builds would hold executors. A single stage then runs
+  // the whole build in one container (per-stage agents would each be a fresh
+  // container, losing node_modules/corepack state between stages).
   agent none
 
   // A parameter (even a free-text one) makes Jenkins expose this job via
@@ -28,7 +30,7 @@ pipeline {
   }
 
   stages {
-    stage('Checkout submodules') {
+    stage('CI') {
       agent {
         docker {
           image 'node:22-bookworm'
@@ -40,20 +42,6 @@ pipeline {
           set -eux
           git config --global --add safe.directory "$WORKSPACE"
           git submodule update --init --recursive
-        '''
-      }
-    }
-
-    stage('CI') {
-      agent {
-        docker {
-          image 'node:22-bookworm'
-          args '-u root'
-        }
-      }
-      steps {
-        sh '''
-          set -eux
           corepack enable
           echo "node $(node --version) / pnpm $(pnpm --version)"
 
@@ -62,42 +50,14 @@ pipeline {
           pnpm exec tsc --noEmit
           pnpm exec expo lint
           pnpm test
-        '''
-      }
-      post {
-        always {
-          junit allowEmptyResults: true, testResults: '**/junit*.xml'
-        }
-      }
-    }
 
-    stage('Bundle smoke test') {
-      agent {
-        docker {
-          image 'node:22-bookworm'
-          args '-u root'
-        }
-      }
-      steps {
-        sh '''
-          set -eux
+          # Bundles the app so broken asset paths and unresolvable imports fail
+          # CI (TypeScript cannot catch these).
           pnpm exec expo export:embed --platform android --entry-file index.js \
             --bundle-output /tmp/index.android.bundle \
             --assets-dest /tmp/animu-assets --dev false
-        '''
-      }
-    }
 
-    stage('React Doctor score gate') {
-      agent {
-        docker {
-          image 'node:22-bookworm'
-          args '-u root'
-        }
-      }
-      steps {
-        sh '''
-          set -eux
+          # React Doctor health-score gate.
           raw=$(pnpm exec react-doctor --score 2>/dev/null || true)
           score=$(printf '%s\\n' "$raw" | grep -oE '^[0-9]+$' | tail -1)
           echo "React Doctor score: ${score:-<none>}"
@@ -109,6 +69,11 @@ pipeline {
             exit 1
           fi
         '''
+      }
+      post {
+        always {
+          junit allowEmptyResults: true, testResults: '**/junit*.xml'
+        }
       }
     }
   }

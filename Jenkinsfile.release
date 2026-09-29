@@ -618,15 +618,19 @@ pipeline {
 
   post {
     always {
-      sh '''
-        # Never leave keystore material in the workspace.
-        rm -rf "$WORKSPACE/.signing" "$WORKSPACE/.signing.json" \
-               "$WORKSPACE/android/app/ci-signing.gradle" 2>/dev/null || true
-        # Report cache effectiveness (both persist in the workspace for reuse).
-        if command -v ccache >/dev/null 2>&1; then ccache -s 2>/dev/null | head -8 || true; fi
-        if [ -d "$ARTIFACT_DIR" ]; then ls -la "$ARTIFACT_DIR"; fi
-      '''
-      archiveArtifacts artifacts: 'release-artifacts/*', allowEmptyArchive: true, fingerprint: true
+      // Needs a node: with `agent none` a bare sh has no executor. Run the
+      // cleanup/reporting on the same host agent the build used.
+      node('animu-android-native') {
+        sh '''
+          # Never leave keystore material in the workspace.
+          rm -rf "$WORKSPACE/.signing" "$WORKSPACE/.signing.json" \
+                 "$WORKSPACE/android/app/ci-signing.gradle" 2>/dev/null || true
+          # Report cache effectiveness (both persist in the workspace for reuse).
+          if command -v ccache >/dev/null 2>&1; then ccache -s 2>/dev/null | head -8 || true; fi
+          if [ -d "$ARTIFACT_DIR" ]; then ls -la "$ARTIFACT_DIR"; fi
+        '''
+        archiveArtifacts artifacts: 'release-artifacts/*', allowEmptyArchive: true, fingerprint: true
+      }
     }
     success { echo 'Release pipeline succeeded.' }
     failure { echo 'Release pipeline failed.' }
