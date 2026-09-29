@@ -182,8 +182,11 @@ pipeline {
       steps {
         withCredentials([string(credentialsId: 'jenkins-api-token', variable: 'JENKINS_API_TOKEN')]) {
           script {
+            def base = (env.JENKINS_URL ?: env.BUILD_URL ?: "")
+              .replaceAll(/\/job\/.*$/, "").replaceAll(/\/+$/, "")
+            def jobName = params.CI_JOB_NAME ?: "animu-mobile-app"
             def verified = sh(
-              script: 'node scripts/check-ci-build.mjs "$CI_JOB_NAME" "$(git rev-parse HEAD)"',
+              script: "JENKINS_URL='${base}' node scripts/check-ci-build.mjs '${jobName}' \"\$(git rev-parse HEAD)\"",
               returnStdout: true
             ).trim()
             env.CI_VERIFIED = verified
