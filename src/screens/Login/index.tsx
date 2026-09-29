@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import MaterialIcons from "@react-native-vector-icons/material-icons/static";
 import { DrawerScreenProps } from "@react-navigation/drawer";
 import {
@@ -18,7 +18,9 @@ import type { ProviderInfo } from "animu-api";
 import { API } from "@/api";
 import { AuthBackdrop } from "@/components/AuthBackdrop";
 import { BackArrow } from "@/components/BackArrow";
+import { ConnectActions } from "@/components/ConnectActions";
 import { EmailCodeFields } from "@/components/EmailCodeFields";
+import { FormError } from "@/components/FormError";
 import { Logo } from "@/components/Logo";
 import { ProviderIcon } from "@/components/ProviderIcon";
 import { useAlert } from "@/contexts/alert/AlertProvider";
@@ -33,6 +35,7 @@ import {
   type EmailCodeFlow,
 } from "@/hooks/useEmailCodeFlow";
 import { useKeyboardPadding } from "@/hooks/useKeyboardPadding";
+import { useResendCooldown } from "@/hooks/useResendCooldown";
 import { haptics } from "@/utils/haptics";
 import { interpolate } from "@/utils/format";
 import { RootStackParamList } from "@/routes/app.routes";
@@ -80,51 +83,6 @@ function useEntrance(delay = 0) {
       },
     ],
   };
-}
-
-/** Counts down a resend lockout; `start` re-arms it after a successful send. */
-function useResendCooldown(seconds: number) {
-  const [until, setUntil] = useState(0);
-  const [remaining, setRemaining] = useState(0);
-
-  useEffect(() => {
-    if (!until) return;
-    const tick = () => {
-      const left = Math.max(0, Math.ceil((until - Date.now()) / 1000));
-      setRemaining(left);
-      if (left === 0) setUntil(0);
-    };
-    tick();
-    const timer = setInterval(tick, 500);
-    return () => clearInterval(timer);
-  }, [until]);
-
-  const start = useCallback(() => {
-    setUntil(Date.now() + seconds * 1000);
-  }, [seconds]);
-
-  return { remaining, start };
-}
-
-/**
- * Inline failure notice, matching the request submit sheet: the error hue on
- * the icon and the mapped, already-localized message, no card around it.
- */
-function ErrorNotice({ message }: { message: string }) {
-  return (
-    <View
-      accessibilityLiveRegion="polite"
-      accessibilityRole="alert"
-      style={styles.errorRow}
-    >
-      <MaterialIcons
-        name="error"
-        size={THEME.ICON.MD}
-        color={THEME.COLORS.ERROR}
-      />
-      <Text style={styles.errorText}>{message}</Text>
-    </View>
-  );
 }
 
 /** "By continuing, you agree to our <Privacy Policy>." — link inside the copy. */
@@ -188,7 +146,11 @@ function MethodStep({
       </Animated.View>
 
       <View style={styles.actions}>
-        {error && <ErrorNotice message={error} />}
+        {error && (
+          <View style={styles.errorSlot}>
+            <FormError message={error} center />
+          </View>
+        )}
 
         <Animated.View style={providersStyle}>
           <View style={styles.methods}>
@@ -296,10 +258,6 @@ function ConnectStep({
   const onCodeStep = flow.step === "code";
   const headerStyle = useEntrance(0);
   const formStyle = useEntrance(90);
-  // No submit button: like the request search, the email step sends from the
-  // keyboard's send key, and the code step submits itself once the fourth
-  // digit lands. The resend link is the only action that needs a lockout.
-  const resendLocked = flow.busy || resendRemaining > 0;
 
   return (
     <View style={styles.connectBody}>
@@ -327,9 +285,13 @@ function ConnectStep({
       </Animated.View>
 
       <Animated.View style={[styles.form, formStyle]}>
-        <EmailCodeFields flow={flow} />
+        <EmailCodeFields flow={flow} autoFocus />
 
-        {error && <ErrorNotice message={error} />}
+        {error && (
+          <View style={styles.errorSlot}>
+            <FormError message={error} center />
+          </View>
+        )}
 
         {/* The request itself replaces the button: a spinner in its slot. */}
         {flow.busy && (
@@ -339,35 +301,13 @@ function ConnectStep({
         )}
 
         {onCodeStep && (
-          <View style={styles.codeActions}>
-            <TouchableOpacity
-              accessibilityRole="button"
-              activeOpacity={0.7}
-              disabled={resendLocked}
-              onPress={() => {
-                haptics.tap();
-                void onResend();
-              }}
-            >
-              <Text style={[styles.link, resendLocked && styles.linkDisabled]}>
-                {resendRemaining > 0
-                  ? interpolate(dict.LOGIN_CODE_RESEND_IN, {
-                      seconds: resendRemaining,
-                    })
-                  : dict.LOGIN_CODE_RESEND}
-              </Text>
-            </TouchableOpacity>
-            <Text style={styles.linkDot}>•</Text>
-            <TouchableOpacity
-              accessibilityRole="button"
-              activeOpacity={0.7}
-              disabled={flow.busy}
-              onPress={flow.backToEmail}
-            >
-              <Text style={[styles.link, flow.busy && styles.linkDisabled]}>
-                {dict.LOGIN_CODE_CHANGE_EMAIL}
-              </Text>
-            </TouchableOpacity>
+          <View style={styles.connectActions}>
+            <ConnectActions
+              busy={flow.busy}
+              resendRemaining={resendRemaining}
+              onResend={() => void onResend()}
+              onChangeEmail={flow.backToEmail}
+            />
           </View>
         )}
       </Animated.View>

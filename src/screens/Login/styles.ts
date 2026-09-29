@@ -172,24 +172,8 @@ export const styles = StyleSheet.create({
   form: {
     marginTop: THEME.SPACE.XXL,
   },
-  codeActions: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: THEME.SPACE.MD,
+  connectActions: {
     marginTop: CONTENT_PADDING,
-  },
-  link: {
-    color: THEME.COLORS.TEXT_SOFT,
-    fontFamily: THEME.FONT_FAMILY.BOLD,
-    fontSize: THEME.FONT_SIZE.BODY,
-  },
-  linkDisabled: {
-    opacity: THEME.OPACITY.DISABLED,
-  },
-  linkDot: {
-    color: THEME.COLORS.TEXT_DIM,
-    fontSize: THEME.FONT_SIZE.BODY,
   },
   hint: {
     color: THEME.COLORS.TEXT_SOFT,
@@ -200,21 +184,8 @@ export const styles = StyleSheet.create({
     marginTop: CONTENT_PADDING,
     paddingHorizontal: THEME.SPACE.MD,
   },
-  // Same inline failure treatment as the request submit sheet: the error hue
-  // on the icon and the message, no colored card around it.
-  errorRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: THEME.SPACE.SM,
+  // The shared failure notice sits between the fields and the spinner.
+  errorSlot: {
     marginVertical: CONTENT_PADDING,
-  },
-  errorText: {
-    flexShrink: 1,
-    color: THEME.COLORS.ERROR,
-    fontFamily: THEME.FONT_FAMILY.BOLD,
-    fontSize: THEME.FONT_SIZE.BODY,
-    lineHeight: THEME.LINE_HEIGHT.RELAXED,
-    textAlign: "center",
   },
 });

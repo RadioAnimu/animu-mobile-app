@@ -10,9 +10,19 @@ import { styles } from "@/components/EmailCodeFields/styles";
 
 /**
  * The email/code input pair for the Animu Connect flow. Renders the field for
- * the flow's current step; shared by the Login screen and the account sheet.
+ * the flow's current step; shared by the Login screen and the Account screen.
+ *
+ * `autoFocus` is opt-in: the full-screen Login form leans on it, while the
+ * Account screen leaves it off so its inline field only raises the keyboard
+ * from the user's tap.
  */
-export function EmailCodeFields({ flow }: { flow: EmailCodeFlow }) {
+export function EmailCodeFields({
+  flow,
+  autoFocus = false,
+}: {
+  flow: EmailCodeFlow;
+  autoFocus?: boolean;
+}) {
   const dict = useDict();
   const autoSubmitted = useRef(false);
   const [focused, setFocused] = useState(false);
@@ -67,7 +77,7 @@ export function EmailCodeFields({ flow }: { flow: EmailCodeFlow }) {
             // until something is typed.
             returnKeyType="send"
             enablesReturnKeyAutomatically
-            autoFocus
+            autoFocus={autoFocus}
             editable={!flow.busy}
             accessibilityLabel={dict.LOGIN_EMAIL}
             placeholder={dict.LOGIN_EMAIL_PLACEHOLDER}
@@ -106,7 +116,7 @@ export function EmailCodeFields({ flow }: { flow: EmailCodeFlow }) {
         value={flow.code}
         onChangeText={flow.setCode}
         editable={!flow.busy}
-        autoFocus
+        autoFocus={autoFocus}
         accessibilityLabel={dict.LOGIN_CODE}
       />
     </>
