@@ -66,8 +66,12 @@ pipeline {
       steps {
         sh '''
           set -eux
-          score=$(pnpm exec react-doctor --score)
-          echo "React Doctor score: $score"
+          raw=$(pnpm exec react-doctor --score 2>/dev/null || true)
+          score=$(printf '%s\\n' "$raw" | grep -oE '^[0-9]+$' | tail -1)
+          echo "React Doctor score: ${score:-<none>}"
+          case "$score" in
+            ''|*[!0-9]*) echo "Could not parse a React Doctor score"; exit 1 ;;
+          esac
           if [ "$score" -lt 85 ]; then
             echo "React Doctor score $score is below the required minimum of 85"
             exit 1
