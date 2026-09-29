@@ -241,10 +241,11 @@ pipeline {
           AAB_SIZE=$(human "$AAB")
           APK_SIZE=$(human "$APK")
 
-          # --- bundletool: per-device download/install sizes from the AAB ---
+          # --- bundletool: per-device download sizes from the AAB ---
           BUNDLETOOL_VERSION=1.18.1
-          BUNDLETOOL_JAR="$WORKSPACE/.tools/bundletool.jar"
-          mkdir -p "$WORKSPACE/.tools"
+          TOOLS="$WORKSPACE/.tools"
+          BUNDLETOOL_JAR="$TOOLS/bundletool.jar"
+          mkdir -p "$TOOLS"
           if [ ! -f "$BUNDLETOOL_JAR" ]; then
             curl -fsSL -o "$BUNDLETOOL_JAR" \
               "https://github.com/google/bundletool/releases/download/${BUNDLETOOL_VERSION}/bundletool-all-${BUNDLETOOL_VERSION}.jar"
@@ -252,33 +253,38 @@ pipeline {
 
           # bundletool signs the split APKs it generates for size measurement
           # with a throwaway key; only the sizes are reported, not the output.
-          KS="$WORKSPACE/.tools/sizecheck.keystore"
+          KS="$TOOLS/sizecheck.keystore"
           if [ ! -f "$KS" ]; then
             keytool -genkeypair -keystore "$KS" -alias sizecheck \
               -keyalg RSA -keysize 2048 -validity 30 \
               -storepass sizecheck -keypass sizecheck \
               -dname "CN=Bundle Size Check, O=Animu, C=BR" >/dev/null 2>&1
           fi
+
+          APKS="$TMPDIR/animu-size.apks"
+          rm -f "$APKS"
           java -jar "$BUNDLETOOL_JAR" build-apks \
-            --bundle="$AAB" --output=/tmp/animu.apks --mode=default \
+            --bundle="$AAB" --output="$APKS" --mode=default \
             --ks="$KS" --ks-pass=pass:sizecheck \
             --ks-key-alias=sizecheck --key-pass=pass:sizecheck >/dev/null
 
-          cat > /tmp/devices.json <<'JSON'
-[{"deviceId":"arm64-v8a 480dpi","sdkVersion":34,"supportedAbis":["arm64-v8a"],"screenDensity":480},
- {"deviceId":"armeabi-v7a 480dpi","sdkVersion":34,"supportedAbis":["armeabi-v7a"],"screenDensity":480},
- {"deviceId":"x86_64 480dpi","sdkVersion":34,"supportedAbis":["x86_64"],"screenDensity":480},
- {"deviceId":"arm64-v8a 320dpi","sdkVersion":34,"supportedAbis":["arm64-v8a"],"screenDensity":320},
- {"deviceId":"arm64-v8a 640dpi","sdkVersion":34,"supportedAbis":["arm64-v8a"],"screenDensity":640}]
-JSON
-
+          # One device spec per line: abi|density|sdk. bundletool's get-size
+          # total reports the min/max COMPRESSED download size for the matched
+          # splits (what a device actually downloads from Play).
           SIZE_TABLE=""
-          if java -jar "$BUNDLETOOL_JAR" get-size total \
-               --apks=/tmp/animu.apks --dimensions=DOWNLOAD,INSTALL \
-               --device-spec=/tmp/devices.json > /tmp/sizes.txt 2>/dev/null; then
-            cat /tmp/sizes.txt
-            SIZE_TABLE=$(awk 'NR>1 && NF>=3 {printf "| %s | %.1f MB | %.1f MB |\n", $1, $2/1048576, $3/1048576}' /tmp/sizes.txt)
-          fi
+          for spec in \
+            "arm64-v8a|480|34" "armeabi-v7a|480|34" "x86_64|480|34" \
+            "arm64-v8a|320|34" "arm64-v8a|640|34"; do
+            abi=${spec%%|*}; rest=${spec#*|}; dpi=${rest%%|*}; sdk=${rest#*|}
+            printf '{"supportedAbis":["%s"],"supportedLocales":["en-US"],"screenDensity":%s,"sdkVersion":%s}\n' \
+              "$abi" "$dpi" "$sdk" > "$TMPDIR/dev.json"
+            row=$(java -jar "$BUNDLETOOL_JAR" get-size total \
+              --apks="$APKS" --device-spec="$TMPDIR/dev.json" 2>/dev/null \
+              | awk -F, 'NR==2 {printf "%.1f MB", $1/1048576}')
+            if [ -n "$row" ]; then
+              SIZE_TABLE="${SIZE_TABLE}| ${abi} · ${dpi}dpi · SDK ${sdk} | ${row} |\n"
+            fi
+          done
 
           {
             echo "## Android release ${TAG} (versionCode ${VERSION_CODE})"
@@ -292,12 +298,12 @@ JSON
             echo "| ${APK} | ${APK_SIZE} | ${APK_SHA} | Direct install (universal APK) |"
             echo ""
             if [ -n "$SIZE_TABLE" ]; then
-              echo "### Play Store-optimized sizes (bundletool ${BUNDLETOOL_VERSION})"
-              echo "Per device: download (compressed split) and install (sum of installed splits)."
+              echo "### Play Store download size per device (bundletool ${BUNDLETOOL_VERSION})"
+              echo "Compressed download size of the splits Play serves to the matched device."
               echo ""
-              echo "| Device | Download | Install |"
-              echo "|---|---|---|"
-              printf '%s\n' "$SIZE_TABLE"
+              echo "| Device | Download |"
+              echo "|---|---|"
+              printf '%b' "$SIZE_TABLE"
             else
               echo "_(bundletool per-device sizes unavailable for this build)_"
             fi
