@@ -46,9 +46,10 @@ pipeline {
     EAS_LOCAL_BUILD_SKIP_CLEANUP = '1'
     ARTIFACT_DIR = 'release-artifacts'
     // /tmp is a small tmpfs; point every EAS/Gradle temp at the real disk so
-    // large Android builds don't run out of space.
-    TMPDIR = "${WORKSPACE}/.tmp"
-    TMP = "${WORKSPACE}/.tmp"
+    // large Android builds don't run out of space. Must be OUTSIDE the
+    // workspace: EAS shallow-clones the project into TMPDIR.
+    TMPDIR = '/home/rmotafreitas/jenkins-tmp'
+    TMP = '/home/rmotafreitas/jenkins-tmp'
     // Persistent Gradle cache so rebuilds are incremental instead of cold.
     GRADLE_USER_HOME = "${WORKSPACE}/.gradle-home"
     // Give Gradle the whole machine and a real daemon heap.
