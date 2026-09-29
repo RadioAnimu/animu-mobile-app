@@ -73,32 +73,15 @@ pipeline {
   }
 
   stages {
-    stage('Resolve version') {
-      steps {
-        script {
-          // Bump/derive the version from app.json (or the parameters) and expose
-          // the result to later stages. Runs before anything reads VERSION.
-          def bumpArgs = "--bump '${params.BUMP ?: "none"}'"
-          if (params.VERSION) bumpArgs += " --version '${params.VERSION}'"
-          if (params.VERSION_CODE) bumpArgs += " --code '${params.VERSION_CODE}'"
-          def out = sh(script: "node scripts/bump-version.mjs ${bumpArgs}", returnStdout: true).trim()
-          def resolved = readJSON(text: out)
-          env.VERSION = String(resolved.version)
-          env.VERSION_CODE = String(resolved.versionCode)
-          env.TAG = params.TAG ?: "v${resolved.version}"
-          echo "Resolved VERSION=${env.VERSION} VERSION_CODE=${env.VERSION_CODE} TAG=${env.TAG}"
-        }
-      }
-    }
-
     stage('Validate parameters') {
       steps {
         sh '''
           set -eux
-          [ -n "$VERSION" ] || { echo "VERSION is required"; exit 1; }
-          [ -n "$VERSION_CODE" ] || { echo "VERSION_CODE is required"; exit 1; }
-          [ -n "$TAG" ] || { echo "TAG is required"; exit 1; }
-          echo "Releasing VERSION=$VERSION VERSION_CODE=$VERSION_CODE TAG=$TAG"
+          case "${BUMP:-none}" in
+            none|versionCode|patch|minor|major) ;;
+            *) echo "invalid BUMP: $BUMP"; exit 1 ;;
+          esac
+          echo "BUMP=${BUMP:-none} COMMIT_BUMP=${COMMIT_BUMP:-false} TRUST_CI=${TRUST_CI:-true}"
         '''
       }
     }
@@ -128,6 +111,25 @@ pipeline {
           git submodule update --init --recursive
           test -d "$WORKSPACE/packages/animu-api" || { echo "animu-api submodule missing"; exit 1; }
         '''
+      }
+    }
+
+    // Runs after checkout because it reads app.json (and may rewrite it).
+    // Resolves the version from the parameters/bump and exposes VERSION,
+    // VERSION_CODE and TAG to every later stage.
+    stage('Resolve version') {
+      steps {
+        script {
+          def bumpArgs = "--bump '${params.BUMP ?: "none"}'"
+          if (params.VERSION) bumpArgs += " --version '${params.VERSION}'"
+          if (params.VERSION_CODE) bumpArgs += " --code '${params.VERSION_CODE}'"
+          def out = sh(script: "node scripts/bump-version.mjs ${bumpArgs}", returnStdout: true).trim()
+          def resolved = readJSON(text: out)
+          env.VERSION = String(resolved.version)
+          env.VERSION_CODE = String(resolved.versionCode)
+          env.TAG = params.TAG ?: "v${resolved.version}"
+          echo "Resolved VERSION=${env.VERSION} VERSION_CODE=${env.VERSION_CODE} TAG=${env.TAG}"
+        }
       }
     }
 
