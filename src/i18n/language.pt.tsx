@@ -453,7 +453,7 @@ const DICT: Dict = {
   ACCOUNT_EMAIL_REMOVED: "E-mail removido",
   ACCOUNT_EMAIL_REMOVE_CONFIRM_TITLE: "Remover e-mail?",
   ACCOUNT_EMAIL_REMOVE_CONFIRM_MSG: "Você não poderá mais entrar com {email}.",
-  ACCOUNT_EMAIL_EXTRA: "Extra",
+  ACCOUNT_EMAIL_EXTRA_DESC: "E-mail de acesso adicional",
   ACCOUNT_EMAIL_EMPTY: "Nenhum e-mail vinculado ainda.",
   SETTINGS_ACCOUNT_SIGN_IN: "Entrar na sua conta",
 };

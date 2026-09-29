@@ -1,5 +1,5 @@
 import Svg, { Path } from "react-native-svg";
-import MaterialIcons from "@react-native-vector-icons/material-icons/static";
+
 import { THEME } from "@/theme";
 
 interface Props {
@@ -9,54 +9,58 @@ interface Props {
 }
 
 /**
- * Brand marks for auth providers, inlined as SVG so the app does not have to
- * ship the Material Design Icons font (≈1.3 MB) for three glyphs. Path data
- * comes from Material Design Icons (Apache-2.0).
+ * Brand marks for auth providers.
+ *
+ * Every mark is one inline SVG path on the same 24×24 canvas with a single
+ * fill, so the provider list shares one optical weight — the previous mix of
+ * an icon-font glyph (Discord) and hand-sized paths (Google/Apple/Fluxer)
+ * made neighbouring marks read heavier or smaller than each other. Brand
+ * paths come from Simple Icons (CC0); `animu`/`native` reuse the Material
+ * Icons `alternate_email` shape the Login flow and the section heading carry.
  */
+const DISCORD_PATH =
+  "M20.317 4.37a19.79 19.79 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.865-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.058a.082.082 0 0 0 .031.056 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.09 14.09 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128c.126-.094.252-.192.372-.291a.074.074 0 0 1 .078-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.009c.12.099.246.198.373.292a.077.077 0 0 1-.006.127 12.3 12.3 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.84 19.84 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03ZM8.02 15.331c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418Zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418Z";
 const GOOGLE_PATH =
-  "M21.35,11.1H12.18V13.83H18.69C18.36,17.64 15.19,19.27 12.19,19.27C8.36,19.27 5,16.25 5,12C5,7.9 8.2,4.73 12.2,4.73C15.29,4.73 17.1,6.7 17.1,6.7L19,4.72C19,4.72 16.56,2 12.1,2C6.42,2 2.03,6.8 2.03,12C2.03,17.05 6.16,22 12.25,22C17.6,22 21.5,18.33 21.5,12.91C21.5,11.76 21.35,11.1 21.35,11.1V11.1Z";
+  "M12.48 10.92v3.28h7.84c-.24 1.84-.853 3.187-1.787 4.133-1.147 1.147-2.933 2.4-6.053 2.4-4.827 0-8.6-3.893-8.6-8.72s3.773-8.72 8.6-8.72c2.6 0 4.507 1.027 5.907 2.347l2.307-2.307C18.747 1.44 16.133 0 12.48 0 5.867 0 .307 5.387.307 12s5.56 12 12.173 12c3.573 0 6.267-1.173 8.373-3.36 2.16-2.16 2.84-5.213 2.84-7.667 0-.76-.053-1.467-.173-2.053H12.48z";
 const APPLE_PATH =
-  "M18.71,19.5C17.88,20.74 17,21.95 15.66,21.97C14.32,22 13.89,21.18 12.37,21.18C10.84,21.18 10.37,21.95 9.1,22C7.79,22.05 6.8,20.68 5.96,19.47C4.25,17 2.94,12.45 4.7,9.39C5.57,7.87 7.13,6.91 8.82,6.88C10.1,6.86 11.32,7.75 12.11,7.75C12.89,7.75 14.37,6.68 15.92,6.84C16.57,6.87 18.39,7.1 19.56,8.82C19.47,8.88 17.39,10.1 17.41,12.63C17.44,15.65 20.06,16.66 20.09,16.67C20.06,16.74 19.67,18.11 18.71,19.5M13,3.5C13.73,2.67 14.94,2.04 15.94,2C16.07,3.17 15.6,4.35 14.9,5.19C14.21,6.04 13.07,6.7 11.95,6.61C11.8,5.46 12.36,4.26 13,3.5Z";
-const ACCOUNT_KEY_PATH =
-  "M11 10V12H9V14H7V12H5.8C5.4 13.2 4.3 14 3 14C1.3 14 0 12.7 0 11S1.3 8 3 8C4.3 8 5.4 8.8 5.8 10H11M3 10C2.4 10 2 10.4 2 11S2.4 12 3 12 4 11.6 4 11 3.6 10 3 10M16 14C18.7 14 24 15.3 24 18V20H8V18C8 15.3 13.3 14 16 14M16 12C13.8 12 12 10.2 12 8S13.8 4 16 4 20 5.8 20 8 18.2 12 16 12Z";
+  "M12.152 6.896c-.948 0-2.415-1.078-3.96-1.04-2.04.027-3.91 1.183-4.961 3.014-2.117 3.675-.546 9.103 1.519 12.09 1.013 1.454 2.208 3.09 3.792 3.039 1.52-.065 2.09-.987 3.935-.987 1.831 0 2.35.987 3.96.948 1.637-.026 2.676-1.48 3.676-2.948 1.156-1.688 1.636-3.325 1.662-3.415-.039-.013-3.182-1.221-3.22-4.857-.026-3.04 2.48-4.494 2.597-4.559-1.429-2.09-3.623-2.324-4.39-2.376-2-.156-3.675 1.09-4.61 1.09zM15.53 3.83c.843-1.012 1.4-2.427 1.245-3.83-1.207.052-2.662.805-3.532 1.818-.78.896-1.454 2.338-1.273 3.714 1.338.104 2.715-.688 3.559-1.701";
 /** Fluxer mark — Simple Icons (CC0), used with the company's permission. */
 const FLUXER_PATH =
   "M12 0c6.627 0 12 5.373 12 12s-5.373 12-12 12S0 18.627 0 12 5.373 0 12 0M8.79 12.471q-1.092 0-2.078.493-.975.493-1.586 1.575-.395.712-.52 1.726c-.078.626.448 1.135 1.079 1.135.645 0 1.128-.543 1.284-1.17q.133-.531.429-.844.568-.6 1.435-.6.58 0 1.061.289.482.279 1.254.954 1.178 1.038 2.078 1.51.9.46 1.993.461 1.093 0 2.079-.493.985-.492 1.596-1.575.404-.714.522-1.734c.072-.623-.455-1.127-1.083-1.127-.65 0-1.134.549-1.307 1.176a2.1 2.1 0 0 1-.382.774q-.535.665-1.468.665-.579 0-1.05-.279-.46-.29-1.264-.964-1.19-.996-2.09-1.479a4 4 0 0 0-1.982-.493M8.79 6q-1.092 0-2.078.493-.975.492-1.586 1.575-.395.712-.52 1.726c-.078.625.448 1.135 1.079 1.135.645 0 1.128-.543 1.284-1.17q.133-.533.429-.845.568-.6 1.435-.6.58 0 1.061.29.482.278 1.254.953 1.178 1.04 2.078 1.51.9.462 1.993.462t2.079-.493q.985-.493 1.596-1.575.404-.716.522-1.734c.072-.624-.455-1.127-1.083-1.127-.65 0-1.134.549-1.307 1.175a2.1 2.1 0 0 1-.382.775q-.535.664-1.468.664-.579 0-1.05-.278-.46-.29-1.264-.965-1.19-.996-2.09-1.478A4 4 0 0 0 8.79 6";
+/** Material Icons `alternate_email` (Apache-2.0) — the Animu Connect mark. */
+const ANIMU_PATH =
+  "M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10h5v-2h-5c-4.34 0-8-3.66-8-8s3.66-8 8-8 8 3.66 8 8v1.43c0 .79-.71 1.57-1.5 1.57s-1.5-.78-1.5-1.57V12c0-2.76-2.24-5-5-5s-5 2.24-5 5 2.24 5 5 5c1.38 0 2.64-.56 3.54-1.47.65.89 1.77 1.47 2.96 1.47 1.97 0 3.5-1.6 3.5-3.57V12c0-5.52-4.48-10-10-10zm0 13c-1.66 0-3-1.34-3-3s1.34-3 3-3 3 1.34 3 3-1.34 3-3 3z";
+/** Material Icons `email` (Apache-2.0) — an address that came in by code. */
+const MAIL_PATH =
+  "M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4-8 5-8-5V6l8 5 8-5v2z";
 
-function BrandIcon({
-  d,
-  size,
-  color,
-}: {
-  d: string;
-  size: number;
-  color: string;
-}) {
-  return (
-    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-      <Path d={d} fill={color} />
-    </Svg>
-  );
-}
+/** Generic fallback for a provider newer than this build. */
+const LOGIN_PATH =
+  "M11 7L9.6 8.4L12.2 11H2V13H12.2L9.6 15.6L11 17L16 12L11 7M20 19H12V21H20C21.1 21 22 20.1 22 19V5C22 3.9 21.1 3 20 3H12V5H20V19Z";
 
+const PATHS: Record<string, string> = {
+  discord: DISCORD_PATH,
+  google: GOOGLE_PATH,
+  apple: APPLE_PATH,
+  fluxer: FLUXER_PATH,
+  animu: ANIMU_PATH,
+  native: ANIMU_PATH,
+  /** Not a provider: the envelope the extra Animu Connect address shows. */
+  mail: MAIL_PATH,
+};
+
+/**
+ * Brand mark for an auth provider, rendered from an inline path (no icon
+ * font, no bundled raster) so it stays crisp at any size.
+ */
 export function ProviderIcon({
   provider,
   size = THEME.ICON.MD,
   color = THEME.COLORS.TEXT,
 }: Props) {
-  switch (provider) {
-    case "discord":
-      return <MaterialIcons name="discord" size={size} color={color} />;
-    case "google":
-      return <BrandIcon d={GOOGLE_PATH} size={size} color={color} />;
-    case "apple":
-      return <BrandIcon d={APPLE_PATH} size={size} color={color} />;
-    case "fluxer":
-      return <BrandIcon d={FLUXER_PATH} size={size} color={color} />;
-    case "native":
-    case "animu":
-      return <BrandIcon d={ACCOUNT_KEY_PATH} size={size} color={color} />;
-    default:
-      return <MaterialIcons name="login" size={size} color={color} />;
-  }
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <Path d={PATHS[provider] ?? LOGIN_PATH} fill={color} />
+    </Svg>
+  );
 }

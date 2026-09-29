@@ -446,7 +446,7 @@ const DICT = {
   ACCOUNT_EMAIL_REMOVE_CONFIRM_TITLE: "Remove email?",
   ACCOUNT_EMAIL_REMOVE_CONFIRM_MSG:
     "You will no longer be able to sign in with {email}.",
-  ACCOUNT_EMAIL_EXTRA: "Extra",
+  ACCOUNT_EMAIL_EXTRA_DESC: "Extra sign-in address",
   ACCOUNT_EMAIL_EMPTY: "No emails linked yet.",
   SETTINGS_ACCOUNT_SIGN_IN: "Sign in to your account",
 };

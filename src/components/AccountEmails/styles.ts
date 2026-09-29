@@ -10,16 +10,19 @@ const CONTENT_PADDING = THEME.SPACE.LG;
  * Inline Animu Connect list: full-bleed rows inside the group card that share
  * the Settings row rhythm (icon column, min height) with the section heading
  * and the Linked Accounts rows above, so the page keeps one vertical grid.
+ * The add form closes the card in place of the old "add" row.
  */
 export const styles = StyleSheet.create({
-  hint: {
+  // The card's opening line: the pitch, on the plain surface (the section
+  // heading above already carries the mark, so no tint and no second icon).
+  intro: {
     color: THEME.COLORS.TEXT_SOFT,
     fontFamily: THEME.FONT_FAMILY.REGULAR,
     fontSize: THEME.FONT_SIZE.BODY,
     lineHeight: THEME.LINE_HEIGHT.RELAXED,
     paddingHorizontal: CONTENT_PADDING,
     paddingTop: THEME.SPACE.MD,
-    paddingBottom: THEME.SPACE.SM,
+    paddingBottom: THEME.SPACE.MD,
   },
   loading: {
     marginVertical: THEME.SPACE.LG,
@@ -28,23 +31,20 @@ export const styles = StyleSheet.create({
     color: THEME.COLORS.TEXT_DIM,
     fontFamily: THEME.FONT_FAMILY.REGULAR,
     fontSize: THEME.FONT_SIZE.BODY,
+    textAlign: "center",
     paddingHorizontal: CONTENT_PADDING,
-    paddingVertical: THEME.SPACE.MD,
+    paddingVertical: THEME.SPACE.XL,
   },
-  // Same row as Linked Accounts, but the address replaces the label line.
+  // Same row as Linked Accounts, but the address is the label line and the
+  // provenance caption (marks + names) is the identity line under it.
   emailRow: ROW_STYLES.row,
-  // Same left-aligned icon column as the section heading and provider rows.
-  emailIcon: ROW_STYLES.iconBox,
-  /** Collapse an icon font's extra leading so it centers on the row. */
-  iconGlyph: {
-    lineHeight: THEME.ICON.MD,
-  },
   emailBody: {
     flex: 1,
     // Same shrink contract as the other rows — a long address ellipsizes
-    // before it can push the provider marks out.
+    // before it can push the delete action out.
     minWidth: 0,
     justifyContent: "center",
+    gap: THEME.SPACE.XS,
     paddingVertical: THEME.SPACE.MD,
   },
   emailValue: {
@@ -52,130 +52,64 @@ export const styles = StyleSheet.create({
     fontFamily: THEME.FONT_FAMILY.BOLD,
     fontSize: THEME.FONT_SIZE.LIST,
   },
-  emailTrailing: {
+  // Each source reads as "mark name", the pairs separated by a middle dot,
+  // so several providers stay on one caption line under the address.
+  emailSourceRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: THEME.SPACE.SM,
-    marginLeft: THEME.SPACE.XS,
+    flexWrap: "wrap",
+    columnGap: THEME.SPACE.SM,
+    rowGap: THEME.SPACE.XS,
+    minWidth: 0,
   },
-  badge: {
-    color: THEME.COLORS.TEXT_SOFT,
-    fontFamily: THEME.FONT_FAMILY.BOLD,
-    fontSize: THEME.FONT_SIZE.CAPTION,
-    paddingHorizontal: THEME.SPACE.SM,
-    paddingVertical: scale(1),
-    borderRadius: THEME.RADIUS.SM,
-    backgroundColor: THEME.COLORS.SURFACE_SUBTLE,
-    overflow: "hidden",
+  emailSource: {
+    color: THEME.COLORS.TEXT_DIM,
+    fontFamily: THEME.FONT_FAMILY.REGULAR,
+    fontSize: THEME.FONT_SIZE.BODY,
   },
-  /**
-   * Provider marks sharing the leading icon column: one chip per corner of
-   * the 32pt square (diagonal first), each ringed in the surface color so
-   * neighboring brands stay visually separate.
-   */
-  markGrid: {
-    width: THEME.LAYOUT.ICON_BOX_WIDTH,
-    height: THEME.LAYOUT.ICON_BOX_WIDTH,
-  },
-  markChip: {
-    position: "absolute",
-    width: scale(20),
-    height: scale(20),
-    borderRadius: THEME.RADIUS.CIRCLE,
-    borderWidth: scale(2),
-    borderColor: THEME.COLORS.SURFACE,
-    backgroundColor: THEME.COLORS.SURFACE_SUBTLE,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  markTopRight: {
-    top: 0,
-    right: 0,
-  },
-  markBottomLeft: {
-    bottom: 0,
-    left: 0,
-  },
-  markTopLeft: {
-    top: 0,
-    left: 0,
-  },
-  markBottomRight: {
-    bottom: 0,
-    right: 0,
-  },
-  markOverflow: {
-    color: THEME.COLORS.TEXT_SOFT,
-    fontFamily: THEME.FONT_FAMILY.BOLD,
-    fontSize: THEME.FONT_SIZE.CAPTION,
+  emailSourceSeparator: {
+    color: THEME.COLORS.TEXT_DIM,
+    fontFamily: THEME.FONT_FAMILY.REGULAR,
+    fontSize: THEME.FONT_SIZE.BODY,
   },
   removeButton: {
     width: scale(40),
     height: scale(40),
     alignItems: "center",
     justifyContent: "center",
+    marginLeft: THEME.SPACE.XS,
   },
   divider: ROW_STYLES.divider,
-  // Solid, like every other button in the app (secondary fill = INPUT_BG).
-  addButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: THEME.SPACE.SM,
-    minHeight: scale(44),
-    borderRadius: THEME.RADIUS.MD,
-    backgroundColor: THEME.COLORS.INPUT_BG,
-    marginHorizontal: CONTENT_PADDING,
-    marginTop: THEME.SPACE.MD,
-    marginBottom: THEME.SPACE.MD,
-  },
-  addText: {
-    color: THEME.COLORS.TEXT,
-    fontFamily: THEME.FONT_FAMILY.BOLD,
-    fontSize: THEME.FONT_SIZE.BODY,
-  },
-  form: {
-    gap: THEME.SPACE.XS,
-    paddingHorizontal: CONTENT_PADDING,
-    paddingBottom: THEME.SPACE.MD,
-  },
-  formActions: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: THEME.SPACE.SM,
-    marginTop: THEME.SPACE.SM,
-  },
-  cancelButton: {
-    minHeight: scale(44),
-    paddingHorizontal: THEME.SPACE.LG,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  cancelText: {
-    color: THEME.COLORS.TEXT_SOFT,
-    fontFamily: THEME.FONT_FAMILY.BOLD,
-    fontSize: THEME.FONT_SIZE.BODY,
-  },
-  submit: {
-    flex: 1,
-    minHeight: scale(44),
-    borderRadius: THEME.RADIUS.MD,
-    backgroundColor: THEME.COLORS.BRAND,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  submitText: {
-    color: THEME.COLORS.TEXT_ON_LIGHT,
-    fontFamily: THEME.FONT_FAMILY.BOLD,
-    fontSize: THEME.FONT_SIZE.BODY,
-  },
-  error: {
-    color: THEME.COLORS.ERROR,
-    fontFamily: THEME.FONT_FAMILY.REGULAR,
-    fontSize: THEME.FONT_SIZE.BODY,
-    paddingHorizontal: CONTENT_PADDING,
-  },
   disabled: {
     opacity: THEME.OPACITY.DISABLED,
+  },
+  // ── Inline add form (the last block of the card) ──
+  form: {
+    paddingHorizontal: CONTENT_PADDING,
+    paddingTop: THEME.SPACE.MD,
+    paddingBottom: THEME.SPACE.LG,
+  },
+  // The explanatory line above the field: how many extra addresses the server
+  // accepts, or where the code went on the code step.
+  formHint: {
+    color: THEME.COLORS.TEXT_SOFT,
+    fontFamily: THEME.FONT_FAMILY.REGULAR,
+    fontSize: THEME.FONT_SIZE.BODY,
+    lineHeight: THEME.LINE_HEIGHT.RELAXED,
+  },
+  // The address the code went to, emphasized inside the sentence.
+  formSubtitleEmail: {
+    color: THEME.COLORS.TEXT,
+    fontFamily: THEME.FONT_FAMILY.BOLD,
+  },
+  formError: {
+    marginTop: THEME.SPACE.MD,
+  },
+  formBusy: {
+    alignItems: "center",
+    marginTop: THEME.SPACE.MD,
+  },
+  formActions: {
+    marginTop: THEME.SPACE.MD,
   },
 });

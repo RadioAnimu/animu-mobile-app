@@ -456,7 +456,7 @@ const DICT: Dict = {
   ACCOUNT_EMAIL_REMOVED: "Correo eliminado",
   ACCOUNT_EMAIL_REMOVE_CONFIRM_TITLE: "¿Eliminar correo?",
   ACCOUNT_EMAIL_REMOVE_CONFIRM_MSG: "Ya no podrás iniciar sesión con {email}.",
-  ACCOUNT_EMAIL_EXTRA: "Extra",
+  ACCOUNT_EMAIL_EXTRA_DESC: "Correo de acceso adicional",
   ACCOUNT_EMAIL_EMPTY: "Aún no hay correos vinculados.",
   SETTINGS_ACCOUNT_SIGN_IN: "Inicia sesión en tu cuenta",
 };

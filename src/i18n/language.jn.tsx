@@ -451,7 +451,7 @@ const DICT: Dict = {
   ACCOUNT_EMAIL_REMOVED: "メールを削除したよ",
   ACCOUNT_EMAIL_REMOVE_CONFIRM_TITLE: "メールを削除する？",
   ACCOUNT_EMAIL_REMOVE_CONFIRM_MSG: "{email} でログインできなくなるよ。",
-  ACCOUNT_EMAIL_EXTRA: "追加",
+  ACCOUNT_EMAIL_EXTRA_DESC: "追加のログイン用メール",
   ACCOUNT_EMAIL_EMPTY: "まだメールが登録されていないよ。",
   SETTINGS_ACCOUNT_SIGN_IN: "アカウントにログイン",
 };

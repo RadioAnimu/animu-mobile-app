@@ -1,7 +1,14 @@
 import { useState } from "react";
 import MaterialIcons from "@react-native-vector-icons/material-icons/static";
 import { DrawerScreenProps } from "@react-navigation/drawer";
-import { Alert, ScrollView, Text, TouchableOpacity, View } from "react-native";
+import {
+  Alert,
+  Platform,
+  ScrollView,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { AnimuApiError } from "animu-api";
@@ -12,6 +19,7 @@ import { SectionTitle } from "@/components/SectionTitle";
 import { useAlert } from "@/contexts/alert/AlertProvider";
 import { useAuth } from "@/contexts/auth/AuthProvider";
 import { useDict } from "@/hooks/useDict";
+import { useKeyboardPadding } from "@/hooks/useKeyboardPadding";
 import { AuthFlowCancelled } from "@/core/auth";
 import { haptics } from "@/utils/haptics";
 import { RootStackParamList } from "@/routes/app.routes";
@@ -37,6 +45,11 @@ export function Account({ navigation }: Props) {
     unlinkProvider,
   } = useAuth();
   const dict = useDict();
+
+  // Animu Connect's add-email form is inline in this scroll view, so the
+  // screen owns the keyboard inset (Android edge-to-edge; iOS handles it
+  // through `automaticallyAdjustKeyboardInsets` below).
+  const keyboardPadding = useKeyboardPadding(Platform.OS === "android");
 
   const [busy, setBusy] = useState<string | null>(null);
 
@@ -131,7 +144,17 @@ export function Account({ navigation }: Props) {
         edges={["left", "right", "bottom"]}
       >
         {renderHeader()}
-        <ScrollView contentContainerStyle={styles.content}>
+        <ScrollView
+          contentContainerStyle={[
+            styles.content,
+            keyboardPadding > 0 && {
+              paddingBottom: keyboardPadding + THEME.SPACE.XXXL,
+            },
+          ]}
+          automaticallyAdjustKeyboardInsets
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
+        >
           <ProfileCard
             user={user}
             profile={profile}
