@@ -54,7 +54,7 @@ pipeline {
   stages {
     stage('Validate parameters') {
       steps {
-        bash '''
+        sh '''
           set -eux
           [ -n "$VERSION" ] || { echo "VERSION is required"; exit 1; }
           [ -n "$VERSION_CODE" ] || { echo "VERSION_CODE is required"; exit 1; }
@@ -66,7 +66,7 @@ pipeline {
 
     stage('Toolchain') {
       steps {
-        bash '''
+        sh '''
           set -eux
           java -version
           node --version
@@ -83,7 +83,7 @@ pipeline {
     stage('Checkout') {
       steps {
         checkout scm
-        bash '''
+        sh '''
           set -eux
           git submodule update --init --recursive
           test -d "$WORKSPACE/packages/animu-api" || { echo "animu-api submodule missing"; exit 1; }
@@ -97,7 +97,7 @@ pipeline {
         // on the host outside the repo and copied into the workspace here.
         // `eas build --local` runs with EAS_NO_VCS=1 and .easignore keeps them,
         // so the archive includes them.
-        bash '''
+        sh '''
           set -eux
           FONTS_STAGE="${FONTS_STAGE:-$HOME/.animu-secrets/fonts}"
           if [ -d "$FONTS_STAGE" ]; then
@@ -118,7 +118,7 @@ pipeline {
     // Hard gate: never ship a release that fails the same checks as CI.
     stage('Pre-release checks') {
       steps {
-        bash '''
+        sh '''
           set -eux
           npx tsc --noEmit
           npx expo lint
@@ -140,7 +140,7 @@ pipeline {
 
     stage('Verify app.json matches parameters') {
       steps {
-        bash '''
+        sh '''
           set -eux
           APP_VERSION=$(node -p "require('./app.json').expo.version")
           APP_CODE=$(node -p "require('./app.json').expo.android.versionCode")
@@ -156,7 +156,7 @@ pipeline {
     stage('Build signed AAB (production, Play upload)') {
       steps {
         withCredentials([string(credentialsId: 'expo-token', variable: 'EXPO_TOKEN')]) {
-          bash '''
+          sh '''
             set -eux
             export EXPO_TOKEN
             mkdir -p "$ARTIFACT_DIR" "$GRADLE_USER_HOME"
@@ -174,7 +174,7 @@ pipeline {
     stage('Build signed universal APK (direct install)') {
       steps {
         withCredentials([string(credentialsId: 'expo-token', variable: 'EXPO_TOKEN')]) {
-          bash '''
+          sh '''
             set -eux
             export EXPO_TOKEN
             mkdir -p "$ARTIFACT_DIR" "$GRADLE_USER_HOME"
@@ -191,7 +191,7 @@ pipeline {
 
     stage('Validate signing certificates') {
       steps {
-        bash '''
+        sh '''
           set -eux
           AAB="$ARTIFACT_DIR/animu-${VERSION}-code${VERSION_CODE}.aab"
           APK="$ARTIFACT_DIR/animu-${VERSION}-code${VERSION_CODE}.apk"
@@ -221,7 +221,7 @@ pipeline {
 
     stage('Checksums + bundletool sizes + release notes') {
       steps {
-        bash '''
+        sh '''
           set -eux
           cd "$ARTIFACT_DIR"
           AAB="animu-${VERSION}-code${VERSION_CODE}.aab"
@@ -308,7 +308,7 @@ JSON
       when { expression { return params.CREATE_GITHUB_RELEASE } }
       steps {
         withCredentials([string(credentialsId: 'github-release-token', variable: 'GH_TOKEN')]) {
-          bash '''
+          sh '''
             set -eux
             export GH_TOKEN
             cd "$ARTIFACT_DIR"
@@ -334,7 +334,7 @@ JSON
 
   post {
     always {
-      bash '''
+      sh '''
         if [ -d "$ARTIFACT_DIR" ]; then ls -la "$ARTIFACT_DIR"; fi
       '''
       archiveArtifacts artifacts: 'release-artifacts/*', allowEmptyArchive: true, fingerprint: true
