@@ -75,4 +75,13 @@ if (before !== after) {
   console.error("[bump] no change");
 }
 
+// Machine-readable outputs: a JSON line on stdout, plus simple value files so
+// Jenkins can read them without the Pipeline Utility Steps plugin.
 process.stdout.write(JSON.stringify(bumped) + "\n");
+
+const outFile = get("out", "");
+if (outFile) {
+  fs.writeFileSync(`${outFile}.version`, String(bumped.version));
+  fs.writeFileSync(`${outFile}.versionCode`, String(bumped.versionCode));
+  console.error(`[bump] wrote ${outFile}.version and ${outFile}.versionCode`);
+}

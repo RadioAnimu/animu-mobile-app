@@ -68,3 +68,4 @@ src/assets/fonts/*.otf
 .deps-stamp
 .native-stamp
 .animu-api-stamp
+.release-version*

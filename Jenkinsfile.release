@@ -123,11 +123,12 @@ pipeline {
           def bumpArgs = "--bump '${params.BUMP ?: "none"}'"
           if (params.VERSION) bumpArgs += " --version '${params.VERSION}'"
           if (params.VERSION_CODE) bumpArgs += " --code '${params.VERSION_CODE}'"
-          def out = sh(script: "node scripts/bump-version.mjs ${bumpArgs}", returnStdout: true).trim()
-          def resolved = readJSON(text: out)
-          env.VERSION = String(resolved.version)
-          env.VERSION_CODE = String(resolved.versionCode)
-          env.TAG = params.TAG ?: "v${resolved.version}"
+          // The script also writes "<out>.version" / "<out>.versionCode" so we
+          // don't need the Pipeline Utility Steps plugin for JSON parsing.
+          sh(script: "node scripts/bump-version.mjs ${bumpArgs} --out .release-version", returnStdout: true)
+          env.VERSION = readFile('.release-version.version').trim()
+          env.VERSION_CODE = readFile('.release-version.versionCode').trim()
+          env.TAG = params.TAG ?: "v${env.VERSION}"
           echo "Resolved VERSION=${env.VERSION} VERSION_CODE=${env.VERSION_CODE} TAG=${env.TAG}"
         }
       }
