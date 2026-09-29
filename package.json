@@ -14,6 +14,7 @@
     "eas-build-pre-install": "node scripts/fetch-fonts.mjs",
     "splash": "node scripts/generate-splash.mjs",
     "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
     "doctor": "react-doctor"
   },
   "dependencies": {
@@ -65,9 +66,11 @@
     "@testing-library/react": "^16.3.3",
     "@types/react": "~19.2.4",
     "@types/react-dom": "~19.2.0",
+    "@vitest/coverage-v8": "^5.0.2",
     "babel-preset-expo": "~57.0.0",
     "eslint": "^9.39.5",
     "eslint-config-expo": "~57.0.2",
+    "eslint-plugin-sonarjs": "^4.2.1",
     "jsdom": "^30.1.0",
     "patch-package": "^8.0.1",
     "react-doctor": "^0.9.14",

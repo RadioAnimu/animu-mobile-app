@@ -1,8 +1,19 @@
 const { defineConfig } = require("eslint/config");
 const expoConfig = require("eslint-config-expo/flat");
+const sonarjs = require("eslint-plugin-sonarjs");
 
 const RELATIVE_IMPORT_MESSAGE =
   "Use the @/ (src) or @app/ (project root) alias instead of a relative import.";
+
+// SonarJS rules that are noise for this codebase: file headers and pure style,
+// plus no-implicit-dependencies (a pnpm-workspace/alias false-positive storm).
+const SONARJS_DISABLED = new Set([
+  "sonarjs/file-header",
+  "sonarjs/arrow-function-convention",
+  "sonarjs/no-duplicate-string",
+  "sonarjs/shorthand-property-grouping",
+  "sonarjs/no-implicit-dependencies",
+]);
 
 module.exports = defineConfig([
   expoConfig,
@@ -43,5 +54,19 @@ module.exports = defineConfig([
         },
       ],
     },
+  },
+  {
+    // SonarJS — the same rule family SonarQube's "Code Smells" come from, run
+    // locally and in CI with no server. Enabled as warnings so the existing
+    // backlog surfaces in CI output without failing the build; promote
+    // individual rules to "error" as the codebase is cleaned up.
+    files: ["src/**/*.{ts,tsx}", "App.tsx", "index.js"],
+    ...sonarjs.configs.recommended,
+    rules: Object.fromEntries(
+      Object.entries(sonarjs.configs.recommended.rules).map(([rule]) => [
+        rule,
+        SONARJS_DISABLED.has(rule) ? "off" : "warn",
+      ]),
+    ),
   },
 ]);

@@ -11,6 +11,21 @@ export default defineConfig({
   // implementations stay intact.
   test: {
     clearMocks: true,
+    coverage: {
+      // `lcov` feeds SonarQube / Codecov / any lcov consumer; `text` prints the
+      // summary to the CI log. Only app code counts (tests are excluded).
+      provider: "v8",
+      reporter: ["text", "lcov"],
+      reportsDirectory: "./coverage",
+      include: ["src/**/*.{ts,tsx}"],
+      exclude: [
+        "src/**/__tests__/**",
+        "src/**/*.test.{ts,tsx}",
+        "src/**/*.spec.{ts,tsx}",
+        "src/**/*.d.ts",
+        "src/@types/**",
+      ],
+    },
   },
   resolve: {
     // `@/*` -> `src/*`, `@app/*` -> project root. The regex form keeps scoped

@@ -65,6 +65,9 @@ src/assets/fonts/*.otf
 # SonarScanner scratch
 .scannerwork/
 
+# Test coverage output
+coverage/
+
 # CI release signing scratch (Jenkins workspace only)
 .signing/
 .signing.json

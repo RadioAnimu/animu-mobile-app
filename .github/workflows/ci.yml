@@ -29,8 +29,16 @@ jobs:
       - name: Lint
         run: pnpm exec expo lint
 
-      - name: Test
-        run: pnpm test
+      - name: Test (with coverage)
+        run: pnpm test:coverage
+
+      - name: Upload coverage (lcov)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-lcov
+          path: coverage/lcov.info
+          if-no-files-found: ignore
 
       # Bundles the app so broken asset paths and unresolvable imports fail CI
       # (TypeScript can't catch these — asset modules are declared by wildcard).

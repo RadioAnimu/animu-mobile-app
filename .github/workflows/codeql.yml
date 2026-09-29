@@ -1,0 +1,45 @@
+# CodeQL — semantic security analysis (taint tracking: SQL injection, XSS,
+# path traversal, unsafe deserialization, etc.). Free for public repositories,
+# unlike SonarQube's paid security editions.
+#
+# Docs: https://docs.github.com/code-security/code-scanning
+
+name: CodeQL
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  # Weekly baseline scan to catch newly published queries.
+  schedule:
+    - cron: "H 6 * * 1"
+
+permissions:
+  contents: read
+  security-events: write
+  actions: read
+
+jobs:
+  analyze:
+    name: Analyze (${{ matrix.language }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        language: [javascript-typescript]
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: ${{ matrix.language }}
+          # security-and-quality = security queries + maintainability queries.
+          queries: security-and-quality
+
+      # JS/TS needs no build step; CodeQL extracts directly from source.
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: "/language:${{ matrix.language }}"
