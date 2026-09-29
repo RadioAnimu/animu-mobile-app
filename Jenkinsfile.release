@@ -67,11 +67,13 @@ pipeline {
     CCACHE_DIR = "${WORKSPACE}/.gradle-home/ccache"
     // Relocatable cache config (base_dir / hash_dir) versions with the repo.
     CCACHE_CONFIGPATH = "${WORKSPACE}/scripts/ccache.conf"
-    // Give Gradle the whole machine. The daemon is intentionally disabled per
-    // invocation (--no-daemon): each job runs one build, so a lingering daemon
-    // would just hold memory. The configuration cache is NOT enabled because
-    // the RN/Expo Gradle plugins spawn `node` at configuration time.
-    GRADLE_OPTS = '-Dorg.gradle.parallel=true -Dorg.gradle.caching=true -Dorg.gradle.workers.max=8'
+    // The daemon is intentionally disabled per invocation (--no-daemon): each
+    // job runs one build, so a lingering daemon would just hold memory. The
+    // configuration cache is NOT enabled because the RN/Expo Gradle plugins
+    // spawn `node` at configuration time. worker count / heap live in
+    // android/gradle.properties (rewritten each build); do NOT set
+    // org.gradle.workers.max here, since a -D system property would override it.
+    GRADLE_OPTS = '-Dorg.gradle.parallel=true -Dorg.gradle.caching=true'
     ANDROID_HOME = '/home/rmotafreitas/Android/Sdk'
     ANDROID_SDK_ROOT = '/home/rmotafreitas/Android/Sdk'
     // Match the EAS SDK 57 Android toolchain (JDK 17, not the host's JDK 21).
@@ -625,6 +627,9 @@ pipeline {
           # Never leave keystore material in the workspace.
           rm -rf "$WORKSPACE/.signing" "$WORKSPACE/.signing.json" \
                  "$WORKSPACE/android/app/ci-signing.gradle" 2>/dev/null || true
+          # Drop this build's scratch (bundletool .apks, extracted splits, device
+          # specs) so the shared host temp dir does not grow without bound.
+          if [ -n "$TMPDIR" ] && [ -d "$TMPDIR" ]; then rm -rf "$TMPDIR"/* 2>/dev/null || true; fi
           # Report cache effectiveness (both persist in the workspace for reuse).
           if command -v ccache >/dev/null 2>&1; then ccache -s 2>/dev/null | head -8 || true; fi
           if [ -d "$ARTIFACT_DIR" ]; then ls -la "$ARTIFACT_DIR"; fi
