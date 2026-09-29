@@ -176,19 +176,53 @@ pipeline {
       }
     }
 
-    stage('Build signed universal APK (direct install)') {
+    // Derive the universal APK from the AAB with bundletool instead of running
+    // a second full Gradle build. Signing uses the EAS-managed upload keystore
+    // (presented by the android-upload-keystore credential), so the APK carries
+    // the same signer as the AAB/Play and stays updatable.
+    stage('Derive universal APK from AAB') {
       steps {
-        withCredentials([string(credentialsId: 'expo-token', variable: 'EXPO_TOKEN')]) {
+        withCredentials([string(credentialsId: 'android-upload-keystore', variable: 'ANDROID_UPLOAD_KEYSTORE_B64')]) {
           sh '''
             set -eux
-            export EXPO_TOKEN
-            mkdir -p "$ARTIFACT_DIR" "$GRADLE_USER_HOME" "$TMPDIR"
-            npx --yes eas-cli@latest build \
-              --platform android \
-              --profile preview \
-              --local \
-              --non-interactive \
-              --output "$ARTIFACT_DIR/animu-${VERSION}-code${VERSION_CODE}.apk"
+            AAB="$ARTIFACT_DIR/animu-${VERSION}-code${VERSION_CODE}.aab"
+            APK="$ARTIFACT_DIR/animu-${VERSION}-code${VERSION_CODE}.apk"
+            TOOLS="$WORKSPACE/.tools"
+            BUNDLETOOL_VERSION=1.18.1
+            BUNDLETOOL_JAR="$TOOLS/bundletool.jar"
+            mkdir -p "$TOOLS" "$TMPDIR"
+
+            if [ ! -f "$BUNDLETOOL_JAR" ]; then
+              curl -fsSL -o "$BUNDLETOOL_JAR" \
+                "https://github.com/google/bundletool/releases/download/${BUNDLETOOL_VERSION}/bundletool-all-${BUNDLETOOL_VERSION}.jar"
+            fi
+
+            # Decode the EAS upload keystore + passwords from the credential.
+            echo "$ANDROID_UPLOAD_KEYSTORE_B64" | base64 -d > "$TMPDIR/keystore.json"
+            KS="$TMPDIR/upload.jks"
+            node -e '
+              const fs = require("fs");
+              const j = JSON.parse(fs.readFileSync(process.env.TMPDIR + "/keystore.json", "utf8"));
+              fs.writeFileSync(process.env.TMPDIR + "/upload.jks", Buffer.from(j.keystore, "base64"));
+              fs.writeFileSync(process.env.TMPDIR + "/ks.alias", j.keyAlias);
+              fs.writeFileSync(process.env.TMPDIR + "/ks.storepass", j.keystorePassword);
+              fs.writeFileSync(process.env.TMPDIR + "/ks.keypass", j.keyPassword || j.keystorePassword);
+            '
+
+            APKS="$TMPDIR/universal.apks"
+            rm -f "$APKS"
+            java -jar "$BUNDLETOOL_JAR" build-apks \
+              --bundle="$AAB" --output="$APKS" --mode=universal \
+              --ks="$KS" \
+              --ks-pass="pass:$(cat "$TMPDIR/ks.storepass")" \
+              --ks-key-alias="$(cat "$TMPDIR/ks.alias")" \
+              --key-pass="pass:$(cat "$TMPDIR/ks.keypass")"
+
+            rm -rf "$TMPDIR/universal-extract"
+            unzip -o -q "$APKS" -d "$TMPDIR/universal-extract"
+            cp "$TMPDIR/universal-extract/universal.apk" "$APK"
+            rm -f "$TMPDIR/upload.jks" "$TMPDIR/keystore.json" "$TMPDIR/ks.alias" "$TMPDIR/ks.storepass" "$TMPDIR/ks.keypass"
+            ls -la "$APK"
           '''
         }
       }
@@ -216,10 +250,20 @@ pipeline {
 
           APKSIGNER=$(find "$ANDROID_SDK_ROOT/build-tools" -name apksigner | sort | tail -1)
           echo "--- APK signing certificate ---"
-          "$APKSIGNER" verify --print-certs "$APK" | tee /tmp/apk-certs.txt
-          if grep -q "CN=Android Debug" /tmp/apk-certs.txt; then
+          "$APKSIGNER" verify --print-certs "$APK" | tee "$TMPDIR/apk-certs.txt"
+          if grep -q "CN=Android Debug" "$TMPDIR/apk-certs.txt"; then
             echo "ERROR: APK is signed with the Android debug keystore"; exit 1
           fi
+
+          # The universal APK is derived from the AAB, so both must carry the
+          # same signer. Compare SHA-256 fingerprints.
+          AAB_SHA256=$(echo "$AAB_CERT" | grep -i "SHA256:" | head -1 | sed 's/.*SHA256: *//' | tr -d ':' | tr 'A-F' 'a-f')
+          APK_SHA256=$("$APKSIGNER" verify --print-certs "$APK" \
+            | grep -i "certificate SHA-256 digest" | head -1 | sed 's/.*digest: *//' | tr -d ':' | tr 'A-F' 'a-f')
+          echo "AAB signer SHA-256: $AAB_SHA256"
+          echo "APK signer SHA-256: $APK_SHA256"
+          [ -n "$AAB_SHA256" ] && [ "$AAB_SHA256" = "$APK_SHA256" ] || {
+            echo "ERROR: APK signer does not match the AAB signer"; exit 1; }
         '''
       }
     }
