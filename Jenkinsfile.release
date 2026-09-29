@@ -160,7 +160,7 @@ pipeline {
             set -eux
             export EXPO_TOKEN
             mkdir -p "$ARTIFACT_DIR" "$GRADLE_USER_HOME"
-            time npx --yes eas-cli@latest build \
+            npx --yes eas-cli@latest build \
               --platform android \
               --profile production \
               --local \
@@ -178,7 +178,7 @@ pipeline {
             set -eux
             export EXPO_TOKEN
             mkdir -p "$ARTIFACT_DIR" "$GRADLE_USER_HOME"
-            time npx --yes eas-cli@latest build \
+            npx --yes eas-cli@latest build \
               --platform android \
               --profile preview \
               --local \
