@@ -192,37 +192,7 @@ pipeline {
 
           # Inject the release signing config the same way EAS does: a small
           # Gradle script that adds a `release` signingConfig and applies it.
-          node -e '
-            const fs = require("fs");
-            const path = require("path");
-            const j = JSON.parse(fs.readFileSync(process.env.WORKSPACE + "/.signing.json", "utf8"));
-            const androidDir = path.join(process.env.WORKSPACE, "android", "app");
-            const keystorePath = path.join(process.env.WORKSPACE, ".signing", "upload.jks");
-
-            const script = `
-// CI signing injection (equivalent to eas-build-inject-android-credentials.gradle)
-android {
-  signingConfigs {
-    release {
-      storeFile file(${JSON.stringify(keystorePath)})
-      storePassword ${JSON.stringify(j.keystorePassword)}
-      keyAlias ${JSON.stringify(j.keyAlias)}
-      keyPassword ${JSON.stringify(j.keyPassword || j.keystorePassword)}
-    }
-  }
-  buildTypes {
-    release { signingConfig android.signingConfigs.release }
-  }
-}
-`;
-            fs.writeFileSync(path.join(androidDir, "ci-signing.gradle"), script);
-            const buildGradle = path.join(androidDir, "build.gradle");
-            let g = fs.readFileSync(buildGradle, "utf8");
-            if (!g.includes("ci-signing.gradle")) {
-              g += "\napply from: \"./ci-signing.gradle\"\n";
-              fs.writeFileSync(buildGradle, g);
-            }
-          '
+          node scripts/inject-android-signing.mjs
         '''
       }
     }
@@ -432,7 +402,8 @@ android {
     always {
       sh '''
         # Never leave keystore material in the workspace.
-        rm -rf "$WORKSPACE/.signing" "$WORKSPACE/.signing.json" 2>/dev/null || true
+        rm -rf "$WORKSPACE/.signing" "$WORKSPACE/.signing.json" \
+               "$WORKSPACE/android/app/ci-signing.gradle" 2>/dev/null || true
         if [ -d "$ARTIFACT_DIR" ]; then ls -la "$ARTIFACT_DIR"; fi
       '''
       archiveArtifacts artifacts: 'release-artifacts/*', allowEmptyArchive: true, fingerprint: true
