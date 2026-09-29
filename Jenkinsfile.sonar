@@ -1,0 +1,58 @@
+// Continuous static analysis for animu-mobile-app via SonarQube.
+//
+// SonarQube (Community Edition) runs on this host at http://localhost:9001 —
+// see ~/sonarqube/docker-compose.yml. The scanner runs in the official CLI
+// container on the *host* network so it can reach the server over localhost
+// without exposing it beyond the host, and it reads the analysis token from a
+// mode-600 file on the host (~/sonarqube/analysis-token), never from the repo.
+//
+// Project config lives in sonar-project.properties at the repo root.
+//
+// The job polls */main like the CI job, so every push is analyzed. It shares
+// the build-host lock with CI/release so analysis never overlaps a build.
+
+pipeline {
+  // agent none + lock in options: acquire the lock before any executor is
+  // allocated (same pattern as the other jobs).
+  agent none
+
+  parameters {
+    string(name: 'NOTE', defaultValue: '', description: 'Optional note for this run (unused).')
+  }
+
+  options {
+    timestamps()
+    timeout(time: 30, unit: 'MINUTES')
+    disableConcurrentBuilds()
+    buildDiscarder(logRotator(numToKeepStr: '10'))
+    lock('animu-build-host')
+  }
+
+  stages {
+    stage('SonarQube analysis') {
+      agent { label 'animu-android-native' }
+      steps {
+        checkout scm
+        sh '''
+          set -eux
+          TOKEN_FILE="$HOME/sonarqube/analysis-token"
+          test -f "$TOKEN_FILE" || { echo "missing $TOKEN_FILE"; exit 1; }
+
+          docker run --rm \
+            --network host \
+            -v "$WORKSPACE:/usr/src" \
+            -w /usr/src \
+            -e SONAR_TOKEN="$(cat "$TOKEN_FILE")" \
+            -e SONAR_USER_HOME=/tmp/.sonar \
+            sonarsource/sonar-scanner-cli \
+            -Dsonar.host.url=http://localhost:9001
+        '''
+      }
+    }
+  }
+
+  post {
+    success { echo 'SonarQube analysis done.' }
+    failure { echo 'SonarQube analysis failed.' }
+  }
+}

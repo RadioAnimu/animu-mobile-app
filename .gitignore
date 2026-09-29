@@ -62,6 +62,9 @@ altstore/*.ipa
 src/assets/fonts/*.ttf
 src/assets/fonts/*.otf
 
+# SonarScanner scratch
+.scannerwork/
+
 # CI release signing scratch (Jenkins workspace only)
 .signing/
 .signing.json
