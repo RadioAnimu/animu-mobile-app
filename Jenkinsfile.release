@@ -527,7 +527,7 @@ pipeline {
           done
 
           # The app's own SDK target (for context — it is not the size-table device).
-          TARGET_SDK=$(node -p "require('./app.json').expo.android?.targetSdkVersion ?? require('./app.json').expo.plugins.find(p=>Array.isArray(p)&&p[0]==='expo-build-properties')?.[1]?.android?.targetSdkVersion ?? '?'")
+          TARGET_SDK=$(node scripts/target-sdk.mjs)
 
           {
             echo "## Android release ${TAG} (versionCode ${VERSION_CODE})"
