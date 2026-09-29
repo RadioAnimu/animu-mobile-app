@@ -97,7 +97,7 @@ user has an account with us"); leave the remaining categories "NO".
 ### Shared
 - [ ] Privacy policy updated per the four edits above (they are **not yet
       applied** to the live page)
-- [ ] `npm run lint` + `npx tsc --noEmit` + `npm test` green
+- [ ] `pnpm run lint` + `pnpm exec tsc --noEmit` + `pnpm test` green
 - [ ] iOS/Android builds include the Proxima Nova font
       (`../src/assets/fonts/README.md`; EAS secret or local files)
 

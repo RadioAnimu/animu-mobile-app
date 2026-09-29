@@ -71,7 +71,7 @@ rest of the engine depends on the ports in `ports.ts` (`AudioEnginePort`,
 The units communicate through narrow, constructor-injected dependencies (the
 `Timer` abstraction replaces raw `setTimeout`, fetchers and connectivity
 subscriptions are injectable). Tests live in the per-folder `__tests__`
-directories and in `src/core/services/__tests__`, and run with `npm test`.
+directories and in `src/core/services/__tests__`, and run with `pnpm test`.
 
 ## State stores
 

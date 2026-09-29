@@ -6,6 +6,9 @@ project-specific gotchas.
 ## Prerequisites
 
 - **Node.js 20+** (CI uses Node 22).
+- **pnpm** — the project uses pnpm. Enable it via `corepack enable` (the pinned
+  version is in `package.json` → `packageManager`), or install
+  `pnpm@9` directly.
 - [Expo CLI](https://docs.expo.dev/more/create-expo/) and an Expo account (for EAS).
 - **Android Studio** / **Xcode** toolchains for native builds.
 - A device or emulator. The app targets a live station backend, so most features
@@ -19,18 +22,22 @@ project-specific gotchas.
 git clone --recurse-submodules https://github.com/RadioAnimu/animu-mobile-app.git
 # already cloned? git submodule update --init --remote
 
-npm install        # applies native patches via postinstall and builds animu-api
+pnpm install       # applies native patches via postinstall and builds animu-api
 ```
 
-`npm install` runs `postinstall`, which applies `patch-package` and builds the
-`animu-api` submodule when needed (`npm run build:api`).
+`pnpm install` runs `postinstall`, which applies `patch-package` and builds the
+`animu-api` submodule when needed (`pnpm run build:api`).
+
+> **Why `node-linker=hoisted`?** React Native/Expo need a flat `node_modules`;
+> pnpm's default isolated linking breaks Metro resolution and native module
+> autolinking. This is set in `.npmrc`. Don't remove it.
 
 ## Run
 
 ```bash
-npm run start      # Expo dev client
-npm run android    # build & run on Android
-npm run ios        # build & run on iOS
+pnpm run start      # Expo dev client
+pnpm run android    # build & run on Android
+pnpm run ios        # build & run on iOS
 ```
 
 > This project uses a **development client** (`expo start --dev-client`) rather
@@ -46,17 +53,17 @@ npm run ios        # build & run on iOS
 
 | Command | What it does |
 | --- | --- |
-| `npm run start` | Expo dev client |
-| `npm run android` / `npm run ios` | Native build & run |
-| `npm test` | Vitest (player core, services, domain, hooks, plugins) |
-| `npm run lint` | `expo lint` (flat ESLint config) |
-| `npm run build:api` | Build the `animu-api` submodule |
-| `npm run fonts` | Fetch the Proxima Nova fonts (`scripts/fetch-fonts.mjs`) |
-| `npm run splash` | Regenerate splash assets |
-| `npm run doctor` | React Doctor health scan |
-| `npm run install:apk` | Uninstall + install the newest local `.apk` on a connected device |
+| `pnpm run start` | Expo dev client |
+| `pnpm run android` / `pnpm run ios` | Native build & run |
+| `pnpm test` | Vitest (player core, services, domain, hooks, plugins) |
+| `pnpm run lint` | `expo lint` (flat ESLint config) |
+| `pnpm run build:api` | Build the `animu-api` submodule |
+| `pnpm run fonts` | Fetch the Proxima Nova fonts (`scripts/fetch-fonts.mjs`) |
+| `pnpm run splash` | Regenerate splash assets |
+| `pnpm run doctor` | React Doctor health scan |
+| `pnpm run install:apk` | Uninstall + install the newest local `.apk` on a connected device |
 
-Typecheck directly with `npx tsc --noEmit` (there is no npm alias).
+Typecheck directly with `pnpm exec tsc --noEmit` (there is no script alias).
 
 ## Testing
 
@@ -68,7 +75,7 @@ Tests use **Vitest** and live next to the code in `__tests__` folders:
 - `src/hooks/__tests__`, `plugins/__tests__` — hooks and config plugins.
 
 ```bash
-npm test
+pnpm test
 ```
 
 ## Path aliases
@@ -113,8 +120,8 @@ Native patches live in `patches/` and are applied automatically by
 - **`expo-audio`** — permission-free Android PCM sampling for the visualizer
   (see [Architecture](ARCHITECTURE.md#key-engineering-decisions)).
 
-If you change a patch, regenerate it with `npx patch-package <package>` and
-verify a clean `npm install` still applies it.
+If you change a patch, regenerate it with `pnpm exec patch-package <package>`
+and verify a clean `pnpm install` still applies it.
 
 ## Submodule
 
@@ -124,17 +131,22 @@ repository. Always clone with `--recurse-submodules`, and after pulling run:
 
 ```bash
 git submodule update --init --remote
-npm run build:api
+pnpm run build:api
 ```
+
+The library also has its own Jenkins job that archives a prebuilt `dist/`; the
+release pipeline consumes that for the pinned commit when available. See
+[Build & Release](BUILD_AND_RELEASE.md#packagesanimu-api).
 
 ## Continuous integration
 
-`.github/workflows/ci.yml` runs on every push to `main` and on pull requests:
+`.github/workflows/ci.yml` and the Jenkins `animu-mobile-app` job run on every
+push to `main` and on pull requests:
 
-1. Build the `animu-api` submodule.
-2. `npx tsc --noEmit` — typecheck.
-3. `npx expo lint` — lint.
-4. `npm test` — Vitest.
+1. `pnpm install --frozen-lockfile` (which builds the `animu-api` submodule).
+2. `pnpm exec tsc --noEmit` — typecheck.
+3. `pnpm exec expo lint` — lint.
+4. `pnpm test` — Vitest.
 5. **Bundle smoke test** — `expo export:embed` for Android, catching broken asset
    paths and unresolvable imports that TypeScript can't see.
 6. **React Doctor score gate** — fails if the health score drops below **85**.
@@ -144,9 +156,11 @@ npm run build:api
 ## Troubleshooting
 
 - **Native module missing / "requires dev client"** — you ran Expo Go. Use
-  `npm run android` / `npm run ios` (dev client).
+  `pnpm run android` / `pnpm run ios` (dev client).
 - **Visualizer unavailable on iOS** — expected; the feature is Android-only.
 - **`animu-api` build errors after a pull** — run `git submodule update --init
-  --remote && npm run build:api`.
+  --remote && pnpm run build:api`.
 - **Metro can't resolve `@/…`** — confirm `tsconfig.json` paths and restart with
-  `npx expo start --clear`.
+  `pnpm exec expo start --clear`.
+- **Metro can't resolve a workspace package after switching to pnpm** — make sure
+  `.npmrc` still has `node-linker=hoisted` and re-run `pnpm install`.

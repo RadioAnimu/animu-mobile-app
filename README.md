@@ -56,13 +56,14 @@ See **[Architecture](docs/ARCHITECTURE.md)** for the full picture.
 
 ```bash
 git clone --recurse-submodules https://github.com/RadioAnimu/animu-mobile-app.git
-npm install        # applies native patches and builds the animu-api submodule
-npm run android    # or: npm run ios
-npm test           # vitest
-npm run lint       # expo lint
+pnpm install       # applies native patches and builds the animu-api submodule
+pnpm run android   # or: pnpm run ios
+pnpm test          # vitest
+pnpm run lint      # expo lint
 ```
 
-Requires Node 20+ and a device/emulator with network access to `animu.moe`. The
+Requires Node 20+, pnpm (`corepack enable`) and a device/emulator with network
+access to `animu.moe`. The
 **Proxima Nova** fonts are not committed — see
 [Development](docs/DEVELOPMENT.md#fonts).
 

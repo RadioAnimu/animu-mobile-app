@@ -16,6 +16,7 @@ pipeline {
   environment {
     CI = 'true'
     EXPO_NO_TELEMETRY = '1'
+    COREPACK_ENABLE_DOWNLOAD_PROMPT = '0'
   }
 
   stages {
@@ -33,16 +34,14 @@ pipeline {
       steps {
         sh '''
           set -eux
-          echo "node $(node --version) / npm $(npm --version)"
+          corepack enable
+          echo "node $(node --version) / pnpm $(pnpm --version)"
 
-          npm ci --prefix packages/animu-api
-          npm run build --prefix packages/animu-api
+          pnpm install --frozen-lockfile
 
-          npm ci
-
-          npx tsc --noEmit
-          npx expo lint
-          npm test
+          pnpm exec tsc --noEmit
+          pnpm exec expo lint
+          pnpm test
         '''
       }
       post {
@@ -56,7 +55,7 @@ pipeline {
       steps {
         sh '''
           set -eux
-          npx expo export:embed --platform android --entry-file index.js \
+          pnpm exec expo export:embed --platform android --entry-file index.js \
             --bundle-output /tmp/index.android.bundle \
             --assets-dest /tmp/animu-assets --dev false
         '''
@@ -67,7 +66,7 @@ pipeline {
       steps {
         sh '''
           set -eux
-          score=$(npx react-doctor --score)
+          score=$(pnpm exec react-doctor --score)
           echo "React Doctor score: $score"
           if [ "$score" -lt 85 ]; then
             echo "React Doctor score $score is below the required minimum of 85"

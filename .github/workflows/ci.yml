@@ -13,33 +13,31 @@ jobs:
         with:
           submodules: recursive
 
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.9
+
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: npm
-
-      - name: Install animu-api dependencies
-        run: npm ci --prefix packages/animu-api
-
-      - name: Build animu-api
-        run: npm run build --prefix packages/animu-api
+          cache: pnpm
 
       - name: Install dependencies
-        run: npm ci
+        run: pnpm install --frozen-lockfile
 
       - name: Typecheck
-        run: npx tsc --noEmit
+        run: pnpm exec tsc --noEmit
 
       - name: Lint
-        run: npx expo lint
+        run: pnpm exec expo lint
 
       - name: Test
-        run: npm test
+        run: pnpm test
 
       # Bundles the app so broken asset paths and unresolvable imports fail CI
       # (TypeScript can't catch these — asset modules are declared by wildcard).
       - name: Bundle smoke test
-        run: npx expo export:embed --platform android --entry-file index.js --bundle-output /tmp/index.android.bundle --assets-dest /tmp/animu-assets --dev false
+        run: pnpm exec expo export:embed --platform android --entry-file index.js --bundle-output /tmp/index.android.bundle --assets-dest /tmp/animu-assets --dev false
 
       # Fails the build if the React Doctor health score drops below the floor.
       # Advisory PR feedback lives in react-doctor.yml; this is the hard gate.
@@ -47,7 +45,7 @@ jobs:
       # an unpinned `@latest` download.
       - name: React Doctor score gate
         run: |
-          score=$(npx react-doctor --score)
+          score=$(pnpm exec react-doctor --score)
           echo "React Doctor score: $score"
           if [ "$score" -lt 85 ]; then
             echo "::error::React Doctor score $score is below the required minimum of 85"

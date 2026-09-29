@@ -1,0 +1,19 @@
+# pnpm settings for this repository (config-only; no workspace packages).
+#
+# Supply-chain hardening — react-doctor's require-pnpm-hardening rule wants
+# these keys; both are pnpm 10+ features.
+
+# Refuse dependency versions published within the last 3 days, so malware that
+# gets caught and unpublished within hours never reaches us — while still
+# letting this project adopt Expo/React Native patch releases promptly.
+minimumReleaseAge: 4320
+
+# Refuse packages whose trust signals (provenance/signatures) weaken between
+# updates. The three exclusions are long-lived transitive packages whose older
+# releases carried provenance attestations that the resolved versions don't.
+trustPolicy: no-downgrade
+trustPolicyExclude:
+  - semver
+  - eslint-import-resolver-typescript@3.10.1
+  - ua-parser-js@0.7.41
+  - why-is-node-running@3.2.2

@@ -52,7 +52,7 @@ SDK/NDK). The release job is parameterized:
 
 1. Validate parameters and `app.json` (version/versionCode must match).
 2. Checkout the repo **with submodules** (`packages/animu-api`).
-3. Install dependencies — only when `package-lock.json` changed (stamped).
+3. Install dependencies with pnpm — only when `pnpm-lock.yaml` changed (stamped).
 4. `TRUST_CI`: if the CI job has a SUCCESS build for `HEAD`, the pre-release
    checks are skipped; otherwise they run (typecheck, lint, tests, React Doctor).
 5. `expo prebuild --platform android` — only when `app.json` / `plugins` /

@@ -6,15 +6,15 @@
     "start": "expo start --dev-client",
     "android": "expo run:android",
     "ios": "expo run:ios",
-    "postinstall": "patch-package && if [ ! -f packages/animu-api/dist/esm/index.js ] || find packages/animu-api/src -newer packages/animu-api/dist/esm/index.js -print -quit | grep -q .; then npm install --prefix packages/animu-api --no-audit --no-fund && npm run build:api; fi",
+    "postinstall": "patch-package && if [ ! -f packages/animu-api/dist/esm/index.js ] || find packages/animu-api/src -newer packages/animu-api/dist/esm/index.js -print -quit | grep -q .; then pnpm --dir packages/animu-api install --frozen-lockfile && pnpm run build:api; fi",
     "install:apk": "adb uninstall com.nessjs.animu; adb install $(ls -t dist/*.apk 2>/dev/null | head -1)",
     "lint": "expo lint",
-    "build:api": "npm run build --prefix packages/animu-api",
+    "build:api": "pnpm --dir packages/animu-api run build",
     "fonts": "node scripts/fetch-fonts.mjs",
     "eas-build-pre-install": "node scripts/fetch-fonts.mjs",
     "splash": "node scripts/generate-splash.mjs",
     "test": "vitest run",
-    "doctor": "npx react-doctor@0.9.14"
+    "doctor": "react-doctor"
   },
   "dependencies": {
     "@react-native-async-storage/async-storage": "2.2.0",
@@ -71,7 +71,7 @@
     "jsdom": "^30.1.0",
     "patch-package": "^8.0.1",
     "react-doctor": "^0.9.14",
-    "react-dom": "^19.2.3",
+    "react-dom": "19.2.3",
     "typescript": "~6.0.3",
     "vitest": "^5.0.0"
   },
@@ -95,6 +95,12 @@
       "buildFromSource": [
         "expo-audio"
       ]
+    }
+  },
+  "packageManager": "pnpm@10.34.6",
+  "pnpm": {
+    "overrides": {
+      "uuid": "^11.1.1"
     }
   }
 }
