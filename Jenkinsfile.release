@@ -109,7 +109,10 @@ pipeline {
       steps {
         // The Proxima Nova fonts are licensed and gitignored. They are staged
         // on the host outside the repo and copied into the workspace here.
-        withCredentials([string(credentialsId: 'android-upload-keystore', variable: 'ANDROID_UPLOAD_KEYSTORE_B64')]) {
+        withCredentials([
+          string(credentialsId: 'android-upload-keystore', variable: 'ANDROID_UPLOAD_KEYSTORE_B64'),
+          string(credentialsId: 'jenkins-api-token', variable: 'JENKINS_API_TOKEN'),
+        ]) {
           sh '''
             set -eux
             FONTS_STAGE="${FONTS_STAGE:-$HOME/.animu-secrets/fonts}"
@@ -137,16 +140,21 @@ pipeline {
               echo "Dependencies unchanged; reusing node_modules"
             fi
 
-            # Build animu-api only when its pinned submodule commit changed (or
-            # its dist is missing). An unchanged pin is never rebuilt, even if
-            # the checkout refreshed file mtimes.
+            # animu-api dist: prefer the prebuilt artifact published by the
+            # animu-api Jenkins job for the pinned submodule commit; fall back
+            # to building from source when no matching build exists. Only runs
+            # when the pin changed or dist is missing.
             ANIMU_REV=$(git -C packages/animu-api rev-parse HEAD 2>/dev/null || echo none)
             ANIMU_STAMP="$WORKSPACE/.animu-api-stamp"
             BUILT_REV="$( [ -f "$ANIMU_STAMP" ] && cat "$ANIMU_STAMP" || echo none )"
             if [ ! -f packages/animu-api/dist/esm/index.js ] || [ "$ANIMU_REV" != "$BUILT_REV" ]; then
-              echo "Building animu-api (rev $ANIMU_REV, was $BUILT_REV)"
-              npm ci --prefix packages/animu-api
-              npm run build --prefix packages/animu-api
+              if node scripts/fetch-animu-api-dist.mjs animu-api "$ANIMU_REV" packages/animu-api/dist; then
+                :
+              else
+                echo "animu-api: no prebuilt artifact for $ANIMU_REV; building from source"
+                npm ci --prefix packages/animu-api
+                npm run build --prefix packages/animu-api
+              fi
               printf "%s" "$ANIMU_REV" > "$ANIMU_STAMP"
             else
               echo "animu-api unchanged (rev $ANIMU_REV); reusing dist/"
