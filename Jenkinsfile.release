@@ -522,14 +522,18 @@ pipeline {
             fi
 
             if [ -n "$download" ]; then
-              SIZE_TABLE="${SIZE_TABLE}| ${abi} · ${dpi}dpi · SDK ${sdk} | ${download} | ${install} |\n"
+              SIZE_TABLE="${SIZE_TABLE}| ${abi} · ${dpi}dpi | Android ${sdk} | ${download} | ${install} |\n"
             fi
           done
+
+          # The app's own SDK target (for context — it is not the size-table device).
+          TARGET_SDK=$(node -p "require('./app.json').expo.android?.targetSdkVersion ?? require('./app.json').expo.plugins.find(p=>Array.isArray(p)&&p[0]==='expo-build-properties')?.[1]?.android?.targetSdkVersion ?? '?'")
 
           {
             echo "## Android release ${TAG} (versionCode ${VERSION_CODE})"
             echo ""
             echo "Built on Jenkins, signed with the Play upload key."
+            echo "App target SDK: ${TARGET_SDK}."
             echo ""
             echo "### Artifacts"
             echo "| File | Size | SHA-256 | Use |"
@@ -539,10 +543,12 @@ pipeline {
             echo ""
             if [ -n "$SIZE_TABLE" ]; then
               echo "### Play Store sizes per device (bundletool ${BUNDLETOOL_VERSION})"
-              echo "Download = compressed splits served by Play; install = their uncompressed contents."
+              echo "Simulated devices: download is the compressed set of splits Play serves to that"
+              echo "device; install is their uncompressed contents. The Android column is the"
+              echo "simulated device OS (measurement input), not the app's target SDK."
               echo ""
-              echo "| Device | Download | Install |"
-              echo "|---|---|---|"
+              echo "| Device | Android | Download | Install |"
+              echo "|---|---|---|---|"
               printf '%b' "$SIZE_TABLE"
             else
               echo "_(bundletool per-device sizes unavailable for this build)_"
