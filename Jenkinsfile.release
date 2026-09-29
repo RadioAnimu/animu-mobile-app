@@ -141,13 +141,22 @@ pipeline {
             fi
 
             # Decode the upload keystore once, into a workspace-local path the
-            # Gradle signing injection reads. Removed after the build.
+            # Gradle signing injection reads. Passwords go to mode-600 files so
+            # they never appear in the console log. Removed after the build.
             mkdir -p "$WORKSPACE/.signing"
+            chmod 700 "$WORKSPACE/.signing"
             echo "$ANDROID_UPLOAD_KEYSTORE_B64" | base64 -d > "$WORKSPACE/.signing.json"
             node -e '
               const fs = require("fs");
               const j = JSON.parse(fs.readFileSync(process.env.WORKSPACE + "/.signing.json", "utf8"));
               fs.writeFileSync(process.env.WORKSPACE + "/.signing/upload.jks", Buffer.from(j.keystore, "base64"));
+            '
+            node -e '
+              const fs = require("fs");
+              const j = JSON.parse(fs.readFileSync(process.env.WORKSPACE + "/.signing.json", "utf8"));
+              const dir = process.env.WORKSPACE + "/.signing";
+              fs.writeFileSync(dir + "/storepass", j.keystorePassword, { mode: 0o600 });
+              fs.writeFileSync(dir + "/keypass", j.keyPassword || j.keystorePassword, { mode: 0o600 });
             '
           '''
         }
@@ -271,13 +280,14 @@ pipeline {
           APKS="$TMPDIR/universal.apks"
           rm -f "$APKS"
           KS="$WORKSPACE/.signing/upload.jks"
-          SP=$(node -p "require(process.env.WORKSPACE + '/.signing.json').keystorePassword")
-          KP=$(node -p "(require(process.env.WORKSPACE + '/.signing.json').keyPassword) || (require(process.env.WORKSPACE + '/.signing.json').keystorePassword)")
           ALIAS=$(node -p "require(process.env.WORKSPACE + '/.signing.json').keyAlias")
 
+          # Passwords come from mode-600 files (file: scheme) so they never
+          # appear in the build log.
           java -jar "$BUNDLETOOL_JAR" build-apks \
             --bundle="$AAB" --output="$APKS" --mode=universal \
-            --ks="$KS" --ks-pass="pass:$SP" --ks-key-alias="$ALIAS" --key-pass="pass:$KP"
+            --ks="$KS" --ks-pass="file:$WORKSPACE/.signing/storepass" \
+            --ks-key-alias="$ALIAS" --key-pass="file:$WORKSPACE/.signing/keypass"
 
           rm -rf "$TMPDIR/universal-extract"
           unzip -o -q "$APKS" -d "$TMPDIR/universal-extract"
@@ -349,15 +359,14 @@ pipeline {
           TOOLS="$WORKSPACE/.tools"
           BUNDLETOOL_JAR="$TOOLS/bundletool.jar"
           KS="$WORKSPACE/.signing/upload.jks"
-          SP=$(node -p "require(process.env.WORKSPACE + '/.signing.json').keystorePassword")
-          KP=$(node -p "(require(process.env.WORKSPACE + '/.signing.json').keyPassword) || (require(process.env.WORKSPACE + '/.signing.json').keystorePassword)")
           ALIAS=$(node -p "require(process.env.WORKSPACE + '/.signing.json').keyAlias")
 
           APKS="$TMPDIR/animu-size.apks"
           rm -f "$APKS"
           java -jar "$BUNDLETOOL_JAR" build-apks \
             --bundle="$AAB" --output="$APKS" --mode=default \
-            --ks="$KS" --ks-pass="pass:$SP" --ks-key-alias="$ALIAS" --key-pass="pass:$KP" >/dev/null
+            --ks="$KS" --ks-pass="file:$WORKSPACE/.signing/storepass" \
+            --ks-key-alias="$ALIAS" --key-pass="file:$WORKSPACE/.signing/keypass" >/dev/null
 
           # One device spec per line: abi|density|sdk. bundletool's get-size
           # total reports the min/max COMPRESSED download size for the matched
