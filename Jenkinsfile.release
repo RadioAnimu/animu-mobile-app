@@ -3,10 +3,13 @@
 // Produces the same artifact set as the manual GitHub releases:
 //   animu-<version>-code<versionCode>.aab  (Play Store upload)
 //   animu-<version>-code<versionCode>.apk  (universal direct-install)
-// plus a SHA-256 checksum file for each.
+// a SHA-256 checksum for each, and a RELEASE_NOTES.md with the artifact table,
+// Play-optimised per-device sizes (bundletool), and the checksums.
 //
-// Signing uses the EAS-managed upload keystore, injected by `eas build --local`
-// via the EXPO_TOKEN credential configured in Jenkins.
+// Runs natively on the `animu-android-native` host agent (Node + JDK + Android
+// SDK/NDK), so the Gradle build gets the full machine and a persistent cache;
+// no Docker layer. Signing uses the EAS-managed upload keystore via
+// `eas build --local` and the EXPO_TOKEN credential.
 //
 // Parameters
 //   VERSION               Marketing version, e.g. 3.0.1 (must match app.json)
@@ -17,12 +20,7 @@
 //   PRERELEASE            Mark the GitHub release as a pre-release
 
 pipeline {
-  agent {
-    docker {
-      image 'animu/android-release-builder:1'
-      args '-u root'
-    }
-  }
+  agent { label 'animu-android-native' }
 
   parameters {
     string(name: 'VERSION', defaultValue: '', description: 'Marketing version (e.g. 3.0.1). Must match app.json.')
@@ -35,7 +33,7 @@ pipeline {
 
   options {
     timestamps()
-    timeout(time: 180, unit: 'MINUTES')
+    timeout(time: 120, unit: 'MINUTES')
     disableConcurrentBuilds()
     buildDiscarder(logRotator(numToKeepStr: '20'))
     skipDefaultCheckout(true)
@@ -45,13 +43,18 @@ pipeline {
     CI = 'true'
     EXPO_NO_TELEMETRY = '1'
     EAS_NO_VCS = '1'
+    EAS_LOCAL_BUILD_SKIP_CLEANUP = '1'
     ARTIFACT_DIR = 'release-artifacts'
+    // Persistent Gradle cache so rebuilds are incremental instead of cold.
+    GRADLE_USER_HOME = "${WORKSPACE}/.gradle-home"
+    // Give Gradle the whole machine and a real daemon heap.
+    GRADLE_OPTS = '-Dorg.gradle.daemon=true -Dorg.gradle.parallel=true -Dorg.gradle.caching=true -Dorg.gradle.workers.max=12'
   }
 
   stages {
     stage('Validate parameters') {
       steps {
-        sh '''
+        bash '''
           set -eux
           [ -n "$VERSION" ] || { echo "VERSION is required"; exit 1; }
           [ -n "$VERSION_CODE" ] || { echo "VERSION_CODE is required"; exit 1; }
@@ -63,14 +66,16 @@ pipeline {
 
     stage('Toolchain') {
       steps {
-        sh '''
+        bash '''
           set -eux
           java -version
           node --version
           npm --version
           gh --version
-          sdkmanager --version || true
+          echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT"
           ls "$ANDROID_SDK_ROOT/ndk"
+          ls "$ANDROID_SDK_ROOT/build-tools"
+          nproc
         '''
       }
     }
@@ -78,9 +83,8 @@ pipeline {
     stage('Checkout') {
       steps {
         checkout scm
-        sh '''
+        bash '''
           set -eux
-          git config --global --add safe.directory "$WORKSPACE"
           git submodule update --init --recursive
           test -d "$WORKSPACE/packages/animu-api" || { echo "animu-api submodule missing"; exit 1; }
         '''
@@ -89,20 +93,20 @@ pipeline {
 
     stage('Install') {
       steps {
-        // The Proxima Nova fonts are licensed and gitignored, so they are
-        // staged on the Jenkins host (outside the repo) and copied into the
-        // workspace here. `eas build --local` runs with EAS_NO_VCS=1 so it
-        // packs the working directory, including these files.
-        sh '''
+        // The Proxima Nova fonts are licensed and gitignored. They are staged
+        // on the host outside the repo and copied into the workspace here.
+        // `eas build --local` runs with EAS_NO_VCS=1 and .easignore keeps them,
+        // so the archive includes them.
+        bash '''
           set -eux
-          FONTS_STAGE="${FONTS_STAGE:-/var/jenkins_home/.animu-secrets/fonts}"
+          FONTS_STAGE="${FONTS_STAGE:-$HOME/.animu-secrets/fonts}"
           if [ -d "$FONTS_STAGE" ]; then
             mkdir -p src/assets/fonts
             cp "$FONTS_STAGE"/proximanova-reg.ttf "$FONTS_STAGE"/proximanova-bold.ttf src/assets/fonts/
           fi
           node scripts/fetch-fonts.mjs
           for f in proximanova-reg.ttf proximanova-bold.ttf; do
-            test -f "src/assets/fonts/$f" || { echo "missing font: $f (stage it in $FONTS_STAGE or configure PROXIMA_NOVA_FONTS_URL)"; exit 1; }
+            test -f "src/assets/fonts/$f" || { echo "missing font: $f (stage it in $FONTS_STAGE)"; exit 1; }
           done
           npm ci --prefix packages/animu-api
           npm run build --prefix packages/animu-api
@@ -114,7 +118,7 @@ pipeline {
     // Hard gate: never ship a release that fails the same checks as CI.
     stage('Pre-release checks') {
       steps {
-        sh '''
+        bash '''
           set -eux
           npx tsc --noEmit
           npx expo lint
@@ -136,7 +140,7 @@ pipeline {
 
     stage('Verify app.json matches parameters') {
       steps {
-        sh '''
+        bash '''
           set -eux
           APP_VERSION=$(node -p "require('./app.json').expo.version")
           APP_CODE=$(node -p "require('./app.json').expo.android.versionCode")
@@ -152,11 +156,11 @@ pipeline {
     stage('Build signed AAB (production, Play upload)') {
       steps {
         withCredentials([string(credentialsId: 'expo-token', variable: 'EXPO_TOKEN')]) {
-          sh '''
+          bash '''
             set -eux
             export EXPO_TOKEN
-            mkdir -p "$ARTIFACT_DIR"
-            npx --yes eas-cli@latest build \
+            mkdir -p "$ARTIFACT_DIR" "$GRADLE_USER_HOME"
+            time npx --yes eas-cli@latest build \
               --platform android \
               --profile production \
               --local \
@@ -170,11 +174,11 @@ pipeline {
     stage('Build signed universal APK (direct install)') {
       steps {
         withCredentials([string(credentialsId: 'expo-token', variable: 'EXPO_TOKEN')]) {
-          sh '''
+          bash '''
             set -eux
             export EXPO_TOKEN
-            mkdir -p "$ARTIFACT_DIR"
-            npx --yes eas-cli@latest build \
+            mkdir -p "$ARTIFACT_DIR" "$GRADLE_USER_HOME"
+            time npx --yes eas-cli@latest build \
               --platform android \
               --profile preview \
               --local \
@@ -187,39 +191,115 @@ pipeline {
 
     stage('Validate signing certificates') {
       steps {
-        sh '''
+        bash '''
           set -eux
           AAB="$ARTIFACT_DIR/animu-${VERSION}-code${VERSION_CODE}.aab"
           APK="$ARTIFACT_DIR/animu-${VERSION}-code${VERSION_CODE}.apk"
           test -f "$AAB" || { echo "AAB missing: $AAB"; exit 1; }
           test -f "$APK" || { echo "APK missing: $APK"; exit 1; }
 
-          # Play rejects AABs signed with the Android debug key.
-          for artifact in "$AAB" "$APK"; do
-            echo "--- $artifact ---"
-            cert=$(unzip -p "$artifact" 'META-INF/*.RSA' 2>/dev/null | keytool -printcert 2>/dev/null || true)
-            echo "$cert"
-            if [ -z "$cert" ]; then
-              echo "ERROR: could not read a signature from $artifact"; exit 1
-            fi
-            if echo "$cert" | grep -q "CN=Android Debug"; then
-              echo "ERROR: $artifact is signed with the Android debug keystore"; exit 1
-            fi
-          done
+          # Play rejects AABs signed with the Android debug key. The AAB stores
+          # its signature in META-INF; the universal APK uses the v2/v3 APK
+          # Signature Scheme, so it must be checked with apksigner.
+          AAB_CERT=$(unzip -p "$AAB" 'META-INF/*.RSA' 2>/dev/null | keytool -printcert 2>/dev/null || true)
+          echo "--- AAB certificate ---"
+          echo "$AAB_CERT"
+          [ -n "$AAB_CERT" ] || { echo "ERROR: could not read AAB signature"; exit 1; }
+          if echo "$AAB_CERT" | grep -q "CN=Android Debug"; then
+            echo "ERROR: AAB is signed with the Android debug keystore"; exit 1
+          fi
+
+          APKSIGNER=$(find "$ANDROID_SDK_ROOT/build-tools" -name apksigner | sort | tail -1)
+          echo "--- APK signing certificate ---"
+          "$APKSIGNER" verify --print-certs "$APK" | tee /tmp/apk-certs.txt
+          if grep -q "CN=Android Debug" /tmp/apk-certs.txt; then
+            echo "ERROR: APK is signed with the Android debug keystore"; exit 1
+          fi
         '''
       }
     }
 
-    stage('Checksums') {
+    stage('Checksums + bundletool sizes + release notes') {
       steps {
-        sh '''
+        bash '''
           set -eux
           cd "$ARTIFACT_DIR"
-          for f in *.aab *.apk; do
-            sha256sum "$f" > "$f.sha256"
-            echo "$f  $(cut -d" " -f1 "$f.sha256")"
-          done
-          cat *.sha256
+          AAB="animu-${VERSION}-code${VERSION_CODE}.aab"
+          APK="animu-${VERSION}-code${VERSION_CODE}.apk"
+
+          sha256sum "$AAB" > "$AAB.sha256"
+          sha256sum "$APK" > "$APK.sha256"
+          AAB_SHA=$(cut -d' ' -f1 "$AAB.sha256")
+          APK_SHA=$(cut -d' ' -f1 "$APK.sha256")
+
+          human() { awk -v s="$(stat -c%s "$1")" 'BEGIN{printf "%.1f MB", s/1048576}'; }
+          AAB_SIZE=$(human "$AAB")
+          APK_SIZE=$(human "$APK")
+
+          # --- bundletool: per-device download/install sizes from the AAB ---
+          BUNDLETOOL_VERSION=1.18.1
+          BUNDLETOOL_JAR="$WORKSPACE/.tools/bundletool.jar"
+          mkdir -p "$WORKSPACE/.tools"
+          if [ ! -f "$BUNDLETOOL_JAR" ]; then
+            curl -fsSL -o "$BUNDLETOOL_JAR" \
+              "https://github.com/google/bundletool/releases/download/${BUNDLETOOL_VERSION}/bundletool-all-${BUNDLETOOL_VERSION}.jar"
+          fi
+
+          # bundletool signs the split APKs it generates for size measurement
+          # with a throwaway key; only the sizes are reported, not the output.
+          KS="$WORKSPACE/.tools/sizecheck.keystore"
+          if [ ! -f "$KS" ]; then
+            keytool -genkeypair -keystore "$KS" -alias sizecheck \
+              -keyalg RSA -keysize 2048 -validity 30 \
+              -storepass sizecheck -keypass sizecheck \
+              -dname "CN=Bundle Size Check, O=Animu, C=BR" >/dev/null 2>&1
+          fi
+          java -jar "$BUNDLETOOL_JAR" build-apks \
+            --bundle="$AAB" --output=/tmp/animu.apks --mode=default \
+            --ks="$KS" --ks-pass=pass:sizecheck \
+            --ks-key-alias=sizecheck --key-pass=pass:sizecheck >/dev/null
+
+          cat > /tmp/devices.json <<'JSON'
+[{"deviceId":"arm64-v8a 480dpi","sdkVersion":34,"supportedAbis":["arm64-v8a"],"screenDensity":480},
+ {"deviceId":"armeabi-v7a 480dpi","sdkVersion":34,"supportedAbis":["armeabi-v7a"],"screenDensity":480},
+ {"deviceId":"x86_64 480dpi","sdkVersion":34,"supportedAbis":["x86_64"],"screenDensity":480},
+ {"deviceId":"arm64-v8a 320dpi","sdkVersion":34,"supportedAbis":["arm64-v8a"],"screenDensity":320},
+ {"deviceId":"arm64-v8a 640dpi","sdkVersion":34,"supportedAbis":["arm64-v8a"],"screenDensity":640}]
+JSON
+
+          SIZE_TABLE=""
+          if java -jar "$BUNDLETOOL_JAR" get-size total \
+               --apks=/tmp/animu.apks --dimensions=DOWNLOAD,INSTALL \
+               --device-spec=/tmp/devices.json > /tmp/sizes.txt 2>/dev/null; then
+            cat /tmp/sizes.txt
+            SIZE_TABLE=$(awk 'NR>1 && NF>=3 {printf "| %s | %.1f MB | %.1f MB |\n", $1, $2/1048576, $3/1048576}' /tmp/sizes.txt)
+          fi
+
+          {
+            echo "## Android release ${TAG} (versionCode ${VERSION_CODE})"
+            echo ""
+            echo "Built on Jenkins, signed with the EAS-managed Play upload key."
+            echo ""
+            echo "### Artifacts"
+            echo "| File | Size | SHA-256 | Use |"
+            echo "|---|---|---|---|"
+            echo "| ${AAB} | ${AAB_SIZE} | ${AAB_SHA} | Play Store upload |"
+            echo "| ${APK} | ${APK_SIZE} | ${APK_SHA} | Direct install (universal APK) |"
+            echo ""
+            if [ -n "$SIZE_TABLE" ]; then
+              echo "### Play Store-optimized sizes (bundletool ${BUNDLETOOL_VERSION})"
+              echo "Per device: download (compressed split) and install (sum of installed splits)."
+              echo ""
+              echo "| Device | Download | Install |"
+              echo "|---|---|---|"
+              printf '%s\n' "$SIZE_TABLE"
+            else
+              echo "_(bundletool per-device sizes unavailable for this build)_"
+            fi
+          } > RELEASE_NOTES.md
+
+          echo "=== RELEASE_NOTES.md ==="
+          cat RELEASE_NOTES.md
         '''
       }
     }
@@ -228,41 +308,24 @@ pipeline {
       when { expression { return params.CREATE_GITHUB_RELEASE } }
       steps {
         withCredentials([string(credentialsId: 'github-release-token', variable: 'GH_TOKEN')]) {
-          sh '''
+          bash '''
             set -eux
             export GH_TOKEN
-            AAB="$ARTIFACT_DIR/animu-${VERSION}-code${VERSION_CODE}.aab"
-            APK="$ARTIFACT_DIR/animu-${VERSION}-code${VERSION_CODE}.apk"
+            cd "$ARTIFACT_DIR"
+            AAB="animu-${VERSION}-code${VERSION_CODE}.aab"
+            APK="animu-${VERSION}-code${VERSION_CODE}.apk"
 
-            human_size() {
-              awk -v s="$(stat -c%s "$1")" 'BEGIN{printf "%.1f MB", s/1048576}'
-            }
-            sha_of() { cut -d" " -f1 "$1.sha256"; }
-
-            cat > "$ARTIFACT_DIR/RELEASE_NOTES.md" <<EOF
-## Android release ${TAG} (versionCode ${VERSION_CODE})
-
-Built on Jenkins with eas build --local, signed with the EAS-managed Play upload key.
-
-### Artifacts
-| File | Size | SHA-256 | Use |
-|---|---|---|---|
-| $(basename "$AAB") | $(human_size "$AAB") | $(sha_of "$AAB") | **Play Store upload** |
-| $(basename "$APK") | $(human_size "$APK") | $(sha_of "$APK") | Direct install (universal APK) |
-EOF
-
-            ARGS=(--title "${TAG} (Android)" --target main --notes-file "$ARTIFACT_DIR/RELEASE_NOTES.md")
-            [ "$DRAFT" = "true" ] && ARGS+=(--draft)
-            [ "$PRERELEASE" = "true" ] && ARGS+=(--prerelease)
+            set -- --title "${TAG} (Android)" --target main --notes-file RELEASE_NOTES.md
+            [ "$DRAFT" = "true" ] && set -- "$@" --draft
+            [ "$PRERELEASE" = "true" ] && set -- "$@" --prerelease
 
             if gh release view "$TAG" >/dev/null 2>&1; then
               echo "Release $TAG already exists; uploading assets"
             else
-              gh release create "$TAG" "${ARGS[@]}"
+              gh release create "$TAG" "$@"
             fi
 
-            gh release upload "$TAG" "$AAB" "$APK" \
-              "$AAB.sha256" "$APK.sha256" "$ARTIFACT_DIR/RELEASE_NOTES.md" --clobber
+            gh release upload "$TAG" "$AAB" "$APK" "$AAB.sha256" "$APK.sha256" RELEASE_NOTES.md --clobber
           '''
         }
       }
@@ -271,7 +334,7 @@ EOF
 
   post {
     always {
-      sh '''
+      bash '''
         if [ -d "$ARTIFACT_DIR" ]; then ls -la "$ARTIFACT_DIR"; fi
       '''
       archiveArtifacts artifacts: 'release-artifacts/*', allowEmptyArchive: true, fingerprint: true

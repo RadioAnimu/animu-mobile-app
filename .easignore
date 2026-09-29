@@ -66,3 +66,7 @@ altstore/*.ipa
 
 # Release output produced by the Jenkins pipeline
 release-artifacts/
+
+# Persisted tool caches staged by the Jenkins release pipeline
+.gradle-home/
+.tools/
