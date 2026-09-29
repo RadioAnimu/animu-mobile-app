@@ -1,0 +1,87 @@
+// Weekly housekeeping for the Animu Jenkins host.
+//
+// Jenkins never cleans workspaces by itself, and the CI/release jobs
+// intentionally keep their caches (node_modules, android/, .gradle-home) so
+// rebuilds stay incremental. Space is therefore only reclaimed when a job is
+// renamed/deleted and its old workspace is orphaned, or when Docker layers
+// accumulate. This job is the safety net: it removes *stale* workspaces
+// (untouched for 30+ days) and prunes old Docker layers, while leaving active
+// job caches intact.
+//
+// It shares the build-host lock, so it never runs alongside a CI/release build.
+
+pipeline {
+  // agent none + lock in options: acquire the lock before the single
+  // animu-android-native executor is allocated (same pattern as the others).
+  agent none
+
+  triggers {
+    // Weekly, Sunday ~04:00 (H spreads load; Jenkins picks a stable minute).
+    cron('H 4 * * 0')
+  }
+
+  parameters {
+    // A parameter keeps the "Build with Parameters" play button, like the
+    // other jobs. It has no effect on the build.
+    string(name: 'NOTE', defaultValue: '', description: 'Optional note for this run (unused).')
+  }
+
+  options {
+    timestamps()
+    timeout(time: 30, unit: 'MINUTES')
+    disableConcurrentBuilds()
+    buildDiscarder(logRotator(numToKeepStr: '10'))
+    lock('animu-build-host')
+  }
+
+  stages {
+    stage('Reclaim') {
+      agent { label 'animu-android-native' }
+      steps {
+        sh '''
+          set -ux
+          echo "=== disk before ==="
+          df -h / | tail -1
+
+          # 1) Shared build scratch. The release job writes bundletool output
+          #    here and cleans up on success; this covers aborted runs.
+          if [ -d /home/rmotafreitas/jenkins-tmp ]; then
+            rm -rf /home/rmotafreitas/jenkins-tmp/* || true
+          fi
+
+          # 2) Host-agent workspaces untouched for 30+ days. Depth 2 matches the
+          #    Animu/<job> layout; the age guard keeps active caches intact.
+          find /home/rmotafreitas/jenkins-agent/workspace -mindepth 2 -maxdepth 2 \
+            -type d -mtime +30 -prune -print -exec rm -rf {} + 2>/dev/null || true
+          find /home/rmotafreitas/jenkins-agent/workspace -mindepth 1 -maxdepth 1 \
+            -type d -mtime +30 -empty -print -delete 2>/dev/null || true
+
+          # 3) Built-in-node (container) workspaces, same rule. Runs inside the
+          #    controller container, which is where the built-in node's workspace
+          #    volume lives.
+          docker exec -u root jenkins sh -c '
+            find /var/jenkins_home/workspace -mindepth 2 -maxdepth 2 \
+              -type d -mtime +30 -prune -print -exec rm -rf {} + 2>/dev/null || true
+            find /var/jenkins_home/workspace -mindepth 1 -maxdepth 1 \
+              -type d -mtime +30 -empty -print -delete 2>/dev/null || true
+          ' || true
+
+          # 4) Docker: dangling images and build cache older than 7 days. Recent
+          #    layers (and everything still referenced) are kept.
+          docker image prune -f || true
+          docker builder prune -f --filter until=168h || true
+
+          echo "=== disk after ==="
+          df -h / | tail -1
+          echo "=== docker disk usage ==="
+          docker system df || true
+        '''
+      }
+    }
+  }
+
+  post {
+    success { echo 'Janitor finished.' }
+    failure { echo 'Janitor failed.' }
+  }
+}
