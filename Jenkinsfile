@@ -1,10 +1,8 @@
 pipeline {
-  agent {
-    docker {
-      image 'node:22-bookworm'
-      args '-u root'
-    }
-  }
+  // `agent none` so the shared lock is acquired BEFORE an executor is
+  // allocated. With a top-level agent the lock would be taken after the
+  // executor is assigned, so waiting builds would hold executors.
+  agent none
 
   // A parameter (even a free-text one) makes Jenkins expose this job via
   // "Build with Parameters" so it gets a parameterized play button like the
@@ -31,6 +29,12 @@ pipeline {
 
   stages {
     stage('Checkout submodules') {
+      agent {
+        docker {
+          image 'node:22-bookworm'
+          args '-u root'
+        }
+      }
       steps {
         sh '''
           set -eux
@@ -41,6 +45,12 @@ pipeline {
     }
 
     stage('CI') {
+      agent {
+        docker {
+          image 'node:22-bookworm'
+          args '-u root'
+        }
+      }
       steps {
         sh '''
           set -eux
@@ -62,6 +72,12 @@ pipeline {
     }
 
     stage('Bundle smoke test') {
+      agent {
+        docker {
+          image 'node:22-bookworm'
+          args '-u root'
+        }
+      }
       steps {
         sh '''
           set -eux
@@ -73,6 +89,12 @@ pipeline {
     }
 
     stage('React Doctor score gate') {
+      agent {
+        docker {
+          image 'node:22-bookworm'
+          args '-u root'
+        }
+      }
       steps {
         sh '''
           set -eux

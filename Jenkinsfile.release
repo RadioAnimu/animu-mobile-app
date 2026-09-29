@@ -23,7 +23,11 @@
 //   PRERELEASE            Mark the GitHub release as a pre-release
 
 pipeline {
-  agent { label 'animu-android-native' }
+  // Lock BEFORE any executor is allocated: with a top-level agent, the lock
+  // would only be taken after the executor is assigned, so waiting builds would
+  // hold executors (and on a 1-executor agent could deadlock). `agent none` plus
+  // per-stage agents keeps the lock acquisition ahead of the heavy build.
+  agent none
 
   parameters {
     string(name: 'VERSION', defaultValue: '', description: 'Marketing version (e.g. 3.0.1). Leave blank to use app.json (or to let BUMP set it).')
@@ -78,6 +82,7 @@ pipeline {
 
   stages {
     stage('Validate parameters') {
+      agent { label 'animu-android-native' }
       steps {
         sh '''
           set -eux
@@ -91,6 +96,7 @@ pipeline {
     }
 
     stage('Toolchain') {
+      agent { label 'animu-android-native' }
       steps {
         sh '''
           set -eux
@@ -108,6 +114,7 @@ pipeline {
     }
 
     stage('Checkout') {
+      agent { label 'animu-android-native' }
       steps {
         checkout scm
         sh '''
@@ -122,6 +129,7 @@ pipeline {
     // Resolves the version from the parameters/bump and exposes VERSION,
     // VERSION_CODE and TAG to every later stage.
     stage('Resolve version') {
+      agent { label 'animu-android-native' }
       steps {
         script {
           def bumpArgs = "--bump '${params.BUMP ?: "none"}'"
@@ -139,6 +147,7 @@ pipeline {
     }
 
     stage('Install') {
+      agent { label 'animu-android-native' }
       steps {
         // The Proxima Nova fonts are licensed and gitignored. They are staged
         // on the host outside the repo and copied into the workspace here.
@@ -218,6 +227,7 @@ pipeline {
     // Trust an already-green CI build for this exact commit: if the CI job has
     // a SUCCESS build for HEAD, skip the checks below. Otherwise they run.
     stage('Check CI status for this commit') {
+      agent { label 'animu-android-native' }
       when { expression { return params.TRUST_CI } }
       steps {
         withCredentials([string(credentialsId: 'jenkins-api-token', variable: 'JENKINS_API_TOKEN')]) {
@@ -239,6 +249,7 @@ pipeline {
     // Hard gate: never ship a release that fails the same checks as CI — unless
     // a passing CI build for this commit was verified above.
     stage('Pre-release checks') {
+      agent { label 'animu-android-native' }
       when { expression { return !(params.TRUST_CI && env.CI_VERIFIED == 'true') } }
       steps {
         sh '''
@@ -269,6 +280,7 @@ pipeline {
     // bumped it or adopted it, so these must agree. Guards against a stale
     // app.json on the branch silently shipping the wrong version.
     stage('Verify app.json matches resolved version') {
+      agent { label 'animu-android-native' }
       steps {
         sh '''
           set -eux
@@ -284,6 +296,7 @@ pipeline {
     }
 
     stage('Commit bumped version') {
+      agent { label 'animu-android-native' }
       when {
         expression { return params.BUMP != 'none' && params.COMMIT_BUMP }
       }
@@ -307,6 +320,7 @@ pipeline {
     }
 
     stage('Prebuild + inject signing') {
+      agent { label 'animu-android-native' }
       steps {
         sh '''
           set -eux
@@ -361,6 +375,7 @@ pipeline {
     }
 
     stage('Build signed AAB (production, Play upload)') {
+      agent { label 'animu-android-native' }
       steps {
         sh '''
           set -eux
@@ -385,6 +400,7 @@ pipeline {
     // a second Gradle build. Signing uses the same upload keystore, so the APK
     // carries the same signer as the AAB/Play and stays updatable.
     stage('Derive universal APK from AAB') {
+      agent { label 'animu-android-native' }
       steps {
         sh '''
           set -eux
@@ -421,6 +437,7 @@ pipeline {
     }
 
     stage('Validate signing certificates') {
+      agent { label 'animu-android-native' }
       steps {
         sh '''
           set -eux
@@ -461,6 +478,7 @@ pipeline {
     }
 
     stage('Checksums + bundletool sizes + release notes') {
+      agent { label 'animu-android-native' }
       steps {
         sh '''
           set -eux
@@ -570,6 +588,7 @@ pipeline {
     }
 
     stage('GitHub release') {
+      agent { label 'animu-android-native' }
       when { expression { return params.CREATE_GITHUB_RELEASE } }
       steps {
         withCredentials([string(credentialsId: 'github-release-token', variable: 'GH_TOKEN')]) {
