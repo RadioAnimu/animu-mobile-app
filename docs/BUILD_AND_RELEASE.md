@@ -95,8 +95,18 @@ by the pipeline. See [Development → Fonts](DEVELOPMENT.md#fonts).
 
 `packages/animu-api` is a git submodule consumed as a `file:` dependency
 (symlinked into `node_modules`). Its `dist/` (ESM + CJS) is built by the app's
-`postinstall` hook. The release pipeline rebuilds it **only when the pinned
-submodule commit changes**; an unchanged pin reuses `dist/`.
+`postinstall` hook.
+
+The library also has its own Jenkins job — **`animu-api`**
+([RadioAnimu/animu-api](https://github.com/RadioAnimu/animu-api), `Jenkinsfile`)
+— which typechecks, tests, builds, and archives `animu-api-dist.tar.gz` for each
+commit.
+
+The mobile release rebuilds `packages/animu-api` **only when the pinned
+submodule commit changed**. When it does, it first tries to download the
+prebuilt `dist/` from the `animu-api` job for that exact commit
+(`scripts/fetch-animu-api-dist.mjs`) and falls back to building from source if
+no successful build exists yet. An unchanged pin reuses the existing `dist/`.
 
 ### expo-dev-client in release builds
 
