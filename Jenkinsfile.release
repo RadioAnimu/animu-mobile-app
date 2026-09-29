@@ -92,9 +92,21 @@ pipeline {
 
     stage('Install') {
       steps {
+        // The Proxima Nova fonts are licensed and gitignored, so they are
+        // staged on the Jenkins host (outside the repo) and copied into the
+        // workspace here. `eas build --local` runs with EAS_NO_VCS=1 so it
+        // packs the working directory, including these files.
         sh '''
           set -eux
+          FONTS_STAGE="${FONTS_STAGE:-/var/jenkins_home/.animu-secrets/fonts}"
+          if [ -d "$FONTS_STAGE" ]; then
+            mkdir -p src/assets/fonts
+            cp "$FONTS_STAGE"/proximanova-reg.ttf "$FONTS_STAGE"/proximanova-bold.ttf src/assets/fonts/
+          fi
           node scripts/fetch-fonts.mjs
+          for f in proximanova-reg.ttf proximanova-bold.ttf; do
+            test -f "src/assets/fonts/$f" || { echo "missing font: $f (stage it in $FONTS_STAGE or configure PROXIMA_NOVA_FONTS_URL)"; exit 1; }
+          done
           npm ci --prefix packages/animu-api
           npm run build --prefix packages/animu-api
           npm ci
