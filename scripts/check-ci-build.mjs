@@ -5,11 +5,14 @@
  * already-green CI build instead of re-running the checks.
  *
  * usage: JENKINS_URL=... JENKINS_USER=... JENKINS_API_TOKEN=... \
- *          node scripts/check-ci-build.mjs <jobName> <sha>
+ *          node scripts/check-ci-build.mjs <jobPath> <sha>
+ *
+ * <jobPath> is the job's full path: a bare name ("animu-mobile-app") or nested
+ * folders ("Animu/animu-mobile-app"); each segment becomes a /job/<segment>.
  *
  * On any error it prints "false" so the caller falls back to running the checks.
  */
-const [, , jobName, sha] = process.argv;
+const [, , jobPath, sha] = process.argv;
 const { JENKINS_URL, JENKINS_USER, JENKINS_API_TOKEN } = process.env;
 
 const fail = (msg) => {
@@ -18,12 +21,18 @@ const fail = (msg) => {
   process.exit(0);
 };
 
-if (!jobName || !sha) fail("missing <jobName> or <sha>");
+if (!jobPath || !sha) fail("missing <jobPath> or <sha>");
 if (!JENKINS_URL || !JENKINS_USER || !JENKINS_API_TOKEN) fail("missing Jenkins env");
 
 const base = JENKINS_URL.replace(/\/+$/, "");
+// "Animu/animu-mobile-app" -> "/job/Animu/job/animu-mobile-app"
+const jobUrl = jobPath
+  .split("/")
+  .filter(Boolean)
+  .map((segment) => `/job/${encodeURIComponent(segment)}`)
+  .join("");
 const url =
-  `${base}/job/${encodeURIComponent(jobName)}/api/json` +
+  `${base}${jobUrl}/api/json` +
   `?tree=builds[number,result,actions[lastBuiltRevision[SHA1]]]`;
 
 const auth = Buffer.from(`${JENKINS_USER}:${JENKINS_API_TOKEN}`).toString("base64");

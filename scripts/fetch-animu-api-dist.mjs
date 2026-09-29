@@ -37,7 +37,12 @@ if (!base) {
 }
 
 const auth = "Basic " + Buffer.from(`${JENKINS_USER}:${JENKINS_API_TOKEN}`).toString("base64");
-const job = encodeURIComponent(jobName);
+// "Animu/animu-api" -> "/job/Animu/job/animu-api"
+const jobUrl = jobName
+  .split("/")
+  .filter(Boolean)
+  .map((segment) => `/job/${encodeURIComponent(segment)}`)
+  .join("");
 const ARTIFACT = "animu-api-dist.tar.gz";
 
 const getJson = async (url) => {
@@ -48,7 +53,7 @@ const getJson = async (url) => {
 
 try {
   const data = await getJson(
-    `${base}/job/${job}/api/json?tree=builds[number,result,actions[lastBuiltRevision[SHA1]]]`
+    `${base}${jobUrl}/api/json?tree=builds[number,result,actions[lastBuiltRevision[SHA1]]]`
   );
   const build = (data.builds ?? []).find((b) => {
     const rev = (b.actions ?? []).find((a) => a?.lastBuiltRevision?.SHA1)?.lastBuiltRevision?.SHA1;
@@ -59,7 +64,7 @@ try {
     process.exit(1);
   }
 
-  const url = `${base}/job/${job}/${build.number}/artifact/${ARTIFACT}`;
+  const url = `${base}${jobUrl}/${build.number}/artifact/${ARTIFACT}`;
   const res = await fetch(url, { headers: { Authorization: auth } });
   if (!res.ok) throw new Error(`artifact HTTP ${res.status}`);
 

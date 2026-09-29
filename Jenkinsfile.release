@@ -35,7 +35,7 @@ pipeline {
     booleanParam(name: 'DRAFT', defaultValue: true, description: 'Create the GitHub release as a draft (only used when CREATE_GITHUB_RELEASE is true).')
     booleanParam(name: 'PRERELEASE', defaultValue: false, description: 'Mark the GitHub release as a pre-release (only used when CREATE_GITHUB_RELEASE is true).')
     booleanParam(name: 'TRUST_CI', defaultValue: true, description: 'Skip the pre-release checks when the CI job has a passing build for this exact commit.')
-    string(name: 'CI_JOB_NAME', defaultValue: 'animu-mobile-app', description: 'Jenkins CI job whose passing build satisfies the pre-release gate.')
+    string(name: 'CI_JOB_NAME', defaultValue: 'Animu/animu-mobile-app', description: 'Jenkins CI job path (folder/job) whose passing build satisfies the pre-release gate.')
   }
 
   options {
@@ -181,7 +181,7 @@ pipeline {
             ANIMU_STAMP="$WORKSPACE/.animu-api-stamp"
             BUILT_REV="$( [ -f "$ANIMU_STAMP" ] && cat "$ANIMU_STAMP" || echo none )"
             if [ ! -f packages/animu-api/dist/esm/index.js ] || [ "$ANIMU_REV" != "$BUILT_REV" ]; then
-              if node scripts/fetch-animu-api-dist.mjs animu-api "$ANIMU_REV" packages/animu-api/dist; then
+              if node scripts/fetch-animu-api-dist.mjs Animu/animu-api "$ANIMU_REV" packages/animu-api/dist; then
                 :
               else
                 echo "animu-api: no prebuilt artifact for $ANIMU_REV; building from source"
@@ -224,7 +224,7 @@ pipeline {
           script {
             def base = (env.JENKINS_URL ?: env.BUILD_URL ?: "")
               .replaceAll(/\/job\/.*$/, "").replaceAll(/\/+$/, "")
-            def jobName = params.CI_JOB_NAME ?: "animu-mobile-app"
+            def jobName = params.CI_JOB_NAME ?: "Animu/animu-mobile-app"
             def verified = sh(
               script: "JENKINS_URL='${base}' node scripts/check-ci-build.mjs '${jobName}' \"\$(git rev-parse HEAD)\"",
               returnStdout: true
