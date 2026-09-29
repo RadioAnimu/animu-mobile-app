@@ -23,7 +23,8 @@ pipeline {
       steps {
         sh '''
           set -eux
-          git -c http.sslVerify=true submodule update --init --recursive
+          git config --global --add safe.directory "$WORKSPACE"
+          git submodule update --init --recursive
         '''
       }
     }
