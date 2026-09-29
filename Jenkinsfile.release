@@ -19,8 +19,8 @@
 pipeline {
   agent {
     docker {
-      image 'node:22-bookworm'
-      args '-u root -v /var/run/docker.sock:/var/run/docker.sock'
+      image 'animu/android-release-builder:1'
+      args '-u root'
     }
   }
 
@@ -65,15 +65,12 @@ pipeline {
       steps {
         sh '''
           set -eux
-          apt-get update -qq
-          apt-get install -y -qq --no-install-recommends unzip curl ca-certificates git gnupg >/dev/null
-          curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg \
-            -o /usr/share/keyrings/githubcli-archive-keyring.gpg
-          echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" \
-            > /etc/apt/sources.list.d/github-cli.list
-          apt-get update -qq
-          apt-get install -y -qq --no-install-recommends gh >/dev/null
+          java -version
+          node --version
+          npm --version
           gh --version
+          sdkmanager --version || true
+          ls "$ANDROID_SDK_ROOT/ndk"
         '''
       }
     }
@@ -196,11 +193,6 @@ pipeline {
           APK="$ARTIFACT_DIR/animu-${VERSION}-code${VERSION_CODE}.apk"
           test -f "$AAB" || { echo "AAB missing: $AAB"; exit 1; }
           test -f "$APK" || { echo "APK missing: $APK"; exit 1; }
-
-          if ! command -v keytool >/dev/null 2>&1; then
-            apt-get update -qq
-            apt-get install -y -qq --no-install-recommends openjdk-17-jre-headless >/dev/null
-          fi
 
           # Play rejects AABs signed with the Android debug key.
           for artifact in "$AAB" "$APK"; do
