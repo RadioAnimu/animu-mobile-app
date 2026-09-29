@@ -55,6 +55,8 @@ pipeline {
     GRADLE_USER_HOME = "${WORKSPACE}/.gradle-home"
     // ccache persists native (C/C++) object compilation across builds.
     CCACHE_DIR = "${WORKSPACE}/.gradle-home/ccache"
+    // Relocatable cache config (base_dir / hash_dir) versions with the repo.
+    CCACHE_CONFIGPATH = "${WORKSPACE}/scripts/ccache.conf"
     // Give Gradle the whole machine. The daemon is intentionally disabled per
     // invocation (--no-daemon): each job runs one build, so a lingering daemon
     // would just hold memory. The configuration cache is NOT enabled because
