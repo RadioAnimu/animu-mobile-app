@@ -1,5 +1,10 @@
 pipeline {
-  agent none
+  agent {
+    docker {
+      image 'node:22-bookworm'
+      args '-u root'
+    }
+  }
 
   options {
     timestamps()
@@ -8,34 +13,22 @@ pipeline {
     buildDiscarder(logRotator(numToKeepStr: '20'))
   }
 
+  environment {
+    CI = 'true'
+    EXPO_NO_TELEMETRY = '1'
+  }
+
   stages {
-    stage('Checkout') {
-      agent {
-        docker {
-          image 'alpine/git:latest'
-          args '-u root --entrypoint=""'
-        }
-      }
+    stage('Checkout submodules') {
       steps {
         sh '''
           set -eux
-          git -c http.sslVerify=true clone --recurse-submodules --depth 1 \
-            https://github.com/RadioAnimu/animu-mobile-app.git .
+          git -c http.sslVerify=true submodule update --init --recursive
         '''
       }
     }
 
     stage('CI') {
-      agent {
-        docker {
-          image 'node:22-bookworm'
-          args '-u root -v /var/run/docker.sock:/var/run/docker.sock'
-        }
-      }
-      environment {
-        CI = 'true'
-        EXPO_NO_TELEMETRY = '1'
-      }
       steps {
         sh '''
           set -eux
@@ -59,10 +52,6 @@ pipeline {
     }
 
     stage('Bundle smoke test') {
-      agent {
-        docker { image 'node:22-bookworm' }
-      }
-      environment { EXPO_NO_TELEMETRY = '1' }
       steps {
         sh '''
           set -eux
@@ -74,10 +63,6 @@ pipeline {
     }
 
     stage('React Doctor score gate') {
-      agent {
-        docker { image 'node:22-bookworm' }
-      }
-      environment { EXPO_NO_TELEMETRY = '1' }
       steps {
         sh '''
           set -eux
