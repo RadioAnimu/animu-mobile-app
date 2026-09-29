@@ -75,3 +75,7 @@ release-artifacts/
 # CI release signing scratch (Jenkins workspace only)
 .signing/
 .signing.json
+
+# CI stamps (Jenkins workspace only)
+.deps-stamp
+.native-stamp

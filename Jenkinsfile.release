@@ -52,7 +52,7 @@ pipeline {
     // Persistent Gradle cache so rebuilds are incremental instead of cold.
     GRADLE_USER_HOME = "${WORKSPACE}/.gradle-home"
     // Give Gradle the whole machine and a real daemon heap.
-    GRADLE_OPTS = '-Dorg.gradle.daemon=true -Dorg.gradle.parallel=true -Dorg.gradle.caching=true -Dorg.gradle.workers.max=12'
+    GRADLE_OPTS = '-Dorg.gradle.daemon=true -Dorg.gradle.parallel=true -Dorg.gradle.caching=true -Dorg.gradle.configuration-cache=true -Dorg.gradle.workers.max=12'
     ANDROID_HOME = '/home/rmotafreitas/Android/Sdk'
     ANDROID_SDK_ROOT = '/home/rmotafreitas/Android/Sdk'
     // Match the EAS SDK 57 Android toolchain (JDK 17, not the host's JDK 21).
@@ -115,9 +115,28 @@ pipeline {
             for f in proximanova-reg.ttf proximanova-bold.ttf; do
               test -f "src/assets/fonts/$f" || { echo "missing font: $f (stage it in $FONTS_STAGE)"; exit 1; }
             done
-            npm ci --prefix packages/animu-api
-            npm run build --prefix packages/animu-api
-            npm ci
+
+            # Install dependencies only when the lockfile (or the animu-api
+            # submodule commit) changed. node_modules churn invalidates Gradle's
+            # JS/native task caches, so a no-op install must stay a no-op.
+            STAMP="$WORKSPACE/.deps-stamp"
+            ANIMU_REV=$(git -C packages/animu-api rev-parse HEAD 2>/dev/null || echo none)
+            WANT="$(sha256sum package-lock.json | cut -d" " -f1) $ANIMU_REV"
+            HAVE="$( [ -f "$STAMP" ] && cat "$STAMP" || echo none )"
+            if [ "$WANT" != "$HAVE" ] || [ ! -d node_modules ]; then
+              echo "Dependencies changed (or first run): installing"
+              npm ci
+              printf "%s" "$WANT" > "$STAMP"
+            else
+              echo "Dependencies unchanged; reusing node_modules"
+            fi
+
+            # The root postinstall builds animu-api when its dist is stale; make
+            # sure it exists regardless (fresh clones have no dist/).
+            if [ ! -f packages/animu-api/dist/esm/index.js ]; then
+              npm ci --prefix packages/animu-api
+              npm run build --prefix packages/animu-api
+            fi
 
             # Decode the upload keystore once, into a workspace-local path the
             # Gradle signing injection reads. Removed after the build.
@@ -178,17 +197,32 @@ pipeline {
 
 
           # Generate the native project from app.json + config plugins, same as
-          # EAS did. Reuse an existing android/ when present so Gradle stays
-          # incremental; regenerate only when missing or FORCE_PREBUILD=1.
-          if [ ! -d android ] || [ "${FORCE_PREBUILD:-0}" = "1" ]; then
+          # EAS did. Reuse an existing android/ when the native config is
+          # unchanged so Gradle stays incremental; regenerate when app.json,
+          # the plugins, or the Expo/RN versions change (or FORCE_PREBUILD=1).
+          NATIVE_STAMP="$WORKSPACE/.native-stamp"
+          WANT=$(sha256sum app.json plugins/*.js package-lock.json 2>/dev/null | sha256sum | cut -d' ' -f1)
+          HAVE=$( [ -f "$NATIVE_STAMP" ] && cat "$NATIVE_STAMP" || echo none )
+          if [ ! -d android ] || [ "$WANT" != "$HAVE" ] || [ "${FORCE_PREBUILD:-0}" = "1" ]; then
+            echo "Regenerating android/ (native config changed)"
             npx expo prebuild --platform android --clean --no-install
+            printf "%s" "$WANT" > "$NATIVE_STAMP"
           else
-            echo "Reusing existing android/ (set FORCE_PREBUILD=1 to regenerate)"
+            echo "Reusing existing android/ (native config unchanged)"
           fi
 
-          # Make sure node_modules match the generated project (patch-package
-          # and the animu-api build run from the postinstall hook).
-          npm install --no-audit --no-fund
+          # Make sure node_modules match the generated project. Reuse the stamp
+          # from the Install stage so we only install when something changed.
+          STAMP="$WORKSPACE/.deps-stamp"
+          ANIMU_REV=$(git -C packages/animu-api rev-parse HEAD 2>/dev/null || echo none)
+          WANT="$(sha256sum package-lock.json | cut -d" " -f1) $ANIMU_REV"
+          HAVE="$( [ -f "$STAMP" ] && cat "$STAMP" || echo none )"
+          if [ "$WANT" != "$HAVE" ] || [ ! -d node_modules ]; then
+            npm install --no-audit --no-fund
+            printf "%s" "$WANT" > "$STAMP"
+          else
+            echo "Dependencies unchanged; skipping install"
+          fi
 
           # Inject the release signing config the same way EAS does: a small
           # Gradle script that adds a `release` signingConfig and applies it.

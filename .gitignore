@@ -65,3 +65,5 @@ src/assets/fonts/*.otf
 # CI release signing scratch (Jenkins workspace only)
 .signing/
 .signing.json
+.deps-stamp
+.native-stamp
