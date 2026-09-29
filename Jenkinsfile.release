@@ -1,0 +1,278 @@
+// Release pipeline for the Animu Android app.
+//
+// Produces the same artifact set as the manual GitHub releases:
+//   animu-<version>-code<versionCode>.aab  (Play Store upload)
+//   animu-<version>-code<versionCode>.apk  (universal direct-install)
+// plus a SHA-256 checksum file for each.
+//
+// Signing uses the EAS-managed upload keystore, injected by `eas build --local`
+// via the EXPO_TOKEN credential configured in Jenkins.
+//
+// Parameters
+//   VERSION               Marketing version, e.g. 3.0.1 (must match app.json)
+//   VERSION_CODE          Android versionCode, e.g. 16 (must match app.json)
+//   TAG                   Git tag / release tag, e.g. v3.0.1
+//   CREATE_GITHUB_RELEASE When true, create the GitHub release and upload assets
+//   DRAFT                 Create the GitHub release as a draft
+//   PRERELEASE            Mark the GitHub release as a pre-release
+
+pipeline {
+  agent {
+    docker {
+      image 'node:22-bookworm'
+      args '-u root -v /var/run/docker.sock:/var/run/docker.sock'
+    }
+  }
+
+  parameters {
+    string(name: 'VERSION', defaultValue: '', description: 'Marketing version (e.g. 3.0.1). Must match app.json.')
+    string(name: 'VERSION_CODE', defaultValue: '', description: 'Android versionCode (e.g. 16). Must match app.json.')
+    string(name: 'TAG', defaultValue: '', description: 'Git/release tag (e.g. v3.0.1).')
+    booleanParam(name: 'CREATE_GITHUB_RELEASE', defaultValue: false, description: 'Create the GitHub release and upload the signed artifacts.')
+    booleanParam(name: 'DRAFT', defaultValue: true, description: 'Create the GitHub release as a draft (only used when CREATE_GITHUB_RELEASE is true).')
+    booleanParam(name: 'PRERELEASE', defaultValue: false, description: 'Mark the GitHub release as a pre-release (only used when CREATE_GITHUB_RELEASE is true).')
+  }
+
+  options {
+    timestamps()
+    timeout(time: 180, unit: 'MINUTES')
+    disableConcurrentBuilds()
+    buildDiscarder(logRotator(numToKeepStr: '20'))
+    skipDefaultCheckout(true)
+  }
+
+  environment {
+    CI = 'true'
+    EXPO_NO_TELEMETRY = '1'
+    EAS_NO_VCS = '1'
+    ARTIFACT_DIR = 'release-artifacts'
+  }
+
+  stages {
+    stage('Validate parameters') {
+      steps {
+        sh '''
+          set -eux
+          [ -n "$VERSION" ] || { echo "VERSION is required"; exit 1; }
+          [ -n "$VERSION_CODE" ] || { echo "VERSION_CODE is required"; exit 1; }
+          [ -n "$TAG" ] || { echo "TAG is required"; exit 1; }
+          echo "Releasing VERSION=$VERSION VERSION_CODE=$VERSION_CODE TAG=$TAG"
+        '''
+      }
+    }
+
+    stage('Toolchain') {
+      steps {
+        sh '''
+          set -eux
+          apt-get update -qq
+          apt-get install -y -qq --no-install-recommends unzip curl ca-certificates git gnupg >/dev/null
+          curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg \
+            -o /usr/share/keyrings/githubcli-archive-keyring.gpg
+          echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" \
+            > /etc/apt/sources.list.d/github-cli.list
+          apt-get update -qq
+          apt-get install -y -qq --no-install-recommends gh >/dev/null
+          gh --version
+        '''
+      }
+    }
+
+    stage('Checkout') {
+      steps {
+        checkout scm
+        sh '''
+          set -eux
+          git config --global --add safe.directory "$WORKSPACE"
+          git submodule update --init --recursive
+          test -d "$WORKSPACE/packages/animu-api" || { echo "animu-api submodule missing"; exit 1; }
+        '''
+      }
+    }
+
+    stage('Install') {
+      steps {
+        sh '''
+          set -eux
+          node scripts/fetch-fonts.mjs
+          npm ci --prefix packages/animu-api
+          npm run build --prefix packages/animu-api
+          npm ci
+        '''
+      }
+    }
+
+    // Hard gate: never ship a release that fails the same checks as CI.
+    stage('Pre-release checks') {
+      steps {
+        sh '''
+          set -eux
+          npx tsc --noEmit
+          npx expo lint
+          npm test
+          score=$(npx react-doctor --score)
+          echo "React Doctor score: $score"
+          if [ "$score" -lt 85 ]; then
+            echo "React Doctor score $score is below the required minimum of 85"
+            exit 1
+          fi
+        '''
+      }
+      post {
+        always {
+          junit allowEmptyResults: true, testResults: '**/junit*.xml'
+        }
+      }
+    }
+
+    stage('Verify app.json matches parameters') {
+      steps {
+        sh '''
+          set -eux
+          APP_VERSION=$(node -p "require('./app.json').expo.version")
+          APP_CODE=$(node -p "require('./app.json').expo.android.versionCode")
+          [ "$APP_VERSION" = "$VERSION" ] || {
+            echo "app.json version ($APP_VERSION) != VERSION ($VERSION)"; exit 1; }
+          [ "$APP_CODE" = "$VERSION_CODE" ] || {
+            echo "app.json versionCode ($APP_CODE) != VERSION_CODE ($VERSION_CODE)"; exit 1; }
+          echo "app.json matches VERSION=$VERSION VERSION_CODE=$VERSION_CODE"
+        '''
+      }
+    }
+
+    stage('Build signed AAB (production, Play upload)') {
+      steps {
+        withCredentials([string(credentialsId: 'expo-token', variable: 'EXPO_TOKEN')]) {
+          sh '''
+            set -eux
+            export EXPO_TOKEN
+            mkdir -p "$ARTIFACT_DIR"
+            npx --yes eas-cli@latest build \
+              --platform android \
+              --profile production \
+              --local \
+              --non-interactive \
+              --output "$ARTIFACT_DIR/animu-${VERSION}-code${VERSION_CODE}.aab"
+          '''
+        }
+      }
+    }
+
+    stage('Build signed universal APK (direct install)') {
+      steps {
+        withCredentials([string(credentialsId: 'expo-token', variable: 'EXPO_TOKEN')]) {
+          sh '''
+            set -eux
+            export EXPO_TOKEN
+            mkdir -p "$ARTIFACT_DIR"
+            npx --yes eas-cli@latest build \
+              --platform android \
+              --profile preview \
+              --local \
+              --non-interactive \
+              --output "$ARTIFACT_DIR/animu-${VERSION}-code${VERSION_CODE}.apk"
+          '''
+        }
+      }
+    }
+
+    stage('Validate signing certificates') {
+      steps {
+        sh '''
+          set -eux
+          AAB="$ARTIFACT_DIR/animu-${VERSION}-code${VERSION_CODE}.aab"
+          APK="$ARTIFACT_DIR/animu-${VERSION}-code${VERSION_CODE}.apk"
+          test -f "$AAB" || { echo "AAB missing: $AAB"; exit 1; }
+          test -f "$APK" || { echo "APK missing: $APK"; exit 1; }
+
+          if ! command -v keytool >/dev/null 2>&1; then
+            apt-get update -qq
+            apt-get install -y -qq --no-install-recommends openjdk-17-jre-headless >/dev/null
+          fi
+
+          # Play rejects AABs signed with the Android debug key.
+          for artifact in "$AAB" "$APK"; do
+            echo "--- $artifact ---"
+            cert=$(unzip -p "$artifact" 'META-INF/*.RSA' 2>/dev/null | keytool -printcert 2>/dev/null || true)
+            echo "$cert"
+            if [ -z "$cert" ]; then
+              echo "ERROR: could not read a signature from $artifact"; exit 1
+            fi
+            if echo "$cert" | grep -q "CN=Android Debug"; then
+              echo "ERROR: $artifact is signed with the Android debug keystore"; exit 1
+            fi
+          done
+        '''
+      }
+    }
+
+    stage('Checksums') {
+      steps {
+        sh '''
+          set -eux
+          cd "$ARTIFACT_DIR"
+          for f in *.aab *.apk; do
+            sha256sum "$f" > "$f.sha256"
+            echo "$f  $(cut -d" " -f1 "$f.sha256")"
+          done
+          cat *.sha256
+        '''
+      }
+    }
+
+    stage('GitHub release') {
+      when { expression { return params.CREATE_GITHUB_RELEASE } }
+      steps {
+        withCredentials([string(credentialsId: 'github-release-token', variable: 'GH_TOKEN')]) {
+          sh '''
+            set -eux
+            export GH_TOKEN
+            AAB="$ARTIFACT_DIR/animu-${VERSION}-code${VERSION_CODE}.aab"
+            APK="$ARTIFACT_DIR/animu-${VERSION}-code${VERSION_CODE}.apk"
+
+            human_size() {
+              awk -v s="$(stat -c%s "$1")" 'BEGIN{printf "%.1f MB", s/1048576}'
+            }
+            sha_of() { cut -d" " -f1 "$1.sha256"; }
+
+            cat > "$ARTIFACT_DIR/RELEASE_NOTES.md" <<EOF
+## Android release ${TAG} (versionCode ${VERSION_CODE})
+
+Built on Jenkins with eas build --local, signed with the EAS-managed Play upload key.
+
+### Artifacts
+| File | Size | SHA-256 | Use |
+|---|---|---|---|
+| $(basename "$AAB") | $(human_size "$AAB") | $(sha_of "$AAB") | **Play Store upload** |
+| $(basename "$APK") | $(human_size "$APK") | $(sha_of "$APK") | Direct install (universal APK) |
+EOF
+
+            ARGS=(--title "${TAG} (Android)" --target main --notes-file "$ARTIFACT_DIR/RELEASE_NOTES.md")
+            [ "$DRAFT" = "true" ] && ARGS+=(--draft)
+            [ "$PRERELEASE" = "true" ] && ARGS+=(--prerelease)
+
+            if gh release view "$TAG" >/dev/null 2>&1; then
+              echo "Release $TAG already exists; uploading assets"
+            else
+              gh release create "$TAG" "${ARGS[@]}"
+            fi
+
+            gh release upload "$TAG" "$AAB" "$APK" \
+              "$AAB.sha256" "$APK.sha256" "$ARTIFACT_DIR/RELEASE_NOTES.md" --clobber
+          '''
+        }
+      }
+    }
+  }
+
+  post {
+    always {
+      sh '''
+        if [ -d "$ARTIFACT_DIR" ]; then ls -la "$ARTIFACT_DIR"; fi
+      '''
+      archiveArtifacts artifacts: 'release-artifacts/*', allowEmptyArchive: true, fingerprint: true
+    }
+    success { echo 'Release pipeline succeeded.' }
+    failure { echo 'Release pipeline failed.' }
+  }
+}
