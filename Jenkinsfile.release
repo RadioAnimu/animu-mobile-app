@@ -45,6 +45,10 @@ pipeline {
     EAS_NO_VCS = '1'
     EAS_LOCAL_BUILD_SKIP_CLEANUP = '1'
     ARTIFACT_DIR = 'release-artifacts'
+    // /tmp is a small tmpfs; point every EAS/Gradle temp at the real disk so
+    // large Android builds don't run out of space.
+    TMPDIR = "${WORKSPACE}/.tmp"
+    TMP = "${WORKSPACE}/.tmp"
     // Persistent Gradle cache so rebuilds are incremental instead of cold.
     GRADLE_USER_HOME = "${WORKSPACE}/.gradle-home"
     // Give Gradle the whole machine and a real daemon heap.
@@ -159,7 +163,7 @@ pipeline {
           sh '''
             set -eux
             export EXPO_TOKEN
-            mkdir -p "$ARTIFACT_DIR" "$GRADLE_USER_HOME"
+            mkdir -p "$ARTIFACT_DIR" "$GRADLE_USER_HOME" "$TMPDIR"
             npx --yes eas-cli@latest build \
               --platform android \
               --profile production \
@@ -177,7 +181,7 @@ pipeline {
           sh '''
             set -eux
             export EXPO_TOKEN
-            mkdir -p "$ARTIFACT_DIR" "$GRADLE_USER_HOME"
+            mkdir -p "$ARTIFACT_DIR" "$GRADLE_USER_HOME" "$TMPDIR"
             npx --yes eas-cli@latest build \
               --platform android \
               --profile preview \

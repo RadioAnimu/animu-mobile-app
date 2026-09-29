@@ -70,3 +70,4 @@ release-artifacts/
 # Persisted tool caches staged by the Jenkins release pipeline
 .gradle-home/
 .tools/
+.tmp/
