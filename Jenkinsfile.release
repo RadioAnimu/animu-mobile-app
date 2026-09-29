@@ -153,8 +153,7 @@ pipeline {
                 :
               else
                 echo "animu-api: no prebuilt artifact for $ANIMU_REV; building from source"
-                pnpm --dir packages/animu-api install --frozen-lockfile
-                pnpm --dir packages/animu-api run build
+                pnpm --filter animu-api run build
               fi
               printf "%s" "$ANIMU_REV" > "$ANIMU_STAMP"
             else

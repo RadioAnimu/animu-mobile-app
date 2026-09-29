@@ -1,5 +1,12 @@
-# pnpm settings for this repository (config-only; no workspace packages).
+# pnpm workspace + settings.
 #
+# `packages/*` lets the animu-api submodule be resolved by a single root
+# install, so its own toolchain (TypeScript 5) is used to build it — a nested
+# `pnpm install` from the submodule would recurse into this workspace and, under
+# node-linker=hoisted, build it with the root's TypeScript 6 instead.
+packages:
+  - "packages/*"
+
 # Supply-chain hardening — react-doctor's require-pnpm-hardening rule wants
 # these keys; both are pnpm 10+ features.
 
@@ -9,7 +16,7 @@
 minimumReleaseAge: 4320
 
 # Refuse packages whose trust signals (provenance/signatures) weaken between
-# updates. The three exclusions are long-lived transitive packages whose older
+# updates. The exclusions are long-lived transitive packages whose older
 # releases carried provenance attestations that the resolved versions don't.
 trustPolicy: no-downgrade
 trustPolicyExclude:
@@ -17,3 +24,9 @@ trustPolicyExclude:
   - eslint-import-resolver-typescript@3.10.1
   - ua-parser-js@0.7.41
   - why-is-node-running@3.2.2
+
+# pnpm 10 blocks dependency build scripts by default. Only this one needs to
+# run (it fetches a native binding for unrs-resolver, used by eslint import
+# resolution); everything else ships prebuilt artifacts.
+onlyBuiltDependencies:
+  - unrs-resolver

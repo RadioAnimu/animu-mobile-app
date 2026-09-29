@@ -6,7 +6,7 @@
     "start": "expo start --dev-client",
     "android": "expo run:android",
     "ios": "expo run:ios",
-    "postinstall": "patch-package && if [ ! -f packages/animu-api/dist/esm/index.js ] || find packages/animu-api/src -newer packages/animu-api/dist/esm/index.js -print -quit | grep -q .; then pnpm --dir packages/animu-api install --frozen-lockfile && pnpm run build:api; fi",
+    "postinstall": "patch-package",
     "install:apk": "adb uninstall com.nessjs.animu; adb install $(ls -t dist/*.apk 2>/dev/null | head -1)",
     "lint": "expo lint",
     "build:api": "pnpm --dir packages/animu-api run build",
