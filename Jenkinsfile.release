@@ -459,6 +459,9 @@ pipeline {
       steps {
         sh '''
           set -eux
+          # Resolve the app's target SDK before cd-ing into the artifacts dir
+          # (app.json and scripts/ live at the workspace root).
+          TARGET_SDK=$(node scripts/target-sdk.mjs)
           cd "$ARTIFACT_DIR"
           AAB="animu-${VERSION}-code${VERSION_CODE}.aab"
           APK="animu-${VERSION}-code${VERSION_CODE}.apk"
@@ -527,7 +530,7 @@ pipeline {
           done
 
           # The app's own SDK target (for context — it is not the size-table device).
-          TARGET_SDK=$(node scripts/target-sdk.mjs)
+          # (Resolved at the top of this stage, before cd.)
 
           {
             echo "## Android release ${TAG} (versionCode ${VERSION_CODE})"
