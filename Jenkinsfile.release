@@ -53,10 +53,13 @@ pipeline {
     TMP = '/home/rmotafreitas/jenkins-tmp'
     // Persistent Gradle cache so rebuilds are incremental instead of cold.
     GRADLE_USER_HOME = "${WORKSPACE}/.gradle-home"
-    // Give Gradle the whole machine and a real daemon heap. The configuration
-    // cache is intentionally NOT enabled: the RN/Expo Gradle plugins spawn
-    // `node` at configuration time, which Gradle's config cache forbids.
-    GRADLE_OPTS = '-Dorg.gradle.daemon=true -Dorg.gradle.parallel=true -Dorg.gradle.caching=true -Dorg.gradle.workers.max=12'
+    // ccache persists native (C/C++) object compilation across builds.
+    CCACHE_DIR = "${WORKSPACE}/.gradle-home/ccache"
+    // Give Gradle the whole machine. The daemon is intentionally disabled per
+    // invocation (--no-daemon): each job runs one build, so a lingering daemon
+    // would just hold memory. The configuration cache is NOT enabled because
+    // the RN/Expo Gradle plugins spawn `node` at configuration time.
+    GRADLE_OPTS = '-Dorg.gradle.parallel=true -Dorg.gradle.caching=true -Dorg.gradle.workers.max=8'
     ANDROID_HOME = '/home/rmotafreitas/Android/Sdk'
     ANDROID_SDK_ROOT = '/home/rmotafreitas/Android/Sdk'
     // Match the EAS SDK 57 Android toolchain (JDK 17, not the host's JDK 21).
@@ -284,6 +287,19 @@ pipeline {
           # Inject the release signing config the same way EAS does: a small
           # Gradle script that adds a `release` signingConfig and applies it.
           node scripts/inject-android-signing.mjs
+
+          # Give the Gradle JVM more heap: the prebuild default (2g) is tight for
+          # R8/minify and parallel Kotlin compilation on a 16 GB machine.
+          if ! grep -q "animu-ci-tuning" android/gradle.properties; then
+            {
+              echo ""
+              echo "# animu-ci-tuning (added by the release pipeline)"
+              echo "org.gradle.jvmargs=-Xmx6g -XX:MaxMetaspaceSize=1g -XX:+UseParallelGC"
+              echo "org.gradle.parallel=true"
+              echo "org.gradle.caching=true"
+              echo "org.gradle.workers.max=8"
+            } >> android/gradle.properties
+          fi
         '''
       }
     }
@@ -293,9 +309,14 @@ pipeline {
         sh '''
           set -eux
 
-          mkdir -p "$ARTIFACT_DIR" "$GRADLE_USER_HOME" "$TMPDIR"
+          mkdir -p "$ARTIFACT_DIR" "$GRADLE_USER_HOME" "$TMPDIR" "$CCACHE_DIR"
+          # -I wires ccache into every native module (scripts/ccache.gradle).
+          # -x lintVitalRelease skips AGP's per-module release lint: CI already
+          #   covers lint via `expo lint`, and the analyzer adds ~30s per build.
           cd android
-          ./gradlew :app:bundleRelease --no-daemon
+          ./gradlew :app:bundleRelease --no-daemon \
+            -I "$WORKSPACE/scripts/ccache.gradle" \
+            -x lintVitalRelease
           cd ..
           cp android/app/build/outputs/bundle/release/app-release.aab \
              "$ARTIFACT_DIR/animu-${VERSION}-code${VERSION_CODE}.aab"
@@ -495,6 +516,8 @@ pipeline {
         # Never leave keystore material in the workspace.
         rm -rf "$WORKSPACE/.signing" "$WORKSPACE/.signing.json" \
                "$WORKSPACE/android/app/ci-signing.gradle" 2>/dev/null || true
+        # Report cache effectiveness (both persist in the workspace for reuse).
+        if command -v ccache >/dev/null 2>&1; then ccache -s 2>/dev/null | head -8 || true; fi
         if [ -d "$ARTIFACT_DIR" ]; then ls -la "$ARTIFACT_DIR"; fi
       '''
       archiveArtifacts artifacts: 'release-artifacts/*', allowEmptyArchive: true, fingerprint: true

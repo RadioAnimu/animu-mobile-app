@@ -1,0 +1,46 @@
+// Gradle init script (release builds): route every native C/C++ compile and
+// link through ccache when it is on PATH.
+//
+// React Native's own CMake honours ccache automatically, but the other native
+// modules (expo-modules-core, reanimated, worklets, gesture-handler, screens,
+// app) define their own `externalNativeBuild.cmake.arguments` and never look
+// for it. Appending the CMAKE_<LANG>_COMPILER_LAUNCHER arguments covers them
+// all without patching each module.
+//
+// Usage: ./gradlew ... -I /path/to/ccache.gradle
+//
+// If ccache is not found the argument list is left untouched, so the build
+// behaves exactly as before.
+
+def ccacheBinary = null
+def pathEnv = System.getenv("PATH") ?: ""
+def candidates = []
+if (System.getenv("CCACHE_BIN")) candidates << System.getenv("CCACHE_BIN")
+pathEnv.split(File.pathSeparator).each { candidates << new File(it, "ccache").absolutePath }
+candidates.find { it != null && new File(it).canExecute() }?.with { ccacheBinary = it }
+
+if (ccacheBinary == null) {
+  println "[ccache] not found on PATH; native builds will not be cached"
+} else {
+  println "[ccache] using ${ccacheBinary}"
+  // Plain Strings: AGP's cmake arguments list rejects GString.
+  def cLauncher = "-DCMAKE_C_COMPILER_LAUNCHER=" + ccacheBinary
+  def cxxLauncher = "-DCMAKE_CXX_COMPILER_LAUNCHER=" + ccacheBinary
+  def asmLauncher = "-DCMAKE_ASM_COMPILER_LAUNCHER=" + ccacheBinary
+
+  allprojects { p ->
+    p.afterEvaluate {
+      def android = p.extensions.findByName("android")
+      if (android == null) return
+      try {
+        def args = android.defaultConfig.externalNativeBuild.cmake.arguments
+        [cLauncher, cxxLauncher, asmLauncher].each { a ->
+          if (!args.contains(a)) args.add(a)
+        }
+        println "[ccache] ${p.path}: compiler launcher added"
+      } catch (Exception ignored) {
+        // No externalNativeBuild.cmake block on this module.
+      }
+    }
+  }
+}
