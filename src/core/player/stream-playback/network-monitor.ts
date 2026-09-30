@@ -6,6 +6,8 @@ export interface ConnectivityState {
    * still-online so an unknown probe never flaps the stream.
    */
   isInternetReachable?: boolean | null;
+  /** Transport kind (`wifi`, `cellular`, …) — a change means a handoff. */
+  type?: string | null;
 }
 
 export type ConnectivitySubscribe = (
@@ -22,17 +24,26 @@ export type ConnectivitySubscribe = (
 const isOnline = (state: ConnectivityState): boolean =>
   state.isConnected === true && state.isInternetReachable !== false;
 
+const isRealTransport = (type: string | null | undefined): type is string =>
+  !!type && type !== "unknown" && type !== "none";
+
 /**
  * Watches connectivity and fires `onRestore` exactly once per
- * offline → online transition. The initial emit (NetInfo fires on
- * subscribe) only seeds the baseline — it never triggers a restore.
+ * offline → online transition, `onLost` on the online → offline edge and
+ * `onHandoff` when the link stays up but switches transport (Wi-Fi ↔
+ * cellular), which silently kills the stream's TCP socket. The initial emit
+ * (NetInfo fires on subscribe) only seeds the baseline — it never triggers
+ * any of them.
  */
 export class NetworkMonitor {
   /** Wired by the orchestrator. */
   onRestore: () => void = () => {};
+  onLost: () => void = () => {};
+  onHandoff: () => void = () => {};
 
   private unsubscribe: (() => void) | null = null;
   private wasConnected: boolean | null = null;
+  private lastType: string | null = null;
 
   constructor(private readonly subscribe: ConnectivitySubscribe) {}
 
@@ -43,7 +54,19 @@ export class NetworkMonitor {
     this.unsubscribe = this.subscribe((state) => {
       const online = isOnline(state);
       const wasConnected = this.wasConnected;
+      const { lastType } = this;
       this.wasConnected = online;
+      // `unknown`/`none` are transitional readings, not a transport to compare.
+      const type = isRealTransport(state.type) ? state.type : null;
+      if (online && type) this.lastType = type;
+
+      if (wasConnected === true && !online) {
+        this.onLost();
+      } else if (wasConnected === true && online && type !== lastType) {
+        if (type && lastType) this.onHandoff();
+      } else {
+        // No edge to report.
+      }
 
       if (wasConnected === false && online) {
         if (process.env.NODE_ENV !== "production") {
@@ -58,6 +81,7 @@ export class NetworkMonitor {
     this.unsubscribe?.();
     this.unsubscribe = null;
     this.wasConnected = null;
+    this.lastType = null;
   }
 
   /**

@@ -164,6 +164,47 @@ describe("StreamSyncEngine", () => {
     expect(engine.now()).toBe(Date.now());
   });
 
+  it("corrects a moderate device-clock error once a median agrees", () => {
+    const engine = new StreamSyncEngine();
+    for (const skew of [2_100, 1_900, 2_000]) engine.setClockSkew(skew, 80);
+
+    expect(engine.clockSkew).toBe(2_000);
+  });
+
+  it("does not let one outlier or slow round-trip move the clock", () => {
+    const engine = new StreamSyncEngine();
+    for (const skew of [100, -200, 50, 120]) engine.setClockSkew(skew, 60);
+    engine.setClockSkew(45_000, 60); // cached/odd response
+    engine.setClockSkew(9_000, 4_000); // slow round-trip: dropped
+
+    expect(engine.clockSkew).toBe(0);
+  });
+
+  it("holds an applied skew until it drops well below the apply threshold", () => {
+    const engine = new StreamSyncEngine();
+    for (let i = 0; i < 9; i++) engine.setClockSkew(1_600, 50);
+    expect(engine.clockSkew).toBe(1_600);
+
+    // Hovering just under the apply threshold must not flap the clock…
+    for (let i = 0; i < 9; i++) engine.setClockSkew(1_200, 50);
+    expect(engine.clockSkew).toBe(1_200);
+
+    // …only a genuinely corrected device clock releases it.
+    for (let i = 0; i < 9; i++) engine.setClockSkew(300, 50);
+    expect(engine.clockSkew).toBe(0);
+  });
+
+  it("requestRelock() makes the next reading snap instead of ease", () => {
+    const engine = new StreamSyncEngine();
+    engine.updateFromStatus({ isLive: true, offsetFromLive: 4 });
+    engine.updateFromStatus({ isLive: true, offsetFromLive: 2 }); // eases
+
+    engine.requestRelock();
+    engine.updateFromStatus({ isLive: true, offsetFromLive: 1.5 });
+
+    expect(engine.delay).toBe(1_500);
+  });
+
   it("corrects the fallback clock before any lag measurement", () => {
     const engine = new StreamSyncEngine();
     engine.setClockSkew(-60_000);

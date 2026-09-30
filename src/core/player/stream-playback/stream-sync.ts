@@ -25,12 +25,23 @@ const RISE_MAX_STEP_MS = 1_000;
 /** Weight kept on the previous estimate while easing a *falling* lag. */
 const FALL_SMOOTHING = 0.85;
 /**
- * Device-vs-server clock offset is only applied past this magnitude (ms).
- * HTTP `date` headers have one-second resolution, so acting on a small
- * reading would inject more error than it removes; a grossly wrong device
- * clock (minutes off) is what this guards against.
+ * Device-vs-server clock offset is applied once its (median-filtered)
+ * magnitude reaches this (ms). HTTP `date` headers have one-second
+ * resolution, so a single reading below this would inject more error than it
+ * removes; a median over several RTT-filtered samples is good to a few
+ * hundred ms, which makes a 1.5s+ device-clock error worth correcting.
  */
-const CLOCK_SKEW_THRESHOLD_MS = 3_000;
+const CLOCK_SKEW_APPLY_MS = 1_500;
+/**
+ * Once applied, the correction is only dropped below this magnitude — the
+ * gap to {@link CLOCK_SKEW_APPLY_MS} keeps a skew hovering near the edge
+ * from flapping the audible clock by a second back and forth.
+ */
+const CLOCK_SKEW_RELEASE_MS = 800;
+/** How many recent skew samples feed the median. */
+const SKEW_WINDOW = 9;
+/** Samples whose round-trip exceeded this are too imprecise to use (ms). */
+const SKEW_MAX_RTT_MS = 2_500;
 /** Absolute cap on the applied skew (ms) — a day, to reject nonsense. */
 const MAX_CLOCK_SKEW_MS = 24 * 60 * 60 * 1000;
 /**
@@ -133,6 +144,8 @@ export class StreamSyncEngine {
    * {@link setClockSkew}.
    */
   private clockSkewMs = 0;
+  /** Recent raw skew samples (ms) — the applied skew is their median. */
+  private skewSamples: number[] = [];
   /**
    * Consecutive `isLive: false` frames seen. An item teardown/report gap
    * flips the flag for a frame or two; only a sustained non-live source
@@ -240,6 +253,17 @@ export class StreamSyncEngine {
     this.recalibrate = true;
   }
 
+  /**
+   * Forces the next native offset reading to snap instead of ease. For events
+   * that change the buffer depth without announcing a new track — a network
+   * handoff, a stall recovery, an audio-route change — where the running
+   * estimate is known to be stale and a slow filter would leave the UI
+   * visibly out of sync for seconds.
+   */
+  requestRelock(): void {
+    this.recalibrate = true;
+  }
+
   /** Clears the estimate (new stream, reconnect, teardown). */
   reset(): void {
     this.delayMs = 0;
@@ -266,22 +290,30 @@ export class StreamSyncEngine {
   }
 
   /**
-   * Records the server-vs-device clock offset (ms), measured from an HTTP
-   * `date` header with RTT/2 correction. Only gross offsets are applied
-   * (see the threshold) so a correctly-set device clock is never nudged by
-   * the header's one-second resolution. Survives {@link reset} — it is a
-   * property of the device, not of one stream.
+   * Records a server-vs-device clock offset sample (ms), measured from an
+   * HTTP `date` header with RTT/2 correction. Samples from slow round-trips
+   * are dropped (their midpoint assumption is weak); the applied skew is the
+   * median of the recent window, so one cached or delayed response cannot
+   * move the audible clock. Small skews are ignored (see the thresholds) so
+   * a correctly-set device clock is never nudged by the header's one-second
+   * resolution. Survives {@link reset} — it is a property of the device, not
+   * of one stream.
    */
-  setClockSkew(skewMs: number): void {
+  setClockSkew(skewMs: number, rttMs?: number): void {
     if (!Number.isFinite(skewMs)) return;
-    if (Math.abs(skewMs) < CLOCK_SKEW_THRESHOLD_MS) {
-      this.clockSkewMs = 0;
-      return;
-    }
-    this.clockSkewMs = Math.max(
-      -MAX_CLOCK_SKEW_MS,
-      Math.min(MAX_CLOCK_SKEW_MS, skewMs),
-    );
+    if (rttMs != null && rttMs > SKEW_MAX_RTT_MS) return;
+
+    this.skewSamples.push(skewMs);
+    if (this.skewSamples.length > SKEW_WINDOW) this.skewSamples.shift();
+
+    const sorted = [...this.skewSamples].sort((a, b) => a - b);
+    const median = sorted[Math.floor(sorted.length / 2)];
+    const threshold =
+      this.clockSkewMs === 0 ? CLOCK_SKEW_APPLY_MS : CLOCK_SKEW_RELEASE_MS;
+    this.clockSkewMs =
+      Math.abs(median) < threshold
+        ? 0
+        : Math.max(-MAX_CLOCK_SKEW_MS, Math.min(MAX_CLOCK_SKEW_MS, median));
   }
 
   /** Applied server-vs-device clock offset (ms) — diagnostics. */

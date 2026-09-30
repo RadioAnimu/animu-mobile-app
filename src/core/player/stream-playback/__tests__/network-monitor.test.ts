@@ -16,6 +16,10 @@ const makeMonitor = () => {
 
   const monitor = new NetworkMonitor(subscribe);
   monitor.onRestore = () => restores++;
+  let losses = 0;
+  let handoffs = 0;
+  monitor.onLost = () => losses++;
+  monitor.onHandoff = () => handoffs++;
 
   return {
     monitor,
@@ -23,6 +27,12 @@ const makeMonitor = () => {
     emitState: (state: ConnectivityState) => handler?.(state),
     get restores() {
       return restores;
+    },
+    get losses() {
+      return losses;
+    },
+    get handoffs() {
+      return handoffs;
     },
     get unsubscribed() {
       return unsubscribed;
@@ -125,5 +135,42 @@ describe("NetworkMonitor", () => {
 
     f.monitor.stop();
     expect(f.monitor.isOnline()).toBe(true); // back to unknown → online
+  });
+
+  it("reports the online → offline edge once, never on the baseline", () => {
+    const f = makeMonitor();
+
+    f.monitor.start();
+    f.emit(false); // baseline offline
+    expect(f.losses).toBe(0);
+
+    f.emit(true);
+    f.emit(false);
+    f.emit(false);
+    expect(f.losses).toBe(1);
+  });
+
+  it("reports a Wi-Fi ↔ cellular handoff that never goes offline", () => {
+    const f = makeMonitor();
+
+    f.monitor.start();
+    f.emitState({ isConnected: true, type: "wifi" }); // baseline
+    f.emitState({ isConnected: true, type: "wifi" });
+    expect(f.handoffs).toBe(0);
+
+    f.emitState({ isConnected: true, type: "cellular" });
+    expect(f.handoffs).toBe(1);
+    expect(f.restores).toBe(0);
+  });
+
+  it("ignores transitional unknown transports when detecting a handoff", () => {
+    const f = makeMonitor();
+
+    f.monitor.start();
+    f.emitState({ isConnected: true, type: "wifi" });
+    f.emitState({ isConnected: true, type: "unknown" });
+    f.emitState({ isConnected: true, type: "wifi" });
+
+    expect(f.handoffs).toBe(0);
   });
 });

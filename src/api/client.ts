@@ -10,14 +10,18 @@ import { CLIENT_INFO } from "@/utils/client-context";
  * every existing call (metadata poll, program, history, SSE connect) carries
  * a `date` header that already tells us the server's clock.
  */
-let serverSkewListener: ((skewMs: number) => void) | null = null;
+let serverSkewListener: ((skewMs: number, rttMs: number) => void) | null =
+  null;
 
 /** Registers (or clears) the server-skew sink. */
 export const setServerSkewListener = (
-  listener: ((skewMs: number) => void) | null,
+  listener: ((skewMs: number, rttMs: number) => void) | null,
 ): void => {
   serverSkewListener = listener;
 };
+
+/** Mean error of a second-resolution `date` header (it floors). */
+const DATE_HEADER_FLOOR_BIAS_MS = 500;
 
 /**
  * `expo/fetch` wrapped to feed every response's `date` header to the sync
@@ -32,7 +36,14 @@ const clockAwareFetch: typeof expoFetch = async (...args) => {
     sentAtMs,
     receivedAtMs,
   );
-  if (skew != null) serverSkewListener?.(skew);
+  // A cached response (CDN/proxy) carries the `date` of when it was stored,
+  // not of now — its "skew" is just its age.
+  const cached = response.headers.get("age") != null;
+  if (skew != null && !cached) {
+    // The header is floored to whole seconds: the true instant is, on
+    // average, half a second later.
+    serverSkewListener?.(skew + DATE_HEADER_FLOOR_BIAS_MS, receivedAtMs - sentAtMs);
+  }
   return response;
 };
 

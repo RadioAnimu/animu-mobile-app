@@ -58,7 +58,7 @@ rest of the engine depends on the ports in `ports.ts` (`AudioEnginePort`,
 | `stream-playback/` | `audible-track` (`AudibleTrackResolver`) | Resolves which track the listener is actually hearing during transitions/SSE gaps |
 | `stream-playback/` | `heartbeat` (`HeartbeatScheduler`) | 1 Hz gate collapsing the native + JS drivers; watchdog; data-poll cadence; fed natively while backgrounded |
 | `stream-playback/` | `progress-ticker` (`ProgressTicker`) | 1 Hz progress tick — progress store updates, track-end detection, native position push |
-| `stream-playback/` | `network-monitor` (`NetworkMonitor`) | Offline → online transitions (via `@react-native-community/netinfo`) for instant reconnect + data refresh |
+| `stream-playback/` | `network-monitor` (`NetworkMonitor`) | Offline → online, online → offline and Wi-Fi ↔ cellular handoff edges (via `@react-native-community/netinfo`): instant reconnect, and an eager stall detector while the link is suspect. Reconnects are skipped (with periodic probes) while offline |
 | `stream-playback/` | `stream-preferences` (`StreamPreferences`) | Persisted stream-quality choice with corrupt-storage safety |
 | `stream-playback/` | `live-buffer.android` / `.ios` | Per-platform live-edge buffer policy — `0` on both, but iOS documents why capping the forward buffer distorts the measured lag |
 | `visualizer/` | `audio-sampler` (`AudioSampler`) + `waveform` + `index.android`/`index.ios` | Android-only PCM sampling + DSP; iOS factory returns a `NoopVisualizerSampler`, so the whole DSP never bundles on iOS |
