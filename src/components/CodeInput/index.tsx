@@ -33,7 +33,7 @@ export function CodeInput({
   const [focused, setFocused] = useState(false);
   const inputRef = useRef<TextInput | null>(null);
   const caretRef = useRef<Animated.Value | null>(null);
-  if (caretRef.current === null) caretRef.current = new Animated.Value(1);
+  caretRef.current ??= new Animated.Value(1);
   const caret = caretRef.current;
 
   // A verify flips `editable` off while it runs, which blurs the field on
@@ -52,7 +52,7 @@ export function CodeInput({
   useEffect(() => {
     if (!focused || !editable) {
       caret.setValue(1);
-      return;
+      return undefined;
     }
     const loop = Animated.loop(
       Animated.sequence([
@@ -72,6 +72,14 @@ export function CodeInput({
     return () => loop.stop();
   }, [caret, editable, focused]);
 
+  const boxContent = (char: string, index: number) => {
+    if (char) return <Text style={styles.digit}>{char}</Text>;
+    if (focused && index === activeIndex) {
+      return <Animated.View style={[styles.caret, { opacity: caret }]} />;
+    }
+    return null;
+  };
+
   return (
     <View style={styles.row}>
       {chars.map((char, index) => (
@@ -84,11 +92,7 @@ export function CodeInput({
             !editable && styles.boxDisabled,
           ]}
         >
-          {char ? (
-            <Text style={styles.digit}>{char}</Text>
-          ) : focused && index === activeIndex ? (
-            <Animated.View style={[styles.caret, { opacity: caret }]} />
-          ) : null}
+          {boxContent(char, index)}
         </View>
       ))}
 

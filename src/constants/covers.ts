@@ -13,16 +13,14 @@ export const COVER_CATEGORY_COLORS: Record<CoverCacheCategory, string> = {
   search: "#FFCF56",
 };
 
+const COVER_CATEGORY_LABEL_KEYS = {
+  live: "SETTINGS_STORAGE_LIVE",
+  requested: "SETTINGS_STORAGE_REQUESTED",
+  played: "SETTINGS_STORAGE_PLAYED",
+  search: "SETTINGS_STORAGE_SEARCH",
+} as const satisfies Record<CoverCacheCategory, keyof Dict>;
+
 /** Localized label for one cover-cache category (legend + Advanced rows). */
 export function coverCategoryLabel(dict: Dict, key: CoverCacheCategory): string {
-  switch (key) {
-    case "live":
-      return dict.SETTINGS_STORAGE_LIVE;
-    case "requested":
-      return dict.SETTINGS_STORAGE_REQUESTED;
-    case "played":
-      return dict.SETTINGS_STORAGE_PLAYED;
-    case "search":
-      return dict.SETTINGS_STORAGE_SEARCH;
-  }
+  return dict[COVER_CATEGORY_LABEL_KEYS[key]];
 }

@@ -30,8 +30,8 @@ type WebViewHandle = React.ComponentRef<typeof WebView>;
  */
 function encodeWave(points: number[]): string {
   let hex = "";
-  for (let i = 0; i < points.length; i++) {
-    const byte = Math.max(0, Math.min(255, Math.round((points[i] + 1) * 127.5)));
+  for (const point of points) {
+    const byte = Math.max(0, Math.min(255, Math.round((point + 1) * 127.5)));
     hex += byte.toString(16).padStart(2, "0");
   }
   return hex;
@@ -259,7 +259,7 @@ export const Oscilloscope = React.memo(function Oscilloscope() {
   // The bridge only carries the *newest* window; the page keeps the last one
   // and interpolates between the two, so each message is ~2 KB.
   useEffect(() => {
-    if (!wantsOn) return;
+    if (!wantsOn) return undefined;
     const unsubscribe = subscribeVisualizerWindows(receiveWindow);
     return () => {
       unsubscribe();

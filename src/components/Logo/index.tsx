@@ -17,7 +17,7 @@ export function Logo({ size, img }: Props) {
   const { settings } = useUserSettings();
 
   const source = img ?? IMGS[settings.selectedLanguage].LOGO;
-  const height = size ? size : DEFAULT_SIZE;
+  const height = size || DEFAULT_SIZE;
 
   // Unlike RN's Image, expo-image does not derive an intrinsic layout size from
   // the source, so an image with only a height collapses to zero width. Derive

@@ -41,7 +41,7 @@ const buildHourBars = (snap: ListenStatsSnapshot): ProfileBar[] =>
 
 /** Summed per-weekday listening across all recorded days. */
 const buildWeekdayBars = (snap: ListenStatsSnapshot, dict: Dict): ProfileBar[] => {
-  const totals = Array<number>(7).fill(0);
+  const totals = Array.from({ length: 7 }, () => 0);
   for (const [key, d] of Object.entries(snap.days)) {
     const [y, m, dd] = key.split("-").map(Number);
     totals[new Date(y, m - 1, dd).getDay()] += d.ms;
@@ -60,7 +60,8 @@ interface Props {
   dict: Dict;
   selectedDay: string | null;
   onSelectDay: (day: string | null) => void;
-  onReset: () => void;
+  /** Awaited so the reset button shows busy until the wipe completes. */
+  onReset: () => Promise<void>;
 }
 
 /** The data-backed body of the stats screen (everything but the empty state). */

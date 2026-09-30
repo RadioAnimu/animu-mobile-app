@@ -222,36 +222,8 @@ export class AudioSampler implements VisualizerSampler {
     );
     if (frames.length === 0) return;
 
-    const now = Date.now();
-    if (this.nativeAt >= 0) {
-      const delta = now - this.nativeAt;
-      if (delta >= MIN_SAMPLE_INTERVAL_MS) {
-        this.nativeDeltas.push(delta);
-        if (this.nativeDeltas.length > CADENCE_BUFFER) this.nativeDeltas.shift();
-        this.nativeIntervalMs = medianCadence(this.nativeDeltas);
-      }
-    }
-    this.nativeAt = now;
-
-    // The native tap reports how far this window leads the speaker. Track it
-    // smoothly; the visualizer uses it to delay the trace into sync.
-    const latencySeconds = sample.outputLatencySeconds;
-    if (typeof latencySeconds === "number" && Number.isFinite(latencySeconds)) {
-      const measuredMs = Math.min(
-        MAX_OUTPUT_LATENCY_MS,
-        Math.max(0, latencySeconds * 1000),
-      );
-      if (!this.latencyInitialized) {
-        // Seed with the first measurement so the scope is in sync from the
-        // first frames instead of ramping up from zero.
-        this.outputLatencyMs = measuredMs;
-        this.latencyInitialized = true;
-      } else {
-        this.outputLatencyMs =
-          this.outputLatencyMs * OUTPUT_LATENCY_SMOOTH +
-          measuredMs * (1 - OUTPUT_LATENCY_SMOOTH);
-      }
-    }
+    this.trackCadence(Date.now());
+    this.trackOutputLatency(sample.outputLatencySeconds);
 
     // Publish the previous window + the new one; the visualizer interpolates
     // between them across `nativeIntervalMs` at its own rAF rate. The fresh
@@ -279,17 +251,7 @@ export class AudioSampler implements VisualizerSampler {
     // trace's tops off at the canvas edge. `tanh` amplifies small values
     // like a linear gain and asymptotically compresses peaks just below
     // full scale — strong, but never shaved.
-    if (this.targetLevel > 0.02) {
-      const wanted = Math.min(
-        DRAW_MAX_GAIN,
-        Math.max(1, DRAW_TARGET_RMS / this.targetLevel),
-      );
-      this.drawGain = this.drawGain * DRAW_GAIN_SMOOTH + wanted * (1 - DRAW_GAIN_SMOOTH);
-      const gain = this.drawGain;
-      for (let i = 0; i < target.length; i++) {
-        target[i] = Math.tanh(target[i] * gain);
-      }
-    }
+    if (this.targetLevel > 0.02) this.applyDrawGain(target);
 
     const payload: VisualizerWindow = {
       previousWave: previous,
@@ -299,6 +261,61 @@ export class AudioSampler implements VisualizerSampler {
       outputLatencyMs: this.appliedDelayMs(),
     };
     this.windowListeners.forEach((listener) => listener(payload));
+  }
+
+  /** Tracks the median native window cadence from successive arrival times. */
+  private trackCadence(now: number): void {
+    if (this.nativeAt >= 0) {
+      const delta = now - this.nativeAt;
+      if (delta >= MIN_SAMPLE_INTERVAL_MS) {
+        this.nativeDeltas.push(delta);
+        if (this.nativeDeltas.length > CADENCE_BUFFER) this.nativeDeltas.shift();
+        this.nativeIntervalMs = medianCadence(this.nativeDeltas);
+      }
+    }
+    this.nativeAt = now;
+  }
+
+  /**
+   * The native tap reports how far this window leads the speaker. Track it
+   * smoothly; the visualizer uses it to delay the trace into sync.
+   */
+  private trackOutputLatency(latencySeconds: number | undefined): void {
+    if (typeof latencySeconds !== "number" || !Number.isFinite(latencySeconds)) {
+      return;
+    }
+    const measuredMs = Math.min(
+      MAX_OUTPUT_LATENCY_MS,
+      Math.max(0, latencySeconds * 1000),
+    );
+    if (this.latencyInitialized) {
+      this.outputLatencyMs =
+        this.outputLatencyMs * OUTPUT_LATENCY_SMOOTH +
+        measuredMs * (1 - OUTPUT_LATENCY_SMOOTH);
+    } else {
+      // Seed with the first measurement so the scope is in sync from the
+      // first frames instead of ramping up from zero.
+      this.outputLatencyMs = measuredMs;
+      this.latencyInitialized = true;
+    }
+  }
+
+  /**
+   * Amplifies the drawn window in place. The limiter is a **soft knee**
+   * (`tanh`), not a hard clamp: the hard ±1 clamp flat-topped loud peaks,
+   * which visually shaved the trace's tops off at the canvas edge.
+   */
+  private applyDrawGain(target: number[]): void {
+    const wanted = Math.min(
+      DRAW_MAX_GAIN,
+      Math.max(1, DRAW_TARGET_RMS / this.targetLevel),
+    );
+    this.drawGain =
+      this.drawGain * DRAW_GAIN_SMOOTH + wanted * (1 - DRAW_GAIN_SMOOTH);
+    const gain = this.drawGain;
+    for (let i = 0; i < target.length; i++) {
+      target[i] = Math.tanh(target[i] * gain);
+    }
   }
 
   /**

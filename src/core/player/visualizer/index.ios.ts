@@ -20,13 +20,24 @@ class NoopVisualizerSampler implements VisualizerSampler {
   readonly isSupported = false;
   readonly isActive = false;
 
-  setEnabled(_enabled: boolean): void {}
-  setForeground(_foreground: boolean): void {}
-  setPlaying(_playing: boolean): void {}
-  subscribeWindows(_listener: (window: VisualizerWindow) => void): () => void {
-    return () => {};
+  setEnabled(_enabled: boolean): void {
+    // Intentionally empty: sampling is unsupported on iOS.
   }
-  dispose(): void {}
+  setForeground(_foreground: boolean): void {
+    // Intentionally empty: sampling is unsupported on iOS.
+  }
+  setPlaying(_playing: boolean): void {
+    // Intentionally empty: sampling is unsupported on iOS.
+  }
+  subscribeWindows(_listener: (window: VisualizerWindow) => void): () => void {
+    // No windows are ever emitted, so there is nothing to unsubscribe.
+    return () => {
+      // Intentionally empty.
+    };
+  }
+  dispose(): void {
+    // Intentionally empty: no resources are held.
+  }
 }
 
 export function createVisualizerSampler(

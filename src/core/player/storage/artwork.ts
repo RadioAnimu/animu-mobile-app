@@ -138,19 +138,17 @@ export class ArtworkResolver {
    * the metro server. Idempotent — safe to call from every setup path.
    */
   init(): Promise<void> {
-    if (!this.initPromise) {
-      this.initPromise = Asset.fromModule(DEFAULT_COVER)
-        .downloadAsync()
-        .then((asset) => {
-          if (asset.localUri) this.defaultCoverValue = asset.localUri;
-        })
-        .catch((error) => {
-          console.warn(
-            "[ArtworkResolver] bundled default cover unavailable, keeping remote fallback:",
-            error,
-          );
-        });
-    }
+    this.initPromise ??= Asset.fromModule(DEFAULT_COVER)
+      .downloadAsync()
+      .then((asset) => {
+        if (asset.localUri) this.defaultCoverValue = asset.localUri;
+      })
+      .catch((error) => {
+        console.warn(
+          "[ArtworkResolver] bundled default cover unavailable, keeping remote fallback:",
+          error,
+        );
+      });
     return this.initPromise;
   }
 
@@ -188,7 +186,7 @@ export class ArtworkResolver {
     // every consumer on poll ticks with zero real changes. The cached
     // wrapper is returned while the underlying resolution is unchanged.
     const cached = this.appliedTracks.get(track);
-    if (cached && cached.artwork === local) return cached;
+    if (cached?.artwork === local) return cached;
     const next = { ...track, artwork: local };
     this.appliedTracks.set(track, next);
     return next;

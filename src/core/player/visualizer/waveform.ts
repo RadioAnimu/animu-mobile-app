@@ -11,7 +11,7 @@
 
 /** Clamp a value into the normalized [-1, 1] sample range. */
 const clampSample = (value: number): number =>
-  value < -1 ? -1 : value > 1 ? 1 : value;
+  Math.min(1, Math.max(-1, value));
 
 /**
  * Down-mixes native per-channel PCM to mono.
@@ -71,13 +71,12 @@ export function resampleWaveformInto(
   return out;
 }
 
-
 /** Root-mean-square loudness of a PCM window, normalized to [0, 1]. */
 export function rms(frames: number[]): number {
   if (frames.length === 0) return 0;
   let sum = 0;
-  for (let i = 0; i < frames.length; i++) {
-    sum += frames[i] * frames[i];
+  for (const frame of frames) {
+    sum += frame * frame;
   }
   return Math.min(1, Math.max(0, Math.sqrt(sum / frames.length)));
 }

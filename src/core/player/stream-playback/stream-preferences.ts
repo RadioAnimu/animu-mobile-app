@@ -54,6 +54,8 @@ export class StreamPreferences {
     } else if (options.length > 0) {
       this.currentStream = options[0];
       await this.persist();
+    } else {
+      // Nothing to select from: keep the current value untouched.
     }
   }
 

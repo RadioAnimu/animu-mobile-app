@@ -157,7 +157,7 @@ export function Storage({ navigation }: Props) {
   );
 
   const setPartition = (key: CoverCacheCategory, value: string) => {
-    const next: CoverCachePartitions = { ...(partitions ?? {}) };
+    const next: CoverCachePartitions = { ...partitions };
     if (value === "auto") delete next[key];
     else next[key] = Number(value);
     // Nothing customized anymore = the weighted split — drop the overrides.

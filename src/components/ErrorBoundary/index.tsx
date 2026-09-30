@@ -7,7 +7,9 @@ interface Props {
   children: React.ReactNode;
 }
 
-type State = { hasError: false } | { hasError: true; message: string };
+interface State {
+  hasError: boolean;
+}
 
 /**
  * Last-resort crash guard for the React tree. Without this, any uncaught
@@ -21,8 +23,8 @@ type State = { hasError: false } | { hasError: true; message: string };
 class ErrorBoundary extends React.Component<Props, State> {
   state: State = { hasError: false };
 
-  static getDerivedStateFromError(error: Error): State {
-    return { hasError: true, message: error.message };
+  static getDerivedStateFromError(): State {
+    return { hasError: true };
   }
 
   componentDidCatch(error: Error, info: React.ErrorInfo) {

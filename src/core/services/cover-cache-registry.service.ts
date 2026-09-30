@@ -28,7 +28,7 @@ interface RegistryShape {
  * missing URLs are pruned on measurement instead of cleaned up here.
  */
 export class CoverCacheRegistry {
-  private entries = new Map<string, RegistryEntry>();
+  private readonly entries = new Map<string, RegistryEntry>();
   private loaded: Promise<void> | null = null;
   /** Serialization chain — rapid tags never interleave AsyncStorage writes. */
   private persistChain: Promise<void> = Promise.resolve();
@@ -37,21 +37,19 @@ export class CoverCacheRegistry {
 
   /** Reads persisted entries once; subsequent calls reuse the resolved load. */
   load(): Promise<void> {
-    if (!this.loaded) {
-      this.loaded = AsyncStorage.getItem(REGISTRY_KEY)
-        .then((raw) => {
-          if (!raw) return;
-          const parsed = JSON.parse(raw) as RegistryShape;
-          for (const [url, entry] of Object.entries(parsed.entries ?? {})) {
-            // A tag that fired while this AsyncStorage read was still in
-            // flight is newer than the stored state — never clobber it.
-            if (!this.entries.has(url)) this.entries.set(url, entry);
-          }
-        })
-        .catch((error) => {
-          console.warn("[CoverCacheRegistry] load failed:", error);
-        });
-    }
+    this.loaded ??= AsyncStorage.getItem(REGISTRY_KEY)
+      .then((raw) => {
+        if (!raw) return;
+        const parsed = JSON.parse(raw) as RegistryShape;
+        for (const [url, entry] of Object.entries(parsed.entries ?? {})) {
+          // A tag that fired while this AsyncStorage read was still in
+          // flight is newer than the stored state — never clobber it.
+          if (!this.entries.has(url)) this.entries.set(url, entry);
+        }
+      })
+      .catch((error) => {
+        console.warn("[CoverCacheRegistry] load failed:", error);
+      });
     return this.loaded;
   }
 
@@ -79,7 +77,7 @@ export class CoverCacheRegistry {
     if (!this.loaded) this.load();
 
     const existing = this.entries.get(url);
-    const identical = existing && existing.category === category;
+    const identical = existing?.category === category;
     this.entries.delete(url);
     this.entries.set(url, { category, at: Date.now() });
     if (this.entries.size > MAX_ENTRIES) {

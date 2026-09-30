@@ -44,6 +44,9 @@ export interface ListenDay {
   hours: number[];
 }
 
+const emptyHours = (): number[] =>
+  Array.from({ length: HOUR_SLOTS }, () => 0);
+
 const EMPTY_DAY = (): ListenDay => ({
   ms: 0,
   sessions: 0,
@@ -53,7 +56,7 @@ const EMPTY_DAY = (): ListenDay => ({
   shouts: 0,
   firstAt: null,
   lastAt: null,
-  hours: Array<number>(HOUR_SLOTS).fill(0),
+  hours: emptyHours(),
 });
 
 /** Track entries kept for the share-card "top requests" ranking. */
@@ -165,7 +168,7 @@ const sanitizeDay = (value: unknown): ListenDay | null => {
   ) {
     return null;
   }
-  const hours = Array<number>(HOUR_SLOTS).fill(0);
+  const hours = emptyHours();
   for (let i = 0; i < Math.min(HOUR_SLOTS, raw.hours.length); i++) {
     const h = raw.hours[i];
     if (typeof h === "number" && Number.isFinite(h) && h > 0) hours[i] = h;
@@ -183,6 +186,68 @@ const sanitizeDay = (value: unknown): ListenDay | null => {
     lastAt: typeof raw.lastAt === "number" ? raw.lastAt : null,
     hours,
   };
+};
+
+/** Keeps only day-key-shaped entries that survive {@link sanitizeDay}. */
+const sanitizeDays = (value: unknown): Record<string, ListenDay> => {
+  const days: Record<string, ListenDay> = {};
+  if (typeof value !== "object" || value === null) return days;
+  for (const [key, val] of Object.entries(value as Record<string, unknown>)) {
+    // Keys must look like day keys — anything else is discarded.
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(key)) continue;
+    const day = sanitizeDay(val);
+    if (day) days[key] = day;
+  }
+  return days;
+};
+
+/** One stored top-request entry, or null when malformed. */
+const sanitizeTrackedRequest = (value: unknown): TrackedRequest | null => {
+  if (typeof value !== "object" || value === null) return null;
+  const { n, art } = value as { n?: unknown; art?: unknown };
+  if (typeof n !== "number" || !Number.isFinite(n) || n <= 0) return null;
+  return { n: Math.floor(n), art: typeof art === "string" ? art : "" };
+};
+
+const sanitizeTopRequests = (value: unknown): Record<string, TrackedRequest> => {
+  const topRequests: Record<string, TrackedRequest> = {};
+  if (typeof value !== "object" || value === null) return topRequests;
+  for (const [id, val] of Object.entries(value as Record<string, unknown>)) {
+    const entry = sanitizeTrackedRequest(val);
+    if (entry) topRequests[id] = entry;
+  }
+  return topRequests;
+};
+
+/**
+ * Drops the weakest track once the map exceeds the cap (first-seen wins
+ * ties, matching insertion order).
+ */
+const dropWeakestRequest = (top: Record<string, TrackedRequest>): void => {
+  const ids = Object.keys(top);
+  if (ids.length <= MAX_TRACKED_REQUESTS) return;
+  let weakest = ids[0];
+  for (const id of ids) {
+    if (top[id].n < top[weakest].n) weakest = id;
+  }
+  delete top[weakest];
+};
+
+/** Plain code-unit string order (identical to the default `.sort()`), which is chronological for ISO day keys. */
+const compareKeys = (a: string, b: string): number => {
+  if (a < b) return -1;
+  return a > b ? 1 : 0;
+};
+
+/**
+ * The key a current streak starts from: today, else yesterday (today hasn't
+ * counted yet), else none.
+ */
+const streakStart = (active: Set<string>): string | null => {
+  const today = dayKeyOf(Date.now());
+  if (active.has(today)) return today;
+  const yesterday = dayKeyOf(Date.now() - 86_400_000);
+  return active.has(yesterday) ? yesterday : null;
 };
 
 /**
@@ -244,30 +309,11 @@ export class ListenStatsService {
       return { version: SCHEMA_VERSION, days: {} };
     }
     const raw = value as { days?: unknown; topRequests?: unknown };
-    const days: Record<string, ListenDay> = {};
-    if (typeof raw.days === "object" && raw.days !== null) {
-      for (const [key, val] of Object.entries(raw.days as Record<string, unknown>)) {
-        // Keys must look like day keys — anything else is discarded.
-        if (!/^\d{4}-\d{2}-\d{2}$/.test(key)) continue;
-        const day = sanitizeDay(val);
-        if (day) days[key] = day;
-      }
-    }
-    const topRequests: Record<string, TrackedRequest> = {};
-    if (typeof raw.topRequests === "object" && raw.topRequests !== null) {
-      for (const [id, val] of Object.entries(
-        raw.topRequests as Record<string, unknown>,
-      )) {
-        if (typeof val !== "object" || val === null) continue;
-        const { n, art } = val as { n?: unknown; art?: unknown };
-        if (typeof n !== "number" || !Number.isFinite(n) || n <= 0) continue;
-        topRequests[id] = {
-          n: Math.floor(n),
-          art: typeof art === "string" ? art : "",
-        };
-      }
-    }
-    return { version: SCHEMA_VERSION, days, topRequests };
+    return {
+      version: SCHEMA_VERSION,
+      days: sanitizeDays(raw.days),
+      topRequests: sanitizeTopRequests(raw.topRequests),
+    };
   }
 
   private ensureDay(day: string): ListenDay {
@@ -393,14 +439,7 @@ export class ListenStatsService {
       if (artworkUrl) entry.art = artworkUrl;
       top[trackId] = entry;
       // Bound the map: drop the least-requested track past the cap.
-      const ids = Object.keys(top);
-      if (ids.length > MAX_TRACKED_REQUESTS) {
-        let weakest = ids[0];
-        for (const id of ids) {
-          if (top[id].n < top[weakest].n) weakest = id;
-        }
-        delete top[weakest];
-      }
+      dropWeakestRequest(top);
       this.blob.topRequests = top;
     }
     this.scheduleFlush();
@@ -421,7 +460,7 @@ export class ListenStatsService {
    */
   getSnapshot(): ListenStatsSnapshot {
     this.prune();
-    const keys = Object.keys(this.blob.days).sort();
+    const keys = Object.keys(this.blob.days).sort(compareKeys);
     let totalMs = 0;
     let totalSessions = 0;
     let totalTracks = 0;
@@ -472,7 +511,7 @@ export class ListenStatsService {
     // Longest run across the sorted active days.
     let max = 1;
     let run = 1;
-    const sorted = [...active].sort();
+    const sorted = [...active].sort(compareKeys);
     for (let i = 1; i < sorted.length; i++) {
       const diff =
         (parseDayKey(sorted[i]) - parseDayKey(sorted[i - 1])) / 86_400_000;
@@ -483,13 +522,7 @@ export class ListenStatsService {
     // Current streak: walk back from today (or yesterday, if today hasn't
     // counted yet). Day steps go through calendar dates, not raw 24h
     // subtraction, so DST shifts can't loop or skip a day.
-    const today = dayKeyOf(Date.now());
-    const yesterday = dayKeyOf(Date.now() - 86_400_000);
-    let cursor: string | null = active.has(today)
-      ? today
-      : active.has(yesterday)
-        ? yesterday
-        : null;
+    let cursor = streakStart(active);
     let current = 0;
     while (cursor != null && active.has(cursor)) {
       current += 1;
@@ -504,7 +537,7 @@ export class ListenStatsService {
    * the hour breakdown is the only thing that ages out.
    */
   private prune(): void {
-    const keys = Object.keys(this.blob.days).sort();
+    const keys = Object.keys(this.blob.days).sort(compareKeys);
     if (keys.length > MAX_DAYS) {
       for (const key of keys.slice(0, keys.length - MAX_DAYS)) {
         delete this.blob.days[key];
@@ -513,7 +546,7 @@ export class ListenStatsService {
     const cutoff = dayKeyOf(Date.now() - HOUR_DETAIL_DAYS * 86_400_000);
     for (const [key, d] of Object.entries(this.blob.days)) {
       if (key < cutoff && d.hours.some((h) => h > 0)) {
-        d.hours = Array<number>(HOUR_SLOTS).fill(0);
+        d.hours = emptyHours();
       }
     }
   }

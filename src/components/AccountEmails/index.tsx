@@ -134,44 +134,66 @@ function groupEmails(
   linkedProviders: LinkedProvider[],
   providerOrder: string[],
 ): EmailGroup[] {
-  const groups = new Map<string, EmailGroup>();
-  for (const item of emails) {
-    const key = item.email.toLowerCase();
-    const existing = groups.get(key);
-    if (existing) {
-      if (item.provider && !existing.providers.includes(item.provider)) {
-        existing.providers.push(item.provider);
-      }
-      if (item.removable) existing.removableItem = item;
-      continue;
-    }
-    groups.set(key, {
-      email: item.email,
-      providers: item.provider ? [item.provider] : [],
-      isExtra: isExtraEmail(item),
-      removableItem: item.removable ? item : null,
-    });
-  }
+  const groups = collectGroups(emails);
 
   // Available-provider order: the marks then read in the same sequence as the
   // Linked Accounts rows above, not in whatever order the addresses arrived.
   const order = new Map(providerOrder.map((name, index) => [name, index]));
 
   for (const group of groups.values()) {
-    const key = group.email.toLowerCase();
-    for (const linked of linkedProviders) {
-      if (!linked.providerEmail) continue;
-      if (linked.providerEmail.trim().toLowerCase() !== key) continue;
-      if (!group.providers.includes(linked.provider)) {
-        group.providers.push(linked.provider);
-      }
-    }
+    addLinkedProviders(group, linkedProviders);
     group.providers.sort(
       (a, b) => (order.get(a) ?? Infinity) - (order.get(b) ?? Infinity),
     );
   }
 
   return [...groups.values()];
+}
+
+/** One group per address (case-insensitive), merging the per-provider rows. */
+function collectGroups(emails: AuthAccountEmail[]): Map<string, EmailGroup> {
+  const groups = new Map<string, EmailGroup>();
+  for (const item of emails) {
+    const key = item.email.toLowerCase();
+    const existing = groups.get(key);
+    if (existing) {
+      mergeIntoGroup(existing, item);
+    } else {
+      groups.set(key, {
+        email: item.email,
+        providers: item.provider ? [item.provider] : [],
+        isExtra: isExtraEmail(item),
+        removableItem: item.removable ? item : null,
+      });
+    }
+  }
+  return groups;
+}
+
+/** Folds another row for the same address into its group. */
+function mergeIntoGroup(group: EmailGroup, item: AuthAccountEmail): void {
+  if (item.provider && !group.providers.includes(item.provider)) {
+    group.providers.push(item.provider);
+  }
+  if (item.removable) group.removableItem = item;
+}
+
+/** Adds every linked provider whose `providerEmail` is this group's address. */
+function addLinkedProviders(
+  group: EmailGroup,
+  linkedProviders: LinkedProvider[],
+): void {
+  const key = group.email.toLowerCase();
+  const present = new Set(group.providers);
+  for (const linked of linkedProviders) {
+    const sameAddress =
+      !!linked.providerEmail &&
+      linked.providerEmail.trim().toLowerCase() === key;
+    if (sameAddress && !present.has(linked.provider)) {
+      present.add(linked.provider);
+      group.providers.push(linked.provider);
+    }
+  }
 }
 
 /** The addresses, each with its provenance, or the empty notice. */
@@ -338,6 +360,7 @@ export function AccountEmails() {
   });
 
   const busy = flow.busy || removing;
+  const showLoading = loading && emails.length === 0;
 
   useEffect(() => {
     let cancelled = false;
@@ -394,7 +417,7 @@ export function AccountEmails() {
           carries the Animu Connect mark, so the card opens on the pitch. */}
       <Text style={styles.intro}>{dict.ACCOUNT_ANIMU_CONNECT_DESC}</Text>
 
-      {loading && emails.length === 0 ? (
+      {showLoading ? (
         <ActivityIndicator
           color={THEME.COLORS.TEXT_DIM}
           style={styles.loading}

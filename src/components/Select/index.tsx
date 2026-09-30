@@ -1,5 +1,5 @@
 import MaterialIcons from "@react-native-vector-icons/material-icons/static";
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import {
   ActivityIndicator,
   Image,
@@ -13,6 +13,23 @@ import { THEME } from "@/theme";
 import { layoutEase } from "@/utils/layout-animation";
 import { styles } from "@/components/Select/styles";
 import { haptics } from "@/utils/haptics";
+
+/** Trailing mark of an option row: spinner while applying, check if chosen. */
+function optionTrailing(isApplying: boolean, isSelected: boolean): ReactNode {
+  if (isApplying) {
+    return <ActivityIndicator size="small" color={THEME.COLORS.TEXT_DIM} />;
+  }
+  if (isSelected) {
+    return (
+      <MaterialIcons
+        name="check"
+        size={THEME.ICON.MD}
+        color={THEME.COLORS.BRAND}
+      />
+    );
+  }
+  return null;
+}
 
 export interface SelectOption<T extends string> {
   key: T;
@@ -132,6 +149,7 @@ export function Select<T extends string>({
           {options.map((option, index) => {
             const isSelected = option.key === value;
             const isApplying = option.key === applyingKey;
+            const trailing = optionTrailing(isApplying, isSelected);
             return (
               <View key={option.key}>
                 {index > 0 && <View style={styles.separator} />}
@@ -180,18 +198,7 @@ export function Select<T extends string>({
                       </Text>
                     )}
                   </View>
-                  {isApplying ? (
-                    <ActivityIndicator
-                      size="small"
-                      color={THEME.COLORS.TEXT_DIM}
-                    />
-                  ) : isSelected ? (
-                    <MaterialIcons
-                      name="check"
-                      size={THEME.ICON.MD}
-                      color={THEME.COLORS.BRAND}
-                    />
-                  ) : null}
+                  {trailing}
                 </TouchableOpacity>
               </View>
             );

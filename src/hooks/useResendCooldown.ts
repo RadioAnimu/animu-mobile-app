@@ -11,7 +11,7 @@ export function useResendCooldown(seconds: number) {
   const [remaining, setRemaining] = useState(0);
 
   useEffect(() => {
-    if (!until) return;
+    if (!until) return undefined;
     const tick = () => {
       const left = Math.max(0, Math.ceil((until - Date.now()) / 1000));
       setRemaining(left);

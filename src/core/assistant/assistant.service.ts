@@ -16,6 +16,19 @@ export type AssistantAction = "play";
 const ASSISTANT_HOST = "assistant";
 const PLAY_PATH = "play";
 
+/**
+ * Strips leading and trailing slashes in one linear pass. A
+ * `/^\/+|\/+$/g` regex is quadratic on long slash runs followed by another
+ * character, and this input is an externally supplied URL.
+ */
+function trimSlashes(value: string): string {
+  let start = 0;
+  let end = value.length;
+  while (start < end && value[start] === "/") start++;
+  while (end > start && value[end - 1] === "/") end--;
+  return value.slice(start, end);
+}
+
 export function parseAssistantUrl(url: string | null): AssistantAction | null {
   if (!url) return null;
 
@@ -23,7 +36,7 @@ export function parseAssistantUrl(url: string | null): AssistantAction | null {
   if (parsed.hostname !== ASSISTANT_HOST) return null;
 
   // `animuapp://assistant/play` → path "play"; `animuapp://assistant` → null.
-  const path = (parsed.path ?? "").replace(/^\/+|\/+$/g, "");
+  const path = trimSlashes(parsed.path ?? "");
   if (path === "" || path === PLAY_PATH) return "play";
   return null;
 }

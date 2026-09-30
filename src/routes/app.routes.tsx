@@ -1,4 +1,7 @@
-import { createDrawerNavigator } from "@react-navigation/drawer";
+import {
+  createDrawerNavigator,
+  type DrawerContentComponentProps,
+} from "@react-navigation/drawer";
 
 import { useWindowDimensions } from "react-native";
 import { CustomDrawerContent, DrawerIcon } from "@/components/CustomDrawer";
@@ -36,6 +39,28 @@ const { Navigator, Screen } = createDrawerNavigator<RootStackParamList>();
 
 const DRAWER_WIDTH_RATIO = 0.8;
 
+// Module-level on purpose: render callbacks defined inside AppRoutes get a new
+// identity every render, which remounts the drawer content / menu icons.
+const renderDrawerContent = (props: DrawerContentComponentProps) => (
+  <CustomDrawerContent {...props} />
+);
+
+const playerIcon = ({ color }: { color: string }) => (
+  <DrawerIcon name="play-circle" color={color} />
+);
+const lastRequestedIcon = ({ color }: { color: string }) => (
+  <DrawerIcon name="queue-music" color={color} />
+);
+const lastPlayedIcon = ({ color }: { color: string }) => (
+  <DrawerIcon name="history" color={color} />
+);
+const makeRequestIcon = ({ color }: { color: string }) => (
+  <DrawerIcon name="music-note" color={color} />
+);
+
+/** Routes reachable only via navigation (no drawer entry). */
+const HIDDEN_ITEM_OPTIONS = { drawerItemStyle: { display: "none" } } as const;
+
 export function AppRoutes() {
   const dict = useDict();
   const { width } = useWindowDimensions();
@@ -50,14 +75,12 @@ export function AppRoutes() {
           width: width * DRAWER_WIDTH_RATIO,
         },
       }}
-      drawerContent={(props) => <CustomDrawerContent {...props} />}
+      drawerContent={renderDrawerContent}
     >
       <Screen
         options={{
           drawerLabel: dict.MENU_PLAYER,
-          drawerIcon: ({ color }) => (
-            <DrawerIcon name="play-circle" color={color} />
-          ),
+          drawerIcon: playerIcon,
         }}
         name="Home"
         component={Home}
@@ -65,9 +88,7 @@ export function AppRoutes() {
       <Screen
         options={{
           drawerLabel: dict.MENU_LAST_REQUESTED,
-          drawerIcon: ({ color }) => (
-            <DrawerIcon name="queue-music" color={color} />
-          ),
+          drawerIcon: lastRequestedIcon,
         }}
         name="LastRequested"
         component={History}
@@ -76,9 +97,7 @@ export function AppRoutes() {
       <Screen
         options={{
           drawerLabel: dict.MENU_LAST_PLAYED,
-          drawerIcon: ({ color }) => (
-            <DrawerIcon name="history" color={color} />
-          ),
+          drawerIcon: lastPlayedIcon,
         }}
         name="LastPlayed"
         component={History}
@@ -87,64 +106,38 @@ export function AppRoutes() {
       <Screen
         options={{
           drawerLabel: dict.MENU_MAKE_REQUEST,
-          drawerIcon: ({ color }) => (
-            <DrawerIcon name="music-note" color={color} />
-          ),
+          drawerIcon: makeRequestIcon,
         }}
         name="MakeRequest"
         component={MakeRequest}
       />
       <Screen
-        options={{
-          drawerItemStyle: {
-            display: "none",
-          },
-        }}
+        options={HIDDEN_ITEM_OPTIONS}
         name="Settings"
         component={Settings}
       />
       <Screen
-        options={{
-          drawerItemStyle: {
-            display: "none",
-          },
-        }}
+        options={HIDDEN_ITEM_OPTIONS}
         name="Stats"
         component={Stats}
       />
       <Screen
-        options={{
-          drawerItemStyle: {
-            display: "none",
-          },
-        }}
+        options={HIDDEN_ITEM_OPTIONS}
         name="Storage"
         component={Storage}
       />
       <Screen
-        options={{
-          drawerItemStyle: {
-            display: "none",
-          },
-        }}
+        options={HIDDEN_ITEM_OPTIONS}
         name="Login"
         component={Login}
       />
       <Screen
-        options={{
-          drawerItemStyle: {
-            display: "none",
-          },
-        }}
+        options={HIDDEN_ITEM_OPTIONS}
         name="Account"
         component={Account}
       />
       <Screen
-        options={{
-          drawerItemStyle: {
-            display: "none",
-          },
-        }}
+        options={HIDDEN_ITEM_OPTIONS}
         name="About"
         component={About}
       />

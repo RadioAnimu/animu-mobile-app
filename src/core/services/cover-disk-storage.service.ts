@@ -111,7 +111,7 @@ export class CoverDiskStorage {
       card's clean button both disable themselves while any wipe runs
       (the clean button AND the automatic wipe on cache-off come through
       `clearAll`, so this is the one source of truth). */
-  private clearListeners = new Set<() => void>();
+  private readonly clearListeners = new Set<() => void>();
   private clearing = false;
 
   /** Serialization chain — snapshots, trims and wipes never interleave:
@@ -284,31 +284,14 @@ export class CoverDiskStorage {
 
     if (caps) {
       for (const key of CATEGORY_ORDER) {
-        const partition = groups[key];
-        let partitionBytes = partition.reduce<number>((sum, url) => {
-          const stat = statByUrl.get(url);
-          return sum + (stat?.state === "found" ? stat.bytes : 0);
-        }, 0);
-        const cap = caps[key];
-        if (partitionBytes <= cap) continue;
-
-        // Walk the partition's ring up to (but excluding) its newest
-        // entry — index 0 is the oldest end of the buffer, the read
-        // pointer advances one slot per eviction.
-        // NOTE: the awaits are DELIBERATELY sequential. Each deletion
-        // decides whether the next one is needed at all (budget-progressive);
-        // parallelizing would pre-delete MORE covers than the cap requires.
-        // Evictions are per-slot on a FIFO walk, not a batch operation — that
-        // is the ring contract, so `for await` (not `Promise.all`).
-        for await (const url of partition.slice(0, -1)) {
-          if (partitionBytes <= cap) break;
-          const stat = statByUrl.get(url);
-          if (stat?.state !== "found") continue;
-          if (!(await deleteCachedFile(url))) continue;
-          evicted.push(url);
-          freedBytes += stat.bytes;
-          partitionBytes -= stat.bytes;
-        }
+        // react-doctor-disable-next-line react-doctor/async-await-in-loop -- partitions evict one at a time by design; see the sequential note in evictPartition
+        const result = await this.evictPartition(
+          groups[key],
+          caps[key],
+          statByUrl,
+        );
+        evicted.push(...result.evicted);
+        freedBytes += result.freedBytes;
       }
     }
 
@@ -317,6 +300,40 @@ export class CoverDiskStorage {
       0,
     );
     return { evicted, freedBytes, remainingBytes: total - freedBytes };
+  }
+  /** One partition's FIFO walk — see {@link evictPartitions} for the contract. */
+  private async evictPartition(
+    partition: string[],
+    cap: number,
+    statByUrl: Map<string, CachedStat>,
+  ): Promise<{ evicted: string[]; freedBytes: number }> {
+    const evicted: string[] = [];
+    let freedBytes = 0;
+    let partitionBytes = partition.reduce<number>((sum, url) => {
+      const stat = statByUrl.get(url);
+      return sum + (stat?.state === "found" ? stat.bytes : 0);
+    }, 0);
+    if (partitionBytes <= cap) return { evicted, freedBytes };
+
+    // Walk the partition's ring up to (but excluding) its newest
+    // entry — index 0 is the oldest end of the buffer, the read
+    // pointer advances one slot per eviction.
+    // NOTE: the awaits are DELIBERATELY sequential. Each deletion
+    // decides whether the next one is needed at all (budget-progressive);
+    // parallelizing would pre-delete MORE covers than the cap requires.
+    // Evictions are per-slot on a FIFO walk, not a batch operation — that
+    // is the ring contract, so a sequential loop (not `Promise.all`).
+    for (const url of partition.slice(0, -1)) {
+      if (partitionBytes <= cap) break;
+      const stat = statByUrl.get(url);
+      // react-doctor-disable-next-line react-doctor/async-await-in-loop -- sequential by contract: each deletion decides whether the next one is needed
+      if (stat?.state === "found" && (await deleteCachedFile(url))) {
+        evicted.push(url);
+        freedBytes += stat.bytes;
+        partitionBytes -= stat.bytes;
+      }
+    }
+    return { evicted, freedBytes };
   }
 }
 

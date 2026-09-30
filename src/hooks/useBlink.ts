@@ -18,7 +18,7 @@ export function useBlink(active: boolean) {
   useEffect(() => {
     if (!active) {
       blink.setValue(1);
-      return;
+      return undefined;
     }
     const loop = Animated.loop(
       Animated.sequence([

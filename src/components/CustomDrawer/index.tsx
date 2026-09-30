@@ -139,6 +139,13 @@ function AccountRow({ onOpenLogin, onOpenSettings }: AccountRowProps) {
   const dict = useDict();
   const loginProvider = profile?.session.loginProvider;
 
+  let caption = dict.SETTINGS_ACCOUNT_SIGN_IN;
+  if (user) {
+    caption = loginProvider
+      ? `${dict.ACCOUNT_CONNECTED_VIA} ${providerLabel(loginProvider)}`
+      : dict.ACCOUNT_TITLE;
+  }
+
   return (
     <View style={styles.bottom}>
       <View style={styles.accountRow}>
@@ -175,11 +182,7 @@ function AccountRow({ onOpenLogin, onOpenSettings }: AccountRowProps) {
                 />
               )}
               <Text style={styles.accountCaption} numberOfLines={1}>
-                {user
-                  ? loginProvider
-                    ? `${dict.ACCOUNT_CONNECTED_VIA} ${providerLabel(loginProvider)}`
-                    : dict.ACCOUNT_TITLE
-                  : dict.SETTINGS_ACCOUNT_SIGN_IN}
+                {caption}
               </Text>
             </View>
           </View>

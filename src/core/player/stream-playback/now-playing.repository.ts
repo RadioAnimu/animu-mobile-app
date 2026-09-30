@@ -115,6 +115,16 @@ const NO_CHANGE: NowPlayingChange = {
   requestedChanged: false,
 };
 
+/** Payload order preserved; repeats of a `raw` keep only their first (newest) row. */
+function firstOccurrences(tracks: Track[]): Track[] {
+  const seen = new Set<string>();
+  return tracks.filter((track) => {
+    if (seen.has(track.raw)) return false;
+    seen.add(track.raw);
+    return true;
+  });
+}
+
 /**
  * Owns all "what is on air right now" data: current track, program,
  * listeners and the two history lists. Merges fetched data with diffing,
@@ -374,11 +384,7 @@ export class NowPlayingRepository {
     // (offline station), the HTTP leg must still have its chance to fill
     // state exactly like it did before SSE existed.
     this.ensureLiveCurrent();
-    const liveFresh =
-      this.liveSubscription != null &&
-      this.currentTrackValue != null &&
-      this.lastLiveEventAt != null &&
-      Date.now() - this.lastLiveEventAt <= LIVE_STALE_MS;
+    const liveFresh = this.isLiveAuthoritative();
 
     try {
       const [metadata, program, newRequestedTracks] = await Promise.all([
@@ -410,11 +416,7 @@ export class NowPlayingRepository {
       // a stale stream, but a song_change push may have landed while it
       // was in flight — pushing authoritative state. The stale HTTP
       // payload must not walk the live data backwards.
-      const liveOwns =
-        this.liveSubscription != null &&
-        this.currentTrackValue != null &&
-        this.lastLiveEventAt != null &&
-        Date.now() - this.lastLiveEventAt <= LIVE_STALE_MS;
+      const liveOwns = this.isLiveAuthoritative();
 
       // HTTP fetched invalid track data (and live is not authoritative to
       // rescue us) → skip the update; keep the tests' intent unchanged.
@@ -425,52 +427,13 @@ export class NowPlayingRepository {
         return false;
       }
 
-      let trackChanged = false;
-
-      if (track && !liveOwns && this.trackIdentityChanged(track)) {
-        this.applyTrack(track);
-        trackChanged = true;
-      }
-
-      const programChanged =
-        this.currentProgramValue?.name !== program.name ||
-        this.currentProgramValue?.dj !== program.dj ||
-        this.currentProgramValue?.isLive !== program.isLive;
-      if (programChanged) this.currentProgramValue = program;
-
-      // Enable progress for real, non-live tracks (radio keeps playing
-      // server-side so we always show progress). Recompute on EITHER change:
-      // a live block starting/ending while the same track stays on air must
-      // still flip the seek bar off/on.
-      if (trackChanged || programChanged) {
-        this.updateShowProgress(program.isLive);
-      }
-
-      // Same live-authority rule for the listener count: on a skip leg it
-      // is the snapshot we just installed out of (never differs); after a
-      // mid-flight push, the HTTP count is stale and must not regress it.
-      const listenersChanged =
-        !liveOwns && listeners != null && this.mergeListeners(listeners);
-
-      const requestedChanged =
-        newRequestedTracks.length > 0 &&
-        newRequestedTracks[0].raw !== (this.requestedTracks[0]?.raw || "");
-      if (requestedChanged) this.requestedTracks = newRequestedTracks;
-
-      // Note: the fire-and-forget `refreshHistory("played")` triggered by a
-      // track change reports its own playedChanged flag when it completes.
-      const changed =
-        trackChanged || programChanged || listenersChanged || requestedChanged;
-
-      if (changed) {
-        this.onChange({
-          ...NO_CHANGE,
-          trackChanged,
-          programChanged,
-          listenersChanged,
-          requestedChanged,
-        });
-      }
+      const { trackChanged, programChanged } = this.applyRefreshPayload({
+        track,
+        listeners,
+        program,
+        newRequestedTracks,
+        liveOwns,
+      });
 
       // ── Success: reset error backoff & schedule track-end refresh ──
       this.retryScheduler.reset();
@@ -497,6 +460,84 @@ export class NowPlayingRepository {
       // late settler must not unlock a newer run's single-flight guard.
       if (epoch === this.refreshEpoch) this.refreshing = false;
     }
+  }
+
+  /**
+   * Whether the live (SSE) source currently owns track/listener state: a
+   * subscription exists, it has delivered a track, and its last event is
+   * inside the staleness window.
+   */
+  private isLiveAuthoritative(): boolean {
+    return (
+      this.liveSubscription != null &&
+      this.currentTrackValue != null &&
+      this.lastLiveEventAt != null &&
+      Date.now() - this.lastLiveEventAt <= LIVE_STALE_MS
+    );
+  }
+
+  /**
+   * Writes one HTTP poll's payload into the repository and notifies once.
+   * Only identity changes (track/program) are reported back: listener and
+   * request ticks reach the badge UI through `onChange` but never re-push
+   * metadata.
+   */
+  private applyRefreshPayload(payload: {
+    track: Track | null;
+    listeners: Listeners | null | undefined;
+    program: Program;
+    newRequestedTracks: Track[];
+    liveOwns: boolean;
+  }): { trackChanged: boolean; programChanged: boolean } {
+    const { track, listeners, program, newRequestedTracks, liveOwns } = payload;
+    let trackChanged = false;
+
+    if (track && !liveOwns && this.trackIdentityChanged(track)) {
+      this.applyTrack(track);
+      trackChanged = true;
+    }
+
+    const programChanged =
+      this.currentProgramValue?.name !== program.name ||
+      this.currentProgramValue?.dj !== program.dj ||
+      this.currentProgramValue?.isLive !== program.isLive;
+    if (programChanged) this.currentProgramValue = program;
+
+    // Enable progress for real, non-live tracks (radio keeps playing
+    // server-side so we always show progress). Recompute on EITHER change:
+    // a live block starting/ending while the same track stays on air must
+    // still flip the seek bar off/on.
+    if (trackChanged || programChanged) {
+      this.updateShowProgress(program.isLive);
+    }
+
+    // Same live-authority rule for the listener count: on a skip leg it
+    // is the snapshot we just installed out of (never differs); after a
+    // mid-flight push, the HTTP count is stale and must not regress it.
+    const listenersChanged =
+      !liveOwns && listeners != null && this.mergeListeners(listeners);
+
+    const requestedChanged =
+      newRequestedTracks.length > 0 &&
+      newRequestedTracks[0].raw !== (this.requestedTracks[0]?.raw || "");
+    if (requestedChanged) this.requestedTracks = newRequestedTracks;
+
+    // Note: the fire-and-forget `refreshHistory("played")` triggered by a
+    // track change reports its own playedChanged flag when it completes.
+    const changed =
+      trackChanged || programChanged || listenersChanged || requestedChanged;
+
+    if (changed) {
+      this.onChange({
+        ...NO_CHANGE,
+        trackChanged,
+        programChanged,
+        listenersChanged,
+        requestedChanged,
+      });
+    }
+
+    return { trackChanged, programChanged };
   }
 
   /**
@@ -549,11 +590,7 @@ export class NowPlayingRepository {
         type === "requests" ? this.requestedTracks : this.playedTracks;
 
       const fresh: Track[] = [];
-      const seenPayloadRaws = new Set<string>();
-      for (const track of tracks) {
-        if (seenPayloadRaws.has(track.raw)) continue;
-        seenPayloadRaws.add(track.raw);
-
+      for (const track of firstOccurrences(tracks)) {
         // Stop the walk at anything older than a day. For KNOWN rows that is
         // the original rule (everything after is guaranteed older/known);
         // for UNKNOWN rows too — they can only be entries a previous
@@ -562,8 +599,7 @@ export class NowPlayingRepository {
         // breaking the newest-first invariant on every refresh.
         if (Date.now() - track.startTime.getTime() > DAY_MS) break;
         const isKnown = target.some((t) => t.raw === track.raw);
-        if (isKnown) continue;
-        fresh.push(track);
+        if (!isKnown) fresh.push(track);
       }
       if (fresh.length === 0) return;
 

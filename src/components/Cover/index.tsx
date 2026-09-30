@@ -74,8 +74,8 @@ export function Cover({ cover, style, recyclingKey, category }: Props) {
 
   // Self-heal transient failures (bounded — a dead URL stops retrying)
   useEffect(() => {
-    if (failedUrl !== cover) return;
-    if ((attemptsByUrl.current.get(cover) ?? 0) >= MAX_FAILURES) return;
+    if (failedUrl !== cover) return undefined;
+    if ((attemptsByUrl.current.get(cover) ?? 0) >= MAX_FAILURES) return undefined;
     const timer = setTimeout(() => setFailedUrl(null), RETRY_DELAY_MS);
     return () => clearTimeout(timer);
   }, [failedUrl, cover]);

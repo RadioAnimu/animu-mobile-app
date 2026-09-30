@@ -28,12 +28,12 @@ export function useResolvedArtwork(
   useEffect(() => {
     if (!url) {
       setResolved(undefined);
-      return;
+      return undefined;
     }
     let cancelled = false;
     const local = service.peekArtwork(url);
     setResolved(local);
-    if (local) return;
+    if (local) return undefined;
     setResolved(undefined);
     service
       .resolveArtwork(

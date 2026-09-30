@@ -6,5 +6,5 @@
  * existing `file://` strings untouched.
  */
 export function toFileUri(path: string): string {
-  return /^file:\/\//.test(path) ? path : `file://${path}`;
+  return path.startsWith("file://") ? path : `file://${path}`;
 }

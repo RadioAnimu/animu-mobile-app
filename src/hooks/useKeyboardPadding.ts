@@ -24,7 +24,7 @@ export function useKeyboardPadding(enabled: boolean): number {
   useEffect(() => {
     if (!enabled) {
       setPadding(0);
-      return;
+      return undefined;
     }
 
     const animate = () => layoutEase(200);

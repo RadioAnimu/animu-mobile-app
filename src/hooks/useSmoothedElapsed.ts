@@ -80,7 +80,7 @@ export function useSmoothedElapsed(
 
   // Advance + ease on a steady cadence while the UI is visible.
   useEffect(() => {
-    if (isBackgrounded) return;
+    if (isBackgrounded) return undefined;
     state.current.tickAt = Date.now();
     const id = setInterval(() => {
       const s = state.current;

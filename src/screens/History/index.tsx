@@ -78,12 +78,15 @@ export function History({ route }: Props) {
     }
   }, [player, isRequestHistory, toast, dict.REQUEST_ERROR]);
 
+  const showCovers = isRequestHistory
+    ? settings.lastRequestedCovers
+    : settings.lastPlayedCovers;
+
   const renderItem: ListRenderItem<HistoryTrack> = useCallback(
     ({ item }) =>
       (
         <View style={styles.metadata}>
-          {(isRequestHistory && settings.lastRequestedCovers) ||
-          (!isRequestHistory && settings.lastPlayedCovers) ? (
+          {showCovers ? (
             <Cover
               cover={item.artwork}
               style={styles.image}
@@ -112,12 +115,7 @@ export function History({ route }: Props) {
           )}
         </View>
       ),
-    [
-      copyText,
-      isRequestHistory,
-      settings.lastRequestedCovers,
-      settings.lastPlayedCovers,
-    ],
+    [copyText, isRequestHistory, showCovers],
   );
 
   const listData = useMemo(

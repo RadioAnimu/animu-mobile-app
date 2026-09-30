@@ -55,7 +55,7 @@ const AlertContext = createContext<AlertContextProps>({
 export const AlertProvider: React.FC<{ children: ReactNode }> = ({
   children,
 }) => {
-  const [alert, setAlertState] = useState<Alert | null>(null);
+  const [alertState, setAlertState] = useState<Alert | null>(null);
   const [toastState, setToastState] = useState<ToastState | null>(null);
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -106,9 +106,9 @@ export const AlertProvider: React.FC<{ children: ReactNode }> = ({
 
   // Render the modal (PopUpStatus) directly within the provider.
   const haruka: ImageSource =
-    alert?.type === "success" ? HarukaSuccess : HarukaError;
+    alertState?.type === "success" ? HarukaSuccess : HarukaError;
 
-  const visible: boolean = alert !== null;
+  const visible: boolean = alertState !== null;
 
   const handleClose = () => {
     clearAlert();
@@ -165,7 +165,7 @@ export const AlertProvider: React.FC<{ children: ReactNode }> = ({
                 />
               </TouchableOpacity>
               <Image contentFit="contain" source={haruka} style={styles.img} />
-              <Text style={styles.text}>{alert?.message}</Text>
+              <Text style={styles.text}>{alertState?.message}</Text>
               <TouchableOpacity
                 accessibilityRole="button"
                 onPress={handleClose}

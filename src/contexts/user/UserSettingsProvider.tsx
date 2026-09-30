@@ -21,8 +21,8 @@ type UserSettingsContextType = {
 
 const UserSettingsContext = createContext<UserSettingsContextType>({
   settings: DEFAULT_USER_SETTINGS,
-  updateSettings: () => Promise.reject("Settings not initialized"),
-  resetSettings: () => Promise.reject("Settings not initialized"),
+  updateSettings: () => Promise.reject(new Error("Settings not initialized")),
+  resetSettings: () => Promise.reject(new Error("Settings not initialized")),
 });
 
 export const UserSettingsProvider: React.FC<{ children: React.ReactNode }> = ({

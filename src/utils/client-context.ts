@@ -19,35 +19,38 @@ import { setUserAgent } from "@/utils/player.config";
  * tests load in plain node.
  */
 
-const platform: ClientInfo["platform"] =
-  Platform.OS === "ios"
-    ? "ios"
-    : Platform.OS === "android"
-      ? "android"
-      : Platform.OS === "web"
-        ? "web"
-        : "other";
+function resolvePlatform(): ClientInfo["platform"] {
+  if (Platform.OS === "ios") return "ios";
+  if (Platform.OS === "android") return "android";
+  if (Platform.OS === "web") return "web";
+  return "other";
+}
+
+function resolveOsName(target: ClientInfo["platform"]): string {
+  if (target === "ios") return "iOS";
+  return target === "android" ? "Android" : "Web";
+}
+
+function resolveDeviceType(target: ClientInfo["platform"]): string {
+  if (Device.deviceType === Device.DeviceType.TABLET) return "tablet";
+  if (Device.deviceType === Device.DeviceType.PHONE) return "phone";
+  return target === "web" ? "web" : "unknown";
+}
+
+const platform = resolvePlatform();
 
 /**
  * `Device.osName` is unreliable on Android (some OEMs set it to a build
  * fingerprint), so the display name comes from `Platform.OS` and the version
  * from `Device.osVersion` (human-readable) with a `Platform.Version` fallback.
  */
-const os =
-  platform === "ios" ? "iOS" : platform === "android" ? "Android" : "Web";
+const os = resolveOsName(platform);
 const osVersion = String(Device.osVersion ?? Platform.Version ?? "");
 
 /** Friendly model ("iPhone 17 Pro Max", "moto g7"), with sane fallbacks. */
 const model = Device.modelName ?? Device.modelId ?? Device.brand ?? undefined;
 
-const deviceType =
-  Device.deviceType === Device.DeviceType.TABLET
-    ? "tablet"
-    : Device.deviceType === Device.DeviceType.PHONE
-      ? "phone"
-      : platform === "web"
-        ? "web"
-        : "unknown";
+const deviceType = resolveDeviceType(platform);
 
 const appVersion =
   Application.nativeApplicationVersion ?? Constants.expoConfig?.version ?? "0.0.0";

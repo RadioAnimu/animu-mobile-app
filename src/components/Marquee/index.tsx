@@ -54,6 +54,11 @@ type GroupApi = {
 
 const GroupContext = createContext<GroupApi | null>(null);
 
+/** The group's shared cycle when inside one, else this line's own. */
+function pickCycle(group: GroupApi | null, own: number | null): number | null {
+  return group ? group.cycle : own;
+}
+
 /**
  * Synchronizes sibling Marquees: lines of different lengths scroll at the
  * same speed and can finish at different times, but every pass starts at the
@@ -148,7 +153,7 @@ export const Marquee = React.memo(function Marquee({
   const { register, unregister, report } = group ?? {};
   const idRef = useRef<number | null>(null);
   useEffect(() => {
-    if (!register || !unregister) return;
+    if (!register || !unregister) return undefined;
     const id = register();
     idRef.current = id;
     return () => {
@@ -165,13 +170,13 @@ export const Marquee = React.memo(function Marquee({
   }, [report, overflows, passDuration]);
 
   // Length of one full cycle: shared with the group when inside one.
-  const cycle = group ? group.cycle : overflows ? passDuration + holdDelay : null;
+  const cycle = pickCycle(group, overflows ? passDuration + holdDelay : null);
 
   useEffect(() => {
     // Hidden app: stop scrolling entirely. Native-driven animations keep
     // running in the background (Android especially), burning CPU on a
     // marquee nobody can see.
-    if (!overflows || cycle === null || isBackgrounded) return;
+    if (!overflows || cycle === null || isBackgrounded) return undefined;
 
     // Manual chaining (like react-native-text-ticker's animateScroll):
     // Animated.loop with a native-driven sequence(delay, timing) runs the

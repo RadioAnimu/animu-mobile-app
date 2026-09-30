@@ -59,6 +59,207 @@ const AuthContext = createContext<AuthContextType | null>(null);
 const SESSION_CHECK_INTERVAL = 60000; // 1 minute
 const SESSION_CHECK_TASK_ID = "session-check";
 
+interface AuthBootstrapDeps {
+  userRef: React.RefObject<User | null>;
+  setUser: (user: User | null) => void;
+  setProviders: (providers: ProviderInfo[]) => void;
+  setImageVersion: React.Dispatch<React.SetStateAction<number>>;
+  clearSession: () => Promise<void>;
+  loadProfile: () => Promise<void>;
+  refreshEmails: () => Promise<void>;
+  startSessionCheck: () => void;
+}
+
+/**
+ * Server-side validation still gates a restored/resumed session: a bounce
+ * whose token the server does not recognize drops here instead of silently
+ * living until the next launch. Offline (any throw) keeps the cached
+ * session — the next periodic check re-validates.
+ */
+async function validateActiveSession({
+  clearSession,
+  loadProfile,
+  refreshEmails,
+  startSessionCheck,
+}: Pick<
+  AuthBootstrapDeps,
+  "clearSession" | "loadProfile" | "refreshEmails" | "startSessionCheck"
+>): Promise<void> {
+  try {
+    if (await authFacade.getSessionStatus()) {
+      startSessionCheck();
+      void loadProfile();
+      void refreshEmails();
+    } else {
+      await clearSession();
+    }
+  } catch {
+    // Offline: keep the cached session, the next check re-validates.
+    startSessionCheck();
+  }
+}
+
+async function runAuthBootstrap(
+  deps: AuthBootstrapDeps,
+  isCancelled: () => boolean,
+): Promise<void> {
+  try {
+    void authFacade.getProviders().then((list) => {
+      if (!isCancelled()) deps.setProviders(list);
+    });
+    const storedUser = await authFacade.restore();
+
+    // Cold-start recovery: if the OS killed the app during a server
+    // provider's browser flow, the `animuapp://redirect` bounce arrives as
+    // the launch URL. The facade only adopts it when a pending-flow
+    // marker proves the user started that flow (spoofed links and
+    // SDK intents are ignored), and it still falls back to the cached
+    // session otherwise.
+    const launchUrl = await Linking.getInitialURL().catch(() => null);
+    const resumedUser = await authFacade.resumeServerAuth(launchUrl);
+    const activeUser = resumedUser ?? storedUser;
+
+    if (isCancelled() || !activeUser) return;
+
+    deps.userRef.current = activeUser;
+    deps.setUser(activeUser);
+    if (resumedUser) {
+      // A fresh login can swap the account media: bust the image cache.
+      deps.setImageVersion((version) => version + 1);
+    }
+    await validateActiveSession(deps);
+  } catch (error) {
+    console.error("[AuthProvider] Initialization failed:", error);
+  }
+}
+
+/**
+ * Cold-start initialization: loads the provider list, restores the cached
+ * session, and recovers a session whose browser flow the OS killed.
+ */
+function useAuthBootstrap(deps: AuthBootstrapDeps): void {
+  const {
+    userRef,
+    setUser,
+    setProviders,
+    setImageVersion,
+    clearSession,
+    loadProfile,
+    refreshEmails,
+    startSessionCheck,
+  } = deps;
+
+  useEffect(() => {
+    // StrictMode/remount guard: a finished initialization must not set
+    // state on a discarded provider instance.
+    let cancelled = false;
+    void runAuthBootstrap(
+      {
+        userRef,
+        setUser,
+        setProviders,
+        setImageVersion,
+        clearSession,
+        loadProfile,
+        refreshEmails,
+        startSessionCheck,
+      },
+      () => cancelled,
+    );
+
+    return () => {
+      cancelled = true;
+      backgroundService.stopTask(SESSION_CHECK_TASK_ID);
+    };
+  }, [
+    userRef,
+    setUser,
+    setProviders,
+    setImageVersion,
+    clearSession,
+    loadProfile,
+    refreshEmails,
+    startSessionCheck,
+  ]);
+}
+
+interface AccountActionsDeps {
+  loadProfile: () => Promise<void>;
+  refreshEmails: () => Promise<void>;
+  setEmails: (emails: AuthAccountEmail[]) => void;
+  setImageVersion: React.Dispatch<React.SetStateAction<number>>;
+  setIsAuthenticating: (value: boolean) => void;
+}
+
+/** Provider linking and Animu Connect email management for the signed-in account. */
+function useAccountActions({
+  loadProfile,
+  refreshEmails,
+  setEmails,
+  setImageVersion,
+  setIsAuthenticating,
+}: AccountActionsDeps) {
+  const linkProvider = useCallback(
+    async (provider: string) => {
+      setIsAuthenticating(true);
+      try {
+        await authFacade.linkProvider(provider);
+        // Linking can change the identity source (and thus the avatar/banner).
+        setImageVersion((version) => version + 1);
+        await loadProfile();
+        // Linking auto-registers the provider's email on Animu Connect.
+        await refreshEmails();
+      } finally {
+        setIsAuthenticating(false);
+      }
+    },
+    [loadProfile, refreshEmails, setImageVersion, setIsAuthenticating],
+  );
+
+  const unlinkProvider = useCallback(
+    async (provider: string) => {
+      await authFacade.unlinkProvider(provider);
+      // Unlinking can change the identity source (and thus the avatar/banner).
+      setImageVersion((version) => version + 1);
+      await loadProfile();
+      // Unlinking drops the provider's auto-registered email.
+      await refreshEmails();
+    },
+    [loadProfile, refreshEmails, setImageVersion],
+  );
+
+  const requestAddEmail = useCallback(
+    (email: string) => authFacade.requestAddEmail(email),
+    [],
+  );
+
+  const verifyAddEmail = useCallback(
+    async (email: string, code: string) => {
+      const result = await authFacade.verifyAddEmail({ email, code });
+      setEmails(result.emails);
+      return result;
+    },
+    [setEmails],
+  );
+
+  const removeEmail = useCallback(
+    async (emailId: number) => {
+      const result = await authFacade.removeEmail(emailId);
+      setEmails(result.emails);
+      return result;
+    },
+    [setEmails],
+  );
+
+  return {
+    linkProvider,
+    unlinkProvider,
+    requestAddEmail,
+    verifyAddEmail,
+    removeEmail,
+  };
+}
+
 /**
  * Owns all auth state and side effects. Kept separate from the provider so the
  * component stays a thin shell and this logic is testable in isolation.
@@ -177,64 +378,16 @@ function useAuthProviderValue(): AuthContextType {
     }
   }, [clearSession]);
 
-  useEffect(() => {
-    // StrictMode/remount guard: a finished initialization must not set
-    // state on a discarded provider instance.
-    let cancelled = false;
-    const initializeAuth = async () => {
-      try {
-        void authFacade.getProviders().then((list) => {
-          if (!cancelled) setProviders(list);
-        });
-        const storedUser = await authFacade.restore();
-
-        // Cold-start recovery: if the OS killed the app during a server
-        // provider's browser flow, the `animuapp://redirect` bounce arrives as
-        // the launch URL. The facade only adopts it when a pending-flow
-        // marker proves the user started that flow (spoofed links and
-        // SDK intents are ignored), and it still falls back to the cached
-        // session otherwise.
-        const launchUrl = await Linking.getInitialURL().catch(() => null);
-        const resumedUser = await authFacade.resumeServerAuth(launchUrl);
-        const activeUser = resumedUser ?? storedUser;
-
-        if (cancelled) return;
-
-        if (activeUser) {
-          userRef.current = activeUser;
-          if (!cancelled) setUser(activeUser);
-          if (resumedUser) {
-            // A fresh login can swap the account media: bust the image cache.
-            setImageVersion((version) => version + 1);
-          }
-          // Server-side validation still gates the session: a bounce whose
-          // token the server does not recognize drops here instead of
-          // silently living until the next launch.
-          try {
-            if (await authFacade.getSessionStatus()) {
-              startSessionCheck();
-              void loadProfile();
-              void refreshEmails();
-            } else {
-              await clearSession();
-            }
-          } catch {
-            // Offline: keep the cached session, the next check re-validates.
-            startSessionCheck();
-          }
-        }
-      } catch (error) {
-        console.error("[AuthProvider] Initialization failed:", error);
-      }
-    };
-
-    initializeAuth();
-
-    return () => {
-      cancelled = true;
-      backgroundService.stopTask(SESSION_CHECK_TASK_ID);
-    };
-  }, [clearSession, loadProfile, refreshEmails, startSessionCheck]);
+  useAuthBootstrap({
+    userRef,
+    setUser,
+    setProviders,
+    setImageVersion,
+    clearSession,
+    loadProfile,
+    refreshEmails,
+    startSessionCheck,
+  });
 
   const loginWithProvider = useCallback(
     async (provider: string) => {
@@ -265,57 +418,19 @@ function useAuthProviderValue(): AuthContextType {
     [adoptUser],
   );
 
-  const linkProvider = useCallback(
-    async (provider: string) => {
-      setIsAuthenticating(true);
-      try {
-        await authFacade.linkProvider(provider);
-        // Linking can change the identity source (and thus the avatar/banner).
-        setImageVersion((version) => version + 1);
-        await loadProfile();
-        // Linking auto-registers the provider's email on Animu Connect.
-        await refreshEmails();
-      } finally {
-        setIsAuthenticating(false);
-      }
-    },
-    [loadProfile, refreshEmails],
-  );
-
-  const unlinkProvider = useCallback(
-    async (provider: string) => {
-      await authFacade.unlinkProvider(provider);
-      // Unlinking can change the identity source (and thus the avatar/banner).
-      setImageVersion((version) => version + 1);
-      await loadProfile();
-      // Unlinking drops the provider's auto-registered email.
-      await refreshEmails();
-    },
-    [loadProfile, refreshEmails],
-  );
-
-  const requestAddEmail = useCallback(
-    (email: string) => authFacade.requestAddEmail(email),
-    [],
-  );
-
-  const verifyAddEmail = useCallback(
-    async (email: string, code: string) => {
-      const result = await authFacade.verifyAddEmail({ email, code });
-      setEmails(result.emails);
-      return result;
-    },
-    [],
-  );
-
-  const removeEmail = useCallback(
-    async (emailId: number) => {
-      const result = await authFacade.removeEmail(emailId);
-      setEmails(result.emails);
-      return result;
-    },
-    [],
-  );
+  const {
+    linkProvider,
+    unlinkProvider,
+    requestAddEmail,
+    verifyAddEmail,
+    removeEmail,
+  } = useAccountActions({
+    loadProfile,
+    refreshEmails,
+    setEmails,
+    setImageVersion,
+    setIsAuthenticating,
+  });
 
   return useMemo<AuthContextType>(
     () => ({

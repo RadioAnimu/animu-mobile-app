@@ -26,6 +26,17 @@ const NATIVE_POSITION_PUSH_EVERY_TICKS = 3;
  */
 const MAX_BOUNDARY_CARRY_MS = 2_000;
 
+/** The track's nominal end (start + duration) has passed on the audible clock. */
+const isPastEnd = (
+  start: number | undefined,
+  duration: number,
+  audibleNow: number,
+): boolean =>
+  duration > 0 &&
+  start != null &&
+  Number.isFinite(start) &&
+  audibleNow >= start + duration;
+
 export interface ProgressTickerOptions {
   repository: NowPlayingRepository;
   state: TransportStateMachine;
@@ -116,47 +127,16 @@ export class ProgressTicker {
       showProgress &&
       !pending &&
       elapsedMs == null &&
-      duration > 0 &&
-      start != null &&
-      Number.isFinite(start) &&
-      audibleNow >= start + duration;
-    // The announced track is still buffered — the previous one is what the
-    // speaker is finishing. Carry its bar forward in real time instead of
-    // snapping to 0: the package helper collapses "not started" and "ended"
-    // to null, and clearing would blank the seek bar after every song change.
-    let elapsed = elapsedMs;
-    if (pending) {
-      if (this.lastElapsedMs != null) {
-        const carry = Math.min(
-          MAX_BOUNDARY_CARRY_MS,
-          Math.max(0, audibleNow - this.lastAudibleNow),
-        );
-        elapsed = this.lastElapsedMs + carry;
-      } else {
-        // Cold start mid-change: no previous track to carry.
-        elapsed = 0;
-      }
-      this.lastElapsedMs = elapsed;
-    } else if (ended) {
-      elapsed = duration;
-      this.lastElapsedMs = elapsed;
-    } else {
-      this.lastElapsedMs = elapsedMs;
-    }
+      isPastEnd(start, duration, audibleNow);
+    const elapsed = this.resolveElapsed({
+      elapsedMs,
+      pending,
+      ended,
+      duration,
+      audibleNow,
+    });
     this.lastAudibleNow = audibleNow;
-    const prev = progressStore.getSnapshot();
-
-    // Only emit if the value actually changed (avoids 1/sec React re-render)
-    if (
-      this.uiVisible &&
-      (prev.currentTrackProgress !== elapsed ||
-        prev.showProgress !== showProgress)
-    ) {
-      progressStore.setSnapshot({
-        currentTrackProgress: elapsed,
-        showProgress,
-      });
-    }
+    this.publishProgress(elapsed, showProgress);
 
     // Only a track with no usable duration clears the bar; a real ended track
     // is held full above so the bar completes instead of blanking.
@@ -169,6 +149,65 @@ export class ProgressTicker {
     if (this.ticks < NATIVE_POSITION_PUSH_EVERY_TICKS) return;
     this.ticks = 0;
 
+    this.pushToMediaSession(elapsed, showProgress);
+  }
+
+  /**
+   * The announced track is still buffered — the previous one is what the
+   * speaker is finishing. Carry its bar forward in real time instead of
+   * snapping to 0: the package helper collapses "not started" and "ended"
+   * to null, and clearing would blank the seek bar after every song change.
+   */
+  private resolveElapsed(input: {
+    elapsedMs: number | null;
+    pending: boolean;
+    ended: boolean;
+    duration: number;
+    audibleNow: number;
+  }): number | null {
+    const { elapsedMs, pending, ended, duration, audibleNow } = input;
+    let elapsed: number | null;
+    if (pending) {
+      // Cold start mid-change (no previous track): nothing to carry.
+      elapsed =
+        this.lastElapsedMs == null
+          ? 0
+          : this.lastElapsedMs +
+            Math.min(
+              MAX_BOUNDARY_CARRY_MS,
+              Math.max(0, audibleNow - this.lastAudibleNow),
+            );
+    } else if (ended) {
+      elapsed = duration;
+    } else {
+      elapsed = elapsedMs;
+    }
+    this.lastElapsedMs = elapsed;
+    return elapsed;
+  }
+
+  /** Only emits when the value actually changed (avoids a 1/sec React re-render). */
+  private publishProgress(
+    elapsed: number | null,
+    showProgress: boolean,
+  ): void {
+    if (!this.uiVisible) return;
+    const prev = progressStore.getSnapshot();
+    if (
+      prev.currentTrackProgress !== elapsed ||
+      prev.showProgress !== showProgress
+    ) {
+      progressStore.setSnapshot({
+        currentTrackProgress: elapsed,
+        showProgress,
+      });
+    }
+  }
+
+  private pushToMediaSession(
+    elapsed: number | null,
+    showProgress: boolean,
+  ): void {
     const { audio, media } = this.options;
     if (!media.isActive || !audio.hasPlayer) return;
 

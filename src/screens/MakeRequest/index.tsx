@@ -1,5 +1,10 @@
 import MaterialIcons from "@react-native-vector-icons/material-icons/static";
-import { useCallback, useRef, useState } from "react";
+import {
+  useCallback,
+  useRef,
+  useState,
+  type ComponentProps,
+} from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -95,7 +100,7 @@ function SearchBar({
           enablesReturnKeyAutomatically
           // Enter runs the search and drops the keyboard out of the way so
           // the results are visible immediately.
-          blurOnSubmit
+          submitBehavior="blurAndSubmit"
         />
         {hasQuery ? (
           <TouchableOpacity
@@ -152,6 +157,29 @@ function SearchErrorBanner({
         <Text style={styles.retryText}>{dict.ERROR_RETRY}</Text>
       </TouchableOpacity>
     </View>
+  );
+}
+
+/** What fills the list area: recent searches, a spinner, or the results. */
+function SearchBody({
+  showRecent,
+  loading,
+  onRequestTrack,
+  recentProps,
+  resultsProps,
+}: Readonly<{
+  showRecent: boolean;
+  loading: boolean;
+  onRequestTrack: (track: MusicRequest) => void;
+  recentProps: ComponentProps<typeof RecentSearches>;
+  resultsProps: ComponentProps<typeof ResultsList>;
+}>) {
+  if (showRecent) return <RecentSearches {...recentProps} />;
+  if (loading) return <ActivityIndicator color={THEME.COLORS.TEXT} />;
+  return (
+    <TrackRequestContext.Provider value={onRequestTrack}>
+      <ResultsList {...resultsProps} />
+    </TrackRequestContext.Provider>
   );
 }
 
@@ -379,6 +407,9 @@ export function MakeRequest() {
     [],
   );
 
+  const showRecent =
+    searchFocused && searchState.query === "" && recent.length > 0;
+
   return (      <SafeAreaView style={styles.container} edges={["left", "right", "bottom"]}>
         <HeaderBar />
         <View style={styles.appContainer}>
@@ -410,35 +441,32 @@ export function MakeRequest() {
           )}
 
           <View style={styles.listWrapper}>
-            {searchFocused && searchState.query === "" && recent.length > 0 ? (
-              <RecentSearches
-                dict={dict}
-                items={recent}
-                onPick={handlePickRecent}
-                onClear={clearRecent}
-              />
-            ) : searchState.status === "loading" ? (
-              <ActivityIndicator color={THEME.COLORS.TEXT} />
-            ) : (
-              <TrackRequestContext.Provider value={handleRequestTrack}>
-                <ResultsList
-                  listRef={listRef}
-                  data={searchState.results}
-                  renderItem={renderRequestTrack}
-                  showEmpty={
-                    hasSearched &&
-                    !searchFailed &&
-                    searchState.status === "idle" &&
-                    searchState.query.trim().length >= MIN_SEARCH_LENGTH
-                  }
-                  emptyLabel={dict.REQUEST_SEARCH_EMPTY}
-                  refreshing={refreshing}
-                  onRefresh={handleRefresh}
-                  loadingMore={searchState.status === "loadingMore"}
-                  onEndReached={handleLoadMore}
-                />
-              </TrackRequestContext.Provider>
-            )}
+            <SearchBody
+              showRecent={showRecent}
+              loading={searchState.status === "loading"}
+              onRequestTrack={handleRequestTrack}
+              recentProps={{
+                dict,
+                items: recent,
+                onPick: handlePickRecent,
+                onClear: clearRecent,
+              }}
+              resultsProps={{
+                listRef,
+                data: searchState.results,
+                renderItem: renderRequestTrack,
+                showEmpty:
+                  hasSearched &&
+                  !searchFailed &&
+                  searchState.status === "idle" &&
+                  searchState.query.trim().length >= MIN_SEARCH_LENGTH,
+                emptyLabel: dict.REQUEST_SEARCH_EMPTY,
+                refreshing,
+                onRefresh: handleRefresh,
+                loadingMore: searchState.status === "loadingMore",
+                onEndReached: handleLoadMore,
+              }}
+            />
           </View>
         </View>
 

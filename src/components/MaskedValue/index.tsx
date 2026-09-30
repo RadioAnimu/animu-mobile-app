@@ -47,7 +47,7 @@ export function MaskedValue({
   }, [motion, revealed]);
 
   useEffect(() => {
-    if (!revealed) return;
+    if (!revealed) return undefined;
     const timer = setTimeout(() => {
       setRevealed(false);
     }, AUTO_HIDE_MS);

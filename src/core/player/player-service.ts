@@ -480,6 +480,8 @@ export class PlayerService {
         this.reconcile("connecting");
         this.deps.reconnect.reset();
         void this.attemptReconnect();
+      } else {
+        // Healthy (playing with a recent frame) or no audio wanted: nothing to repair.
       }
       // Re-arm the detector from NOW: the next real native frame re-syncs.
       this.lastStatusAt = Date.now();
@@ -497,13 +499,17 @@ export class PlayerService {
    * the native session setup.
    */
   async setupPlayer(): Promise<void> {
-    if (this.setupPromise) return this.setupPromise;
+    if (this.setupPromise) {
+      await this.setupPromise;
+      return;
+    }
     if (this.initialized) return;
 
-    this.setupPromise = this.runSetup().finally(() => {
+    const setup = this.runSetup().finally(() => {
       this.setupPromise = null;
     });
-    return this.setupPromise;
+    this.setupPromise = setup;
+    await setup;
   }
 
   private async runSetup(): Promise<void> {
@@ -932,20 +938,20 @@ export class PlayerService {
       this.deps.audible.track,
       this.deps.sync.now(),
     );
+    let positionSec: number | undefined;
+    // Until the estimate settles the progress is a wall-clock guess —
+    // withhold it (and, via `nowPlayingInput`, the seek bar) so the lock
+    // screen does not show an unsynced position.
+    if (this.deps.sync.settled) {
+      // A freshly-announced track that is still buffered reports position 0:
+      // the speaker is finishing the previous one and the OS seek bar must
+      // not jump to the live point.
+      positionSec = pending ? 0 : toSec(elapsedMs);
+    }
     this.deps.media.push(
       this.getNowPlayingMetadata(),
       this.deps.state.remoteStatus,
-      // Until the estimate settles the progress is a wall-clock guess —
-      // withhold it (and, via `nowPlayingInput`, the seek bar) so the lock
-      // screen does not show an unsynced position.
-      !this.deps.sync.settled
-        ? undefined
-        : // A freshly-announced track that is still buffered reports position 0:
-          // the speaker is finishing the previous one and the OS seek bar must
-          // not jump to the live point.
-          pending
-          ? 0
-          : toSec(elapsedMs),
+      positionSec,
     );
   }
 
@@ -1052,10 +1058,12 @@ export class PlayerService {
       this.deps.stats?.onPlaybackStarted();
     } else if (next === "paused" || next === "idle") {
       this.deps.stats?.onPlaybackStopped();
+    } else {
+      // connecting/reconnecting hops do not touch the stats session.
     }
     // Arm/disarm the "connecting" watchdog on the effective state.
     if (this.deps.state.state === "connecting") {
-      if (this.connectingSince == null) this.connectingSince = Date.now();
+      this.connectingSince ??= Date.now();
     } else {
       this.connectingSince = null;
       this.connectingWindows = 0;
@@ -1619,8 +1627,6 @@ const resetPlayerServiceSingleton = (): void => {
 
 /** App-wide singleton — recreated after `destroy()` (e.g. remounts). */
 export const playerService = (): PlayerService => {
-  if (!playerServiceInstance) {
-    playerServiceInstance = createPlayerService();
-  }
+  playerServiceInstance ??= createPlayerService();
   return playerServiceInstance;
 };

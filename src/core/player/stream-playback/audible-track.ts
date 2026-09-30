@@ -37,9 +37,11 @@ export interface AudibleTrackDeps {
 }
 
 /** Same on-air item, by the identity the repository diffs on. */
-const sameTrack = (a: Track | null, b: Track | null): boolean =>
-  a === b ||
-  (a != null && b != null && a.raw === b.raw && a.artwork === b.artwork);
+const sameTrack = (a: Track | null, b: Track | null): boolean => {
+  if (a === b) return true;
+  if (a == null || b == null) return false;
+  return a.raw === b.raw && a.artwork === b.artwork;
+};
 
 /**
  * Delays the now-playing display to the moment the listener actually hears
@@ -149,37 +151,12 @@ export class AudibleTrackResolver {
   reconcile(force = false): boolean {
     const station = this.deps.getStationTrack();
 
-    if (!station) {
-      const had = this.displayedValue != null;
-      this.displayedValue = null;
-      this.previousValue = null;
-      this.pending = null;
-      this.cancel();
-      this.reacquire = false;
-      return had;
-    }
+    if (!station) return this.clearDisplay();
 
     let changed = false;
 
-    // A re-tune reset the clock. Until the new relay's lag is measured, hold
-    // whatever is on screen (its wall-clock fallback would otherwise make a
-    // just-announced item look audible when the new relay is still behind).
     if (this.reacquire) {
-      if (!this.deps.sync.hasMeasurement && this.displayedValue != null) {
-        if (this.wallNow() - this.reacquireSinceMs > REACQUIRE_MAX_MS) {
-          this.reacquire = false;
-        } else {
-          if (!sameTrack(this.pending, station)) {
-            this.pendingSinceMs = this.wallNow();
-          }
-          this.pending = station;
-          // No timer: the native frames / heartbeat drive `adoptIfDue`.
-          this.cancel();
-          return false;
-        }
-      } else {
-        this.reacquire = false;
-      }
+      if (this.holdForReacquire(station)) return false;
       // The measurement landed (or nothing was on screen): if the new relay
       // landed *behind* the station timeline, the newer item on screen is
       // still in the future — revert to the one actually playing.
@@ -199,8 +176,7 @@ export class AudibleTrackResolver {
     // Announced ahead of the speaker, with something already on screen:
     // keep the previous track until the new one is heard.
     if (buffering && this.displayedValue != null) {
-      if (!sameTrack(this.pending, station)) this.pendingSinceMs = this.wallNow();
-      this.pending = station;
+      this.markPending(station);
       this.schedule(start! - this.deps.sync.now());
       return changed;
     }
@@ -212,6 +188,42 @@ export class AudibleTrackResolver {
     this.previousValue = this.displayedValue;
     this.displayedValue = station;
     return true;
+  }
+
+  /** The station has no current item: drops everything. Returns whether a track was on screen. */
+  private clearDisplay(): boolean {
+    const had = this.displayedValue != null;
+    this.displayedValue = null;
+    this.previousValue = null;
+    this.pending = null;
+    this.cancel();
+    this.reacquire = false;
+    return had;
+  }
+
+  /** Holds `station` as the pending item, anchoring the cap to its first sighting. */
+  private markPending(station: Track): void {
+    if (!sameTrack(this.pending, station)) this.pendingSinceMs = this.wallNow();
+    this.pending = station;
+  }
+
+  /**
+   * A re-tune reset the clock. Until the new relay's lag is measured, hold
+   * whatever is on screen (its wall-clock fallback would otherwise make a
+   * just-announced item look audible when the new relay is still behind).
+   * Returns true when the display is held; false once the hold is released
+   * (measurement landed, nothing on screen, or the safety cap elapsed).
+   */
+  private holdForReacquire(station: Track): boolean {
+    const waiting = !this.deps.sync.hasMeasurement && this.displayedValue != null;
+    if (waiting && this.wallNow() - this.reacquireSinceMs <= REACQUIRE_MAX_MS) {
+      this.markPending(station);
+      // No timer: the native frames / heartbeat drive `adoptIfDue`.
+      this.cancel();
+      return true;
+    }
+    this.reacquire = false;
+    return false;
   }
 
   /**

@@ -27,7 +27,9 @@ export function useBoundedRetry(
   }, [key]);
 
   useEffect(() => {
-    if (!state.failed || state.retry >= maxRetries) return;
+    if (!state.failed || state.retry >= maxRetries) {
+      return undefined;
+    }
     const timer = setTimeout(() => {
       setState((prev) => ({ ...prev, failed: false, retry: prev.retry + 1 }));
     }, delayMs);

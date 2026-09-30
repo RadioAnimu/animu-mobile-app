@@ -29,7 +29,7 @@ export const hexLuminance = (hex: string): number => {
       ? match[1].split("").map((c) => c + c)
       : [match[1].slice(0, 2), match[1].slice(2, 4), match[1].slice(4, 6)];
   const [r, g, b] = parts.map((c) => {
-    const v = parseInt(c, 16) / 255;
+    const v = Number.parseInt(c, 16) / 255;
     // Linearize per WCAG.
     return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
   });

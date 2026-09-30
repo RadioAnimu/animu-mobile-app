@@ -225,6 +225,8 @@ export class StreamSyncEngine {
       this.delayChangedAtMs = now;
     } else if (Math.abs(this.delayMs - previousDelay) >= SETTLE_EPSILON_MS) {
       this.delayChangedAtMs = now;
+    } else {
+      // Delay moved less than the settle epsilon: it stays "settled".
     }
     this.lastMeasuredAtMs = now;
   }

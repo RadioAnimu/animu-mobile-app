@@ -19,10 +19,10 @@ type Task = {
  * layer owns playback reliability (see `PlayerProvider` for the gates).
  */
 class BackgroundService {
-  private tasks: Map<string, Task> = new Map();
-  private timeouts: Map<string, NodeJS.Timeout> = new Map();
+  private readonly tasks: Map<string, Task> = new Map();
+  private readonly timeouts: Map<string, NodeJS.Timeout> = new Map();
   /** Ids whose callback is currently running (overlap + re-arm guard). */
-  private running: Set<string> = new Set();
+  private readonly running: Set<string> = new Set();
 
   startTask(task: Task): void {
     // Restart cleanly if the task is already running (e.g. effect re-runs,
@@ -51,7 +51,7 @@ class BackgroundService {
     if (process.env.NODE_ENV !== "production") {
       console.info("[BackgroundService] Stopping all tasks");
     }
-    for (const taskId of [...this.tasks.keys()]) {
+    for (const taskId of this.tasks.keys()) {
       this.stopTask(taskId);
     }
   }

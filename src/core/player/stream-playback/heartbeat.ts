@@ -113,17 +113,22 @@ export class HeartbeatScheduler {
     }
 
     this.beatsSincePoll++;
-    const cadence = this.options.isPlayingIntent()
-      ? this.uiVisible
-        ? PLAY_BEATS_PER_POLL
-        : BACKGROUND_PLAY_BEATS_PER_POLL
-      : this.uiVisible
-        ? PAUSED_BEATS_PER_POLL
-        : BACKGROUND_PAUSED_BEATS_PER_POLL;
-    if (this.beatsSincePoll >= cadence) {
+    if (this.beatsSincePoll >= this.pollCadence()) {
       this.beatsSincePoll = 0;
       this.onPoll();
     }
+  }
+
+  /** Beats between polls: fastest while playing in the foreground. */
+  private pollCadence(): number {
+    if (this.options.isPlayingIntent()) {
+      return this.uiVisible
+        ? PLAY_BEATS_PER_POLL
+        : BACKGROUND_PLAY_BEATS_PER_POLL;
+    }
+    return this.uiVisible
+      ? PAUSED_BEATS_PER_POLL
+      : BACKGROUND_PAUSED_BEATS_PER_POLL;
   }
 
   /**

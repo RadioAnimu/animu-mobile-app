@@ -160,7 +160,7 @@ export class AuthFacade {
    * overwrite the user's session with the attacker's.
    */
   async resumeServerAuth(url: string | null | undefined): Promise<User | null> {
-    if (!url || !url.startsWith("animuapp://redirect")) return null;
+    if (!url?.startsWith("animuapp://redirect")) return null;
     if (!(await this.store.takeServerAuthPending())) return null;
     return this.adoptMobileCallback(url);
   }

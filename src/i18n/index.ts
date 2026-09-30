@@ -1,4 +1,3 @@
-import { LANGUAGE_LABELS } from "@/constants/languages";
 import { DICT as DICT_EN, IMGS as IMGS_EN } from "@/i18n/language.en";
 import { DICT as DICT_ES, IMGS as IMGS_ES } from "@/i18n/language.es";
 import { DICT as DICT_JP, IMGS as IMGS_JP } from "@/i18n/language.jn";
@@ -18,7 +17,7 @@ export const IMGS = {
   JN: IMGS_JP,
 };
 
-export const LANGS_KEY_VALUE_PAIRS = LANGUAGE_LABELS;
+export { LANGUAGE_LABELS as LANGS_KEY_VALUE_PAIRS } from "@/constants/languages";
 
 export type LanguageKey = keyof typeof DICT;
 

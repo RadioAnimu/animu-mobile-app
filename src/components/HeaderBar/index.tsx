@@ -130,7 +130,7 @@ export function HeaderBar({ openLiveRequestModal }: Props) {
     // screen (and while backgrounded).
     if (!showLiveBadge || isBackgrounded) {
       animation.setValue(0);
-      return;
+      return undefined;
     }
 
     const loop = Animated.loop(
@@ -239,14 +239,11 @@ export function HeaderBar({ openLiveRequestModal }: Props) {
             accessibilityLabel={dict.A11Y_MAKE_REQUEST}
             hitSlop={ICON_HIT_SLOP}
             onPress={() => {
-              if (
-                currentProgram?.isLive &&
-                currentProgram?.acceptingRequests &&
-                openLiveRequestModal
-              ) {
-                openLiveRequestModal();
-                return;
-              } else if (currentProgram?.isLive) {
+              if (currentProgram?.isLive) {
+                // Live: requests go through the modal, or nowhere while closed.
+                if (currentProgram.acceptingRequests && openLiveRequestModal) {
+                  openLiveRequestModal();
+                }
                 return;
               }
               navigation.navigate("MakeRequest");
