@@ -30,16 +30,16 @@ pipeline {
   agent none
 
   parameters {
-    string(name: 'VERSION', defaultValue: '', description: 'Marketing version (e.g. 3.0.1). Leave blank to use app.json (or to let BUMP set it).')
-    string(name: 'VERSION_CODE', defaultValue: '', description: 'Android versionCode (e.g. 16). Leave blank to use app.json (or to let BUMP set it).')
-    string(name: 'TAG', defaultValue: '', description: 'Git/release tag (e.g. v3.0.1). Leave blank to derive "v<VERSION>".')
-    choice(name: 'BUMP', choices: ['none', 'versionCode', 'patch', 'minor', 'major'], description: 'Auto-increment app.json before building. patch/minor/major also increment versionCode.')
-    booleanParam(name: 'COMMIT_BUMP', defaultValue: false, description: 'Commit the bumped app.json back to the branch (only used when BUMP is not none).')
-    booleanParam(name: 'CREATE_GITHUB_RELEASE', defaultValue: false, description: 'Create the GitHub release and upload the signed artifacts.')
-    booleanParam(name: 'DRAFT', defaultValue: true, description: 'Create the GitHub release as a draft (only used when CREATE_GITHUB_RELEASE is true).')
-    booleanParam(name: 'PRERELEASE', defaultValue: false, description: 'Mark the GitHub release as a pre-release (only used when CREATE_GITHUB_RELEASE is true).')
-    booleanParam(name: 'TRUST_CI', defaultValue: true, description: 'Skip the pre-release checks when the CI job has a passing build for this exact commit.')
-    string(name: 'CI_JOB_NAME', defaultValue: 'Animu/animu-mobile-app', description: 'Jenkins CI job path (folder/job) whose passing build satisfies the pre-release gate.')
+    string(name: 'VERSION', defaultValue: '', description: 'Exact marketing version, e.g. 3.0.1. Overrides whatever BUMP would produce. Blank = use app.json (or BUMP).')
+    string(name: 'VERSION_CODE', defaultValue: '', description: 'Exact Android versionCode, e.g. 16. Overrides whatever BUMP would produce. Blank = use app.json (or BUMP).')
+    string(name: 'TAG', defaultValue: '', description: 'Release/git tag, e.g. v3.0.1. Blank = "v" + the resolved VERSION.')
+    choice(name: 'BUMP', choices: ['none', 'versionCode', 'patch', 'minor', 'major'], description: 'Change the version before building. none = build app.json exactly as-is (no version change). versionCode = versionCode +1, version unchanged. patch = x.y.Z+1 and versionCode +1. minor = x.Y+1.0 and versionCode +1. major = X+1.0.0 and versionCode +1. (VERSION/VERSION_CODE, if set, override the result.)')
+    booleanParam(name: 'COMMIT_BUMP', defaultValue: false, description: 'Commit the bumped app.json back to main so the version is not lost. Only used when BUMP is not none.')
+    booleanParam(name: 'CREATE_GITHUB_RELEASE', defaultValue: false, description: 'Create the GitHub release for TAG and upload the .aab/.apk + checksums. Off = only build and archive the artifacts, no release.')
+    booleanParam(name: 'DRAFT', defaultValue: true, description: 'Create the GitHub release as a draft (not public until you publish it). Only used when CREATE_GITHUB_RELEASE is on.')
+    booleanParam(name: 'PRERELEASE', defaultValue: false, description: 'Mark the GitHub release as a pre-release. Only used when CREATE_GITHUB_RELEASE is on.')
+    booleanParam(name: 'TRUST_CI', defaultValue: true, description: 'If the CI job has a green build for this exact commit, skip the pre-release checks. Off = always re-run typecheck/lint/tests.')
+    string(name: 'CI_JOB_NAME', defaultValue: 'Animu/animu-mobile-app', description: 'Which CI job TRUST_CI trusts, as folder/job. Must be a job that runs on pushes to main.')
   }
 
   options {
