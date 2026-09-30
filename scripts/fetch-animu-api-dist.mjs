@@ -69,26 +69,26 @@ try {
   const res = await fetch(url, { headers: { Authorization: auth } });
   if (!res.ok) throw new Error(`artifact HTTP ${res.status}`);
 
-  const tmp = path.join(path.dirname(distDir), `.animu-api-dist.${process.pid}.tar.gz`);
   const body = Buffer.from(await res.arrayBuffer());
   if (body.byteLength > MAX_ARTIFACT_BYTES) {
     throw new Error(`artifact too large: ${body.byteLength} bytes`);
   }
-  // "wx": never overwrite or follow a pre-planted file; 0600: owner-only.
-  fs.writeFileSync(tmp, body, { flag: "wx", mode: 0o600 });
+
+  // The archive is piped to tar over stdin (no temp file on disk). Entries are
+  // validated first: absolute or escaping paths are refused, and ownership is
+  // never restored.
+  const entries = execFileSync("tar", ["-tzf", "-"], { input: body, encoding: "utf8" })
+    .split("\n")
+    .filter(Boolean);
+  const unsafe = entries.find((e) => path.isAbsolute(e) || e.split("/").includes(".."));
+  if (unsafe) throw new Error(`refusing archive with unsafe entry: ${unsafe}`);
 
   fs.rmSync(distDir, { recursive: true, force: true });
   fs.mkdirSync(path.dirname(distDir), { recursive: true });
-  // The archive comes from a CI artifact: refuse absolute or escaping entries
-  // before extracting, and never restore foreign ownership.
-  const entries = execFileSync("tar", ["-tzf", tmp], { encoding: "utf8" }).split("\n").filter(Boolean);
-  const unsafe = entries.find((e) => path.isAbsolute(e) || e.split("/").includes(".."));
-  if (unsafe) {
-    fs.rmSync(tmp, { force: true });
-    throw new Error(`refusing archive with unsafe entry: ${unsafe}`);
-  }
-  execFileSync("tar", ["-xzf", tmp, "--no-same-owner", "-C", path.dirname(distDir)], { stdio: "inherit" });
-  fs.rmSync(tmp, { force: true });
+  execFileSync("tar", ["-xzf", "-", "--no-same-owner", "-C", path.dirname(distDir)], {
+    input: body,
+    stdio: ["pipe", "inherit", "inherit"],
+  });
 
   if (!fs.existsSync(path.join(distDir, "esm", "index.js"))) {
     log("extracted archive is missing esm/index.js");
