@@ -21,19 +21,11 @@ const SONARJS_DISABLED = new Set([
   "sonarjs/no-inverted-boolean-check", // intentional `!(a > b)` NaN guards
   "sonarjs/no-reference-error", // type-only React/NodeJS references
   "sonarjs/super-linear-regex", // false positive on a linear regex
-]);
-
-// Rules cleaned up across the codebase and now enforced as errors (regressions
-// fail CI). Promote more here as the remaining warnings are worked down.
-const SONARJS_ERROR = new Set([
-  "sonarjs/array-constructor",
-  "sonarjs/destructuring-assignment-syntax",
-  "sonarjs/no-nested-incdec",
-  "sonarjs/no-nested-template-literals",
-  "sonarjs/no-undefined-assignment",
-  "sonarjs/no-unused-function-argument",
-  "sonarjs/redundant-type-aliases",
-  "sonarjs/variable-name",
+  // Metrics that duplicate cognitive-complexity (kept as an error) without
+  // measuring readability: a flat validation/switch function is cheap to read
+  // but scores high; union size is a style count on string-literal unions.
+  "sonarjs/cyclomatic-complexity",
+  "sonarjs/max-union-size",
 ]);
 
 module.exports = defineConfig([
@@ -79,9 +71,8 @@ module.exports = defineConfig([
   {
     // SonarJS — the same rule family SonarQube's "Code Smells" come from, run
     // locally and in CI with no server. Applied to production code only (tests
-    // are excluded: their style is not a maintainability signal). Most rules
-    // are warnings so the remaining backlog surfaces without failing the build;
-    // the rules in SONARJS_ERROR are enforced.
+    // are excluded: their style is not a maintainability signal). Every rule
+    // not listed in SONARJS_DISABLED is an error, so regressions fail CI.
     files: ["src/**/*.{ts,tsx}", "App.tsx", "index.js"],
     ignores: [
       "src/**/__tests__/**",
@@ -92,11 +83,7 @@ module.exports = defineConfig([
     rules: Object.fromEntries(
       Object.entries(sonarjs.configs.recommended.rules).map(([rule]) => [
         rule,
-        SONARJS_DISABLED.has(rule)
-          ? "off"
-          : SONARJS_ERROR.has(rule)
-            ? "error"
-            : "warn",
+        SONARJS_DISABLED.has(rule) ? "off" : "error",
       ]),
     ),
   },

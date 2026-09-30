@@ -73,7 +73,15 @@ try {
 
   fs.rmSync(distDir, { recursive: true, force: true });
   fs.mkdirSync(path.dirname(distDir), { recursive: true });
-  execFileSync("tar", ["-xzf", tmp, "-C", path.dirname(distDir)], { stdio: "inherit" });
+  // The archive comes from a CI artifact: refuse absolute or escaping entries
+  // before extracting, and never restore foreign ownership.
+  const entries = execFileSync("tar", ["-tzf", tmp], { encoding: "utf8" }).split("\n").filter(Boolean);
+  const unsafe = entries.find((e) => path.isAbsolute(e) || e.split("/").includes(".."));
+  if (unsafe) {
+    fs.rmSync(tmp, { force: true });
+    throw new Error(`refusing archive with unsafe entry: ${unsafe}`);
+  }
+  execFileSync("tar", ["-xzf", tmp, "--no-same-owner", "-C", path.dirname(distDir)], { stdio: "inherit" });
   fs.rmSync(tmp, { force: true });
 
   if (!fs.existsSync(path.join(distDir, "esm", "index.js"))) {

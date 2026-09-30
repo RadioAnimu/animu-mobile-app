@@ -11,6 +11,11 @@ export default defineConfig({
   // implementations stay intact.
   test: {
     clearMocks: true,
+    // Jenkins' `junit` step picks up junit.xml; without a reporter it would
+    // silently publish nothing.
+    reporters: process.env.CI
+      ? ["default", ["junit", { outputFile: "junit.xml" }]]
+      : ["default"],
     coverage: {
       // `lcov` feeds SonarQube / Codecov / any lcov consumer; `text` prints the
       // summary to the CI log. Only app code counts (tests are excluded).

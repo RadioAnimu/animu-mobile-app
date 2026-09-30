@@ -256,19 +256,13 @@ pipeline {
       steps {
         sh '''
           set -eux
-          pnpm exec tsc --noEmit
+          pnpm run typecheck
+          pnpm run check:expo-deps
+          pnpm run check:audit
           pnpm exec expo lint
           pnpm test
-          raw=$(pnpm exec react-doctor --score 2>/dev/null || true)
-          score=$(printf '%s\n' "$raw" | grep -oE '^[0-9]+$' | tail -1)
-          echo "React Doctor score: ${score:-<none>}"
-          case "$score" in
-            ''|*[!0-9]*) echo "Could not parse a React Doctor score"; exit 1 ;;
-          esac
-          if [ "$score" -lt 85 ]; then
-            echo "React Doctor score $score is below the required minimum of 85"
-            exit 1
-          fi
+          pnpm run check:animu-api
+          pnpm run doctor:gate
         '''
       }
       post {
@@ -384,12 +378,13 @@ pipeline {
 
           mkdir -p "$ARTIFACT_DIR" "$GRADLE_USER_HOME" "$TMPDIR" "$CCACHE_DIR"
           # -I wires ccache into every native module (scripts/ccache.gradle).
-          # -x lintVitalRelease skips AGP's per-module release lint: CI already
-          #   covers lint via `expo lint`, and the analyzer adds ~30s per build.
+          # AGP's lintVitalRelease (fatal-issue checks) runs as part of the
+          #   bundle: it is the gate Play-blocking manifest/resource errors hit.
+          #   (The full `lintRelease` is not run: Android Lint crashes inside
+          #   the react-native-worklets module, a tooling bug unrelated to app code.)
           cd android
           ./gradlew :app:bundleRelease --no-daemon \
-            -I "$WORKSPACE/scripts/ccache.gradle" \
-            -x lintVitalRelease
+            -I "$WORKSPACE/scripts/ccache.gradle"
           cd ..
           cp android/app/build/outputs/bundle/release/app-release.aab \
              "$ARTIFACT_DIR/animu-${VERSION}-code${VERSION_CODE}.aab"

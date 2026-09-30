@@ -46,11 +46,23 @@ pipeline {
           }
 
           checkout scm
+          // Coverage feeds the analysis (sonar.javascript.lcov.reportPaths).
+          // Same toolchain as the release job: host Node + corepack-pinned pnpm.
+          sh '''
+            set -eux
+            git submodule update --init --recursive
+            corepack enable
+            pnpm install --frozen-lockfile
+            CI=true pnpm test:coverage
+          '''
           sh '''
             set -eux
             TOKEN_FILE="$HOME/sonarqube/analysis-token"
             test -f "$TOKEN_FILE" || { echo "missing $TOKEN_FILE"; exit 1; }
+            test -f coverage/lcov.info || { echo "missing coverage/lcov.info"; exit 1; }
 
+            # qualitygate.wait makes the build fail when the quality gate fails,
+            # instead of only uploading the report.
             docker run --rm \
               --network host \
               -v "$WORKSPACE:/usr/src" \
@@ -58,7 +70,8 @@ pipeline {
               -e SONAR_TOKEN="$(cat "$TOKEN_FILE")" \
               -e SONAR_USER_HOME=/tmp/.sonar \
               sonarsource/sonar-scanner-cli \
-              -Dsonar.host.url=http://localhost:9001
+              -Dsonar.host.url=http://localhost:9001 \
+              -Dsonar.qualitygate.wait=true
           '''
         }
       }

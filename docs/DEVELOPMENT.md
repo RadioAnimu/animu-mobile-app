@@ -61,9 +61,13 @@ pnpm run ios        # build & run on iOS
 | `pnpm run fonts` | Fetch the Proxima Nova fonts (`scripts/fetch-fonts.mjs`) |
 | `pnpm run splash` | Regenerate splash assets |
 | `pnpm run doctor` | React Doctor health scan |
+| `pnpm run doctor:gate` | React Doctor score gate (fails below 85, same as CI) |
+| `pnpm run typecheck` | `tsc --noEmit` |
+| `pnpm run check:expo-deps` | `expo install --check`: every Expo-managed dependency matches the SDK |
+| `pnpm run check:audit` | `pnpm audit` for known-vulnerable dependencies |
+| `pnpm run check:animu-api` | Typecheck and test the `animu-api` submodule |
 | `pnpm run install:apk` | Uninstall + install the newest local `.apk` on a connected device |
 
-Typecheck directly with `pnpm exec tsc --noEmit` (there is no script alias).
 
 ## Testing
 
@@ -144,12 +148,16 @@ release pipeline consumes that for the pinned commit when available. See
 push to `main` and on pull requests:
 
 1. `pnpm install --frozen-lockfile` (which builds the `animu-api` submodule).
-2. `pnpm exec tsc --noEmit` — typecheck.
-3. `pnpm exec expo lint` — lint.
-4. `pnpm test` — Vitest.
-5. **Bundle smoke test** — `expo export:embed` for Android, catching broken asset
+2. `pnpm run typecheck` — typecheck.
+3. `pnpm run lint` — lint (SonarJS rules run as errors on production code).
+4. `pnpm run check:expo-deps` — Expo SDK dependency alignment.
+5. `pnpm run check:audit` — dependency vulnerability audit.
+6. `pnpm test` — Vitest (writes `junit.xml` when `CI` is set).
+7. `pnpm run check:animu-api` — the submodule's own typecheck and tests.
+8. **Bundle smoke test** — `expo export:embed` for Android, catching broken asset
    paths and unresolvable imports that TypeScript can't see.
-6. **React Doctor score gate** — fails if the health score drops below **85**.
+9. **React Doctor score gate** — `pnpm run doctor:gate`, fails if the health
+   score drops below **85**.
 
 `react-doctor.yml` posts advisory PR feedback separately.
 

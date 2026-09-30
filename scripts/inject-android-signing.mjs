@@ -17,12 +17,13 @@ import path from "node:path";
 const workspace = process.env.WORKSPACE || process.cwd();
 const signingJson = process.env.SIGNING_JSON || path.join(workspace, ".signing.json");
 
-if (!fs.existsSync(signingJson)) {
-  console.error(`[signing] ${signingJson} not found`);
+let creds;
+try {
+  creds = JSON.parse(fs.readFileSync(signingJson, "utf8"));
+} catch (e) {
+  console.error(`[signing] cannot read ${signingJson}: ${e.code ?? e.message}`);
   process.exit(1);
 }
-
-const creds = JSON.parse(fs.readFileSync(signingJson, "utf8"));
 const keystorePath =
   creds.keystorePath || path.join(workspace, ".signing", "upload.jks");
 
@@ -33,11 +34,6 @@ if (!fs.existsSync(keystorePath)) {
 
 const androidAppDir = path.join(workspace, "android", "app");
 const buildGradlePath = path.join(androidAppDir, "build.gradle");
-
-if (!fs.existsSync(buildGradlePath)) {
-  console.error(`[signing] ${buildGradlePath} not found (run expo prebuild first)`);
-  process.exit(1);
-}
 
 const storePassword = creds.keystorePassword;
 const keyPassword = creds.keyPassword || creds.keystorePassword;
@@ -60,9 +56,16 @@ android {
 }
 `;
 
-fs.writeFileSync(path.join(androidAppDir, "ci-signing.gradle"), gradle);
+// Contains the keystore passwords in clear text: owner-only, never world-readable.
+fs.writeFileSync(path.join(androidAppDir, "ci-signing.gradle"), gradle, { mode: 0o600 });
 
-let buildGradle = fs.readFileSync(buildGradlePath, "utf8");
+let buildGradle;
+try {
+  buildGradle = fs.readFileSync(buildGradlePath, "utf8");
+} catch (e) {
+  console.error(`[signing] cannot read ${buildGradlePath} (run expo prebuild first): ${e.code ?? e.message}`);
+  process.exit(1);
+}
 if (!buildGradle.includes("ci-signing.gradle")) {
   buildGradle += "\napply from: \"./ci-signing.gradle\"\n";
   fs.writeFileSync(buildGradlePath, buildGradle);

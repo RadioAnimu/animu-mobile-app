@@ -47,9 +47,16 @@ pipeline {
 
           pnpm install --frozen-lockfile
 
-          pnpm exec tsc --noEmit
+          pnpm run typecheck
+          # Expo-managed packages must match the installed SDK (deliberate
+          # exceptions live in expo.install.exclude).
+          pnpm run check:expo-deps
+          # Known-vulnerability gate on the resolved dependency tree.
+          pnpm run check:audit
           pnpm exec expo lint
           pnpm test
+          # The API client is a git submodule compiled into the app.
+          pnpm run check:animu-api
 
           # Bundles the app so broken asset paths and unresolvable imports fail
           # CI (TypeScript cannot catch these).
@@ -57,17 +64,8 @@ pipeline {
             --bundle-output /tmp/index.android.bundle \
             --assets-dest /tmp/animu-assets --dev false
 
-          # React Doctor health-score gate.
-          raw=$(pnpm exec react-doctor --score 2>/dev/null || true)
-          score=$(printf '%s\\n' "$raw" | grep -oE '^[0-9]+$' | tail -1)
-          echo "React Doctor score: ${score:-<none>}"
-          case "$score" in
-            ''|*[!0-9]*) echo "Could not parse a React Doctor score"; exit 1 ;;
-          esac
-          if [ "$score" -lt 85 ]; then
-            echo "React Doctor score $score is below the required minimum of 85"
-            exit 1
-          fi
+          # React Doctor health-score gate (minimum 85).
+          pnpm run doctor:gate
         '''
       }
       post {

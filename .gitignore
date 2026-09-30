@@ -67,6 +67,7 @@ src/assets/fonts/*.otf
 
 # Test coverage output
 coverage/
+junit.xml
 
 # CI release signing scratch (Jenkins workspace only)
 .signing/

@@ -9,13 +9,18 @@
     "postinstall": "patch-package",
     "install:apk": "adb uninstall com.nessjs.animu; adb install $(ls -t dist/*.apk 2>/dev/null | head -1)",
     "lint": "expo lint",
+    "typecheck": "tsc --noEmit",
+    "check:expo-deps": "expo install --check",
+    "check:audit": "pnpm audit --audit-level high",
+    "check:animu-api": "pnpm --dir packages/animu-api run typecheck && pnpm --dir packages/animu-api test",
     "build:api": "pnpm --dir packages/animu-api run build",
     "fonts": "node scripts/fetch-fonts.mjs",
     "eas-build-pre-install": "node scripts/fetch-fonts.mjs",
     "splash": "node scripts/generate-splash.mjs",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
-    "doctor": "react-doctor"
+    "doctor": "react-doctor",
+    "doctor:gate": "node scripts/react-doctor-gate.mjs"
   },
   "dependencies": {
     "@react-native-async-storage/async-storage": "2.2.0",
@@ -45,6 +50,7 @@
     "expo-secure-store": "~57.0.4",
     "expo-sharing": "~57.0.22",
     "expo-splash-screen": "~57.0.9",
+    "expo-system-ui": "~57.0.4",
     "expo-web-browser": "~57.0.3",
     "react": "19.2.3",
     "react-freeze": "^1.0.4",
@@ -91,6 +97,7 @@
     "install": {
       "exclude": [
         "react-native-webview",
+        "react-native-view-shot",
         "expo-audio"
       ]
     },
