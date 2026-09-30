@@ -364,7 +364,8 @@ export class NowPlayingRepository {
     if (this.disposed) return false;
     if (this.refreshing) return false;
     this.refreshing = true;
-    const epoch = ++this.refreshEpoch;
+    this.refreshEpoch += 1;
+    const epoch = this.refreshEpoch;
     this.refreshStartedAt = Date.now();
 
     // Live healthy → skip the HTTP metadata leg; ingest already owns

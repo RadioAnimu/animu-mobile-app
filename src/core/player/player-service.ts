@@ -891,7 +891,7 @@ export class PlayerService {
         void this.deps.artwork
           .resolve(
             artworkUrl,
-            (preview) => {
+            () => {
               // Low-res cover painted as soon as the reported low-size
               // sibling lands — the full-size swap happens in
               // resolve.then below.

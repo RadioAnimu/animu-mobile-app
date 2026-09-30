@@ -7,10 +7,7 @@ interface Props {
   children: React.ReactNode;
 }
 
-interface State {
-  hasError: boolean;
-  message?: string;
-}
+type State = { hasError: false } | { hasError: true; message: string };
 
 /**
  * Last-resort crash guard for the React tree. Without this, any uncaught
@@ -33,7 +30,7 @@ class ErrorBoundary extends React.Component<Props, State> {
   }
 
   reset = () => {
-    this.setState({ hasError: false, message: undefined });
+    this.setState({ hasError: false });
   };
 
   render() {

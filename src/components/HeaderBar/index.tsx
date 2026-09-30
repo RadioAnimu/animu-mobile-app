@@ -49,8 +49,7 @@ export function HeaderBar({ openLiveRequestModal }: Props) {
   const dict = useDict();
   const player = usePlayer();
   const isBackgrounded = useIsBackgrounded();
-  const currentTrack = player.currentTrack;
-  const currentProgram = player.currentProgram;
+  const { currentTrack, currentProgram } = player;
   const { currentTrackProgress } = useTrackProgress();
   // The bar spawns AT the live ratio (cold start, screen switch, thaw after
   // a background freeze) — no first frame at 0 that then snaps forward.

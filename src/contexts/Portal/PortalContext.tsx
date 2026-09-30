@@ -6,8 +6,13 @@ export interface PortalElement {
   component: React.ReactNode;
 }
 
-const PortalContext = React.createContext({
-  addComponent: (element: PortalElement) => {},
-  removeComponent: (name: string) => {},
+interface PortalContextValue {
+  addComponent: (element: PortalElement) => void;
+  removeComponent: (name: string) => void;
+}
+
+const PortalContext = React.createContext<PortalContextValue>({
+  addComponent: () => {},
+  removeComponent: () => {},
 });
 export default PortalContext;

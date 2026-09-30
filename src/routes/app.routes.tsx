@@ -15,29 +15,21 @@ import { About } from "@/screens/About";
 import { useDict } from "@/hooks/useDict";
 import type { HistoryType } from "animu-api";
 
-type HomeProps = undefined;
 interface HistoryProps {
   historyType: HistoryType;
 }
-type MakeRequestProps = undefined;
-type SettingsProps = undefined;
-type StatsProps = undefined;
-type StorageProps = undefined;
-type LoginProps = undefined;
-type AccountProps = undefined;
-type AboutProps = undefined;
 
 export type RootStackParamList = {
-  Home: HomeProps;
+  Home: undefined;
   LastRequested: HistoryProps;
   LastPlayed: HistoryProps;
-  MakeRequest: MakeRequestProps;
-  Settings: SettingsProps;
-  Stats: StatsProps;
-  Storage: StorageProps;
-  Login: LoginProps;
-  Account: AccountProps;
-  About: AboutProps;
+  MakeRequest: undefined;
+  Settings: undefined;
+  Stats: undefined;
+  Storage: undefined;
+  Login: undefined;
+  Account: undefined;
+  About: undefined;
 };
 
 const { Navigator, Screen } = createDrawerNavigator<RootStackParamList>();

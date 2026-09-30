@@ -5,14 +5,35 @@ const sonarjs = require("eslint-plugin-sonarjs");
 const RELATIVE_IMPORT_MESSAGE =
   "Use the @/ (src) or @app/ (project root) alias instead of a relative import.";
 
-// SonarJS rules that are noise for this codebase: file headers and pure style,
-// plus no-implicit-dependencies (a pnpm-workspace/alias false-positive storm).
+// SonarJS rules that are noise for this codebase, or that mis-flag
+// React/React-Native idioms.
 const SONARJS_DISABLED = new Set([
+  // Pure style / noise.
   "sonarjs/file-header",
   "sonarjs/arrow-function-convention",
   "sonarjs/no-duplicate-string",
   "sonarjs/shorthand-property-grouping",
-  "sonarjs/no-implicit-dependencies",
+  "sonarjs/no-implicit-dependencies", // pnpm-workspace/alias false-positive storm
+  // Framework idioms these rules get wrong:
+  "sonarjs/function-name", // React components are PascalCase by convention
+  "sonarjs/no-wildcard-import", // `import * as React` / `import * as Notifications`
+  "sonarjs/no-require-or-define", // Metro resolves assets via require()
+  "sonarjs/no-inverted-boolean-check", // intentional `!(a > b)` NaN guards
+  "sonarjs/no-reference-error", // type-only React/NodeJS references
+  "sonarjs/super-linear-regex", // false positive on a linear regex
+]);
+
+// Rules cleaned up across the codebase and now enforced as errors (regressions
+// fail CI). Promote more here as the remaining warnings are worked down.
+const SONARJS_ERROR = new Set([
+  "sonarjs/array-constructor",
+  "sonarjs/destructuring-assignment-syntax",
+  "sonarjs/no-nested-incdec",
+  "sonarjs/no-nested-template-literals",
+  "sonarjs/no-undefined-assignment",
+  "sonarjs/no-unused-function-argument",
+  "sonarjs/redundant-type-aliases",
+  "sonarjs/variable-name",
 ]);
 
 module.exports = defineConfig([
@@ -57,15 +78,25 @@ module.exports = defineConfig([
   },
   {
     // SonarJS — the same rule family SonarQube's "Code Smells" come from, run
-    // locally and in CI with no server. Enabled as warnings so the existing
-    // backlog surfaces in CI output without failing the build; promote
-    // individual rules to "error" as the codebase is cleaned up.
+    // locally and in CI with no server. Applied to production code only (tests
+    // are excluded: their style is not a maintainability signal). Most rules
+    // are warnings so the remaining backlog surfaces without failing the build;
+    // the rules in SONARJS_ERROR are enforced.
     files: ["src/**/*.{ts,tsx}", "App.tsx", "index.js"],
+    ignores: [
+      "src/**/__tests__/**",
+      "src/**/*.test.{ts,tsx}",
+      "src/**/*.spec.{ts,tsx}",
+    ],
     ...sonarjs.configs.recommended,
     rules: Object.fromEntries(
       Object.entries(sonarjs.configs.recommended.rules).map(([rule]) => [
         rule,
-        SONARJS_DISABLED.has(rule) ? "off" : "warn",
+        SONARJS_DISABLED.has(rule)
+          ? "off"
+          : SONARJS_ERROR.has(rule)
+            ? "error"
+            : "warn",
       ]),
     ),
   },

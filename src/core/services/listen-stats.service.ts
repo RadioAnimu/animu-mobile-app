@@ -271,12 +271,12 @@ export class ListenStatsService {
   }
 
   private ensureDay(day: string): ListenDay {
-    let day_ = this.blob.days[day];
-    if (!day_) {
-      day_ = EMPTY_DAY();
-      this.blob.days[day] = day_;
+    let existing = this.blob.days[day];
+    if (!existing) {
+      existing = EMPTY_DAY();
+      this.blob.days[day] = existing;
     }
-    return day_;
+    return existing;
   }
 
   /** Best-effort debounced write; a failure degrades to memory-only. */

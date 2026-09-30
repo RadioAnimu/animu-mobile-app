@@ -75,7 +75,8 @@ export function MarqueeGroup({
   const api = useMemo(
     () => ({
       register: () => {
-        const id = nextId.current++;
+        const id = nextId.current;
+        nextId.current += 1;
         setRecords((prev) => new Map(prev).set(id, null));
         return id;
       },

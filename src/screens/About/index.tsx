@@ -177,8 +177,9 @@ export function About({ navigation }: Props) {
     unknown: dict.ABOUT_RELEASE_UNKNOWN,
   }[info.release];
 
+  const buildSuffix = info.buildVersion ? ` (${info.buildVersion})` : "";
   const versionLabel = info.appVersion
-    ? `v${info.appVersion}${info.buildVersion ? ` (${info.buildVersion})` : ""}`
+    ? `v${info.appVersion}${buildSuffix}`
     : dict.ABOUT_VERSION_LOADING;
 
   return (      <SafeAreaView

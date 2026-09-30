@@ -29,13 +29,13 @@ export function downmixChannels(channels: number[][]): number[] {
   if (loudest.length === 1) return loudest[0];
 
   const length = Math.min(...loudest.map((channel) => channel.length));
-  const out = new Array<number>(length);
+  const out: number[] = [];
   for (let i = 0; i < length; i++) {
     let sum = 0;
     for (const channel of loudest) {
       sum += channel[i] ?? 0;
     }
-    out[i] = sum / loudest.length;
+    out.push(sum / loudest.length);
   }
   return out;
 }
