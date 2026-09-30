@@ -16,6 +16,28 @@ updates:
       npm-minor-patch:
         patterns: ["*"]
         update-types: ["minor", "patch"]
+    ignore:
+      # Expo-managed packages are versioned together by the Expo SDK and must
+      # be bumped with `npx expo install --fix` during an SDK upgrade, never
+      # independently — Dependabot bumps them to versions Expo doesn't support
+      # (e.g. React Native 0.87 / async-storage 3 on Expo 57) and CI fails.
+      # react-native-view-shot / -webview are NOT listed: package.json marks
+      # them as expo.install.exclude, so Expo doesn't manage them.
+      - dependency-name: "expo"
+      - dependency-name: "expo-*"
+      - dependency-name: "react"
+      - dependency-name: "react-dom"
+      - dependency-name: "react-native"
+      - dependency-name: "react-native-reanimated"
+      - dependency-name: "react-native-worklets"
+      - dependency-name: "react-native-screens"
+      - dependency-name: "react-native-safe-area-context"
+      - dependency-name: "react-native-svg"
+      - dependency-name: "react-native-gesture-handler"
+      - dependency-name: "@react-native-*"
+      - dependency-name: "@react-native-community/*"
+      - dependency-name: "@types/react"
+      - dependency-name: "@types/react-dom"
 
   - package-ecosystem: github-actions
     directory: /
