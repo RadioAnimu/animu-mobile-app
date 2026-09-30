@@ -15,6 +15,20 @@ packages:
 # letting this project adopt Expo/React Native patch releases promptly.
 minimumReleaseAge: 4320
 
+# ...which is what this exclusion is for: the Expo/RN packages we track
+# deliberately (and bump together with the SDK) skip the 3-day wait.
+minimumReleaseAgeExclude:
+  - expo
+  - expo-*
+  - react
+  - react-dom
+  - react-native
+  - react-native-*
+  - "@react-native-*"
+  - "@react-native-community/*"
+  - "@types/react"
+  - "@types/react-dom"
+
 # Refuse packages whose trust signals (provenance/signatures) weaken between
 # updates. The exclusions are long-lived transitive packages whose older
 # releases carried provenance attestations that the resolved versions don't.
