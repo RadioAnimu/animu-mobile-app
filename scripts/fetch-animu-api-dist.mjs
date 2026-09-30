@@ -44,6 +44,7 @@ const jobUrl = jobName
   .map((segment) => `/job/${encodeURIComponent(segment)}`)
   .join("");
 const ARTIFACT = "animu-api-dist.tar.gz";
+const MAX_ARTIFACT_BYTES = 200 * 1024 * 1024;
 
 const getJson = async (url) => {
   const res = await fetch(url, { headers: { Authorization: auth } });
@@ -69,7 +70,12 @@ try {
   if (!res.ok) throw new Error(`artifact HTTP ${res.status}`);
 
   const tmp = path.join(path.dirname(distDir), `.animu-api-dist.${process.pid}.tar.gz`);
-  fs.writeFileSync(tmp, Buffer.from(await res.arrayBuffer()));
+  const body = Buffer.from(await res.arrayBuffer());
+  if (body.byteLength > MAX_ARTIFACT_BYTES) {
+    throw new Error(`artifact too large: ${body.byteLength} bytes`);
+  }
+  // "wx": never overwrite or follow a pre-planted file; 0600: owner-only.
+  fs.writeFileSync(tmp, body, { flag: "wx", mode: 0o600 });
 
   fs.rmSync(distDir, { recursive: true, force: true });
   fs.mkdirSync(path.dirname(distDir), { recursive: true });
