@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import type { AudioSample } from "@/core/player/ports";
 import { AudioSampler } from "@/core/player/visualizer/audio-sampler";
 
@@ -318,5 +318,135 @@ describe("AudioSampler disposal", () => {
     expect(listener).toHaveBeenCalledTimes(1);
     expect(hasHandler()).toBe(false);
     expect(transport.setSamplingEnabled).toHaveBeenLastCalledWith(false);
+  });
+});
+
+describe("AudioSampler subscriptions", () => {
+  it("stops notifying a listener after it unsubscribes, leaving others intact", () => {
+    const { sampler, emit } = activeSampler();
+    const kept = vi.fn();
+    const dropped = vi.fn();
+    sampler.subscribeWindows(kept);
+    const unsubscribe = sampler.subscribeWindows(dropped);
+
+    emit(sample(new Array(64).fill(0.1)));
+    unsubscribe();
+    emit(sample(new Array(64).fill(0.1)));
+
+    expect(dropped).toHaveBeenCalledTimes(1);
+    expect(kept).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe("AudioSampler output latency tracking", () => {
+  const withLatency = (outputLatencySeconds: number | undefined) => ({
+    channels: [{ frames: [0.3, 0.3] }],
+    timestamp: 0,
+    outputLatencySeconds,
+  });
+
+  const latencies = (emitSeq: (number | undefined)[]): number[] => {
+    const { sampler, emit } = activeSampler();
+    const listener = vi.fn();
+    sampler.subscribeWindows(listener);
+    emitSeq.forEach((value) => emit(withLatency(value)));
+    return listener.mock.calls.map(([window]) => window.outputLatencyMs);
+  };
+
+  it("seeds with the first measurement, then smooths toward later ones", () => {
+    const [first, second] = latencies([0.1, 0.3]);
+
+    expect(first).toBeCloseTo(100, 5);
+    // Moves toward 300 ms but only part of the way (IIR smoothing).
+    expect(second).toBeGreaterThan(100);
+    expect(second).toBeLessThan(200);
+  });
+
+  it("clamps the measured lead to [0, 600] ms", () => {
+    expect(latencies([5])[0]).toBe(600);
+    expect(latencies([-1])[0]).toBe(0);
+  });
+
+  it("ignores non-finite and missing measurements without resetting the lead", () => {
+    const [seeded, afterNaN, afterInfinity, afterMissing] = latencies([
+      0.2,
+      Number.NaN,
+      Number.POSITIVE_INFINITY,
+      undefined,
+    ]);
+
+    expect(seeded).toBeCloseTo(200, 5);
+    expect(afterNaN).toBe(seeded);
+    expect(afterInfinity).toBe(seeded);
+    expect(afterMissing).toBe(seeded);
+  });
+
+  it("adds the manual sync trim on top of the native lead, never below zero", () => {
+    const { sampler, emit } = activeSampler();
+    const listener = vi.fn();
+    sampler.subscribeWindows(listener);
+
+    sampler.setSyncTrim(40);
+    emit(withLatency(0.1));
+    sampler.setSyncTrim(-500);
+    emit(withLatency(0.1));
+
+    expect(listener.mock.calls[0][0].outputLatencyMs).toBeCloseTo(140, 5);
+    expect(listener.mock.calls[1][0].outputLatencyMs).toBe(0);
+  });
+
+  it("treats a non-finite manual trim as zero", () => {
+    const { sampler, emit } = activeSampler();
+    const listener = vi.fn();
+    sampler.subscribeWindows(listener);
+
+    sampler.setSyncTrim(75);
+    sampler.setSyncTrim(Number.NaN);
+    emit(withLatency(0.1));
+
+    expect(listener.mock.calls[0][0].outputLatencyMs).toBeCloseTo(100, 5);
+  });
+});
+
+describe("AudioSampler cadence tracking", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  const cadenceAfter = (gapsMs: number[]): number => {
+    vi.useFakeTimers();
+    vi.setSystemTime(1_000_000);
+    const { sampler, emit } = activeSampler();
+    const listener = vi.fn();
+    sampler.subscribeWindows(listener);
+    emit(sample(new Array(64).fill(0.1)));
+    for (const gap of gapsMs) {
+      vi.setSystemTime(Date.now() + gap);
+      emit(sample(new Array(64).fill(0.1)));
+    }
+    return listener.mock.calls[listener.mock.calls.length - 1][0].nativeIntervalMs;
+  };
+
+  it("uses the median gap so one burst does not move the pace", () => {
+    expect(cadenceAfter([20, 20, 60, 20, 20])).toBe(20);
+  });
+
+  it("averages the middle pair for an even number of gaps", () => {
+    expect(cadenceAfter([20, 30])).toBe(25);
+  });
+
+  it("clamps the pace to [8, 80] ms and keeps the default before two windows", () => {
+    expect(cadenceAfter([500, 500, 500])).toBe(80);
+    expect(cadenceAfter([5, 5, 5])).toBe(8);
+    expect(cadenceAfter([])).toBe(16);
+  });
+
+  it("ignores gaps shorter than the minimum sample interval", () => {
+    expect(cadenceAfter([20, 1, 1, 20])).toBe(20);
+  });
+
+  it("only uses the last eight gaps", () => {
+    // Eight 40 ms gaps push the earlier 10 ms gaps out of the window.
+    expect(cadenceAfter([10, 10, 10, 10, ...new Array(8).fill(40)])).toBe(40);
   });
 });

@@ -1,3 +1,4 @@
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { beforeEach, afterEach, describe, expect, it, vi } from "vitest";
 
 import {
@@ -284,5 +285,285 @@ describe("listenStatsService", () => {
     const recentDay = snap.days[dayKeyOf(recent)];
     expect(oldDay.hours.some((h) => h > 0)).toBe(false); // compacted
     expect(recentDay.hours[12]).toBeGreaterThan(0); // recent detail kept
+  });
+});
+
+/** A well-formed stored day; overrides let a test break one field at a time. */
+const storedDay = (overrides: Record<string, unknown> = {}) => ({
+  ms: 60_000,
+  sessions: 1,
+  tracks: 2,
+  requests: 0,
+  submitted: 0,
+  shouts: 0,
+  firstAt: null,
+  lastAt: null,
+  hours: Array.from({ length: 24 }, (_, i) => (i === 9 ? 60_000 : 0)),
+  ...overrides,
+});
+
+describe("listenStatsService stored-data sanitizing", () => {
+  beforeEach(() => {
+    memory.clear();
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(dayStart(0) + 12 * 3_600_000);
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("drops malformed days and keys, and repairs bad numeric fields", async () => {
+    const good = dayKeyOf(dayStart(-1));
+    const repaired = dayKeyOf(dayStart(-2));
+    memory.set(
+      "listenStats",
+      JSON.stringify({
+        version: 1,
+        days: {
+          [good]: storedDay(),
+          // Fixable: junk counters become 0, hours are clamped to 24 slots.
+          [repaired]: storedDay({
+            ms: -500,
+            sessions: "many",
+            tracks: -3,
+            firstAt: "noon",
+            hours: [5, "x", -1, null, ...Array(40).fill(7)],
+          }),
+          "not-a-day": storedDay(),
+          "2024-1-1": storedDay(),
+          [dayKeyOf(dayStart(-3))]: null,
+          [dayKeyOf(dayStart(-4))]: { ms: "lots", hours: [] },
+          [dayKeyOf(dayStart(-5))]: storedDay({ hours: "nope" }),
+          [dayKeyOf(dayStart(-6))]: storedDay({ ms: Number.NaN }),
+        },
+      }),
+    );
+
+    const snap = (await makeService()).getSnapshot();
+
+    expect(Object.keys(snap.days).sort()).toEqual([repaired, good].sort());
+    expect(snap.days[good].tracks).toBe(2);
+    const fixed = snap.days[repaired];
+    expect(fixed.ms).toBe(0);
+    expect(fixed.sessions).toBe(0);
+    expect(fixed.tracks).toBe(0);
+    expect(fixed.firstAt).toBeNull();
+    expect(fixed.hours).toHaveLength(24);
+    expect(fixed.hours.slice(0, 4)).toEqual([5, 0, 0, 0]);
+    expect(fixed.hours[23]).toBe(7);
+  });
+
+  it("keeps only well-formed top-request entries", async () => {
+    memory.set(
+      "listenStats",
+      JSON.stringify({
+        version: 1,
+        days: {},
+        topRequests: {
+          ok: { n: 3.9, art: "img://ok" },
+          noArt: { n: 9, art: 42 }, // kept, but has no usable artwork
+          zero: { n: 0, art: "img://zero" },
+          negative: { n: -1, art: "img://neg" },
+          text: { n: "5", art: "img://text" },
+          nul: null,
+          scalar: 7,
+        },
+      }),
+    );
+
+    const snap = (await makeService()).getSnapshot();
+
+    expect(snap.topRequests).toEqual(["img://ok"]);
+  });
+
+  it("floors fractional request counts when ranking", async () => {
+    memory.set(
+      "listenStats",
+      JSON.stringify({
+        version: 1,
+        days: {},
+        topRequests: {
+          a: { n: 2.9, art: "img://a" },
+          b: { n: 2, art: "img://b" },
+          c: { n: 3, art: "img://c" },
+        },
+      }),
+    );
+
+    const service = await makeService();
+    // a floors to 2 and ties b; first-seen wins the tie.
+    expect(service.getSnapshot().topRequests).toEqual([
+      "img://c",
+      "img://a",
+      "img://b",
+    ]);
+  });
+
+  it.each([["null"], ['"text"'], ["42"]])(
+    "starts fresh when the stored JSON is %s",
+    async (raw) => {
+      memory.set("listenStats", raw);
+      const snap = (await makeService()).getSnapshot();
+      expect(snap.totalMs).toBe(0);
+      expect(snap.days).toEqual({});
+    },
+  );
+
+  it("tolerates a blob with missing days/topRequests sections", async () => {
+    memory.set("listenStats", JSON.stringify({ version: 1 }));
+    const snap = (await makeService()).getSnapshot();
+    expect(snap.days).toEqual({});
+    expect(snap.topRequests).toEqual([]);
+  });
+
+  it("drops the oldest days beyond the 400-day cap", async () => {
+    const days: Record<string, unknown> = {};
+    const keyOf = (i: number): string =>
+      new Date(Date.UTC(2020, 0, 1 + i)).toISOString().slice(0, 10);
+    for (let i = 0; i < 405; i++) days[keyOf(i)] = storedDay({ hours: [] });
+    memory.set("listenStats", JSON.stringify({ version: 1, days }));
+
+    const snap = (await makeService()).getSnapshot();
+
+    const keys = Object.keys(snap.days).sort();
+    expect(keys).toHaveLength(400);
+    expect(keys[0]).toBe(keyOf(5));
+    expect(keys[399]).toBe(keyOf(404));
+    expect(snap.days[keyOf(0)]).toBeUndefined();
+  });
+});
+
+describe("listenStatsService streak anchoring", () => {
+  beforeEach(() => {
+    memory.clear();
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(dayStart(0) + 12 * 3_600_000);
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  // Anchored before any clock move: dayStart() is relative to the moving clock.
+  let todayStart = 0;
+  beforeEach(() => {
+    todayStart = dayStart(0);
+  });
+
+  const listenOn = (service: ListenStatsService, offset: number): void => {
+    const noon = todayStart + offset * 86_400_000 + 12 * 3_600_000;
+    at(noon);
+    service.onPlaybackStarted();
+    service.onAudibleTick(noon + 60_000);
+    service.onPlaybackStopped();
+  };
+
+  it("keeps the streak alive when today has not counted yet", async () => {
+    const service = await makeService();
+    listenOn(service, -2);
+    listenOn(service, -1);
+    at(todayStart + 12 * 3_600_000); // today, nothing heard yet
+
+    const snap = service.getSnapshot();
+    expect(snap.currentStreak).toBe(2);
+    expect(snap.maxStreak).toBe(2);
+  });
+
+  it("has no current streak once yesterday is also missed", async () => {
+    const service = await makeService();
+    listenOn(service, -3);
+    listenOn(service, -2);
+    at(todayStart + 12 * 3_600_000);
+
+    const snap = service.getSnapshot();
+    expect(snap.currentStreak).toBe(0);
+    expect(snap.maxStreak).toBe(2);
+  });
+});
+
+describe("listenStatsService persistence scheduling", () => {
+  beforeEach(() => {
+    memory.clear();
+    vi.useFakeTimers();
+    vi.setSystemTime(dayStart(0) + 12 * 3_600_000);
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.restoreAllMocks();
+  });
+
+  it("coalesces a burst of updates into one debounced write", async () => {
+    const service = new ListenStatsService();
+    await service.initialize();
+
+    service.onShoutSubmitted(true);
+    service.onShoutSubmitted(true);
+    service.onRequestSubmitted(true);
+    expect(AsyncStorage.setItem).not.toHaveBeenCalled();
+
+    await vi.advanceTimersByTimeAsync(2_000);
+
+    expect(AsyncStorage.setItem).toHaveBeenCalledTimes(1);
+    const saved = JSON.parse(memory.get("listenStats") ?? "{}");
+    const day = Object.values<{ shouts: number; submitted: number }>(saved.days)[0];
+    expect(day.shouts).toBe(2);
+    expect(day.submitted).toBe(1);
+
+    // A later change schedules a fresh write.
+    service.onShoutSubmitted(true);
+    await vi.advanceTimersByTimeAsync(2_000);
+    expect(AsyncStorage.setItem).toHaveBeenCalledTimes(2);
+  });
+
+  it("degrades to memory-only (warns, keeps counting) when a save fails", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    vi.mocked(AsyncStorage.setItem).mockRejectedValueOnce(new Error("disk full"));
+    const service = new ListenStatsService();
+    await service.initialize();
+
+    service.onShoutSubmitted(true);
+    await vi.advanceTimersByTimeAsync(2_000);
+
+    expect(warn).toHaveBeenCalledWith(
+      "[ListenStats] save failed:",
+      expect.any(Error),
+    );
+    expect(service.getSnapshot().totalShouts).toBe(1);
+  });
+
+  it("flushForTesting drops the pending timer and is a no-op when clean", async () => {
+    const service = new ListenStatsService();
+    await service.initialize();
+
+    await service.flushForTesting(); // nothing dirty yet
+    expect(AsyncStorage.setItem).not.toHaveBeenCalled();
+
+    service.onShoutSubmitted(true);
+    await service.flushForTesting();
+    expect(AsyncStorage.setItem).toHaveBeenCalledTimes(1);
+
+    await vi.advanceTimersByTimeAsync(5_000); // the debounce timer was cancelled
+    expect(AsyncStorage.setItem).toHaveBeenCalledTimes(1);
+  });
+
+  it("reset wipes stats and storage, and survives a storage failure", async () => {
+    const service = new ListenStatsService();
+    await service.initialize();
+    service.onRequestSubmitted(true, "a", "img://a");
+    await service.flushForTesting();
+    expect(memory.has("listenStats")).toBe(true);
+
+    await service.reset();
+    expect(memory.has("listenStats")).toBe(false);
+    const snap = service.getSnapshot();
+    expect(snap.totalSubmitted).toBe(0);
+    expect(snap.topRequests).toEqual([]);
+
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    vi.mocked(AsyncStorage.removeItem).mockRejectedValueOnce(new Error("io"));
+    await expect(service.reset()).resolves.toBeUndefined();
+    expect(warn).toHaveBeenCalledWith("[ListenStats] reset failed:", expect.any(Error));
   });
 });

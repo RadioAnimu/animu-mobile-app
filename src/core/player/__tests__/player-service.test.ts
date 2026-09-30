@@ -1010,7 +1010,7 @@ describe("PlayerService heartbeat", () => {
       }
       await flush();
 
-      expect(vi.mocked(repository.refresh).mock.calls.length).toBe(
+      expect(vi.mocked(repository.refresh).mock.calls).toHaveLength(
         pollsFromPlay + 2,
       );
     } finally {
@@ -1032,7 +1032,7 @@ describe("PlayerService heartbeat", () => {
       handler({ playing: true } as AudioPlaybackStatus);
 
       // No new polls or ticks may happen on a destroyed instance
-      expect(vi.mocked(repository.refresh).mock.calls.length).toBe(
+      expect(vi.mocked(repository.refresh).mock.calls).toHaveLength(
         pollsFromPlay,
       );
       expect(deps.ticker.tick).not.toHaveBeenCalled();
