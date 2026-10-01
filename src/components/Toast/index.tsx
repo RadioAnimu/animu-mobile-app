@@ -4,15 +4,10 @@ import MaterialIcons from "@react-native-vector-icons/material-icons/static";
 import { THEME } from "@/theme";
 import { scale } from "@/theme/responsive";
 
-/**
- * Minimalist flash card: fades in at the bottom of the screen, holds for a
- * moment and fades itself out. Purely informational — pointerEvents="none"
- * so it never intercepts touches, and no dismiss button.
- */
 export type ToastVariant = "success" | "error" | "info";
 
 /** Failures linger longer than confirmations — they take longer to read. */
-export const TOAST_HOLD_MS: Record<ToastVariant, number> = {
+const TOAST_HOLD_MS: Record<ToastVariant, number> = {
   success: 1800,
   info: 2400,
   error: 4000,
@@ -24,6 +19,11 @@ const VARIANT_STYLE = {
   error: { icon: "error", color: THEME.COLORS.ERROR },
 } as const;
 
+/**
+ * Minimalist flash card: fades in at the bottom of the screen, holds for a
+ * moment and fades itself out. Purely informational — pointerEvents="none"
+ * so it never intercepts touches, and no dismiss button.
+ */
 export const Toast = React.memo(function Toast({
   message,
   variant = "success",

@@ -32,9 +32,7 @@ export function CodeInput({
 }: Props) {
   const [focused, setFocused] = useState(false);
   const inputRef = useRef<TextInput | null>(null);
-  const caretRef = useRef<Animated.Value | null>(null);
-  caretRef.current ??= new Animated.Value(1);
-  const caret = caretRef.current;
+  const [caret] = useState(() => new Animated.Value(1));
 
   // A verify flips `editable` off while it runs, which blurs the field on
   // Android and drops the keyboard. Pull focus back when editing returns, so

@@ -33,11 +33,11 @@ module.exports = defineConfig([
   {
     ignores: ["dist/*", "android/*", "ios/*", "node_modules/*"],
     rules: {
-      // Expo SDK 57's config enables the React Compiler lint rules. The app
-      // does not run the compiler, and the codebase intentionally uses
-      // `useRef(new Animated.Value()).current` plus prop->state sync effects.
-      // Turn these two off rather than rewriting animation/effect logic.
-      "react-hooks/refs": "off",
+      // Expo SDK 57's config enables the React Compiler lint rules, including
+      // `react-hooks/refs` (kept on). `set-state-in-effect` is off: the app
+      // does not run the compiler, and its remaining hits are effects that
+      // sync state with an external system (disk/artwork cache, keyboard and
+      // fetch lifecycles) where a synchronous reset is the intended behavior.
       "react-hooks/set-state-in-effect": "off",
     },
   },

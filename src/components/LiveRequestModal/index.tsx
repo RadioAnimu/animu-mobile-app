@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useState } from "react";
 import { ScrollView, TextInput } from "react-native";
 
 import { FormField } from "@/components/FormField";
@@ -12,6 +12,7 @@ import type { LiveRequest } from "@/core/domain/live-request";
 import { liveRequestService } from "@/core/services/live-request.service";
 import { useChip } from "@/hooks/useChip";
 import { useDict } from "@/hooks/useDict";
+import { useInputRegistry } from "@/hooks/useInputRegistry";
 import {
   LIVE_FIELD_MAX,
   LIVE_MESSAGE_MAX,
@@ -49,9 +50,8 @@ export function LiveRequestModal({ visible, handleClose }: Props) {
   /** Whose draft the form holds (a new session must not inherit it). */
   const [draftOwner, setDraftOwner] = useState(user?.id);
 
-  const inputs = useRef<Partial<Record<keyof LiveRequest, TextInput | null>>>(
-    {},
-  );
+  const { register: registerInput, focus: focusInput } =
+    useInputRegistry<keyof LiveRequest>();
 
   // The sheet stays mounted with Home. On each open the draft is kept (a
   // swipe-away must not cost the user their typing) unless it was already
@@ -100,7 +100,7 @@ export function LiveRequestModal({ visible, handleClose }: Props) {
     if (invalid.length > 0) {
       haptics.error();
       layoutEase();
-      inputs.current[invalid[0]]?.focus();
+      focusInput(invalid[0]);
       return;
     }
 
@@ -137,14 +137,12 @@ export function LiveRequestModal({ visible, handleClose }: Props) {
     onChangeText: (text: string) => handleChange(field, text),
     error: fieldError(field),
     editable: !isSubmitting,
-    inputRef: (node: TextInput | null) => {
-      inputs.current[field] = node;
-    },
+    inputRef: (node: TextInput | null) => registerInput(field, node),
     maxLength: field === "request" ? LIVE_MESSAGE_MAX : LIVE_FIELD_MAX,
     ...(next && {
       returnKeyType: "next" as const,
       submitBehavior: "submit" as const,
-      onSubmitEditing: () => inputs.current[next]?.focus(),
+      onSubmitEditing: () => focusInput(next),
     }),
   });
 

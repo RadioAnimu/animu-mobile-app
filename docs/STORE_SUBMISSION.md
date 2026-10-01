@@ -106,7 +106,12 @@ user has an account with us"); leave the remaining categories "NO".
 - [ ] Demo account added to App Review Information
 - [ ] Age rating questionnaire answered (incl. social-media questions)
 - [ ] Notes for Review pasted (Apple doc)
-- [ ] Privacy manifest present; iPhone-only build
+- [ ] Privacy manifests: the app declares none of its own (no
+      required-reason API calls in first-party code or in the dependencies that
+      ship without a manifest — re-scan after native dependency bumps); the
+      libraries that use such APIs (react-native, async-storage, expo-file-system,
+      …) bundle theirs. Confirm the archive's privacy report in Xcode is clean.
+- [ ] iPhone-only build (`supportsTablet: false`)
 
 ### Google Play
 - [ ] **Data safety** corrected in the live listing (declares "No data

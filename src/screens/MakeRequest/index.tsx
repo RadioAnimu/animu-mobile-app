@@ -32,12 +32,10 @@ import { useAuth } from "@/contexts/auth/AuthProvider";
 import { usePlayer } from "@/contexts/player/PlayerProvider";
 import { useUserSettings } from "@/contexts/user/UserSettingsProvider";
 import { useDict } from "@/hooks/useDict";
-import { useLatestRequest } from "@/hooks/useLatestRequest";
 import { useRecentSearches } from "@/hooks/useRecentSearches";
 import { useRouteReselect } from "@/hooks/useRouteReselect";
 import {
   MusicRequest,
-  MusicRequestPagination,
   MusicRequestSubmission,
 } from "@/core/domain/music-request";
 import {
@@ -54,11 +52,12 @@ import { layoutEase } from "@/utils/layout-animation";
 import { styles } from "@/screens/MakeRequest/styles";
 import { RecentSearches } from "@/screens/MakeRequest/RecentSearches";
 import { ResultsList } from "@/screens/MakeRequest/ResultsList";
+import {
+  MIN_SEARCH_LENGTH,
+  useTrackSearch,
+} from "@/screens/MakeRequest/useTrackSearch";
 
 const LOGO_HEIGHT = scale(150);
-
-/** Below this many characters a title search matches too much to be useful. */
-const MIN_SEARCH_LENGTH = 3;
 
 /**
  * Search field. One in-field icon slot: a decorative magnifier while the
@@ -208,22 +207,6 @@ export function MakeRequest() {
     }
   }, [isLive, navigation, toast, dict]);
 
-  const [searchState, setSearchState] = useState<{
-    query: string;
-    results: MusicRequest[];
-    pagination?: MusicRequestPagination;
-    status: "idle" | "loading" | "loadingMore";
-  }>({
-    query: "",
-    results: [],
-    status: "idle",
-  });
-
-  /** Whether a search has ever run, so "no results" only shows afterwards. */
-  const [hasSearched, setHasSearched] = useState(false);
-  /** Last search failed — suppress the empty state so it can't contradict the toast. */
-  const [searchFailed, setSearchFailed] = useState(false);
-
   const [selectedTrack, setSelectedTrack] = useState<MusicRequest | undefined>(
     undefined,
   );
@@ -240,142 +223,43 @@ export function MakeRequest() {
     listRef.current?.scrollToOffset({ offset: 0, animated: true }),
   );
 
-  // Only the newest search/load-more may write results.
-  const { begin, isCurrent } = useLatestRequest();
-
-  const runSearch = useCallback(
-    async (rawQuery: string) => {
-      const query = rawQuery.trim();
-      // Searching on one or two letters returns a useless wall of matches.
-      if (query.length < MIN_SEARCH_LENGTH) return;
-      const requestId = begin();
-      setHasSearched(true);
-      setSearchFailed(false);
-      setSearchState((prev) => ({ ...prev, query, status: "loading" }));
-      try {
-        const response = await musicRequestService.searchTracksByTitle(query);
-        if (!isCurrent(requestId)) return;
-        setSearchState({
-          query,
-          results: response.results,
-          pagination: response,
-          status: "idle",
-        });
-        // A fresh search starts reading from the top.
-        listRef.current?.scrollToOffset({ offset: 0, animated: false });
-        addRecent(query);
-      } catch (err) {
-        console.error("[MakeRequest] search failed:", err);
-        if (!isCurrent(requestId)) return;
-        setSearchFailed(true);
-        setSearchState((prev) => ({ ...prev, status: "idle" }));
-        haptics.error();
-        toast(dict.REQUEST_SEARCH_ERROR, "error");
-      }
-    },
-    [addRecent, begin, isCurrent, toast, dict],
-  );
-
-  const handleSearch = useCallback(
-    () => void runSearch(searchState.query),
-    [runSearch, searchState.query],
-  );
+  const {
+    query,
+    results,
+    loading,
+    loadingMore,
+    idle,
+    hasSearched,
+    searchFailed,
+    refreshing,
+    setQuery,
+    search,
+    submit,
+    loadMore,
+    refresh,
+    clear,
+    markRequested,
+  } = useTrackSearch({ listRef, onSearched: addRecent });
 
   /** Tapping a recent search re-runs it (keyboard down, field filled). */
   const handlePickRecent = useCallback(
-    (query: string) => {
+    (picked: string) => {
       Keyboard.dismiss();
       haptics.select();
-      setSearchState((prev) => ({ ...prev, query }));
-      void runSearch(query);
+      setQuery(picked);
+      void search(picked);
     },
-    [runSearch],
+    [search, setQuery],
   );
-
-  const handleLoadMore = useCallback(async () => {
-    if (searchState.status !== "idle") return;
-    const nextPageParams = searchState.pagination?.nextPageParams;
-    if (!nextPageParams) return;
-    const requestId = begin();
-    setSearchState((prev) => ({ ...prev, status: "loadingMore" }));
-    try {
-      const response =
-        await musicRequestService.searchTracksByQuery(nextPageParams);
-      if (!isCurrent(requestId)) return;
-      setSearchState((prev) => ({
-        ...prev,
-        results: [...prev.results, ...response.results],
-        pagination: response,
-        status: "idle",
-      }));
-    } catch (err) {
-      console.error("[MakeRequest] search failed:", err);
-      if (!isCurrent(requestId)) return;
-      setSearchState((prev) => ({ ...prev, status: "idle" }));
-      toast(dict.REQUEST_SEARCH_ERROR, "error");
-    }
-  }, [
-    begin,
-    isCurrent,
-    searchState.pagination,
-    searchState.status,
-    toast,
-    dict,
-  ]);
-
-  const [refreshing, setRefreshing] = useState(false);
-
-  const handleRefresh = useCallback(async () => {
-    const query = searchState.query.trim();
-    if (query.length < MIN_SEARCH_LENGTH) return;
-    const requestId = begin();
-    setRefreshing(true);
-    try {
-      const response = await musicRequestService.searchTracksByTitle(query);
-      if (!isCurrent(requestId)) return;
-      setSearchState({
-        query,
-        results: response.results,
-        pagination: response,
-        status: "idle",
-      });
-      listRef.current?.scrollToOffset({ offset: 0, animated: false });
-    } catch (err) {
-      console.error("[MakeRequest] search failed:", err);
-      // Same staleness rules as `runSearch`: a slow refresh landing after a
-      // newer search must not toast over the newer state, and the error
-      // banner rides the same failure flag so the UI stays consistent.
-      if (!isCurrent(requestId)) return;
-      setSearchFailed(true);
-      setSearchState((prev) => ({ ...prev, status: "idle" }));
-      toast(dict.REQUEST_SEARCH_ERROR, "error");
-    } finally {
-      setRefreshing(false);
-    }
-  }, [begin, isCurrent, searchState.query, toast, dict]);
-
-  /** One tap empties the field, the old results and every error state. */
-  const handleClearSearch = useCallback(() => {
-    haptics.select();
-    setSearchState({ query: "", results: [], status: "idle" });
-    setHasSearched(false);
-    setSearchFailed(false);
-  }, []);
 
   const handleSubmitRequest = useCallback(
     async (message: string): Promise<{ success: boolean; message: string }> => {
       if (!user?.sessionToken) {
-        return {
-          success: false,
-          message: dict.LOGIN_ERROR,
-        };
+        return { success: false, message: dict.LOGIN_ERROR };
       }
 
       if (!selectedTrack) {
-        return {
-          success: false,
-          message: dict.SELECT_ERROR,
-        };
+        return { success: false, message: dict.SELECT_ERROR };
       }
 
       const submission: MusicRequestSubmission = {
@@ -400,25 +284,10 @@ export function MakeRequest() {
         };
       }
 
-      return {
-        success: true,
-        message: dict.REQUEST_SUCCESS,
-      };
+      return { success: true, message: dict.REQUEST_SUCCESS };
     },
     [selectedTrack, user, dict, settings.selectedLanguage],
   );
-
-  const handleRequestSuccess = useCallback((trackId: string) => {
-    setSearchState((prev) => ({
-      ...prev,
-      // Only the submitted row's object identity changes — every memoized
-      // `RequestTrack` row survives `results` re-renders untouched, so one
-      // submission repaints one row of a 200-row list, not all of them.
-      results: prev.results.map((item) =>
-        item.id === trackId ? { ...item, requestable: false } : item,
-      ),
-    }));
-  }, []);
 
   /** Stable row-action handler, handed to rows via `TrackRequestContext`. */
   const handleRequestTrack = useCallback(
@@ -441,11 +310,12 @@ export function MakeRequest() {
     [],
   );
 
+  const trimmedLength = query.trim().length;
   // Recent searches fill the empty state, focused or not.
-  const showRecent = searchState.query === "" && recent.length > 0;
+  const showRecent = query === "" && recent.length > 0;
   // The banner steps aside while searching so the list gets the room above
   // the keyboard.
-  const showLogo = !searchFocused && searchState.query === "";
+  const showLogo = !searchFocused && query === "";
 
   return (
     <SafeAreaView style={styles.container} edges={["left", "right", "bottom"]}>
@@ -462,31 +332,26 @@ export function MakeRequest() {
 
         <SearchBar
           dict={dict}
-          query={searchState.query}
-          onChangeText={(query) =>
-            setSearchState((prev) => ({ ...prev, query }))
-          }
-          onSubmit={handleSearch}
-          onClear={handleClearSearch}
+          query={query}
+          onChangeText={setQuery}
+          onSubmit={submit}
+          onClear={clear}
           onFocusChange={(focused) => {
             layoutEase();
             setSearchFocused(focused);
           }}
         />
 
-        {searchState.query.trim().length > 0 &&
-          searchState.query.trim().length < MIN_SEARCH_LENGTH && (
-            <Text style={styles.minHint}>{dict.REQUEST_SEARCH_MIN}</Text>
-          )}
-
-        {searchFailed && (
-          <SearchErrorBanner dict={dict} onRetry={handleSearch} />
+        {trimmedLength > 0 && trimmedLength < MIN_SEARCH_LENGTH && (
+          <Text style={styles.minHint}>{dict.REQUEST_SEARCH_MIN}</Text>
         )}
+
+        {searchFailed && <SearchErrorBanner dict={dict} onRetry={submit} />}
 
         <View style={styles.listWrapper}>
           <SearchBody
             showRecent={showRecent}
-            loading={searchState.status === "loading"}
+            loading={loading}
             onRequestTrack={handleRequestTrack}
             recentProps={{
               dict,
@@ -497,18 +362,18 @@ export function MakeRequest() {
             }}
             resultsProps={{
               listRef,
-              data: searchState.results,
+              data: results,
               renderItem: renderRequestTrack,
               showEmpty:
                 hasSearched &&
                 !searchFailed &&
-                searchState.status === "idle" &&
-                searchState.query.trim().length >= MIN_SEARCH_LENGTH,
+                idle &&
+                trimmedLength >= MIN_SEARCH_LENGTH,
               emptyLabel: dict.REQUEST_SEARCH_EMPTY,
               refreshing,
-              onRefresh: handleRefresh,
-              loadingMore: searchState.status === "loadingMore",
-              onEndReached: handleLoadMore,
+              onRefresh: refresh,
+              loadingMore,
+              onEndReached: loadMore,
             }}
           />
         </View>
@@ -520,7 +385,7 @@ export function MakeRequest() {
         user={user}
         onClose={() => setSelectedTrack(undefined)}
         onSubmit={handleSubmitRequest}
-        onRequestSuccess={handleRequestSuccess}
+        onRequestSuccess={markRequested}
       />
     </SafeAreaView>
   );

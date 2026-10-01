@@ -51,10 +51,12 @@ pipeline {
           # Expo-managed packages must match the installed SDK (deliberate
           # exceptions live in expo.install.exclude).
           pnpm run check:expo-deps
+          # App config schema, duplicate native modules, SDK compatibility.
+          pnpm run check:expo-doctor
           # Known-vulnerability gate on the resolved dependency tree.
           pnpm run check:audit
           pnpm exec expo lint
-          pnpm test
+          pnpm test:coverage
           # The API client is a git submodule compiled into the app.
           pnpm run check:animu-api
 
@@ -64,7 +66,7 @@ pipeline {
             --bundle-output /tmp/index.android.bundle \
             --assets-dest /tmp/animu-assets --dev false
 
-          # React Doctor health-score gate (minimum 85).
+          # React Doctor gate (any finding fails the build).
           pnpm run doctor:gate
         '''
       }

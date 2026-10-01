@@ -258,9 +258,10 @@ pipeline {
           set -eux
           pnpm run typecheck
           pnpm run check:expo-deps
+          pnpm run check:expo-doctor
           pnpm run check:audit
           pnpm exec expo lint
-          pnpm test
+          pnpm test:coverage
           pnpm run check:animu-api
           pnpm run doctor:gate
         '''

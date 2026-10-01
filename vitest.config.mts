@@ -30,6 +30,14 @@ export default defineConfig({
         "src/**/*.d.ts",
         "src/@types/**",
       ],
+      // Regression floor, set just under the measured totals (68.2 / 63.9 /
+      // 58.0 / 69.0). Raise it as coverage grows; never lower it to pass.
+      thresholds: {
+        statements: 67,
+        branches: 62,
+        functions: 57,
+        lines: 68,
+      },
     },
   },
   resolve: {

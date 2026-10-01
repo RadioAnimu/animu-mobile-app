@@ -58,9 +58,7 @@ type Step = "method" | "connect";
  * the previous one so the screen assembles instead of popping in.
  */
 function useEntrance(delay = 0) {
-  const progressRef = useRef<Animated.Value | null>(null);
-  if (progressRef.current === null) progressRef.current = new Animated.Value(0);
-  const progress = progressRef.current;
+  const [progress] = useState(() => new Animated.Value(0));
 
   useEffect(() => {
     const animation = Animated.timing(progress, {

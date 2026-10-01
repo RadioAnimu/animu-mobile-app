@@ -45,6 +45,75 @@ const COUNTER_THRESHOLD = 0.8;
 /** Placeholder and clear icon on the white field. */
 const PLACEHOLDER_COLOR = "rgba(0, 0, 0, 0.45)";
 
+interface HeaderProps {
+  label: string;
+  optional: boolean;
+  focused: boolean;
+  hasError: boolean;
+  length: number;
+  maxLength?: number;
+}
+
+/** Label tab, plus the length counter once the limit is within reach. */
+function FieldHeader({
+  label,
+  optional,
+  focused,
+  hasError,
+  length,
+  maxLength,
+}: HeaderProps) {
+  const dict = useDict();
+  const showCounter =
+    maxLength != null && length >= maxLength * COUNTER_THRESHOLD;
+
+  return (
+    <View style={styles.tabRow}>
+      <View
+        style={[
+          styles.tab,
+          focused && styles.tabFocused,
+          hasError && styles.tabError,
+        ]}
+      >
+        <Text
+          style={[styles.label, (focused || hasError) && styles.labelOnLight]}
+        >
+          {label}
+          {optional && (
+            <Text style={styles.optional}> ({dict.OPTIONAL_LABEL})</Text>
+          )}
+        </Text>
+      </View>
+      {showCounter && (
+        <Text
+          style={[styles.counter, length >= maxLength && styles.counterFull]}
+        >
+          {length}/{maxLength}
+        </Text>
+      )}
+    </View>
+  );
+}
+
+/** Inline validation message, announced politely to screen readers. */
+function FieldError({ message }: { message: string }) {
+  return (
+    <View
+      accessibilityLiveRegion="polite"
+      accessibilityRole="alert"
+      style={styles.errorRow}
+    >
+      <MaterialIcons
+        name="error-outline"
+        size={scale(16)}
+        color={THEME.COLORS.ERROR}
+      />
+      <Text style={styles.errorText}>{message}</Text>
+    </View>
+  );
+}
+
 /**
  * Labelled text field in the app's field recipe, with a focus ring, an inline
  * validation message, a clear button and (when `maxLength` is set) a counter
@@ -65,49 +134,25 @@ export function FormField({
   const dict = useDict();
   const [focused, setFocused] = useState(false);
 
-  const showCounter =
-    maxLength != null && value.length >= maxLength * COUNTER_THRESHOLD;
+  const hasError = error != null;
   const canClear = !multiline && editable && value.length > 0;
 
   return (
     <View style={styles.wrapper}>
-      <View style={styles.tabRow}>
-        <View
-          style={[
-            styles.tab,
-            focused && styles.tabFocused,
-            error != null && styles.tabError,
-          ]}
-        >
-          <Text
-            style={[
-              styles.label,
-              (focused || error != null) && styles.labelOnLight,
-            ]}
-          >
-            {label}
-            {optional && (
-              <Text style={styles.optional}> ({dict.OPTIONAL_LABEL})</Text>
-            )}
-          </Text>
-        </View>
-        {showCounter && (
-          <Text
-            style={[
-              styles.counter,
-              value.length >= maxLength && styles.counterFull,
-            ]}
-          >
-            {value.length}/{maxLength}
-          </Text>
-        )}
-      </View>
+      <FieldHeader
+        label={label}
+        optional={optional}
+        focused={focused}
+        hasError={hasError}
+        length={value.length}
+        maxLength={maxLength}
+      />
       <View
         style={[
           styles.field,
           multiline && styles.fieldMultiline,
           focused && styles.fieldFocused,
-          error != null && styles.fieldError,
+          hasError && styles.fieldError,
           !editable && styles.fieldDisabled,
         ]}
       >
@@ -142,20 +187,7 @@ export function FormField({
           </TouchableOpacity>
         )}
       </View>
-      {error != null && (
-        <View
-          accessibilityLiveRegion="polite"
-          accessibilityRole="alert"
-          style={styles.errorRow}
-        >
-          <MaterialIcons
-            name="error-outline"
-            size={scale(16)}
-            color={THEME.COLORS.ERROR}
-          />
-          <Text style={styles.errorText}>{error}</Text>
-        </View>
-      )}
+      {hasError && <FieldError message={error} />}
     </View>
   );
 }
