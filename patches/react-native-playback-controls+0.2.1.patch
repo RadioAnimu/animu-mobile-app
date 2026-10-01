@@ -1,8 +1,26 @@
 diff --git a/node_modules/react-native-playback-controls/android/src/main/java/com/playbackcontrols/ControlsPlayer.kt b/node_modules/react-native-playback-controls/android/src/main/java/com/playbackcontrols/ControlsPlayer.kt
-index 276f2ea..cff6786 100644
+index 276f2ea..4d82990 100644
 --- a/node_modules/react-native-playback-controls/android/src/main/java/com/playbackcontrols/ControlsPlayer.kt
 +++ b/node_modules/react-native-playback-controls/android/src/main/java/com/playbackcontrols/ControlsPlayer.kt
-@@ -156,7 +156,30 @@ class ControlsPlayer : SimpleBasePlayer(Looper.getMainLooper()) {
+@@ -59,9 +59,15 @@ class ControlsPlayer : SimpleBasePlayer(Looper.getMainLooper()) {
+       // comment below for why every later state avoids IDLE.
+       ?: return builder.setPlaybackState(Player.STATE_IDLE).build()
+ 
+-    val playWhenReady = playback.status == "playing"
++    // PATCH: "buffering" is still play intent (connecting / reconnecting).
++    // Reporting it as not-playWhenReady made media3 treat the session as no
++    // longer user-engaged: the notification flipped to a Play button and,
++    // past the foreground-service timeout, the service left the foreground —
++    // so a long outage (underground) ended with the process frozen and the
++    // reconnect never running.
++    val playWhenReady = playback.status == "playing" || playback.status == "buffering"
+     val positionMs = (playback.positionSec * 1000).roundToLong()
+-    val positionSupplier = if (playWhenReady) {
++    val positionSupplier = if (playback.status == "playing") {
+       PositionSupplier.getExtrapolating(positionMs, playback.playbackRate)
+     } else {
+       PositionSupplier.getConstant(positionMs)
+@@ -156,7 +162,30 @@ class ControlsPlayer : SimpleBasePlayer(Looper.getMainLooper()) {
        .setArtist(metadata.artist)
        .setAlbumTitle(metadata.album)
        .apply {
@@ -34,7 +52,7 @@ index 276f2ea..cff6786 100644
        }
        .build()
  
-@@ -168,6 +191,8 @@ class ControlsPlayer : SimpleBasePlayer(Looper.getMainLooper()) {
+@@ -168,6 +197,8 @@ class ControlsPlayer : SimpleBasePlayer(Looper.getMainLooper()) {
        C.TIME_UNSET
      }
  
@@ -43,7 +61,7 @@ index 276f2ea..cff6786 100644
      return MediaItemData.Builder(MEDIA_ITEM_ID)
        .setMediaItem(
          MediaItem.Builder().setMediaId(MEDIA_ITEM_ID).setMediaMetadata(mediaMetadata).build()
-@@ -175,7 +200,7 @@ class ControlsPlayer : SimpleBasePlayer(Looper.getMainLooper()) {
+@@ -175,7 +206,7 @@ class ControlsPlayer : SimpleBasePlayer(Looper.getMainLooper()) {
        .setMediaMetadata(mediaMetadata)
        .setDurationUs(durationUs)
        .setIsDynamic(metadata.isLiveStream)

@@ -1,5 +1,179 @@
+diff --git a/node_modules/expo-audio/android/src/main/AndroidManifest.xml b/node_modules/expo-audio/android/src/main/AndroidManifest.xml
+index 36a19f2..6386855 100644
+--- a/node_modules/expo-audio/android/src/main/AndroidManifest.xml
++++ b/node_modules/expo-audio/android/src/main/AndroidManifest.xml
+@@ -1,3 +1,6 @@
+ <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+   <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
++  <!-- PATCH: ExoPlayer's WAKE_MODE_NETWORK holds a partial wake lock + Wi-Fi
++       lock while the stream plays with the screen off (see AudioPlayer). -->
++  <uses-permission android:name="android.permission.WAKE_LOCK" />
+ </manifest>
+diff --git a/node_modules/expo-audio/android/src/main/java/expo/modules/audio/AudioModule.kt b/node_modules/expo-audio/android/src/main/java/expo/modules/audio/AudioModule.kt
+index 992239b..f1a8d08 100644
+--- a/node_modules/expo-audio/android/src/main/java/expo/modules/audio/AudioModule.kt
++++ b/node_modules/expo-audio/android/src/main/java/expo/modules/audio/AudioModule.kt
+@@ -77,22 +77,50 @@ class AudioModule : Module() {
+   }
+ 
+   private var audioFocusRequest: AudioFocusRequest? = null
++
++  // PATCH: pauses for the system and tells JS why (`AudioPlayer.interruption`).
++  // Keyed on `playWhenReady`, not `isPlaying`: a player that is still
++  // buffering when focus is lost would otherwise keep its play intent and
++  // start talking over the call / the other app the moment it has data.
++  private fun pauseForSystem(playable: Playable, reason: String, resumeOnGain: Boolean) {
++    if (!playable.player.playWhenReady) return
++    val audioPlayer = playable as? AudioPlayer
++    audioPlayer?.interruption = reason
++    playable.isPaused = resumeOnGain
++    playable.pause()
++    audioPlayer?.publishStatus()
++  }
++
++  // PATCH: every start goes through focus. Upstream played even when the
++  // request failed (e.g. during a phone call). A delayed grant parks the
++  // player until AUDIOFOCUS_GAIN starts it.
++  private fun startWithFocus(playable: Playable) {
++    val result = if (focusAcquired) AudioManager.AUDIOFOCUS_REQUEST_GRANTED else requestAudioFocus()
++    val audioPlayer = playable as? AudioPlayer
++    if (result == AudioManager.AUDIOFOCUS_REQUEST_GRANTED) {
++      playable.isPaused = false
++      audioPlayer?.interruption = null
++      playable.player.play()
++      return
++    }
++    val delayed = result == AudioManager.AUDIOFOCUS_REQUEST_DELAYED
++    playable.isPaused = delayed
++    playable.player.pause()
++    audioPlayer?.interruption = if (delayed) "focus-delayed" else "focus-denied"
++    audioPlayer?.publishStatus()
++  }
++
+   private val audioFocusChangeListener = AudioManager.OnAudioFocusChangeListener { focusChange ->
+     appContext.mainQueue.launch {
+       when (focusChange) {
+         AudioManager.AUDIOFOCUS_LOSS -> {
+           focusAcquired = false
+-          allPlayables.forEach { it.pause() }
++          allPlayables.forEach { pauseForSystem(it, "focus-loss", resumeOnGain = false) }
+         }
+ 
+         AudioManager.AUDIOFOCUS_LOSS_TRANSIENT -> {
+           focusAcquired = false
+-          allPlayables.forEach { playable ->
+-            if (playable.isPlaying) {
+-              playable.isPaused = true
+-              playable.pause()
+-            }
+-          }
++          allPlayables.forEach { pauseForSystem(it, "focus-loss-transient", resumeOnGain = true) }
+         }
+ 
+         AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK -> {
+@@ -104,12 +132,7 @@ class AudioModule : Module() {
+               playable.setVolume(playable.previousVolume * 0.5f)
+             }
+           } else {
+-            allPlayables.forEach { playable ->
+-              if (playable.isPlaying) {
+-                playable.isPaused = true
+-                playable.pause()
+-              }
+-            }
++            allPlayables.forEach { pauseForSystem(it, "focus-loss-transient", resumeOnGain = true) }
+           }
+         }
+ 
+@@ -124,6 +147,9 @@ class AudioModule : Module() {
+             playable.setVolume(playable.previousVolume)
+             if (playable.isPaused) {
+               playable.isPaused = false
++              // PATCH: the interruption is over — clear it before the resumed
++              // frames reach JS.
++              (playable as? AudioPlayer)?.interruption = null
+               playable.play()
+             }
+           }
+@@ -140,15 +166,23 @@ class AudioModule : Module() {
+     return playsInSilentMode || audioManager.ringerMode == AudioManager.RINGER_MODE_NORMAL
+   }
+ 
+-  private fun requestAudioFocus() {
+-    if (focusAcquired || !audioEnabled || interruptionMode == InterruptionMode.MIX_WITH_OTHERS) {
+-      return
++  // PATCH: returns the request result so callers can refuse to play without
++  // focus. Mixing (no focus needed) counts as granted.
++  private fun requestAudioFocus(): Int {
++    if (focusAcquired || interruptionMode == InterruptionMode.MIX_WITH_OTHERS) {
++      return AudioManager.AUDIOFOCUS_REQUEST_GRANTED
++    }
++    if (!audioEnabled) {
++      return AudioManager.AUDIOFOCUS_REQUEST_FAILED
+     }
+ 
+     val result = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+       val requestType = interruptionMode?.let {
+         if (it == InterruptionMode.DO_NOT_MIX) {
+-          AudioManager.AUDIOFOCUS_GAIN_TRANSIENT
++          // PATCH: a radio is continuous playback, not a blip. A TRANSIENT
++          // request made other apps pause "temporarily" and auto-resume the
++          // moment we released focus (pause the radio → Spotify restarts).
++          AudioManager.AUDIOFOCUS_GAIN
+         } else {
+           AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK
+         }
+@@ -169,7 +203,7 @@ class AudioModule : Module() {
+     } else {
+       @Suppress("DEPRECATION")
+       val requestType = if (interruptionMode == InterruptionMode.DO_NOT_MIX) {
+-        AudioManager.AUDIOFOCUS_GAIN_TRANSIENT
++        AudioManager.AUDIOFOCUS_GAIN
+       } else {
+         AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK
+       }
+@@ -181,6 +215,7 @@ class AudioModule : Module() {
+     } else {
+       Log.e(TAG, "Audio focus request failed with: $result")
+     }
++    return result ?: AudioManager.AUDIOFOCUS_REQUEST_FAILED
+   }
+ 
+   private fun releaseAudioFocus() {
+@@ -473,15 +508,15 @@ class AudioModule : Module() {
+           return@Function
+         }
+         runOnMain {
+-          if (!focusAcquired) {
+-            requestAudioFocus()
+-          }
+-          player.ref.play()
++          startWithFocus(player)
+         }
+       }
+ 
+       Function("pause") { player: AudioPlayer ->
+         runOnMain {
++          // PATCH: an explicit pause cancels a pending AUDIOFOCUS_GAIN resume.
++          player.isPaused = false
++          player.interruption = null
+           player.ref.pause()
+         }
+       }
+@@ -497,10 +532,7 @@ class AudioModule : Module() {
+                 if (!shouldPlayInSilentMode()) {
+                   return@runOnMain
+                 }
+-                if (!focusAcquired) {
+-                  requestAudioFocus()
+-                }
+-                player.ref.play()
++                startWithFocus(player)
+               }
+             }
+           }
 diff --git a/node_modules/expo-audio/android/src/main/java/expo/modules/audio/AudioPlayer.kt b/node_modules/expo-audio/android/src/main/java/expo/modules/audio/AudioPlayer.kt
-index c76a9fd..3408b68 100644
+index c76a9fd..60a6c9a 100644
 --- a/node_modules/expo-audio/android/src/main/java/expo/modules/audio/AudioPlayer.kt
 +++ b/node_modules/expo-audio/android/src/main/java/expo/modules/audio/AudioPlayer.kt
 @@ -1,19 +1,21 @@
@@ -47,7 +221,7 @@ index c76a9fd..3408b68 100644
  
  @UnstableApi
  class AudioPlayer(
-@@ -32,9 +41,14 @@ class AudioPlayer(
+@@ -32,13 +41,25 @@ class AudioPlayer(
    appContext: AppContext,
    source: MediaSource?,
    updateInterval: Double,
@@ -64,7 +238,38 @@ index c76a9fd..3408b68 100644
      .setLooper(context.mainLooper)
      .setAudioAttributes(AudioAttributes.DEFAULT, false)
      .setSeekForwardIncrementMs(SEEK_JUMP_INTERVAL_MS)
-@@ -76,8 +90,20 @@ class AudioPlayer(
+     .setSeekBackIncrementMs(SEEK_JUMP_INTERVAL_MS)
++    // PATCH: unplugging headphones / losing the Bluetooth route pauses instead
++    // of moving the stream to the loudspeaker (see `onPlayWhenReadyChanged`).
++    .setHandleAudioBecomingNoisy(true)
++    // PATCH: partial wake lock + Wi-Fi lock while playing. Without them the
++    // screen-off CPU/Wi-Fi power saving starves the network loader of a live
++    // stream into stalls.
++    .setWakeMode(C.WAKE_MODE_NETWORK)
+     .apply {
+       if (bufferDurationMs > 0) {
+         setLoadControl(
+@@ -64,7 +85,18 @@ class AudioPlayer(
+   var isActiveForLockScreen = false
+   internal var metadata: Metadata? = null
+   internal var lockScreenOptions: AudioLockScreenOptions? = null
+-  internal var mediaSession: MediaSession = buildBasicMediaSession(context, ref)
++  // PATCH: the basic media3 session is created only when expo-audio's own
++  // lock-screen service asks for it. Built eagerly, it was a second active
++  // session bound straight to ExoPlayer next to the app's own media session:
++  // Android routes headset / Bluetooth / car buttons to one session of the
++  // app, so a button could pause or resume the player behind the app's back
++  // (or not), depending on which session updated last.
++  private var basicMediaSession: MediaSession? = null
++  internal var mediaSession: MediaSession
++    get() = basicMediaSession ?: buildBasicMediaSession(context, ref).also { basicMediaSession = it }
++    set(value) {
++      basicMediaSession = value
++    }
+   val serviceConnection = AudioPlaybackServiceConnection(WeakReference(this), appContext)
+ 
+   val isLive: Boolean
+@@ -76,8 +108,31 @@ class AudioPlayer(
        return if (offset == C.TIME_UNSET) null else offset / 1000.0
      }
  
@@ -84,13 +289,35 @@ index c76a9fd..3408b68 100644
 +      return if (ahead in 0..MAX_BUFFERED_AHEAD_MS) ahead / 1000.0 else null
 +    }
 +
++  // PATCH: why the OS paused this player — an audio-focus loss, a denied
++  // focus request or the audio route becoming noisy — or null. Reported in
++  // every status frame so JS can tell a system pause apart from a network
++  // stall: without it a pause that lands while the stream is buffering looks
++  // like a stall, and the reconnect logic would take the focus straight back
++  // from the app that just claimed it.
++  var interruption: String? = null
++
++  /** PATCH: pushes a status frame now (e.g. after an interruption change). */
++  fun publishStatus() = sendStatusUpdate()
++
    private val context by lazy {
      appContext.reactContext
        ?: throw Exceptions.ReactContextLost()
-@@ -85,6 +111,13 @@ class AudioPlayer(
+@@ -85,6 +140,24 @@ class AudioPlayer(
  
    init {
      installPlayerListeners()
++    // PATCH: ExoPlayer pauses on ACTION_AUDIO_BECOMING_NOISY by itself
++    // (`setHandleAudioBecomingNoisy`); flag it as a system pause.
++    ref.addListener(object : Player.Listener {
++      override fun onPlayWhenReadyChanged(playWhenReady: Boolean, reason: Int) {
++        if (!playWhenReady && reason == Player.PLAY_WHEN_READY_CHANGE_REASON_AUDIO_BECOMING_NOISY) {
++          interruption = "noisy"
++          isPaused = false
++          sendStatusUpdate()
++        }
++      }
++    })
 +    // PATCH: the PCM tap runs on ExoPlayer's audio thread — it must not touch
 +    // `ref` (wrong-thread access throws). `timestampSeconds` is derived from a
 +    // frame counter by the sink and `outputLatencySeconds` from the sink's
@@ -101,7 +328,7 @@ index c76a9fd..3408b68 100644
      source?.let {
        setMediaSource(source)
      }
-@@ -164,20 +197,10 @@ class AudioPlayer(
+@@ -164,20 +237,10 @@ class AudioPlayer(
    }
  
    fun setSamplingEnabled(enabled: Boolean) {
@@ -126,7 +353,7 @@ index c76a9fd..3408b68 100644
    }
  
    override fun setPlaybackRate(rate: Float) {
-@@ -186,11 +209,6 @@ class AudioPlayer(
+@@ -186,11 +249,6 @@ class AudioPlayer(
      ref.playbackParameters = PlaybackParameters(playbackRate, pitch)
    }
  
@@ -138,16 +365,21 @@ index c76a9fd..3408b68 100644
    override fun currentStatus(): Map<String, Any?> {
      val isMuted = ref.volume == 0f
      val isLooping = ref.repeatMode == Player.REPEAT_MODE_ONE
-@@ -215,6 +233,7 @@ class AudioPlayer(
+@@ -215,21 +273,29 @@ class AudioPlayer(
        "isBuffering" to isBuffering,
        "isLive" to isLive,
        "currentOffsetFromLive" to currentOffsetFromLive,
 +      "bufferedAhead" to bufferedAheadSeconds,
++      "interruption" to interruption,
        "error" to null
      )
    }
-@@ -224,12 +243,18 @@ class AudioPlayer(
-     mediaSession = buildBasicMediaSession(context, ref)
+ 
+   internal fun assignBasicMediaSession() {
+-    mediaSession.release()
+-    mediaSession = buildBasicMediaSession(context, ref)
++    basicMediaSession?.release()
++    basicMediaSession = null
    }
  
 -  private fun sendAudioSampleUpdate(sample: List<Float>) {
@@ -170,7 +402,7 @@ index c76a9fd..3408b68 100644
      )
      emit(AUDIO_SAMPLE_UPDATE, body)
    }
-@@ -244,33 +269,6 @@ class AudioPlayer(
+@@ -244,45 +310,20 @@ class AudioPlayer(
      }
    }
  
@@ -204,7 +436,13 @@ index c76a9fd..3408b68 100644
    override fun sharedObjectDidRelease() {
      serviceConnection.release()
      super.sharedObjectDidRelease()
-@@ -282,7 +280,8 @@ class AudioPlayer(
+   }
+ 
+   override fun releasePlayer() {
+-    mediaSession.release()
++    basicMediaSession?.release()
++    basicMediaSession = null
+     if (isActiveForLockScreen) {
        serviceConnection.playbackServiceBinder?.service?.unregisterPlayer()
      }
      serviceConnection.unbind()
@@ -214,7 +452,7 @@ index c76a9fd..3408b68 100644
      super.releasePlayer()
    }
  
-@@ -290,3 +289,191 @@ class AudioPlayer(
+@@ -290,3 +331,191 @@ class AudioPlayer(
      val TAG = AudioPlayer::class.simpleName
    }
  }
@@ -406,32 +644,26 @@ index c76a9fd..3408b68 100644
 +    const val LATENCY_SMOOTHING = 0.85
 +  }
 +}
-diff --git a/node_modules/expo-audio/android/src/main/java/expo/modules/audio/AudioModule.kt b/node_modules/expo-audio/android/src/main/java/expo/modules/audio/AudioModule.kt
---- a/node_modules/expo-audio/android/src/main/java/expo/modules/audio/AudioModule.kt
-+++ b/node_modules/expo-audio/android/src/main/java/expo/modules/audio/AudioModule.kt
-@@ -148,7 +148,10 @@
-     val result = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-       val requestType = interruptionMode?.let {
-         if (it == InterruptionMode.DO_NOT_MIX) {
--          AudioManager.AUDIOFOCUS_GAIN_TRANSIENT
-+          // PATCH: a radio is continuous playback, not a blip. A TRANSIENT
-+          // request made other apps pause "temporarily" and auto-resume the
-+          // moment we released focus (pause the radio → Spotify restarts).
-+          AudioManager.AUDIOFOCUS_GAIN
-         } else {
-           AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK
+diff --git a/node_modules/expo-audio/android/src/main/java/expo/modules/audio/BaseAudioPlayer.kt b/node_modules/expo-audio/android/src/main/java/expo/modules/audio/BaseAudioPlayer.kt
+index 149e907..7ad5aef 100644
+--- a/node_modules/expo-audio/android/src/main/java/expo/modules/audio/BaseAudioPlayer.kt
++++ b/node_modules/expo-audio/android/src/main/java/expo/modules/audio/BaseAudioPlayer.kt
+@@ -61,7 +61,12 @@ abstract class BaseAudioPlayer(
+         sendStatusUpdate()
+       }
+       .onEach {
+-        if (playing) {
++        // PATCH: keep ticking while playback is WANTED (buffering, or idle
++        // after a stream error), not only while audio flows. React Native
++        // pauses every JS timer while the activity is in the background, so
++        // these frames are the only clock that can drive a reconnect of a
++        // stream that died with the screen off.
++        if (playing || ref.playWhenReady) {
+           sendStatusUpdate()
          }
-@@ -169,7 +172,7 @@
-     } else {
-       @Suppress("DEPRECATION")
-       val requestType = if (interruptionMode == InterruptionMode.DO_NOT_MIX) {
--        AudioManager.AUDIOFOCUS_GAIN_TRANSIENT
-+        AudioManager.AUDIOFOCUS_GAIN
-       } else {
-         AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK
        }
 diff --git a/node_modules/expo-audio/ios/AudioModule.swift b/node_modules/expo-audio/ios/AudioModule.swift
-index d265606..4ff7bdb 100644
+index d265606..f6f4c65 100644
 --- a/node_modules/expo-audio/ios/AudioModule.swift
 +++ b/node_modules/expo-audio/ios/AudioModule.swift
 @@ -132,6 +132,10 @@ public class AudioModule: Module {
@@ -445,11 +677,139 @@ index d265606..4ff7bdb 100644
          player.onPlaybackComplete = { [weak self] in
            if !keepAudioSessionActive {
              self?.deactivateSession()
+@@ -211,6 +215,10 @@ public class AudioModule: Module {
+ 
+       Function("play") { player in
+         try activateSession()
++        // PATCH: an explicit start ends any interruption this player was
++        // parked for (it must not be resumed again when it ends).
++        player.interruption = nil
++        interruptedPlayers.remove(player.id)
+         let rate = player.currentRate > 0 ? player.currentRate : 1.0
+         player.play(at: rate)
+       }
+@@ -242,7 +250,13 @@ public class AudioModule: Module {
+       }
+ 
+       Function("pause") { player in
+-        player.ref.pause()
++        // PATCH: through `AudioPlayer.pause()` so the play intent is cleared —
++        // `ref.pause()` alone left it set, and the readiness observer then
++        // restarted a paused player after any source replace (stream change).
++        // An explicit pause also cancels a pending interruption resume.
++        player.pause()
++        player.interruption = nil
++        interruptedPlayers.remove(player.id)
+         if !player.keepAudioSessionActive {
+           deactivateSession()
+         }
+@@ -571,6 +585,13 @@ public class AudioModule: Module {
+ 
+     switch interruptionType {
+     case .began:
++      // PATCH: a "began" for a session the system deactivated while the app
++      // was suspended is delivered late, on wake-up. Nothing was rendering;
++      // pausing now would cancel the app's own recovery.
++      if let reasonRaw = userInfo[AVAudioSessionInterruptionReasonKey] as? UInt,
++        AVAudioSession.InterruptionReason(rawValue: reasonRaw) == .appWasSuspended {
++        return
++      }
+       handleInterruptionBegan()
+ 
+     case .ended:
+@@ -591,14 +612,20 @@ public class AudioModule: Module {
+     playerVolumes.removeAll()
+ 
+     registry.allPlayables.forEach { playable in
+-      if playable.isPlaying {
++      // PATCH: a player still loading/waiting for data wants playback too.
++      // Skipping it kept its play intent alive, so it started (re-activating
++      // the session and interrupting the other app) once its item was ready.
++      let audioPlayer = playable as? AudioPlayer
++      if playable.isPlaying || audioPlayer?.wantsPlayback == true {
+         interruptedPlayers.insert(playable.id)
+         switch interruptionMode {
+         case .duckOthers:
+           playerVolumes[playable.id] = playable.volume
+           playable.volume *= 0.5
+         case .doNotMix, .mixWithOthers:
++          audioPlayer?.interruption = "interruption"
+           playable.pause()
++          audioPlayer?.updateStatus(with: [:])
+         }
+       }
+     }
+@@ -613,16 +640,39 @@ public class AudioModule: Module {
+   }
+ 
+   private func handleInterruptionEnded(with options: AVAudioSession.InterruptionOptions) {
++    // PATCH: only take the session back when the system asks us to resume AND
++    // no other app has become the primary audio source meanwhile (e.g. Siri
++    // handing off to a music app). Re-activating a non-mixable session
++    // otherwise interrupts that app — the user then has to press play there
++    // twice. Players that are not resumed stay paused, interruption cleared.
++    let session = AVAudioSession.sharedInstance()
++    let shouldResume = options.contains(.shouldResume)
++      && !interruptedPlayers.isEmpty
++      && !session.secondaryAudioShouldBeSilencedHint
++    guard shouldResume else {
++      endInterruptionWithoutResume()
++      return
++    }
+     do {
+-      try AVAudioSession.sharedInstance().setActive(true)
+-      if options.contains(.shouldResume) {
+-        resumeInterruptedPlayers()
+-      }
++      try session.setActive(true)
++      resumeInterruptedPlayers()
+     } catch {
+       print("Failed to reactivate audio session: \(error)")
++      endInterruptionWithoutResume()
+     }
+   }
+ 
++  /// PATCH: the interruption is over but playback stays paused (JS decides).
++  private func endInterruptionWithoutResume() {
++    registry.allPlayers.values.forEach { player in
++      guard interruptedPlayers.contains(player.id) else { return }
++      player.interruption = nil
++      player.updateStatus(with: [:])
++    }
++    interruptedPlayers.removeAll()
++    playerVolumes.removeAll()
++  }
++
+   @objc private func handleAudioSessionRouteChange(_ notification: Notification) {
+     guard let userInfo = notification.userInfo,
+       let reasonRaw = userInfo[AVAudioSessionRouteChangeReasonKey] as? UInt,
+@@ -632,7 +682,20 @@ public class AudioModule: Module {
+ 
+     switch reason {
+     case .oldDeviceUnavailable:
+-      pauseAllPlayers()
++      // PATCH: headphones unplugged / Bluetooth gone. Pause anything that
++      // wants playback (not only what is audible — a buffering stream would
++      // otherwise start on the loudspeaker) and tell JS it was the system.
++      registry.allPlayers.values.forEach { player in
++        guard player.wantsPlayback else { return }
++        player.interruption = "route-lost"
++        player.pause()
++        player.updateStatus(with: [:])
++      }
++      registry.allPlaylists.values.forEach { playlist in
++        if playlist.isPlaying {
++          playlist.pause()
++        }
++      }
+     default:
+       break
+     }
 diff --git a/node_modules/expo-audio/ios/AudioPlayer.swift b/node_modules/expo-audio/ios/AudioPlayer.swift
-index 0742943..d068d46 100644
+index 0742943..8020ab4 100644
 --- a/node_modules/expo-audio/ios/AudioPlayer.swift
 +++ b/node_modules/expo-audio/ios/AudioPlayer.swift
-@@ -24,6 +24,12 @@ public class AudioPlayer: SharedRef<AVPlayer>, Playable {
+@@ -24,6 +24,24 @@ public class AudioPlayer: SharedRef<AVPlayer>, Playable {
    }
    var samplingEnabled = false
    var keepAudioSessionActive = false
@@ -459,10 +819,22 @@ index 0742943..d068d46 100644
 +  /// moment AVPlayer is able to play, even if `play()` was called before the
 +  /// item reached `readyToPlay` (which `playImmediately` refuses to do).
 +  private var playWanted = false
++  /// PATCH: why the system paused this player ("interruption" / "route-lost"),
++  /// or nil. Reported in every status frame so JS can tell a system pause apart
++  /// from a network stall — a pause that lands while the stream is still
++  /// loading otherwise reads as buffering, and the reconnect logic would
++  /// re-activate the session and silence the app that just took over.
++  var interruption: String?
++
++  /// PATCH: playback is wanted even if not audible yet (item still loading,
++  /// or AVPlayer waiting for data). Interruptions must pause these too.
++  var wantsPlayback: Bool {
++    playWanted || ref.timeControlStatus != .paused
++  }
  
    var isLooping = false {
      didSet {
-@@ -75,12 +81,118 @@ public class AudioPlayer: SharedRef<AVPlayer>, Playable {
+@@ -75,12 +93,105 @@ public class AudioPlayer: SharedRef<AVPlayer>, Playable {
      return Date().timeIntervalSince1970 - currentDate.timeIntervalSince1970
    }
  
@@ -555,19 +927,6 @@ index 0742943..d068d46 100644
 +    // PATCH: a radio stream must start as soon as it has audio, not after
 +    // AVPlayer has buffered enough to minimise stalling.
 +    ref.automaticallyWaitsToMinimizeStalling = false
-+    // PATCH: a live item may reach `readyToPlay` *after* `play()` was called.
-+    // `playImmediately` before readiness is ignored by AVPlayer, which used to
-+    // leave the app silent until the system self-resumed. Start as soon as the
-+    // item is ready (and keep the session alive so it is not deactivated while
-+    // this brief wait happens).
-+    ref.publisher(for: \.currentItem?.status)
-+      .sink { [weak self] status in
-+        guard let self, status == .readyToPlay, self.playWanted, !self.isPlaying else {
-+          return
-+        }
-+        self.play(at: self.effectiveRate)
-+      }
-+      .store(in: &cancellables)
 +  }
 +
 +  /// PATCH: live-radio streaming preferences, re-applied to every new item
@@ -581,7 +940,7 @@ index 0742943..d068d46 100644
    }
  
    var isLoaded: Bool {
-@@ -100,13 +212,20 @@ public class AudioPlayer: SharedRef<AVPlayer>, Playable {
+@@ -100,13 +211,20 @@ public class AudioPlayer: SharedRef<AVPlayer>, Playable {
    }
  
    func play(at rate: Float) {
@@ -603,15 +962,16 @@ index 0742943..d068d46 100644
  
      if isActiveForLockScreen {
        MediaController.shared.updateNowPlayingInfo(for: self)
-@@ -150,6 +269,7 @@ public class AudioPlayer: SharedRef<AVPlayer>, Playable {
+@@ -150,6 +268,8 @@ public class AudioPlayer: SharedRef<AVPlayer>, Playable {
        "isBuffering": isBuffering,
        "isLive": isLive,
        "currentOffsetFromLive": currentOffsetFromLive,
 +      "bufferedAhead": bufferedAheadSeconds,
++      "interruption": interruption,
        "error": nil
      ]
    }
-@@ -198,6 +318,19 @@ public class AudioPlayer: SharedRef<AVPlayer>, Playable {
+@@ -198,6 +318,33 @@ public class AudioPlayer: SharedRef<AVPlayer>, Playable {
    }
  
    private func setupPublisher() {
@@ -628,10 +988,24 @@ index 0742943..d068d46 100644
 +      }
 +      .store(in: &cancellables)
 +
++    // PATCH: a live item may reach `readyToPlay` *after* `play()` was called.
++    // `playImmediately` before readiness is ignored by AVPlayer, which used to
++    // leave the app silent until the system self-resumed. Start as soon as the
++    // item is ready. Installed here (not in `init`) so the AVPlayer rebuilt
++    // after a media-services reset gets it too.
++    ref.publisher(for: \.currentItem?.status)
++      .sink { [weak self] status in
++        guard let self, status == .readyToPlay, self.playWanted, !self.isPlaying else {
++          return
++        }
++        self.play(at: self.effectiveRate)
++      }
++      .store(in: &cancellables)
++
      ref.publisher(for: \.currentItem?.status)
        .sink { [weak self] status in
          guard let self, let status else {
-@@ -228,6 +361,9 @@ public class AudioPlayer: SharedRef<AVPlayer>, Playable {
+@@ -228,6 +375,9 @@ public class AudioPlayer: SharedRef<AVPlayer>, Playable {
          guard let self else {
            return
          }
@@ -641,7 +1015,7 @@ index 0742943..d068d46 100644
          if self.isLooping {
            self.enqueueNextLoopItem()
            self.addPlaybackEndNotification()
-@@ -413,6 +549,8 @@ public class AudioPlayer: SharedRef<AVPlayer>, Playable {
+@@ -413,6 +563,8 @@ public class AudioPlayer: SharedRef<AVPlayer>, Playable {
      } else {
        ref.replaceCurrentItem(with: item)
      }
@@ -650,7 +1024,7 @@ index 0742943..d068d46 100644
    }
  
    private func enqueueNextLoopItem() {
-@@ -467,6 +605,18 @@ public class AudioPlayer: SharedRef<AVPlayer>, Playable {
+@@ -467,6 +619,22 @@ public class AudioPlayer: SharedRef<AVPlayer>, Playable {
            "didJustFinish": true
          ])
          self.onPlaybackComplete?()
@@ -664,12 +1038,16 @@ index 0742943..d068d46 100644
 +        // current item from zero instead — looping no longer relies on the
 +        // enqueued-next-item dance.
 +        finishedItem.seek(to: CMTime.zero) { [weak self] _ in
-+          self?.ref.play()
++          // PATCH: an interruption/pause may have landed while the seek was
++          // in flight — restarting then would re-activate the session and
++          // silence the app that just took over.
++          guard let self, self.playWanted else { return }
++          self.ref.play()
 +        }
        }
      }
    }
-@@ -496,10 +646,15 @@ public class AudioPlayer: SharedRef<AVPlayer>, Playable {
+@@ -496,10 +664,17 @@ public class AudioPlayer: SharedRef<AVPlayer>, Playable {
    }
  
    func pause() {
@@ -680,8 +1058,10 @@ index 0742943..d068d46 100644
    }
  
    func resumePlayback() {
-+    // PATCH: the OS resuming on its own is still an intent to play.
++    // PATCH: the OS resuming on its own is still an intent to play, and ends
++    // the interruption it was paused for.
 +    playWanted = true
++    interruption = nil
      ref.play()
    }
  
