@@ -148,6 +148,24 @@ describe("NowPlayingRepository", () => {
     });
   });
 
+  it("reports a mid-show shout-out toggle as a program change", async () => {
+    const fixture = makeRepository();
+    fixture.program = makeProgram({ isLive: true, acceptingRequests: true });
+    await fixture.repository.refresh();
+    fixture.changes.length = 0;
+
+    fixture.program = makeProgram({ isLive: true, acceptingRequests: false });
+    await fixture.repository.refresh();
+
+    expect(fixture.repository.currentProgram?.acceptingRequests).toBe(false);
+    expect(fixture.changes).toHaveLength(1);
+    expect(fixture.changes[0].programChanged).toBe(true);
+
+    fixture.program = makeProgram({ isLive: true, acceptingRequests: true });
+    await fixture.repository.refresh();
+    expect(fixture.repository.currentProgram?.acceptingRequests).toBe(true);
+  });
+
   it("enables progress only for real, non-live tracks", async () => {
     const fixture = makeRepository();
 

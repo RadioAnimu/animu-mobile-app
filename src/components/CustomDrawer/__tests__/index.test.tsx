@@ -33,7 +33,18 @@ vi.mock("@react-navigation/native", () => ({
 
 const mocks = vi.hoisted(() => ({
   auth: {} as { user?: object | null; profile?: object | null },
-  haptics: { select: vi.fn() },
+  haptics: { select: vi.fn(), error: vi.fn() },
+  player: { currentProgram: undefined } as {
+    currentProgram?: { isLive: boolean };
+  },
+  toast: vi.fn(),
+}));
+
+vi.mock("@/contexts/player/PlayerProvider", () => ({
+  usePlayer: () => mocks.player,
+}));
+vi.mock("@/contexts/alert/AlertProvider", () => ({
+  useAlert: () => ({ toast: mocks.toast }),
 }));
 
 vi.mock("@/contexts/auth/AuthProvider", () => ({ useAuth: () => mocks.auth }));
@@ -46,6 +57,7 @@ vi.mock("@/hooks/useDict", () => ({
     ACCOUNT_TITLE: "Account",
     A11Y_OPENS_SETTINGS: "opens settings",
     A11Y_OPENS_LOGIN: "opens login",
+    REQUEST_ERROR_ONAIR: "Requests are disabled while a DJ is live.",
   }),
 }));
 vi.mock("@/utils/haptics", () => ({ haptics: mocks.haptics }));
@@ -62,6 +74,7 @@ function makeProps(focusedIndex = 0): DrawerContentComponentProps {
     { key: "home", name: "Home", params: undefined },
     { key: "played", name: "LastPlayed", params: { kind: "played" } },
     { key: "settings", name: "Settings", params: undefined },
+    { key: "request", name: "MakeRequest", params: undefined },
   ];
   const descriptors = {
     home: {
@@ -72,6 +85,7 @@ function makeProps(focusedIndex = 0): DrawerContentComponentProps {
     },
     played: { options: { title: "Played fallback" } },
     settings: { options: { drawerItemStyle: { display: "none" } } },
+    request: { options: { drawerLabel: "Make request" } },
   };
   return {
     state: { key: "drawer-1", index: focusedIndex, routes },
@@ -85,6 +99,8 @@ const user = { username: "ana_u", handle: "ana", avatarUrl: "https://a/x.png" };
 describe("CustomDrawerContent", () => {
   beforeEach(() => {
     mocks.auth = { user: null, profile: null };
+    mocks.player = { currentProgram: undefined };
+    vi.clearAllMocks();
   });
   afterEach(cleanup);
 
@@ -173,6 +189,35 @@ describe("CustomDrawerContent", () => {
         target: "drawer-1",
       });
       off();
+    });
+
+    it("make request is usable while the AutoDJ is on air", () => {
+      render(<CustomDrawerContent {...makeProps(0)} />);
+      const item = screen.getByText("Make request").closest("[role=button]")!;
+      expect(item.getAttribute("aria-disabled")).not.toBe("true");
+      fireEvent.click(item);
+      expect(navigation.dispatch).toHaveBeenCalledExactlyOnceWith({
+        type: "NAVIGATE",
+        name: "MakeRequest",
+        params: undefined,
+        target: "drawer-1",
+      });
+    });
+
+    it("make request is locked during a live show: no navigation, explains why", () => {
+      mocks.player = { currentProgram: { isLive: true } };
+      render(<CustomDrawerContent {...makeProps(0)} />);
+      const item = screen.getByText("Make request").closest("[role=button]")!;
+      expect(item.getAttribute("aria-disabled")).toBe("true");
+      fireEvent.click(item);
+      expect(navigation.dispatch).not.toHaveBeenCalled();
+      expect(mocks.toast).toHaveBeenCalledWith(
+        "Requests are disabled while a DJ is live.",
+        "error",
+      );
+      // Other items stay usable.
+      fireEvent.click(screen.getByText("Played fallback"));
+      expect(navigation.dispatch).toHaveBeenCalledTimes(1);
     });
 
     it("the logo goes Home", () => {

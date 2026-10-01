@@ -108,6 +108,17 @@ const mocks = vi.hoisted(() => ({
     submitRequest: vi.fn(),
   },
   submissionError: vi.fn(() => "mapped error"),
+  isLive: false,
+  navigation: { isFocused: vi.fn(() => true), navigate: vi.fn() },
+}));
+
+vi.mock("@react-navigation/native", () => ({
+  useNavigation: () => mocks.navigation,
+}));
+vi.mock("@/contexts/player/PlayerProvider", () => ({
+  usePlayer: () => ({
+    currentProgram: mocks.isLive ? { isLive: true } : undefined,
+  }),
 }));
 
 vi.mock("@/contexts/alert/AlertProvider", () => ({
@@ -133,6 +144,7 @@ vi.mock("@/hooks/useDict", () => ({
     LOGIN_ERROR: "Log in first",
     SELECT_ERROR: "Pick a track",
     REQUEST_SUCCESS: "Requested!",
+    REQUEST_ERROR_ONAIR: "Requests are disabled while a DJ is live.",
   }),
 }));
 vi.mock("@/hooks/useRecentSearches", () => ({
@@ -166,6 +178,10 @@ async function search(query: string) {
 describe("MakeRequest screen", () => {
   beforeEach(() => {
     mocks.user = { sessionToken: "sess" };
+    mocks.isLive = false;
+    mocks.navigation.isFocused.mockReturnValue(true);
+    mocks.navigation.navigate.mockClear();
+    mocks.showError.mockClear();
     mocks.recent.recent = [];
     mocks.service.searchTracksByTitle.mockResolvedValue(
       page(["Gurenge", "Gurenge 2"]),
@@ -176,6 +192,30 @@ describe("MakeRequest screen", () => {
     cleanup();
     vi.restoreAllMocks();
     sheet.props = null;
+  });
+
+  describe("live show lock", () => {
+    it("stays put while the AutoDJ is on air", () => {
+      render(<MakeRequest />);
+      expect(mocks.navigation.navigate).not.toHaveBeenCalled();
+    });
+
+    it("sends a focused screen back Home when a live show starts", () => {
+      mocks.isLive = true;
+      render(<MakeRequest />);
+      expect(mocks.navigation.navigate).toHaveBeenCalledExactlyOnceWith("Home");
+      expect(mocks.showError).toHaveBeenCalledWith(
+        "Requests are disabled while a DJ is live.",
+        "error",
+      );
+    });
+
+    it("does not yank the user off another screen", () => {
+      mocks.isLive = true;
+      mocks.navigation.isFocused.mockReturnValue(false);
+      render(<MakeRequest />);
+      expect(mocks.navigation.navigate).not.toHaveBeenCalled();
+    });
   });
 
   describe("searching", () => {

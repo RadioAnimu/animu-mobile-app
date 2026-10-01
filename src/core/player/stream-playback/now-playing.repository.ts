@@ -500,7 +500,8 @@ export class NowPlayingRepository {
     const programChanged =
       this.currentProgramValue?.name !== program.name ||
       this.currentProgramValue?.dj !== program.dj ||
-      this.currentProgramValue?.isLive !== program.isLive;
+      this.currentProgramValue?.isLive !== program.isLive ||
+      this.currentProgramValue?.acceptingRequests !== program.acceptingRequests;
     if (programChanged) this.currentProgramValue = program;
 
     // Enable progress for real, non-live tracks (radio keeps playing

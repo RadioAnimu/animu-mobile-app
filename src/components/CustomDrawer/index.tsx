@@ -8,7 +8,9 @@ import { CommonActions, DrawerActions } from "@react-navigation/native";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { Avatar } from "@/components/Avatar";
 import { Logo } from "@/components/Logo";
+import { useAlert } from "@/contexts/alert/AlertProvider";
 import { useAuth } from "@/contexts/auth/AuthProvider";
+import { usePlayer } from "@/contexts/player/PlayerProvider";
 import { useDict } from "@/hooks/useDict";
 import { emitReselect } from "@/core/navigation/reselect";
 import { THEME } from "@/theme";
@@ -18,6 +20,9 @@ import { styles } from "@/components/CustomDrawer/styles";
 
 const MENU_ICON_SIZE = scale(22);
 const SECTION_ICON_SIZE = scale(18);
+
+/** Routes unavailable while a live DJ is on air (requests go via the live sheet). */
+const LIVE_LOCKED_ROUTES: readonly string[] = ["MakeRequest"];
 
 type MaterialIconName = ComponentProps<typeof MaterialIcons>["name"];
 
@@ -61,6 +66,11 @@ function NavItems({
   descriptors,
   navigation,
 }: DrawerContentComponentProps) {
+  const dict = useDict();
+  const { toast } = useAlert();
+  const { currentProgram } = usePlayer();
+  const isLive = Boolean(currentProgram?.isLive);
+
   return (
     <View>
       {state.routes.map((route) => {
@@ -75,7 +85,14 @@ function NavItems({
             : (options.title ?? route.name);
         const accent = focused ? THEME.COLORS.SURFACE : THEME.COLORS.TEXT;
 
+        const locked = isLive && LIVE_LOCKED_ROUTES.includes(route.name);
+
         const onPress = () => {
+          if (locked) {
+            haptics.error();
+            toast(dict.REQUEST_ERROR_ONAIR, "error");
+            return;
+          }
           haptics.select();
           // Re-tapping the screen already on top scrolls it to the top
           // instead of just closing the drawer.
@@ -92,10 +109,14 @@ function NavItems({
           <TouchableOpacity
             key={route.key}
             accessibilityRole="button"
-            accessibilityState={{ selected: focused }}
+            accessibilityState={{ selected: focused, disabled: locked }}
             activeOpacity={0.7}
             onPress={onPress}
-            style={[styles.navItem, focused && styles.navItemFocused]}
+            style={[
+              styles.navItem,
+              focused && styles.navItemFocused,
+              locked && styles.navItemLocked,
+            ]}
           >
             {options.drawerIcon?.({
               color: accent,

@@ -1,5 +1,13 @@
 import MaterialIcons from "@react-native-vector-icons/material-icons/static";
-import { useCallback, useRef, useState, type ComponentProps } from "react";
+import type { DrawerNavigationProp } from "@react-navigation/drawer";
+import { useNavigation } from "@react-navigation/native";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type ComponentProps,
+} from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -21,6 +29,7 @@ import { TrackRequestContext } from "@/components/RequestTrack/context";
 // Core
 import { useAlert } from "@/contexts/alert/AlertProvider";
 import { useAuth } from "@/contexts/auth/AuthProvider";
+import { usePlayer } from "@/contexts/player/PlayerProvider";
 import { useUserSettings } from "@/contexts/user/UserSettingsProvider";
 import { useDict } from "@/hooks/useDict";
 import { useLatestRequest } from "@/hooks/useLatestRequest";
@@ -36,6 +45,7 @@ import {
   musicRequestService,
 } from "@/core/services/music-request.service";
 import { IMGS } from "@/i18n";
+import type { RootStackParamList } from "@/routes/app.routes";
 import type { Dict } from "@/i18n";
 import { THEME } from "@/theme";
 import { scale } from "@/theme/responsive";
@@ -184,6 +194,19 @@ export function MakeRequest() {
   const { settings } = useUserSettings();
   const { toast } = useAlert();
   const dict = useDict();
+  const navigation =
+    useNavigation<DrawerNavigationProp<RootStackParamList>>();
+  const isLive = Boolean(usePlayer().currentProgram?.isLive);
+
+  // A live show starting while this screen is open: music requests close, so
+  // hand the listener back to the player (where the live sheet lives). The
+  // screen stays mounted when unfocused, hence the focus check.
+  useEffect(() => {
+    if (isLive && navigation.isFocused()) {
+      toast(dict.REQUEST_ERROR_ONAIR, "error");
+      navigation.navigate("Home");
+    }
+  }, [isLive, navigation, toast, dict]);
 
   const [searchState, setSearchState] = useState<{
     query: string;

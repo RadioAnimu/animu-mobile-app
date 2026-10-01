@@ -109,6 +109,9 @@ export const styles = StyleSheet.create({
   navItemFocused: {
     backgroundColor: THEME.COLORS.BRAND,
   },
+  navItemLocked: {
+    opacity: THEME.OPACITY.DISABLED,
+  },
   navItemText: {
     flex: 1,
     color: THEME.COLORS.TEXT,
