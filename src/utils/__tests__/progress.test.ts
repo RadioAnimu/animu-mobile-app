@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { isBarCorrection, progressRatio } from "@/utils/progress";
+import { isBarCorrection, isSubVisibleStep, progressRatio } from "@/utils/progress";
 
 describe("progressRatio", () => {
   it("clamps elapsed into the 0..1 bar range", () => {
@@ -66,5 +66,21 @@ describe("isBarCorrection", () => {
     expect(isBarCorrection(0.5, 2000, SHORT)).toBe(true);
     // But a gap explainable by real playback stays smooth.
     expect(isBarCorrection(0.3, 2000, SHORT)).toBe(false);
+  });
+});
+
+describe("isSubVisibleStep", () => {
+  it("treats a 250ms advance on a long track as invisible on a phone-width bar", () => {
+    // 250ms of a 4 min track on a 360dp bar ≈ 0.375dp.
+    expect(isSubVisibleStep(250 / 240_000, 360)).toBe(true);
+  });
+
+  it("keeps animating when the step is visible (short tracks)", () => {
+    // 250ms of an 8s track on a 360dp bar ≈ 11dp.
+    expect(isSubVisibleStep(250 / 8_000, 360)).toBe(false);
+  });
+
+  it("never swallows backward moves", () => {
+    expect(isSubVisibleStep(-0.0001, 360)).toBe(false);
   });
 });

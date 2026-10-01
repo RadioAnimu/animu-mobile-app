@@ -45,3 +45,17 @@ export function isBarCorrection(
   const expected = (Math.max(0, Math.min(sinceEffectMs, MAX_SINCE_MS)) / durationMs) * REALTIME_TOLERANCE;
   return Math.abs(move) > Math.max(SNAP_FLOOR_RATIO, expected);
 }
+
+/** A bar step smaller than this many dp is invisible as motion. */
+const SMOOTH_STEP_DP = 1.5;
+
+/**
+ * Whether a forward bar step is too small to be seen as motion. Animating
+ * such steps keeps a native animation permanently in flight (the ~4 Hz
+ * smoothed ticks overlap a 300 ms tween), which holds the whole window at
+ * vsync rate to move a bar by roughly one pixel. Those steps are set
+ * directly; larger ones (short tracks) still tween.
+ */
+export function isSubVisibleStep(move: number, barWidthDp: number): boolean {
+  return move >= 0 && move * barWidthDp < SMOOTH_STEP_DP;
+}

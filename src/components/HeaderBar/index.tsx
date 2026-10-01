@@ -2,7 +2,13 @@ import { useNavigation } from "@react-navigation/native";
 import type { DrawerNavigationProp } from "@react-navigation/drawer";
 import { useEffect, useRef, useState } from "react";
 import { Image } from "expo-image";
-import { Animated, Easing, TouchableOpacity, View } from "react-native";
+import {
+  Animated,
+  Easing,
+  TouchableOpacity,
+  View,
+  useWindowDimensions,
+} from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import menuIcon from "@/assets/icons/menu.webp";
 import noteIcon from "@/assets/icons/note.webp";
@@ -25,7 +31,11 @@ import { useDict } from "@/hooks/useDict";
 import { useBlink } from "@/hooks/useBlink";
 import { useSmoothedElapsed } from "@/hooks/useSmoothedElapsed";
 import { isFillerTransition } from "@/core/domain/track";
-import { progressRatio, isBarCorrection } from "@/utils/progress";
+import {
+  progressRatio,
+  isBarCorrection,
+  isSubVisibleStep,
+} from "@/utils/progress";
 import type { RootStackParamList } from "@/routes/app.routes";
 import { haptics } from "@/utils/haptics";
 
@@ -49,6 +59,7 @@ export function HeaderBar({ openLiveRequestModal }: Props) {
   const dict = useDict();
   const player = usePlayer();
   const isBackgrounded = useIsBackgrounded();
+  const { width: windowWidth } = useWindowDimensions();
   const { currentTrack, currentProgram } = player;
   const { currentTrackProgress } = useTrackProgress();
   // The bar spawns AT the live ratio (cold start, screen switch, thaw after
@@ -113,13 +124,20 @@ export function HeaderBar({ openLiveRequestModal }: Props) {
       return;
     }
 
+    // A sub-pixel advance (long track) is set directly: tweening it would
+    // keep a native animation in flight nonstop for no visible gain.
+    if (isSubVisibleStep(target - previous, windowWidth)) {
+      progressAnim.setValue(target);
+      return;
+    }
+
     Animated.timing(progressAnim, {
       toValue: target,
       duration: PROGRESS_ANIM_DURATION,
       easing: Easing.linear,
       useNativeDriver: true,
     }).start();
-  }, [progressAnim, currentTrack, smoothedElapsed, syncing]);
+  }, [progressAnim, currentTrack, smoothedElapsed, syncing, windowWidth]);
 
   const showLiveBadge = Boolean(currentProgram?.isLive && openLiveRequestModal);
 
