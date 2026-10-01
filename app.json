@@ -36,7 +36,7 @@
         "backgroundColor": "#270052"
       },
       "package": "com.nessjs.animu",
-      "versionCode": 15,
+      "versionCode": 16,
       "blockedPermissions": [
         "android.permission.RECORD_AUDIO",
         "android.permission.READ_EXTERNAL_STORAGE",
@@ -104,7 +104,12 @@
       "./plugins/withIOSAppIntents",
       "./plugins/withAndroidAppActions",
       "expo-localization",
-      ["expo-secure-store", { "faceIDPermission": false }],
+      [
+        "expo-secure-store",
+        {
+          "faceIDPermission": false
+        }
+      ],
       "expo-sharing",
       [
         "expo-media-library",
