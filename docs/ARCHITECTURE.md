@@ -64,9 +64,10 @@ rest of the engine depends on the ports in `ports.ts` (`AudioEnginePort`,
 | `visualizer/` | `audio-sampler` (`AudioSampler`) + `waveform` + `index.android`/`index.ios` | Android-only PCM sampling + DSP; iOS factory returns a `NoopVisualizerSampler`, so the whole DSP never bundles on iOS |
 | `media-session/` | `now-playing.metadata` (`buildNowPlayingMetadata`) | Pure mapper: app state → native media-session metadata |
 | `storage/` | `artwork` (`ArtworkResolver`), `cover-file-cache`, `cover-image-cache`, `cover-ports` | Cover resolution, disk/image caches and the bundled default |
-| root | `player-service.ts` (`PlayerService`) | The thin orchestrator — composes the units, routes events, writes the stores |
+| root | `player-service.ts` (`PlayerService`) | The thin orchestrator — routes events between the units, writes the stores |
+| root | `player-factory.ts` | Composition root — wires the production adapters/units and owns the `playerService()` singleton |
 | root | `store.ts` | The three external stores |
-| root | `timer.ts` | The shared scheduling port (`Timer`, `jsTimer`) |
+| root | `timer.ts` | The shared scheduling port (`Timer`, `jsTimer`) and the `PumpedTimer` every unit shares |
 
 The units communicate through narrow, constructor-injected dependencies (the
 `Timer` abstraction replaces raw `setTimeout`, fetchers and connectivity
@@ -168,6 +169,30 @@ keeps using relative requires.
   the 1 Hz `HeartbeatScheduler` from the native player, driving progress,
   media-session pushes and the data poll even when JS timers are frozen or
   throttled — so a live show's notification never keeps a stale title/cover.
+  React Native stops firing JS timers entirely while an Android activity is in
+  the background (screen off included), so native frames also pump the shared
+  `PumpedTimer` (reconnect backoff, track boundaries, pause release) and run
+  the recovery checks (watchdog, stall and dead-stream detectors). The patched
+  player keeps that 1 Hz frame going while playback is *wanted* — buffering or
+  idle after a stream error — not only while audio flows. The JS fallback
+  heartbeat is started/stopped by the service itself (visible, or audio
+  wanted), not from the React store, which is frozen in the background.
+- **System pauses are explicit.** The patched `expo-audio` reports why the OS
+  paused the player (`interruption`: audio-focus loss / transient loss /
+  delayed or denied grant on Android, `AVAudioSession` interruption on iOS,
+  headphones or Bluetooth gone on both). `PlayerService` adopts it exactly once
+  as `paused`, so the reconnect chain, watchdog and stall detectors stand down
+  instead of taking the audio straight back from the app that claimed it.
+  Natively, a start never bypasses audio focus, an interruption pauses players
+  that are still loading (not only audible ones), and iOS only resumes after an
+  interruption when the system asks to and no other app is now playing. When
+  the OS does resume, the source is re-opened at the live edge with `load()`,
+  which keeps whatever play state the OS has decided.
+- **One media session.** Only the JS-driven `react-native-playback-controls`
+  session exists; `expo-audio`'s own session is created lazily (never, in this
+  app), so headset / Bluetooth / car buttons always reach JS as user commands.
+  While reconnecting, the session reports play intent, keeping the Android
+  playback service in the foreground through long outages.
 - **Provider-agnostic auth.** `AuthFacade` composes three ports (API, OAuth,
   session store). Provider quirks stay in the adapters: Discord, Google and
   Fluxer delegate the whole redirect to the backend (`mode: "server"` →
@@ -216,7 +241,7 @@ keeps using relative requires.
 | Build tooling | Expo SDK 57 · EAS Build · Expo dev client |
 | Language | TypeScript 6.0 (strict) |
 | Navigation | React Navigation 7 — **drawer** (`@react-navigation/drawer`); no native-stack dependency |
-| Audio | `expo-audio` (patched on Android for permission-free PCM sampling) · `react-native-playback-controls` (OS media session) |
+| Audio | `expo-audio` (patched: permission-free PCM sampling, interruption reporting, focus-gated starts, live-stream buffering/readiness, network wake mode) · `react-native-playback-controls` (OS media session) |
 | Visualizer (Android) | Transparent `react-native-webview` running the web player's Canvas 2D + `requestAnimationFrame` loop, fed by the Android-only `AudioSampler` (ExoPlayer `TeeAudioProcessor`); unmounted while backgrounded (`AppStateGate` + `react-freeze`). Platform-split (`.android`/`.ios`) so iOS bundles nothing |
 | Icons | `@react-native-vector-icons/material-icons` · `react-native-svg` (only `ProviderIcon`, `SocialIcon`, `BackArrow`) |
 | Images | `expo-image` (covers, avatars, localized artwork) |

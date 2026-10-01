@@ -1,8 +1,13 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { PAUSE_RELEASE_MS } from "@/core/player/recovery-config";
 import { setAudioModeAsync } from "expo-audio";
-import { PlayerService, playerService } from "@/core/player/player-service";
+import { PlayerService } from "@/core/player/player-service";
+import { playerService } from "@/core/player/player-factory";
 import { ArtworkResolver } from "@/core/player/storage/artwork";
 import { HeartbeatScheduler } from "@/core/player/stream-playback/heartbeat";
+import { BackoffScheduler } from "@/core/player/stream-playback/backoff";
+import { createPumpedTimer } from "@/core/player/timer";
+import { createFakeTimer } from "@/core/player/__tests__/fake-timer";
 import { TransportStateMachine } from "@/core/player/stream-playback/transport-state";
 import { playerStore, progressStore } from "@/core/player/store";
 import type { PlayerServiceDependencies } from "@/core/player/player-service";
@@ -108,6 +113,7 @@ const makeDeps = () => {
     load: vi.fn(),
     resume: vi.fn(),
     pause: vi.fn(),
+    releaseStream: vi.fn(),
     setSamplingEnabled: vi.fn(),
     onSample: vi.fn(() => () => {}),
     startKeepalive: vi.fn(),
@@ -364,6 +370,96 @@ describe("PlayerService store emission", () => {
     expect(reconnect.cancel).toHaveBeenCalled();
     expect(transport.pause).toHaveBeenCalled();
   });
+
+  describe("paused stream release", () => {
+    beforeEach(() => vi.useFakeTimers());
+    afterEach(() => vi.useRealTimers());
+
+    it("drops the stream connection once a user pause outlasts the grace period", async () => {
+      const { deps, transport } = makeDeps();
+      const service = new PlayerService(deps);
+      await service.play();
+      await service.pause();
+
+      await vi.advanceTimersByTimeAsync(PAUSE_RELEASE_MS - 1);
+      expect(transport.releaseStream).not.toHaveBeenCalled();
+
+      await vi.advanceTimersByTimeAsync(1);
+      expect(transport.releaseStream).toHaveBeenCalledTimes(1);
+    });
+
+    it("a play() inside the grace period keeps the stream", async () => {
+      const { deps, transport } = makeDeps();
+      const service = new PlayerService(deps);
+      await service.play();
+      await service.pause();
+      await vi.advanceTimersByTimeAsync(PAUSE_RELEASE_MS / 2);
+      await service.play();
+
+      await vi.advanceTimersByTimeAsync(PAUSE_RELEASE_MS * 2);
+      expect(transport.releaseStream).not.toHaveBeenCalled();
+    });
+
+    it("re-opens the source on the next play() after a release", async () => {
+      const { deps, transport } = makeDeps();
+      const service = new PlayerService(deps);
+      await service.play();
+      await service.pause();
+      await vi.advanceTimersByTimeAsync(PAUSE_RELEASE_MS);
+      transport.play.mockClear();
+
+      await service.play();
+      expect(transport.play).toHaveBeenCalledTimes(1);
+    });
+
+    it("arms the release when native paused first and the pause command lands after", async () => {
+      const { deps, transport } = makeDeps();
+      const service = new PlayerService(deps);
+      await service.play();
+      const handler = wiredHandler(transport);
+      handler({ playing: true } as AudioPlaybackStatus);
+      handler({
+        playing: false,
+        isBuffering: false,
+        playbackState: "ready",
+        timeControlStatus: "paused",
+      } as AudioPlaybackStatus);
+      expect(deps.state.state).toBe("paused");
+
+      await service.pause();
+      await vi.advanceTimersByTimeAsync(PAUSE_RELEASE_MS);
+      expect(transport.releaseStream).toHaveBeenCalledTimes(1);
+    });
+
+    it("a native frame past the deadline releases even when JS timers were suspended", async () => {
+      const { deps, transport } = makeDeps();
+      const service = new PlayerService(deps);
+      await service.play();
+      const handler = wiredHandler(transport);
+      await service.pause();
+
+      // Backgrounded: the timer never ran, but the clock moved on.
+      vi.setSystemTime(Date.now() + PAUSE_RELEASE_MS + 1);
+      handler({
+        playing: false,
+        isBuffering: false,
+        playbackState: "ready",
+        timeControlStatus: "paused",
+      } as AudioPlaybackStatus);
+      expect(transport.releaseStream).toHaveBeenCalledTimes(1);
+    });
+
+    it("destroy() cancels a pending release", async () => {
+      const { deps, transport } = makeDeps();
+      const service = new PlayerService(deps);
+      await service.play();
+      await service.pause();
+      await service.destroy();
+
+      await vi.advanceTimersByTimeAsync(PAUSE_RELEASE_MS * 2);
+      expect(transport.releaseStream).not.toHaveBeenCalled();
+    });
+  });
 });
 
 describe("PlayerService stream-loss handling", () => {
@@ -544,7 +640,10 @@ describe("PlayerService stream-loss handling", () => {
       // instead of replaying the stale buffered position.
       handler({ playing: true } as AudioPlaybackStatus);
 
-      expect(transport.play).toHaveBeenCalledWith(
+      // `load` keeps the OS's play state: a second interruption landing
+      // before this frame must not be overridden by a forced start.
+      expect(transport.play).not.toHaveBeenCalled();
+      expect(transport.load).toHaveBeenCalledWith(
         deps.streamPreferences.current.url,
       );
       expect(deps.state.state).toBe("connecting");
@@ -637,7 +736,7 @@ describe("PlayerService stream-loss handling", () => {
       // and stay behind live; the service must re-open at the live edge.
       handler({ playing: true, isBuffering: false } as AudioPlaybackStatus);
 
-      expect(transport.play).toHaveBeenCalledWith(
+      expect(transport.load).toHaveBeenCalledWith(
         deps.streamPreferences.current.url,
       );
       expect(deps.state.state).toBe("connecting");
@@ -817,7 +916,7 @@ describe("PlayerService background-outage recovery", () => {
       transport.play.mockClear();
       vi.advanceTimersByTime(2_100);
       handler({ playing: true, isBuffering: false } as AudioPlaybackStatus);
-      expect(transport.play).toHaveBeenCalledWith(
+      expect(transport.load).toHaveBeenCalledWith(
         deps.streamPreferences.current.url,
       );
     } finally {
@@ -828,7 +927,7 @@ describe("PlayerService background-outage recovery", () => {
   it("escalates a stuck connecting transport from resume() to a source re-open", async () => {
     vi.useFakeTimers();
     try {
-      const { deps, transport } = makeDeps();
+      const { deps, transport, reconnect } = makeDeps();
       const service = new PlayerService(deps);
       await service.play();
       const handler = wiredHandler(transport);
@@ -847,9 +946,13 @@ describe("PlayerService background-outage recovery", () => {
       expect(transport.resume).toHaveBeenCalledTimes(2);
       expect(transport.play).not.toHaveBeenCalled();
 
-      // Window 3: resume() clearly isn't taking — re-open the source.
+      // Window 3: resume() clearly isn't taking — re-open the source, via
+      // the backoff (the attempt in flight keeps loading meanwhile).
       vi.advanceTimersByTime(4000);
       handler({ playing: true, isBuffering: true } as AudioPlaybackStatus);
+      expect(deps.state.state).toBe("reconnecting");
+      const reopen = (reconnect.schedule.mock.calls[0] as unknown[])[0] as () => void;
+      reopen();
       expect(transport.play).toHaveBeenCalledWith(
         deps.streamPreferences.current.url,
       );
@@ -1416,5 +1519,420 @@ describe("PlayerService tunnel recovery", () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+});
+
+// ─── System pauses: audio focus (Android) / session interruptions (iOS) ───
+
+/** A native frame the patched layer emits once the OS paused the player. */
+const systemPaused = (
+  interruption: AudioPlaybackStatus["interruption"],
+  extra: Partial<AudioPlaybackStatus> = {},
+): AudioPlaybackStatus =>
+  ({
+    playing: false,
+    isBuffering: false,
+    playbackState: "ready",
+    timeControlStatus: "paused",
+    interruption,
+    ...extra,
+  }) as AudioPlaybackStatus;
+
+const pushedStatuses = (publisher: { pushStatus: ReturnType<typeof vi.fn> }) =>
+  publisher.pushStatus.mock.calls.map((call) => call[0]);
+
+describe("PlayerService system pauses", () => {
+  beforeEach(() => vi.useFakeTimers());
+  afterEach(() => vi.useRealTimers());
+
+  it("adopts a focus loss exactly once and stands every recovery path down", async () => {
+    const { deps, transport, publisher, reconnect } = makeDeps();
+    const service = new PlayerService(deps);
+    await service.play();
+    const handler = wiredHandler(transport);
+    handler({ playing: true } as AudioPlaybackStatus);
+    transport.play.mockClear();
+    publisher.pushStatus.mockClear();
+
+    handler(systemPaused("focus-loss"));
+    handler(systemPaused("focus-loss"));
+
+    expect(deps.state.state).toBe("paused");
+    expect(pushedStatuses(publisher).filter((s) => s === "paused")).toHaveLength(1);
+    expect(reconnect.cancel).toHaveBeenCalled();
+    expect(playerStore.getSnapshot().isPlaying).toBe(false);
+
+    // Nothing may restart audio on its own while another app owns it.
+    for (let i = 0; i < 20; i++) {
+      await vi.advanceTimersByTimeAsync(1_000);
+      service.heartbeat();
+    }
+    expect(transport.play).not.toHaveBeenCalled();
+    expect(transport.resume).not.toHaveBeenCalled();
+    expect(transport.load).not.toHaveBeenCalled();
+  });
+
+  it("treats a focus loss that lands mid-buffering as a pause, not a stall", async () => {
+    // The "press Play twice" bug: the radio was still buffering when another
+    // app took focus. The frame looked like a stall, so the watchdog kept
+    // calling resume() — re-requesting focus and silencing the other app.
+    const { deps, transport } = makeDeps();
+    const service = new PlayerService(deps);
+    await service.play();
+    expect(deps.state.state).toBe("connecting");
+    const handler = wiredHandler(transport);
+    const frame = systemPaused("focus-loss-transient", {
+      playing: true,
+      isBuffering: true,
+      playbackState: "buffering",
+      timeControlStatus: "playing",
+    });
+    transport.play.mockClear();
+
+    for (let i = 0; i < 15; i++) {
+      handler(frame);
+      service.heartbeat();
+      await vi.advanceTimersByTimeAsync(1_000);
+    }
+
+    expect(deps.state.state).toBe("paused");
+    expect(transport.resume).not.toHaveBeenCalled();
+    expect(transport.play).not.toHaveBeenCalled();
+    expect(transport.load).not.toHaveBeenCalled();
+  });
+
+  it("cancels a pending reconnect when the system pauses a dead stream", async () => {
+    const { deps, transport, reconnect } = makeDeps();
+    const service = new PlayerService(deps);
+    await service.play();
+    const handler = wiredHandler(transport);
+    await vi.advanceTimersByTimeAsync(4_000);
+    handler({
+      playing: false,
+      isBuffering: false,
+      playbackState: "idle",
+      timeControlStatus: "paused",
+    } as AudioPlaybackStatus);
+    expect(deps.state.state).toBe("reconnecting");
+    const backoffFired = (reconnect.schedule.mock.calls[0] as unknown[])[0] as () => void;
+    transport.play.mockClear();
+
+    handler(systemPaused("interruption", { playbackState: "idle" }));
+    expect(deps.state.state).toBe("paused");
+    expect(reconnect.cancel).toHaveBeenCalled();
+
+    // Even a backoff callback that slipped through cannot reopen.
+    backoffFired();
+    expect(transport.play).not.toHaveBeenCalled();
+  });
+
+  it("re-opens at the live edge with load() when the OS ends the interruption", async () => {
+    const { deps, transport, sync, audible } = makeDeps();
+    const service = new PlayerService(deps);
+    await service.play();
+    const handler = wiredHandler(transport);
+    handler({ playing: true } as AudioPlaybackStatus);
+    transport.play.mockClear();
+    handler(systemPaused("interruption"));
+    sync.reset.mockClear();
+
+    // Interruption ended with shouldResume: native resumed the stale buffer.
+    handler({ playing: true, isBuffering: false } as AudioPlaybackStatus);
+
+    expect(transport.load).toHaveBeenCalledWith(deps.streamPreferences.current.url);
+    expect(transport.play).not.toHaveBeenCalled();
+    expect(sync.reset).toHaveBeenCalled();
+    expect(audible.beginReacquire).toHaveBeenCalled();
+    expect(deps.state.state).toBe("connecting");
+  });
+
+  it("does not reclaim audio from network edges or the foreground catch-up", async () => {
+    const { deps, transport, networkMonitor } = makeDeps();
+    const service = new PlayerService(deps);
+    await service.play();
+    const handler = wiredHandler(transport);
+    handler({ playing: true } as AudioPlaybackStatus);
+    handler(systemPaused("focus-loss"));
+    transport.play.mockClear();
+
+    networkMonitor.onLost();
+    networkMonitor.onRestore();
+    networkMonitor.onHandoff();
+    service.setAppActive(false);
+    service.setAppActive(true);
+
+    expect(transport.play).not.toHaveBeenCalled();
+    expect(transport.load).not.toHaveBeenCalled();
+    expect(deps.state.state).toBe("paused");
+  });
+
+  it("lands paused when a user play is refused focus (e.g. during a call)", async () => {
+    const { deps, transport } = makeDeps();
+    const service = new PlayerService(deps);
+    await service.play();
+    const handler = wiredHandler(transport);
+    handler({ playing: true } as AudioPlaybackStatus);
+    handler(systemPaused("focus-loss-transient"));
+
+    await service.play();
+    expect(deps.state.state).toBe("connecting");
+    handler(systemPaused("focus-denied"));
+
+    expect(deps.state.state).toBe("paused");
+    expect(playerStore.getSnapshot().isPlaying).toBe(false);
+  });
+
+  it("releases the connection after a permanent loss, but not while the OS will resume", async () => {
+    const permanent = makeDeps();
+    const a = new PlayerService(permanent.deps);
+    await a.play();
+    wiredHandler(permanent.transport)({ playing: true } as AudioPlaybackStatus);
+    wiredHandler(permanent.transport)(systemPaused("focus-loss"));
+
+    const transient = makeDeps();
+    const b = new PlayerService(transient.deps);
+    await b.play();
+    wiredHandler(transient.transport)({ playing: true } as AudioPlaybackStatus);
+    wiredHandler(transient.transport)(systemPaused("focus-loss-transient"));
+
+    await vi.advanceTimersByTimeAsync(PAUSE_RELEASE_MS);
+    expect(permanent.transport.releaseStream).toHaveBeenCalledTimes(1);
+    expect(transient.transport.releaseStream).not.toHaveBeenCalled();
+  });
+
+  it("a user pause during a system pause cancels the OS resume natively", async () => {
+    const { deps, transport } = makeDeps();
+    const service = new PlayerService(deps);
+    await service.play();
+    const handler = wiredHandler(transport);
+    handler({ playing: true } as AudioPlaybackStatus);
+    handler(systemPaused("focus-loss-transient"));
+    transport.pause.mockClear();
+
+    await service.pause();
+
+    expect(transport.pause).toHaveBeenCalledTimes(1);
+    await vi.advanceTimersByTimeAsync(PAUSE_RELEASE_MS);
+    expect(transport.releaseStream).toHaveBeenCalledTimes(1);
+  });
+});
+
+// ─── Background clock: Android freezes JS timers while backgrounded ───
+
+describe("PlayerService with JS timers frozen (Android background)", () => {
+  beforeEach(() => vi.useFakeTimers());
+  afterEach(() => vi.useRealTimers());
+
+  /** Deps whose scheduling timer only advances when native frames pump it. */
+  const frozenDeps = () => {
+    const made = makeDeps();
+    const timer = createPumpedTimer(createFakeTimer(), () => Date.now());
+    const reconnect = new BackoffScheduler({
+      baseMs: 2_000,
+      maxMs: 30_000,
+      timer,
+      label: "test",
+    });
+    Object.assign(made.deps, { timer, reconnect });
+    return made;
+  };
+
+  const idleFrame = {
+    playing: false,
+    isBuffering: false,
+    playbackState: "idle",
+    timeControlStatus: "paused",
+  } as AudioPlaybackStatus;
+
+  it("reconnects a dead stream from native frames alone", async () => {
+    const { deps, transport } = frozenDeps();
+    const service = new PlayerService(deps);
+    await service.play();
+    const handler = wiredHandler(transport);
+    handler({ playing: true } as AudioPlaybackStatus);
+    await vi.advanceTimersByTimeAsync(4_000);
+    handler(idleFrame);
+    expect(deps.state.state).toBe("reconnecting");
+    transport.play.mockClear();
+
+    // The patched player keeps a 1 Hz frame while playback is wanted.
+    await vi.advanceTimersByTimeAsync(1_000);
+    handler(idleFrame);
+    expect(transport.play).not.toHaveBeenCalled();
+    await vi.advanceTimersByTimeAsync(1_000);
+    handler(idleFrame);
+
+    expect(transport.play).toHaveBeenCalledWith(deps.streamPreferences.current.url);
+    expect(deps.state.state).toBe("connecting");
+  });
+
+  it("escalates a stuck connect from native frames without the JS heartbeat", async () => {
+    const { deps, transport } = frozenDeps();
+    const service = new PlayerService(deps);
+    await service.play();
+    const handler = wiredHandler(transport);
+    transport.play.mockClear();
+    const waiting = {
+      playing: true,
+      isBuffering: true,
+      playbackState: "buffering",
+      timeControlStatus: "playing",
+    } as AudioPlaybackStatus;
+
+    for (let i = 0; i < 13; i++) {
+      await vi.advanceTimersByTimeAsync(1_000);
+      handler(waiting);
+    }
+    expect(transport.resume).toHaveBeenCalled();
+    expect(deps.state.state).toBe("reconnecting");
+
+    // The backoff re-open fires from the frames too (2s base).
+    for (let i = 0; i < 2; i++) {
+      await vi.advanceTimersByTimeAsync(1_000);
+      handler(waiting);
+    }
+    expect(transport.play).toHaveBeenCalledTimes(1); // the source re-open
+  });
+
+  it("backs off repeated re-opens on a link that is up but too slow", async () => {
+    const { deps, transport } = frozenDeps();
+    const service = new PlayerService(deps);
+    await service.play();
+    const handler = wiredHandler(transport);
+    transport.play.mockClear();
+    const waiting = {
+      playing: true,
+      isBuffering: true,
+      playbackState: "buffering",
+      timeControlStatus: "playing",
+    } as AudioPlaybackStatus;
+    const reopenTimes: number[] = [];
+    transport.play.mockImplementation(() => reopenTimes.push(Date.now()));
+    const start = Date.now();
+
+    for (let i = 0; i < 90; i++) {
+      await vi.advanceTimersByTimeAsync(1_000);
+      handler(waiting);
+    }
+
+    const gaps = reopenTimes.map((t, i) => t - (i === 0 ? start : reopenTimes[i - 1]));
+    // 12s watchdog + 2s, then 12s + 4s, then 12s + 8s … — never a fixed 12s.
+    expect(gaps.length).toBeGreaterThanOrEqual(3);
+    for (let i = 1; i < gaps.length; i++) {
+      expect(gaps[i]).toBeGreaterThan(gaps[i - 1]);
+    }
+  });
+});
+
+// ─── Duplicate reconnect protection ───
+
+describe("PlayerService reconnect de-duplication", () => {
+  beforeEach(() => vi.useFakeTimers());
+  afterEach(() => vi.useRealTimers());
+
+  const deadStreamReconnecting = async () => {
+    const made = makeDeps();
+    const service = new PlayerService(made.deps);
+    await service.play();
+    const handler = wiredHandler(made.transport);
+    handler({ playing: true } as AudioPlaybackStatus);
+    await vi.advanceTimersByTimeAsync(4_000);
+    handler({
+      playing: false,
+      isBuffering: false,
+      playbackState: "idle",
+      timeControlStatus: "paused",
+    } as AudioPlaybackStatus);
+    const backoffFired = (made.reconnect.schedule.mock.calls[0] as unknown[])[0] as () => void;
+    made.transport.play.mockClear();
+    return { ...made, service, backoffFired };
+  };
+
+  it("lets an in-flight open finish instead of re-opening on top of it", async () => {
+    const { transport, service, backoffFired } = await deadStreamReconnecting();
+    backoffFired();
+    expect(transport.play).toHaveBeenCalledTimes(1);
+
+    await vi.advanceTimersByTimeAsync(1_000);
+    service.setAppActive(false);
+    service.setAppActive(true); // foreground catch-up lands mid-connect
+
+    expect(transport.play).toHaveBeenCalledTimes(1);
+  });
+
+  it("re-opens anyway after a network edge — the in-flight open used the old route", async () => {
+    const { transport, backoffFired, networkMonitor } = await deadStreamReconnecting();
+    backoffFired();
+    await vi.advanceTimersByTimeAsync(500);
+
+    networkMonitor.onRestore();
+
+    expect(transport.play).toHaveBeenCalledTimes(2);
+  });
+});
+
+// ─── JS heartbeat driver ───
+
+describe("PlayerService heartbeat driver", () => {
+  it("runs while visible or wanted, including plays started while hidden", async () => {
+    const { deps, sampler } = makeDeps();
+    Object.assign(sampler, { setEnabled: vi.fn() });
+    const driver = { start: vi.fn(), stop: vi.fn() };
+    Object.assign(deps, { heartbeatDriver: driver });
+    const service = new PlayerService(deps);
+    await service.setupPlayer();
+    expect(driver.start).toHaveBeenCalledTimes(1);
+
+    // Paused and hidden: nothing to watch.
+    service.setAppActive(false);
+    expect(driver.stop).toHaveBeenCalledTimes(1);
+
+    // Lock-screen play while hidden: the store never sees it, the driver must.
+    await service.play();
+    expect(driver.start).toHaveBeenCalledTimes(2);
+    driver.start.mock.calls[1][0]();
+
+    await service.pause();
+    expect(driver.stop).toHaveBeenCalledTimes(2);
+
+    await service.destroy();
+    expect(driver.start).toHaveBeenCalledTimes(2);
+  });
+});
+
+// ─── Released stream (pause release) ───
+
+describe("PlayerService released stream", () => {
+  beforeEach(() => vi.useFakeTimers());
+  afterEach(() => vi.useRealTimers());
+
+  it("keeps the placeholder out of the sync engine and re-syncs on play", async () => {
+    const { deps, transport, sync, audible } = makeDeps();
+    transport.releaseStream.mockReturnValue(true);
+    const service = new PlayerService(deps);
+    await service.play();
+    const handler = wiredHandler(transport);
+    handler({ playing: true } as AudioPlaybackStatus);
+    await service.pause();
+    await vi.advanceTimersByTimeAsync(PAUSE_RELEASE_MS);
+    expect(transport.releaseStream).toHaveBeenCalledTimes(1);
+    sync.updateFromStatus.mockClear();
+
+    handler({
+      playing: false,
+      isBuffering: false,
+      playbackState: "ready",
+      timeControlStatus: "paused",
+      isLive: false,
+      bufferedAheadSeconds: 0.4,
+    } as AudioPlaybackStatus);
+    expect(sync.updateFromStatus).not.toHaveBeenCalled();
+
+    sync.reset.mockClear();
+    await service.play();
+    expect(sync.reset).toHaveBeenCalled();
+    expect(audible.beginReacquire).toHaveBeenCalled();
+    handler({ playing: true } as AudioPlaybackStatus);
+    expect(sync.updateFromStatus).toHaveBeenCalled();
   });
 });

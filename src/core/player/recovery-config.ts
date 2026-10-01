@@ -89,3 +89,11 @@ export const OFFLINE_PROBE_EVERY = 3;
  * lag is re-measured rather than trusted — a short pause stays seamless.
  */
 export const RESYNC_AFTER_MS = 15_000;
+
+/**
+ * How long a user pause may keep the stream connection open before it is
+ * released. Every resume re-opens the source at the live edge, so what a
+ * paused transport keeps downloading (a full-rate audio stream, ~40 KB/s at
+ * 320 kbps) is never played — it only holds the radio awake and spends data.
+ */
+export const PAUSE_RELEASE_MS = 30_000;

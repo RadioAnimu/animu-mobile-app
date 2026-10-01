@@ -16,11 +16,12 @@
  * - `media-session/` — now-playing metadata mapping for the OS session;
  * - `storage/` — cover artwork resolution + file/image caches.
  *
- * `player-service.ts`, `store.ts` and `timer.ts` stay at the root: the
- * orchestrator composes the ports and units, the stores are its React
- * surface, and the timer is the shared scheduling port.
+ * `player-service.ts`, `player-factory.ts`, `store.ts` and `timer.ts` stay
+ * at the root: the orchestrator routes events between the ports and units,
+ * the factory wires the production instances (and owns the singleton), the
+ * stores are its React surface, and the timer is the shared scheduling port.
  */
-export { playerService } from "@/core/player/player-service";
+export { playerService } from "@/core/player/player-factory";
 export type { VisualizerWindow } from "@/core/player/visualizer/types";
 
 export {

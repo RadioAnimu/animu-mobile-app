@@ -11,6 +11,36 @@
 
 // ── Lib-agnostic value types ──
 
+/**
+ * Why the OS paused playback, as reported by the patched native layer:
+ *
+ * - `focus-loss` (Android): another app took audio focus for good.
+ * - `focus-loss-transient` (Android): a call / short clip took focus; the OS
+ *   resumes the player when it is handed back.
+ * - `focus-delayed` (Android): a start waits for focus; the OS starts it then.
+ * - `focus-denied` (Android): a start was refused focus (e.g. during a call).
+ * - `noisy` (Android) / `route-lost` (iOS): headphones or Bluetooth went away.
+ * - `interruption` (iOS): an `AVAudioSession` interruption (call, Siri, an app
+ *   that does not mix). The OS resumes the player if the interruption ends
+ *   with `shouldResume`.
+ */
+export type AudioInterruption =
+  | "focus-loss"
+  | "focus-loss-transient"
+  | "focus-delayed"
+  | "focus-denied"
+  | "noisy"
+  | "route-lost"
+  | "interruption";
+
+/** Interruptions the OS may end by resuming the player on its own. */
+export const isSelfResumingInterruption = (
+  interruption: AudioInterruption,
+): boolean =>
+  interruption === "focus-loss-transient" ||
+  interruption === "focus-delayed" ||
+  interruption === "interruption";
+
 /** The subset of native playback status the core reacts to. */
 export interface AudioPlaybackStatus {
   /** Whether audio is currently playing. */
@@ -50,6 +80,12 @@ export interface AudioPlaybackStatus {
    * the player's stream-relative playhead; diagnostics only.
    */
   currentTime?: number;
+  /**
+   * Set while the OS holds the player paused (see {@link AudioInterruption});
+   * absent/null otherwise. Without it a system pause that lands mid-buffering
+   * is indistinguishable from a network stall.
+   */
+  interruption?: AudioInterruption | null;
 }
 
 /** One decoded PCM channel (frames normalized -1..1). */
@@ -112,6 +148,13 @@ export interface AudioEnginePort {
   /** Resumes the loaded source. */
   resume(): void;
   pause(): void;
+  /**
+   * Drops the live stream's network connection while staying paused (Android:
+   * the paused transport otherwise keeps downloading at the stream bitrate).
+   * The next `play()` re-opens the source. Returns whether the connection was
+   * released (false where unsupported).
+   */
+  releaseStream(): boolean;
   /** Enables/disables native PCM sampling. Never throws. */
   setSamplingEnabled(enabled: boolean): void;
   /** Subscribes to decoded PCM windows; returns an unsubscribe function. */

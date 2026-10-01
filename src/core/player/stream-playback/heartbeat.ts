@@ -26,6 +26,15 @@ const BACKGROUND_PAUSED_BEATS_PER_POLL = 60;
 /** Sampled debug diagnostics — one line every N processed beats (~30s). */
 const SAMPLED_LOG_EVERY_BEATS = 30;
 
+/**
+ * Starts/stops the JS fallback driver of the heartbeat (the orchestrator
+ * decides when it should run; production backs it with a JS interval).
+ */
+export interface HeartbeatDriver {
+  start(beat: () => void): void;
+  stop(): void;
+}
+
 export interface HeartbeatSchedulerOptions {
   /** Watchdog host — a stuck data refresh is expired on every beat. */
   repository: Pick<NowPlayingRepository, "expireStuckRefresh">;

@@ -12,6 +12,7 @@ import { CONFIG } from "@/utils/player.config";
 import { LIVE_FORWARD_BUFFER_SECONDS } from "@/core/player/stream-playback/live-buffer";
 import type {
   AudioEnginePort,
+  AudioInterruption,
   AudioPlaybackStatus,
   AudioSample,
 } from "@/core/player/ports";
@@ -44,24 +45,48 @@ const buildPlayerOptions = () => ({
   preferredForwardBufferDuration: LIVE_FORWARD_BUFFER_SECONDS,
 });
 
+/** Status fields added by the app's `expo-audio` patch (both platforms). */
+interface PatchedStatusFields {
+  bufferedAhead?: number | null;
+  interruption?: AudioInterruption | null;
+}
+
 /**
  * Projects the native `AudioStatus` onto the core's `AudioPlaybackStatus`.
  *
- * `bufferedAhead` is added by the app's `expo-audio` patch (both platforms)
- * and is therefore not in the package's TypeScript surface — read it through
- * a narrow cast and default it to `null` on an unpatched build.
+ * `bufferedAhead` and `interruption` come from the app's `expo-audio` patch
+ * and are therefore not in the package's TypeScript surface — read them
+ * through a narrow cast and default them to `null` on an unpatched build.
  */
-const toPortStatus = (status: ExpoAudioStatus): AudioPlaybackStatus => ({
-  playing: status.playing,
-  isBuffering: status.isBuffering,
-  timeControlStatus: status.timeControlStatus,
-  playbackState: status.playbackState,
-  isLive: status.isLive,
-  currentOffsetFromLive: status.currentOffsetFromLive ?? null,
-  bufferedAheadSeconds:
-    (status as { bufferedAhead?: number | null }).bufferedAhead ?? null,
-  currentTime: status.currentTime,
-});
+const toPortStatus = (status: ExpoAudioStatus): AudioPlaybackStatus => {
+  const patched = status as PatchedStatusFields;
+  return {
+    playing: status.playing,
+    isBuffering: status.isBuffering,
+    timeControlStatus: status.timeControlStatus,
+    playbackState: status.playbackState,
+    isLive: status.isLive,
+    currentOffsetFromLive: status.currentOffsetFromLive ?? null,
+    bufferedAheadSeconds: patched.bufferedAhead ?? null,
+    currentTime: status.currentTime,
+    interruption: patched.interruption ?? null,
+  };
+};
+
+/**
+ * Stops and frees a native player now. The module's `remove()` only drops it
+ * from the registry — the player keeps rendering until JS garbage-collects
+ * the shared object — so it is paused first and released explicitly.
+ */
+const destroyPlayer = (player: AudioPlayer): void => {
+  try {
+    player.pause();
+    player.remove();
+    player.release();
+  } catch (error) {
+    console.warn("[ExpoAudioAdapter] player teardown failed:", error);
+  }
+};
 
 /**
  * `AudioEnginePort` backed by `expo-audio`. The only place the audio library
@@ -143,6 +168,21 @@ export class ExpoAudioAdapter implements AudioEnginePort {
     this.player?.pause();
   }
 
+  releaseStream(): boolean {
+    // Android only: ExoPlayer keeps loading a paused live stream. Swapping to
+    // the bundled silence file closes the HTTP connection. The player is
+    // already paused and `replace` keeps it so — no `pause()` here, which
+    // would also cancel an OS resume pending on audio-focus regain.
+    if (Platform.OS !== "android" || !this.player) return false;
+    try {
+      this.player.replace(SILENCE_LOOP as unknown as AudioSource);
+      return true;
+    } catch (error) {
+      console.warn("[ExpoAudioAdapter] stream release failed:", error);
+      return false;
+    }
+  }
+
   /**
    * Enables/disables native PCM sampling (used by the visualizer). The
    * request is remembered so it can be applied when the player is created
@@ -209,12 +249,7 @@ export class ExpoAudioAdapter implements AudioEnginePort {
     const keepalive = this.keepalive;
     if (!keepalive) return;
     this.keepalive = null;
-    try {
-      keepalive.pause();
-      keepalive.remove();
-    } catch (error) {
-      console.warn("[ExpoAudioAdapter] keepalive stop failed:", error);
-    }
+    destroyPlayer(keepalive);
   }
 
   /** Removes listeners and destroys the native player. */
@@ -225,10 +260,10 @@ export class ExpoAudioAdapter implements AudioEnginePort {
     this.sampleSubscription = null;
     this.sampleHandler = null;
     this.samplingRequested = false;
-    this.keepalive?.remove();
-    this.keepalive = null;
-    this.player?.remove();
+    this.stopKeepalive();
+    const player = this.player;
     this.player = null;
+    if (player) destroyPlayer(player);
   }
 
   private applySampling(enabled: boolean): void {

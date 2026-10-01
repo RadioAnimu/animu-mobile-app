@@ -1,50 +1,42 @@
-import NetInfo from "@react-native-community/netinfo";
 import type { HistoryType } from "animu-api";
-import type { Track } from "@/core/domain/track";
 import type { Stream } from "@/core/domain/stream";
-import { animuService } from "@/core/services/animu.service";
 import { userSettingsService } from "@/core/services/user-settings.service";
-import { listenStatsService } from "@/core/services/listen-stats.service";
-import { coverCacheRegistry } from "@/core/services/cover-cache-registry.service";
-import { animuApi, setServerSkewListener } from "@/api/client";
+import type { listenStatsService } from "@/core/services/listen-stats.service";
+import { animuApi } from "@/api/client";
 import { CONFIG, debugLog } from "@/utils/player.config";
-import type {
-  AudioEnginePort,
-  AudioPlaybackStatus,
-  MediaSessionPort,
-  NowPlayingMetadata,
-  RemoteCommandHandlers,
+import {
+  isSelfResumingInterruption,
+  type AudioEnginePort,
+  type AudioInterruption,
+  type AudioPlaybackStatus,
+  type MediaSessionPort,
+  type NowPlayingMetadata,
+  type RemoteCommandHandlers,
 } from "@/core/player/ports";
-import { ExpoAudioAdapter } from "@/core/player/adapters/expo-audio.adapter";
-import { PlaybackControlsAdapter } from "@/core/player/adapters/playback-controls.adapter";
-import { BackoffScheduler } from "@/core/player/stream-playback/backoff";
+import type { BackoffScheduler } from "@/core/player/stream-playback/backoff";
 import {
   buildNowPlayingMetadata,
   type NowPlayingInput,
 } from "@/core/player/media-session/now-playing.metadata";
 import {
-  ArtworkResolver,
   pickPreviewArtwork,
+  type ArtworkResolver,
 } from "@/core/player/storage/artwork";
+import type {
+  HeartbeatDriver,
+  HeartbeatScheduler,
+} from "@/core/player/stream-playback/heartbeat";
+import type { NetworkMonitor } from "@/core/player/stream-playback/network-monitor";
+import type { NowPlayingRepository } from "@/core/player/stream-playback/now-playing.repository";
 import {
-  CachedCoverLookup,
-  CoverCacheSeeder,
-  ExpoImageCoverDiskCache,
-} from "@/core/player/storage/cover-image-cache";
-import { HeartbeatScheduler } from "@/core/player/stream-playback/heartbeat";
-import {
-  NetworkMonitor,
-  type ConnectivitySubscribe,
-} from "@/core/player/stream-playback/network-monitor";
-import {
-  NowPlayingRepository,
-} from "@/core/player/stream-playback/now-playing.repository";
-import { ProgressTicker, toSec } from "@/core/player/stream-playback/progress-ticker";
+  toSec,
+  type ProgressTicker,
+} from "@/core/player/stream-playback/progress-ticker";
 import {
   getSyncedTrackProgress,
-  StreamSyncEngine,
+  type StreamSyncEngine,
 } from "@/core/player/stream-playback/stream-sync";
-import { AudibleTrackResolver } from "@/core/player/stream-playback/audible-track";
+import type { AudibleTrackResolver } from "@/core/player/stream-playback/audible-track";
 import {
   playerStore,
   progressStore,
@@ -52,23 +44,20 @@ import {
   type PlayerSnapshot,
   type StationSnapshot,
 } from "@/core/player/store";
-import { StreamPreferences } from "@/core/player/stream-playback/stream-preferences";
-import { createVisualizerSampler } from "@/core/player/visualizer";
+import type { StreamPreferences } from "@/core/player/stream-playback/stream-preferences";
 import type {
   VisualizerSampler,
   VisualizerWindow,
 } from "@/core/player/visualizer/types";
 import {
-  TransportStateMachine,
   isDeadPlaybackState,
   type TransportState,
+  type TransportStateMachine,
 } from "@/core/player/stream-playback/transport-state";
-import { jsTimer } from "@/core/player/timer";
-import { logSyncDebug } from "@/core/player/sync-debug";
+import { createPumpedTimer, type PumpedTimer } from "@/core/player/timer";
+import { logSyncDebug, logTransportTransition } from "@/core/player/sync-debug";
 
 import {
-  BASE_RECONNECT_DELAY_MS,
-  MAX_RECONNECT_DELAY_MS,
   STREAM_DEATH_GRACE_MS,
   LIVE_STALL_REOPEN_MS,
   CONNECTING_WATCHDOG_MS,
@@ -81,7 +70,10 @@ import {
   DEAD_LATCH_MS,
   OFFLINE_PROBE_EVERY,
   RESYNC_AFTER_MS,
+  PAUSE_RELEASE_MS,
 } from "@/core/player/recovery-config";
+import { prefetchArtwork } from "@/core/player/artwork-prefetch";
+import { PauseReleaseTimer } from "@/core/player/pause-release-timer";
 
 export interface PlayerServiceDependencies {
   state: TransportStateMachine;
@@ -103,6 +95,17 @@ export interface PlayerServiceDependencies {
    * minutes/sessions/requests accrue without any extra polling.
    */
   stats?: typeof listenStatsService;
+  /**
+   * The timer every scheduling unit shares (backoff, track boundaries,
+   * track-end refresh). Pumped on each native status frame and network edge
+   * so its deadlines survive Android's background JS-timer freeze. Optional
+   * for test fixtures, which get a private one.
+   */
+  timer?: PumpedTimer;
+  /** Runs the 1 Hz JS fallback heartbeat (optional for test fixtures). */
+  heartbeatDriver?: HeartbeatDriver;
+  /** Called once teardown finished (releases the app-wide singleton). */
+  onDestroyed?: () => void;
 }
 
 /**
@@ -139,6 +142,30 @@ export class PlayerService {
    * A real user pause sets it, and any native self-recovery is re-paused.
    */
   private userPaused = false;
+  /** Shared scheduling clock (see `PlayerServiceDependencies.timer`). */
+  private readonly timer: PumpedTimer;
+  /** Pending release of the paused stream's connection (see `PAUSE_RELEASE_MS`). */
+  private readonly pauseRelease: PauseReleaseTimer;
+  /**
+   * The paused transport's connection was dropped (`releaseStream`): the
+   * native player holds a placeholder, so its frames say nothing about the
+   * stream's lag and any resume must re-open the source.
+   */
+  private streamReleased = false;
+  /**
+   * The system (not the user) paused the transport and has not resumed it
+   * (see {@link AudioInterruption}). Diagnostics + the pause-release policy.
+   */
+  private interruption: AudioInterruption | null = null;
+  /**
+   * Date.now() of the last source (re-)open that has not produced audio yet,
+   * 0 once audio flows — the in-flight connect guard (see `openInFlight`).
+   */
+  private lastOpenAt = 0;
+  /** Date.now() of the last connectivity edge (lost / restored / handoff). */
+  private lastNetworkEdgeAt = 0;
+  /** Whether the JS fallback heartbeat is running (acts on change only). */
+  private heartbeatRunning = false;
   /**
    * Set when the OS pauses playback on its own (audio-focus loss, phone
    * call) *while audio was actually flowing*. The next self-resume then
@@ -187,6 +214,8 @@ export class PlayerService {
    * would re-fire every heartbeat.
    */
   private silentStallHandled = true;
+  /** Last native frame as `playbackState/timeControlStatus` — diagnostics. */
+  private lastNativeSummary = "none";
   /**
    * Last decision the keepalive gate made — the gate only acts on change,
    * so reconcile-time calls never spam the native layer.
@@ -221,6 +250,12 @@ export class PlayerService {
   private syncSettled = false;
 
   constructor(private readonly deps: PlayerServiceDependencies) {
+    this.timer = deps.timer ?? createPumpedTimer();
+    this.pauseRelease = new PauseReleaseTimer(
+      PAUSE_RELEASE_MS,
+      () => this.releasePausedStream(),
+      this.timer,
+    );
     // ── Wiring: this class owns every cross-unit connection ──
     this.deps.audio.setStatusHandler((status) =>
       this.handlePlaybackStatus(status),
@@ -235,7 +270,7 @@ export class PlayerService {
         if (change.trackChanged) {
           // The announcement is a full stream-lag ahead of the ear: warm the
           // cover now so it swaps in from disk the instant it is heard.
-          this.prefetchArtwork(this.deps.repository.currentTrack);
+          prefetchArtwork(this.deps, this.deps.repository.currentTrack);
           this.deps.audible.reconcile();
         }
         this.handleDisplayedTrackChange();
@@ -408,6 +443,31 @@ export class PlayerService {
     }
   }
 
+  /**
+   * Runs the 1 Hz JS fallback heartbeat while the app is visible or audio is
+   * wanted, and stops it otherwise (paused + hidden: nothing to watch).
+   *
+   * Decided here rather than from the React store: background store
+   * emissions are frozen, so a play started from the lock screen or the
+   * notification while hidden never reached the store, and the silent-stall
+   * detector never got its clock.
+   */
+  private updateHeartbeatDriver(): void {
+    const driver = this.deps.heartbeatDriver;
+    if (!driver) return;
+    const wanted =
+      !this.disposed &&
+      this.initialized &&
+      (this.appActive || this.isPlayingIntent);
+    if (wanted === this.heartbeatRunning) return;
+    this.heartbeatRunning = wanted;
+    if (wanted) {
+      driver.start(() => this.heartbeat());
+    } else {
+      driver.stop();
+    }
+  }
+
   // ── Lifecycle ──
 
   /**
@@ -431,6 +491,7 @@ export class PlayerService {
     // wanted (but not flowing) starts the silent loop; foregrounding stops
     // it — a foregrounded app cannot be suspended.
     this.updateKeepalive();
+    this.updateHeartbeatDriver();
     if (active) {
       this.deps.audible.adoptIfDue();
       this.emitPlayer();
@@ -444,7 +505,7 @@ export class PlayerService {
       // (AVPlayer does not recover progressive streams on its own).
       if (this.deps.state.isPlayingIntent && this.deps.state.state !== "playing") {
         this.deps.reconnect.reset();
-        void this.attemptReconnect();
+        void this.attemptReconnect("foreground: audio wanted but not flowing");
       } else if (
         this.deps.state.state === "playing" &&
         Date.now() - this.lastStatusAt >= SILENT_STALL_MS
@@ -454,9 +515,9 @@ export class PlayerService {
         // A `playing` label with no frame for this long is a label from
         // before the outage: fold it into the stall path and reconnect now.
         this.silentStallHandled = true;
-        this.reconcile("connecting");
+        this.reconcile("connecting", "foreground: no native frame while 'playing'");
         this.deps.reconnect.reset();
-        void this.attemptReconnect();
+        void this.attemptReconnect("foreground: stale 'playing'");
       } else {
         // Healthy (playing with a recent frame) or no audio wanted: nothing to repair.
       }
@@ -543,6 +604,7 @@ export class PlayerService {
 
     // Mark initialized ASAP — UI can render now
     this.initialized = true;
+    this.updateHeartbeatDriver();
     this.emitPlayer();
     this.emitProgress();
 
@@ -565,6 +627,8 @@ export class PlayerService {
    */
   async destroy(): Promise<void> {
     this.disposed = true;
+    this.updateHeartbeatDriver();
+    this.pauseRelease.cancel();
     this.userPaused = false;
     this.interruptionPending = false;
     this.stalledSince = null;
@@ -596,7 +660,7 @@ export class PlayerService {
       this.deps.state.transition("idle");
       this.initialized = false;
       this.emitPlayer();
-      resetPlayerServiceSingleton();
+      this.deps.onDestroyed?.();
       return;
     }
 
@@ -627,13 +691,14 @@ export class PlayerService {
     } finally {
       // Always release — a failed teardown must not leave this instance
       // as the app-wide singleton.
-      resetPlayerServiceSingleton();
+      this.deps.onDestroyed?.();
     }
   }
 
   // ── Playback commands ──
 
   async play(): Promise<void> {
+    this.pauseRelease.cancel();
     this.commandSeq += 1;
     const seq = this.commandSeq;
     // The user is choosing to play — an interruption that happens later is
@@ -650,6 +715,7 @@ export class PlayerService {
     }
 
     this.interruptionPending = false;
+    this.interruption = null;
     this.stalledSince = null;
     this.connectingWindows = 0;
     this.lastStatusAt = Date.now();
@@ -659,6 +725,7 @@ export class PlayerService {
     // Latch the intent NOW: session setup below can take a beat, and a tap in
     // that window has to read "playing" (and pause), not start a second play.
     this.pendingPlay = true;
+    this.updateHeartbeatDriver();
     this.emitPlayer();
 
     try {
@@ -690,18 +757,20 @@ export class PlayerService {
 
       // A long pause (or background suspension) leaves the retained lag stale:
       // the source below re-opens at the live edge, so re-lock the clock.
-      // A short pause is seamless — the estimate is still fresh.
+      // A short pause is seamless — the estimate is still fresh. A released
+      // stream always re-measures: its last reading predates the release.
       if (
-        this.deps.sync.hasMeasurement &&
-        this.deps.sync.isStale(RESYNC_AFTER_MS)
+        this.streamReleased ||
+        (this.deps.sync.hasMeasurement &&
+          this.deps.sync.isStale(RESYNC_AFTER_MS))
       ) {
         this.reacquireSyncClock();
       }
 
-      this.deps.audio.play(this.deps.streamPreferences.current.url);
+      this.openSource("play");
       // Reconcile emits the store (isPlaying → true immediately) and
       // pushes "buffering" to the media session.
-      this.reconcile("connecting");
+      this.reconcile("connecting", "user play");
 
       // Fetch fresh data + push metadata in one go
       await this.refreshData();
@@ -711,6 +780,7 @@ export class PlayerService {
       throw error;
     } finally {
       if (seq === this.commandSeq) this.pendingPlay = false;
+      this.updateHeartbeatDriver();
       this.emitPlayer();
       this.emitProgress();
     }
@@ -724,12 +794,21 @@ export class PlayerService {
     // regain, interruption end) can never resurrect the stream.
     this.userPaused = true;
     this.interruptionPending = false;
+    this.interruption = null;
     this.stalledSince = null;
+    this.updateHeartbeatDriver();
 
     // Pausing only needs the audio transport — a failed/slow now-playing
     // fetch, or a media session that never started, must never make the
     // audio unpausable.
-    if (!this.deps.audio.hasPlayer || this.deps.state.state === "paused") {
+    if (!this.deps.audio.hasPlayer) return;
+    if (this.deps.state.state === "paused") {
+      // Native got there first (notification/lock-screen button pauses the
+      // player before the JS command lands, or the OS paused it) — it is now
+      // a user pause. Tell native too: it cancels any OS resume still
+      // pending for that system pause (focus regain, interruption end).
+      this.deps.audio.pause();
+      this.armPauseRelease();
       return;
     }
 
@@ -741,7 +820,8 @@ export class PlayerService {
       // Reconcile flips isPlayingIntent → false, emits the store and
       // pushes "paused" to the media session (the old flow pushed the
       // status manually and could leave the button latched).
-      this.reconcile("paused");
+      this.reconcile("paused", "user pause");
+      this.pauseRelease.arm();
       // Progress keeps ticking (radio plays server-side) and metadata
       // stays as-is in the notification.
     } catch (error) {
@@ -762,6 +842,53 @@ export class PlayerService {
     this.deps.audible.beginReacquire();
     // Evaluate immediately so the hold engages before the next native frame.
     this.deps.audible.adoptIfDue();
+  }
+
+  /**
+   * The single place a source is (re-)opened. `play` starts it; `load`
+   * re-opens it while keeping the native play intent as it is — the safe
+   * form for automatic re-opens of a stream the OS is currently playing: if
+   * an interruption paused it in the meantime it stays paused, instead of
+   * re-claiming audio focus / the audio session from the app that took it.
+   */
+  private openSource(
+    mode: "play" | "load",
+    url: string = this.deps.streamPreferences.current.url,
+  ): void {
+    this.lastOpenAt = Date.now();
+    this.streamReleased = false;
+    if (mode === "play") {
+      this.deps.audio.play(url);
+    } else {
+      this.deps.audio.load(url);
+    }
+  }
+
+  /** Re-opens the source a resumed/recovered stream is playing, at the live edge. */
+  private reopenAtLiveEdge(cause: string): void {
+    this.reacquireSyncClock();
+    this.openSource("load");
+    this.reconcile("connecting", cause);
+    this.deps.heartbeat.beat();
+  }
+
+  /** Starts the pause-release countdown unless it runs or already released. */
+  private armPauseRelease(): void {
+    if (!this.streamReleased && !this.pauseRelease.isArmed) this.pauseRelease.arm();
+  }
+
+  /**
+   * Pause-release deadline: drops the connection of a stream that is still
+   * paused and that the OS will not resume on its own.
+   */
+  private releasePausedStream(): void {
+    if (this.disposed || this.deps.state.state !== "paused") return;
+    // The OS will resume it (focus regain / interruption end): keep it warm.
+    if (!this.userPaused && this.interruption && isSelfResumingInterruption(this.interruption)) return;
+    if (this.deps.audio.releaseStream()) {
+      this.streamReleased = true;
+      debugLog("[PlayerService] paused stream released");
+    }
   }
 
   async changeStream(stream: Stream): Promise<void> {
@@ -785,12 +912,15 @@ export class PlayerService {
       // point in the broadcast — re-lock the clock (see `reacquireSyncClock`).
       this.reacquireSyncClock();
 
-      this.deps.audio.load(stream.url);
+      this.openSource("load", stream.url);
       if (wasPlaying) {
         this.deps.audio.resume();
         // Reconcile: the notification follows the re-tune ("buffering")
         // instead of claiming the old stream is still playing.
-        this.reconcile("connecting");
+        this.reconcile("connecting", "stream change");
+      } else {
+        // `load` re-opened the connection on a paused transport.
+        this.pauseRelease.arm();
       }
 
       // Fetch fresh data for the new stream
@@ -819,54 +949,6 @@ export class PlayerService {
 
   async refreshHistory(type: HistoryType): Promise<void> {
     await this.deps.repository.refreshHistory(type);
-  }
-
-  /**
-   * Warms the cover of a freshly *announced* track while the speaker is still
-   * on the previous one.
-   *
-   * The station announces a `song_change` a whole stream-lag before the ear
-   * reaches it (the sync engine's delay — seconds on iOS, tens of seconds on
-   * Android). Downloading the artwork during that window means that when the
-   * audible resolver adopts the track, `updateMetadata` finds the file already
-   * in the cache and swaps the cover from disk in one push, instead of the
-   * "clanky" remote-load-then-swap that lands seconds late.
-   *
-   * Fire-and-forget: a failed prefetch simply leaves the normal
-   * resolve-on-adoption path to do the work. `resolve()` de-dupes against the
-   * adoption call through its in-flight map, so this never double-downloads.
-   *
-   * Fetches the reported low-res sibling (a few KB) in parallel with the
-   * full-size cover. The selected-quality image may not have landed by the
-   * time the song is heard, but the tiny almost always has — so the cover
-   * paints instantly at adoption and swaps up when the full arrives, rather
-   * than staying blank. The tiny is resolved under its own URL (not mapped
-   * onto the full one) so the adoption call can still drive the full swap.
-   */
-  private prefetchArtwork(track: Track | null | undefined): void {
-    const url = track?.artwork;
-    if (!url || !this.deps.artwork.isRemote(url)) return;
-    if (this.deps.artwork.peek(url)) return;
-    // No link → skip the pointless attempt; the adoption path retries once
-    // connectivity (and the track) is live again.
-    if (!this.deps.networkMonitor.isOnline()) return;
-    const preview = pickPreviewArtwork(url, track?.artworks);
-    debugLog(
-      `[ArtDebug] prefetch START "${track?.title ?? "?"}" artwork=${url} preview=${preview ?? "none"}`,
-    );
-    void Promise.all([
-      this.deps.artwork.resolve(url),
-      ...(preview ? [this.deps.artwork.resolve(preview)] : []),
-    ])
-      .then(([resolved]) => {
-        debugLog(
-          `[ArtDebug] prefetch READY "${track?.title ?? "?"}" → ${resolved}`,
-        );
-      })
-      .catch(() => {
-        // resolve() already degrades to the remote URL; this only stops an
-        // unhandled rejection from ever surfacing.
-      });
   }
 
   async updateMetadata(): Promise<void> {
@@ -971,19 +1053,9 @@ export class PlayerService {
    * timers freeze/throttle.
    */
   heartbeat(): void {
+    if (this.disposed) return;
     this.deps.audible.adoptIfDue();
-    // Watchdog from the JS driver too: native status events are the usual
-    // watchdog clock, but a stall can leave them sparse (a dead socket has
-    // no time progress to report) — the 1 Hz fallback must still escalate.
-    this.enforceConnectingWatchdog();
-    // Silence detection: a background stall stops native frames entirely
-    // while the state machine still says `playing` — the 1 Hz JS fallback is
-    // the only clock that can notice (see `checkSilentStall`).
-    this.checkSilentStall();
-    // A dead native state that landed inside the death grace window, and a
-    // stall that outlived the network outage, are both only visible to a clock.
-    this.checkDeadStream();
-    this.checkStallReopen();
+    this.runRecoveryChecks();
     this.deps.heartbeat.beat();
   }
 
@@ -1013,7 +1085,7 @@ export class PlayerService {
       return;
     }
     this.deadSince = null;
-    this.scheduleReconnect();
+    this.scheduleReconnect("stream dead (latched)");
   }
 
   /**
@@ -1034,8 +1106,7 @@ export class PlayerService {
       ? SUSPECT_STALL_REOPEN_MS
       : STALL_REOPEN_ONLINE_MS;
     if (Date.now() - this.stalledSince < limit) return;
-    console.warn("[PlayerService] stall outlived the outage — re-opening source");
-    void this.attemptReconnect();
+    void this.attemptReconnect("stall outlived the outage");
   }
 
   /**
@@ -1070,7 +1141,7 @@ export class PlayerService {
       "[PlayerService] no native status frame while 'playing' — treating as stall",
     );
     this.stalledSince = Date.now();
-    this.reconcile("connecting");
+    this.reconcile("connecting", "silent stall: no native frame while 'playing'");
   }
 
   // ── Artwork (shared resolver for the now-playing UI) ──
@@ -1112,9 +1183,27 @@ export class PlayerService {
    *
    * Refused transitions (e.g. the state machine guarding a race) emit and
    * push nothing.
+   *
+   * `cause` feeds the dev-only transition trace: one structured line per
+   * change with everything needed to replay a failure afterwards.
    */
-  private reconcile(next: TransportState): void {
+  private reconcile(next: TransportState, cause: string): void {
+    const from = this.deps.state.state;
     if (!this.deps.state.transition(next)) return;
+    if (CONFIG.DEBUG) {
+      logTransportTransition({
+        from,
+        to: next,
+        cause,
+        native: this.lastNativeSummary,
+        online: this.deps.networkMonitor.isOnline(),
+        suspect: this.networkSuspect,
+        interruption: this.interruption,
+        userPaused: this.userPaused,
+        lagMs: this.deps.sync.delay,
+        reconnectAttempt: this.deps.reconnect.attemptCount,
+      });
+    }
     // Listen stats ride the same transitions: entering `playing` anchors the
     // audible segment; pausing/idle closes the counting session. Brief
     // connecting/reconnecting hops do NOT split a session — the user's
@@ -1143,6 +1232,7 @@ export class PlayerService {
     // flowing (underground, reconnecting) the silent loop must render so
     // iOS does not suspend the app mid-reconnect.
     this.updateKeepalive();
+    this.updateHeartbeatDriver();
     // Any state change is UI-visible: isPlaying and playbackState derive
     // from the state machine.
     this.emitPlayer();
@@ -1162,23 +1252,35 @@ export class PlayerService {
     // not tick, poll or transition.
     if (this.disposed) return;
 
+    // React Native suspends JS timers while an Android activity is in the
+    // background, but native frames keep arriving — they fire every due
+    // deadline (reconnect backoff, track boundary, pause release) too.
+    this.timer.pump();
+
     // ANY native frame is proof the transport still ticks — re-arm the
     // silent-stall detector (see `checkSilentStall`). Must run before the
     // branches so even a "paused"/dead frame clears a pending stall.
     this.lastStatusAt = Date.now();
     this.silentStallHandled = false;
+    this.lastNativeSummary = `${status.playbackState}/${status.timeControlStatus}${
+      status.isBuffering ? "+buffering" : ""
+    }`;
     // Re-set by `handleStreamLost` when this frame is itself a dead state.
     const priorDeadSince = this.deadSince;
     this.deadSince = null;
 
     // Feed the audible-clock estimate on EVERY native frame (including
     // buffering ones): the offset is what shifts progress, the countdown and
-    // the media-session position back to what the speaker is producing.
-    this.deps.sync.updateFromStatus({
-      isLive: status.isLive ?? false,
-      offsetFromLive: status.currentOffsetFromLive ?? null,
-      bufferedAheadSeconds: status.bufferedAheadSeconds ?? null,
-    });
+    // the media-session position back to what the speaker is producing. A
+    // released stream's frames describe the placeholder, not the stream —
+    // they would pin the estimate to its buffer.
+    if (!this.streamReleased) {
+      this.deps.sync.updateFromStatus({
+        isLive: status.isLive ?? false,
+        offsetFromLive: status.currentOffsetFromLive ?? null,
+        bufferedAheadSeconds: status.bufferedAheadSeconds ?? null,
+      });
+    }
     // The estimate settling (or losing its measurement on reset) flips the
     // "calculating" state — emit so the header bar and countdown leave it
     // without waiting for the next song/transport change.
@@ -1198,10 +1300,71 @@ export class PlayerService {
       );
     }
 
-    if (this.handleBuffering(status)) return;
-    if (this.handlePlaying(status)) return;
-    if (this.handleNativelyPaused(status)) return;
-    this.handleStreamLost(status, priorDeadSince);
+    if (this.handleSystemPause(status)) return;
+    if (!this.handleBuffering(status) && !this.handlePlaying(status) &&
+        !this.handleNativelyPaused(status)) {
+      this.handleStreamLost(status, priorDeadSince);
+    }
+    // Native frames are the only clock an Android app gets in the background
+    // (JS timers are frozen; the patched player keeps a 1 Hz frame while
+    // playback is wanted), so they run the same recovery checks as the JS
+    // heartbeat. All of them are idempotent.
+    this.runRecoveryChecks();
+  }
+
+  /**
+   * The OS paused (or refused to start) the player — audio focus taken by
+   * another app or a call, headphones gone, an iOS session interruption.
+   * Checked before every other branch: such a frame can also report
+   * `isBuffering` (a stream paused mid-buffer), and treating it as a stall
+   * would make the reconnect logic take the audio straight back from the app
+   * that just claimed it — the "press Play twice" bug.
+   *
+   * Adopted exactly once: the transport leaves the play-intent states, so
+   * the reconnect chain, the watchdog and the stall detectors all stand
+   * down. When the OS later resumes the player (focus regain, interruption
+   * end with `shouldResume`), `handlePlaying` re-opens at the live edge; a
+   * permanent loss stays paused until the user presses play.
+   *
+   * @returns true when the frame carried a system pause (handled here).
+   */
+  private handleSystemPause(status: AudioPlaybackStatus): boolean {
+    const reason = status.interruption;
+    if (!reason) {
+      // A frame without a flag means the OS no longer holds the player.
+      this.interruption = null;
+      return false;
+    }
+    const first = this.interruption == null;
+    this.interruption = reason;
+    if (this.deps.state.isPlayingIntent) {
+      this.deps.reconnect.cancel();
+      this.stalledSince = null;
+      // Whatever the OS resumes later is stale buffered audio: re-open then.
+      this.interruptionPending = true;
+      this.reconcile("paused", `system pause (${reason})`);
+    }
+    // A pause the OS will not undo keeps nothing worth a live connection.
+    if (first && this.deps.state.state === "paused" && !isSelfResumingInterruption(reason)) {
+      this.armPauseRelease();
+    }
+    return true;
+  }
+
+  /** The clock-driven recovery checks (JS heartbeat and native frames). */
+  private runRecoveryChecks(): void {
+    // Watchdog from either clock: native status events are the usual
+    // watchdog clock, but a stall can leave them sparse (a dead socket has
+    // no time progress to report) — the 1 Hz fallback must still escalate.
+    this.enforceConnectingWatchdog();
+    // Silence detection: a background stall stops native frames entirely
+    // while the state machine still says `playing` — only the JS clock can
+    // notice that (see `checkSilentStall`).
+    this.checkSilentStall();
+    // A dead native state that landed inside the death grace window, and a
+    // stall that outlived the network outage, are both only visible to a clock.
+    this.checkDeadStream();
+    this.checkStallReopen();
   }
 
   /**
@@ -1219,17 +1382,13 @@ export class PlayerService {
   private handleBuffering(status: AudioPlaybackStatus): boolean {
     if (!status.isBuffering) return false;
 
-    if (this.deps.state.isPlayingIntent) {
-      // Audio that was flowing just stalled — remember when, so a recovery
-      // after the drift threshold can re-open at the live edge. Only arm
-      // from `playing`: a stall while `connecting` is our own stream
-      // replace, not a link that fell behind.
-      if (this.deps.state.state === "playing") {
-        this.stalledSince = Date.now();
-        this.reconcile("connecting");
-      }
-      this.enforceConnectingWatchdog();
-      this.checkStallReopen();
+    // Audio that was flowing just stalled — remember when, so a recovery
+    // after the drift threshold can re-open at the live edge. Only arm from
+    // `playing`: a stall while `connecting` is our own stream replace, not a
+    // link that fell behind.
+    if (this.deps.state.state === "playing") {
+      this.stalledSince = Date.now();
+      this.reconcile("connecting", "stall: native buffering");
     }
     this.deps.heartbeat.beat();
     return true;
@@ -1256,10 +1415,7 @@ export class PlayerService {
       const stalledFor = Date.now() - this.stalledSince;
       this.stalledSince = null;
       if (stalledFor >= LIVE_STALL_REOPEN_MS) {
-        this.reacquireSyncClock();
-        this.deps.audio.play(this.deps.streamPreferences.current.url);
-        this.reconcile("connecting");
-        this.deps.heartbeat.beat();
+        this.reopenAtLiveEdge(`stall recovered after ${stalledFor}ms`);
         return true;
       }
       // A short stall drained the buffer without a re-open: the lag moved by
@@ -1280,13 +1436,15 @@ export class PlayerService {
       // position — stale, already-played audio — so a *genuine*
       // interruption re-opens the source to land at the live edge. The
       // one-shot flag is what keeps this from looping: the re-open's own
-      // transient paused→playing frame leaves it clear.
-      if (this.interruptionPending) {
+      // transient paused→playing frame leaves it clear. A released stream
+      // is playing a placeholder and must be re-opened too.
+      //
+      // `load`, not `play`: it keeps whatever the OS decided — if another
+      // interruption paused the player again before this frame was handled,
+      // the re-open stays paused instead of re-claiming audio focus.
+      if (this.interruptionPending || this.streamReleased) {
         this.interruptionPending = false;
-        this.reacquireSyncClock();
-        this.deps.audio.play(this.deps.streamPreferences.current.url);
-        this.reconcile("connecting");
-        this.deps.heartbeat.beat();
+        this.reopenAtLiveEdge("OS resumed after a system pause");
         return true;
       }
       // Otherwise adopt the resumed audio as-is (transient flap).
@@ -1297,7 +1455,8 @@ export class PlayerService {
     // events keep arriving while the app is backgrounded, where JS
     // timers freeze/throttle — without this, a live show's notification
     // keeps a stale title/cover forever.
-    this.reconcile("playing");
+    this.lastOpenAt = 0;
+    this.reconcile("playing", "native: audio flowing");
     this.deps.heartbeat.beat();
     return true;
   }
@@ -1325,7 +1484,6 @@ export class PlayerService {
     // `playImmediately` ran before the item was ready). Don't latch a
     // user-visible pause — force a fresh native start until it takes.
     if (this.deps.state.state === "connecting") {
-      this.enforceConnectingWatchdog();
       this.deps.heartbeat.beat();
       return true;
     }
@@ -1334,7 +1492,7 @@ export class PlayerService {
     if (this.deps.state.state === "playing") {
       this.interruptionPending = true;
     }
-    this.reconcile("paused");
+    this.reconcile("paused", "native paused");
     return true;
   }
 
@@ -1354,7 +1512,7 @@ export class PlayerService {
       return;
     }
     if (Date.now() - this.deps.state.enteredAt > STREAM_DEATH_GRACE_MS) {
-      this.scheduleReconnect();
+      this.scheduleReconnect(`stream dead (${status.playbackState})`);
     } else {
       // Inside the grace window: remember it so the heartbeat can re-check
       // once the window closes (native will not repeat the frame).
@@ -1383,21 +1541,21 @@ export class PlayerService {
     // Park in `reconnecting` with a backoff probe; the restore edge (or the
     // probe) brings it back.
     if (!this.deps.networkMonitor.isOnline()) {
-      this.scheduleReconnect();
+      this.scheduleReconnect("stuck connecting while offline");
       return;
     }
     this.connectingWindows += 1;
     // Escalation: the first windows only force a native start (cheap), but
     // a broken socket can sit in "waiting" forever with `resume()` doing
     // nothing — AVPlayer never recovers a progressive stream on its own.
-    // Past CONNECTING_REOPEN_WINDOWS the source itself is re-opened, the
-    // only action that can actually heal the connection.
+    // Past CONNECTING_REOPEN_WINDOWS the source is re-opened, the only action
+    // that heals the connection — through the backoff, so a link that is up
+    // but too slow for the stream is retried 2s, 4s … 30s apart instead of
+    // having every slow-but-progressing connect torn down at a fixed 12s
+    // cadence. The attempt in flight keeps loading meanwhile; audio resets it.
     if (this.connectingWindows >= CONNECTING_REOPEN_WINDOWS) {
-      console.warn(
-        "[PlayerService] transport stuck connecting — forcing source re-open",
-      );
       this.connectingWindows = 0;
-      void this.attemptReconnect();
+      this.scheduleReconnect("stuck connecting");
       return;
     }
     console.warn(
@@ -1406,11 +1564,18 @@ export class PlayerService {
     this.deps.audio.resume();
   }
 
+  /** Bookkeeping shared by every connectivity edge. */
+  private onNetworkEdge(): void {
+    this.timer.pump();
+    this.lastNetworkEdgeAt = Date.now();
+    this.networkSuspectUntil = Date.now() + NETWORK_SUSPECT_MS;
+  }
+
   private handleNetworkLost(): void {
     if (this.disposed) return;
     // Do NOT touch native: the forward buffer keeps playing through a short
     // tunnel, and tearing it down would make the outage audible immediately.
-    this.networkSuspectUntil = Date.now() + NETWORK_SUSPECT_MS;
+    this.onNetworkEdge();
   }
 
   /**
@@ -1420,14 +1585,14 @@ export class PlayerService {
    */
   private handleNetworkHandoff(): void {
     if (this.disposed) return;
-    this.networkSuspectUntil = Date.now() + NETWORK_SUSPECT_MS;
+    this.onNetworkEdge();
     this.deps.sync.requestRelock();
     if (
       this.deps.state.isPlayingIntent &&
       this.deps.state.state !== "playing"
     ) {
       this.deps.reconnect.reset();
-      void this.attemptReconnect();
+      void this.attemptReconnect("network handoff");
     }
   }
 
@@ -1435,9 +1600,9 @@ export class PlayerService {
     if (this.disposed) return;
 
     // Instant reconnect instead of waiting the backoff out
+    this.onNetworkEdge();
     this.deps.reconnect.reset();
     this.offlineSkips = 0;
-    this.networkSuspectUntil = Date.now() + NETWORK_SUSPECT_MS;
 
     if (this.deps.state.isPlayingIntent) {
       // Still audibly playing from the buffer that rode out the outage with a
@@ -1450,7 +1615,7 @@ export class PlayerService {
       if (!flowing) {
         // The link came back — a stale stall marker must not double-re-open.
         this.stalledSince = null;
-        void this.attemptReconnect();
+        void this.attemptReconnect("network restored");
       }
     }
 
@@ -1460,20 +1625,38 @@ export class PlayerService {
 
   // ── Reconnect chain ──
 
-  private scheduleReconnect(): void {
+  private scheduleReconnect(reason: string): void {
     if (this.deps.reconnect.isPending) return;
 
     // Reconcile: the notification leaves "playing" the moment the stream
     // is lost (it used to stay stale until the next track change).
-    this.reconcile("reconnecting");
+    this.reconcile("reconnecting", reason);
 
     // Exponential backoff: 2s → 4s → 8s → 16s → 30s (cap)
     const delay = this.deps.reconnect.schedule(() => {
-      void this.attemptReconnect().catch(console.error);
+      void this.attemptReconnect("backoff elapsed").catch(console.error);
     });
 
     console.warn(
-      `[PlayerService] Stream lost — reconnecting in ${delay}ms (attempt ${this.deps.reconnect.attemptCount})`,
+      `[PlayerService] ${reason} — reconnecting in ${delay}ms (attempt ${this.deps.reconnect.attemptCount}, online=${this.deps.networkMonitor.isOnline()})`,
+    );
+  }
+
+  /**
+   * Whether a source open is already in flight and still worth waiting for:
+   * no audio yet, issued after the latest connectivity change and younger
+   * than one watchdog window. Every automatic trigger (stall, foreground catch-up,
+   * watchdog, network edges) funnels into `attemptReconnect`; without this,
+   * two of them landing together re-opened twice and the second aborted the
+   * first connect mid-handshake. An open issued before a network edge rode
+   * the old route and is never protected.
+   */
+  private get openInFlight(): boolean {
+    return (
+      this.deps.state.state === "connecting" &&
+      this.lastOpenAt > 0 &&
+      this.lastOpenAt > this.lastNetworkEdgeAt &&
+      Date.now() - this.lastOpenAt < CONNECTING_WATCHDOG_MS
     );
   }
 
@@ -1482,8 +1665,12 @@ export class PlayerService {
    * re-opens the connection at the current live point — there is no
    * gapless resume on a radio stream) and resumes playback.
    */
-  private async attemptReconnect(): Promise<void> {
+  private async attemptReconnect(reason: string): Promise<void> {
     if (!this.deps.state.isPlayingIntent || !this.deps.audio.hasPlayer) {
+      return;
+    }
+    if (this.openInFlight) {
+      debugLog(`[PlayerService] reconnect (${reason}) skipped — open in flight`);
       return;
     }
 
@@ -1495,23 +1682,24 @@ export class PlayerService {
       this.offlineSkips < OFFLINE_PROBE_EVERY
     ) {
       this.offlineSkips += 1;
-      this.scheduleReconnect();
+      this.scheduleReconnect(`offline (${reason})`);
       return;
     }
     this.offlineSkips = 0;
 
+    console.warn(`[PlayerService] re-opening source: ${reason}`);
     try {
       // Reconnect re-opens live anyway — drop any pending interruption.
       this.interruptionPending = false;
       this.stalledSince = null;
       // The source is re-opened: re-lock the audible clock.
       this.reacquireSyncClock();
-      this.deps.audio.play(this.deps.streamPreferences.current.url);
+      this.openSource("play");
       // Reconcile pushes "buffering" — no manual pushStatus needed.
-      this.reconcile("connecting");
+      this.reconcile("connecting", `reconnect: ${reason}`);
     } catch (error) {
       console.error("[PlayerService] Reconnect attempt failed:", error);
-      this.scheduleReconnect();
+      this.scheduleReconnect("reconnect attempt threw");
     }
   }
 
@@ -1607,141 +1795,3 @@ export class PlayerService {
     });
   }
 }
-
-// ─── Singleton factory ───
-
-const netInfoSubscribe: ConnectivitySubscribe = (handler) =>
-  NetInfo.addEventListener((state) =>
-    handler({
-      isConnected: state.isConnected,
-      isInternetReachable: state.isInternetReachable,
-      type: state.type,
-    }),
-  );
-
-let playerServiceInstance: PlayerService | null = null;
-
-/** Builds a fully-wired PlayerService with production dependencies. */
-export const createPlayerService = (): PlayerService => {
-  const state = new TransportStateMachine();
-  // The audible station clock: turns the native live offset into the instant
-  // the speaker is producing, so every station-timeline surface stays on the
-  // audio the listener hears rather than the station's live point.
-  const sync = new StreamSyncEngine();
-  // Feed the engine the server-vs-device clock offset from every HTTP
-  // response's `date` header (the app already makes these requests). Keeps
-  // the station-timeline comparison valid on a device with a wrong clock.
-  setServerSkewListener((skewMs, rttMs) => sync.setClockSkew(skewMs, rttMs));
-  // The only two places the native libraries are touched live in these
-  // adapters; the rest of the core depends on the ports.
-  const audio = new ExpoAudioAdapter();
-  const media = new PlaybackControlsAdapter();
-  const sampler = createVisualizerSampler(audio);
-  const streamPreferences = new StreamPreferences();
-  const reconnect = new BackoffScheduler({
-    baseMs: BASE_RECONNECT_DELAY_MS,
-    maxMs: MAX_RECONNECT_DELAY_MS,
-    timer: jsTimer,
-    label: "stream-reconnect",
-  });
-  const repository = new NowPlayingRepository({
-    fetchers: animuService,
-    getCoverQuality: () =>
-      userSettingsService.getCurrentSettings().liveQualityCover,
-    getDefaultCover: () => artwork.defaultCover,
-    timer: jsTimer,
-    // Track-end refreshes fire on the audible timeline, not the station's.
-    getNow: () => sync.now(),
-  });
-  const networkMonitor = new NetworkMonitor(netInfoSubscribe);
-  // Bridges the media-session artwork with the in-app image cache: any
-  // surface (search row, history, player frame) that already has a cover
-  // on disk satisfies the resolver, and a fresh resolver download seeds
-  // back for the reverse journey.
-  const coverDiskCache = new ExpoImageCoverDiskCache();
-  const coverLookup = new CachedCoverLookup(coverDiskCache);
-  const coverSeeder = new CoverCacheSeeder(coverDiskCache);
-  const artwork = new ArtworkResolver({
-    onResolved: (localUri, remoteUrl) => {
-      // Attribute the resolver's download to the live surface at the seam
-      // where the remote URL is still known: the in-app player frame
-      // renders the local `file://` URI and the registry only accepts
-      // remote URLs, so display-time tagging can never see this cover —
-      // the live partition would report 0 forever. The media session's
-      // downloads are gated by the same cache setting as every other
-      // surface's tags; the seed keeps its unconditional bridging role.
-      if (userSettingsService.getCurrentSettings().cacheEnabled) {
-        coverCacheRegistry.tag(remoteUrl, "live");
-      }
-      return coverSeeder.seed(localUri, remoteUrl);
-    },
-    findCachedCoverFile: coverLookup.find.bind(coverLookup),
-  });
-  // Holds the announced track back until the speaker reaches it, so the
-  // title/cover/lock screen flip when the song is heard — not when the
-  // station announces it.
-  const audible = new AudibleTrackResolver({
-    getStationTrack: () => repository.currentTrack,
-    sync,
-    timer: jsTimer,
-  });
-  const ticker = new ProgressTicker({
-    repository,
-    state,
-    audio,
-    media,
-    sync,
-    getTrack: () => audible.track,
-    buildMetadata: () =>
-      buildNowPlayingMetadata({
-        // Local cover file when it exists — the patched native module
-        // reads it in-process and publishes artworkData on Android.
-        track: artwork.apply(audible.track),
-        isLive: repository.currentProgram?.isLive ?? false,
-        // Withhold the seek bar until the estimate settles (see `pushNowPlaying`).
-        showProgress: repository.showProgress && sync.settled,
-        defaultCover: artwork.defaultCover,
-      }),
-  });
-  const heartbeat = new HeartbeatScheduler({
-    repository,
-    ticker,
-    isPlayingIntent: () => state.isPlayingIntent,
-    stateLabel: () => state.state,
-    // Listen stats: every processed beat closes out one ~1s audible segment
-    // while the transport is `playing`. Native status events keep beating
-    // in the background, so backgrounded listening accrues too.
-    onBeat: () => {
-      if (state.state !== "playing") return;
-      listenStatsService.onAudibleTick(Date.now());
-    },
-    debug: CONFIG.DEBUG,
-  });
-
-  return new PlayerService({
-    state,
-    audio,
-    media,
-    sampler,
-    repository,
-    streamPreferences,
-    reconnect,
-    networkMonitor,
-    ticker,
-    heartbeat,
-    artwork,
-    sync,
-    audible,
-    stats: listenStatsService,
-  });
-};
-
-const resetPlayerServiceSingleton = (): void => {
-  playerServiceInstance = null;
-};
-
-/** App-wide singleton — recreated after `destroy()` (e.g. remounts). */
-export const playerService = (): PlayerService => {
-  playerServiceInstance ??= createPlayerService();
-  return playerServiceInstance;
-};
