@@ -142,7 +142,7 @@ const DICT = {
   LINKS_WEBSITE: "Website",
   SETTINGS_TITLE: "Settings",
   SETTINGS_ACCOUNT_TITLE: "Account",
-  SETTINGS_SAVE_DATA_TITLE: "Cover images",
+  SETTINGS_SAVE_DATA_TITLE: "Covers & storage",
   SETTINGS_QUALITY_ROW: "Cover quality",
   SETTINGS_QUALITY_LIVE_LABEL_LOW: "Low",
   SETTINGS_QUALITY_LIVE_LABEL_MEDIUM: "Medium",
@@ -157,7 +157,6 @@ const DICT = {
   SETTINGS_LANGUAGE_ROW: "App language",
 
   SETTINGS_LIVE_UPDATES_SWITCH: "Live song info",
-  SETTINGS_MEMORY_TITLE: "Storage",
   SETTINGS_GENERAL_TITLE: "General",
   SETTINGS_PLAYBACK_TITLE: "Playback",
 
@@ -182,7 +181,6 @@ const DICT = {
   SETTINGS_LIVE_UPDATES_DESC: "Song updates while the app is in the background",
 
   SETTINGS_HAPTICS_SWITCH: "Haptic feedback",
-  SETTINGS_HAPTICS_DESC: "Vibration on taps and actions",
   A11Y_BACK: "Back",
   A11Y_OPEN_MENU: "Open menu",
   A11Y_MAKE_REQUEST: "Make a request",
@@ -199,6 +197,8 @@ const DICT = {
   SETTINGS_ASSISTANT_HINT_ANDROID: 'Say "Ok Google, play Rádio Animu"',
   SETTINGS_ADVANCED_TITLE: "Advanced",
   SETTINGS_RESET_ROW: "Reset to default",
+  SETTINGS_RESET_DESC:
+    "Restores every setting on this screen. Your account and listening stats are not affected.",
   SETTINGS_RESET_CONFIRM_TITLE: "Reset settings?",
   SETTINGS_RESET_CONFIRM_MSG: "All settings go back to their defaults.",
   SETTINGS_RESET_CONFIRM: "Reset",
@@ -278,7 +278,6 @@ const DICT = {
   SETTINGS_FOOTER_SOCIAL: "Social media",
   SETTINGS_FOOTER_SOURCE: "Source code",
   SETTINGS_ABOUT_ROW: "About this app",
-  SETTINGS_ABOUT_ROW_DESC: "Versions, credits and licenses",
   ABOUT_TITLE: "About",
   ABOUT_APP_INFO_TITLE: "App info",
   ABOUT_VERSION_ROW: "Version",
@@ -382,13 +381,14 @@ const DICT = {
   LOGIN_MISSING_FIELDS: "Fill in all the fields to continue.",
   LOGIN_HEADLINE: "Welcome back",
   LOGIN_SUBTITLE: "Sign in to request songs and unlock your listening card",
-  LOGIN_OR_CONTINUE: "or continue with",
+  LOGIN_OR_CONTINUE: "or",
   LOGIN_CONTINUE_WITH: "Continue with {provider}",
   LOGIN_WITH_ANIMU_CONNECT: "Continue with Animu Connect",
+  LOGIN_ANIMU_CONNECT_TAGLINE: "Passwordless · we email you a 4-digit code",
   LOGIN_LEGAL: "By continuing, you agree to our {link}.",
   LOGIN_ANIMU_CONNECT_HINT:
     "Any email linked to your Animu account works. Provider emails are automatic; you can add one extra email in your profile.",
-  LOGIN_CONNECT_TITLE: "Animu Connect",
+  LOGIN_CONNECT_TITLE: "Sign in with Animu Connect",
   LOGIN_CONNECT_SUBTITLE: "We'll email you a 4-digit sign-in code",
   LOGIN_EMAIL: "Email",
   LOGIN_EMAIL_PLACEHOLDER: "you@example.com",
@@ -412,7 +412,6 @@ const DICT = {
   ACCOUNT_LAST_LOGIN: "Last login",
   ACCOUNT_SHOW: "Show",
   ACCOUNT_HIDE: "Hide",
-  ACCOUNT_REFRESH: "Refresh profile",
   ACCOUNT_REFRESHED: "Profile updated",
   ACCOUNT_LINKED_ACCOUNTS: "Linked accounts",
   ACCOUNT_LINKED: "Linked",
@@ -423,15 +422,17 @@ const DICT = {
     "Keep at least one linked account. To leave, delete your account.",
   ACCOUNT_LINK_SUCCESS: "Account linked",
   ACCOUNT_UNLINK_SUCCESS: "Account unlinked",
+  ACCOUNT_UNLINK_CONFIRM_MSG:
+    "You won't be able to sign in with {provider} until you link it again.",
+  ACCOUNT_UNLINK_CONFIRM_TITLE: "Unlink {provider}?",
   ACCOUNT_ANIMU_CONNECT: "Animu Connect",
-  ACCOUNT_ANIMU_CONNECT_DESC: "Passwordless sign-in by email code.",
+  ACCOUNT_ANIMU_CONNECT_DESC:
+    "A sign-in method: log in with a 4-digit code sent to any email below — no password needed.",
   ACCOUNT_ANIMU_CONNECT_FORM_HINT:
-    "Provider emails are automatic. You can add one extra email.",
+    "Provider emails work automatically. Add one extra email you can also sign in with.",
   ACCOUNT_DANGER: "Danger zone",
   ACCOUNT_LOGOUT: "Log out",
-  ACCOUNT_LOGOUT_HINT: "Sign out on this device. Your account stays intact.",
   ACCOUNT_DELETE: "Delete account",
-  ACCOUNT_DELETE_HINT: "Permanently removes your profile and sessions.",
   ACCOUNT_DELETE_CONFIRM_TITLE: "Delete account?",
   ACCOUNT_DELETE_CONFIRM_MSG:
     "This permanently deletes your profile, linked accounts and sessions. This cannot be undone.",

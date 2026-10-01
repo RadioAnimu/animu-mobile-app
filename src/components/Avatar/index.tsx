@@ -5,7 +5,7 @@ import MaterialIcons from "@react-native-vector-icons/material-icons/static";
 import { View } from "react-native";
 import { useAuth } from "@/contexts/auth/AuthProvider";
 import { useBoundedRetry } from "@/hooks/useBoundedRetry";
-import { buildAuthImageSource } from "@/utils/authImage";
+import { resolveMediaSource } from "@/utils/authImage";
 import { THEME } from "@/theme";
 import { scale } from "@/theme/responsive";
 
@@ -17,23 +17,26 @@ interface Props {
 }
 
 /**
- * The one place avatars are rendered. It feeds the session token and a
- * cache-busting revision into the source so the authenticated avatar
- * endpoint loads reliably and refreshes after an upload, and degrades to a
+ * The one place avatars are rendered. The signed-in user's avatar comes from
+ * its saved local copy; anything else (or before that copy exists) loads from
+ * the URL with the session token and a cache-busting revision. Degrades to a
  * neutral person glyph with bounded retries instead of a blank frame.
  */
 export function Avatar({ uri, size = scale(40), style, iconSize }: Props) {
-  const { user, imageVersion } = useAuth();
+  const { user, imageVersion, media } = useAuth();
   const { failed, retry, fail } = useBoundedRetry(uri ?? "");
 
+  // Only the signed-in user's own avatar has a saved copy.
+  const localUri = uri && uri === user?.avatarUrl ? media.avatar : null;
   const source = useMemo(
     () =>
-      buildAuthImageSource(
+      resolveMediaSource(
+        localUri,
         uri,
         user?.sessionToken,
         `${imageVersion}-${retry}`,
       ),
-    [uri, user?.sessionToken, imageVersion, retry],
+    [localUri, uri, user?.sessionToken, imageVersion, retry],
   );
 
   const dimensions = {

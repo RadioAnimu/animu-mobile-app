@@ -6,7 +6,8 @@ import { Select, type SelectOption } from "@/components/Select";
 import { useUserSettings } from "@/contexts/user/UserSettingsProvider";
 import { useDict } from "@/hooks/useDict";
 import { LANGS_KEY_VALUE_PAIRS } from "@/i18n";
-import { Divider, InfoRow, SettingsRow } from "@/screens/Settings/rows";
+import { RowDivider } from "@/components/ListRow";
+import { InfoRow, SettingsRow } from "@/screens/Settings/rows";
 import { styles } from "@/screens/Settings/styles";
 
 /**
@@ -28,7 +29,9 @@ export function BehaviorSection() {
   >(
     () =>
       (
-        Object.keys(LANGS_KEY_VALUE_PAIRS) as (keyof typeof LANGS_KEY_VALUE_PAIRS)[]
+        Object.keys(
+          LANGS_KEY_VALUE_PAIRS,
+        ) as (keyof typeof LANGS_KEY_VALUE_PAIRS)[]
       ).map((key) => ({ key, label: LANGS_KEY_VALUE_PAIRS[key] })),
     [],
   );
@@ -50,7 +53,7 @@ export function BehaviorSection() {
                 })
               }
             />
-            <Divider />
+            <RowDivider />
           </>
         )}
         <SettingsRow
@@ -75,17 +78,16 @@ export function BehaviorSection() {
           value={settings.selectedLanguage}
           onChange={(key) => updateSettings({ selectedLanguage: key })}
         />
-        <Divider />
+        <RowDivider />
         <SettingsRow
           icon="vibration"
           label={dict.SETTINGS_HAPTICS_SWITCH}
-          description={dict.SETTINGS_HAPTICS_DESC}
           value={settings.hapticsEnabled}
           onToggle={() =>
             updateSettings({ hapticsEnabled: !settings.hapticsEnabled })
           }
         />
-        <Divider />
+        <RowDivider />
         <InfoRow
           icon="record-voice-over"
           label={dict.SETTINGS_ASSISTANT_TITLE}

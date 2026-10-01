@@ -1,6 +1,7 @@
 import { StyleSheet } from "react-native";
 
 import { THEME } from "@/theme";
+import { ROW_STYLES } from "@/theme/screen";
 import { scale } from "@/theme/responsive";
 
 const CONTENT_PADDING = THEME.SPACE.LG;
@@ -11,7 +12,6 @@ export const styles = StyleSheet.create({
   action: {
     flexDirection: "row",
     alignItems: "center",
-    gap: THEME.SPACE.MD,
     minHeight: scale(64),
     paddingHorizontal: CONTENT_PADDING,
     paddingVertical: THEME.SPACE.MD,
@@ -21,11 +21,7 @@ export const styles = StyleSheet.create({
   actionDisabled: {
     opacity: THEME.OPACITY.DISABLED,
   },
-  /** Inside a shared danger-group card: the card owns the fill and radius. */
-  actionGrouped: {
-    borderRadius: 0,
-    backgroundColor: "transparent",
-  },
+  iconBox: ROW_STYLES.iconBox,
   body: {
     flex: 1,
     gap: THEME.SPACE.XS,
@@ -39,7 +35,7 @@ export const styles = StyleSheet.create({
     color: THEME.COLORS.TEXT,
     fontFamily: THEME.FONT_FAMILY.REGULAR,
     fontSize: THEME.FONT_SIZE.BODY,
-    lineHeight: THEME.LINE_HEIGHT.BODY,
+    lineHeight: THEME.LINE_HEIGHT.SUBHEAD,
     // Slightly dimmed for hierarchy; still ~4.7:1 on the danger fill.
     opacity: 0.85,
   },

@@ -8,21 +8,6 @@ const CONTENT_PADDING = THEME.SPACE.LG;
 const BACK_BUTTON = scale(44);
 const CONNECT_BADGE = scale(64);
 
-/** Shared geometry of the sign-in option rows (providers and Animu Connect). */
-const OPTION_ROW = {
-  flexDirection: "row" as const,
-  alignItems: "center" as const,
-  minHeight: THEME.LAYOUT.ROW_MIN_HEIGHT,
-  paddingHorizontal: CONTENT_PADDING,
-  borderRadius: THEME.RADIUS.CARD,
-};
-const OPTION_LABEL = {
-  flex: 1,
-  fontFamily: THEME.FONT_FAMILY.BOLD,
-  fontSize: THEME.FONT_SIZE.LIST,
-  paddingRight: THEME.SPACE.MD,
-};
-
 export const styles = StyleSheet.create({
   // The app artwork stays visible behind the flow; AuthBackdrop draws the
   // gradient scrim and the brand glow on top of it.
@@ -34,15 +19,17 @@ export const styles = StyleSheet.create({
   },
   content: {
     ...SCREEN_STYLES.content,
-    // The floating back arrow (not a SURFACE header bar) rides the artwork,
-    // so the page starts right under the status bar.
+    // The back arrow sits in its own bar above, so the page starts under it.
+    paddingTop: THEME.SPACE.SM,
+  },
+  // Same inset as the ScreenHeader arrow on the other pages.
+  topBar: {
+    paddingHorizontal: THEME.SPACE.SM,
     paddingTop: THEME.SPACE.SM,
   },
   backButton: {
     width: BACK_BUTTON,
     height: BACK_BUTTON,
-    borderRadius: THEME.RADIUS.CIRCLE,
-    backgroundColor: THEME.COLORS.SCRIM,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -73,33 +60,38 @@ export const styles = StyleSheet.create({
   buttonDisabled: {
     opacity: THEME.OPACITY.DISABLED,
   },
-  // Provider options use the same row recipe as Settings/Account: a SURFACE
-  // card, the shared 64pt row rhythm and the 32pt leading icon column.
+  tagline: {
+    color: THEME.COLORS.TEXT_SOFT,
+    fontFamily: THEME.FONT_FAMILY.REGULAR,
+    fontSize: THEME.FONT_SIZE.BODY,
+    lineHeight: THEME.LINE_HEIGHT.BODY,
+    textAlign: "center",
+    marginTop: THEME.SPACE.MD,
+  },
+  // Providers are outlined pills: icon left, label centered (the empty right
+  // slot balances the icon column), so they stay secondary to Animu Connect.
   methods: {
     gap: THEME.SPACE.SM,
   },
   method: {
-    ...OPTION_ROW,
-    backgroundColor: THEME.COLORS.SURFACE,
+    flexDirection: "row",
+    alignItems: "center",
+    height: scale(48),
+    paddingHorizontal: CONTENT_PADDING,
+    borderRadius: THEME.RADIUS.CIRCLE,
+    borderWidth: 1,
+    borderColor: THEME.COLORS.SWITCH_OFF,
   },
   methodIcon: {
     width: THEME.LAYOUT.ICON_BOX_WIDTH,
     alignItems: "flex-start",
   },
   methodLabel: {
-    ...OPTION_LABEL,
+    flex: 1,
     color: THEME.COLORS.TEXT,
-  },
-  // Animu Connect closes the list as the last option, in the brand fill but
-  // on the same row/icon grid as the providers, carrying the Account screen's
-  // own mark for it (`alternate-email`).
-  connectOption: {
-    ...OPTION_ROW,
-    backgroundColor: THEME.COLORS.BRAND,
-  },
-  connectOptionLabel: {
-    ...OPTION_LABEL,
-    color: THEME.COLORS.TEXT_ON_LIGHT,
+    fontFamily: THEME.FONT_FAMILY.BOLD,
+    fontSize: THEME.FONT_SIZE.LIST,
+    textAlign: "center",
   },
   divider: {
     flexDirection: "row",
@@ -117,8 +109,7 @@ export const styles = StyleSheet.create({
     fontFamily: THEME.FONT_FAMILY.REGULAR,
     fontSize: THEME.FONT_SIZE.CAPTION,
   },
-  // Where the submit button would sit: the in-flight spinner keeps the
-  // keyboard-driven flow honest while the request runs.
+  // The code step has no button: the in-flight spinner shows the verify runs.
   busyRow: {
     alignItems: "center",
     marginTop: CONTENT_PADDING,
@@ -163,11 +154,6 @@ export const styles = StyleSheet.create({
     fontSize: THEME.FONT_SIZE.TITLE,
     textAlign: "center",
     marginTop: THEME.SPACE.LG,
-  },
-  // The address the code went to, emphasized inside the sentence.
-  subtitleEmail: {
-    color: THEME.COLORS.TEXT,
-    fontFamily: THEME.FONT_FAMILY.BOLD,
   },
   form: {
     marginTop: THEME.SPACE.XXL,

@@ -3,6 +3,7 @@ import MaterialIcons from "@react-native-vector-icons/material-icons/static";
 import { Text, TextInput, TouchableOpacity, View } from "react-native";
 
 import { CodeInput, CODE_LENGTH } from "@/components/CodeInput";
+import { PrimaryButton } from "@/components/PrimaryButton";
 import type { EmailCodeFlow } from "@/hooks/useEmailCodeFlow";
 import { useDict } from "@/hooks/useDict";
 import { THEME } from "@/theme";
@@ -10,7 +11,9 @@ import { styles } from "@/components/EmailCodeFields/styles";
 
 /**
  * The email/code input pair for the Animu Connect flow. Renders the field for
- * the flow's current step; shared by the Login screen and the Account screen.
+ * the flow's current step (the email step ends on its "Send code" button, the
+ * code step submits itself on the last digit); shared by the Login screen and
+ * the Account screen.
  *
  * `autoFocus` is opt-in: the full-screen Login form leans on it, while the
  * Account screen leaves it off so its inline field only raises the keyboard
@@ -72,9 +75,8 @@ export function EmailCodeFields({
             // Lets the OS/keyboard offer the saved address instead of retyping.
             autoComplete="email"
             textContentType="emailAddress"
-            // There is no send button (same as the request search): the
-            // keyboard's send key carries the step, and stays grayed out
-            // until something is typed.
+            // The keyboard's send key is a shortcut for the visible button
+            // below, and stays grayed out until something is typed.
             returnKeyType="send"
             enablesReturnKeyAutomatically
             autoFocus={autoFocus}
@@ -103,6 +105,14 @@ export function EmailCodeFields({
             </TouchableOpacity>
           )}
         </View>
+        <PrimaryButton
+          label={dict.LOGIN_SEND_CODE}
+          icon="send"
+          loading={flow.busy}
+          disabled={flow.email.trim().length === 0}
+          onPress={() => void flow.sendCode()}
+          style={styles.submit}
+        />
       </>
     );
   }

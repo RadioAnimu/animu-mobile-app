@@ -4,12 +4,7 @@ import MaterialIcons from "@react-native-vector-icons/material-icons/static";
 import * as Linking from "expo-linking";
 import { DrawerScreenProps } from "@react-navigation/drawer";
 import { Image } from "expo-image";
-import {
-  ScrollView,
-  Text,
-  TouchableOpacity,
-  View,
-} from "react-native";
+import { ScrollView, Text, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { API } from "@/api";
@@ -20,10 +15,10 @@ import { SocialIcon, type SocialBrand } from "@/components/SocialIcon";
 import { useDict } from "@/hooks/useDict";
 import { RootStackParamList } from "@/routes/app.routes";
 import { haptics } from "@/utils/haptics";
-import { Divider, InfoRow, LinkRow } from "@/screens/Settings/rows";
+import { RowDivider } from "@/components/ListRow";
+import { InfoRow, LinkRow } from "@/screens/Settings/rows";
 import { THEME } from "@/theme";
 import { layoutEase } from "@/utils/layout-animation";
-import { scale } from "@/theme/responsive";
 import ccLicense from "@/assets/cc-by-nc-sa.webp";
 import { DONORS } from "@/screens/About/credits";
 import { useAppInfo } from "@/screens/About/info";
@@ -108,7 +103,6 @@ function SocialRow({ brand, label, url }: SocialRowProps) {
 function DonorDisclosure({ label, intro }: { label: string; intro: string }) {
   const [expanded, setExpanded] = useState(false);
 
-
   const toggle = () => {
     haptics.select();
     layoutEase();
@@ -182,146 +176,137 @@ export function About({ navigation }: Props) {
     ? `v${info.appVersion}${buildSuffix}`
     : dict.ABOUT_VERSION_LOADING;
 
-  return (      <SafeAreaView
-        style={styles.container}
-        edges={["left", "right", "bottom"]}
-      >
-        <ScreenHeader
-          title={dict.ABOUT_TITLE}
-          onBack={() => navigation.goBack()}
-        />
-        <ScrollView contentContainerStyle={styles.appContainer}>
-          <View style={styles.header}>
-            <Logo size={scale(96)} />
-            <Text style={styles.appName}>{APP_NAME}</Text>
-            <Text style={styles.headerVersion}>{versionLabel}</Text>
-          </View>
+  return (
+    <SafeAreaView style={styles.container} edges={["left", "right", "bottom"]}>
+      <ScreenHeader
+        title={dict.ABOUT_TITLE}
+        onBack={() => navigation.goBack()}
+      />
+      <ScrollView contentContainerStyle={styles.appContainer}>
+        <View style={styles.header}>
+          <Logo size={THEME.LAYOUT.LOGO_HEIGHT} />
+          <Text style={styles.appName}>{APP_NAME}</Text>
+          <Text style={styles.headerVersion}>{versionLabel}</Text>
+        </View>
 
-          {/* App facts, Android "about phone" style — identity card. */}
-          <SectionTitle title={dict.ABOUT_APP_INFO_TITLE} icon="info" first />
-          <View style={styles.group}>
-            <DetailRow
-              icon="numbers"
-              label={dict.ABOUT_VERSION_ROW}
-              value={versionLabel}
-            />
-            <Divider />
-            <DetailRow
-              icon="corporate-fare"
-              label={dict.ABOUT_RELEASE_ROW}
-              value={releaseLabel}
-            />
-            {info.applicationId && (
-              <>
-                <Divider />
-                <DetailRow
-                  icon="apps"
-                  label={dict.ABOUT_PACKAGE_ROW}
-                  value={info.applicationId}
-                />
-              </>
-            )}
-          </View>
-
-          <SectionTitle title={dict.LINKS} icon="link" />
-          <View style={styles.group}>
-            <LinkRow
-              icon="public"
-              label={dict.LINKS_WEBSITE}
-              onPress={() => open(API.WEB_URL)}
-            />
-            <Divider />
-            <SocialRow
-              brand="discord"
-              label={dict.LINKS_DISCORD}
-              url={API.DISCORD_URL}
-            />
-            <Divider />
-            <SocialRow
-              brand="github"
-              label={dict.SETTINGS_FOOTER_SOURCE}
-              url={API.GITHUB_URL}
-            />
-          </View>
-
-          <SectionTitle title={dict.SETTINGS_FOOTER_SOCIAL} icon="share" />
-          <View style={styles.group}>
-            <SocialRow
-              brand="facebook"
-              label="Facebook"
-              url={API.FACEBOOK_URL}
-            />
-            <Divider />
-            <SocialRow brand="x" label="X" url={API.X_URL} />
-            <Divider />
-            <SocialRow brand="bluesky" label="Bluesky" url={API.BLUESKY_URL} />
-          </View>
-
-          <SectionTitle title={dict.ABOUT_CREDITS_TITLE} icon="groups" />
-          <View style={styles.group}>
-            <InfoRow
-              icon="code"
-              label={dict.ABOUT_ROLE_MAINTAINER}
-              description={MAINTAINER}
-            />
-            <Divider />
-            <DonorDisclosure
-              label={dict.ABOUT_DONORS_TITLE}
-              intro={dict.ABOUT_DONORS_INTRO}
-            />
-          </View>
-
-          <SectionTitle title={dict.SETTINGS_LEGAL_TITLE} icon="gavel" />
-          <View style={styles.group}>
-            <LinkRow
-              icon="privacy-tip"
-              label={dict.SETTINGS_PRIVACY_POLICY}
-              onPress={() => open(API.PRIVACY_URL)}
-            />
-            <Divider />
-            <LinkRow
-              icon="copyright"
-              label={dict.SETTINGS_CONTENT_LICENSE}
-              description={dict.SETTINGS_CONTENT_LICENSE_DESC}
-              onPress={() => open(API.CONTENT_LICENSE_URL)}
-            />
-          </View>
-
-          <View style={styles.footer}>
-            <Text style={styles.footerLine}>{dict.SETTINGS_FOOTER_TEAM}</Text>
-            <Text style={styles.footerLine}>{dict.SETTINGS_FOOTER_FOUNDER}</Text>
-            <Text style={styles.footerLine}>{dict.SETTINGS_FOOTER_DEV}</Text>
-            <Text style={styles.footerLine}>
-              {dict.SETTINGS_COPYRIGHT_NOTICE} · {dict.SETTINGS_FOOTER_LOCATION}
-            </Text>
-            <Text style={styles.footerLine}>{dict.SETTINGS_FOOTER_SYSTEM}</Text>
-            <Text style={styles.footerLine}>{dict.SETTINGS_IMAGE_RIGHTS}</Text>
-            <Text style={styles.footerLine}>
-              {dict.SETTINGS_FOOTER_CHIHAYA}{" "}
-              <Text
-                style={styles.footerLink}
-                onPress={() => open(API.PIXIV_URL)}
-              >
-                {dict.SETTINGS_FOOTER_NPC}
-              </Text>
-            </Text>
-            <Text style={styles.footerLine}>
-              {dict.SETTINGS_FOOTER_NONPROFIT}
-            </Text>
-            <TouchableOpacity
-              accessibilityRole="link"
-              accessibilityLabel={dict.SETTINGS_FOOTER_LICENSE}
-              activeOpacity={0.7}
-              onPress={() => open(API.CONTENT_LICENSE_URL)}
-            >
-              <Image
-                source={ccLicense}
-                contentFit="contain"
-                style={styles.badge}
+        {/* App facts, Android "about phone" style — identity card. */}
+        <SectionTitle title={dict.ABOUT_APP_INFO_TITLE} icon="info" first />
+        <View style={styles.group}>
+          <DetailRow
+            icon="numbers"
+            label={dict.ABOUT_VERSION_ROW}
+            value={versionLabel}
+          />
+          <RowDivider />
+          <DetailRow
+            icon="corporate-fare"
+            label={dict.ABOUT_RELEASE_ROW}
+            value={releaseLabel}
+          />
+          {info.applicationId && (
+            <>
+              <RowDivider />
+              <DetailRow
+                icon="apps"
+                label={dict.ABOUT_PACKAGE_ROW}
+                value={info.applicationId}
               />
-            </TouchableOpacity>
-          </View>
-        </ScrollView>
-      </SafeAreaView>
+            </>
+          )}
+        </View>
+
+        <SectionTitle title={dict.LINKS} icon="link" />
+        <View style={styles.group}>
+          <LinkRow
+            icon="public"
+            label={dict.LINKS_WEBSITE}
+            onPress={() => open(API.WEB_URL)}
+          />
+          <RowDivider />
+          <SocialRow
+            brand="discord"
+            label={dict.LINKS_DISCORD}
+            url={API.DISCORD_URL}
+          />
+          <RowDivider />
+          <SocialRow
+            brand="github"
+            label={dict.SETTINGS_FOOTER_SOURCE}
+            url={API.GITHUB_URL}
+          />
+        </View>
+
+        <SectionTitle title={dict.SETTINGS_FOOTER_SOCIAL} icon="share" />
+        <View style={styles.group}>
+          <SocialRow brand="facebook" label="Facebook" url={API.FACEBOOK_URL} />
+          <RowDivider />
+          <SocialRow brand="x" label="X" url={API.X_URL} />
+          <RowDivider />
+          <SocialRow brand="bluesky" label="Bluesky" url={API.BLUESKY_URL} />
+        </View>
+
+        <SectionTitle title={dict.ABOUT_CREDITS_TITLE} icon="groups" />
+        <View style={styles.group}>
+          <InfoRow
+            icon="code"
+            label={dict.ABOUT_ROLE_MAINTAINER}
+            description={MAINTAINER}
+          />
+          <RowDivider />
+          <DonorDisclosure
+            label={dict.ABOUT_DONORS_TITLE}
+            intro={dict.ABOUT_DONORS_INTRO}
+          />
+        </View>
+
+        <SectionTitle title={dict.SETTINGS_LEGAL_TITLE} icon="gavel" />
+        <View style={styles.group}>
+          <LinkRow
+            icon="privacy-tip"
+            label={dict.SETTINGS_PRIVACY_POLICY}
+            onPress={() => open(API.PRIVACY_URL)}
+          />
+          <RowDivider />
+          <LinkRow
+            icon="copyright"
+            label={dict.SETTINGS_CONTENT_LICENSE}
+            description={dict.SETTINGS_CONTENT_LICENSE_DESC}
+            onPress={() => open(API.CONTENT_LICENSE_URL)}
+          />
+        </View>
+
+        <View style={styles.footer}>
+          <Text style={styles.footerLine}>{dict.SETTINGS_FOOTER_TEAM}</Text>
+          <Text style={styles.footerLine}>{dict.SETTINGS_FOOTER_FOUNDER}</Text>
+          <Text style={styles.footerLine}>{dict.SETTINGS_FOOTER_DEV}</Text>
+          <Text style={styles.footerLine}>
+            {dict.SETTINGS_COPYRIGHT_NOTICE} · {dict.SETTINGS_FOOTER_LOCATION}
+          </Text>
+          <Text style={styles.footerLine}>{dict.SETTINGS_FOOTER_SYSTEM}</Text>
+          <Text style={styles.footerLine}>{dict.SETTINGS_IMAGE_RIGHTS}</Text>
+          <Text style={styles.footerLine}>
+            {dict.SETTINGS_FOOTER_CHIHAYA}{" "}
+            <Text style={styles.footerLink} onPress={() => open(API.PIXIV_URL)}>
+              {dict.SETTINGS_FOOTER_NPC}
+            </Text>
+          </Text>
+          <Text style={styles.footerLine}>
+            {dict.SETTINGS_FOOTER_NONPROFIT}
+          </Text>
+          <TouchableOpacity
+            accessibilityRole="link"
+            accessibilityLabel={dict.SETTINGS_FOOTER_LICENSE}
+            activeOpacity={0.7}
+            onPress={() => open(API.CONTENT_LICENSE_URL)}
+          >
+            <Image
+              source={ccLicense}
+              contentFit="contain"
+              style={styles.badge}
+            />
+          </TouchableOpacity>
+        </View>
+      </ScrollView>
+    </SafeAreaView>
   );
 }

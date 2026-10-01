@@ -25,7 +25,7 @@ import { styles } from "@/screens/Stats/styles";
 import { THEME } from "@/theme";
 import { scale } from "@/theme/responsive";
 import { haptics } from "@/utils/haptics";
-import { buildAuthImageSource } from "@/utils/authImage";
+import { resolveMediaSource } from "@/utils/authImage";
 
 type MaterialIconName = React.ComponentProps<typeof MaterialIcons>["name"];
 
@@ -39,8 +39,6 @@ interface Props {
   /** Bumped on avatar/banner change — cache-busts the card's banner. */
   imageVersion: number;
   snap: ListenStatsSnapshot;
-  /** Re-reads the on-device stats snapshot (the card may be stale). */
-  onRefreshStats: () => Promise<void> | void;
   onSignIn: () => void;
 }
 
@@ -57,18 +55,15 @@ export function ShareCardSection({
   profile,
   imageVersion,
   snap,
-  onRefreshStats,
   onSignIn,
 }: Props) {
   const dict = useDict();
   const { settings } = useUserSettings();
-  const { refreshProfile } = useAuth();
+  const { media } = useAuth();
   const { toast } = useAlert();
   const cardRef = useRef<View | null>(null);
   const cardSize = useRef<{ width: number; height: number } | null>(null);
-  const [busy, setBusy] = useState<"refresh" | "share" | "download" | null>(
-    null,
-  );
+  const [busy, setBusy] = useState<"share" | "download" | null>(null);
 
   const captureCard = useCallback(async (): Promise<string> => {
     if (!cardRef.current) throw new Error("card not mounted");
@@ -136,23 +131,6 @@ export function ShareCardSection({
     [captureCard, discardTmpFile, dict, toast],
   );
 
-  // Pull a fresh profile (banner/avatar) and re-read the on-device stats —
-  // the card may have been on screen through a whole listening session.
-  const refreshCard = useCallback(async () => {
-    haptics.select();
-    setBusy("refresh");
-    try {
-      await refreshProfile();
-      await onRefreshStats();
-      toast(dict.ACCOUNT_REFRESHED);
-    } catch (error) {
-      console.warn("[ShareCard] refresh failed:", error);
-      toast(dict.STATS_CARD_FAILED);
-    } finally {
-      setBusy(null);
-    }
-  }, [dict, onRefreshStats, refreshProfile, toast]);
-
   if (!user) {
     return (
       <>
@@ -203,7 +181,11 @@ export function ShareCardSection({
 
   return (
     <>
-      <SectionTitle title={dict.STATS_CARD_TITLE} icon="card-membership" first />
+      <SectionTitle
+        title={dict.STATS_CARD_TITLE}
+        icon="card-membership"
+        first
+      />
       <View>
         <View
           ref={cardRef}
@@ -217,14 +199,15 @@ export function ShareCardSection({
             name={name}
             handle={handle}
             avatarUrl={user.avatarUrl}
-            bannerSource={buildAuthImageSource(
+            bannerSource={resolveMediaSource(
+              media.banner,
               banner?.url,
               user.sessionToken,
               `stats-card-${imageVersion}`,
             )}
             accentColor={banner?.color ?? undefined}
             logoSource={IMGS[settings.selectedLanguage].LOGO}
-            actionsInset={androidDownload ? scale(152) : scale(104)}
+            actionsInset={androidDownload ? scale(104) : scale(56)}
             snap={snap}
             dict={dict}
           />
@@ -234,13 +217,6 @@ export function ShareCardSection({
           {/* One shared capture pipeline: any action in flight locks all of
               them out, so a second tap can never run a concurrent capture
               (and overwrite the busy flag mid-flight). */}
-          <CardActionButton
-            icon="sync"
-            accessibilityLabel={dict.ACCOUNT_REFRESH}
-            busy={busy === "refresh"}
-            disabled={busy != null}
-            onPress={() => void refreshCard()}
-          />
           <CardActionButton
             icon="share"
             accessibilityLabel={dict.STATS_CARD_SHARE}
@@ -282,19 +258,23 @@ function CardActionButton({
     <TouchableOpacity
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel}
-      accessibilityState={{ disabled: disabled || undefined, busy: busy || undefined }}
+      accessibilityState={{
+        disabled: disabled || undefined,
+        busy: busy || undefined,
+      }}
       activeOpacity={0.7}
       disabled={disabled || busy}
       onPress={onPress}
-      style={[
-        styles.cardActionButton,
-        busy && styles.cardActionDisabled,
-      ]}
+      style={[styles.cardActionButton, busy && styles.cardActionDisabled]}
     >
       {busy ? (
         <ActivityIndicator size="small" color={THEME.COLORS.TEXT} />
       ) : (
-        <MaterialIcons name={icon} size={THEME.ICON.MD} color={THEME.COLORS.TEXT} />
+        <MaterialIcons
+          name={icon}
+          size={THEME.ICON.MD}
+          color={THEME.COLORS.TEXT}
+        />
       )}
     </TouchableOpacity>
   );

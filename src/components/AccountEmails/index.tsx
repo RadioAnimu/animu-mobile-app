@@ -18,21 +18,21 @@ import {
 } from "@/hooks/useEmailCodeFlow";
 import type { Dict } from "@/i18n";
 import { providerLabel } from "@/constants/auth";
+import { RESEND_COOLDOWN_SECONDS } from "@/constants/email-code";
 import { THEME } from "@/theme";
 import { scale } from "@/theme/responsive";
 import { haptics } from "@/utils/haptics";
 import { interpolate } from "@/utils/format";
 import { maskEmail } from "@/utils/mask";
+import { CodeSubtitle } from "@/components/CodeSubtitle";
 import { ConnectActions } from "@/components/ConnectActions";
 import { EmailCodeFields } from "@/components/EmailCodeFields";
 import { FormError } from "@/components/FormError";
+import { LeadingIcon } from "@/components/ListRow";
 import { MaskedValue } from "@/components/MaskedValue";
 import { ProviderIcon } from "@/components/ProviderIcon";
 import { useResendCooldown } from "@/hooks/useResendCooldown";
 import { styles } from "@/components/AccountEmails/styles";
-
-/** Resend lockout after a code is sent, matching the Login screen. */
-const RESEND_COOLDOWN_SECONDS = 30;
 
 /** The extra Animu Connect address rides `source: "animu"` (the provider
  * rows carry their own sources) — one predicate so both reads stay in step. */
@@ -41,7 +41,8 @@ const isExtraEmail = (item: AuthAccountEmail): boolean =>
 
 /** Where an address came from: a provider and the label to show by its mark. */
 interface EmailSource {
-  provider: string;
+  /** `null` for the extra address: the row's own mail icon already says it. */
+  provider: string | null;
   label: string;
 }
 
@@ -66,6 +67,7 @@ function EmailRow({
 }) {
   return (
     <View style={styles.emailRow}>
+      <LeadingIcon name="mail-outline" />
       <View style={styles.emailBody}>
         {/* Masked by default: the address is personal, the reveal is one tap. */}
         <MaskedValue
@@ -83,7 +85,9 @@ function EmailRow({
                 {index > 0 && (
                   <Text style={styles.emailSourceSeparator}>·</Text>
                 )}
-                <ProviderIcon provider={source.provider} size={scale(16)} />
+                {source.provider && (
+                  <ProviderIcon provider={source.provider} size={scale(16)} />
+                )}
                 <Text style={styles.emailSource} numberOfLines={1}>
                   {source.label}
                 </Text>
@@ -214,16 +218,16 @@ function EmailList({
 
   return (
     <>
-      {groups.map((group) => (
+      {groups.map((group, index) => (
         <View key={group.email}>
-          <View style={styles.divider} />
+          {index > 0 && <View style={styles.divider} />}
           <EmailRow
             email={group.email}
             // The caption pairs each mark with its name; the extra address has
             // no provider, so it names Animu Connect instead.
             sources={
               group.isExtra
-                ? [{ provider: "mail", label: dict.ACCOUNT_EMAIL_EXTRA_DESC }]
+                ? [{ provider: null, label: dict.ACCOUNT_EMAIL_EXTRA_DESC }]
                 : group.providers.map((provider) => ({
                     provider,
                     label: providerLabel(provider),
@@ -236,18 +240,6 @@ function EmailList({
           />
         </View>
       ))}
-    </>
-  );
-}
-
-/** The code-step subtitle with the destination address emphasized. */
-function CodeSubtitle({ template, email }: { template: string; email: string }) {
-  const [before, after] = template.split("{email}");
-  return (
-    <>
-      {before}
-      <Text style={styles.formSubtitleEmail}>{email}</Text>
-      {after}
     </>
   );
 }
@@ -294,7 +286,8 @@ function AddEmailForm({
         </View>
       )}
 
-      {flow.busy && (
+      {/* The email step's button carries its own spinner. */}
+      {flow.busy && onCodeStep && (
         <View style={styles.formBusy}>
           <ActivityIndicator color={THEME.COLORS.TEXT_DIM} />
         </View>
@@ -315,8 +308,8 @@ function AddEmailForm({
 }
 
 /**
- * Animu Connect management on the Account screen. The card opens on the
- * pitch, then lists every address with the brand mark it came from and the
+ * Animu Connect management on the Account screen. Animu Connect is a sign-in
+ * method (a code emailed to any listed address); the card lists every address with the brand mark it came from and the
  * providers that registered it (masked until revealed). While the account has
  * no extra email, the card closes on an inline add form; the server allows
  * only one extra address, so the form gives way to that row (with its delete)
@@ -386,7 +379,9 @@ export function AccountEmails() {
   const confirmRemove = (target: AuthAccountEmail) => {
     Alert.alert(
       dict.ACCOUNT_EMAIL_REMOVE_CONFIRM_TITLE,
-      interpolate(dict.ACCOUNT_EMAIL_REMOVE_CONFIRM_MSG, { email: target.email }),
+      interpolate(dict.ACCOUNT_EMAIL_REMOVE_CONFIRM_MSG, {
+        email: target.email,
+      }),
       [
         { text: dict.ACCOUNT_CANCEL, style: "cancel" },
         {
@@ -413,10 +408,6 @@ export function AccountEmails() {
 
   return (
     <View>
-      {/* Plain surface text, no tint: the section heading above already
-          carries the Animu Connect mark, so the card opens on the pitch. */}
-      <Text style={styles.intro}>{dict.ACCOUNT_ANIMU_CONNECT_DESC}</Text>
-
       {showLoading ? (
         <ActivityIndicator
           color={THEME.COLORS.TEXT_DIM}

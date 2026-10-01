@@ -4,22 +4,13 @@ import {
   DrawerContentComponentProps,
   DrawerContentScrollView,
 } from "@react-navigation/drawer";
-import {
-  CommonActions,
-  DrawerActions,
-} from "@react-navigation/native";
-import { useState } from "react";
-import { Image } from "expo-image";
+import { CommonActions, DrawerActions } from "@react-navigation/native";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { Avatar } from "@/components/Avatar";
-import { ProviderIcon } from "@/components/ProviderIcon";
+import { Logo } from "@/components/Logo";
 import { useAuth } from "@/contexts/auth/AuthProvider";
-import { useUserSettings } from "@/contexts/user/UserSettingsProvider";
 import { useDict } from "@/hooks/useDict";
-import { getUserName } from "@/core/domain/user";
 import { emitReselect } from "@/core/navigation/reselect";
-import { providerLabel } from "@/constants/auth";
-import { IMGS } from "@/i18n";
 import { THEME } from "@/theme";
 import { haptics } from "@/utils/haptics";
 import { scale } from "@/theme/responsive";
@@ -27,9 +18,6 @@ import { styles } from "@/components/CustomDrawer/styles";
 
 const MENU_ICON_SIZE = scale(22);
 const SECTION_ICON_SIZE = scale(18);
-
-/** Intrinsic ratio of the logo assets (1200×630 px). */
-const LOGO_ASPECT_RATIO = 1200 / 630;
 
 type MaterialIconName = ComponentProps<typeof MaterialIcons>["name"];
 
@@ -68,7 +56,11 @@ function Separator({ sectionTitle, icon }: SeparatorProps) {
   );
 }
 
-function NavItems({ state, descriptors, navigation }: DrawerContentComponentProps) {
+function NavItems({
+  state,
+  descriptors,
+  navigation,
+}: DrawerContentComponentProps) {
   return (
     <View>
       {state.routes.map((route) => {
@@ -130,20 +122,19 @@ interface AccountRowProps {
 /**
  * Bottom identity block.
  *
- * - Signed in: avatar (brand ring) + name + sign-in method + chevron; the
- *   whole chip opens Settings.
+ * - Signed in: avatar + name + @handle + chevron (same shape as the Settings
+ *   profile row); the whole chip opens Settings.
  * - Signed out: the chip opens Login and a separate gear opens Settings.
  */
 function AccountRow({ onOpenLogin, onOpenSettings }: AccountRowProps) {
   const { user, profile } = useAuth();
   const dict = useDict();
-  const loginProvider = profile?.session.loginProvider;
 
   let caption = dict.SETTINGS_ACCOUNT_SIGN_IN;
+  // The stored session can predate the provider handle; the profile is fresher.
+  const handle = profile?.user.handle || user?.handle;
   if (user) {
-    caption = loginProvider
-      ? `${dict.ACCOUNT_CONNECTED_VIA} ${providerLabel(loginProvider)}`
-      : dict.ACCOUNT_TITLE;
+    caption = handle ? `@${handle}` : dict.ACCOUNT_TITLE;
   }
 
   return (
@@ -171,20 +162,11 @@ function AccountRow({ onOpenLogin, onOpenSettings }: AccountRowProps) {
           )}
           <View style={styles.accountText}>
             <Text style={styles.accountName} numberOfLines={1}>
-              {user ? getUserName(user) : dict.LOGIN_WORD}
+              {user ? profile?.user.username || user.username : dict.LOGIN_WORD}
             </Text>
-            <View style={styles.accountService}>
-              {user && (
-                <ProviderIcon
-                  provider={loginProvider ?? "animu"}
-                  size={scale(14)}
-                  color={THEME.COLORS.TEXT}
-                />
-              )}
-              <Text style={styles.accountCaption} numberOfLines={1}>
-                {caption}
-              </Text>
-            </View>
+            <Text style={styles.accountCaption} numberOfLines={1}>
+              {caption}
+            </Text>
           </View>
           {user && (
             <MaterialIcons
@@ -219,10 +201,8 @@ function AccountRow({ onOpenLogin, onOpenSettings }: AccountRowProps) {
 }
 
 export function CustomDrawerContent(props: DrawerContentComponentProps) {
-  const { settings } = useUserSettings();
   const dict = useDict();
   const { navigation } = props;
-  const [logoWidth, setLogoWidth] = useState(0);
 
   const goToSettings = () => {
     navigation.navigate("Settings");
@@ -233,10 +213,7 @@ export function CustomDrawerContent(props: DrawerContentComponentProps) {
   };
 
   return (
-    <DrawerContentScrollView
-      {...props}
-      contentContainerStyle={{ flexGrow: 1 }}
-    >
+    <DrawerContentScrollView {...props} contentContainerStyle={{ flexGrow: 1 }}>
       <View>
         <View style={styles.header}>
           <TouchableOpacity
@@ -247,15 +224,8 @@ export function CustomDrawerContent(props: DrawerContentComponentProps) {
               navigation.navigate("Home");
             }}
             style={styles.logoButton}
-            onLayout={(event) => {
-              setLogoWidth(event.nativeEvent.layout.width);
-            }}
           >
-            <Image
-              contentFit="contain"
-              source={IMGS[settings.selectedLanguage].LOGO}
-              style={[styles.logo, logoWidth > 0 && { height: logoWidth / LOGO_ASPECT_RATIO }]}
-            />
+            <Logo size={THEME.LAYOUT.LOGO_HEIGHT} />
           </TouchableOpacity>
         </View>
 

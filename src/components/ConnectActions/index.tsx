@@ -17,7 +17,7 @@ interface Props {
 /**
  * The code step's secondary actions — "resend code" (with its countdown) and
  * "use a different email". Shared by the Login screen and the Account
- * screen's add-email sheet so both Animu Connect forms stay in step.
+ * screen's add-email form so both Animu Connect forms stay in step.
  */
 export function ConnectActions({
   busy,
@@ -34,6 +34,7 @@ export function ConnectActions({
         accessibilityRole="button"
         activeOpacity={0.7}
         disabled={resendLocked}
+        style={styles.action}
         onPress={() => {
           haptics.tap();
           onResend();
@@ -52,6 +53,7 @@ export function ConnectActions({
         accessibilityRole="button"
         activeOpacity={0.7}
         disabled={busy}
+        style={styles.action}
         onPress={onChangeEmail}
       >
         <Text style={[styles.link, busy && styles.disabled]}>
@@ -68,6 +70,10 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     gap: THEME.SPACE.MD,
+  },
+  // Text-only links: vertical padding lifts the tap area toward 44pt.
+  action: {
+    paddingVertical: THEME.SPACE.MD,
   },
   link: {
     color: THEME.COLORS.TEXT_SOFT,

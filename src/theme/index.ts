@@ -105,6 +105,8 @@ export const THEME = {
     ICON_BOX_WIDTH: scale(32),
     /** Minimum height of a settings/profile row. */
     ROW_MIN_HEIGHT: scale(64),
+    /** Brand logo height on the secondary screens (matches the player hero). */
+    LOGO_HEIGHT: scale(127),
     /** Centered content column shared by the full-screen pages. */
     CONTENT_WIDTH: "88%" as const,
     CONTENT_MAX_WIDTH,

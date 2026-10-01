@@ -143,7 +143,7 @@ const DICT: Dict = {
   LINKS_WEBSITE: "ウェブサイト",
   SETTINGS_TITLE: "設定",
   SETTINGS_ACCOUNT_TITLE: "アカウント",
-  SETTINGS_SAVE_DATA_TITLE: "画像の読み込み",
+  SETTINGS_SAVE_DATA_TITLE: "カバーとストレージ",
   SETTINGS_QUALITY_ROW: "カバー画像の画質",
   SETTINGS_QUALITY_LIVE_LABEL_LOW: "低",
   SETTINGS_QUALITY_LIVE_LABEL_MEDIUM: "中",
@@ -158,7 +158,6 @@ const DICT: Dict = {
   SETTINGS_LANGUAGE_ROW: "アプリの言語",
 
   SETTINGS_LIVE_UPDATES_SWITCH: "リアルタイム情報",
-  SETTINGS_MEMORY_TITLE: "ストレージ",
   SETTINGS_GENERAL_TITLE: "一般",
   SETTINGS_PLAYBACK_TITLE: "再生",
 
@@ -183,7 +182,6 @@ const DICT: Dict = {
   SETTINGS_LIVE_UPDATES_DESC: "バックグラウンドでも曲情報を更新します",
 
   SETTINGS_HAPTICS_SWITCH: "触覚フィードバック",
-  SETTINGS_HAPTICS_DESC: "タップや操作時の振動",
   A11Y_BACK: "戻る",
   A11Y_OPEN_MENU: "メニューを開く",
   A11Y_MAKE_REQUEST: "リクエストする",
@@ -202,6 +200,8 @@ const DICT: Dict = {
     "「Ok Google、Rádio Animuを再生」と話しかけてください",
   SETTINGS_ADVANCED_TITLE: "詳細",
   SETTINGS_RESET_ROW: "初期設定に戻す",
+  SETTINGS_RESET_DESC:
+    "この画面のすべての設定を元に戻します。アカウントと再生統計は変わりません。",
   SETTINGS_RESET_CONFIRM_TITLE: "設定をリセットしますか？",
   SETTINGS_RESET_CONFIRM_MSG: "すべての設定が初期状態に戻ります。",
   SETTINGS_RESET_CONFIRM: "リセット",
@@ -282,7 +282,6 @@ const DICT: Dict = {
   SETTINGS_FOOTER_SOCIAL: "SNS",
   SETTINGS_FOOTER_SOURCE: "ソースコード",
   SETTINGS_ABOUT_ROW: "このアプリについて",
-  SETTINGS_ABOUT_ROW_DESC: "バージョン・クレジット・ライセンス",
   ABOUT_TITLE: "アプリについて",
   ABOUT_APP_INFO_TITLE: "アプリ情報",
   ABOUT_VERSION_ROW: "バージョン",
@@ -385,15 +384,15 @@ const DICT: Dict = {
   LOGIN_FAILED: "ログインできなかったよ。もう一度試してね。",
   LOGIN_MISSING_FIELDS: "全部の項目を入力してね。",
   LOGIN_HEADLINE: "おかえりなさい",
-  LOGIN_SUBTITLE:
-    "ログインしてリクエストとリスニングカードをアンロックしよう",
-  LOGIN_OR_CONTINUE: "または次で続ける",
+  LOGIN_SUBTITLE: "ログインしてリクエストとリスニングカードをアンロックしよう",
+  LOGIN_OR_CONTINUE: "または",
   LOGIN_CONTINUE_WITH: "{provider} で続ける",
   LOGIN_WITH_ANIMU_CONNECT: "Animu Connect で続ける",
+  LOGIN_ANIMU_CONNECT_TAGLINE: "パスワード不要・4桁のコードをメールでお届け",
   LOGIN_LEGAL: "続けると{link}に同意したことになるよ。",
   LOGIN_ANIMU_CONNECT_HINT:
     "Animu アカウントに登録したメールが使えるよ。プロバイダーのメールは自動だよ。追加のメールはプロフィールで登録できるよ。",
-  LOGIN_CONNECT_TITLE: "Animu Connect",
+  LOGIN_CONNECT_TITLE: "Animu Connect でログイン",
   LOGIN_CONNECT_SUBTITLE: "4桁のコードをメールで送るよ",
   LOGIN_EMAIL: "メール",
   LOGIN_EMAIL_PLACEHOLDER: "you@example.com",
@@ -417,7 +416,6 @@ const DICT: Dict = {
   ACCOUNT_LAST_LOGIN: "最終ログイン",
   ACCOUNT_SHOW: "表示",
   ACCOUNT_HIDE: "隠す",
-  ACCOUNT_REFRESH: "プロフィールを更新",
   ACCOUNT_REFRESHED: "プロフィールを更新したよ",
   ACCOUNT_LINKED_ACCOUNTS: "連携アカウント",
   ACCOUNT_LINKED: "連携済み",
@@ -428,16 +426,17 @@ const DICT: Dict = {
     "アカウントを1つ以上残してね。退会したい場合はアカウントを削除してね。",
   ACCOUNT_LINK_SUCCESS: "連携したよ",
   ACCOUNT_UNLINK_SUCCESS: "連携を解除したよ",
+  ACCOUNT_UNLINK_CONFIRM_MSG:
+    "再度連携するまで、{provider} ではログインできなくなります。",
+  ACCOUNT_UNLINK_CONFIRM_TITLE: "{provider} の連携を解除しますか？",
   ACCOUNT_ANIMU_CONNECT: "Animu Connect",
-  ACCOUNT_ANIMU_CONNECT_DESC: "メールコードでのパスワードレスログイン。",
+  ACCOUNT_ANIMU_CONNECT_DESC:
+    "ログイン方法のひとつ。下のどのメールにも届く4桁のコードでログインできるよ。パスワードは不要。",
   ACCOUNT_ANIMU_CONNECT_FORM_HINT:
-    "プロバイダのメールは自動。追加メールを1つ設定できます。",
+    "プロバイダーのメールは自動で使えるよ。ログインに使える追加メールを1つ登録できる。",
   ACCOUNT_DANGER: "危険な操作",
   ACCOUNT_LOGOUT: "ログアウト",
-  ACCOUNT_LOGOUT_HINT:
-    "この端末のセッションを終了します。アカウントは残ります。",
   ACCOUNT_DELETE: "アカウントを削除",
-  ACCOUNT_DELETE_HINT: "プロフィールとセッションを完全に削除します。",
   ACCOUNT_DELETE_CONFIRM_TITLE: "アカウントを削除する？",
   ACCOUNT_DELETE_CONFIRM_MSG:
     "プロフィール・連携アカウント・セッションが完全に削除されるよ。元には戻せないよ。",

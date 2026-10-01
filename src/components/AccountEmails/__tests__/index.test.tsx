@@ -56,11 +56,14 @@ vi.mock("@/hooks/useDict", () => ({
   }),
 }));
 vi.mock("@/hooks/useEmailCodeFlow", () => ({
-  useEmailCodeFlow: (options: Record<string, (...args: never[]) => unknown>) => {
+  useEmailCodeFlow: (
+    options: Record<string, (...args: never[]) => unknown>,
+  ) => {
     mocks.flowOptions = options;
     return mocks.flow;
   },
-  emailCodeError: (_dict: unknown, _error: unknown, fallback: string) => fallback,
+  emailCodeError: (_dict: unknown, _error: unknown, fallback: string) =>
+    fallback,
 }));
 vi.mock("@/hooks/useResendCooldown", () => ({
   useResendCooldown: () => ({
@@ -73,7 +76,13 @@ vi.mock("@/constants/auth", () => ({
   providerLabel: (name: string) => `label:${name}`,
 }));
 vi.mock("@/components/MaskedValue", () => ({
-  MaskedValue: ({ value, mask }: { value: string; mask: (v: string) => string }) => (
+  MaskedValue: ({
+    value,
+    mask,
+  }: {
+    value: string;
+    mask: (v: string) => string;
+  }) => (
     <span data-testid="masked" data-real={value}>
       {mask(value)}
     </span>
@@ -88,7 +97,9 @@ vi.mock("@/components/EmailCodeFields", () => ({
   EmailCodeFields: () => <div data-testid="code-fields" />,
 }));
 vi.mock("@/components/FormError", () => ({
-  FormError: ({ message }: { message: string }) => <p role="alert">{message}</p>,
+  FormError: ({ message }: { message: string }) => (
+    <p role="alert">{message}</p>
+  ),
 }));
 vi.mock("@/components/ConnectActions", () => ({
   ConnectActions: ({
@@ -131,9 +142,11 @@ function setAuth(
   mocks.auth = {
     emails,
     profile: { linkedProviders: extra.linkedProviders ?? [] },
-    providers: (extra.providers ?? ["google", "apple", "discord"]).map((name) => ({
-      name,
-    })),
+    providers: (extra.providers ?? ["google", "apple", "discord"]).map(
+      (name) => ({
+        name,
+      }),
+    ),
     refreshEmails: extra.refreshEmails ?? vi.fn().mockResolvedValue(undefined),
     requestAddEmail: vi.fn(),
     verifyAddEmail: vi.fn(),
@@ -150,8 +163,8 @@ const marksIn = (container: HTMLElement) =>
 const rowOf = (email: string): HTMLElement =>
   screen
     .getAllByTestId("masked")
-    .find((node) => node.getAttribute("data-real") === email)!
-    .parentElement!.parentElement!;
+    .find((node) => node.getAttribute("data-real") === email)!.parentElement!
+    .parentElement!;
 
 async function renderLoaded() {
   render(<AccountEmails />);
@@ -190,7 +203,9 @@ describe("AccountEmails", () => {
     });
 
     it("keeps an already-known list visible while refreshing", () => {
-      setAuth([row({})], { refreshEmails: () => new Promise<void>(() => undefined) });
+      setAuth([row({})], {
+        refreshEmails: () => new Promise<void>(() => undefined),
+      });
       render(<AccountEmails />);
       expect(screen.queryByRole("progressbar")).toBeNull();
       expect(screen.getByTestId("masked").getAttribute("data-real")).toBe(
@@ -267,7 +282,9 @@ describe("AccountEmails", () => {
       ]);
       await renderLoaded();
       fireEvent.click(screen.getByRole("button", { name: /^Remove / }));
-      expect(vi.mocked(Alert.alert).mock.calls[0][1]).toContain("ana@example.com");
+      expect(vi.mocked(Alert.alert).mock.calls[0][1]).toContain(
+        "ana@example.com",
+      );
     });
 
     it("uses the last removable row of the address as the delete target", async () => {
@@ -300,7 +317,7 @@ describe("AccountEmails", () => {
       setAuth([extra]);
       await renderLoaded();
       expect(screen.getByText("Animu Connect")).toBeTruthy();
-      expect(marksIn(rowOf("me@animu.test"))).toEqual(["mail"]);
+      expect(marksIn(rowOf("me@animu.test"))).toEqual([]);
       expect(screen.queryByText("Add an address")).toBeNull();
       expect(screen.queryByTestId("code-fields")).toBeNull();
     });
@@ -322,12 +339,18 @@ describe("AccountEmails", () => {
   });
 
   describe("removal", () => {
-    const removable = row({ id: 40, email: "ana@example.com", removable: true });
+    const removable = row({
+      id: 40,
+      email: "ana@example.com",
+      removable: true,
+    });
 
     it("masks the address in the delete button's accessible name", async () => {
       setAuth([removable]);
       await renderLoaded();
-      const button = screen.getByRole("button", { name: "Remove an•••@example.com" });
+      const button = screen.getByRole("button", {
+        name: "Remove an•••@example.com",
+      });
       expect(button).toBeTruthy();
       expect(button.getAttribute("aria-label")).not.toContain("ana@");
     });
@@ -358,7 +381,9 @@ describe("AccountEmails", () => {
     });
 
     it("reports a failed removal and re-enables the delete button", async () => {
-      const errorSpy = vi.spyOn(console, "error").mockImplementation(() => undefined);
+      const errorSpy = vi
+        .spyOn(console, "error")
+        .mockImplementation(() => undefined);
       const removeEmail = vi.fn().mockRejectedValue(new Error("nope"));
       setAuth([removable], { removeEmail });
       await renderLoaded();
@@ -371,7 +396,7 @@ describe("AccountEmails", () => {
       expect(mocks.toast).not.toHaveBeenCalled();
       expect(
         screen
-          .getByRole("button", { name: /^Remove /})
+          .getByRole("button", { name: /^Remove / })
           .getAttribute("aria-disabled"),
       ).toBeNull();
       errorSpy.mockRestore();
@@ -394,10 +419,16 @@ describe("AccountEmails", () => {
       expect(mocks.auth.refreshEmails).toHaveBeenCalledTimes(1);
     });
 
-    it("shows the flow error and a spinner while busy", async () => {
+    it("shows the flow error without a spinner on the email step (the button owns it)", async () => {
       mocks.flow = { ...mocks.flow, error: "Bad address", busy: true };
       await renderLoaded();
       expect(screen.getByRole("alert").textContent).toBe("Bad address");
+      expect(screen.queryByRole("progressbar")).toBeNull();
+    });
+
+    it("shows a spinner on the code step while busy", async () => {
+      mocks.flow = { ...mocks.flow, step: "code", busy: true };
+      await renderLoaded();
       expect(screen.getByRole("progressbar")).toBeTruthy();
     });
 

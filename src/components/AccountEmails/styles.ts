@@ -13,17 +13,6 @@ const CONTENT_PADDING = THEME.SPACE.LG;
  * The add form closes the card in place of the old "add" row.
  */
 export const styles = StyleSheet.create({
-  // The card's opening line: the pitch, on the plain surface (the section
-  // heading above already carries the mark, so no tint and no second icon).
-  intro: {
-    color: THEME.COLORS.TEXT_SOFT,
-    fontFamily: THEME.FONT_FAMILY.REGULAR,
-    fontSize: THEME.FONT_SIZE.BODY,
-    lineHeight: THEME.LINE_HEIGHT.RELAXED,
-    paddingHorizontal: CONTENT_PADDING,
-    paddingTop: THEME.SPACE.MD,
-    paddingBottom: THEME.SPACE.MD,
-  },
   loading: {
     marginVertical: THEME.SPACE.LG,
   },
@@ -96,11 +85,6 @@ export const styles = StyleSheet.create({
     fontFamily: THEME.FONT_FAMILY.REGULAR,
     fontSize: THEME.FONT_SIZE.BODY,
     lineHeight: THEME.LINE_HEIGHT.RELAXED,
-  },
-  // The address the code went to, emphasized inside the sentence.
-  formSubtitleEmail: {
-    color: THEME.COLORS.TEXT,
-    fontFamily: THEME.FONT_FAMILY.BOLD,
   },
   formError: {
     marginTop: THEME.SPACE.MD,

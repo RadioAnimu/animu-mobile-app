@@ -143,7 +143,7 @@ const DICT: Dict = {
   LINKS_WEBSITE: "Página Web",
   SETTINGS_TITLE: "Configurações",
   SETTINGS_ACCOUNT_TITLE: "Conta",
-  SETTINGS_SAVE_DATA_TITLE: "Imagens das capas",
+  SETTINGS_SAVE_DATA_TITLE: "Capas e armazenamento",
   SETTINGS_QUALITY_ROW: "Qualidade das capas",
   SETTINGS_QUALITY_LIVE_LABEL_LOW: "Baixa",
   SETTINGS_QUALITY_LIVE_LABEL_MEDIUM: "Média",
@@ -158,7 +158,6 @@ const DICT: Dict = {
   SETTINGS_LANGUAGE_ROW: "Idioma do app",
 
   SETTINGS_LIVE_UPDATES_SWITCH: "Informações ao vivo",
-  SETTINGS_MEMORY_TITLE: "Armazenamento",
   SETTINGS_GENERAL_TITLE: "Geral",
   SETTINGS_PLAYBACK_TITLE: "Reprodução",
 
@@ -184,7 +183,6 @@ const DICT: Dict = {
     "Atualizações da música com o app em segundo plano",
 
   SETTINGS_HAPTICS_SWITCH: "Feedback tátil",
-  SETTINGS_HAPTICS_DESC: "Vibração ao tocar e nas ações",
   A11Y_BACK: "Voltar",
   A11Y_OPEN_MENU: "Abrir menu",
   A11Y_MAKE_REQUEST: "Fazer um pedido",
@@ -202,6 +200,8 @@ const DICT: Dict = {
   SETTINGS_ASSISTANT_HINT_ANDROID: 'Peça "Ok Google, tocar Rádio Animu"',
   SETTINGS_ADVANCED_TITLE: "Avançado",
   SETTINGS_RESET_ROW: "Redefinir para o padrão",
+  SETTINGS_RESET_DESC:
+    "Restaura todas as configurações desta tela. Sua conta e estatísticas de audição não são afetadas.",
   SETTINGS_RESET_CONFIRM_TITLE: "Redefinir configurações?",
   SETTINGS_RESET_CONFIRM_MSG: "Todas as configurações voltam ao padrão.",
   SETTINGS_RESET_CONFIRM: "Redefinir",
@@ -281,7 +281,6 @@ const DICT: Dict = {
   SETTINGS_FOOTER_SOCIAL: "Redes sociais",
   SETTINGS_FOOTER_SOURCE: "Código-fonte",
   SETTINGS_ABOUT_ROW: "Sobre o app",
-  SETTINGS_ABOUT_ROW_DESC: "Versões, créditos e licenças",
   ABOUT_TITLE: "Sobre",
   ABOUT_APP_INFO_TITLE: "Informações do app",
   ABOUT_VERSION_ROW: "Versão",
@@ -326,10 +325,12 @@ const DICT: Dict = {
   STORAGE_DEVICE_CACHED: "Capas em cache: {cached} · {pct}% deste aparelho",
   STORAGE_ADVANCED_TITLE: "Avançado",
   STORAGE_PARTITION_CUSTOM_LABEL: "Partições personalizadas",
-  STORAGE_PARTITION_CUSTOM_DESC: "Defina como o limite é dividido entre as seções",
+  STORAGE_PARTITION_CUSTOM_DESC:
+    "Defina como o limite é dividido entre as seções",
   STORAGE_PARTITION_AUTO: "Automático",
   STORAGE_PARTITION_CAP_DESC: "Limite efetivo: {cap}",
-  STORAGE_PARTITION_NEEDS_LIMIT: "Defina um limite de tamanho para personalizar as partições",
+  STORAGE_PARTITION_NEEDS_LIMIT:
+    "Defina um limite de tamanho para personalizar as partições",
   STORAGE_FREED: "Liberado {freed}",
   TRACK_REQUEST: "MÚSICA PEDIDA",
   INFO_REQUEST: `Oii! Sou a Haruka, a DJ da mais moe do Brasil!${"\n"}Vi que já fez a sua escolha!${"\n"}Mas antes não quer deixar um recadinho para mim ou para nossa equipe? Este recado será entregue no chat principal do nosso servidor discord para todo mundo ver${"\n"}💜 Você não precisa deixar recado se não quiser.`,
@@ -388,15 +389,15 @@ const DICT: Dict = {
   LOGIN_FAILED: "Não foi possível entrar. Tente novamente.",
   LOGIN_MISSING_FIELDS: "Preencha todos os campos para continuar.",
   LOGIN_HEADLINE: "Bem-vindo de volta",
-  LOGIN_SUBTITLE:
-    "Entre para pedir músicas e desbloquear seu cartão de escuta",
-  LOGIN_OR_CONTINUE: "ou continue com",
+  LOGIN_SUBTITLE: "Entre para pedir músicas e desbloquear seu cartão de escuta",
+  LOGIN_OR_CONTINUE: "ou",
   LOGIN_CONTINUE_WITH: "Continuar com {provider}",
   LOGIN_WITH_ANIMU_CONNECT: "Continuar com Animu Connect",
+  LOGIN_ANIMU_CONNECT_TAGLINE: "Sem senha · código de 4 dígitos por e-mail",
   LOGIN_LEGAL: "Ao continuar, você aceita a {link}.",
   LOGIN_ANIMU_CONNECT_HINT:
     "Qualquer e-mail vinculado à sua conta Animu funciona. E-mails de provedores são automáticos; você pode adicionar um e-mail extra no perfil.",
-  LOGIN_CONNECT_TITLE: "Animu Connect",
+  LOGIN_CONNECT_TITLE: "Entrar com Animu Connect",
   LOGIN_CONNECT_SUBTITLE: "Vamos enviar um código de 4 dígitos por e-mail",
   LOGIN_EMAIL: "E-mail",
   LOGIN_EMAIL_PLACEHOLDER: "voce@exemplo.com",
@@ -420,7 +421,6 @@ const DICT: Dict = {
   ACCOUNT_LAST_LOGIN: "Último acesso",
   ACCOUNT_SHOW: "Mostrar",
   ACCOUNT_HIDE: "Ocultar",
-  ACCOUNT_REFRESH: "Atualizar perfil",
   ACCOUNT_REFRESHED: "Perfil atualizado",
   ACCOUNT_LINKED_ACCOUNTS: "Contas vinculadas",
   ACCOUNT_LINKED: "Vinculada",
@@ -431,15 +431,17 @@ const DICT: Dict = {
     "Mantenha pelo menos uma conta vinculada. Para sair, exclua sua conta.",
   ACCOUNT_LINK_SUCCESS: "Conta vinculada",
   ACCOUNT_UNLINK_SUCCESS: "Conta desvinculada",
+  ACCOUNT_UNLINK_CONFIRM_MSG:
+    "Você não poderá entrar com {provider} até vinculá-lo novamente.",
+  ACCOUNT_UNLINK_CONFIRM_TITLE: "Desvincular {provider}?",
   ACCOUNT_ANIMU_CONNECT: "Animu Connect",
-  ACCOUNT_ANIMU_CONNECT_DESC: "Login sem senha por código de e-mail.",
+  ACCOUNT_ANIMU_CONNECT_DESC:
+    "Um método de login: entre com um código de 4 dígitos enviado para qualquer e-mail abaixo — sem senha.",
   ACCOUNT_ANIMU_CONNECT_FORM_HINT:
-    "E-mails de provedor são automáticos. Você pode adicionar um extra.",
+    "Os e-mails dos provedores funcionam automaticamente. Adicione um e-mail extra para também entrar com ele.",
   ACCOUNT_DANGER: "Zona de perigo",
   ACCOUNT_LOGOUT: "Sair",
-  ACCOUNT_LOGOUT_HINT: "Encerra a sessão neste aparelho. Sua conta continua.",
   ACCOUNT_DELETE: "Excluir conta",
-  ACCOUNT_DELETE_HINT: "Remove permanentemente seu perfil e sessões.",
   ACCOUNT_DELETE_CONFIRM_TITLE: "Excluir conta?",
   ACCOUNT_DELETE_CONFIRM_MSG:
     "Isso apaga permanentemente seu perfil, contas vinculadas e sessões. Não pode ser desfeito.",

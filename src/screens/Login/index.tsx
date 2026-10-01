@@ -1,9 +1,11 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import MaterialIcons from "@react-native-vector-icons/material-icons/static";
 import { DrawerScreenProps } from "@react-navigation/drawer";
+import { useFocusEffect } from "@react-navigation/native";
 import {
   ActivityIndicator,
   Animated,
+  BackHandler,
   Easing,
   Linking,
   Platform,
@@ -18,15 +20,18 @@ import type { ProviderInfo } from "animu-api";
 import { API } from "@/api";
 import { AuthBackdrop } from "@/components/AuthBackdrop";
 import { BackArrow } from "@/components/BackArrow";
+import { CodeSubtitle } from "@/components/CodeSubtitle";
 import { ConnectActions } from "@/components/ConnectActions";
 import { EmailCodeFields } from "@/components/EmailCodeFields";
 import { FormError } from "@/components/FormError";
 import { Logo } from "@/components/Logo";
+import { PrimaryButton } from "@/components/PrimaryButton";
 import { ProviderIcon } from "@/components/ProviderIcon";
 import { useAlert } from "@/contexts/alert/AlertProvider";
 import { useAuth } from "@/contexts/auth/AuthProvider";
 import { AuthFlowCancelled } from "@/core/auth";
 import { isProviderConfigured } from "@/constants/auth";
+import { RESEND_COOLDOWN_SECONDS } from "@/constants/email-code";
 import type { Dict } from "@/i18n";
 import { useDict } from "@/hooks/useDict";
 import {
@@ -47,9 +52,6 @@ type Props = DrawerScreenProps<RootStackParamList, "Login">;
 type Step = "method" | "connect";
 
 /** Localized wordmark height in the hero. */
-const LOGO_HEIGHT = scale(96);
-/** Resend lockout after a code is sent. */
-const RESEND_COOLDOWN_SECONDS = 30;
 
 /**
  * Fade-and-rise entrance for an auth block. Each section starts a beat after
@@ -119,10 +121,9 @@ interface MethodStepProps {
 }
 
 /**
- * Hero + sign-in methods: the OAuth providers as SURFACE rows (the same card
- * and row rhythm as Settings/Account), then Animu Connect — the passwordless
- * house method — closing the list as the one filled CTA. The terms line ends
- * the screen.
+ * Hero + sign-in methods: Animu Connect — the passwordless house method — is
+ * the one filled brand button, its tagline says what it does, and the OAuth
+ * providers follow as quiet outlined pills. The terms line ends the screen.
  */
 function MethodStep({
   dict,
@@ -140,7 +141,7 @@ function MethodStep({
   return (
     <>
       <Animated.View style={[styles.hero, heroStyle]}>
-        <Logo size={LOGO_HEIGHT} />
+        <Logo size={THEME.LAYOUT.LOGO_HEIGHT} />
         <Text style={styles.headline}>{dict.LOGIN_HEADLINE}</Text>
         <Text style={styles.subtitle}>{dict.LOGIN_SUBTITLE}</Text>
       </Animated.View>
@@ -152,7 +153,23 @@ function MethodStep({
           </View>
         )}
 
+        <Animated.View style={connectStyle}>
+          <PrimaryButton
+            label={dict.LOGIN_WITH_ANIMU_CONNECT}
+            icon="alternate-email"
+            disabled={authenticating}
+            onPress={onConnect}
+          />
+          <Text style={styles.tagline}>{dict.LOGIN_ANIMU_CONNECT_TAGLINE}</Text>
+        </Animated.View>
+
         <Animated.View style={providersStyle}>
+          <View style={styles.divider}>
+            <View style={styles.dividerLine} />
+            <Text style={styles.dividerText}>{dict.LOGIN_OR_CONTINUE}</Text>
+            <View style={styles.dividerLine} />
+          </View>
+
           <View style={styles.methods}>
             {providers
               .filter((provider) => isProviderConfigured(provider.name))
@@ -170,7 +187,10 @@ function MethodStep({
                     activeOpacity={0.7}
                     disabled={authenticating}
                     onPress={() => onProvider(provider.name)}
-                    style={[styles.method, authenticating && styles.buttonDisabled]}
+                    style={[
+                      styles.method,
+                      authenticating && styles.buttonDisabled,
+                    ]}
                   >
                     <View style={styles.methodIcon}>
                       {busy ? (
@@ -179,62 +199,20 @@ function MethodStep({
                         <ProviderIcon
                           provider={provider.name}
                           size={THEME.ICON.MD}
+                          color={THEME.COLORS.TEXT}
                         />
                       )}
                     </View>
                     <Text style={styles.methodLabel}>{label}</Text>
+                    <View style={styles.methodIcon} />
                   </TouchableOpacity>
                 );
               })}
           </View>
         </Animated.View>
-
-        <Animated.View style={connectStyle}>
-          <View style={styles.divider}>
-            <View style={styles.dividerLine} />
-            <Text style={styles.dividerText}>{dict.LOGIN_OR_CONTINUE}</Text>
-            <View style={styles.dividerLine} />
-          </View>
-
-          <TouchableOpacity
-            accessibilityRole="button"
-            accessibilityLabel={dict.LOGIN_WITH_ANIMU_CONNECT}
-            accessibilityState={{ disabled: authenticating }}
-            activeOpacity={0.7}
-            disabled={authenticating}
-            onPress={onConnect}
-            style={[
-              styles.connectOption,
-              authenticating && styles.buttonDisabled,
-            ]}
-          >
-            <View style={styles.methodIcon}>
-              <MaterialIcons
-                name="alternate-email"
-                size={THEME.ICON.MD}
-                color={THEME.COLORS.TEXT_ON_LIGHT}
-              />
-            </View>
-            <Text style={styles.connectOptionLabel}>
-              {dict.LOGIN_WITH_ANIMU_CONNECT}
-            </Text>
-          </TouchableOpacity>
-        </Animated.View>
       </View>
 
       <LegalLine dict={dict} />
-    </>
-  );
-}
-
-/** The code-step subtitle with the destination address emphasized. */
-function CodeSubtitle({ template, email }: { template: string; email: string }) {
-  const [before, after] = template.split("{email}");
-  return (
-    <>
-      {before}
-      <Text style={styles.subtitleEmail}>{email}</Text>
-      {after}
     </>
   );
 }
@@ -293,8 +271,8 @@ function ConnectStep({
           </View>
         )}
 
-        {/* The request itself replaces the button: a spinner in its slot. */}
-        {flow.busy && (
+        {/* The email step's button carries its own spinner. */}
+        {flow.busy && onCodeStep && (
           <View style={styles.busyRow}>
             <ActivityIndicator color={THEME.COLORS.BRAND} />
           </View>
@@ -321,12 +299,12 @@ function ConnectStep({
 
 /**
  * Sign-in screen: a branded hero over the app artwork (localized wordmark,
- * welcome headline) with the OAuth providers as app-style rows and Animu
- * Connect closing the list as the filled CTA. The connect step swaps the hero
- * for a centered form: email first, then the 4-digit code.
+ * welcome headline) with the OAuth providers and Animu Connect as sign-in
+ * options. The connect step swaps the hero for a centered form: email first,
+ * then the 4-digit code.
  */
 export function Login({ navigation }: Props) {
-  const { toast, error: showError } = useAlert();
+  const { toast } = useAlert();
   const {
     providers,
     loginWithProvider,
@@ -386,7 +364,6 @@ export function Login({ navigation }: Props) {
       } else {
         console.error(`[Login] ${provider} sign-in failed:`, err);
         setProviderError(dict.LOGIN_FAILED);
-        showError(dict.LOGIN_FAILED);
       }
     } finally {
       setBusyProvider(null);
@@ -411,6 +388,25 @@ export function Login({ navigation }: Props) {
     }
   };
 
+  // Hardware back steps out of the connect form instead of leaving Login.
+  const goBackRef = useRef(goBack);
+  goBackRef.current = goBack;
+  const stepRef = useRef(step);
+  stepRef.current = step;
+  useFocusEffect(
+    useCallback(() => {
+      const subscription = BackHandler.addEventListener(
+        "hardwareBackPress",
+        () => {
+          if (stepRef.current !== "connect") return false;
+          goBackRef.current();
+          return true;
+        },
+      );
+      return () => subscription.remove();
+    }, []),
+  );
+
   const openConnect = () => {
     haptics.tap();
     setProviderError(null);
@@ -423,7 +419,23 @@ export function Login({ navigation }: Props) {
   return (
     <View style={styles.container}>
       <AuthBackdrop />
-      <SafeAreaView style={styles.safe} edges={["top", "left", "right", "bottom"]}>
+      <SafeAreaView
+        style={styles.safe}
+        edges={["top", "left", "right", "bottom"]}
+      >
+        {/* Outside the scroll view so it stays reachable with the keyboard up. */}
+        <View style={styles.topBar}>
+          <TouchableOpacity
+            accessibilityRole="button"
+            accessibilityLabel={dict.A11Y_BACK}
+            activeOpacity={0.7}
+            hitSlop={8}
+            onPress={goBack}
+            style={styles.backButton}
+          >
+            <BackArrow />
+          </TouchableOpacity>
+        </View>
         <ScrollView
           contentContainerStyle={[
             styles.content,
@@ -438,17 +450,6 @@ export function Login({ navigation }: Props) {
           keyboardDismissMode="on-drag"
           showsVerticalScrollIndicator={false}
         >
-          <TouchableOpacity
-            accessibilityRole="button"
-            accessibilityLabel={dict.A11Y_BACK}
-            activeOpacity={0.7}
-            hitSlop={8}
-            onPress={goBack}
-            style={styles.backButton}
-          >
-            <BackArrow />
-          </TouchableOpacity>
-
           {step === "method" ? (
             <MethodStep
               dict={dict}

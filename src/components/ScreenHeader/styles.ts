@@ -10,12 +10,14 @@ export { HEADER_HEIGHT };
 
 export const styles = StyleSheet.create({
   // A clean SURFACE bar: arrow + centered title via flex (no absolute
-  // positioning, no hairline). `space-around` (not `space-between`) keeps the
-  // arrow off the screen edge.
+  // positioning, no hairline). The two 44px slots are equal, so the title
+  // stays centered; the padding gives the arrow the same small edge inset on
+  // every screen instead of one that grows with the title width.
   header: {
     width: "100%",
     backgroundColor: THEME.COLORS.SURFACE,
-    justifyContent: "space-around",
+    justifyContent: "space-between",
+    paddingHorizontal: THEME.SPACE.SM,
     alignItems: "center",
     flexDirection: "row",
   },

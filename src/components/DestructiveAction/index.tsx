@@ -15,15 +15,10 @@ interface Props {
   busy?: boolean;
   /** Optional supporting line under the label. */
   description?: string;
-  /**
-   * Drops the button's own fill/radius so it can be stacked inside a shared
-   * danger-group card (the caller supplies the surface and the divider).
-   */
-  grouped?: boolean;
 }
 
 /**
- * Destructive action shared by Settings (reset) and Account (log out, delete):
+ * Destructive action shared by Settings (reset) and Account (delete):
  * one solid danger fill, left-aligned, so "this cannot be undone" always looks
  * the same across the app.
  */
@@ -33,7 +28,6 @@ export function DestructiveAction({
   onPress,
   busy,
   description,
-  grouped,
 }: Props) {
   return (
     <TouchableOpacity
@@ -42,17 +36,15 @@ export function DestructiveAction({
       activeOpacity={0.7}
       onPress={onPress}
       disabled={busy}
-      style={[
-        styles.action,
-        grouped && styles.actionGrouped,
-        busy && styles.actionDisabled,
-      ]}
+      style={[styles.action, busy && styles.actionDisabled]}
     >
-      <MaterialIcons
-        name={busy ? "hourglass-top" : icon}
-        size={THEME.ICON.MD}
-        color={THEME.COLORS.TEXT}
-      />
+      <View style={styles.iconBox}>
+        <MaterialIcons
+          name={busy ? "hourglass-top" : icon}
+          size={THEME.ICON.MD}
+          color={THEME.COLORS.TEXT}
+        />
+      </View>
       <View style={styles.body}>
         <Text style={styles.label}>{label}</Text>
         {description != null && (

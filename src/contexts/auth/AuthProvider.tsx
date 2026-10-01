@@ -18,6 +18,11 @@ import type {
 } from "animu-api";
 import { User } from "@/core/domain/user";
 import { authFacade } from "@/core/auth";
+import {
+  useProfileMedia,
+  type ProfileMedia,
+} from "@/contexts/auth/useProfileMedia";
+import { clearProfileMedia } from "@/core/services/profile-media.service";
 import { backgroundService } from "@/core/services/background.service";
 import { DEFAULT_PROVIDERS } from "@/constants/auth";
 
@@ -32,6 +37,12 @@ interface AuthContextType {
    * expo-image cache (the authenticated avatar endpoint keeps its URL).
    */
   imageVersion: number;
+  /**
+   * Locally saved copies of the user's avatar and banner. Prefer these over
+   * the remote URLs; they are refreshed in the background and survive
+   * restarts and offline use.
+   */
+  media: ProfileMedia;
   loginWithProvider: (provider: string) => Promise<void>;
   /** Animu Connect login, step 1: request the emailed 4-digit code. */
   requestEmailLoginCode: (email: string) => Promise<AuthEmailRequestResult>;
@@ -267,9 +278,7 @@ function useAccountActions({
 function useAuthProviderValue(): AuthContextType {
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<AuthProfile | null>(null);
-  const [providers, setProviders] = useState<ProviderInfo[]>(
-    DEFAULT_PROVIDERS,
-  );
+  const [providers, setProviders] = useState<ProviderInfo[]>(DEFAULT_PROVIDERS);
   const [emails, setEmails] = useState<AuthAccountEmail[]>([]);
   const [imageVersion, setImageVersion] = useState(0);
   const [isAuthenticating, setIsAuthenticating] = useState(false);
@@ -285,6 +294,7 @@ function useAuthProviderValue(): AuthContextType {
     backgroundService.stopTask(SESSION_CHECK_TASK_ID);
     await authFacade.forget();
     userRef.current = null;
+    clearProfileMedia();
     setUser(null);
     setProfile(null);
     setEmails([]);
@@ -432,6 +442,8 @@ function useAuthProviderValue(): AuthContextType {
     setIsAuthenticating,
   });
 
+  const media = useProfileMedia(user, profile, imageVersion);
+
   return useMemo<AuthContextType>(
     () => ({
       user,
@@ -440,6 +452,7 @@ function useAuthProviderValue(): AuthContextType {
       isAuthenticating,
       isAuthenticated: !!user,
       imageVersion,
+      media,
       loginWithProvider,
       requestEmailLoginCode,
       loginWithEmailCode,
@@ -460,6 +473,7 @@ function useAuthProviderValue(): AuthContextType {
       providers,
       isAuthenticating,
       imageVersion,
+      media,
       loginWithProvider,
       requestEmailLoginCode,
       loginWithEmailCode,
@@ -481,9 +495,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
   const value = useAuthProviderValue();
-  return (
-    <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
-  );
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
 
 export const useAuth = () => {

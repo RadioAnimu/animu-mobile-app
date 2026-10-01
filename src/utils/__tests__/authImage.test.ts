@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { ENDPOINTS } from "animu-api";
 
-import { buildAuthImageSource } from "@/utils/authImage";
+import { buildAuthImageSource, resolveMediaSource } from "@/utils/authImage";
 
 const AUTH_URI = `${ENDPOINTS.auth}/me/avatar.php`;
 
@@ -13,9 +13,9 @@ describe("buildAuthImageSource", () => {
   });
 
   it("passes provider CDN urls through untouched", () => {
-    expect(
-      buildAuthImageSource("https://cdn.example/a.png", "tok", 5),
-    ).toEqual({ uri: "https://cdn.example/a.png" });
+    expect(buildAuthImageSource("https://cdn.example/a.png", "tok", 5)).toEqual(
+      { uri: "https://cdn.example/a.png" },
+    );
   });
 
   it("attaches the session header and a cache-buster to auth urls", () => {
@@ -38,5 +38,19 @@ describe("buildAuthImageSource", () => {
       uri: `${AUTH_URI}?v=3`,
       headers: undefined,
     });
+  });
+});
+
+describe("resolveMediaSource", () => {
+  it("prefers the saved local copy", () => {
+    expect(resolveMediaSource("file:///a", AUTH_URI, "tok", 1)).toEqual({
+      uri: "file:///a",
+    });
+  });
+
+  it("falls back to the remote source until a local copy exists", () => {
+    expect(resolveMediaSource(null, AUTH_URI, "tok", 1)).toEqual(
+      buildAuthImageSource(AUTH_URI, "tok", 1),
+    );
   });
 });

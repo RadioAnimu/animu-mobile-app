@@ -25,3 +25,18 @@ export function buildAuthImageSource(
     headers: sessionToken ? { "X-Session-Id": sessionToken } : undefined,
   };
 }
+
+/**
+ * Prefers the locally saved copy of the user's media (instant, offline, and
+ * already de-duplicated by content) and falls back to the remote URL until
+ * the first download lands.
+ */
+export function resolveMediaSource(
+  localUri: string | null | undefined,
+  uri: string | null | undefined,
+  sessionToken: string | null | undefined,
+  revision: string | number,
+): ImageSource | undefined {
+  if (localUri) return { uri: localUri };
+  return buildAuthImageSource(uri, sessionToken, revision);
+}

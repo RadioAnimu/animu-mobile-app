@@ -1,8 +1,10 @@
 import { DrawerScreenProps } from "@react-navigation/drawer";
-import { ScrollView } from "react-native";
+import { ScrollView, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+import { RowDivider } from "@/components/ListRow";
 import { ScreenHeader } from "@/components/ScreenHeader";
+import { SectionTitle } from "@/components/SectionTitle";
 import { useAuth } from "@/contexts/auth/AuthProvider";
 import { useDict } from "@/hooks/useDict";
 import { RootStackParamList } from "@/routes/app.routes";
@@ -21,42 +23,44 @@ export function Settings({ navigation }: Props) {
   const { user, profile } = useAuth();
   const dict = useDict();
 
-  return (      <SafeAreaView
-        style={styles.container}
-        edges={["left", "right", "bottom"]}
-      >
-        <ScreenHeader
-          title={dict.SETTINGS_TITLE}
-          onBack={() => navigation.goBack()}
-        />
-        <ScrollView contentContainerStyle={styles.appContainer}>
-          {/* Account first — the one thing tied to *who* is listening. */}
+  return (
+    <SafeAreaView style={styles.container} edges={["left", "right", "bottom"]}>
+      <ScreenHeader
+        title={dict.SETTINGS_TITLE}
+        onBack={() => navigation.goBack()}
+      />
+      <ScrollView contentContainerStyle={styles.appContainer}>
+        {/* Identity and the on-device listening card open the page as one
+            card; a heading over a single row would only repeat its label. */}
+        <View style={styles.group}>
           <AccountSection
-            first
             user={user}
             profile={profile}
-            onPress={() => {
-              if (user) {
-                navigation.navigate("Account");
-              } else {
-                navigation.navigate("Login");
-              }
-            }}
+            onPress={() => navigation.navigate(user ? "Account" : "Login")}
           />
-          {/* Listen stats — on-device, right after the identity card. */}
-          <ListenStatsSection
-            onPress={() => navigation.navigate("Stats")}
-          />
-          {/* Playback + general prefs, then the data/cache group together. */}
-          <BehaviorSection />
+          <RowDivider />
+          <ListenStatsSection onPress={() => navigation.navigate("Stats")} />
+        </View>
+
+        <BehaviorSection />
+
+        {/* Covers and their on-disk cache are one topic: one card. */}
+        <SectionTitle title={dict.SETTINGS_SAVE_DATA_TITLE} icon="image" />
+        <View style={styles.group}>
           <CoverDataSection />
+          <RowDivider />
           <StorageSection
             onOpenStorage={() => navigation.navigate("Storage")}
           />
-          {/* Informational rows second-to-last, destructive reset terminally. */}
+        </View>
+
+        <View style={styles.groupSpaced}>
           <AboutSection onPress={() => navigation.navigate("About")} />
-          <ResetSection />
-        </ScrollView>
-      </SafeAreaView>
+        </View>
+
+        {/* Resetting the settings closes the page. */}
+        <ResetSection />
+      </ScrollView>
+    </SafeAreaView>
   );
 }

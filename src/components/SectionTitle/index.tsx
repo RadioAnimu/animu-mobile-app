@@ -20,7 +20,10 @@ interface Props {
 /** Uppercase section heading with a leading icon, used across settings pages. */
 export function SectionTitle({ title, icon, first }: Props) {
   return (
-    <View style={[styles.section, first && styles.sectionFirst]}>
+    <View
+      accessibilityRole="header"
+      style={[styles.section, first && styles.sectionFirst]}
+    >
       {icon && (
         <View style={styles.iconBox}>
           <MaterialIcons

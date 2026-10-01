@@ -1,7 +1,6 @@
 import { useMemo } from "react";
-import { View } from "react-native";
 
-import { SectionTitle } from "@/components/SectionTitle";
+import { RowDivider } from "@/components/ListRow";
 import { Select, type SelectOption } from "@/components/Select";
 import {
   COVER_QUALITY_SAMPLES,
@@ -10,8 +9,7 @@ import {
 } from "@/constants/artwork-quality";
 import { useUserSettings } from "@/contexts/user/UserSettingsProvider";
 import { useDict } from "@/hooks/useDict";
-import { Divider, SettingsRow } from "@/screens/Settings/rows";
-import { styles } from "@/screens/Settings/styles";
+import { SettingsRow } from "@/screens/Settings/rows";
 import { formatBytes } from "@/utils/format";
 
 const QUALITY_LABEL_KEY = {
@@ -20,7 +18,7 @@ const QUALITY_LABEL_KEY = {
   low: "SETTINGS_QUALITY_LIVE_LABEL_LOW",
 } as const;
 
-/** Cover quality plus the three per-surface cover toggles. */
+/** Rows for cover quality plus the three per-surface cover toggles. */
 export function CoverDataSection() {
   const { settings, updateSettings } = useUserSettings();
   const dict = useDict();
@@ -49,48 +47,45 @@ export function CoverDataSection() {
 
   return (
     <>
-      <SectionTitle title={dict.SETTINGS_SAVE_DATA_TITLE} icon="image" />
-      <View style={styles.group}>
-        <Select
-          label={dict.SETTINGS_QUALITY_ROW}
-          icon="high-quality"
-          description={dict.SETTINGS_QUALITY_ROW_DESC}
-          options={qualityOptions}
-          value={settings.liveQualityCover}
-          onChange={(key) => updateSettings({ liveQualityCover: key })}
-        />
-        <Divider />
-        <SettingsRow
-          icon="history"
-          label={dict.SETTINGS_COVER_LAST_REQUESTED_SWITCH}
-          value={settings.lastRequestedCovers}
-          onToggle={() =>
-            updateSettings({
-              lastRequestedCovers: !settings.lastRequestedCovers,
-            })
-          }
-        />
-        <Divider />
-        <SettingsRow
-          icon="music-note"
-          label={dict.SETTINGS_COVER_LAST_PLAYED_SWITCH}
-          value={settings.lastPlayedCovers}
-          onToggle={() =>
-            updateSettings({ lastPlayedCovers: !settings.lastPlayedCovers })
-          }
-        />
-        <Divider />
-        <SettingsRow
-          icon="search"
-          label={dict.SETTINGS_COVER_REQUESTED_SWITCH}
-          value={settings.coversInRequestSearch}
-          onToggle={() =>
-            updateSettings({
-              coversInRequestSearch: !settings.coversInRequestSearch,
-            })
-          }
-        />
-      </View>
+      <Select
+        label={dict.SETTINGS_QUALITY_ROW}
+        icon="high-quality"
+        description={dict.SETTINGS_QUALITY_ROW_DESC}
+        options={qualityOptions}
+        value={settings.liveQualityCover}
+        onChange={(key) => updateSettings({ liveQualityCover: key })}
+      />
+      <RowDivider />
+      <SettingsRow
+        icon="history"
+        label={dict.SETTINGS_COVER_LAST_REQUESTED_SWITCH}
+        value={settings.lastRequestedCovers}
+        onToggle={() =>
+          updateSettings({
+            lastRequestedCovers: !settings.lastRequestedCovers,
+          })
+        }
+      />
+      <RowDivider />
+      <SettingsRow
+        icon="music-note"
+        label={dict.SETTINGS_COVER_LAST_PLAYED_SWITCH}
+        value={settings.lastPlayedCovers}
+        onToggle={() =>
+          updateSettings({ lastPlayedCovers: !settings.lastPlayedCovers })
+        }
+      />
+      <RowDivider />
+      <SettingsRow
+        icon="search"
+        label={dict.SETTINGS_COVER_REQUESTED_SWITCH}
+        value={settings.coversInRequestSearch}
+        onToggle={() =>
+          updateSettings({
+            coversInRequestSearch: !settings.coversInRequestSearch,
+          })
+        }
+      />
     </>
   );
 }

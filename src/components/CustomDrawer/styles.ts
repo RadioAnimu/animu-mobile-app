@@ -22,9 +22,6 @@ export const styles = StyleSheet.create({
     paddingVertical: THEME.SPACE.SM,
     marginBottom: THEME.SPACE.XS,
   },
-  logo: {
-    width: "100%",
-  },
   bottom: {
     marginTop: "auto",
     minHeight: scale(76),
@@ -57,9 +54,7 @@ export const styles = StyleSheet.create({
   accountAvatar: {
     width: scale(40),
     height: scale(40),
-    borderRadius: THEME.RADIUS.CIRCLE,
-    borderWidth: scale(2),
-    borderColor: THEME.COLORS.BRAND,
+    borderRadius: scale(10),
     backgroundColor: THEME.COLORS.APP_BG,
   },
   accountIconBox: {
@@ -74,17 +69,7 @@ export const styles = StyleSheet.create({
     marginLeft: THEME.SPACE.MD,
   },
   accountName: ROW_STYLES.label,
-  accountService: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: THEME.SPACE.XXS,
-  },
-  accountCaption: {
-    flexShrink: 1,
-    color: THEME.COLORS.TEXT_DIM,
-    fontFamily: THEME.FONT_FAMILY.REGULAR,
-    fontSize: THEME.FONT_SIZE.CAPTION,
-  },
+  accountCaption: ROW_STYLES.caption,
   section: {
     flexDirection: "row",
     alignItems: "center",

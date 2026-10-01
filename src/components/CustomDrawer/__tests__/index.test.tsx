@@ -12,7 +12,9 @@ vi.mock("react-native", async () =>
 vi.mock("@react-native-vector-icons/material-icons/static", async () =>
   (await import("@/__tests__/react-native-mock")).createIconMock(),
 );
-vi.mock("expo-image", () => ({ Image: () => <span data-testid="logo" /> }));
+vi.mock("@/components/Logo", () => ({
+  Logo: () => <span data-testid="logo" />,
+}));
 vi.mock("@react-navigation/drawer", () => ({
   DrawerContentScrollView: ({ children }: { children: React.ReactNode }) => (
     <div>{children}</div>
@@ -20,7 +22,11 @@ vi.mock("@react-navigation/drawer", () => ({
 }));
 vi.mock("@react-navigation/native", () => ({
   CommonActions: {
-    navigate: (name: string, params?: object) => ({ type: "NAVIGATE", name, params }),
+    navigate: (name: string, params?: object) => ({
+      type: "NAVIGATE",
+      name,
+      params,
+    }),
   },
   DrawerActions: { closeDrawer: () => ({ type: "CLOSE_DRAWER" }) },
 }));
@@ -31,32 +37,21 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock("@/contexts/auth/AuthProvider", () => ({ useAuth: () => mocks.auth }));
-vi.mock("@/contexts/user/UserSettingsProvider", () => ({
-  useUserSettings: () => ({ settings: { selectedLanguage: "PT" } }),
-}));
 vi.mock("@/hooks/useDict", () => ({
   useDict: () => ({
     MENU: "Menu",
     LOGIN_WORD: "Login",
     SETTINGS_TITLE: "Settings",
     SETTINGS_ACCOUNT_SIGN_IN: "Sign in to sync",
-    ACCOUNT_CONNECTED_VIA: "Connected via",
     ACCOUNT_TITLE: "Account",
     A11Y_OPENS_SETTINGS: "opens settings",
     A11Y_OPENS_LOGIN: "opens login",
   }),
 }));
-vi.mock("@/i18n", () => ({ IMGS: { PT: { LOGO: "logo.png" } } }));
 vi.mock("@/utils/haptics", () => ({ haptics: mocks.haptics }));
-vi.mock("@/constants/auth", () => ({
-  providerLabel: (name: string) => `label:${name}`,
-}));
 vi.mock("@/components/Avatar", () => ({
-  Avatar: ({ uri }: { uri: string }) => <i data-testid="avatar" data-uri={uri} />,
-}));
-vi.mock("@/components/ProviderIcon", () => ({
-  ProviderIcon: ({ provider }: { provider: string }) => (
-    <i data-testid="provider-icon" data-provider={provider} />
+  Avatar: ({ uri }: { uri: string }) => (
+    <i data-testid="avatar" data-uri={uri} />
   ),
 }));
 
@@ -69,7 +64,12 @@ function makeProps(focusedIndex = 0): DrawerContentComponentProps {
     { key: "settings", name: "Settings", params: undefined },
   ];
   const descriptors = {
-    home: { options: { drawerLabel: "Player", drawerIcon: () => <i data-testid="icon-home" /> } },
+    home: {
+      options: {
+        drawerLabel: "Player",
+        drawerIcon: () => <i data-testid="icon-home" />,
+      },
+    },
     played: { options: { title: "Played fallback" } },
     settings: { options: { drawerItemStyle: { display: "none" } } },
   };
@@ -102,28 +102,22 @@ describe("CustomDrawerContent", () => {
       expect(navigation.navigate).toHaveBeenCalledWith("Settings");
     });
 
-    it("signed in via a provider: names it, shows its mark, opens Settings, no gear", () => {
-      mocks.auth = { user, profile: { session: { loginProvider: "google" } } };
+    it("signed in: shows name and @handle, opens Settings, no gear", () => {
+      mocks.auth = { user, profile: null };
       render(<CustomDrawerContent {...makeProps()} />);
-      expect(screen.getByText("ana")).toBeTruthy();
-      expect(screen.getByText("Connected via label:google")).toBeTruthy();
-      expect(screen.getByTestId("provider-icon").getAttribute("data-provider")).toBe("google");
-      expect(screen.getByTestId("avatar").getAttribute("data-uri")).toBe(user.avatarUrl);
+      expect(screen.getByText("ana_u")).toBeTruthy();
+      expect(screen.getByText("@ana")).toBeTruthy();
+      expect(screen.getByTestId("avatar").getAttribute("data-uri")).toBe(
+        user.avatarUrl,
+      );
       expect(screen.queryByRole("button", { name: "Settings" })).toBeNull();
 
-      fireEvent.click(screen.getByText("ana"));
+      fireEvent.click(screen.getByText("ana_u"));
       expect(navigation.navigate).toHaveBeenCalledWith("Settings");
     });
 
-    it("signed in without a known login provider: captions with the account title", () => {
-      mocks.auth = { user, profile: { session: {} } };
-      render(<CustomDrawerContent {...makeProps()} />);
-      expect(screen.getByText("Account")).toBeTruthy();
-      expect(screen.getByTestId("provider-icon").getAttribute("data-provider")).toBe("animu");
-    });
-
-    it("signed in before the profile loads: still captions with the account title", () => {
-      mocks.auth = { user, profile: null };
+    it("signed in without a handle: captions with the account title", () => {
+      mocks.auth = { user: { ...user, handle: null }, profile: null };
       render(<CustomDrawerContent {...makeProps()} />);
       expect(screen.getByText("Account")).toBeTruthy();
     });
@@ -142,8 +136,18 @@ describe("CustomDrawerContent", () => {
 
     it("marks the focused route as selected", () => {
       render(<CustomDrawerContent {...makeProps(0)} />);
-      expect(screen.getByText("Player").closest("[role=button]")!.getAttribute("aria-selected")).toBe("true");
-      expect(screen.getByText("Played fallback").closest("[role=button]")!.getAttribute("aria-selected")).toBe("false");
+      expect(
+        screen
+          .getByText("Player")
+          .closest("[role=button]")!
+          .getAttribute("aria-selected"),
+      ).toBe("true");
+      expect(
+        screen
+          .getByText("Played fallback")
+          .closest("[role=button]")!
+          .getAttribute("aria-selected"),
+      ).toBe("false");
     });
 
     it("navigates to another route with its params and a haptic tick", () => {

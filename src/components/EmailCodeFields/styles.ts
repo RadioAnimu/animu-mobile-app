@@ -30,6 +30,9 @@ export const styles = StyleSheet.create({
   fieldFocused: {
     borderColor: THEME.COLORS.BRAND,
   },
+  submit: {
+    marginTop: THEME.SPACE.LG,
+  },
   input: {
     flex: 1,
     padding: 0,

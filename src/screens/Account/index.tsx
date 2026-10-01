@@ -4,9 +4,9 @@ import { DrawerScreenProps } from "@react-navigation/drawer";
 import {
   Alert,
   Platform,
+  RefreshControl,
   ScrollView,
   Text,
-  TouchableOpacity,
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -14,6 +14,8 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { AnimuApiError } from "animu-api";
 import { AccountEmails } from "@/components/AccountEmails";
 import { DestructiveAction } from "@/components/DestructiveAction";
+import { ActionRow } from "@/components/ListRow";
+import { PrimaryButton } from "@/components/PrimaryButton";
 import { ScreenHeader } from "@/components/ScreenHeader";
 import { SectionTitle } from "@/components/SectionTitle";
 import { useAlert } from "@/contexts/alert/AlertProvider";
@@ -22,6 +24,7 @@ import { useDict } from "@/hooks/useDict";
 import { useKeyboardPadding } from "@/hooks/useKeyboardPadding";
 import { AuthFlowCancelled } from "@/core/auth";
 import { haptics } from "@/utils/haptics";
+import { interpolate } from "@/utils/format";
 import { RootStackParamList } from "@/routes/app.routes";
 import { THEME } from "@/theme";
 import { styles } from "@/screens/Account/styles";
@@ -38,6 +41,7 @@ export function Account({ navigation }: Props) {
     providers,
     isAuthenticated,
     imageVersion,
+    media,
     logout,
     deleteAccount,
     refreshProfile,
@@ -102,6 +106,28 @@ export function Account({ navigation }: Props) {
     );
   };
 
+  const confirmUnlink = (name: string) => {
+    const provider =
+      providers.find((entry) => entry.name === name)?.label ?? name;
+    Alert.alert(
+      interpolate(dict.ACCOUNT_UNLINK_CONFIRM_TITLE, { provider }),
+      interpolate(dict.ACCOUNT_UNLINK_CONFIRM_MSG, { provider }),
+      [
+        { text: dict.ACCOUNT_CANCEL, style: "cancel" },
+        {
+          text: dict.ACCOUNT_UNLINK,
+          style: "destructive",
+          onPress: () => {
+            void handle(`link-${name}`, async () => {
+              await unlinkProvider(name);
+              toast(dict.ACCOUNT_UNLINK_SUCCESS);
+            });
+          },
+        },
+      ],
+    );
+  };
+
   const renderHeader = () => (
     <ScreenHeader
       title={dict.ACCOUNT_TITLE}
@@ -111,111 +137,107 @@ export function Account({ navigation }: Props) {
 
   if (!isAuthenticated || !user) {
     return (
-        <SafeAreaView
-          style={styles.container}
-          edges={["left", "right", "bottom"]}
-        >
-          {renderHeader()}
-          <View style={styles.signedOut}>
-            <MaterialIcons
-              name="account-circle"
-              size={72}
-              color={THEME.COLORS.TEXT_DIM}
-            />
-            <Text style={styles.signedOutText}>{dict.ACCOUNT_SIGNED_OUT}</Text>
-            <TouchableOpacity
-              accessibilityRole="button"
-              activeOpacity={0.7}
-              onPress={() => navigation.navigate("Login")}
-              style={styles.primaryButton}
-            >
-              <Text style={styles.primaryButtonText}>
-                {dict.ACCOUNT_SIGN_IN}
-              </Text>
-            </TouchableOpacity>
-          </View>
-        </SafeAreaView>
-    );
-  }
-
-  return (
       <SafeAreaView
         style={styles.container}
         edges={["left", "right", "bottom"]}
       >
         {renderHeader()}
-        <ScrollView
-          contentContainerStyle={[
-            styles.content,
-            keyboardPadding > 0 && {
-              paddingBottom: keyboardPadding + THEME.SPACE.XXXL,
-            },
-          ]}
-          automaticallyAdjustKeyboardInsets
-          keyboardShouldPersistTaps="handled"
-          keyboardDismissMode="on-drag"
-        >
-          <ProfileCard
-            user={user}
-            profile={profile}
-            imageVersion={imageVersion}
+        <View style={styles.signedOut}>
+          <MaterialIcons
+            name="account-circle"
+            size={THEME.ICON.XL * 2}
+            color={THEME.COLORS.TEXT_DIM}
+          />
+          <Text style={styles.signedOutText}>{dict.ACCOUNT_SIGNED_OUT}</Text>
+          <PrimaryButton
+            label={dict.ACCOUNT_SIGN_IN}
+            icon="login"
+            onPress={() => navigation.navigate("Login")}
+            style={styles.signedOutAction}
+          />
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  return (
+    <SafeAreaView style={styles.container} edges={["left", "right", "bottom"]}>
+      {renderHeader()}
+      <ScrollView
+        contentContainerStyle={[
+          styles.content,
+          keyboardPadding > 0 && {
+            paddingBottom: keyboardPadding + THEME.SPACE.XXXL,
+          },
+        ]}
+        automaticallyAdjustKeyboardInsets
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
+        refreshControl={
+          <RefreshControl
             refreshing={busy === "refresh"}
             onRefresh={() =>
-              handle("refresh", async () => {
+              void handle("refresh", async () => {
                 await refreshProfile();
                 toast(dict.ACCOUNT_REFRESHED);
               })
             }
+            tintColor={THEME.COLORS.BRAND}
+            colors={[THEME.COLORS.BRAND]}
+            progressBackgroundColor={THEME.COLORS.SURFACE}
           />
+        }
+      >
+        <ProfileCard
+          user={user}
+          profile={profile}
+          imageVersion={imageVersion}
+          bannerUri={media.banner}
+        />
 
-          <LinkedAccounts
-            providers={providers}
-            linkedProviders={linkedProviders}
-            canUnlink={canUnlink}
-            busy={busy}
-            onLink={(provider) =>
-              handle(`link-${provider}`, async () => {
-                await linkProvider(provider);
-                toast(dict.ACCOUNT_LINK_SUCCESS);
-              })
-            }
-            onUnlink={(provider) =>
-              handle(`link-${provider}`, async () => {
-                await unlinkProvider(provider);
-                toast(dict.ACCOUNT_UNLINK_SUCCESS);
-              })
-            }
+        <LinkedAccounts
+          providers={providers}
+          linkedProviders={linkedProviders}
+          canUnlink={canUnlink}
+          busy={busy}
+          onLink={(provider) =>
+            handle(`link-${provider}`, async () => {
+              await linkProvider(provider);
+              toast(dict.ACCOUNT_LINK_SUCCESS);
+            })
+          }
+          onUnlink={confirmUnlink}
+        />
+
+        <SectionTitle
+          title={dict.ACCOUNT_ANIMU_CONNECT}
+          icon="alternate-email"
+        />
+        <Text style={styles.sectionHint}>
+          {dict.ACCOUNT_ANIMU_CONNECT_DESC}
+        </Text>
+        <View style={styles.group}>
+          <AccountEmails />
+        </View>
+
+        {/* Signing out is routine and reversible — a plain row, not a danger. */}
+        <View style={styles.groupSpaced}>
+          <ActionRow
+            icon="logout"
+            label={dict.ACCOUNT_LOGOUT}
+            busy={busy === "logout"}
+            onPress={() => void handle("logout", logout)}
           />
+        </View>
 
-          <SectionTitle
-            title={dict.ACCOUNT_ANIMU_CONNECT}
-            icon="alternate-email"
-          />
-          <View style={styles.group}>
-            <AccountEmails />
-          </View>
-
-          <SectionTitle title={dict.ACCOUNT_DANGER} icon="warning" />
-          <View style={styles.dangerGroup}>
-            <DestructiveAction
-              grouped
-              icon="logout"
-              label={dict.ACCOUNT_LOGOUT}
-              description={dict.ACCOUNT_LOGOUT_HINT}
-              busy={busy === "logout"}
-              onPress={() => void handle("logout", logout)}
-            />
-            <View style={styles.dangerDivider} />
-            <DestructiveAction
-              grouped
-              icon="delete-forever"
-              label={dict.ACCOUNT_DELETE}
-              description={dict.ACCOUNT_DELETE_HINT}
-              busy={busy === "delete"}
-              onPress={confirmDelete}
-            />
-          </View>
-        </ScrollView>
-      </SafeAreaView>
+        <SectionTitle title={dict.ACCOUNT_DANGER} icon="warning" />
+        <DestructiveAction
+          icon="delete-forever"
+          label={dict.ACCOUNT_DELETE}
+          busy={busy === "delete"}
+          onPress={confirmDelete}
+        />
+      </ScrollView>
+    </SafeAreaView>
   );
 }

@@ -3,51 +3,16 @@ import MaterialIcons from "@react-native-vector-icons/material-icons/static";
 import { Animated, Text, TouchableOpacity, View } from "react-native";
 
 import { Avatar } from "@/components/Avatar";
-import { ProviderIcon } from "@/components/ProviderIcon";
+import {
+  LeadingIcon,
+  RowBody,
+  type MaterialIconName,
+} from "@/components/ListRow";
 import { THEME } from "@/theme";
 import type { Dict } from "@/i18n";
-import { getUserName } from "@/core/domain/user";
 import type { AuthProfile, User } from "@/core/domain/user";
-import { providerLabel } from "@/constants/auth";
 import { styles, SWITCH } from "@/screens/Settings/styles";
 import { haptics } from "@/utils/haptics";
-
-type MaterialIconName = React.ComponentProps<typeof MaterialIcons>["name"];
-
-export function Divider() {
-  return <View style={styles.divider} />;
-}
-
-/** Leading icon that lines every settings row up with the section headings. */
-function LeadingIcon({ name }: { name: MaterialIconName }) {
-  return (
-    <View style={styles.rowIcon}>
-      <MaterialIcons
-        name={name}
-        size={THEME.ICON.MD}
-        color={THEME.COLORS.TEXT}
-      />
-    </View>
-  );
-}
-
-/** The label + optional supporting line every row type renders mid-row. */
-function RowBody({
-  label,
-  description,
-}: {
-  label: string;
-  description?: string;
-}) {
-  return (
-    <View style={description != null ? styles.rowBody : styles.rowBodySingle}>
-      <Text style={styles.rowLabel}>{label}</Text>
-      {description != null && (
-        <Text style={styles.rowDescription}>{description}</Text>
-      )}
-    </View>
-  );
-}
 
 interface AccountRowProps {
   user: User | null;
@@ -70,30 +35,23 @@ export function AccountRow({ user, profile, dict, onPress }: AccountRowProps) {
           <View style={styles.accountInfo}>
             <View style={styles.accountNameRow}>
               <Text style={styles.accountName} numberOfLines={1}>
-                {getUserName(user)}
+                {profile?.user.username || user.username}
               </Text>
               {profile?.user.verified && (
-                <MaterialIcons
-                  name="verified"
-                  size={THEME.ICON.MD}
-                  color={THEME.COLORS.BRAND}
-                />
+                <View style={styles.accountBadge}>
+                  <MaterialIcons
+                    name="verified"
+                    size={THEME.ICON.MD}
+                    color={THEME.COLORS.BRAND}
+                  />
+                </View>
               )}
             </View>
-            <View style={styles.accountService}>
-              <ProviderIcon
-                provider={profile?.session.loginProvider ?? "animu"}
-                size={14}
-                color={THEME.COLORS.TEXT}
-              />
-              <Text style={styles.accountCaption}>
-                {profile?.session.loginProvider
-                  ? `${dict.ACCOUNT_CONNECTED_VIA} ${providerLabel(
-                      profile.session.loginProvider,
-                    )}`
-                  : dict.ACCOUNT_TITLE}
-              </Text>
-            </View>
+            <Text style={styles.accountCaption} numberOfLines={1}>
+              {profile?.user.handle || user.handle
+                ? `@${profile?.user.handle || user.handle}`
+                : dict.ACCOUNT_TITLE}
+            </Text>
           </View>
           <MaterialIcons
             name="chevron-right"
@@ -103,16 +61,8 @@ export function AccountRow({ user, profile, dict, onPress }: AccountRowProps) {
         </>
       ) : (
         <>
-          <View style={styles.accountServiceIcon}>
-            <MaterialIcons
-              name="login"
-              size={THEME.ICON.MD}
-              color={THEME.COLORS.TEXT}
-            />
-          </View>
-          <View style={styles.rowBodySingle}>
-            <Text style={styles.rowLabel}>{dict.SETTINGS_ACCOUNT_SIGN_IN}</Text>
-          </View>
+          <LeadingIcon name="login" />
+          <RowBody label={dict.SETTINGS_ACCOUNT_SIGN_IN} />
           <MaterialIcons
             name="chevron-right"
             size={THEME.ICON.MD}

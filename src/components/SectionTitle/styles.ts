@@ -12,10 +12,7 @@ export const styles = StyleSheet.create({
     // share one vertical grid instead of drifting a few pixels apart.
     paddingHorizontal: THEME.SPACE.LG,
     marginTop: THEME.SPACE.XXL,
-    marginBottom: THEME.SPACE.MD,
-    paddingBottom: THEME.SPACE.MD,
-    borderBottomWidth: 1,
-    borderBottomColor: THEME.COLORS.HAIRLINE,
+    marginBottom: THEME.SPACE.SM,
   },
   sectionFirst: {
     marginTop: 0,

@@ -32,6 +32,11 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock("@/core/auth/auth.facade", () => ({ authFacade: mocks.facade }));
+vi.mock("@/core/services/profile-media.service", () => ({
+  getCachedProfileMedia: () => null,
+  syncProfileMedia: () => Promise.resolve(null),
+  clearProfileMedia: vi.fn(),
+}));
 vi.mock("@/core/services/background.service", () => ({
   backgroundService: mocks.background,
 }));
@@ -79,7 +84,9 @@ describe("AuthProvider", () => {
     consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
     mocks.facade.restore.mockResolvedValue(null);
     mocks.facade.resumeServerAuth.mockResolvedValue(null);
-    mocks.facade.getProviders.mockResolvedValue([{ id: "server", name: "Server" }]);
+    mocks.facade.getProviders.mockResolvedValue([
+      { id: "server", name: "Server" },
+    ]);
     mocks.facade.getSessionStatus.mockResolvedValue(true);
     mocks.facade.getProfile.mockResolvedValue(PROFILE);
     mocks.facade.getEmails.mockResolvedValue({ emails: EMAILS });
@@ -98,10 +105,14 @@ describe("AuthProvider", () => {
   describe("cold-start bootstrap", () => {
     it("starts signed out with the default providers, then adopts the server list", async () => {
       const { result } = mountAuth();
-      expect(result.current.providers).toEqual([{ id: "default", name: "Default" }]);
+      expect(result.current.providers).toEqual([
+        { id: "default", name: "Default" },
+      ]);
 
       await waitFor(() =>
-        expect(result.current.providers).toEqual([{ id: "server", name: "Server" }]),
+        expect(result.current.providers).toEqual([
+          { id: "server", name: "Server" },
+        ]),
       );
       expect(result.current.isAuthenticated).toBe(false);
       expect(mocks.background.startTask).not.toHaveBeenCalled();
@@ -119,7 +130,10 @@ describe("AuthProvider", () => {
       expect(result.current.emails).toEqual(EMAILS);
       // A plain restore is not a fresh login: the image cache is untouched.
       expect(result.current.imageVersion).toBe(0);
-      expect(sessionTask()).toMatchObject({ id: "session-check", interval: 60_000 });
+      expect(sessionTask()).toMatchObject({
+        id: "session-check",
+        interval: 60_000,
+      });
     });
 
     it("passes the launch URL to resumeServerAuth and prefers the resumed user", async () => {
@@ -180,7 +194,9 @@ describe("AuthProvider", () => {
       mocks.facade.getSessionStatus.mockRejectedValue(new Error("offline"));
 
       const { result } = mountAuth();
-      await waitFor(() => expect(mocks.background.startTask).toHaveBeenCalledTimes(1));
+      await waitFor(() =>
+        expect(mocks.background.startTask).toHaveBeenCalledTimes(1),
+      );
       await settle();
 
       expect(result.current.user).toBe(CACHED);
@@ -302,9 +318,9 @@ describe("AuthProvider", () => {
       mocks.facade.loginWithProvider.mockRejectedValue(new Error("cancelled"));
 
       await act(async () => {
-        await expect(result.current.loginWithProvider("discord")).rejects.toThrow(
-          "cancelled",
-        );
+        await expect(
+          result.current.loginWithProvider("discord"),
+        ).rejects.toThrow("cancelled");
       });
 
       expect(result.current.isAuthenticating).toBe(false);
@@ -320,7 +336,10 @@ describe("AuthProvider", () => {
         await result.current.loginWithEmailCode("a@b.c", "1234");
       });
 
-      expect(mocks.facade.loginWithEmailCode).toHaveBeenCalledWith("a@b.c", "1234");
+      expect(mocks.facade.loginWithEmailCode).toHaveBeenCalledWith(
+        "a@b.c",
+        "1234",
+      );
       expect(result.current.user).toBe(FRESH);
     });
 
@@ -329,7 +348,9 @@ describe("AuthProvider", () => {
       await settle();
       mocks.facade.requestEmailLoginCode.mockResolvedValue({ ok: true });
 
-      await expect(result.current.requestEmailLoginCode("a@b.c")).resolves.toEqual({
+      await expect(
+        result.current.requestEmailLoginCode("a@b.c"),
+      ).resolves.toEqual({
         ok: true,
       });
       expect(mocks.facade.requestEmailLoginCode).toHaveBeenCalledWith("a@b.c");
@@ -379,7 +400,10 @@ describe("AuthProvider", () => {
 
     it("linkProvider reloads emails, bumps the image version and ends not-authenticating", async () => {
       const { result } = await mountSignedIn();
-      const NEW_EMAILS = [...EMAILS, { id: 8, email: "d@e.f", source: "discord" }];
+      const NEW_EMAILS = [
+        ...EMAILS,
+        { id: 8, email: "d@e.f", source: "discord" },
+      ];
       mocks.facade.getEmails.mockResolvedValue({ emails: NEW_EMAILS });
       mocks.facade.linkProvider.mockResolvedValue(undefined);
 
@@ -398,7 +422,9 @@ describe("AuthProvider", () => {
       mocks.facade.linkProvider.mockRejectedValue(new Error("denied"));
 
       await act(async () => {
-        await expect(result.current.linkProvider("discord")).rejects.toThrow("denied");
+        await expect(result.current.linkProvider("discord")).rejects.toThrow(
+          "denied",
+        );
       });
 
       expect(result.current.isAuthenticating).toBe(false);

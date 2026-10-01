@@ -2,6 +2,7 @@ import MaterialIcons from "@react-native-vector-icons/material-icons/static";
 import type { LinkedProvider, ProviderInfo } from "animu-api";
 import { ActivityIndicator, Text, TouchableOpacity, View } from "react-native";
 
+import { IconBox, RowBody, RowDivider } from "@/components/ListRow";
 import { MaskedValue } from "@/components/MaskedValue";
 import { ProviderIcon } from "@/components/ProviderIcon";
 import { SectionTitle } from "@/components/SectionTitle";
@@ -119,13 +120,12 @@ function ProviderRow({
 
   return (
     <View>
-      {showDivider && <View style={styles.divider} />}
+      {showDivider && <RowDivider />}
       <View style={styles.row}>
-        <View style={styles.rowIcon}>
+        <IconBox>
           <ProviderIcon provider={provider.name} size={THEME.ICON.MD} />
-        </View>
-        <View style={styles.rowBody}>
-          <Text style={styles.rowLabel}>{provider.label}</Text>
+        </IconBox>
+        <RowBody label={provider.label}>
           {linked && display ? (
             <MaskedValue
               value={display.value}
@@ -140,7 +140,7 @@ function ProviderRow({
               {linked ? dict.ACCOUNT_LINKED : dict.ACCOUNT_NOT_LINKED}
             </Text>
           )}
-        </View>
+        </RowBody>
         <RowAction provider={provider} linked={linked} {...actionProps} />
       </View>
     </View>
@@ -183,6 +183,9 @@ export function LinkedAccounts({
           />
         ))}
       </View>
+      {!canUnlink && linkedProviders.length === 1 && (
+        <Text style={styles.footnote}>{dict.ACCOUNT_LAST_PROVIDER}</Text>
+      )}
     </>
   );
 }

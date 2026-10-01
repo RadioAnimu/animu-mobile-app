@@ -24,7 +24,8 @@ import {
 import { RootStackParamList } from "@/routes/app.routes";
 import { coverCategoryLabel } from "@/constants/covers";
 import { formatBytes, interpolate, MB, percentOf } from "@/utils/format";
-import { Divider, SettingsRow } from "@/screens/Settings/rows";
+import { RowDivider } from "@/components/ListRow";
+import { SettingsRow } from "@/screens/Settings/rows";
 import { styles } from "@/screens/Storage/styles";
 
 type Props = DrawerScreenProps<RootStackParamList, "Storage">;
@@ -166,138 +167,134 @@ export function Storage({ navigation }: Props) {
     });
   };
 
-  return (      <SafeAreaView style={styles.container} edges={["left", "right", "bottom"]}>
-        <ScreenHeader
-          title={dict.STORAGE_TITLE}
-          onBack={() => navigation.goBack()}
+  return (
+    <SafeAreaView style={styles.container} edges={["left", "right", "bottom"]}>
+      <ScreenHeader
+        title={dict.STORAGE_TITLE}
+        onBack={() => navigation.goBack()}
+      />
+
+      <ScrollView contentContainerStyle={styles.appContainer}>
+        <CoverStorageCard
+          snapshot={snapshot}
+          measuring={measuring}
+          measure={measure}
         />
 
-        <ScrollView contentContainerStyle={styles.appContainer}>
-          <CoverStorageCard
-            snapshot={snapshot}
-            measuring={measuring}
-            measure={measure}
-          />
-
-          <SectionTitle
-            title={dict.SETTINGS_STORAGE_LIMIT_TITLE}
+        <SectionTitle
+          title={dict.SETTINGS_STORAGE_LIMIT_TITLE}
+          icon="sd-storage"
+        />
+        <View style={styles.group}>
+          <Select
+            label={dict.STORAGE_LIMIT_ROW}
             icon="sd-storage"
+            options={limitOptions}
+            value={String(settings.coverCacheLimitBytes)}
+            disabled={!settings.cacheEnabled}
+            onChange={(key) =>
+              updateSettings({ coverCacheLimitBytes: Number(key) })
+            }
           />
-          <View style={styles.group}>
-            <Select
-              label={dict.STORAGE_LIMIT_ROW}
-              icon="sd-storage"
-              options={limitOptions}
-              value={String(settings.coverCacheLimitBytes)}
-              disabled={!settings.cacheEnabled}
-              onChange={(key) =>
-                updateSettings({ coverCacheLimitBytes: Number(key) })
-              }
-            />
-          </View>
+        </View>
 
-          <SectionTitle
-            title={dict.STORAGE_ADVANCED_TITLE}
+        <SectionTitle title={dict.STORAGE_ADVANCED_TITLE} icon="tune" />
+        <View style={styles.group}>
+          <SettingsRow
             icon="tune"
+            label={dict.STORAGE_PARTITION_CUSTOM_LABEL}
+            description={dict.STORAGE_PARTITION_CUSTOM_DESC}
+            value={customOn}
+            disabled={advancedDisabled}
+            onToggle={() =>
+              updateSettings({
+                coverCachePartitionBytes: customOn
+                  ? null
+                  : defaultPartitions(limitBytes),
+              })
+            }
           />
-          <View style={styles.group}>
-            <SettingsRow
-              icon="tune"
-              label={dict.STORAGE_PARTITION_CUSTOM_LABEL}
-              description={dict.STORAGE_PARTITION_CUSTOM_DESC}
-              value={customOn}
-              disabled={advancedDisabled}
-              onToggle={() =>
-                updateSettings({
-                  coverCachePartitionBytes: customOn
-                    ? null
-                    : defaultPartitions(limitBytes),
-                })
-              }
-            />
-            {customOn &&
-              partitionRows.map(({ key, options, value }) => (
-                <Fragment key={key}>
-                  <Divider />
-                  <Select
-                    label={coverCategoryLabel(dict, key)}
-                    icon={PARTITION_ICONS[key]}
-                    description={
-                      caps
-                        ? interpolate(dict.STORAGE_PARTITION_CAP_DESC, {
-                            cap: formatBytes(caps[key]),
-                          })
-                        : undefined
-                    }
-                    options={options}
-                    value={value}
-                    disabled={advancedDisabled}
-                    onChange={(next) => setPartition(key, next)}
-                  />
-                </Fragment>
-              ))}
-          </View>
-          {limitUnlimited && settings.cacheEnabled && (
-            <Text style={styles.deviceCaption}>
-              {dict.STORAGE_PARTITION_NEEDS_LIMIT}
-            </Text>
-          )}
+          {customOn &&
+            partitionRows.map(({ key, options, value }) => (
+              <Fragment key={key}>
+                <RowDivider />
+                <Select
+                  label={coverCategoryLabel(dict, key)}
+                  icon={PARTITION_ICONS[key]}
+                  description={
+                    caps
+                      ? interpolate(dict.STORAGE_PARTITION_CAP_DESC, {
+                          cap: formatBytes(caps[key]),
+                        })
+                      : undefined
+                  }
+                  options={options}
+                  value={value}
+                  disabled={advancedDisabled}
+                  onChange={(next) => setPartition(key, next)}
+                />
+              </Fragment>
+            ))}
+        </View>
+        {limitUnlimited && settings.cacheEnabled && (
+          <Text style={styles.deviceCaption}>
+            {dict.STORAGE_PARTITION_NEEDS_LIMIT}
+          </Text>
+        )}
 
-          {capacity.totalBytes > 0 && (
-            <View
-              style={styles.deviceBarTrack}
-              accessibilityRole="progressbar"
-              accessibilityValue={{
-                min: 0,
-                max: capacity.totalBytes,
-                now: capacity.usedBytes,
-              }}
-            >
-              {/* Used space, split: everything else in the dim fill, the
+        {capacity.totalBytes > 0 && (
+          <View
+            style={styles.deviceBarTrack}
+            accessibilityRole="progressbar"
+            accessibilityValue={{
+              min: 0,
+              max: capacity.totalBytes,
+              now: capacity.usedBytes,
+            }}
+          >
+            {/* Used space, split: everything else in the dim fill, the
                   cached-covers share highlighted in the app's purple at the
                   end of the used span. */}
+            <View
+              style={[
+                styles.deviceBarFill,
+                {
+                  width: `${percentOf(
+                    capacity.usedBytes,
+                    capacity.totalBytes,
+                  )}%`,
+                },
+              ]}
+            >
               <View
                 style={[
-                  styles.deviceBarFill,
-                  {
-                    width: `${percentOf(
-                      capacity.usedBytes,
-                      capacity.totalBytes,
-                    )}%`,
-                  },
+                  styles.deviceBarOther,
+                  { flex: Math.max(capacity.usedBytes - cachedBytes, 0) },
                 ]}
-              >
-                <View
-                  style={[
-                    styles.deviceBarOther,
-                    { flex: Math.max(capacity.usedBytes - cachedBytes, 0) },
-                  ]}
-                />
-                {cachedBytes > 0 && (
-                  <View
-                    style={[styles.deviceBarCached, { flex: cachedBytes }]}
-                  />
-                )}
-              </View>
+              />
+              {cachedBytes > 0 && (
+                <View style={[styles.deviceBarCached, { flex: cachedBytes }]} />
+              )}
             </View>
-          )}
-          <Text style={styles.deviceCaption}>
-            {interpolate(dict.STORAGE_DEVICE_FREE, {
-              free: formatBytes(capacity.availableBytes),
-              total: formatBytes(capacity.totalBytes),
-            })}
+          </View>
+        )}
+        <Text style={styles.deviceCaption}>
+          {interpolate(dict.STORAGE_DEVICE_FREE, {
+            free: formatBytes(capacity.availableBytes),
+            total: formatBytes(capacity.totalBytes),
+          })}
+        </Text>
+        {capacity.totalBytes > 0 && (
+          <Text style={[styles.deviceCaption, styles.deviceCachedCaption]}>
+            {measuring && !snapshot
+              ? "· · ·"
+              : interpolate(dict.STORAGE_DEVICE_CACHED, {
+                  cached: formatBytes(cachedBytes),
+                  pct: cachedPct,
+                })}
           </Text>
-          {capacity.totalBytes > 0 && (
-            <Text style={[styles.deviceCaption, styles.deviceCachedCaption]}>
-              {measuring && !snapshot
-                ? "· · ·"
-                : interpolate(dict.STORAGE_DEVICE_CACHED, {
-                    cached: formatBytes(cachedBytes),
-                    pct: cachedPct,
-                  })}
-            </Text>
-          )}
-        </ScrollView>
-      </SafeAreaView>
+        )}
+      </ScrollView>
+    </SafeAreaView>
   );
 }
