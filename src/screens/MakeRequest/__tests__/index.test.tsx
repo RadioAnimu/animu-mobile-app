@@ -1,5 +1,11 @@
 // @vitest-environment jsdom
-import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
+import {
+  act,
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+} from "@testing-library/react";
 import { Keyboard } from "react-native";
 import { useContext, type ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -14,7 +20,9 @@ vi.mock("@react-native-vector-icons/material-icons/static", async () =>
   (await import("@/__tests__/react-native-mock")).createIconMock(),
 );
 vi.mock("react-native-safe-area-context", () => ({
-  SafeAreaView: ({ children }: { children: ReactNode }) => <div>{children}</div>,
+  SafeAreaView: ({ children }: { children: ReactNode }) => (
+    <div>{children}</div>
+  ),
 }));
 
 interface Track {
@@ -42,7 +50,9 @@ const sheet = vi.hoisted(() => ({
     visible: boolean;
     track?: Track;
     onClose: () => void;
-    onSubmit: (message: string) => Promise<{ success: boolean; message: string }>;
+    onSubmit: (
+      message: string,
+    ) => Promise<{ success: boolean; message: string }>;
     onRequestSuccess: (trackId: string) => void;
   },
 }));
@@ -85,7 +95,12 @@ const mocks = vi.hoisted(() => ({
   user: null as null | { sessionToken: string },
   settings: { selectedLanguage: "PT" },
   showError: vi.fn(),
-  recent: { recent: [] as string[], addRecent: vi.fn(), clearRecent: vi.fn() },
+  recent: {
+    recent: [] as string[],
+    addRecent: vi.fn(),
+    removeRecent: vi.fn(),
+    clearRecent: vi.fn(),
+  },
   haptics: { select: vi.fn(), error: vi.fn() },
   service: {
     searchTracksByTitle: vi.fn(),
@@ -113,14 +128,19 @@ vi.mock("@/hooks/useDict", () => ({
     REQUEST_SEARCH_EMPTY: "No results",
     REQUEST_SEARCH_RECENT: "Recent",
     REQUEST_SEARCH_RECENT_CLEAR: "Clear recent",
+    REQUEST_SEARCH_RECENT_REMOVE: "Remove",
     ERROR_RETRY: "Retry",
     LOGIN_ERROR: "Log in first",
     SELECT_ERROR: "Pick a track",
     REQUEST_SUCCESS: "Requested!",
   }),
 }));
-vi.mock("@/hooks/useRecentSearches", () => ({ useRecentSearches: () => mocks.recent }));
-vi.mock("@/hooks/useRouteReselect", () => ({ useRouteReselect: () => undefined }));
+vi.mock("@/hooks/useRecentSearches", () => ({
+  useRecentSearches: () => mocks.recent,
+}));
+vi.mock("@/hooks/useRouteReselect", () => ({
+  useRouteReselect: () => undefined,
+}));
 vi.mock("@/i18n", () => ({ IMGS: { PT: { MAKE_REQUEST: "make.png" } } }));
 vi.mock("@/utils/haptics", () => ({ haptics: mocks.haptics }));
 vi.mock("@/core/services/music-request.service", () => ({
@@ -134,7 +154,8 @@ const page = (titles: string[], nextPageParams?: object) => ({
 });
 
 const field = () => screen.getByRole("textbox", { name: "Search a title" });
-const type = (value: string) => fireEvent.change(field(), { target: { value } });
+const type = (value: string) =>
+  fireEvent.change(field(), { target: { value } });
 const submit = () => fireEvent.keyDown(field(), { key: "Enter" });
 
 async function search(query: string) {
@@ -146,7 +167,9 @@ describe("MakeRequest screen", () => {
   beforeEach(() => {
     mocks.user = { sessionToken: "sess" };
     mocks.recent.recent = [];
-    mocks.service.searchTracksByTitle.mockResolvedValue(page(["Gurenge", "Gurenge 2"]));
+    mocks.service.searchTracksByTitle.mockResolvedValue(
+      page(["Gurenge", "Gurenge 2"]),
+    );
     vi.spyOn(console, "error").mockImplementation(() => undefined);
   });
   afterEach(() => {
@@ -169,7 +192,9 @@ describe("MakeRequest screen", () => {
 
     it("searches on submit, lists results and remembers the query", async () => {
       await search("  guren ");
-      expect(mocks.service.searchTracksByTitle).toHaveBeenCalledExactlyOnceWith("guren");
+      expect(mocks.service.searchTracksByTitle).toHaveBeenCalledExactlyOnceWith(
+        "guren",
+      );
       expect(screen.getByText("Gurenge")).toBeTruthy();
       expect(screen.getByText("Gurenge 2")).toBeTruthy();
       expect(mocks.recent.addRecent).toHaveBeenCalledWith("guren");
@@ -177,7 +202,9 @@ describe("MakeRequest screen", () => {
 
     it("shows a spinner instead of the list while the search is in flight", async () => {
       let resolve: (value: unknown) => void = () => undefined;
-      mocks.service.searchTracksByTitle.mockReturnValue(new Promise((res) => (resolve = res)));
+      mocks.service.searchTracksByTitle.mockReturnValue(
+        new Promise((res) => (resolve = res)),
+      );
       type("guren");
       act(() => void submit());
       expect(screen.getByRole("progressbar")).toBeTruthy();
@@ -195,7 +222,9 @@ describe("MakeRequest screen", () => {
     });
 
     it("reports a failed search, shows the retry banner, and retry recovers", async () => {
-      mocks.service.searchTracksByTitle.mockRejectedValueOnce(new Error("offline"));
+      mocks.service.searchTracksByTitle.mockRejectedValueOnce(
+        new Error("offline"),
+      );
       await search("guren");
       expect(mocks.showError).toHaveBeenCalledWith("Search failed");
       expect(mocks.haptics.error).toHaveBeenCalledTimes(1);
@@ -203,7 +232,10 @@ describe("MakeRequest screen", () => {
       // No contradictory "no results" next to the error.
       expect(screen.queryByText("No results")).toBeNull();
 
-      await act(async () => void fireEvent.click(screen.getByRole("button", { name: "Retry" })));
+      await act(
+        async () =>
+          void fireEvent.click(screen.getByRole("button", { name: "Retry" })),
+      );
       expect(screen.queryByText("Retry")).toBeNull();
       expect(screen.getByText("Gurenge")).toBeTruthy();
     });
@@ -218,11 +250,15 @@ describe("MakeRequest screen", () => {
     });
 
     it("loads the next page and appends it", async () => {
-      mocks.service.searchTracksByTitle.mockResolvedValue(page(["A"], { page: 2 }));
+      mocks.service.searchTracksByTitle.mockResolvedValue(
+        page(["A"], { page: 2 }),
+      );
       mocks.service.searchTracksByQuery.mockResolvedValue(page(["B"]));
       await search("guren");
       await act(async () => void fireEvent.click(screen.getByText("more")));
-      expect(mocks.service.searchTracksByQuery).toHaveBeenCalledWith({ page: 2 });
+      expect(mocks.service.searchTracksByQuery).toHaveBeenCalledWith({
+        page: 2,
+      });
       expect(screen.getByText("A")).toBeTruthy();
       expect(screen.getByText("B")).toBeTruthy();
     });
@@ -234,13 +270,17 @@ describe("MakeRequest screen", () => {
     });
 
     it("keeps the list and toasts when loading more fails", async () => {
-      mocks.service.searchTracksByTitle.mockResolvedValue(page(["A"], { page: 2 }));
+      mocks.service.searchTracksByTitle.mockResolvedValue(
+        page(["A"], { page: 2 }),
+      );
       mocks.service.searchTracksByQuery.mockRejectedValue(new Error("x"));
       await search("guren");
       await act(async () => void fireEvent.click(screen.getByText("more")));
       expect(mocks.showError).toHaveBeenCalledWith("Search failed");
       expect(screen.getByText("A")).toBeTruthy();
-      expect(screen.getByTestId("results").getAttribute("data-loading-more")).toBe("false");
+      expect(
+        screen.getByTestId("results").getAttribute("data-loading-more"),
+      ).toBe("false");
     });
 
     it("pull-to-refresh re-runs the current query", async () => {
@@ -272,9 +312,9 @@ describe("MakeRequest screen", () => {
       mocks.recent.recent = ["naruto", "bleach"];
     });
 
-    it("appear while the empty field is focused, instead of the results", () => {
+    it("appear while the field is empty, focused or not, instead of the results", () => {
       render(<MakeRequest />);
-      expect(screen.queryByText("naruto")).toBeNull();
+      expect(screen.getByText("naruto")).toBeTruthy();
       fireEvent.focus(field());
       expect(screen.getByText("naruto")).toBeTruthy();
       expect(screen.getByText("bleach")).toBeTruthy();
@@ -295,6 +335,13 @@ describe("MakeRequest screen", () => {
       expect(Keyboard.dismiss).toHaveBeenCalledTimes(1);
       expect(mocks.service.searchTracksByTitle).toHaveBeenCalledWith("naruto");
       expect((field() as HTMLInputElement).value).toBe("naruto");
+    });
+
+    it("removing one leaves the rest alone", () => {
+      render(<MakeRequest />);
+      fireEvent.click(screen.getByRole("button", { name: "Remove: naruto" }));
+      expect(mocks.recent.removeRecent).toHaveBeenCalledWith("naruto");
+      expect(mocks.recent.clearRecent).not.toHaveBeenCalled();
     });
 
     it("clear wipes the history", () => {
@@ -358,7 +405,9 @@ describe("MakeRequest screen", () => {
 
     it("submits with the session token and the track's artwork", async () => {
       mocks.service.searchTracksByTitle.mockResolvedValue({
-        results: [{ id: "t1", title: "Gurenge", artwork: "art.jpg", requestable: true }],
+        results: [
+          { id: "t1", title: "Gurenge", artwork: "art.jpg", requestable: true },
+        ],
       });
       await search("guren!");
       fireEvent.click(screen.getByText("Gurenge"));

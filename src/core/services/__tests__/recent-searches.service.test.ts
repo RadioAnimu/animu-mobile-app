@@ -46,14 +46,22 @@ describe("recentSearchesService", () => {
     ]);
   });
 
-  it("caps the list at five entries", async () => {
-    for (const query of ["a", "b", "c", "d", "e", "f"]) {
+  it("caps the list at eight entries", async () => {
+    for (const query of ["a", "b", "c", "d", "e", "f", "g", "h", "i"]) {
       await recentSearchesService.add(query);
     }
 
     const all = await recentSearchesService.getAll();
-    expect(all).toHaveLength(5);
-    expect(all[0]).toBe("f");
+    expect(all).toHaveLength(8);
+    expect(all[0]).toBe("i");
+  });
+
+  it("removes a single query and keeps the rest", async () => {
+    await recentSearchesService.add("one");
+    await recentSearchesService.add("two");
+
+    await expect(recentSearchesService.remove("one")).resolves.toEqual(["two"]);
+    await expect(recentSearchesService.getAll()).resolves.toEqual(["two"]);
   });
 
   it("discards a corrupt stored value", async () => {

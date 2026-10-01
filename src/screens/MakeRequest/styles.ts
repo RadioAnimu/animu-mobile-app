@@ -8,7 +8,7 @@ const FIELD_ICON = scale(22);
 
 export const styles = StyleSheet.create({
   container: FLOW_STYLES.container,
-  appContainer: FLOW_STYLES.appContainer,
+  appContainer: { ...FLOW_STYLES.appContainer, paddingTop: THEME.SPACE.MD },
   logoWrapper: {
     marginVertical: THEME.SPACE.LG,
   },
@@ -103,6 +103,9 @@ export const styles = StyleSheet.create({
   recent: {
     width: "100%",
   },
+  recentContent: {
+    paddingBottom: THEME.SPACE.LG,
+  },
   recentHeader: {
     flexDirection: "row",
     alignItems: "center",
@@ -120,12 +123,28 @@ export const styles = StyleSheet.create({
     fontFamily: THEME.FONT_FAMILY.BOLD,
     fontSize: THEME.FONT_SIZE.LABEL,
   },
+  recentDivider: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: THEME.COLORS.HAIRLINE,
+    marginLeft: THEME.SPACE.LG + THEME.ICON.MD + THEME.SPACE.MD,
+  },
   recentRow: {
     flexDirection: "row",
     alignItems: "center",
+    minHeight: scale(52),
+  },
+  recentPick: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
     gap: THEME.SPACE.MD,
-    paddingVertical: THEME.SPACE.MD,
-    paddingHorizontal: THEME.SPACE.XS,
+    alignSelf: "stretch",
+    paddingLeft: THEME.SPACE.LG,
+  },
+  recentRemove: {
+    alignSelf: "stretch",
+    justifyContent: "center",
+    paddingHorizontal: THEME.SPACE.LG,
   },
   recentText: {
     flex: 1,

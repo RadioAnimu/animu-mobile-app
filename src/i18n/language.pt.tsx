@@ -358,6 +358,7 @@ const DICT: Dict = {
   REQUEST_SEARCH_MIN: "Digite pelo menos 3 letras",
   REQUEST_SEARCH_RECENT: "Pesquisas recentes",
   REQUEST_SEARCH_RECENT_CLEAR: "Limpar",
+  REQUEST_SEARCH_RECENT_REMOVE: "Remover das pesquisas recentes",
   REQUEST_SEARCH_EMPTY: "Nenhuma música encontrada. Tente outra busca.",
   REQUEST_SEARCH_ERROR:
     "Não foi possível pesquisar agora. Verifique sua conexão.",

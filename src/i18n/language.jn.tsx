@@ -354,6 +354,7 @@ const DICT: Dict = {
   REQUEST_SEARCH_MIN: "3文字以上入力してね",
   REQUEST_SEARCH_RECENT: "最近の検索",
   REQUEST_SEARCH_RECENT_CLEAR: "クリア",
+  REQUEST_SEARCH_RECENT_REMOVE: "最近の検索から削除",
   REQUEST_SEARCH_EMPTY: "曲が見つかりませんでした。別のキーワードで試してね。",
   REQUEST_SEARCH_ERROR: "検索できませんでした。接続を確認してね。",
   HARU_CHAN_TEXT: "はるちゃん",

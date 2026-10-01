@@ -1,10 +1,5 @@
 import MaterialIcons from "@react-native-vector-icons/material-icons/static";
-import {
-  useCallback,
-  useRef,
-  useState,
-  type ComponentProps,
-} from "react";
+import { useCallback, useRef, useState, type ComponentProps } from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -45,6 +40,7 @@ import type { Dict } from "@/i18n";
 import { THEME } from "@/theme";
 import { scale } from "@/theme/responsive";
 import { haptics } from "@/utils/haptics";
+import { layoutEase } from "@/utils/layout-animation";
 import { styles } from "@/screens/MakeRequest/styles";
 import { RecentSearches } from "@/screens/MakeRequest/RecentSearches";
 import { ResultsList } from "@/screens/MakeRequest/ResultsList";
@@ -208,13 +204,13 @@ export function MakeRequest() {
   const [selectedTrack, setSelectedTrack] = useState<MusicRequest | undefined>(
     undefined,
   );
-  /** Whether the field is focused — reveals the recent-searches list. */
+  /** Whether the field is focused — collapses the banner to make room. */
   const [searchFocused, setSearchFocused] = useState(false);
 
   /** Scroll position of the results list — reset when a fresh search lands. */
   const listRef = useRef<FlatList<MusicRequest> | null>(null);
 
-  const { recent, addRecent, clearRecent } = useRecentSearches();
+  const { recent, addRecent, removeRecent, clearRecent } = useRecentSearches();
 
   // Re-tapping the drawer's active item jumps the results back to the top.
   useRouteReselect("MakeRequest", () =>
@@ -280,9 +276,8 @@ export function MakeRequest() {
     const requestId = begin();
     setSearchState((prev) => ({ ...prev, status: "loadingMore" }));
     try {
-      const response = await musicRequestService.searchTracksByQuery(
-        nextPageParams,
-      );
+      const response =
+        await musicRequestService.searchTracksByQuery(nextPageParams);
       if (!isCurrent(requestId)) return;
       setSearchState((prev) => ({
         ...prev,
@@ -296,7 +291,14 @@ export function MakeRequest() {
       setSearchState((prev) => ({ ...prev, status: "idle" }));
       showError(dict.REQUEST_SEARCH_ERROR);
     }
-  }, [begin, isCurrent, searchState.pagination, searchState.status, showError, dict]);
+  }, [
+    begin,
+    isCurrent,
+    searchState.pagination,
+    searchState.status,
+    showError,
+    dict,
+  ]);
 
   const [refreshing, setRefreshing] = useState(false);
 
@@ -407,77 +409,87 @@ export function MakeRequest() {
     [],
   );
 
-  const showRecent =
-    searchFocused && searchState.query === "" && recent.length > 0;
+  // Recent searches fill the empty state, focused or not.
+  const showRecent = searchState.query === "" && recent.length > 0;
+  // The banner steps aside while searching so the list gets the room above
+  // the keyboard.
+  const showLogo = !searchFocused && searchState.query === "";
 
-  return (      <SafeAreaView style={styles.container} edges={["left", "right", "bottom"]}>
-        <HeaderBar />
-        <View style={styles.appContainer}>
+  return (
+    <SafeAreaView style={styles.container} edges={["left", "right", "bottom"]}>
+      <HeaderBar />
+      <View style={styles.appContainer}>
+        {showLogo && (
           <View style={styles.logoWrapper}>
             <Logo
               img={IMGS[settings.selectedLanguage].MAKE_REQUEST}
               size={LOGO_HEIGHT}
             />
           </View>
+        )}
 
-          <SearchBar
-            dict={dict}
-            query={searchState.query}
-            onChangeText={(query) =>
-              setSearchState((prev) => ({ ...prev, query }))
-            }
-            onSubmit={handleSearch}
-            onClear={handleClearSearch}
-            onFocusChange={setSearchFocused}
-          />
+        <SearchBar
+          dict={dict}
+          query={searchState.query}
+          onChangeText={(query) =>
+            setSearchState((prev) => ({ ...prev, query }))
+          }
+          onSubmit={handleSearch}
+          onClear={handleClearSearch}
+          onFocusChange={(focused) => {
+            layoutEase();
+            setSearchFocused(focused);
+          }}
+        />
 
-          {searchState.query.trim().length > 0 &&
-            searchState.query.trim().length < MIN_SEARCH_LENGTH && (
-              <Text style={styles.minHint}>{dict.REQUEST_SEARCH_MIN}</Text>
-            )}
-
-          {searchFailed && (
-            <SearchErrorBanner dict={dict} onRetry={handleSearch} />
+        {searchState.query.trim().length > 0 &&
+          searchState.query.trim().length < MIN_SEARCH_LENGTH && (
+            <Text style={styles.minHint}>{dict.REQUEST_SEARCH_MIN}</Text>
           )}
 
-          <View style={styles.listWrapper}>
-            <SearchBody
-              showRecent={showRecent}
-              loading={searchState.status === "loading"}
-              onRequestTrack={handleRequestTrack}
-              recentProps={{
-                dict,
-                items: recent,
-                onPick: handlePickRecent,
-                onClear: clearRecent,
-              }}
-              resultsProps={{
-                listRef,
-                data: searchState.results,
-                renderItem: renderRequestTrack,
-                showEmpty:
-                  hasSearched &&
-                  !searchFailed &&
-                  searchState.status === "idle" &&
-                  searchState.query.trim().length >= MIN_SEARCH_LENGTH,
-                emptyLabel: dict.REQUEST_SEARCH_EMPTY,
-                refreshing,
-                onRefresh: handleRefresh,
-                loadingMore: searchState.status === "loadingMore",
-                onEndReached: handleLoadMore,
-              }}
-            />
-          </View>
-        </View>
+        {searchFailed && (
+          <SearchErrorBanner dict={dict} onRetry={handleSearch} />
+        )}
 
-        <RequestBottomSheet
-          visible={!!selectedTrack}
-          track={selectedTrack}
-          user={user}
-          onClose={() => setSelectedTrack(undefined)}
-          onSubmit={handleSubmitRequest}
-          onRequestSuccess={handleRequestSuccess}
-        />
-      </SafeAreaView>
+        <View style={styles.listWrapper}>
+          <SearchBody
+            showRecent={showRecent}
+            loading={searchState.status === "loading"}
+            onRequestTrack={handleRequestTrack}
+            recentProps={{
+              dict,
+              items: recent,
+              onPick: handlePickRecent,
+              onRemove: removeRecent,
+              onClear: clearRecent,
+            }}
+            resultsProps={{
+              listRef,
+              data: searchState.results,
+              renderItem: renderRequestTrack,
+              showEmpty:
+                hasSearched &&
+                !searchFailed &&
+                searchState.status === "idle" &&
+                searchState.query.trim().length >= MIN_SEARCH_LENGTH,
+              emptyLabel: dict.REQUEST_SEARCH_EMPTY,
+              refreshing,
+              onRefresh: handleRefresh,
+              loadingMore: searchState.status === "loadingMore",
+              onEndReached: handleLoadMore,
+            }}
+          />
+        </View>
+      </View>
+
+      <RequestBottomSheet
+        visible={!!selectedTrack}
+        track={selectedTrack}
+        user={user}
+        onClose={() => setSelectedTrack(undefined)}
+        onSubmit={handleSubmitRequest}
+        onRequestSuccess={handleRequestSuccess}
+      />
+    </SafeAreaView>
   );
 }

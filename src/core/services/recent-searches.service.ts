@@ -3,7 +3,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 const STORAGE_KEY = "recentSearches";
 
 /** Kept queries: enough to be handy, few enough to scan at a glance. */
-const MAX_ITEMS = 5;
+const MAX_ITEMS = 8;
 
 /**
  * Recent request-search queries, most recent first.
@@ -27,10 +27,21 @@ class RecentSearchesService {
   /** Moves `query` to the front (de-duplicated) and returns the new list. */
   async add(query: string): Promise<string[]> {
     const current = await this.getAll();
-    const next = [
-      query,
-      ...current.filter((item) => item !== query),
-    ].slice(0, MAX_ITEMS);
+    const next = [query, ...current.filter((item) => item !== query)].slice(
+      0,
+      MAX_ITEMS,
+    );
+    try {
+      await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+    } catch (error) {
+      console.warn("[RecentSearches] save failed:", error);
+    }
+    return next;
+  }
+
+  /** Drops one query and returns the new list. */
+  async remove(query: string): Promise<string[]> {
+    const next = (await this.getAll()).filter((item) => item !== query);
     try {
       await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(next));
     } catch (error) {

@@ -350,6 +350,7 @@ const DICT = {
   REQUEST_SEARCH_MIN: "Type at least 3 characters",
   REQUEST_SEARCH_RECENT: "Recent searches",
   REQUEST_SEARCH_RECENT_CLEAR: "Clear",
+  REQUEST_SEARCH_RECENT_REMOVE: "Remove from recent searches",
   REQUEST_SEARCH_EMPTY: "No songs found. Try another search.",
   REQUEST_SEARCH_ERROR: "Couldn't search right now. Check your connection.",
   HARU_CHAN_TEXT: "HARU-CHAN",

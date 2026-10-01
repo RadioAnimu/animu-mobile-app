@@ -20,10 +20,15 @@ export function useRecentSearches() {
     void recentSearchesService.add(query).then(setRecent);
   }, []);
 
+  const removeRecent = useCallback((query: string) => {
+    setRecent((prev) => prev.filter((item) => item !== query));
+    void recentSearchesService.remove(query);
+  }, []);
+
   const clearRecent = useCallback(() => {
     setRecent([]);
     void recentSearchesService.clear();
   }, []);
 
-  return { recent, addRecent, clearRecent };
+  return { recent, addRecent, removeRecent, clearRecent };
 }
