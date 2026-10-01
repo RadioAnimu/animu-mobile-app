@@ -45,6 +45,9 @@ pipeline {
           corepack enable
           echo "node $(node --version) / pnpm $(pnpm --version)"
 
+          # Start from pristine packages: patch-package fails on a node_modules left
+          # patched or half-restored by a previous build.
+          rm -rf node_modules
           pnpm install --frozen-lockfile
 
           pnpm run typecheck
