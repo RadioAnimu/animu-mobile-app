@@ -390,9 +390,11 @@ export function Login({ navigation }: Props) {
 
   // Hardware back steps out of the connect form instead of leaving Login.
   const goBackRef = useRef(goBack);
-  goBackRef.current = goBack;
   const stepRef = useRef(step);
-  stepRef.current = step;
+  useEffect(() => {
+    goBackRef.current = goBack;
+    stepRef.current = step;
+  });
   useFocusEffect(
     useCallback(() => {
       const subscription = BackHandler.addEventListener(

@@ -3,6 +3,7 @@ import { StyleSheet } from "react-native";
 import { THEME } from "@/theme";
 import { ROW_STYLES } from "@/theme/screen";
 import { scale } from "@/theme/responsive";
+import { CONTINUOUS } from "@/theme/shape";
 
 const CONTENT_PADDING = THEME.SPACE.LG;
 
@@ -16,6 +17,7 @@ export const styles = StyleSheet.create({
     paddingHorizontal: CONTENT_PADDING,
     paddingVertical: THEME.SPACE.MD,
     borderRadius: THEME.RADIUS.CARD,
+    ...CONTINUOUS,
     backgroundColor: THEME.COLORS.DANGER,
   },
   actionDisabled: {

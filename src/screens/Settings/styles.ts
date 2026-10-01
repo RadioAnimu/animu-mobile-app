@@ -3,6 +3,7 @@ import { StyleSheet } from "react-native";
 import { THEME } from "@/theme";
 import { SCREEN_STYLES, ROW_STYLES } from "@/theme/screen";
 import { scale } from "@/theme/responsive";
+import { CONTINUOUS, avatarRadius } from "@/theme/shape";
 
 const CONTENT_PADDING = THEME.SPACE.LG;
 
@@ -27,8 +28,8 @@ export const styles = StyleSheet.create({
   accountAvatar: {
     width: scale(56),
     height: scale(56),
-    // Same rounded square as the Account header avatar.
-    borderRadius: scale(12),
+    borderRadius: avatarRadius(scale(56)),
+    ...CONTINUOUS,
     backgroundColor: THEME.COLORS.APP_BG,
   },
   accountInfo: {
@@ -80,7 +81,7 @@ export const styles = StyleSheet.create({
     height: SWITCH.TRACK_HEIGHT,
     borderRadius: SWITCH.TRACK_HEIGHT / 2,
     justifyContent: "center",
-    borderWidth: 1,
+    borderWidth: StyleSheet.hairlineWidth,
     borderColor: THEME.COLORS.HAIRLINE_SOFT,
   },
   switchThumb: {

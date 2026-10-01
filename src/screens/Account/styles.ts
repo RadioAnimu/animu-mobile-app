@@ -3,12 +3,13 @@ import { StyleSheet } from "react-native";
 import { THEME } from "@/theme";
 import { SCREEN_STYLES, ROW_STYLES } from "@/theme/screen";
 import { scale } from "@/theme/responsive";
+import { CONTINUOUS, avatarRadius, concentric } from "@/theme/shape";
 
 // 2015-Twitter header: a wide cover with a rounded-square avatar hanging off
 // its bottom-left.
 const BANNER_HEIGHT = scale(104);
 const AVATAR = scale(84);
-const AVATAR_RADIUS = scale(18);
+const AVATAR_RADIUS = avatarRadius(AVATAR);
 const AVATAR_BORDER = scale(4);
 const BADGE_SIZE = scale(20);
 const NAME_LINE = scale(28);
@@ -38,6 +39,7 @@ export const styles = StyleSheet.create({
   },
   card: {
     borderRadius: THEME.RADIUS.CARD,
+    ...CONTINUOUS,
     backgroundColor: THEME.COLORS.SURFACE,
     overflow: "hidden",
   },
@@ -58,7 +60,8 @@ export const styles = StyleSheet.create({
   avatarWrap: {
     alignSelf: "flex-start",
     marginTop: -AVATAR * 0.5,
-    borderRadius: AVATAR_RADIUS + AVATAR_BORDER,
+    borderRadius: concentric(AVATAR_RADIUS, AVATAR_BORDER),
+    ...CONTINUOUS,
     borderWidth: AVATAR_BORDER,
     borderColor: THEME.COLORS.SURFACE,
     backgroundColor: THEME.COLORS.APP_BG,
@@ -67,6 +70,7 @@ export const styles = StyleSheet.create({
     width: AVATAR,
     height: AVATAR,
     borderRadius: AVATAR_RADIUS,
+    ...CONTINUOUS,
   },
   // Name and @handle sit beside the avatar, in the strip under the cover.
   identityRow: {

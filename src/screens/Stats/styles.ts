@@ -3,6 +3,7 @@ import { StyleSheet } from "react-native";
 import { THEME } from "@/theme";
 import { scale } from "@/theme/responsive";
 import { SCREEN_STYLES } from "@/theme/screen";
+import { CONTINUOUS, avatarRadius } from "@/theme/shape";
 
 export const HEAT_CELL = 10;
 export const HEAT_GAP = 2;
@@ -228,6 +229,7 @@ export const styles = StyleSheet.create({
   // no minHeight/stretch, so the card is exactly as tall as its rows.
   shareCard: {
     borderRadius: THEME.RADIUS.CARD,
+    ...CONTINUOUS,
     overflow: "hidden",
   },
   shareCardBanner: {
@@ -257,7 +259,8 @@ export const styles = StyleSheet.create({
   shareCardAvatar: {
     width: scale(48),
     height: scale(48),
-    borderRadius: THEME.RADIUS.CIRCLE,
+    borderRadius: avatarRadius(scale(48)),
+    ...CONTINUOUS,
     borderWidth: scale(2),
     borderColor: THEME.COLORS.BRAND,
     backgroundColor: "rgba(0, 0, 0, 0.25)",

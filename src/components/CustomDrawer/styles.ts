@@ -2,6 +2,11 @@ import { StyleSheet } from "react-native";
 import { THEME } from "@/theme";
 import { ROW_STYLES } from "@/theme/screen";
 import { scale } from "@/theme/responsive";
+import { CONTINUOUS, avatarRadius, concentric } from "@/theme/shape";
+
+const AVATAR = scale(40);
+// Rows hug the 40px rounded-square avatar by its vertical padding.
+const ROW_RADIUS = concentric(avatarRadius(AVATAR), THEME.SPACE.SM);
 
 export const DRAWER_GRID = {
   SCREEN_MARGIN: scale(12),
@@ -33,14 +38,16 @@ export const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     marginHorizontal: DRAWER_GRID.SCREEN_MARGIN,
-    borderRadius: THEME.RADIUS.MD,
+    borderRadius: ROW_RADIUS,
+    ...CONTINUOUS,
   },
   accountIdentity: {
     flexDirection: "row",
     alignItems: "center",
     paddingHorizontal: THEME.SPACE.MD,
     paddingVertical: THEME.SPACE.SM,
-    borderRadius: THEME.RADIUS.MD,
+    borderRadius: ROW_RADIUS,
+    ...CONTINUOUS,
   },
   accountIdentityGrow: {
     flex: 1,
@@ -52,9 +59,10 @@ export const styles = StyleSheet.create({
     justifyContent: "center",
   },
   accountAvatar: {
-    width: scale(40),
-    height: scale(40),
-    borderRadius: scale(10),
+    width: AVATAR,
+    height: AVATAR,
+    borderRadius: avatarRadius(AVATAR),
+    ...CONTINUOUS,
     backgroundColor: THEME.COLORS.APP_BG,
   },
   accountIconBox: {
@@ -95,7 +103,8 @@ export const styles = StyleSheet.create({
     marginHorizontal: DRAWER_GRID.SCREEN_MARGIN,
     paddingHorizontal: THEME.SPACE.MD,
     paddingVertical: THEME.SPACE.MD,
-    borderRadius: THEME.RADIUS.MD,
+    borderRadius: ROW_RADIUS,
+    ...CONTINUOUS,
   },
   navItemFocused: {
     backgroundColor: THEME.COLORS.BRAND,

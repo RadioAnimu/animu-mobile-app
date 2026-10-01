@@ -3,6 +3,7 @@ import { StyleSheet } from "react-native";
 import { THEME } from "@/theme";
 import { ROW_STYLES } from "@/theme/screen";
 import { scale } from "@/theme/responsive";
+import { CONTINUOUS } from "@/theme/shape";
 
 // Big enough to actually judge a quality tier at a glance (the old 52 read
 // as a tiny swatch). The option row grows around it.
@@ -30,7 +31,7 @@ export const styles = StyleSheet.create({
   },
   label: ROW_STYLES.label,
   description: ROW_STYLES.description,
-  // A pill, not a bordered square: rounded fully, tone-on-tone, no outline.
+  // Tone-on-tone, no outline; same corner radius as the options panel it opens.
   value: {
     flexDirection: "row",
     alignItems: "center",
@@ -39,7 +40,8 @@ export const styles = StyleSheet.create({
     paddingHorizontal: THEME.SPACE.MD,
     paddingVertical: THEME.SPACE.SM,
     backgroundColor: THEME.COLORS.SURFACE_SUBTLE,
-    borderRadius: THEME.RADIUS.CIRCLE,
+    borderRadius: THEME.RADIUS.LG,
+    ...CONTINUOUS,
   },
   valueText: {
     flexShrink: 1,
@@ -54,6 +56,7 @@ export const styles = StyleSheet.create({
     marginBottom: THEME.SPACE.MD,
     backgroundColor: THEME.COLORS.SURFACE_SUBTLE,
     borderRadius: THEME.RADIUS.LG,
+    ...CONTINUOUS,
     overflow: "hidden",
   },
   separator: {
@@ -73,6 +76,7 @@ export const styles = StyleSheet.create({
     width: THUMB,
     height: THUMB,
     borderRadius: THEME.RADIUS.MD,
+    ...CONTINUOUS,
     borderWidth: scale(1.5),
     borderColor: THEME.COLORS.HAIRLINE,
     backgroundColor: THEME.COLORS.SURFACE,

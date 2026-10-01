@@ -1,6 +1,7 @@
 import { StyleSheet } from "react-native";
 
 import { THEME } from "@/theme";
+import { CONTINUOUS } from "@/theme/shape";
 
 /**
  * Shared page scaffold for the settings-style screens (Settings, Storage,
@@ -27,6 +28,7 @@ export const SCREEN_STYLES = StyleSheet.create({
   group: {
     backgroundColor: THEME.COLORS.SURFACE,
     borderRadius: THEME.RADIUS.CARD,
+    ...CONTINUOUS,
     overflow: "hidden",
   },
 });

@@ -82,7 +82,7 @@ const styles = StyleSheet.create({
     backgroundColor: THEME.COLORS.SURFACE,
     paddingHorizontal: THEME.SPACE.XXL,
     paddingVertical: THEME.SPACE.MD,
-    borderRadius: THEME.RADIUS.LG,
+    borderRadius: THEME.RADIUS.CIRCLE,
     marginTop: THEME.SPACE.SM,
   },
   buttonText: {

@@ -2,11 +2,13 @@ import { StyleSheet } from "react-native";
 
 import { THEME } from "@/theme";
 import { scale } from "@/theme/responsive";
+import { CONTINUOUS } from "@/theme/shape";
 
 export const styles = StyleSheet.create({
   card: {
     backgroundColor: THEME.COLORS.SURFACE,
     borderRadius: THEME.RADIUS.CARD,
+    ...CONTINUOUS,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: THEME.COLORS.HAIRLINE,
     padding: THEME.SPACE.LG,
@@ -95,7 +97,7 @@ export const styles = StyleSheet.create({
     gap: THEME.SPACE.SM,
     minHeight: scale(48),
     marginTop: THEME.SPACE.XS,
-    borderRadius: THEME.RADIUS.XL,
+    borderRadius: THEME.RADIUS.CIRCLE,
     backgroundColor: THEME.COLORS.BRAND,
   },
   cleanBusy: {

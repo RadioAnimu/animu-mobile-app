@@ -67,6 +67,9 @@ export function AppRoutes() {
 
   return (
     <Navigator
+      // Back (header arrow and hardware) returns to the screen you came from,
+      // not always to the player.
+      backBehavior="history"
       screenOptions={{
         headerShown: false,
         overlayColor: THEME.COLORS.SCRIM,
@@ -116,31 +119,19 @@ export function AppRoutes() {
         name="Settings"
         component={Settings}
       />
-      <Screen
-        options={HIDDEN_ITEM_OPTIONS}
-        name="Stats"
-        component={Stats}
-      />
+      <Screen options={HIDDEN_ITEM_OPTIONS} name="Stats" component={Stats} />
       <Screen
         options={HIDDEN_ITEM_OPTIONS}
         name="Storage"
         component={Storage}
       />
-      <Screen
-        options={HIDDEN_ITEM_OPTIONS}
-        name="Login"
-        component={Login}
-      />
+      <Screen options={HIDDEN_ITEM_OPTIONS} name="Login" component={Login} />
       <Screen
         options={HIDDEN_ITEM_OPTIONS}
         name="Account"
         component={Account}
       />
-      <Screen
-        options={HIDDEN_ITEM_OPTIONS}
-        name="About"
-        component={About}
-      />
+      <Screen options={HIDDEN_ITEM_OPTIONS} name="About" component={About} />
     </Navigator>
   );
 }
