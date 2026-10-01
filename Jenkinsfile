@@ -69,6 +69,10 @@ pipeline {
             --bundle-output /tmp/index.android.bundle \
             --assets-dest /tmp/animu-assets --dev false
 
+          # Size budget (measured 3.21 MB JS / 1.81 MB assets, ~10% headroom).
+          node scripts/check-bundle-size.mjs /tmp/index.android.bundle 3500000 \
+            /tmp/animu-assets 2000000
+
           # React Doctor gate (any finding fails the build).
           pnpm run doctor:gate
         '''

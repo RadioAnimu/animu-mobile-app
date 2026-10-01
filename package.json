@@ -21,7 +21,8 @@
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
     "doctor": "react-doctor",
-    "doctor:gate": "node scripts/react-doctor-gate.mjs"
+    "doctor:gate": "node scripts/react-doctor-gate.mjs",
+    "check:bundle-size": "node scripts/check-bundle-size.mjs"
   },
   "dependencies": {
     "@react-native-async-storage/async-storage": "2.2.0",
