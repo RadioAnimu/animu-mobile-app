@@ -517,6 +517,49 @@ describe("listenStatsService persistence scheduling", () => {
     expect(AsyncStorage.setItem).toHaveBeenCalledTimes(2);
   });
 
+  it("writes 1 Hz audible ticks once per 30s instead of every beat", async () => {
+    const service = new ListenStatsService();
+    await service.initialize();
+
+    const start = Date.now();
+    service.onPlaybackStarted();
+    for (let i = 1; i <= 29; i++) {
+      service.onAudibleTick(start + i * 1_000);
+      await vi.advanceTimersByTimeAsync(1_000);
+    }
+    expect(AsyncStorage.setItem).not.toHaveBeenCalled();
+
+    await vi.advanceTimersByTimeAsync(1_000);
+    expect(AsyncStorage.setItem).toHaveBeenCalledTimes(1);
+  });
+
+  it("persists accrued audio promptly when playback stops", async () => {
+    const service = new ListenStatsService();
+    await service.initialize();
+
+    const start = Date.now();
+    service.onPlaybackStarted();
+    service.onAudibleTick(start + 1_000);
+    service.onAudibleTick(start + 2_000);
+    service.onPlaybackStopped();
+
+    await vi.advanceTimersByTimeAsync(2_000);
+    expect(AsyncStorage.setItem).toHaveBeenCalledTimes(1);
+  });
+
+  it("lets a discrete event pull a pending slow flush forward", async () => {
+    const service = new ListenStatsService();
+    await service.initialize();
+
+    const start = Date.now();
+    service.onPlaybackStarted();
+    service.onAudibleTick(start + 1_000);
+    service.onShoutSubmitted(true);
+
+    await vi.advanceTimersByTimeAsync(2_000);
+    expect(AsyncStorage.setItem).toHaveBeenCalledTimes(1);
+  });
+
   it("degrades to memory-only (warns, keeps counting) when a save fails", async () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     vi.mocked(AsyncStorage.setItem).mockRejectedValueOnce(new Error("disk full"));

@@ -17,6 +17,14 @@ const HOUR_DETAIL_DAYS = 120;
 const MAX_DAYS = 400;
 /** A play session counts only past this much accumulated audio (Spotify's 30s rule). */
 export const MIN_SESSION_MS = 30_000;
+
+/** Write delay after a discrete event (track heard, request, stop). */
+const FLUSH_EVENT_MS = 2_000;
+/**
+ * Write delay when only 1 Hz audible ticks are pending. A process kill loses
+ * at most this much listening time; stop/pause flush promptly regardless.
+ */
+const FLUSH_AUDIBLE_MS = 30_000;
 /** Storage key — one JSON blob, versioned for future migrations. */
 const STORAGE_KEY = "listenStats";
 /** Blob schema version. */
@@ -275,6 +283,7 @@ export class ListenStatsService {
   private flushTimer: ReturnType<typeof setTimeout> | null = null;
   /** Dirty flag — coalesces bursts of updates into one write. */
   private dirty = false;
+  private flushDeadline = 0;
 
   // Recording state (not persisted; a crash loses at most the open segment)
   private segmentStart: number | null = null;
@@ -325,10 +334,19 @@ export class ListenStatsService {
     return existing;
   }
 
-  /** Best-effort debounced write; a failure degrades to memory-only. */
-  private scheduleFlush(): void {
+  /**
+   * Best-effort coalesced write; a failure degrades to memory-only. The
+   * earliest requested deadline wins, so a discrete event never waits behind
+   * the slow audible-tick cadence.
+   */
+  private scheduleFlush(delayMs: number = FLUSH_EVENT_MS): void {
     this.dirty = true;
-    if (this.flushTimer) return;
+    const deadline = Date.now() + delayMs;
+    if (this.flushTimer) {
+      if (deadline >= this.flushDeadline) return;
+      clearTimeout(this.flushTimer);
+    }
+    this.flushDeadline = deadline;
     this.flushTimer = setTimeout(() => {
       this.flushTimer = null;
       if (!this.dirty) return;
@@ -337,7 +355,7 @@ export class ListenStatsService {
       AsyncStorage.setItem(STORAGE_KEY, json).catch((error) => {
         console.warn("[ListenStats] save failed:", error);
       });
-    }, 2000);
+    }, delayMs);
   }
 
   // ── Recording API (called by PlayerService) ──
@@ -381,7 +399,7 @@ export class ListenStatsService {
       if (d.firstAt == null || now < d.firstAt) d.firstAt = now;
       if (d.lastAt == null || now > d.lastAt) d.lastAt = now;
     }
-    this.scheduleFlush();
+    this.scheduleFlush(FLUSH_AUDIBLE_MS);
   }
 
   /** The transport left `playing` (pause, loss, teardown). Closes the session. */
@@ -393,9 +411,10 @@ export class ListenStatsService {
       if (this.currentSessionMs >= MIN_SESSION_MS) {
         const day = dayKeyOf(Date.now());
         this.ensureDay(day).sessions += 1;
-        this.scheduleFlush();
       }
       this.currentSessionMs = 0;
+      // Audible ticks only schedule slow flushes; persist what accrued now.
+      this.scheduleFlush();
     }
   }
 
