@@ -336,7 +336,7 @@ const DICT: Dict = {
   SEND_REQUEST_PLACEHOLDER: "ここにメッセージを書いてね",
   LOGIN_ERROR: "リクエストするにはログインが必要だよ",
   SELECT_ERROR: "選曲に失敗しちゃった",
-  REQUEST_ERROR: "リクエスト失敗: ",
+  REQUEST_ERROR: "リクエストを送れませんでした。もう一度お試しください。",
   REQUEST_ERROR_PEDIBLOCK:
     "この曲はもうリクエストされたよ。{time}のあとにまたリクエストできるよ。",
   REQUEST_ERROR_PEDIBLOCK_RECENT: "この曲はさっきリクエストされたばかりだよ。",
@@ -370,6 +370,7 @@ const DICT: Dict = {
     "エラーなのですっ！90分ごとにできるリクエストは3曲までだよっ！🎶💜",
   LIVE_REQUEST_TITLE: "放送中のDJにリクエストを送ろう！",
   OPTIONAL_LABEL: "任意",
+  FORM_ERROR_REQUIRED: "この項目は必須です",
   FORM_PLACEHOLDER_NICK: "名前かニックネームを入力してね",
   FORM_PLACEHOLDER_CITY: "住んでいる場所を入力してね",
   FORM_PLACEHOLDER_ARTIST: "アーティスト名を入力してね",

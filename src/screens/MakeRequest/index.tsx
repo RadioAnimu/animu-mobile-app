@@ -182,7 +182,7 @@ function SearchBody({
 export function MakeRequest() {
   const { user } = useAuth();
   const { settings } = useUserSettings();
-  const { error: showError } = useAlert();
+  const { toast } = useAlert();
   const dict = useDict();
 
   const [searchState, setSearchState] = useState<{
@@ -247,10 +247,10 @@ export function MakeRequest() {
         setSearchFailed(true);
         setSearchState((prev) => ({ ...prev, status: "idle" }));
         haptics.error();
-        showError(dict.REQUEST_SEARCH_ERROR);
+        toast(dict.REQUEST_SEARCH_ERROR, "error");
       }
     },
-    [addRecent, begin, isCurrent, showError, dict],
+    [addRecent, begin, isCurrent, toast, dict],
   );
 
   const handleSearch = useCallback(
@@ -289,14 +289,14 @@ export function MakeRequest() {
       console.error("[MakeRequest] search failed:", err);
       if (!isCurrent(requestId)) return;
       setSearchState((prev) => ({ ...prev, status: "idle" }));
-      showError(dict.REQUEST_SEARCH_ERROR);
+      toast(dict.REQUEST_SEARCH_ERROR, "error");
     }
   }, [
     begin,
     isCurrent,
     searchState.pagination,
     searchState.status,
-    showError,
+    toast,
     dict,
   ]);
 
@@ -325,11 +325,11 @@ export function MakeRequest() {
       if (!isCurrent(requestId)) return;
       setSearchFailed(true);
       setSearchState((prev) => ({ ...prev, status: "idle" }));
-      showError(dict.REQUEST_SEARCH_ERROR);
+      toast(dict.REQUEST_SEARCH_ERROR, "error");
     } finally {
       setRefreshing(false);
     }
-  }, [begin, isCurrent, searchState.query, showError, dict]);
+  }, [begin, isCurrent, searchState.query, toast, dict]);
 
   /** One tap empties the field, the old results and every error state. */
   const handleClearSearch = useCallback(() => {
@@ -398,9 +398,18 @@ export function MakeRequest() {
   }, []);
 
   /** Stable row-action handler, handed to rows via `TrackRequestContext`. */
-  const handleRequestTrack = useCallback((track: MusicRequest) => {
-    if (track.requestable) setSelectedTrack(track);
-  }, []);
+  const handleRequestTrack = useCallback(
+    (track: MusicRequest) => {
+      if (!track.requestable) return;
+      if (!user?.sessionToken) {
+        haptics.error();
+        toast(dict.LOGIN_ERROR, "error");
+        return;
+      }
+      setSelectedTrack(track);
+    },
+    [user?.sessionToken, toast, dict.LOGIN_ERROR],
+  );
 
   const renderRequestTrack = useCallback(
     ({ item }: { item: MusicRequest & { requestable: boolean } }) => (

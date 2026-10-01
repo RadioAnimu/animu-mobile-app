@@ -2,7 +2,10 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { act, cleanup, renderHook } from "@testing-library/react";
 
-import { useLiveRequestForm } from "@/hooks/useLiveRequestForm";
+import {
+  getMissingLiveFields,
+  useLiveRequestForm,
+} from "@/hooks/useLiveRequestForm";
 
 afterEach(cleanup);
 
@@ -61,5 +64,30 @@ describe("useLiveRequestForm", () => {
     act(() => result.current.setters.setMusic("Gurenge"));
 
     expect(result.current.getFormData().music).toBe("Gurenge");
+  });
+});
+
+describe("getMissingLiveFields", () => {
+  const filled = {
+    name: "a",
+    city: "b",
+    artist: "c",
+    music: "d",
+    anime: "e",
+    request: "",
+  };
+
+  it("returns nothing when every required field is filled", () => {
+    expect(getMissingLiveFields(filled)).toEqual([]);
+  });
+
+  it("lists blank and whitespace-only fields in on-screen order", () => {
+    expect(
+      getMissingLiveFields({ ...filled, anime: "", city: "   ", music: "" }),
+    ).toEqual(["city", "music", "anime"]);
+  });
+
+  it("never requires the optional message", () => {
+    expect(getMissingLiveFields({ ...filled, request: "" })).toEqual([]);
   });
 });

@@ -1,243 +1,210 @@
-import { useEffect, useRef, useState } from "react";
-import {
-  ActivityIndicator,
-  ScrollView,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
-} from "react-native";
-import { THEME } from "@/theme";
+import { useRef, useState } from "react";
+import { ScrollView, TextInput } from "react-native";
+
+import { FormField } from "@/components/FormField";
+import { RequestSubmitButton } from "@/components/RequestSubmitButton";
+import { Sheet } from "@/components/Sheet";
+import { SheetBanner } from "@/components/SheetBanner";
 import { styles } from "@/components/LiveRequestModal/styles";
-import { useDict } from "@/hooks/useDict";
 import { useAlert } from "@/contexts/alert/AlertProvider";
 import { useAuth } from "@/contexts/auth/AuthProvider";
-import { useLiveRequestForm } from "@/hooks/useLiveRequestForm";
-import { liveRequestService } from "@/core/services/live-request.service";
 import type { LiveRequest } from "@/core/domain/live-request";
+import { liveRequestService } from "@/core/services/live-request.service";
+import { useChip } from "@/hooks/useChip";
+import { useDict } from "@/hooks/useDict";
+import {
+  LIVE_FIELD_MAX,
+  LIVE_MESSAGE_MAX,
+  getMissingLiveFields,
+  trimLiveRequest,
+  useLiveRequestForm,
+} from "@/hooks/useLiveRequestForm";
 import { haptics } from "@/utils/haptics";
-import { Sheet } from "@/components/Sheet";
+import { layoutEase } from "@/utils/layout-animation";
+
+/** "Live!" — decorative katakana, like Haruka's section art. */
+const LIVE_STICKER = "ライブ!";
+
+type SubmitStatus = "idle" | "submitting" | "success" | "error";
 
 interface Props {
   visible: boolean;
   handleClose: () => void;
 }
 
-interface LabelProps {
-  text: string;
-  optional?: boolean;
-}
-
-function Label({ text, optional }: LabelProps) {
-  const dict = useDict();
-
-  return (
-    <Text style={styles.label}>
-      {text}
-      {optional && ` (${dict.OPTIONAL_LABEL})`}:
-    </Text>
-  );
-}
-
-interface InputProps {
-  value: string;
-  onChangeText: (text: string) => void;
-  disabled?: boolean;
-  multiline?: boolean;
-  placeholder?: string;
-  accessibilityLabel: string;
-}
-
-function Input({
-  value,
-  onChangeText,
-  disabled,
-  placeholder,
-  multiline,
-  accessibilityLabel,
-}: InputProps) {
-  return (
-    <TextInput
-      style={[styles.input, disabled && styles.inputDisabled]}
-      value={value}
-      onChangeText={onChangeText}
-      editable={!disabled}
-      placeholder={placeholder}
-      accessibilityLabel={accessibilityLabel}
-      multiline={multiline}
-      numberOfLines={multiline ? 3 : 1}
-    />
-  );
-}
-
-interface FormField {
-  label: string;
-  optional?: boolean;
-  name: keyof LiveRequest;
-  input: {
-    onChangeText: (text: string) => void;
-    placeholder: string;
-    multiline?: boolean;
-  };
-}
-
 export function LiveRequestModal({ visible, handleClose }: Props) {
-  const { success, error: showError } = useAlert();
-  const { user } = useAuth();
-  const [isSubmitting, setIsSubmitting] = useState(false);
-
-  const { formData, setters, reset, getFormData, isFormValid } =
-    useLiveRequestForm({
-      name: user?.nickname || user?.username || "",
-    });
-
   const t = useDict();
+  const { user } = useAuth();
+  const { toast } = useAlert();
+  const { chip, showChip, clearChip } = useChip();
+  const defaultName = user?.nickname || user?.username || "";
 
-  // The modal stays mounted with Home, so the hook's initial name is
-  // captured before the session is restored — prefill from the current
-  // user each time the sheet opens (and clear any previous session's form).
-  const settersRef = useRef(setters);
-  // Latest-ref pattern in an effect, never in render — a discarded
-  // concurrent render must not leave a stale setter behind.
-  useEffect(() => {
-    settersRef.current = setters;
+  const { formData, setters, setField, reset } = useLiveRequestForm({
+    name: defaultName,
   });
-  const wasVisible = useRef(false);
-  useEffect(() => {
-    if (visible && !wasVisible.current) {
-      const defaultName = user?.nickname || user?.username || "";
-      if (defaultName) settersRef.current.setName(defaultName);
-    }
-    wasVisible.current = visible;
-  }, [visible, user]);
 
-  const closeAndReset = () => {
-    reset();
-    handleClose();
+  const [status, setStatus] = useState<SubmitStatus>("idle");
+  /** Field errors only appear after a first send attempt, then track edits. */
+  const [attempted, setAttempted] = useState(false);
+  /** Whose draft the form holds (a new session must not inherit it). */
+  const [draftOwner, setDraftOwner] = useState(user?.id);
+
+  const inputs = useRef<Partial<Record<keyof LiveRequest, TextInput | null>>>(
+    {},
+  );
+
+  // The sheet stays mounted with Home. On each open the draft is kept (a
+  // swipe-away must not cost the user their typing) unless it was already
+  // sent or belongs to another session; the name re-prefills when empty.
+  // "Adjust state during render" pattern: compiler-safe, no effect cascade.
+  const [wasVisible, setWasVisible] = useState(visible);
+  if (wasVisible !== visible) {
+    setWasVisible(visible);
+    if (visible) {
+      const fresh = status === "success" || draftOwner !== user?.id;
+      if (fresh) {
+        reset();
+        setAttempted(false);
+        setDraftOwner(user?.id);
+      }
+      if (fresh || !formData.name) setters.setName(defaultName);
+      setStatus("idle");
+    }
+  }
+
+  const missing = attempted ? getMissingLiveFields(formData) : [];
+  const fieldError = (field: keyof LiveRequest) =>
+    (missing as string[]).includes(field) ? t.FORM_ERROR_REQUIRED : undefined;
+
+  const handleChange = (field: keyof LiveRequest, text: string) => {
+    setField(field, text);
+    // Editing after a failure clears the retry state.
+    if (status === "error") {
+      layoutEase();
+      setStatus("idle");
+    }
+  };
+
+  const fail = (text: string) => {
+    haptics.error();
+    layoutEase();
+    setStatus("error");
+    showChip(text, "error");
   };
 
   const handleSubmit = async () => {
-    if (isSubmitting) return;
+    if (status === "submitting" || status === "success") return;
 
-    if (!isFormValid()) {
-      showError(t.LOGIN_MISSING_FIELDS);
+    const invalid = getMissingLiveFields(formData);
+    setAttempted(true);
+    if (invalid.length > 0) {
+      haptics.error();
+      layoutEase();
+      inputs.current[invalid[0]]?.focus();
       return;
     }
 
-    try {
-      setIsSubmitting(true);
-      const result = await liveRequestService.submitRequest(getFormData());
+    layoutEase();
+    setStatus("submitting");
 
+    const payload = trimLiveRequest(formData);
+
+    try {
+      const result = await liveRequestService.submitRequest(payload);
       if (result.success) {
         haptics.success();
-        success(t.REQUEST_SUCCESS);
-        closeAndReset();
+        layoutEase();
+        setStatus("success");
+        toast(t.REQUEST_SUCCESS, "success");
+        handleClose();
+      } else if (result.error === "IN_PROGRESS") {
+        // A duplicate tap — the first submit owns the outcome.
+        return;
       } else {
-        haptics.error();
-        showError(t.REQUEST_ERROR);
+        fail(t.REQUEST_ERROR);
       }
     } catch (error) {
-      haptics.error();
       console.error("[LiveRequestModal] Submit failed:", error);
-      showError(t.REQUEST_ERROR);
-    } finally {
-      setIsSubmitting(false);
+      fail(t.REQUEST_ERROR);
     }
   };
 
-  const FORM_BUILDER_MAPPER: FormField[] = [
-    {
-      label: t.FORM_LABEL_NICK,
-      name: "name",
-      input: {
-        onChangeText: setters.setName,
-        placeholder: t.FORM_PLACEHOLDER_NICK,
-      },
+  const isSubmitting = status === "submitting";
+  const isError = status === "error";
+
+  const fieldProps = (field: keyof LiveRequest, next?: keyof LiveRequest) => ({
+    value: formData[field],
+    onChangeText: (text: string) => handleChange(field, text),
+    error: fieldError(field),
+    editable: !isSubmitting,
+    inputRef: (node: TextInput | null) => {
+      inputs.current[field] = node;
     },
-    {
-      label: t.FORM_LABEL_CITY,
-      name: "city",
-      input: {
-        onChangeText: setters.setCity,
-        placeholder: t.FORM_PLACEHOLDER_CITY,
-      },
-    },
-    {
-      label: t.FORM_LABEL_ARTIST,
-      name: "artist",
-      input: {
-        onChangeText: setters.setArtist,
-        placeholder: t.FORM_PLACEHOLDER_ARTIST,
-      },
-    },
-    {
-      label: t.FORM_LABEL_MUSIC,
-      name: "music",
-      input: {
-        onChangeText: setters.setMusic,
-        placeholder: t.FORM_PLACEHOLDER_MUSIC,
-      },
-    },
-    {
-      label: t.FORM_LABEL_ANIME,
-      name: "anime",
-      input: {
-        onChangeText: setters.setAnime,
-        placeholder: t.FORM_PLACEHOLDER_ANIME,
-      },
-    },
-    {
-      label: t.FORM_LABEL_REQUEST,
-      optional: true,
-      name: "request",
-      input: {
-        onChangeText: setters.setRequest,
-        placeholder: t.FORM_PLACEHOLDER_REQUEST,
-        multiline: true,
-      },
-    },
-  ];
+    maxLength: field === "request" ? LIVE_MESSAGE_MAX : LIVE_FIELD_MAX,
+    ...(next && {
+      returnKeyType: "next" as const,
+      submitBehavior: "submit" as const,
+      onSubmitEditing: () => inputs.current[next]?.focus(),
+    }),
+  });
 
   return (
     <Sheet
       visible={visible}
-      onClose={closeAndReset}
+      onClose={handleClose}
       // Mid-submit dismissal is blocked like the music-request sheet: a
-      // close while the POST is in flight would orphan the outcome toast.
+      // close while the POST is in flight would orphan the outcome.
       closable={!isSubmitting}
       withKeyboard
+      chip={chip}
+      onChipDone={clearChip}
     >
       <ScrollView
-        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"
+        contentContainerStyle={styles.scrollContent}
       >
-        <Text style={styles.title}>{t.LIVE_REQUEST_TITLE}</Text>
-        {FORM_BUILDER_MAPPER.map((item) => (
-          <View style={styles.field} key={item.name}>
-            <Label text={item.label} optional={item.optional} />
-            <Input
-              value={formData[item.name]}
-              onChangeText={item.input.onChangeText}
-              placeholder={item.input.placeholder}
-              multiline={item.input.multiline}
-              accessibilityLabel={item.label}
-              disabled={isSubmitting}
-            />
-          </View>
-        ))}
-        {isSubmitting ? (
-          <ActivityIndicator color={THEME.COLORS.TEXT} />
-        ) : (
-          <TouchableOpacity
-            accessibilityRole="button"
-            accessibilityState={{ disabled: isSubmitting, busy: isSubmitting }}
-            onPress={handleSubmit}
-            style={styles.okButton}
-          >
-            <Text style={styles.okText}>{t.SEND_REQUEST_BUTTON_TEXT}</Text>
-          </TouchableOpacity>
-        )}
+        <SheetBanner live sticker={LIVE_STICKER} title={t.LIVE_REQUEST_TITLE} />
+
+        <FormField
+          label={t.FORM_LABEL_NICK}
+          placeholder={t.FORM_PLACEHOLDER_NICK}
+          {...fieldProps("name", "city")}
+        />
+        <FormField
+          label={t.FORM_LABEL_CITY}
+          placeholder={t.FORM_PLACEHOLDER_CITY}
+          {...fieldProps("city", "music")}
+        />
+        <FormField
+          label={t.FORM_LABEL_MUSIC}
+          placeholder={t.FORM_PLACEHOLDER_MUSIC}
+          {...fieldProps("music", "artist")}
+        />
+        <FormField
+          label={t.FORM_LABEL_ARTIST}
+          placeholder={t.FORM_PLACEHOLDER_ARTIST}
+          {...fieldProps("artist", "anime")}
+        />
+        <FormField
+          label={t.FORM_LABEL_ANIME}
+          placeholder={t.FORM_PLACEHOLDER_ANIME}
+          {...fieldProps("anime", "request")}
+        />
+        <FormField
+          label={t.FORM_LABEL_REQUEST}
+          optional
+          multiline
+          placeholder={t.FORM_PLACEHOLDER_REQUEST}
+          {...fieldProps("request")}
+        />
+
+        <RequestSubmitButton
+          submitting={isSubmitting}
+          failed={isError}
+          onPress={handleSubmit}
+        />
       </ScrollView>
     </Sheet>
   );

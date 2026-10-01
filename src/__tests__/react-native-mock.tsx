@@ -170,6 +170,7 @@ export function createReactNativeMock() {
       View: host("div"),
       Text: host("span"),
       timing: vi.fn(animation),
+      spring: vi.fn(animation),
       sequence: vi.fn(animation),
       loop: vi.fn(animation),
       delay: vi.fn(animation),

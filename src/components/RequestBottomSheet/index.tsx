@@ -1,23 +1,19 @@
-import MaterialIcons from "@react-native-vector-icons/material-icons/static";
 import { useState } from "react";
-import {
-  ActivityIndicator,
-  ScrollView,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
-} from "react-native";
+import { ScrollView, Text, View } from "react-native";
 
 import { MusicRequest } from "@/core/domain/music-request";
 import { User } from "@/core/domain/user";
+import { useAlert } from "@/contexts/alert/AlertProvider";
+import { useChip } from "@/hooks/useChip";
 import { useDict } from "@/hooks/useDict";
-import { THEME } from "@/theme";
-import { Avatar } from "@/components/Avatar";
 import { Cover } from "@/components/Cover";
 import { styles } from "@/components/RequestBottomSheet/styles";
-import { haptics } from "@/utils/haptics";
+import { RequestSubmitButton } from "@/components/RequestSubmitButton";
 import { Sheet } from "@/components/Sheet";
+import { HarukaBubble } from "@/components/HarukaBubble";
+import { ReplyBubble } from "@/components/ReplyBubble";
+import { haptics } from "@/utils/haptics";
+import { layoutEase } from "@/utils/layout-animation";
 
 type SubmitStatus = "idle" | "submitting" | "success" | "error";
 
@@ -30,7 +26,7 @@ interface Props {
   onRequestSuccess: (trackId: string) => void;
 }
 
-function TrackSummary({ track }: { track: MusicRequest }) {
+function TrackCard({ track }: { track: MusicRequest }) {
   return (
     <View style={styles.trackRow}>
       <Cover cover={track.artwork} style={styles.cover} category="search" />
@@ -38,81 +34,16 @@ function TrackSummary({ track }: { track: MusicRequest }) {
         <Text style={styles.songName} numberOfLines={2}>
           {track.song}
         </Text>
-        <Text style={styles.animeText} numberOfLines={1}>
-          {track.anime}
-        </Text>
+        <View style={styles.animeChip}>
+          <Text style={styles.animeText} numberOfLines={1}>
+            {track.anime}
+          </Text>
+        </View>
         <Text style={styles.artistText} numberOfLines={1}>
           {track.artist}
         </Text>
       </View>
     </View>
-  );
-}
-
-function RequesterRow({ user }: { user: User }) {
-  return (
-    <View style={styles.userRow}>
-      <Avatar uri={user.avatarUrl} style={styles.avatar} />
-      <Text style={styles.username}>{user.nickname || user.username}</Text>
-    </View>
-  );
-}
-
-function RequestStatus({
-  success,
-  message,
-}: {
-  success: boolean;
-  message: string;
-}) {
-  return (
-    <View style={styles.statusBox}>
-      <MaterialIcons
-        name={success ? "check-circle" : "error"}
-        size={THEME.ICON.XL}
-        color={success ? THEME.COLORS.BRAND : THEME.COLORS.ERROR}
-      />
-      <Text
-        style={[
-          styles.statusText,
-          success ? styles.statusSuccess : styles.statusError,
-        ]}
-      >
-        {message}
-      </Text>
-    </View>
-  );
-}
-
-function RequestActionButton({
-  submitting,
-  error,
-  label,
-  onPress,
-}: {
-  submitting: boolean;
-  error: boolean;
-  label: string;
-  onPress: () => void;
-}) {
-  return (
-    <TouchableOpacity
-      accessibilityRole="button"
-      accessibilityState={{ disabled: submitting, busy: submitting }}
-      onPress={onPress}
-      disabled={submitting}
-      style={[
-        styles.okButton,
-        error && styles.okButtonError,
-        submitting && styles.okButtonDisabled,
-      ]}
-    >
-      {submitting ? (
-        <ActivityIndicator color={THEME.COLORS.TEXT} />
-      ) : (
-        <Text style={styles.okText}>{label}</Text>
-      )}
-    </TouchableOpacity>
   );
 }
 
@@ -125,10 +56,11 @@ export function RequestBottomSheet({
   onRequestSuccess,
 }: Props) {
   const dict = useDict();
+  const { toast } = useAlert();
+  const { chip, showChip, clearChip } = useChip();
 
   const [message, setMessage] = useState("");
   const [status, setStatus] = useState<SubmitStatus>("idle");
-  const [statusMessage, setStatusMessage] = useState("");
 
   // Reset form when modal opens with a new track — "adjust state during
   // render" pattern (compiler-safe, no cascading effect render)
@@ -136,40 +68,58 @@ export function RequestBottomSheet({
     visible,
     trackId: track?.id,
   });
-  if (prevOpenState.visible !== visible || prevOpenState.trackId !== track?.id) {
+  if (
+    prevOpenState.visible !== visible ||
+    prevOpenState.trackId !== track?.id
+  ) {
     setPrevOpenState({ visible, trackId: track?.id });
     if (visible) {
       setMessage("");
       setStatus("idle");
-      setStatusMessage("");
     }
   }
 
+  const fail = (text: string) => {
+    haptics.error();
+    layoutEase();
+    setStatus("error");
+    showChip(text, "error");
+  };
+
   const handleSubmit = async () => {
-    if (status !== "idle") return;
+    if (status === "submitting" || status === "success") return;
+    layoutEase();
     setStatus("submitting");
     try {
       const result = await onSubmit(message);
       if (result.success) {
         haptics.success();
+        layoutEase();
         setStatus("success");
-        setStatusMessage(result.message);
         if (track) onRequestSuccess(track.id);
+        toast(dict.REQUEST_SUCCESS, "success");
+        onClose();
       } else {
-        haptics.error();
-        setStatus("error");
-        setStatusMessage(result.message);
+        fail(result.message);
       }
     } catch (error) {
       console.warn("[RequestBottomSheet] submit failed:", error);
-      haptics.error();
-      setStatus("error");
-      setStatusMessage(dict.REQUEST_ERROR);
+      fail(dict.REQUEST_ERROR);
+    }
+  };
+
+  // The draft stays editable after a failure; typing again clears the retry
+  // state so the button can't contradict what's on screen.
+  const handleChangeMessage = (text: string) => {
+    setMessage(text);
+    if (status === "error") {
+      layoutEase();
+      setStatus("idle");
     }
   };
 
   const isSubmitting = status === "submitting";
-  const isDone = status === "success" || status === "error";
+  const isError = status === "error";
 
   return (
     <Sheet
@@ -177,6 +127,8 @@ export function RequestBottomSheet({
       onClose={onClose}
       closable={!isSubmitting}
       withKeyboard
+      chip={chip}
+      onChipDone={clearChip}
     >
       <ScrollView
         showsVerticalScrollIndicator={false}
@@ -184,38 +136,22 @@ export function RequestBottomSheet({
         keyboardDismissMode="on-drag"
         contentContainerStyle={styles.scrollContent}
       >
-        {track && <TrackSummary track={track} />}
-        {user && <RequesterRow user={user} />}
+        {track && <TrackCard track={track} />}
 
-        {isDone ? (
-          <RequestStatus
-            success={status === "success"}
-            message={statusMessage}
-          />
-        ) : (
-          <>
-            <View style={styles.noteBox}>
-              <Text style={styles.noteText}>{dict.INFO_REQUEST}</Text>
-            </View>
-            <TextInput
-              style={[styles.input, isSubmitting && styles.inputDisabled]}
-              placeholder={dict.SEND_REQUEST_PLACEHOLDER}
-              placeholderTextColor={THEME.COLORS.TEXT_ON_LIGHT}
-              accessibilityLabel={dict.SEND_REQUEST_PLACEHOLDER}
-              value={message}
-              onChangeText={setMessage}
-              editable={!isSubmitting}
-              returnKeyType="send"
-              onSubmitEditing={handleSubmit}
-            />
-          </>
-        )}
-
-        <RequestActionButton
+        <HarukaBubble text={dict.INFO_REQUEST} />
+        <ReplyBubble
+          label={dict.FORM_LABEL_REQUEST}
+          placeholder={dict.SEND_REQUEST_PLACEHOLDER}
+          user={user}
+          value={message}
+          onChangeText={handleChangeMessage}
+          editable={!isSubmitting}
+          onSubmitEditing={handleSubmit}
+        />
+        <RequestSubmitButton
           submitting={isSubmitting}
-          error={status === "error"}
-          label={isDone ? dict.OK_BUTTON : dict.SEND_REQUEST_BUTTON_TEXT}
-          onPress={isDone ? onClose : handleSubmit}
+          failed={isError}
+          onPress={handleSubmit}
         />
       </ScrollView>
     </Sheet>

@@ -7,6 +7,8 @@ export const THEME = {
 
     SURFACE: "#270052",
     BRAND: "#6BDB00",
+    /** Underside of the brand button — the hard drop shadow. */
+    BRAND_DEEP: "#3C7A00",
     /** Brand at 15% — success badges and the selected select option. */
     BRAND_SUBTLE: "rgba(107, 219, 0, 0.15)",
     FRAME: "#42008C",
@@ -87,6 +89,12 @@ export const THEME = {
     XL: scale(20),
     XXL: scale(24),
     XXXL: scale(32),
+  },
+
+  /** Chunky outlines of the sticker-style request sheets. */
+  BORDER_WIDTH: {
+    THIN: scale(2),
+    THICK: scale(3),
   },
 
   RADIUS: {

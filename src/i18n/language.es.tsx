@@ -340,7 +340,7 @@ const DICT: Dict = {
   SEND_REQUEST_PLACEHOLDER: "Deja tu mensaje aquí",
   LOGIN_ERROR: "Necesitas iniciar sesión para hacer una solicitud",
   SELECT_ERROR: "Error al seleccionar la canción",
-  REQUEST_ERROR: "Error al hacer la solicitud: ",
+  REQUEST_ERROR: "No se pudo enviar. Inténtalo de nuevo.",
   REQUEST_ERROR_PEDIBLOCK:
     "Esta canción ya fue solicitada. Disponible de nuevo después de {time}.",
   REQUEST_ERROR_PEDIBLOCK_RECENT: "Esta canción fue solicitada hace muy poco.",
@@ -377,6 +377,7 @@ const DICT: Dict = {
     "¡Ouch! Solo puedes pedir 3 canciones cada 90 minutos 💜🎶",
   LIVE_REQUEST_TITLE: "¡Haz tu pedido al locutor en vivo!",
   OPTIONAL_LABEL: "opcional",
+  FORM_ERROR_REQUIRED: "Este campo es obligatorio",
   FORM_PLACEHOLDER_NICK: "Escribe tu nombre o apodo",
   FORM_PLACEHOLDER_CITY: "Escribe tu ciudad/estado",
   FORM_PLACEHOLDER_ARTIST: "Escribe el nombre del artista",

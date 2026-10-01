@@ -111,7 +111,7 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock("@/contexts/alert/AlertProvider", () => ({
-  useAlert: () => ({ error: mocks.showError }),
+  useAlert: () => ({ toast: mocks.showError }),
 }));
 vi.mock("@/contexts/auth/AuthProvider", () => ({
   useAuth: () => ({ user: mocks.user }),
@@ -226,7 +226,7 @@ describe("MakeRequest screen", () => {
         new Error("offline"),
       );
       await search("guren");
-      expect(mocks.showError).toHaveBeenCalledWith("Search failed");
+      expect(mocks.showError).toHaveBeenCalledWith("Search failed", "error");
       expect(mocks.haptics.error).toHaveBeenCalledTimes(1);
       expect(screen.getByText("Retry")).toBeTruthy();
       // No contradictory "no results" next to the error.
@@ -276,7 +276,7 @@ describe("MakeRequest screen", () => {
       mocks.service.searchTracksByQuery.mockRejectedValue(new Error("x"));
       await search("guren");
       await act(async () => void fireEvent.click(screen.getByText("more")));
-      expect(mocks.showError).toHaveBeenCalledWith("Search failed");
+      expect(mocks.showError).toHaveBeenCalledWith("Search failed", "error");
       expect(screen.getByText("A")).toBeTruthy();
       expect(
         screen.getByTestId("results").getAttribute("data-loading-more"),
@@ -296,7 +296,7 @@ describe("MakeRequest screen", () => {
       await search("guren");
       mocks.service.searchTracksByTitle.mockRejectedValue(new Error("x"));
       await act(async () => void fireEvent.click(screen.getByText("refresh")));
-      expect(mocks.showError).toHaveBeenCalledWith("Search failed");
+      expect(mocks.showError).toHaveBeenCalledWith("Search failed", "error");
       expect(screen.getByText("Retry")).toBeTruthy();
     });
 
@@ -383,12 +383,23 @@ describe("MakeRequest screen", () => {
       expect(sheet.props!.visible).toBe(false);
     });
 
-    it("refuses to submit without a session", async () => {
+    it("does not open the sheet without a session, shows an error", async () => {
       mocks.user = null;
+      mocks.service.searchTracksByTitle.mockResolvedValue({
+        results: [{ id: "t1", title: "Gurenge", requestable: true }],
+      });
       cleanup();
       render(<MakeRequest />);
       await search("guren");
       fireEvent.click(screen.getByText("Gurenge"));
+      expect(sheet.props!.visible).toBe(false);
+      expect(mocks.showError).toHaveBeenCalledWith("Log in first", "error");
+    });
+
+    it("refuses to submit without a session", async () => {
+      mocks.user = null;
+      cleanup();
+      render(<MakeRequest />);
       await expect(sheet.props!.onSubmit("hi")).resolves.toEqual({
         success: false,
         message: "Log in first",

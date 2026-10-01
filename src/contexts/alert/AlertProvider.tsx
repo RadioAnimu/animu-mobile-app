@@ -22,7 +22,7 @@ import HarukaSuccess from "@/assets/success_haruka.webp";
 import { THEME } from "@/theme";
 import { styles } from "@/contexts/alert/styles";
 import { Portal } from "@/contexts/Portal";
-import { Toast } from "@/components/Toast";
+import { Toast, type ToastVariant } from "@/components/Toast";
 import { useDict } from "@/hooks/useDict";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -35,6 +35,7 @@ interface Alert {
 
 interface ToastState {
   message: string;
+  variant: ToastVariant;
   /** Bumped on every call so re-triggering remounts (fresh fade animation). */
   seed: number;
 }
@@ -42,8 +43,11 @@ interface ToastState {
 interface AlertContextProps {
   success: (message: string) => void;
   error: (message: string) => void;
-  /** Minimalist flash card at the bottom — auto-dismisses, no interaction. */
-  toast: (message: string) => void;
+  /**
+   * Minimalist flash chip at the bottom — auto-dismisses, no interaction.
+   * Errors stay on screen longer than successes.
+   */
+  toast: (message: string, variant?: ToastVariant) => void;
 }
 
 const AlertContext = createContext<AlertContextProps>({
@@ -98,9 +102,16 @@ export const AlertProvider: React.FC<{ children: ReactNode }> = ({
     [setAlert]
   );
 
-  const toast = useCallback((message: string) => {
-    setToastState((prev) => ({ message, seed: (prev?.seed ?? 0) + 1 }));
-  }, []);
+  const toast = useCallback(
+    (message: string, variant: ToastVariant = "success") => {
+      setToastState((prev) => ({
+        message,
+        variant,
+        seed: (prev?.seed ?? 0) + 1,
+      }));
+    },
+    [],
+  );
 
   const clearToast = useCallback(() => setToastState(null), []);
 
@@ -134,6 +145,7 @@ export const AlertProvider: React.FC<{ children: ReactNode }> = ({
             <Toast
               key={toastState.seed}
               message={toastState.message}
+              variant={toastState.variant}
               onDone={clearToast}
             />
           </View>

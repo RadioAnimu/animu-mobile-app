@@ -53,7 +53,11 @@ vi.mock("@/contexts/Portal", () => ({
   Portal: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 }));
 vi.mock("@/components/Toast", () => ({
-  Toast: ({ message }: { message: string }) => <p data-testid="toast">{message}</p>,
+  Toast: ({ message, variant }: { message: string; variant?: string }) => (
+    <p data-testid="toast" data-variant={variant}>
+      {message}
+    </p>
+  ),
 }));
 vi.mock("@/hooks/useDict", () => ({
   useDict: () => ({ OK_BUTTON: "OK", A11Y_CLOSE: "Close" }),
@@ -66,6 +70,7 @@ const Trigger = () => {
       <button onClick={() => alert.success("Saved!")}>success</button>
       <button onClick={() => alert.error("Boom")}>error</button>
       <button onClick={() => alert.toast("Copied")}>toast</button>
+      <button onClick={() => alert.toast("Nope", "error")}>toast-error</button>
     </>
   );
 };
@@ -178,6 +183,19 @@ describe("AlertProvider", () => {
     fireEvent.click(screen.getByText("toast"));
 
     expect(screen.getByTestId("toast").textContent).toBe("Copied");
+    expect(screen.getByTestId("toast").getAttribute("data-variant")).toBe(
+      "success",
+    );
+    expect(screen.queryByRole("dialog")).toBeNull();
+  });
+
+  it("renders an error chip, not the modal, for toast errors", () => {
+    renderProvider();
+    fireEvent.click(screen.getByText("toast-error"));
+
+    expect(screen.getByTestId("toast").getAttribute("data-variant")).toBe(
+      "error",
+    );
     expect(screen.queryByRole("dialog")).toBeNull();
   });
 });

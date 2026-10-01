@@ -226,7 +226,12 @@ export function Account({ navigation }: Props) {
             icon="logout"
             label={dict.ACCOUNT_LOGOUT}
             busy={busy === "logout"}
-            onPress={() => void handle("logout", logout)}
+            onPress={() =>
+              void handle("logout", async () => {
+                await logout();
+                navigation.navigate("Login");
+              })
+            }
           />
         </View>
 

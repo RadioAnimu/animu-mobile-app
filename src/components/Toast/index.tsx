@@ -9,15 +9,31 @@ import { scale } from "@/theme/responsive";
  * moment and fades itself out. Purely informational — pointerEvents="none"
  * so it never intercepts touches, and no dismiss button.
  */
-const TOAST_HOLD_MS = 1800;
+export type ToastVariant = "success" | "error" | "info";
+
+/** Failures linger longer than confirmations — they take longer to read. */
+export const TOAST_HOLD_MS: Record<ToastVariant, number> = {
+  success: 1800,
+  info: 2400,
+  error: 4000,
+};
+
+const VARIANT_STYLE = {
+  success: { icon: "check-circle", color: THEME.COLORS.BRAND },
+  info: { icon: "info", color: THEME.COLORS.TEXT_SOFT },
+  error: { icon: "error", color: THEME.COLORS.ERROR },
+} as const;
 
 export const Toast = React.memo(function Toast({
   message,
+  variant = "success",
   onDone,
 }: {
   message: string;
+  variant?: ToastVariant;
   onDone?: () => void;
 }) {
+  const holdMs = TOAST_HOLD_MS[variant];
   const progress = useMemo(() => new Animated.Value(0), []);
 
   useEffect(() => {
@@ -28,7 +44,7 @@ export const Toast = React.memo(function Toast({
         easing: Easing.out(Easing.ease),
         useNativeDriver: true,
       }),
-      Animated.delay(TOAST_HOLD_MS),
+      Animated.delay(holdMs),
       Animated.timing(progress, {
         toValue: 0,
         duration: 240,
@@ -40,7 +56,7 @@ export const Toast = React.memo(function Toast({
       if (finished) onDone?.();
     });
     return () => animation.stop();
-  }, [progress, onDone]);
+  }, [progress, onDone, holdMs]);
 
   const rise = progress.interpolate({
     inputRange: [0, 1],
@@ -50,14 +66,20 @@ export const Toast = React.memo(function Toast({
   return (
     <Animated.View
       pointerEvents="none"
-      style={[styles.toast, { opacity: progress, transform: [{ translateY: rise }] }]}
+      accessibilityRole={variant === "error" ? "alert" : undefined}
+      accessibilityLiveRegion="polite"
+      style={[
+        styles.toast,
+        variant === "error" && styles.toastError,
+        { opacity: progress, transform: [{ translateY: rise }] },
+      ]}
     >
       <MaterialIcons
-        name="check-circle"
+        name={VARIANT_STYLE[variant].icon}
         size={scale(16)}
-        color={THEME.COLORS.BRAND}
+        color={VARIANT_STYLE[variant].color}
       />
-      <Text style={styles.text} numberOfLines={1}>
+      <Text style={styles.text} numberOfLines={2}>
         {message}
       </Text>
     </Animated.View>
@@ -71,12 +93,16 @@ const styles = StyleSheet.create({
     gap: scale(8),
     paddingHorizontal: scale(14),
     paddingVertical: scale(9),
-    borderRadius: 999,
+    borderRadius: scale(20),
     backgroundColor: THEME.COLORS.SURFACE,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: THEME.COLORS.HAIRLINE,
     maxWidth: "86%",
     boxShadow: "0px 4px 8px rgba(0, 0, 0, 0.35)",
+  },
+  toastError: {
+    borderWidth: THEME.BORDER_WIDTH.THIN,
+    borderColor: THEME.COLORS.ERROR,
   },
   text: {
     color: THEME.COLORS.TEXT,

@@ -5,6 +5,8 @@ import DragIcon from "@/assets/icons/drag_down.webp";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useDict } from "@/hooks/useDict";
 import { useKeyboardPadding } from "@/hooks/useKeyboardPadding";
+import type { ChipState } from "@/hooks/useChip";
+import { Toast } from "@/components/Toast";
 import { THEME } from "@/theme";
 import { scale } from "@/theme/responsive";
 
@@ -20,6 +22,12 @@ interface Props extends ModalProps {
   withKeyboard?: boolean;
   /** Max height of the sheet, e.g. "75%". */
   maxHeight?: `${number}%`;
+  /**
+   * Status chip drawn over the backdrop — the app-level toast sits behind a
+   * native Modal, so a sheet carries its own.
+   */
+  chip?: ChipState | null;
+  onChipDone?: () => void;
   children: React.ReactNode;
 }
 
@@ -29,6 +37,8 @@ export function Sheet({
   closable = true,
   withKeyboard = false,
   maxHeight,
+  chip,
+  onChipDone,
   children,
   // Destructure the rest of the Modal surface explicitly so override props
   // (animationType, transparent, statusBarTranslucent, …) can't silently
@@ -40,7 +50,12 @@ export function Sheet({
   const dict = useDict();
 
   const body = (children: React.ReactNode) => (
-    <View style={[styles.overlay, { paddingBottom: keyboardPadding }]}>
+    <View
+      style={[
+        styles.overlay,
+        { paddingTop: insets.top, paddingBottom: keyboardPadding },
+      ]}
+    >
       {children}
     </View>
   );
@@ -86,6 +101,19 @@ export function Sheet({
             </TouchableOpacity>
             {children}
           </View>
+          {chip && (
+            <View
+              pointerEvents="none"
+              style={[styles.chipWrap, { top: insets.top + THEME.SPACE.LG }]}
+            >
+              <Toast
+                key={chip.seed}
+                message={chip.message}
+                variant={chip.variant}
+                onDone={onChipDone}
+              />
+            </View>
+          )}
         </>,
       )}
     </Modal>
@@ -101,8 +129,15 @@ const styles = StyleSheet.create({
   backdrop: {
     flex: 1,
   },
+  chipWrap: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    alignItems: "center",
+  },
   sheet: {
     width: "100%",
+    flexShrink: 1,
     backgroundColor: THEME.COLORS.SURFACE,
     borderTopLeftRadius: THEME.RADIUS.SHEET,
     borderTopRightRadius: THEME.RADIUS.SHEET,

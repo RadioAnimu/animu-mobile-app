@@ -332,7 +332,7 @@ const DICT = {
   SEND_REQUEST_PLACEHOLDER: "Leave your message here",
   LOGIN_ERROR: "You need to be logged in to make a request",
   SELECT_ERROR: "Error selecting the song",
-  REQUEST_ERROR: "Error making request: ",
+  REQUEST_ERROR: "Couldn't send your request. Try again.",
   REQUEST_ERROR_PEDIBLOCK:
     "This track was already requested. Available again after {time}.",
   REQUEST_ERROR_PEDIBLOCK_RECENT: "This track was requested too recently.",
@@ -366,6 +366,7 @@ const DICT = {
     "Oops! You can only request 3 songs every 90 minutes 💜🎶",
   LIVE_REQUEST_TITLE: "Make your request to the live DJ!",
   OPTIONAL_LABEL: "optional",
+  FORM_ERROR_REQUIRED: "This field is required",
   FORM_PLACEHOLDER_NICK: "Enter your name or nick",
   FORM_PLACEHOLDER_CITY: "Enter your city/state",
   FORM_PLACEHOLDER_ARTIST: "Enter the artist name",

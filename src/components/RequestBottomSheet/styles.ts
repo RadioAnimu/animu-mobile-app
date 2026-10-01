@@ -1,27 +1,31 @@
 import { StyleSheet } from "react-native";
 import { THEME } from "@/theme";
 import { scale } from "@/theme/responsive";
+import { hardShadow } from "@/theme/shape";
 
-const COVER = scale(64);
-const AVATAR = scale(36);
+const COVER = scale(76);
 
 export const styles = StyleSheet.create({
   scrollContent: {
     gap: THEME.SPACE.LG,
     paddingHorizontal: THEME.SPACE.LG,
-    paddingBottom: THEME.SPACE.SM,
+    paddingTop: THEME.SPACE.SM,
+    paddingBottom: THEME.SPACE.MD,
   },
   trackRow: {
     flexDirection: "row",
-    gap: THEME.SPACE.MD,
+    gap: THEME.SPACE.LG,
     alignItems: "center",
   },
+  // Cover stuck on like a sticker: framed, tilted, with a hard shadow.
   cover: {
     width: COVER,
     height: COVER,
-    borderRadius: THEME.RADIUS.MD,
-    borderWidth: scale(2),
+    borderRadius: THEME.RADIUS.LG,
+    borderWidth: THEME.BORDER_WIDTH.THICK,
     borderColor: THEME.COLORS.FRAME,
+    transform: [{ rotate: "-4deg" }],
+    ...hardShadow(THEME.COLORS.BG_DEEP, 4),
   },
   trackInfo: {
     flex: 1,
@@ -30,90 +34,25 @@ export const styles = StyleSheet.create({
   songName: {
     color: THEME.COLORS.TEXT,
     fontFamily: THEME.FONT_FAMILY.BOLD,
-    fontSize: THEME.FONT_SIZE.BODY,
+    fontSize: THEME.FONT_SIZE.SUBHEAD,
+    lineHeight: THEME.LINE_HEIGHT.SUBHEAD + scale(3),
+  },
+  animeChip: {
+    alignSelf: "flex-start",
+    maxWidth: "100%",
+    paddingHorizontal: THEME.SPACE.SM,
+    paddingVertical: THEME.SPACE.XXS,
+    borderRadius: THEME.RADIUS.SM,
+    backgroundColor: THEME.COLORS.BRAND,
   },
   animeText: {
-    color: THEME.COLORS.BRAND,
+    color: THEME.COLORS.SURFACE,
     fontFamily: THEME.FONT_FAMILY.BOLD,
-    fontSize: THEME.FONT_SIZE.BODY,
+    fontSize: THEME.FONT_SIZE.LABEL,
   },
   artistText: {
-    color: THEME.COLORS.TEXT,
-    fontFamily: THEME.FONT_FAMILY.REGULAR,
-    fontSize: THEME.FONT_SIZE.CAPTION,
-    opacity: THEME.OPACITY.SOFT,
-  },
-  noteBox: {
-    width: "100%",
-  },
-  noteText: {
-    color: THEME.COLORS.TEXT,
+    color: THEME.COLORS.TEXT_SOFT,
     fontFamily: THEME.FONT_FAMILY.REGULAR,
     fontSize: THEME.FONT_SIZE.BODY,
-    textAlign: "center",
-  },
-  input: {
-    color: THEME.COLORS.TEXT_ON_LIGHT,
-    backgroundColor: THEME.COLORS.TEXT,
-    textAlign: "left",
-    paddingVertical: THEME.SPACE.XS,
-    paddingHorizontal: THEME.SPACE.MD,
-    width: "100%",
-    borderRadius: THEME.RADIUS.MD,
-  },
-  inputDisabled: {
-    opacity: THEME.OPACITY.DISABLED,
-  },
-  userRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: THEME.SPACE.SM,
-  },
-  avatar: {
-    width: AVATAR,
-    height: AVATAR,
-    borderRadius: THEME.RADIUS.CIRCLE,
-    borderWidth: scale(2),
-    borderColor: THEME.COLORS.BRAND,
-  },
-  username: {
-    color: THEME.COLORS.TEXT,
-    fontFamily: THEME.FONT_FAMILY.BOLD,
-    fontSize: THEME.FONT_SIZE.BODY,
-  },
-  okButton: {
-    marginVertical: THEME.SPACE.XS,
-    backgroundColor: THEME.COLORS.BRAND,
-    paddingVertical: THEME.SPACE.MD,
-    paddingHorizontal: THEME.SPACE.XL,
-    borderRadius: THEME.RADIUS.MD,
-    alignItems: "center",
-  },
-  okButtonError: {
-    backgroundColor: THEME.COLORS.ERROR,
-  },
-  okButtonDisabled: {
-    opacity: THEME.OPACITY.DISABLED,
-  },
-  okText: {
-    color: THEME.COLORS.TEXT,
-    fontFamily: THEME.FONT_FAMILY.BOLD,
-    fontSize: THEME.FONT_SIZE.BODY,
-  },
-  statusBox: {
-    alignItems: "center",
-    gap: THEME.SPACE.MD,
-    paddingVertical: THEME.SPACE.SM,
-  },
-  statusText: {
-    fontFamily: THEME.FONT_FAMILY.BOLD,
-    fontSize: THEME.FONT_SIZE.BODY,
-    textAlign: "center",
-  },
-  statusSuccess: {
-    color: THEME.COLORS.BRAND,
-  },
-  statusError: {
-    color: THEME.COLORS.ERROR,
   },
 });
