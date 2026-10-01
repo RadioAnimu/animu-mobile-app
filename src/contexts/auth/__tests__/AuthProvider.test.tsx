@@ -29,6 +29,7 @@ const mocks = vi.hoisted(() => ({
   },
   background: { startTask: vi.fn(), stopTask: vi.fn() },
   getInitialURL: vi.fn(),
+  appStateListen: vi.fn(),
 }));
 
 vi.mock("@/core/auth/auth.facade", () => ({ authFacade: mocks.facade }));
@@ -42,6 +43,10 @@ vi.mock("@/core/services/background.service", () => ({
 }));
 vi.mock("react-native", () => ({
   Linking: { getInitialURL: mocks.getInitialURL },
+  AppState: {
+    currentState: "active",
+    addEventListener: mocks.appStateListen,
+  },
 }));
 vi.mock("@/constants/auth", () => ({
   DEFAULT_PROVIDERS: [{ id: "default", name: "Default" }],
@@ -82,6 +87,7 @@ describe("AuthProvider", () => {
 
   beforeEach(() => {
     consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
+    mocks.appStateListen.mockReturnValue({ remove: vi.fn() });
     mocks.facade.restore.mockResolvedValue(null);
     mocks.facade.resumeServerAuth.mockResolvedValue(null);
     mocks.facade.getProviders.mockResolvedValue([
@@ -290,6 +296,51 @@ describe("AuthProvider", () => {
 
       expect(result.current.user).toBe(CACHED);
       expect(mocks.facade.forget).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("session check vs app state", () => {
+    const emitAppState = (state: string) =>
+      act(async () => {
+        const handler = mocks.appStateListen.mock.calls.at(-1)?.[1] as (
+          next: string,
+        ) => void;
+        handler(state);
+      });
+
+    const mountSignedIn = async () => {
+      mocks.facade.restore.mockResolvedValue(CACHED);
+      const hook = mountAuth();
+      await waitFor(() => expect(hook.result.current.profile).toEqual(PROFILE));
+      return hook;
+    };
+
+    it("stops the poll in the background and re-checks once on return", async () => {
+      await mountSignedIn();
+      const startsBefore = mocks.background.startTask.mock.calls.length;
+      const checksBefore = mocks.facade.getSessionStatus.mock.calls.length;
+      mocks.background.stopTask.mockClear();
+
+      await emitAppState("background");
+      expect(mocks.background.stopTask).toHaveBeenCalledWith("session-check");
+
+      await emitAppState("active");
+      expect(mocks.facade.getSessionStatus.mock.calls.length).toBe(
+        checksBefore + 1,
+      );
+      expect(mocks.background.startTask.mock.calls.length).toBe(
+        startsBefore + 1,
+      );
+    });
+
+    it("ignores transient inactive -> active flips that never backgrounded", async () => {
+      await mountSignedIn();
+      const checksBefore = mocks.facade.getSessionStatus.mock.calls.length;
+
+      await emitAppState("inactive");
+      await emitAppState("active");
+
+      expect(mocks.facade.getSessionStatus.mock.calls.length).toBe(checksBefore);
     });
   });
 

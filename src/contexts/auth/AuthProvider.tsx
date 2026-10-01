@@ -7,7 +7,7 @@ import React, {
   useMemo,
   useRef,
 } from "react";
-import { Linking } from "react-native";
+import { AppState, Linking } from "react-native";
 import type {
   AuthAccountEmail,
   AuthEmailRequestResult,
@@ -272,6 +272,63 @@ function useAccountActions({
 }
 
 /**
+ * Polls the session while someone can see the result. Backgrounded (e.g.
+ * listening with the screen off) the poll would wake the radio every minute
+ * for nothing, so it pauses and re-checks once on return.
+ */
+function useSessionCheck(
+  userRef: React.MutableRefObject<User | null>,
+  clearSession: () => Promise<void>,
+): () => void {
+  const pausedRef = useRef(false);
+
+  const runSessionCheck = useCallback(async () => {
+    if (!userRef.current?.sessionToken) return;
+    try {
+      if (!(await authFacade.getSessionStatus())) {
+        await clearSession();
+      }
+      // Network hiccups throw and are ignored below — they must not log
+      // the listener out.
+    } catch (error) {
+      console.error("[AuthProvider] Session check failed:", error);
+    }
+  }, [clearSession, userRef]);
+
+  const startSessionCheck = useCallback(() => {
+    backgroundService.stopTask(SESSION_CHECK_TASK_ID);
+    if (AppState.currentState === "background") {
+      pausedRef.current = true;
+      return;
+    }
+    backgroundService.startTask({
+      id: SESSION_CHECK_TASK_ID,
+      interval: SESSION_CHECK_INTERVAL,
+      callback: runSessionCheck,
+    });
+  }, [runSessionCheck]);
+
+  useEffect(() => {
+    const subscription = AppState.addEventListener("change", (next) => {
+      if (next === "background") {
+        pausedRef.current = true;
+        backgroundService.stopTask(SESSION_CHECK_TASK_ID);
+        return;
+      }
+      if (next === "active" && pausedRef.current) {
+        pausedRef.current = false;
+        if (!userRef.current) return;
+        void runSessionCheck();
+        startSessionCheck();
+      }
+    });
+    return () => subscription.remove();
+  }, [runSessionCheck, startSessionCheck, userRef]);
+
+  return startSessionCheck;
+}
+
+/**
  * Owns all auth state and side effects. Kept separate from the provider so the
  * component stays a thin shell and this logic is testable in isolation.
  */
@@ -316,26 +373,7 @@ function useAuthProviderValue(): AuthContextType {
     }
   }, []);
 
-  const startSessionCheck = useCallback(() => {
-    backgroundService.stopTask(SESSION_CHECK_TASK_ID);
-    backgroundService.startTask({
-      id: SESSION_CHECK_TASK_ID,
-      interval: SESSION_CHECK_INTERVAL,
-      callback: async () => {
-        const currentUser = userRef.current;
-        if (!currentUser?.sessionToken) return;
-        try {
-          if (!(await authFacade.getSessionStatus())) {
-            await clearSession();
-          }
-          // Network hiccups throw and are ignored below — they must not log
-          // the listener out.
-        } catch (error) {
-          console.error("[AuthProvider] Session check failed:", error);
-        }
-      },
-    });
-  }, [clearSession]);
+  const startSessionCheck = useSessionCheck(userRef, clearSession);
 
   const adoptUser = useCallback(
     async (nextUser: User) => {
