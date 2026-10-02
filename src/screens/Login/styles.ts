@@ -9,11 +9,6 @@ const BACK_BUTTON = scale(44);
 const CONNECT_BADGE = scale(64);
 
 export const styles = StyleSheet.create({
-  // The app artwork stays visible behind the flow; AuthBackdrop draws the
-  // gradient scrim and the brand glow on top of it.
-  container: {
-    flex: 1,
-  },
   safe: {
     flex: 1,
   },

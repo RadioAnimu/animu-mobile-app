@@ -22,6 +22,8 @@ export const styles = StyleSheet.create({
   view: {
     flexDirection: "column",
     minHeight: VIEW_MIN_HEIGHT,
+    // The live-request badge hangs below the bar over the scroll content.
+    zIndex: THEME.Z_INDEX.HEADER,
   },
   // Full-bleed SURFACE bar; the row inside is the capped content column so
   // the icons keep their spacing on tablets instead of drifting apart.

@@ -1,5 +1,5 @@
 import type { ComponentProps, JSX } from "react";
-import MaterialIcons from "@react-native-vector-icons/material-icons/static";
+import { Icon } from "@/components/Icon";
 import {
   DrawerContentComponentProps,
   DrawerContentScrollView,
@@ -15,16 +15,15 @@ import { useDict } from "@/hooks/useDict";
 import { emitReselect } from "@/core/navigation/reselect";
 import { THEME } from "@/theme";
 import { haptics } from "@/utils/haptics";
-import { scale } from "@/theme/responsive";
 import { styles } from "@/components/CustomDrawer/styles";
 
-const MENU_ICON_SIZE = scale(22);
-const SECTION_ICON_SIZE = scale(18);
+const MENU_ICON_SIZE = THEME.ICON.MD;
+const SECTION_ICON_SIZE = THEME.ICON.SECTION;
 
 /** Routes unavailable while a live DJ is on air (requests go via the live sheet). */
 const LIVE_LOCKED_ROUTES: readonly string[] = ["MakeRequest"];
 
-type MaterialIconName = ComponentProps<typeof MaterialIcons>["name"];
+type MaterialIconName = ComponentProps<typeof Icon>["name"];
 
 interface DrawerIconProps {
   name: MaterialIconName;
@@ -39,7 +38,7 @@ export function DrawerIcon({
 }: DrawerIconProps) {
   return (
     <View style={styles.iconBox}>
-      <MaterialIcons name={name} size={size} color={color} />
+      <Icon name={name} size={size} color={color} />
     </View>
   );
 }
@@ -55,7 +54,12 @@ function Separator({ sectionTitle, icon }: SeparatorProps) {
     <View style={styles.section}>
       {icon}
       {sectionTitle && (
-        <Text style={styles.sectionText}>{sectionTitle.toUpperCase()}</Text>
+        <Text
+          maxFontSizeMultiplier={THEME.FONT_SCALE.CONTENT}
+          style={styles.sectionText}
+        >
+          {sectionTitle.toUpperCase()}
+        </Text>
       )}
     </View>
   );
@@ -109,8 +113,9 @@ function NavItems({
           <TouchableOpacity
             key={route.key}
             accessibilityRole="button"
+            accessibilityLabel={label}
             accessibilityState={{ selected: focused, disabled: locked }}
-            activeOpacity={0.7}
+            activeOpacity={THEME.OPACITY.PRESSED}
             onPress={onPress}
             style={[
               styles.navItem,
@@ -124,6 +129,7 @@ function NavItems({
               size: MENU_ICON_SIZE,
             })}
             <Text
+              maxFontSizeMultiplier={THEME.FONT_SCALE.CONTENT}
               style={[styles.navItemText, focused && styles.navItemTextFocused]}
             >
               {label}
@@ -163,10 +169,15 @@ function AccountRow({ onOpenLogin, onOpenSettings }: AccountRowProps) {
       <View style={styles.accountRow}>
         <TouchableOpacity
           accessibilityRole="button"
+          accessibilityLabel={
+            user
+              ? [profile?.user.username || user.username, caption].join(", ")
+              : dict.LOGIN_WORD
+          }
           accessibilityHint={
             user ? dict.A11Y_OPENS_SETTINGS : dict.A11Y_OPENS_LOGIN
           }
-          activeOpacity={0.7}
+          activeOpacity={THEME.OPACITY.PRESSED}
           onPress={user ? onOpenSettings : onOpenLogin}
           style={[styles.accountIdentity, styles.accountIdentityGrow]}
         >
@@ -174,7 +185,7 @@ function AccountRow({ onOpenLogin, onOpenSettings }: AccountRowProps) {
             <Avatar uri={user.avatarUrl} style={styles.accountAvatar} />
           ) : (
             <View style={styles.accountIconBox}>
-              <MaterialIcons
+              <Icon
                 name="login"
                 size={THEME.ICON.MD}
                 color={THEME.COLORS.TEXT}
@@ -182,15 +193,23 @@ function AccountRow({ onOpenLogin, onOpenSettings }: AccountRowProps) {
             </View>
           )}
           <View style={styles.accountText}>
-            <Text style={styles.accountName} numberOfLines={1}>
+            <Text
+              maxFontSizeMultiplier={THEME.FONT_SCALE.CONTENT}
+              style={styles.accountName}
+              numberOfLines={1}
+            >
               {user ? profile?.user.username || user.username : dict.LOGIN_WORD}
             </Text>
-            <Text style={styles.accountCaption} numberOfLines={1}>
+            <Text
+              maxFontSizeMultiplier={THEME.FONT_SCALE.CONTENT}
+              style={styles.accountCaption}
+              numberOfLines={1}
+            >
               {caption}
             </Text>
           </View>
           {user && (
-            <MaterialIcons
+            <Icon
               name="chevron-right"
               size={THEME.ICON.MD}
               color={THEME.COLORS.TEXT_DIM}
@@ -205,11 +224,11 @@ function AccountRow({ onOpenLogin, onOpenSettings }: AccountRowProps) {
             accessibilityRole="button"
             accessibilityHint={dict.A11Y_OPENS_SETTINGS}
             accessibilityLabel={dict.SETTINGS_TITLE}
-            activeOpacity={0.7}
+            activeOpacity={THEME.OPACITY.PRESSED}
             onPress={onOpenSettings}
             style={styles.gearButton}
           >
-            <MaterialIcons
+            <Icon
               name="settings"
               size={THEME.ICON.MD}
               color={THEME.COLORS.TEXT}
@@ -225,11 +244,15 @@ export function CustomDrawerContent(props: DrawerContentComponentProps) {
   const dict = useDict();
   const { navigation } = props;
 
+  // Detail pages push over the drawer; close it underneath so popping back
+  // lands on the screen, not on a still-open menu.
   const goToSettings = () => {
+    navigation.closeDrawer();
     navigation.navigate("Settings");
   };
 
   const goToLogin = () => {
+    navigation.closeDrawer();
     navigation.navigate("Login");
   };
 
@@ -240,7 +263,7 @@ export function CustomDrawerContent(props: DrawerContentComponentProps) {
           <TouchableOpacity
             accessibilityRole="button"
             accessibilityLabel="Animu"
-            activeOpacity={0.8}
+            activeOpacity={THEME.OPACITY.PRESSED}
             onPress={() => {
               navigation.navigate("Home");
             }}

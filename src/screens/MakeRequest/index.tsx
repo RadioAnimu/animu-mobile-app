@@ -1,4 +1,4 @@
-import MaterialIcons from "@react-native-vector-icons/material-icons/static";
+import { Icon } from "@/components/Icon";
 import type { DrawerNavigationProp } from "@react-navigation/drawer";
 import { useNavigation } from "@react-navigation/native";
 import {
@@ -12,6 +12,7 @@ import {
   ActivityIndicator,
   FlatList,
   Keyboard,
+  Platform,
   Text,
   TextInput,
   TouchableOpacity,
@@ -33,7 +34,9 @@ import { usePlayer } from "@/contexts/player/PlayerProvider";
 import { useUserSettings } from "@/contexts/user/UserSettingsProvider";
 import { useDict } from "@/hooks/useDict";
 import { useRecentSearches } from "@/hooks/useRecentSearches";
+import { useKeyboardPadding } from "@/hooks/useKeyboardPadding";
 import { useRouteReselect } from "@/hooks/useRouteReselect";
+import { useScrollEndPadding } from "@/hooks/useScrollEndPadding";
 import {
   MusicRequest,
   MusicRequestSubmission,
@@ -43,7 +46,7 @@ import {
   musicRequestService,
 } from "@/core/services/music-request.service";
 import { IMGS } from "@/i18n";
-import type { RootStackParamList } from "@/routes/app.routes";
+import type { DrawerParamList } from "@/routes/app.routes";
 import type { Dict } from "@/i18n";
 import { THEME } from "@/theme";
 import { scale } from "@/theme/responsive";
@@ -81,6 +84,7 @@ function SearchBar({
   onFocusChange: (focused: boolean) => void;
 }) {
   const inputRef = useRef<TextInput | null>(null);
+  const [focused, setFocused] = useState(false);
   const hasQuery = query !== "";
 
   return (
@@ -88,15 +92,22 @@ function SearchBar({
       <View style={styles.searchField}>
         <TextInput
           ref={inputRef}
-          style={styles.input}
+          style={[styles.input, focused && styles.inputFocused]}
           placeholder={dict.REQUEST_SEARCH_PLACEHOLDER}
-          placeholderTextColor={THEME.COLORS.TEXT}
+          // Dimmer than typed text, like every other field's placeholder.
+          placeholderTextColor={THEME.COLORS.TEXT_DIM}
           accessibilityLabel={dict.REQUEST_SEARCH_PLACEHOLDER}
           value={query}
           onChangeText={onChangeText}
           onSubmitEditing={onSubmit}
-          onFocus={() => onFocusChange(true)}
-          onBlur={() => onFocusChange(false)}
+          onFocus={() => {
+            setFocused(true);
+            onFocusChange(true);
+          }}
+          onBlur={() => {
+            setFocused(false);
+            onFocusChange(false);
+          }}
           // Titles are proper nouns/romaji — spellcheck mangles them.
           autoCorrect={false}
           autoCapitalize="none"
@@ -111,11 +122,11 @@ function SearchBar({
           <TouchableOpacity
             accessibilityRole="button"
             accessibilityLabel={dict.A11Y_CLEAR_SEARCH}
-            hitSlop={8}
+            hitSlop={THEME.HIT_SLOP.SM}
             onPress={onClear}
             style={styles.fieldIcon}
           >
-            <MaterialIcons
+            <Icon
               name="cancel"
               size={THEME.ICON.MD}
               color={THEME.COLORS.TEXT_DIM}
@@ -125,11 +136,11 @@ function SearchBar({
           <TouchableOpacity
             accessibilityRole="none"
             accessible={false}
-            hitSlop={8}
+            hitSlop={THEME.HIT_SLOP.SM}
             onPress={() => inputRef.current?.focus()}
             style={styles.fieldIcon}
           >
-            <MaterialIcons
+            <Icon
               name="search"
               size={THEME.ICON.MD}
               color={THEME.COLORS.TEXT}
@@ -155,7 +166,7 @@ function SearchErrorBanner({
       <TouchableOpacity
         accessibilityRole="button"
         accessibilityLabel={dict.ERROR_RETRY}
-        hitSlop={8}
+        hitSlop={THEME.HIT_SLOP.SM}
         onPress={onRetry}
         style={styles.retryButton}
       >
@@ -180,7 +191,7 @@ function SearchBody({
   resultsProps: ComponentProps<typeof ResultsList>;
 }>) {
   if (showRecent) return <RecentSearches {...recentProps} />;
-  if (loading) return <ActivityIndicator color={THEME.COLORS.TEXT} />;
+  if (loading) return <ActivityIndicator color={THEME.COLORS.SPINNER} />;
   return (
     <TrackRequestContext.Provider value={onRequestTrack}>
       <ResultsList {...resultsProps} />
@@ -194,7 +205,7 @@ export function MakeRequest() {
   const { toast } = useAlert();
   const dict = useDict();
   const navigation =
-    useNavigation<DrawerNavigationProp<RootStackParamList>>();
+    useNavigation<DrawerNavigationProp<DrawerParamList>>();
   const isLive = Boolean(usePlayer().currentProgram?.isLive);
 
   // A live show starting while this screen is open: music requests close, so
@@ -217,6 +228,13 @@ export function MakeRequest() {
   const listRef = useRef<FlatList<MusicRequest> | null>(null);
 
   const { recent, addRecent, removeRecent, clearRecent } = useRecentSearches();
+
+  // The lists run under the home indicator / nav bar and pad past it; on
+  // Android (edge-to-edge) they also pad past the keyboard, iOS lists adjust
+  // their insets natively.
+  const bottomPadding =
+    useScrollEndPadding(THEME.SPACE.LG) +
+    useKeyboardPadding(Platform.OS === "android");
 
   // Re-tapping the drawer's active item jumps the results back to the top.
   useRouteReselect("MakeRequest", () =>
@@ -318,7 +336,7 @@ export function MakeRequest() {
   const showLogo = !searchFocused && query === "";
 
   return (
-    <SafeAreaView style={styles.container} edges={["left", "right", "bottom"]}>
+    <SafeAreaView style={styles.container} edges={["left", "right"]}>
       <HeaderBar />
       <View style={styles.appContainer}>
         {showLogo && (
@@ -359,6 +377,7 @@ export function MakeRequest() {
               onPick: handlePickRecent,
               onRemove: removeRecent,
               onClear: clearRecent,
+              bottomPadding,
             }}
             resultsProps={{
               listRef,
@@ -374,6 +393,7 @@ export function MakeRequest() {
               onRefresh: refresh,
               loadingMore,
               onEndReached: loadMore,
+              bottomPadding,
             }}
           />
         </View>

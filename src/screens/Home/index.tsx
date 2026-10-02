@@ -17,10 +17,9 @@ import { TimeRemaining } from "@/components/TimeRemaining";
 
 // Styles
 import { styles } from "@/screens/Home/styles";
-import { scale } from "@/theme/responsive";
 import { useRouteReselect } from "@/hooks/useRouteReselect";
-
-const LOGO_HEIGHT = scale(127);
+import { useScrollEndPadding } from "@/hooks/useScrollEndPadding";
+import { THEME } from "@/theme";
 
 export const Home = () => {
   const [isModalVisible, setIsModalVisible] = useState(false);
@@ -32,6 +31,8 @@ export const Home = () => {
   useRouteReselect("Home", () =>
     scrollRef.current?.scrollTo({ y: 0, animated: true }),
   );
+
+  const endPadding = useScrollEndPadding(THEME.SPACE.LG);
 
   // UI Handlers
   const handleOpenProgramModal = useCallback(() => {
@@ -47,51 +48,52 @@ export const Home = () => {
   }, []);
 
   return (
-    <SafeAreaView style={styles.container} edges={["left", "right", "bottom"]}>
-        <ScrollView ref={scrollRef}>
-          <HeaderBar
-            openLiveRequestModal={() => handleLiveRequestModal(true)}
-          />
-
-          <View style={styles.containerApp}>
-            <View style={styles.logoAndOscilloscope}>
-              <Oscilloscope />
-              <Logo size={LOGO_HEIGHT} />
-            </View>
-
-            <View style={styles.listenersWrapper}>
-              <Listeners />
-            </View>
-
-            <View style={styles.coverWrapper}>
-              <TrackCover />
-            </View>
-
-            <View style={styles.timeRemainingWrapper}>
-              <TimeRemaining />
-            </View>
-
-            <View style={styles.liveWrapper}>
-              <Live />
-            </View>
-
-            <View style={styles.programWrapper}>
-              <Program handleClick={handleOpenProgramModal} />
-            </View>
-
-            <ChooseBitrateSection />
+    <SafeAreaView style={styles.container} edges={["left", "right"]}>
+      {/* Pinned above the scroll view: an overscroll pull must never drag
+          the header down and expose the artwork behind the status bar. */}
+      <HeaderBar openLiveRequestModal={() => handleLiveRequestModal(true)} />
+      <ScrollView ref={scrollRef}>
+        <View style={styles.containerApp}>
+          <View style={styles.logoAndOscilloscope}>
+            <Oscilloscope />
+            <Logo size={THEME.LAYOUT.LOGO_HEIGHT} />
           </View>
-        </ScrollView>
 
-        <LiveRequestModal
-          visible={isLiveRequestModalVisible}
-          handleClose={() => handleLiveRequestModal(false)}
-        />
+          <View style={styles.listenersWrapper}>
+            <Listeners />
+          </View>
 
-        <PopUpProgram
-          visible={isModalVisible}
-          handleClose={handleCloseProgramModal}
-        />
-      </SafeAreaView>
+          <View style={styles.coverWrapper}>
+            <TrackCover />
+          </View>
+
+          <View style={styles.timeRemainingWrapper}>
+            <TimeRemaining />
+          </View>
+
+          <View style={styles.liveWrapper}>
+            <Live />
+          </View>
+
+          <View style={styles.programWrapper}>
+            <Program handleClick={handleOpenProgramModal} />
+          </View>
+
+          <ChooseBitrateSection />
+        </View>
+        {/* Clears the home indicator once scrolled to the end. */}
+        <View style={{ height: endPadding }} />
+      </ScrollView>
+
+      <LiveRequestModal
+        visible={isLiveRequestModalVisible}
+        handleClose={() => handleLiveRequestModal(false)}
+      />
+
+      <PopUpProgram
+        visible={isModalVisible}
+        handleClose={handleCloseProgramModal}
+      />
+    </SafeAreaView>
   );
 };

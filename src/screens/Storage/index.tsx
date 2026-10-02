@@ -1,6 +1,6 @@
 import { Fragment, useEffect, useRef, useMemo } from "react";
 import type { ComponentProps } from "react";
-import { DrawerScreenProps } from "@react-navigation/drawer";
+import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { ScrollView, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -13,6 +13,7 @@ import { useDeviceStorage } from "@/hooks/useDeviceStorage";
 import { useCoverStorageSnapshot } from "@/hooks/useCoverStorage";
 import { useCoverDiskClearing, useFreedCoverToast } from "@/hooks/useCoverDisk";
 import { useDict } from "@/hooks/useDict";
+import { useScrollEndPadding } from "@/hooks/useScrollEndPadding";
 import { maxSelectableLimitBytes } from "@/core/services/device-storage.service";
 import type { CoverCacheCategory } from "@/core/services/cover-cache-registry.service";
 import {
@@ -21,14 +22,14 @@ import {
   resolvePartitionCaps,
   type CoverCachePartitions,
 } from "@/core/services/cover-cache-partitions";
-import { RootStackParamList } from "@/routes/app.routes";
+import type { RootStackParamList } from "@/routes/app.routes";
 import { coverCategoryLabel } from "@/constants/covers";
 import { formatBytes, interpolate, MB, percentOf } from "@/utils/format";
 import { RowDivider } from "@/components/ListRow";
 import { SettingsRow } from "@/screens/Settings/rows";
 import { styles } from "@/screens/Storage/styles";
 
-type Props = DrawerScreenProps<RootStackParamList, "Storage">;
+type Props = NativeStackScreenProps<RootStackParamList, "Storage">;
 type IconName = NonNullable<ComponentProps<typeof Select>["icon"]>;
 
 /** Fixed-byte tiers, uncapped first (the default). */
@@ -54,6 +55,7 @@ export function Storage({ navigation }: Props) {
   const { settings, updateSettings } = useUserSettings();
   const { capacity, refresh } = useDeviceStorage();
   const dict = useDict();
+  const endPadding = useScrollEndPadding();
 
   // Wipe-in-progress flag — also the signal that device space just moved
   // (the clean button's wipe and the cache-off wipe both pass through it).
@@ -168,13 +170,18 @@ export function Storage({ navigation }: Props) {
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={["left", "right", "bottom"]}>
+    <SafeAreaView style={styles.container} edges={["left", "right"]}>
       <ScreenHeader
         title={dict.STORAGE_TITLE}
         onBack={() => navigation.goBack()}
       />
 
-      <ScrollView contentContainerStyle={styles.appContainer}>
+      <ScrollView
+        contentContainerStyle={[
+          styles.appContainer,
+          { paddingBottom: endPadding },
+        ]}
+      >
         <CoverStorageCard
           snapshot={snapshot}
           measuring={measuring}

@@ -1,10 +1,9 @@
 import { useState } from "react";
-import MaterialIcons from "@react-native-vector-icons/material-icons/static";
-import { DrawerScreenProps } from "@react-navigation/drawer";
+import { Icon } from "@/components/Icon";
+import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import {
   Alert,
   Platform,
-  RefreshControl,
   ScrollView,
   Text,
   View,
@@ -13,6 +12,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 import { AnimuApiError } from "animu-api";
 import { AccountEmails } from "@/components/AccountEmails";
+import { AppRefreshControl } from "@/components/AppRefreshControl";
 import { DestructiveAction } from "@/components/DestructiveAction";
 import { ActionRow } from "@/components/ListRow";
 import { PrimaryButton } from "@/components/PrimaryButton";
@@ -21,17 +21,18 @@ import { SectionTitle } from "@/components/SectionTitle";
 import { useAlert } from "@/contexts/alert/AlertProvider";
 import { useAuth } from "@/contexts/auth/AuthProvider";
 import { useDict } from "@/hooks/useDict";
+import { useScrollEndPadding } from "@/hooks/useScrollEndPadding";
 import { useKeyboardPadding } from "@/hooks/useKeyboardPadding";
 import { AuthFlowCancelled } from "@/core/auth";
 import { haptics } from "@/utils/haptics";
 import { interpolate } from "@/utils/format";
-import { RootStackParamList } from "@/routes/app.routes";
+import type { RootStackParamList } from "@/routes/app.routes";
 import { THEME } from "@/theme";
 import { styles } from "@/screens/Account/styles";
 import { LinkedAccounts } from "@/screens/Account/LinkedAccounts";
 import { ProfileCard } from "@/screens/Account/ProfileCard";
 
-type Props = DrawerScreenProps<RootStackParamList, "Account">;
+type Props = NativeStackScreenProps<RootStackParamList, "Account">;
 
 export function Account({ navigation }: Props) {
   const { toast, error: showError } = useAlert();
@@ -49,6 +50,7 @@ export function Account({ navigation }: Props) {
     unlinkProvider,
   } = useAuth();
   const dict = useDict();
+  const endPadding = useScrollEndPadding();
 
   // Animu Connect's add-email form is inline in this scroll view, so the
   // screen owns the keyboard inset (Android edge-to-edge; iOS handles it
@@ -98,7 +100,7 @@ export function Account({ navigation }: Props) {
             haptics.warning();
             void handle("delete", async () => {
               await deleteAccount();
-              navigation.navigate("Home");
+              navigation.navigate("Main", { screen: "Home" });
             });
           },
         },
@@ -120,6 +122,7 @@ export function Account({ navigation }: Props) {
           onPress: () => {
             void handle(`link-${name}`, async () => {
               await unlinkProvider(name);
+              haptics.success();
               toast(dict.ACCOUNT_UNLINK_SUCCESS);
             });
           },
@@ -139,11 +142,11 @@ export function Account({ navigation }: Props) {
     return (
       <SafeAreaView
         style={styles.container}
-        edges={["left", "right", "bottom"]}
+        edges={["left", "right"]}
       >
         {renderHeader()}
         <View style={styles.signedOut}>
-          <MaterialIcons
+          <Icon
             name="account-circle"
             size={THEME.ICON.XL * 2}
             color={THEME.COLORS.TEXT_DIM}
@@ -161,20 +164,18 @@ export function Account({ navigation }: Props) {
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={["left", "right", "bottom"]}>
+    <SafeAreaView style={styles.container} edges={["left", "right"]}>
       {renderHeader()}
       <ScrollView
         contentContainerStyle={[
           styles.content,
-          keyboardPadding > 0 && {
-            paddingBottom: keyboardPadding + THEME.SPACE.XXXL,
-          },
+          { paddingBottom: endPadding + keyboardPadding },
         ]}
         automaticallyAdjustKeyboardInsets
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"
         refreshControl={
-          <RefreshControl
+          <AppRefreshControl
             refreshing={busy === "refresh"}
             onRefresh={() =>
               void handle("refresh", async () => {
@@ -182,9 +183,6 @@ export function Account({ navigation }: Props) {
                 toast(dict.ACCOUNT_REFRESHED);
               })
             }
-            tintColor={THEME.COLORS.BRAND}
-            colors={[THEME.COLORS.BRAND]}
-            progressBackgroundColor={THEME.COLORS.SURFACE}
           />
         }
       >
@@ -203,6 +201,7 @@ export function Account({ navigation }: Props) {
           onLink={(provider) =>
             handle(`link-${provider}`, async () => {
               await linkProvider(provider);
+              haptics.success();
               toast(dict.ACCOUNT_LINK_SUCCESS);
             })
           }
@@ -229,7 +228,9 @@ export function Account({ navigation }: Props) {
             onPress={() =>
               void handle("logout", async () => {
                 await logout();
-                navigation.navigate("Login");
+                // Swap the now-empty account page for sign-in, so back
+                // returns to Settings instead of a signed-out Account.
+                navigation.replace("Login");
               })
             }
           />

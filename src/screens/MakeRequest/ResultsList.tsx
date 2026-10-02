@@ -1,10 +1,11 @@
 import {
   ActivityIndicator,
   FlatList,
-  RefreshControl,
   Text,
   type ListRenderItem,
 } from "react-native";
+
+import { AppRefreshControl } from "@/components/AppRefreshControl";
 
 import type { MusicRequest } from "@/core/domain/music-request";
 import { THEME } from "@/theme";
@@ -22,6 +23,8 @@ interface Props {
   /** A next page is in flight — shows the footer spinner. */
   loadingMore: boolean;
   onEndReached: () => void;
+  /** Clears the home indicator / nav bar (and the keyboard on Android). */
+  bottomPadding: number;
 }
 
 /**
@@ -38,13 +41,16 @@ export function ResultsList({
   onRefresh,
   loadingMore,
   onEndReached,
+  bottomPadding,
 }: Props) {
   return (
     <FlatList
       ref={listRef}
       data={data}
       keyExtractor={(item) => item.id}
-      contentContainerStyle={styles.list}
+      contentContainerStyle={[styles.list, { paddingBottom: bottomPadding }]}
+      // iOS keeps the last rows reachable above the keyboard.
+      automaticallyAdjustKeyboardInsets
       renderItem={renderItem}
       // Tapping a result right after searching acts on the row immediately —
       // the keyboard does not swallow the first tap.
@@ -61,18 +67,12 @@ export function ResultsList({
         showEmpty ? <Text style={styles.emptyText}>{emptyLabel}</Text> : null
       }
       refreshControl={
-        <RefreshControl
-          refreshing={refreshing}
-          onRefresh={onRefresh}
-          tintColor={THEME.COLORS.TEXT}
-          colors={[THEME.COLORS.BRAND]}
-          progressBackgroundColor={THEME.COLORS.SURFACE}
-        />
+        <AppRefreshControl refreshing={refreshing} onRefresh={onRefresh} />
       }
       ListFooterComponent={
         loadingMore ? (
           <ActivityIndicator
-            color={THEME.COLORS.TEXT}
+            color={THEME.COLORS.SPINNER}
             style={styles.loadMoreSpinner}
           />
         ) : null

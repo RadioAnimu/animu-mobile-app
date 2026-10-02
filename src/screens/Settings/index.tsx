@@ -1,4 +1,4 @@
-import { DrawerScreenProps } from "@react-navigation/drawer";
+import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { ScrollView, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -7,7 +7,8 @@ import { ScreenHeader } from "@/components/ScreenHeader";
 import { SectionTitle } from "@/components/SectionTitle";
 import { useAuth } from "@/contexts/auth/AuthProvider";
 import { useDict } from "@/hooks/useDict";
-import { RootStackParamList } from "@/routes/app.routes";
+import { useScrollEndPadding } from "@/hooks/useScrollEndPadding";
+import type { RootStackParamList } from "@/routes/app.routes";
 import { styles } from "@/screens/Settings/styles";
 import { AboutSection } from "@/screens/Settings/sections/AboutSection";
 import { AccountSection } from "@/screens/Settings/sections/AccountSection";
@@ -17,19 +18,25 @@ import { ListenStatsSection } from "@/screens/Settings/sections/ListenStatsSecti
 import { ResetSection } from "@/screens/Settings/sections/ResetSection";
 import { StorageSection } from "@/screens/Settings/sections/StorageSection";
 
-type Props = DrawerScreenProps<RootStackParamList, "Settings">;
+type Props = NativeStackScreenProps<RootStackParamList, "Settings">;
 
 export function Settings({ navigation }: Props) {
   const { user, profile } = useAuth();
   const dict = useDict();
+  const endPadding = useScrollEndPadding();
 
   return (
-    <SafeAreaView style={styles.container} edges={["left", "right", "bottom"]}>
+    <SafeAreaView style={styles.container} edges={["left", "right"]}>
       <ScreenHeader
         title={dict.SETTINGS_TITLE}
         onBack={() => navigation.goBack()}
       />
-      <ScrollView contentContainerStyle={styles.appContainer}>
+      <ScrollView
+        contentContainerStyle={[
+          styles.appContainer,
+          { paddingBottom: endPadding },
+        ]}
+      >
         {/* Identity and the on-device listening card open the page as one
             card; a heading over a single row would only repeat its label. */}
         <View style={styles.group}>

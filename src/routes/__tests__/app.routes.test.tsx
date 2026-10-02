@@ -28,9 +28,22 @@ interface NavigatorProps {
   children: ReactNode;
 }
 
+interface StackScreenProps {
+  name: string;
+  component: unknown;
+  options?: { contentStyle?: { backgroundColor: string } };
+}
+interface StackNavigatorProps {
+  screenOptions: { headerShown: boolean; animation: string };
+  children: ReactNode;
+}
+
 const captured = vi.hoisted(() => ({
   screens: [] as ScreenProps[],
   navigator: null as NavigatorProps | null,
+  stackScreens: [] as StackScreenProps[],
+  stack: null as StackNavigatorProps | null,
+  reduceMotion: false,
 }));
 
 vi.mock("@react-navigation/drawer", () => ({
@@ -44,6 +57,26 @@ vi.mock("@react-navigation/drawer", () => ({
       return null;
     },
   }),
+}));
+vi.mock("@react-navigation/native-stack", () => ({
+  createNativeStackNavigator: () => ({
+    Navigator: (props: StackNavigatorProps) => {
+      captured.stack = props;
+      return <div data-testid="stack">{props.children}</div>;
+    },
+    Screen: (props: StackScreenProps) => {
+      captured.stackScreens.push(props);
+      // Render the drawer root so its screens register too.
+      if (props.name === "Main") {
+        const Root = props.component as () => ReactNode;
+        return <Root />;
+      }
+      return null;
+    },
+  }),
+}));
+vi.mock("@/hooks/useReducedMotion", () => ({
+  useReducedMotion: () => captured.reduceMotion,
 }));
 vi.mock("@/components/CustomDrawer", () => ({
   CustomDrawerContent: ({ marker }: { marker: string }) => (
@@ -78,16 +111,26 @@ describe("AppRoutes", () => {
   beforeEach(() => {
     captured.screens.length = 0;
     captured.navigator = null;
+    captured.stackScreens.length = 0;
+    captured.stack = null;
+    captured.reduceMotion = false;
   });
   afterEach(cleanup);
 
-  it("registers every screen, in order", () => {
+  it("puts the four destinations in the drawer, in order", () => {
     render(<AppRoutes />);
     expect(captured.screens.map((s) => s.name)).toEqual([
       "Home",
       "LastRequested",
       "LastPlayed",
       "MakeRequest",
+    ]);
+  });
+
+  it("pushes the detail pages on a native stack over the drawer", () => {
+    render(<AppRoutes />);
+    expect(captured.stackScreens.map((s) => s.name)).toEqual([
+      "Main",
       "Settings",
       "Stats",
       "Storage",
@@ -95,6 +138,22 @@ describe("AppRoutes", () => {
       "Account",
       "About",
     ]);
+    expect(captured.stack!.screenOptions.headerShown).toBe(false);
+  });
+
+  it("uses the platform push, or a cross-fade with Reduce Motion", () => {
+    render(<AppRoutes />);
+    expect(captured.stack!.screenOptions.animation).toBe("default");
+    cleanup();
+    captured.reduceMotion = true;
+    render(<AppRoutes />);
+    expect(captured.stack!.screenOptions.animation).toBe("fade");
+  });
+
+  it("keeps the drawer root transparent over the app artwork", () => {
+    render(<AppRoutes />);
+    const main = captured.stackScreens.find((s) => s.name === "Main")!;
+    expect(main.options?.contentStyle?.backgroundColor).toBe("transparent");
   });
 
   it("sizes the drawer to 80% of the window and hides the header", () => {
@@ -137,13 +196,4 @@ describe("AppRoutes", () => {
     expect(byName("LastRequested").initialParams).toEqual({ historyType: "requests" });
     expect(byName("LastPlayed").initialParams).toEqual({ historyType: "played" });
   });
-
-  it.each(["Settings", "Stats", "Storage", "Login", "Account", "About"])(
-    "%s is reachable only by navigation (hidden drawer item)",
-    (name) => {
-      render(<AppRoutes />);
-      expect(byName(name).options.drawerItemStyle).toEqual({ display: "none" });
-      expect(byName(name).options.drawerLabel).toBeUndefined();
-    },
-  );
 });

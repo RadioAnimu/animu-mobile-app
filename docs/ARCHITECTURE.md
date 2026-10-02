@@ -112,7 +112,7 @@ src/
 │   └── services/         # API facade, requests, background tasks, settings
 ├── hooks/                # Shared hooks (dict, retry, clipboard, request flows)
 ├── i18n/                 # PT / EN / ES / JP dictionaries
-├── routes/               # Navigation (drawer)
+├── routes/               # Navigation (native stack over the drawer)
 ├── screens/              # Home, History, MakeRequest, Settings, Storage, Login, Account, About
 ├── theme/                # Design tokens (colors, spacing, radii, typography)
 └── @types/               # Ambient type declarations
@@ -240,7 +240,7 @@ keeps using relative requires.
 | Runtime | React Native 0.86.3 · React 19.2.3 (New Architecture) |
 | Build tooling | Expo SDK 57 · EAS Build · Expo dev client |
 | Language | TypeScript 6.0 (strict) |
-| Navigation | React Navigation 7 — **drawer** (`@react-navigation/drawer`); no native-stack dependency |
+| Navigation | React Navigation 7 — a **native stack** (`@react-navigation/native-stack`) whose root is the **drawer** (`@react-navigation/drawer`: Player, history, Make Request); Settings, Stats, Storage, Login, Account and About push on the stack (platform push/pop, iOS swipe-back, Android predictive back; cross-fade with Reduce Motion) |
 | Audio | `expo-audio` (patched: permission-free PCM sampling, interruption reporting, focus-gated starts, live-stream buffering/readiness, network wake mode) · `react-native-playback-controls` (OS media session) |
 | Visualizer (Android) | Transparent `react-native-webview` running the web player's Canvas 2D + `requestAnimationFrame` loop, fed by the Android-only `AudioSampler` (ExoPlayer `TeeAudioProcessor`); unmounted while backgrounded (`AppStateGate` + `react-freeze`). Platform-split (`.android`/`.ios`) so iOS bundles nothing |
 | Icons | `@react-native-vector-icons/material-icons` · `react-native-svg` (only `ProviderIcon`, `SocialIcon`, `BackArrow`) |

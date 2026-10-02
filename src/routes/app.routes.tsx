@@ -2,6 +2,11 @@ import {
   createDrawerNavigator,
   type DrawerContentComponentProps,
 } from "@react-navigation/drawer";
+import {
+  createNativeStackNavigator,
+  type NativeStackNavigationOptions,
+} from "@react-navigation/native-stack";
+import type { NavigatorScreenParams } from "@react-navigation/native";
 
 import { useWindowDimensions } from "react-native";
 import { CustomDrawerContent, DrawerIcon } from "@/components/CustomDrawer";
@@ -16,17 +21,27 @@ import { Login } from "@/screens/Login";
 import { Account } from "@/screens/Account";
 import { About } from "@/screens/About";
 import { useDict } from "@/hooks/useDict";
+import { useReducedMotion } from "@/hooks/useReducedMotion";
 import type { HistoryType } from "animu-api";
 
 interface HistoryProps {
   historyType: HistoryType;
 }
 
-export type RootStackParamList = {
+/** The top-level destinations the drawer switches between. */
+export type DrawerParamList = {
   Home: undefined;
   LastRequested: HistoryProps;
   LastPlayed: HistoryProps;
   MakeRequest: undefined;
+};
+
+/**
+ * Detail pages pushed on top of the drawer. A real stack gives them the
+ * platform push/pop transition, the iOS edge swipe-back and Android's
+ * predictive back — the drawer alone swapped them in with no motion at all.
+ */
+export type DetailParamList = {
   Settings: undefined;
   Stats: undefined;
   Storage: undefined;
@@ -35,7 +50,15 @@ export type RootStackParamList = {
   About: undefined;
 };
 
-const { Navigator, Screen } = createDrawerNavigator<RootStackParamList>();
+export type RootStackParamList = DetailParamList & {
+  Main: NavigatorScreenParams<DrawerParamList> | undefined;
+};
+
+/** Every route name, for helpers that navigate by name from anywhere. */
+export type AppRouteName = keyof DrawerParamList | keyof DetailParamList;
+
+const Drawer = createDrawerNavigator<DrawerParamList>();
+const Stack = createNativeStackNavigator<RootStackParamList>();
 
 const DRAWER_WIDTH_RATIO = 0.8;
 
@@ -58,17 +81,14 @@ const makeRequestIcon = ({ color }: { color: string }) => (
   <DrawerIcon name="music-note" color={color} />
 );
 
-/** Routes reachable only via navigation (no drawer entry). */
-const HIDDEN_ITEM_OPTIONS = { drawerItemStyle: { display: "none" } } as const;
-
-export function AppRoutes() {
+function DrawerRoutes() {
   const dict = useDict();
   const { width } = useWindowDimensions();
 
   return (
-    <Navigator
-      // Back (header arrow and hardware) returns to the screen you came from,
-      // not always to the player.
+    <Drawer.Navigator
+      // Back (hardware) returns to the destination you came from, not
+      // always to the player.
       backBehavior="history"
       screenOptions={{
         headerShown: false,
@@ -80,7 +100,7 @@ export function AppRoutes() {
       }}
       drawerContent={renderDrawerContent}
     >
-      <Screen
+      <Drawer.Screen
         options={{
           drawerLabel: dict.MENU_PLAYER,
           drawerIcon: playerIcon,
@@ -88,7 +108,7 @@ export function AppRoutes() {
         name="Home"
         component={Home}
       />
-      <Screen
+      <Drawer.Screen
         options={{
           drawerLabel: dict.MENU_LAST_REQUESTED,
           drawerIcon: lastRequestedIcon,
@@ -97,7 +117,7 @@ export function AppRoutes() {
         component={History}
         initialParams={{ historyType: "requests" }}
       />
-      <Screen
+      <Drawer.Screen
         options={{
           drawerLabel: dict.MENU_LAST_PLAYED,
           drawerIcon: lastPlayedIcon,
@@ -106,7 +126,7 @@ export function AppRoutes() {
         component={History}
         initialParams={{ historyType: "played" }}
       />
-      <Screen
+      <Drawer.Screen
         options={{
           drawerLabel: dict.MENU_MAKE_REQUEST,
           drawerIcon: makeRequestIcon,
@@ -114,24 +134,44 @@ export function AppRoutes() {
         name="MakeRequest"
         component={MakeRequest}
       />
-      <Screen
-        options={HIDDEN_ITEM_OPTIONS}
-        name="Settings"
-        component={Settings}
+    </Drawer.Navigator>
+  );
+}
+
+/** Opaque scene for the settings-style pages, so the push never shows through. */
+const DETAIL_CONTENT = { backgroundColor: THEME.COLORS.BG_DEEP } as const;
+/** Login paints the app artwork itself; the scene behind it stays the app tone. */
+const LOGIN_CONTENT = { backgroundColor: THEME.COLORS.APP_BG } as const;
+
+export function AppRoutes() {
+  const reduceMotion = useReducedMotion();
+
+  const screenOptions: NativeStackNavigationOptions = {
+    headerShown: false,
+    contentStyle: DETAIL_CONTENT,
+    // Platform push/pop by default; a plain cross-fade when the system asks
+    // for reduced motion.
+    animation: reduceMotion ? "fade" : "default",
+  };
+
+  return (
+    <Stack.Navigator screenOptions={screenOptions}>
+      <Stack.Screen
+        name="Main"
+        component={DrawerRoutes}
+        // The drawer root shows the app artwork behind its screens.
+        options={{ contentStyle: { backgroundColor: "transparent" } }}
       />
-      <Screen options={HIDDEN_ITEM_OPTIONS} name="Stats" component={Stats} />
-      <Screen
-        options={HIDDEN_ITEM_OPTIONS}
-        name="Storage"
-        component={Storage}
+      <Stack.Screen name="Settings" component={Settings} />
+      <Stack.Screen name="Stats" component={Stats} />
+      <Stack.Screen name="Storage" component={Storage} />
+      <Stack.Screen
+        name="Login"
+        component={Login}
+        options={{ contentStyle: LOGIN_CONTENT }}
       />
-      <Screen options={HIDDEN_ITEM_OPTIONS} name="Login" component={Login} />
-      <Screen
-        options={HIDDEN_ITEM_OPTIONS}
-        name="Account"
-        component={Account}
-      />
-      <Screen options={HIDDEN_ITEM_OPTIONS} name="About" component={About} />
-    </Navigator>
+      <Stack.Screen name="Account" component={Account} />
+      <Stack.Screen name="About" component={About} />
+    </Stack.Navigator>
   );
 }

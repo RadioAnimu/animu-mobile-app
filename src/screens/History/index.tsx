@@ -1,7 +1,6 @@
 import { useCallback, useMemo, useRef, useState } from "react";
 import {
   FlatList,
-  RefreshControl,
   Text,
   TouchableOpacity,
   View,
@@ -11,11 +10,12 @@ import {
 import { styles } from "@/screens/History/styles";
 
 import { SafeAreaView } from "react-native-safe-area-context";
+import { AppRefreshControl } from "@/components/AppRefreshControl";
 import { HeaderBar } from "@/components/HeaderBar";
 import { Cover } from "@/components/Cover";
 
 import { DrawerScreenProps } from "@react-navigation/drawer";
-import { RootStackParamList } from "@/routes/app.routes";
+import type { DrawerParamList } from "@/routes/app.routes";
 
 import { Image } from "expo-image";
 import { IMGS } from "@/i18n";
@@ -27,9 +27,10 @@ import type { StationSnapshot } from "@/core/player";
 import { useRouteReselect } from "@/hooks/useRouteReselect";
 import { useAlert } from "@/contexts/alert/AlertProvider";
 import { useDict } from "@/hooks/useDict";
+import { useScrollEndPadding } from "@/hooks/useScrollEndPadding";
 
 type Props = DrawerScreenProps<
-  RootStackParamList,
+  DrawerParamList,
   "LastRequested" | "LastPlayed"
 >;
 
@@ -52,6 +53,7 @@ export function History({ route }: Props) {
   const dict = useDict();
   const { toast } = useAlert();
   const [refreshing, setRefreshing] = useState(false);
+  const endPadding = useScrollEndPadding(THEME.SPACE.LG);
 
   // Re-tapping the drawer's active history item jumps back to the newest row.
   const listRef = useRef<FlatList<HistoryTrack> | null>(null);
@@ -98,7 +100,7 @@ export function History({ route }: Props) {
           )}
           <TouchableOpacity
             accessibilityRole="button"
-            activeOpacity={0.7}
+            activeOpacity={THEME.OPACITY.PRESSED}
             onPress={() => copyText(item.raw)}
             style={styles.nameTouchable}
           >
@@ -127,7 +129,7 @@ export function History({ route }: Props) {
   );
 
   return (
-    <SafeAreaView style={styles.container} edges={["left", "right", "bottom"]}>
+    <SafeAreaView style={styles.container} edges={["left", "right"]}>
       <HeaderBar />
       <View style={styles.appContainer}>
         <Image
@@ -145,7 +147,10 @@ export function History({ route }: Props) {
             ref={listRef}
             data={listData}
             keyExtractor={rowKey}
-            contentContainerStyle={styles.containerList}
+            contentContainerStyle={[
+              styles.containerList,
+              { paddingBottom: endPadding },
+            ]}
             renderItem={renderItem}
             ListEmptyComponent={
               <Text style={styles.emptyText}>{dict.HISTORY_EMPTY}</Text>
@@ -157,12 +162,9 @@ export function History({ route }: Props) {
             maxToRenderPerBatch={10}
             windowSize={7}
             refreshControl={
-              <RefreshControl
+              <AppRefreshControl
                 refreshing={refreshing}
                 onRefresh={onRefresh}
-                tintColor={THEME.COLORS.TEXT}
-                colors={[THEME.COLORS.BRAND]}
-                progressBackgroundColor={THEME.COLORS.SURFACE}
               />
             }
           />

@@ -1,8 +1,8 @@
 import type { ComponentProps } from "react";
 import { useState } from "react";
-import MaterialIcons from "@react-native-vector-icons/material-icons/static";
+import { Icon } from "@/components/Icon";
 import * as Linking from "expo-linking";
-import { DrawerScreenProps } from "@react-navigation/drawer";
+import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { Image } from "expo-image";
 import { ScrollView, Text, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -13,7 +13,8 @@ import { ScreenHeader } from "@/components/ScreenHeader";
 import { SectionTitle } from "@/components/SectionTitle";
 import { SocialIcon, type SocialBrand } from "@/components/SocialIcon";
 import { useDict } from "@/hooks/useDict";
-import { RootStackParamList } from "@/routes/app.routes";
+import { useScrollEndPadding } from "@/hooks/useScrollEndPadding";
+import type { RootStackParamList } from "@/routes/app.routes";
 import { haptics } from "@/utils/haptics";
 import { RowDivider } from "@/components/ListRow";
 import { InfoRow, LinkRow } from "@/screens/Settings/rows";
@@ -24,9 +25,9 @@ import { DONORS } from "@/screens/About/credits";
 import { useAppInfo } from "@/screens/About/info";
 import { styles } from "@/screens/About/styles";
 
-type Props = DrawerScreenProps<RootStackParamList, "About">;
+type Props = NativeStackScreenProps<RootStackParamList, "About">;
 
-type IconName = ComponentProps<typeof MaterialIcons>["name"];
+type IconName = ComponentProps<typeof Icon>["name"];
 
 const APP_NAME = "Rádio Animu";
 const MAINTAINER = "Ricardo Freitas (Ness)";
@@ -48,7 +49,7 @@ function DetailRow({ icon, label, value }: DetailRowProps) {
   return (
     <View style={styles.row}>
       <View style={styles.rowIcon}>
-        <MaterialIcons
+        <Icon
           name={icon}
           size={THEME.ICON.MD}
           color={THEME.COLORS.TEXT}
@@ -74,7 +75,7 @@ function SocialRow({ brand, label, url }: SocialRowProps) {
     <TouchableOpacity
       accessibilityRole="link"
       accessibilityLabel={label}
-      activeOpacity={0.7}
+      activeOpacity={THEME.OPACITY.PRESSED}
       onPress={() => open(url)}
       style={styles.row}
     >
@@ -86,7 +87,7 @@ function SocialRow({ brand, label, url }: SocialRowProps) {
         />
       </View>
       <Text style={styles.rowLabel}>{label}</Text>
-      <MaterialIcons
+      <Icon
         name="open-in-new"
         size={THEME.ICON.MD}
         color={THEME.COLORS.TEXT_DIM}
@@ -113,13 +114,14 @@ function DonorDisclosure({ label, intro }: { label: string; intro: string }) {
     <View>
       <TouchableOpacity
         accessibilityRole="button"
+        accessibilityLabel={label}
         accessibilityState={{ expanded }}
-        activeOpacity={0.7}
+        activeOpacity={THEME.OPACITY.PRESSED}
         onPress={toggle}
       >
         <View style={styles.row}>
           <View style={styles.rowIcon}>
-            <MaterialIcons
+            <Icon
               name="favorite"
               size={THEME.ICON.MD}
               color={THEME.COLORS.TEXT}
@@ -129,7 +131,7 @@ function DonorDisclosure({ label, intro }: { label: string; intro: string }) {
           <Text style={styles.rowValue} numberOfLines={1}>
             {DONORS.length}
           </Text>
-          <MaterialIcons
+          <Icon
             name={expanded ? "expand-less" : "expand-more"}
             size={THEME.ICON.MD}
             color={THEME.COLORS.TEXT_DIM}
@@ -158,6 +160,7 @@ function DonorDisclosure({ label, intro }: { label: string; intro: string }) {
 
 export function About({ navigation }: Props) {
   const dict = useDict();
+  const endPadding = useScrollEndPadding();
   const info = useAppInfo();
 
   const releaseLabel: string = {
@@ -177,12 +180,17 @@ export function About({ navigation }: Props) {
     : dict.ABOUT_VERSION_LOADING;
 
   return (
-    <SafeAreaView style={styles.container} edges={["left", "right", "bottom"]}>
+    <SafeAreaView style={styles.container} edges={["left", "right"]}>
       <ScreenHeader
         title={dict.ABOUT_TITLE}
         onBack={() => navigation.goBack()}
       />
-      <ScrollView contentContainerStyle={styles.appContainer}>
+      <ScrollView
+        contentContainerStyle={[
+          styles.appContainer,
+          { paddingBottom: endPadding },
+        ]}
+      >
         <View style={styles.header}>
           <Logo size={THEME.LAYOUT.LOGO_HEIGHT} />
           <Text style={styles.appName}>{APP_NAME}</Text>
@@ -296,7 +304,7 @@ export function About({ navigation }: Props) {
           <TouchableOpacity
             accessibilityRole="link"
             accessibilityLabel={dict.SETTINGS_FOOTER_LICENSE}
-            activeOpacity={0.7}
+            activeOpacity={THEME.OPACITY.PRESSED}
             onPress={() => open(API.CONTENT_LICENSE_URL)}
           >
             <Image

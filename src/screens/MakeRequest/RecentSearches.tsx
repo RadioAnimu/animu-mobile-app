@@ -1,4 +1,4 @@
-import MaterialIcons from "@react-native-vector-icons/material-icons/static";
+import { Icon } from "@/components/Icon";
 import { ScrollView, Text, TouchableOpacity, View } from "react-native";
 
 import type { Dict } from "@/i18n";
@@ -16,17 +16,19 @@ export function RecentSearches({
   onPick,
   onRemove,
   onClear,
+  bottomPadding,
 }: {
   dict: Dict;
   items: string[];
   onPick: (query: string) => void;
   onRemove: (query: string) => void;
   onClear: () => void;
+  bottomPadding: number;
 }) {
   return (
     <ScrollView
       style={styles.recent}
-      contentContainerStyle={styles.recentContent}
+      automaticallyAdjustKeyboardInsets
       keyboardShouldPersistTaps="handled"
       keyboardDismissMode="on-drag"
     >
@@ -35,7 +37,7 @@ export function RecentSearches({
         <TouchableOpacity
           accessibilityRole="button"
           accessibilityLabel={dict.REQUEST_SEARCH_RECENT_CLEAR}
-          hitSlop={8}
+          hitSlop={THEME.HIT_SLOP.SM}
           onPress={onClear}
         >
           <Text style={styles.recentClear}>
@@ -52,11 +54,11 @@ export function RecentSearches({
               <TouchableOpacity
                 accessibilityRole="button"
                 accessibilityLabel={item}
-                activeOpacity={0.7}
+                activeOpacity={THEME.OPACITY.PRESSED}
                 onPress={() => onPick(item)}
                 style={styles.recentPick}
               >
-                <MaterialIcons
+                <Icon
                   name="history"
                   size={THEME.ICON.MD}
                   color={THEME.COLORS.TEXT_DIM}
@@ -68,11 +70,11 @@ export function RecentSearches({
               <TouchableOpacity
                 accessibilityRole="button"
                 accessibilityLabel={`${dict.REQUEST_SEARCH_RECENT_REMOVE}: ${item}`}
-                hitSlop={8}
+                hitSlop={THEME.HIT_SLOP.SM}
                 onPress={() => onRemove(item)}
                 style={styles.recentRemove}
               >
-                <MaterialIcons
+                <Icon
                   name="close"
                   size={THEME.ICON.MD}
                   color={THEME.COLORS.TEXT_DIM}
@@ -82,6 +84,8 @@ export function RecentSearches({
           </View>
         ))}
       </View>
+      {/* Clears the home indicator (and the Android keyboard). */}
+      <View style={{ height: bottomPadding }} />
     </ScrollView>
   );
 }

@@ -67,7 +67,7 @@ vi.mock("@/components/Avatar", () => ({
   ),
 }));
 
-const navigation = { navigate: vi.fn(), dispatch: vi.fn() };
+const navigation = { navigate: vi.fn(), dispatch: vi.fn(), closeDrawer: vi.fn() };
 
 function makeProps(focusedIndex = 0): DrawerContentComponentProps {
   const routes = [
@@ -112,9 +112,11 @@ describe("CustomDrawerContent", () => {
       expect(screen.queryByTestId("avatar")).toBeNull();
 
       fireEvent.click(screen.getByText("Login"));
+      expect(navigation.closeDrawer).toHaveBeenCalled();
       expect(navigation.navigate).toHaveBeenCalledWith("Login");
 
       fireEvent.click(screen.getByRole("button", { name: "Settings" }));
+      expect(navigation.closeDrawer).toHaveBeenCalled();
       expect(navigation.navigate).toHaveBeenCalledWith("Settings");
     });
 
@@ -129,6 +131,7 @@ describe("CustomDrawerContent", () => {
       expect(screen.queryByRole("button", { name: "Settings" })).toBeNull();
 
       fireEvent.click(screen.getByText("ana_u"));
+      expect(navigation.closeDrawer).toHaveBeenCalled();
       expect(navigation.navigate).toHaveBeenCalledWith("Settings");
     });
 

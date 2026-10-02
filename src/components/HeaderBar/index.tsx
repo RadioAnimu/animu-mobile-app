@@ -29,6 +29,7 @@ import {
 import { useIsBackgrounded } from "@/contexts/app-state/AppStateProvider";
 import { useDict } from "@/hooks/useDict";
 import { useBlink } from "@/hooks/useBlink";
+import { useReducedMotion } from "@/hooks/useReducedMotion";
 import { useSmoothedElapsed } from "@/hooks/useSmoothedElapsed";
 import { isFillerTransition } from "@/core/domain/track";
 import {
@@ -36,7 +37,7 @@ import {
   isBarCorrection,
   isSubVisibleStep,
 } from "@/utils/progress";
-import type { RootStackParamList } from "@/routes/app.routes";
+import type { DrawerParamList } from "@/routes/app.routes";
 import { haptics } from "@/utils/haptics";
 
 interface Props {
@@ -54,11 +55,12 @@ const PROGRESS_ANIM_DURATION = 300;
 
 export function HeaderBar({ openLiveRequestModal }: Props) {
   const navigation =
-    useNavigation<DrawerNavigationProp<RootStackParamList>>();
+    useNavigation<DrawerNavigationProp<DrawerParamList>>();
   const insets = useSafeAreaInsets();
   const dict = useDict();
   const player = usePlayer();
   const isBackgrounded = useIsBackgrounded();
+  const reduceMotion = useReducedMotion();
   const { width: windowWidth } = useWindowDimensions();
   const { currentTrack, currentProgram } = player;
   const { currentTrackProgress } = useTrackProgress();
@@ -146,7 +148,8 @@ export function HeaderBar({ openLiveRequestModal }: Props) {
     // Previously the loop started on mount and ran for the component's
     // whole lifetime, keeping the UI thread busy even when nothing was on
     // screen (and while backgrounded).
-    if (!showLiveBadge || isBackgrounded) {
+    // Purely decorative and endless, so Reduce Motion parks it at rest.
+    if (!showLiveBadge || isBackgrounded || reduceMotion) {
       animation.setValue(0);
       return undefined;
     }
@@ -173,7 +176,7 @@ export function HeaderBar({ openLiveRequestModal }: Props) {
       loop.stop();
       animation.setValue(0);
     };
-  }, [showLiveBadge, isBackgrounded, animation]);
+  }, [showLiveBadge, isBackgrounded, reduceMotion, animation]);
 
   const translateY = animation.interpolate({
     inputRange: [0, PULSE_OPACITY],

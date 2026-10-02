@@ -3,8 +3,8 @@ import { THEME } from "@/theme";
 import { FLOW_STYLES } from "@/theme/screen";
 import { scale } from "@/theme/responsive";
 
-const INPUT_HEIGHT = scale(44);
-const FIELD_ICON = scale(22);
+const INPUT_HEIGHT = THEME.LAYOUT.FIELD_HEIGHT;
+const FIELD_ICON = THEME.ICON.MD;
 
 export const styles = StyleSheet.create({
   container: FLOW_STYLES.container,
@@ -26,8 +26,10 @@ export const styles = StyleSheet.create({
   input: {
     height: INPUT_HEIGHT,
     width: "100%",
+    // The app's field recipe (see EmailCodeFields): INPUT_BG, a hairline
+    // INPUT_BORDER that turns brand while focused, MD radius.
     borderRadius: THEME.RADIUS.MD,
-    borderWidth: scale(2),
+    borderWidth: 1,
     borderColor: THEME.COLORS.INPUT_BORDER,
     backgroundColor: THEME.COLORS.INPUT_BG,
     color: THEME.COLORS.TEXT,
@@ -40,6 +42,9 @@ export const styles = StyleSheet.create({
     paddingVertical: 0,
     // Reserves the in-field icon slot so text never runs under it.
     paddingRight: FIELD_ICON + THEME.SPACE.LG,
+  },
+  inputFocused: {
+    borderColor: THEME.COLORS.BRAND,
   },
   // Relative anchor for the in-field icon slot (magnifier ↔ clear).
   searchField: {
@@ -103,9 +108,6 @@ export const styles = StyleSheet.create({
   recent: {
     width: "100%",
   },
-  recentContent: {
-    paddingBottom: THEME.SPACE.LG,
-  },
   recentHeader: {
     flexDirection: "row",
     alignItems: "center",
@@ -126,7 +128,7 @@ export const styles = StyleSheet.create({
   recentDivider: {
     height: StyleSheet.hairlineWidth,
     backgroundColor: THEME.COLORS.HAIRLINE,
-    marginLeft: THEME.SPACE.LG + THEME.ICON.MD + THEME.SPACE.MD,
+    marginLeft: THEME.SPACE.XS + THEME.ICON.MD + THEME.SPACE.MD,
   },
   recentRow: {
     flexDirection: "row",
@@ -139,12 +141,14 @@ export const styles = StyleSheet.create({
     alignItems: "center",
     gap: THEME.SPACE.MD,
     alignSelf: "stretch",
-    paddingLeft: THEME.SPACE.LG,
+    // Same edges as the "Recent / Clear" header above the rows.
+    paddingLeft: THEME.SPACE.XS,
   },
   recentRemove: {
     alignSelf: "stretch",
     justifyContent: "center",
-    paddingHorizontal: THEME.SPACE.LG,
+    paddingLeft: THEME.SPACE.LG,
+    paddingRight: THEME.SPACE.XS,
   },
   recentText: {
     flex: 1,

@@ -1,9 +1,10 @@
 import { useCallback, useMemo, useState } from "react";
-import { DrawerScreenProps } from "@react-navigation/drawer";
+import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { useFocusEffect } from "@react-navigation/native";
-import { RefreshControl, ScrollView, Text, View } from "react-native";
+import { ScrollView, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+import { AppRefreshControl } from "@/components/AppRefreshControl";
 import { ScreenHeader } from "@/components/ScreenHeader";
 import {
   listenStatsService,
@@ -12,14 +13,14 @@ import {
 import { useAuth } from "@/contexts/auth/AuthProvider";
 import { useAlert } from "@/contexts/alert/AlertProvider";
 import { useDict } from "@/hooks/useDict";
-import { RootStackParamList } from "@/routes/app.routes";
+import { useScrollEndPadding } from "@/hooks/useScrollEndPadding";
+import type { RootStackParamList } from "@/routes/app.routes";
 import { ShareCardSection } from "@/screens/Stats/ShareCardSection";
 import { StatsContent } from "@/screens/Stats/StatsContent";
 import { styles } from "@/screens/Stats/styles";
-import { THEME } from "@/theme";
 import { haptics } from "@/utils/haptics";
 
-type Props = DrawerScreenProps<RootStackParamList, "Stats">;
+type Props = NativeStackScreenProps<RootStackParamList, "Stats">;
 
 /**
  * On-device listening stats: the shareable listening card, overview,
@@ -29,6 +30,7 @@ type Props = DrawerScreenProps<RootStackParamList, "Stats">;
  */
 export function Stats({ navigation }: Props) {
   const dict = useDict();
+  const endPadding = useScrollEndPadding();
   const { user, profile, imageVersion, refreshProfile } = useAuth();
   const { toast } = useAlert();
   const [refreshing, setRefreshing] = useState(false);
@@ -87,20 +89,17 @@ export function Stats({ navigation }: Props) {
   }, []);
 
   return (
-    <SafeAreaView style={styles.container} edges={["left", "right", "bottom"]}>
+    <SafeAreaView style={styles.container} edges={["left", "right"]}>
       <ScreenHeader
         title={dict.STATS_TITLE}
         onBack={() => navigation.goBack()}
       />
       <ScrollView
-        contentContainerStyle={styles.content}
+        contentContainerStyle={[styles.content, { paddingBottom: endPadding }]}
         refreshControl={
-          <RefreshControl
+          <AppRefreshControl
             refreshing={refreshing}
             onRefresh={() => void refresh()}
-            tintColor={THEME.COLORS.BRAND}
-            colors={[THEME.COLORS.BRAND]}
-            progressBackgroundColor={THEME.COLORS.SURFACE}
           />
         }
       >

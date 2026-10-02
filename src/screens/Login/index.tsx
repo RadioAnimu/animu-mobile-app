@@ -1,12 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import MaterialIcons from "@react-native-vector-icons/material-icons/static";
-import { DrawerScreenProps } from "@react-navigation/drawer";
+import { Icon } from "@/components/Icon";
+import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { useFocusEffect } from "@react-navigation/native";
 import {
   ActivityIndicator,
   Animated,
   BackHandler,
-  Easing,
   Linking,
   Platform,
   ScrollView,
@@ -19,6 +18,7 @@ import type { ProviderInfo } from "animu-api";
 
 import { API } from "@/api";
 import { AuthBackdrop } from "@/components/AuthBackdrop";
+import { Background } from "@/components/Background";
 import { BackArrow } from "@/components/BackArrow";
 import { CodeSubtitle } from "@/components/CodeSubtitle";
 import { ConnectActions } from "@/components/ConnectActions";
@@ -40,37 +40,42 @@ import {
   type EmailCodeFlow,
 } from "@/hooks/useEmailCodeFlow";
 import { useKeyboardPadding } from "@/hooks/useKeyboardPadding";
+import { useReducedMotion } from "@/hooks/useReducedMotion";
 import { useResendCooldown } from "@/hooks/useResendCooldown";
 import { haptics } from "@/utils/haptics";
 import { interpolate } from "@/utils/format";
-import { RootStackParamList } from "@/routes/app.routes";
-import { scale } from "@/theme/responsive";
+import type { RootStackParamList } from "@/routes/app.routes";
 import { THEME } from "@/theme";
+import { MOTION } from "@/theme/motion";
 import { styles } from "@/screens/Login/styles";
 
-type Props = DrawerScreenProps<RootStackParamList, "Login">;
+type Props = NativeStackScreenProps<RootStackParamList, "Login">;
 type Step = "method" | "connect";
 
-/** Localized wordmark height in the hero. */
+/** Gap between the entrance of consecutive blocks — a beat, not a wait. */
+const ENTRANCE_STAGGER = 40;
 
 /**
  * Fade-and-rise entrance for an auth block. Each section starts a beat after
- * the previous one so the screen assembles instead of popping in.
+ * the previous one so the screen assembles instead of popping in, while the
+ * whole screen is settled in well under a third of a second. Reduce Motion
+ * keeps the fade and drops the rise.
  */
-function useEntrance(delay = 0) {
+function useEntrance(step = 0) {
   const [progress] = useState(() => new Animated.Value(0));
+  const reduceMotion = useReducedMotion();
 
   useEffect(() => {
     const animation = Animated.timing(progress, {
       toValue: 1,
-      delay,
-      duration: 420,
-      easing: Easing.out(Easing.cubic),
+      delay: step * ENTRANCE_STAGGER,
+      duration: MOTION.DURATION.NORMAL,
+      easing: MOTION.EASING.ENTER,
       useNativeDriver: true,
     });
     animation.start();
     return () => animation.stop();
-  }, [delay, progress]);
+  }, [step, progress]);
 
   return {
     opacity: progress,
@@ -78,7 +83,7 @@ function useEntrance(delay = 0) {
       {
         translateY: progress.interpolate({
           inputRange: [0, 1],
-          outputRange: [scale(14), 0],
+          outputRange: [reduceMotion ? 0 : MOTION.RISE, 0],
         }),
       },
     ],
@@ -133,8 +138,8 @@ function MethodStep({
   onConnect,
 }: MethodStepProps) {
   const heroStyle = useEntrance(0);
-  const providersStyle = useEntrance(90);
-  const connectStyle = useEntrance(160);
+  const connectStyle = useEntrance(1);
+  const providersStyle = useEntrance(2);
 
   return (
     <>
@@ -182,7 +187,7 @@ function MethodStep({
                     accessibilityRole="button"
                     accessibilityLabel={label}
                     accessibilityState={{ busy, disabled: authenticating }}
-                    activeOpacity={0.7}
+                    activeOpacity={THEME.OPACITY.PRESSED}
                     disabled={authenticating}
                     onPress={() => onProvider(provider.name)}
                     style={[
@@ -233,13 +238,13 @@ function ConnectStep({
 }: ConnectStepProps) {
   const onCodeStep = flow.step === "code";
   const headerStyle = useEntrance(0);
-  const formStyle = useEntrance(90);
+  const formStyle = useEntrance(1);
 
   return (
     <View style={styles.connectBody}>
       <Animated.View style={[styles.connectHeader, headerStyle]}>
         <View style={styles.connectBadge}>
-          <MaterialIcons
+          <Icon
             name={onCodeStep ? "mark-email-unread" : "alternate-email"}
             size={THEME.ICON.XL}
             color={THEME.COLORS.BRAND}
@@ -272,7 +277,7 @@ function ConnectStep({
         {/* The email step's button carries its own spinner. */}
         {flow.busy && onCodeStep && (
           <View style={styles.busyRow}>
-            <ActivityIndicator color={THEME.COLORS.BRAND} />
+            <ActivityIndicator color={THEME.COLORS.SPINNER} />
           </View>
         )}
 
@@ -326,7 +331,7 @@ export function Login({ navigation }: Props) {
     if (navigation.canGoBack()) {
       navigation.goBack();
     } else {
-      navigation.navigate("Home");
+      navigation.navigate("Main", { screen: "Home" });
     }
   };
 
@@ -379,12 +384,14 @@ export function Login({ navigation }: Props) {
       flow.setError(null);
       return;
     }
-    if (navigation.canGoBack()) {
-      navigation.goBack();
-    } else {
-      navigation.navigate("Home");
-    }
+    finish();
   };
+
+  // While the connect form is up, the iOS edge swipe would pop the whole
+  // screen and lose the step; the arrow and hardware back step out instead.
+  useEffect(() => {
+    navigation.setOptions({ gestureEnabled: step === "method" });
+  }, [navigation, step]);
 
   // Hardware back steps out of the connect form instead of leaving Login.
   const goBackRef = useRef(goBack);
@@ -417,7 +424,8 @@ export function Login({ navigation }: Props) {
   const error = providerError ?? flow.error;
 
   return (
-    <View style={styles.container}>
+    // The stack scene is opaque, so the screen paints the app artwork itself.
+    <Background>
       <AuthBackdrop />
       <SafeAreaView
         style={styles.safe}
@@ -428,8 +436,8 @@ export function Login({ navigation }: Props) {
           <TouchableOpacity
             accessibilityRole="button"
             accessibilityLabel={dict.A11Y_BACK}
-            activeOpacity={0.7}
-            hitSlop={8}
+            activeOpacity={THEME.OPACITY.PRESSED}
+            hitSlop={THEME.HIT_SLOP.SM}
             onPress={goBack}
             style={styles.backButton}
           >
@@ -471,6 +479,6 @@ export function Login({ navigation }: Props) {
           )}
         </ScrollView>
       </SafeAreaView>
-    </View>
+    </Background>
   );
 }

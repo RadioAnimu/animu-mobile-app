@@ -94,7 +94,7 @@ export const styles = StyleSheet.create({
     color: THEME.COLORS.TEXT_SOFT,
     fontFamily: THEME.FONT_FAMILY.BOLD,
     fontSize: THEME.FONT_SIZE.BODY,
-    letterSpacing: scale(1.2),
+    letterSpacing: THEME.LETTER_SPACING.CAPS,
     marginLeft: THEME.SPACE.SM,
   },
   navItem: {
