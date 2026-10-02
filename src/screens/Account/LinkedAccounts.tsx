@@ -1,4 +1,4 @@
-import MaterialIcons from "@react-native-vector-icons/material-icons/static";
+import { Icon } from "@/components/Icon";
 import type { LinkedProvider, ProviderInfo } from "animu-api";
 import { ActivityIndicator, Text, TouchableOpacity, View } from "react-native";
 
@@ -48,7 +48,7 @@ function RowAction({
     return (
       <ActivityIndicator
         size="small"
-        color={THEME.COLORS.TEXT_DIM}
+        color={THEME.COLORS.SPINNER}
         style={styles.rowActionBusy}
       />
     );
@@ -60,15 +60,15 @@ function RowAction({
         accessibilityRole="button"
         accessibilityLabel={`${dict.ACCOUNT_UNLINK} ${provider.label}`}
         disabled={!canUnlink || !!busy}
-        activeOpacity={0.7}
-        hitSlop={8}
+        activeOpacity={THEME.OPACITY.PRESSED}
+        hitSlop={THEME.HIT_SLOP.SM}
         style={[
           styles.rowIconAction,
           (!canUnlink || !!busy) && styles.rowActionDisabled,
         ]}
         onPress={() => onUnlink(provider.name)}
       >
-        <MaterialIcons
+        <Icon
           name="link-off"
           size={THEME.ICON.MD}
           color={
@@ -85,12 +85,12 @@ function RowAction({
         accessibilityRole="button"
         accessibilityLabel={`${dict.ACCOUNT_LINK} ${provider.label}`}
         disabled={!!busy}
-        activeOpacity={0.7}
-        hitSlop={8}
+        activeOpacity={THEME.OPACITY.PRESSED}
+        hitSlop={THEME.HIT_SLOP.SM}
         style={[styles.rowIconAction, !!busy && styles.rowActionDisabled]}
         onPress={() => onLink(provider.name)}
       >
-        <MaterialIcons
+        <Icon
           name="add-link"
           size={THEME.ICON.MD}
           color={THEME.COLORS.BRAND}

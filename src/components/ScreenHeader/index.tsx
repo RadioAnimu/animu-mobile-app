@@ -4,6 +4,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { BackArrow } from "@/components/BackArrow";
 import { HEADER_HEIGHT, styles } from "@/components/ScreenHeader/styles";
 import { useDict } from "@/hooks/useDict";
+import { THEME } from "@/theme";
 
 interface Props {
   title: string;
@@ -29,12 +30,22 @@ export function ScreenHeader({ title, onBack }: Props) {
       <TouchableOpacity
         accessibilityRole="button"
         accessibilityLabel={dict.A11Y_BACK}
+        activeOpacity={THEME.OPACITY.PRESSED}
         onPress={onBack}
         style={styles.headerButton}
       >
         <BackArrow />
       </TouchableOpacity>
-      <Text style={styles.headerTitle}>{title}</Text>
+      {/* One line, whatever the language or text size: the bar has a fixed
+          height and long titles would otherwise wrap into the content. */}
+      <Text
+        maxFontSizeMultiplier={THEME.FONT_SCALE.CHROME}
+        accessibilityRole="header"
+        numberOfLines={1}
+        style={styles.headerTitle}
+      >
+        {title}
+      </Text>
       <View style={styles.headerButton} />
     </View>
   );

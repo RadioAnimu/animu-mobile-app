@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import MaterialIcons from "@react-native-vector-icons/material-icons/static";
+import { Icon } from "@/components/Icon";
 import { Animated, Text, TouchableOpacity, View } from "react-native";
 
 import { Avatar } from "@/components/Avatar";
@@ -13,6 +13,7 @@ import type { Dict } from "@/i18n";
 import type { AuthProfile, User } from "@/core/domain/user";
 import { styles, SWITCH } from "@/screens/Settings/styles";
 import { haptics } from "@/utils/haptics";
+import { useStackedRows } from "@/hooks/useStackedRows";
 
 interface AccountRowProps {
   user: User | null;
@@ -22,10 +23,18 @@ interface AccountRowProps {
 }
 
 export function AccountRow({ user, profile, dict, onPress }: AccountRowProps) {
+  const handle = profile?.user.handle || user?.handle;
+  const label = user
+    ? [profile?.user.username || user.username, handle && `@${handle}`]
+        .filter(Boolean)
+        .join(", ")
+    : dict.SETTINGS_ACCOUNT_SIGN_IN;
+
   return (
     <TouchableOpacity
       accessibilityRole="button"
-      activeOpacity={0.7}
+      accessibilityLabel={label}
+      activeOpacity={THEME.OPACITY.PRESSED}
       onPress={onPress}
       style={[styles.row, styles.accountRow]}
     >
@@ -34,12 +43,16 @@ export function AccountRow({ user, profile, dict, onPress }: AccountRowProps) {
           <Avatar uri={user.avatarUrl} style={styles.accountAvatar} />
           <View style={styles.accountInfo}>
             <View style={styles.accountNameRow}>
-              <Text style={styles.accountName} numberOfLines={1}>
+              <Text
+                maxFontSizeMultiplier={THEME.FONT_SCALE.CONTENT}
+                style={styles.accountName}
+                numberOfLines={1}
+              >
                 {profile?.user.username || user.username}
               </Text>
               {profile?.user.verified && (
                 <View style={styles.accountBadge}>
-                  <MaterialIcons
+                  <Icon
                     name="verified"
                     size={THEME.ICON.MD}
                     color={THEME.COLORS.BRAND}
@@ -47,13 +60,17 @@ export function AccountRow({ user, profile, dict, onPress }: AccountRowProps) {
                 </View>
               )}
             </View>
-            <Text style={styles.accountCaption} numberOfLines={1}>
+            <Text
+              maxFontSizeMultiplier={THEME.FONT_SCALE.CONTENT}
+              style={styles.accountCaption}
+              numberOfLines={1}
+            >
               {profile?.user.handle || user.handle
                 ? `@${profile?.user.handle || user.handle}`
                 : dict.ACCOUNT_TITLE}
             </Text>
           </View>
-          <MaterialIcons
+          <Icon
             name="chevron-right"
             size={THEME.ICON.MD}
             color={THEME.COLORS.TEXT_DIM}
@@ -63,7 +80,7 @@ export function AccountRow({ user, profile, dict, onPress }: AccountRowProps) {
         <>
           <LeadingIcon name="login" />
           <RowBody label={dict.SETTINGS_ACCOUNT_SIGN_IN} />
-          <MaterialIcons
+          <Icon
             name="chevron-right"
             size={THEME.ICON.MD}
             color={THEME.COLORS.TEXT_DIM}
@@ -138,8 +155,9 @@ export function SettingsRow({
   return (
     <TouchableOpacity
       accessibilityRole="switch"
+      accessibilityLabel={description ? `${label}, ${description}` : label}
       accessibilityState={{ checked: value, disabled: disabled || undefined }}
-      activeOpacity={0.7}
+      activeOpacity={THEME.OPACITY.PRESSED}
       onPress={() => {
         haptics.select();
         onToggle();
@@ -169,20 +187,34 @@ export function ValueRow({
   description,
   onPress,
 }: ValueRowProps) {
+  const stacked = useStackedRows();
+  const valueText = (
+    <Text
+      maxFontSizeMultiplier={THEME.FONT_SCALE.CONTENT}
+      style={styles.rowValueText}
+      numberOfLines={1}
+    >
+      {value}
+    </Text>
+  );
+
   return (
     <TouchableOpacity
       accessibilityRole="button"
-      activeOpacity={0.7}
+      accessibilityLabel={[label, description, value].filter(Boolean).join(", ")}
+      activeOpacity={THEME.OPACITY.PRESSED}
       onPress={onPress}
       style={styles.row}
     >
       <LeadingIcon name={icon} />
-      <RowBody label={label} description={description} />
+      {/* Large text: the value drops under the label so the label keeps
+          the full row width. */}
+      <RowBody label={label} description={description}>
+        {stacked ? valueText : undefined}
+      </RowBody>
       <View style={styles.rowValue}>
-        <Text style={styles.rowValueText} numberOfLines={1}>
-          {value}
-        </Text>
-        <MaterialIcons
+        {!stacked && valueText}
+        <Icon
           name="chevron-right"
           size={THEME.ICON.MD}
           color={THEME.COLORS.TEXT_DIM}
@@ -220,13 +252,14 @@ export function LinkRow({ label, icon, description, onPress }: LinkRowProps) {
   return (
     <TouchableOpacity
       accessibilityRole="link"
-      activeOpacity={0.7}
+      accessibilityLabel={description ? `${label}, ${description}` : label}
+      activeOpacity={THEME.OPACITY.PRESSED}
       onPress={onPress}
       style={styles.row}
     >
       <LeadingIcon name={icon} />
       <RowBody label={label} description={description} />
-      <MaterialIcons
+      <Icon
         name="open-in-new"
         size={THEME.ICON.MD}
         color={THEME.COLORS.TEXT_DIM}

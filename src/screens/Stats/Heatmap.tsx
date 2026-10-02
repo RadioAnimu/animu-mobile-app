@@ -15,6 +15,7 @@ import {
   formatListenDuration,
   listenDurationUnits,
 } from "@/utils/format";
+import { THEME } from "@/theme";
 
 interface Cell {
   key: string;
@@ -146,7 +147,7 @@ export function Heatmap({
                       key={cell.key}
                       accessibilityRole="button"
                       accessibilityLabel={a11yLabel}
-                      activeOpacity={0.7}
+                      activeOpacity={THEME.OPACITY.PRESSED}
                       onPress={() =>
                         onSelect(isSelected ? null : cell.key)
                       }

@@ -1,10 +1,10 @@
-import MaterialIcons from "@react-native-vector-icons/material-icons/static";
+import { Icon } from "@/components/Icon";
 import { useEffect, useState } from "react";
 import type { StyleProp, TextStyle } from "react-native";
 import { Animated, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 
+import { useReducedMotion } from "@/hooks/useReducedMotion";
 import { THEME } from "@/theme";
-import { scale } from "@/theme/responsive";
 
 interface Props {
   /** The real value — shown only while revealed. */
@@ -32,19 +32,21 @@ export function MaskedValue({
   showLabel,
   hideLabel,
   textStyle,
-  iconSize = scale(16),
+  iconSize = THEME.ICON.SM,
 }: Props) {
   const [revealed, setRevealed] = useState(false);
   const [motion] = useState(() => new Animated.Value(0));
+  const reduceMotion = useReducedMotion();
 
   useEffect(() => {
     Animated.spring(motion, {
-      toValue: revealed ? 1 : 0,
+      // Reduce Motion: the value just swaps, without the scale pop.
+      toValue: revealed && !reduceMotion ? 1 : 0,
       speed: 30,
       bounciness: 4,
       useNativeDriver: true,
     }).start();
-  }, [motion, revealed]);
+  }, [motion, revealed, reduceMotion]);
 
   useEffect(() => {
     if (!revealed) return undefined;
@@ -80,11 +82,11 @@ export function MaskedValue({
         <TouchableOpacity
           accessibilityRole="button"
           accessibilityLabel={revealed ? hideLabel : showLabel}
-          activeOpacity={0.7}
-          hitSlop={10}
+          activeOpacity={THEME.OPACITY.PRESSED}
+          hitSlop={THEME.HIT_SLOP.MD}
           onPress={toggle}
         >
-          <MaterialIcons
+          <Icon
             name={revealed ? "visibility-off" : "visibility"}
             size={iconSize}
             color={THEME.COLORS.TEXT_DIM}

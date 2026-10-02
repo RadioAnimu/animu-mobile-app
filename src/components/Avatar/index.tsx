@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import { Image, type ImageStyle } from "expo-image";
 import type { StyleProp } from "react-native";
-import MaterialIcons from "@react-native-vector-icons/material-icons/static";
+import { Icon } from "@/components/Icon";
 import { View } from "react-native";
 import { useAuth } from "@/contexts/auth/AuthProvider";
 import { useBoundedRetry } from "@/hooks/useBoundedRetry";
@@ -55,7 +55,7 @@ export function Avatar({ uri, size = scale(40), style, iconSize }: Props) {
           style,
         ]}
       >
-        <MaterialIcons
+        <Icon
           name="person"
           size={iconSize ?? Math.round(size * 0.6)}
           color={THEME.COLORS.TEXT_DIM}

@@ -1,5 +1,5 @@
 import React, { useCallback, useRef, useState } from "react";
-import MaterialIcons from "@react-native-vector-icons/material-icons/static";
+import { Icon } from "@/components/Icon";
 import * as MediaLibrary from "expo-media-library";
 import * as Sharing from "expo-sharing";
 import { File } from "expo-file-system";
@@ -27,7 +27,7 @@ import { scale } from "@/theme/responsive";
 import { haptics } from "@/utils/haptics";
 import { resolveMediaSource } from "@/utils/authImage";
 
-type MaterialIconName = React.ComponentProps<typeof MaterialIcons>["name"];
+type MaterialIconName = React.ComponentProps<typeof Icon>["name"];
 
 /** Share raster scale — ~2100px wide JPEG from a ~345pt card: crisp text,
  * light file for chat/social upload limits. */
@@ -141,20 +141,20 @@ export function ShareCardSection({
         />
         <View style={styles.lockedCard}>
           <View style={styles.lockedIconCircle}>
-            <MaterialIcons name="lock" size={24} color={THEME.COLORS.BRAND} />
+            <Icon name="lock" size={24} color={THEME.COLORS.BRAND} />
           </View>
           <Text style={styles.emptyTitle}>{dict.STATS_CARD_LOCKED_TITLE}</Text>
           <Text style={styles.emptyText}>{dict.STATS_CARD_LOCKED_DESC}</Text>
           <TouchableOpacity
             accessibilityRole="button"
-            activeOpacity={0.7}
+            activeOpacity={THEME.OPACITY.PRESSED}
             style={styles.shareActionButton}
             onPress={() => {
               haptics.select();
               onSignIn();
             }}
           >
-            <MaterialIcons
+            <Icon
               name="login"
               size={18}
               color={THEME.COLORS.TEXT_ON_LIGHT}
@@ -262,7 +262,7 @@ function CardActionButton({
         disabled: disabled || undefined,
         busy: busy || undefined,
       }}
-      activeOpacity={0.7}
+      activeOpacity={THEME.OPACITY.PRESSED}
       disabled={disabled || busy}
       onPress={onPress}
       style={[styles.cardActionButton, busy && styles.cardActionDisabled]}
@@ -270,7 +270,7 @@ function CardActionButton({
       {busy ? (
         <ActivityIndicator size="small" color={THEME.COLORS.TEXT} />
       ) : (
-        <MaterialIcons
+        <Icon
           name={icon}
           size={THEME.ICON.MD}
           color={THEME.COLORS.TEXT}

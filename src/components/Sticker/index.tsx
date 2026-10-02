@@ -1,6 +1,7 @@
 import { Text, View, type StyleProp, type ViewStyle } from "react-native";
 
 import { styles } from "@/components/Sticker/styles";
+import { THEME } from "@/theme";
 
 interface Props {
   text: string;
@@ -15,7 +16,12 @@ export function Sticker({ text, style }: Props) {
       importantForAccessibility="no-hide-descendants"
       style={[styles.sticker, style]}
     >
-      <Text style={styles.text}>{text}</Text>
+      <Text
+        maxFontSizeMultiplier={THEME.FONT_SCALE.CHROME}
+        style={styles.text}
+      >
+        {text}
+      </Text>
     </View>
   );
 }

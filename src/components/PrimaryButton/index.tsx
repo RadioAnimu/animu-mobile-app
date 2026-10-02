@@ -1,5 +1,5 @@
 import type { ComponentProps } from "react";
-import MaterialIcons from "@react-native-vector-icons/material-icons/static";
+import { Icon } from "@/components/Icon";
 import {
   ActivityIndicator,
   Text,
@@ -11,7 +11,7 @@ import {
 import { styles } from "@/components/PrimaryButton/styles";
 import { THEME } from "@/theme";
 
-type MaterialIconName = ComponentProps<typeof MaterialIcons>["name"];
+type MaterialIconName = ComponentProps<typeof Icon>["name"];
 
 interface Props {
   label: string;
@@ -42,7 +42,7 @@ export function PrimaryButton({
       accessibilityRole="button"
       accessibilityLabel={label}
       accessibilityState={{ busy: loading, disabled: blocked }}
-      activeOpacity={0.7}
+      activeOpacity={THEME.OPACITY.PRESSED}
       disabled={blocked}
       onPress={onPress}
       style={[styles.button, disabled && styles.disabled, style]}
@@ -51,7 +51,7 @@ export function PrimaryButton({
         <ActivityIndicator size="small" color={THEME.COLORS.TEXT_ON_LIGHT} />
       ) : (
         icon && (
-          <MaterialIcons
+          <Icon
             name={icon}
             size={THEME.ICON.MD}
             color={THEME.COLORS.TEXT_ON_LIGHT}

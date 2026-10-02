@@ -43,6 +43,9 @@ export const styles = StyleSheet.create({
     borderRadius: THEME.RADIUS.LG,
     ...CONTINUOUS,
   },
+  valueStacked: {
+    alignSelf: "flex-start",
+  },
   valueText: {
     flexShrink: 1,
     color: THEME.COLORS.TEXT_SOFT,

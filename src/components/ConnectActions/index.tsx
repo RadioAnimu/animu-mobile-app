@@ -32,7 +32,7 @@ export function ConnectActions({
     <View style={styles.row}>
       <TouchableOpacity
         accessibilityRole="button"
-        activeOpacity={0.7}
+        activeOpacity={THEME.OPACITY.PRESSED}
         disabled={resendLocked}
         style={styles.action}
         onPress={() => {
@@ -51,7 +51,7 @@ export function ConnectActions({
       <Text style={styles.dot}>•</Text>
       <TouchableOpacity
         accessibilityRole="button"
-        activeOpacity={0.7}
+        activeOpacity={THEME.OPACITY.PRESSED}
         disabled={busy}
         style={styles.action}
         onPress={onChangeEmail}

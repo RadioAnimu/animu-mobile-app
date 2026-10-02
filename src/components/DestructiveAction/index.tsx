@@ -1,11 +1,11 @@
 import type { ComponentProps } from "react";
-import MaterialIcons from "@react-native-vector-icons/material-icons/static";
+import { Icon } from "@/components/Icon";
 import { ActivityIndicator, Text, TouchableOpacity, View } from "react-native";
 
 import { THEME } from "@/theme";
 import { styles } from "@/components/DestructiveAction/styles";
 
-type MaterialIconName = ComponentProps<typeof MaterialIcons>["name"];
+type MaterialIconName = ComponentProps<typeof Icon>["name"];
 
 interface Props {
   label: string;
@@ -32,14 +32,15 @@ export function DestructiveAction({
   return (
     <TouchableOpacity
       accessibilityRole="button"
+      accessibilityLabel={description ? `${label}, ${description}` : label}
       accessibilityState={{ disabled: busy || undefined }}
-      activeOpacity={0.7}
+      activeOpacity={THEME.OPACITY.PRESSED}
       onPress={onPress}
       disabled={busy}
       style={[styles.action, busy && styles.actionDisabled]}
     >
       <View style={styles.iconBox}>
-        <MaterialIcons
+        <Icon
           name={busy ? "hourglass-top" : icon}
           size={THEME.ICON.MD}
           color={THEME.COLORS.TEXT}

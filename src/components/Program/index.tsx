@@ -28,8 +28,14 @@ export const Program = React.memo(function Program({ handleClick }: Props) {
       onPress={handleClick}
       style={styles.container}
     >
-      <Text style={[styles.title, styles.green]}>{program?.name}</Text>
       <Text
+        maxFontSizeMultiplier={THEME.FONT_SCALE.CHROME}
+        style={[styles.title, styles.green]}
+      >
+        {program?.name}
+      </Text>
+      <Text
+        maxFontSizeMultiplier={THEME.FONT_SCALE.CHROME}
         style={[
           styles.label,
 
@@ -39,7 +45,12 @@ export const Program = React.memo(function Program({ handleClick }: Props) {
         ]}
       >
         {dict.WITH_DJ}:{" "}
-        <Text style={styles.green}>{program?.dj}</Text>
+        <Text
+          maxFontSizeMultiplier={THEME.FONT_SCALE.CHROME}
+          style={styles.green}
+        >
+          {program?.dj}
+        </Text>
       </Text>
     </TouchableOpacity>
   );

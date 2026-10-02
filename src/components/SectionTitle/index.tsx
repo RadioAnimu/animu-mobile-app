@@ -1,10 +1,10 @@
 import type { ComponentProps } from "react";
-import MaterialIcons from "@react-native-vector-icons/material-icons/static";
+import { Icon } from "@/components/Icon";
 import { Text, View } from "react-native";
 import { THEME } from "@/theme";
 import { SECTION_ICON_SIZE, styles } from "@/components/SectionTitle/styles";
 
-type MaterialIconName = ComponentProps<typeof MaterialIcons>["name"];
+type MaterialIconName = ComponentProps<typeof Icon>["name"];
 
 interface Props {
   title: string;
@@ -26,14 +26,19 @@ export function SectionTitle({ title, icon, first }: Props) {
     >
       {icon && (
         <View style={styles.iconBox}>
-          <MaterialIcons
+          <Icon
             name={icon}
             size={SECTION_ICON_SIZE}
             color={THEME.COLORS.TEXT}
           />
         </View>
       )}
-      <Text style={styles.sectionText}>{title.toUpperCase()}</Text>
+      <Text
+        maxFontSizeMultiplier={THEME.FONT_SCALE.CONTENT}
+        style={styles.sectionText}
+      >
+        {title.toUpperCase()}
+      </Text>
     </View>
   );
 }

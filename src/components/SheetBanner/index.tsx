@@ -2,6 +2,7 @@ import { Text, View } from "react-native";
 
 import { Sticker } from "@/components/Sticker";
 import { styles } from "@/components/SheetBanner/styles";
+import { THEME } from "@/theme";
 
 interface Props {
   title: string;
@@ -17,7 +18,11 @@ export function SheetBanner({ title, live = false, sticker }: Props) {
     <View style={styles.wrapper}>
       <View style={styles.banner}>
         {live && <View style={styles.liveDot} />}
-        <Text accessibilityRole="header" style={styles.title}>
+        <Text
+          maxFontSizeMultiplier={THEME.FONT_SCALE.CHROME}
+          accessibilityRole="header"
+          style={styles.title}
+        >
           {title}
         </Text>
       </View>

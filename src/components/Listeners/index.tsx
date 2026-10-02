@@ -57,7 +57,10 @@ export const Listeners = React.memo(function Listeners() {
       accessibilityLabel={`${currentListeners.value} ${label}`}
       style={[styles.container, { backgroundColor: palette.background }]}
     >
-      <Text style={[styles.text, { color: palette.text }]}>
+      <Text
+        maxFontSizeMultiplier={THEME.FONT_SCALE.CHROME}
+        style={[styles.text, { color: palette.text }]}
+      >
         {currentListeners.value}
       </Text>
       <Image
@@ -66,6 +69,7 @@ export const Listeners = React.memo(function Listeners() {
         source={highlighted ? headphonesWhite : headphones}
       />
       <Text
+        maxFontSizeMultiplier={THEME.FONT_SCALE.CHROME}
         style={[
           styles.text,
           { color: palette.text },

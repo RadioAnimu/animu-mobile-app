@@ -39,6 +39,7 @@ export function TimeRemaining() {
   if (syncing) {
     return (
       <Animated.Text
+        maxFontSizeMultiplier={THEME.FONT_SCALE.CHROME}
         style={[styles.timeLeft, styles.calculating, { opacity: blink }]}
       >
         {dict.SYNCHRONIZING}…
@@ -47,7 +48,10 @@ export function TimeRemaining() {
   }
 
   return (
-    <Text style={styles.timeLeft}>
+    <Text
+      maxFontSizeMultiplier={THEME.FONT_SCALE.CHROME}
+      style={styles.timeLeft}
+    >
       {dict.TIME_REMAINING}:{" "}
       <CountdownTimerText
         startTime={Math.max(

@@ -21,6 +21,7 @@ import {
 } from "react-native";
 import { useIsBackgrounded } from "@/contexts/app-state/AppStateProvider";
 import { scale } from "@/theme/responsive";
+import { THEME } from "@/theme";
 
 type MarqueeProps = {
   text: string;
@@ -229,6 +230,7 @@ export const Marquee = React.memo(function Marquee({
     <>
       {/* In-flow line: reserves the height and shows the text when it fits. */}
       <Text
+        maxFontSizeMultiplier={THEME.FONT_SCALE.CHROME}
         numberOfLines={1}
         ellipsizeMode="clip"
         style={[style, overflows && styles.ghost]}
@@ -254,6 +256,7 @@ export const Marquee = React.memo(function Marquee({
           ]}
         >
           <Text
+            maxFontSizeMultiplier={THEME.FONT_SCALE.CHROME}
             numberOfLines={1}
             style={[style, !overflows && styles.ghost]}
             onLayout={(e) => setTextWidth(e.nativeEvent.layout.width)}
@@ -261,7 +264,11 @@ export const Marquee = React.memo(function Marquee({
             {text}
           </Text>
           <View style={{ width: spacer }} />
-          <Text numberOfLines={1} style={[style, !overflows && styles.ghost]}>
+          <Text
+            maxFontSizeMultiplier={THEME.FONT_SCALE.CHROME}
+            numberOfLines={1}
+            style={[style, !overflows && styles.ghost]}
+          >
             {text}
           </Text>
         </Animated.View>

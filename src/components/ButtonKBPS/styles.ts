@@ -10,7 +10,10 @@ export const styles = StyleSheet.create({
     flexDirection: "column",
     justifyContent: "center",
     alignItems: "center",
-    height: BTN_HEIGHT,
+    // A floor, not a fixed height: larger text grows the pill instead of
+    // clipping the format line.
+    minHeight: BTN_HEIGHT,
+    paddingVertical: THEME.SPACE.XXS,
     width: BTN_WIDTH,
     borderRadius: THEME.RADIUS.SM,
     marginBottom: THEME.SPACE.SM,

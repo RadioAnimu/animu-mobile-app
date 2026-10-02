@@ -1,8 +1,9 @@
 import React, { useEffect, useMemo } from "react";
-import { Animated, Easing, StyleSheet, Text } from "react-native";
-import MaterialIcons from "@react-native-vector-icons/material-icons/static";
+import { Animated, StyleSheet, Text } from "react-native";
+import { Icon } from "@/components/Icon";
+import { useReducedMotion } from "@/hooks/useReducedMotion";
 import { THEME } from "@/theme";
-import { scale } from "@/theme/responsive";
+import { MOTION } from "@/theme/motion";
 
 export type ToastVariant = "success" | "error" | "info";
 
@@ -35,20 +36,21 @@ export const Toast = React.memo(function Toast({
 }) {
   const holdMs = TOAST_HOLD_MS[variant];
   const progress = useMemo(() => new Animated.Value(0), []);
+  const reduceMotion = useReducedMotion();
 
   useEffect(() => {
     const animation = Animated.sequence([
       Animated.timing(progress, {
         toValue: 1,
-        duration: 180,
-        easing: Easing.out(Easing.ease),
+        duration: MOTION.DURATION.FAST,
+        easing: MOTION.EASING.ENTER,
         useNativeDriver: true,
       }),
       Animated.delay(holdMs),
       Animated.timing(progress, {
         toValue: 0,
-        duration: 240,
-        easing: Easing.in(Easing.ease),
+        duration: MOTION.DURATION.NORMAL,
+        easing: MOTION.EASING.EXIT,
         useNativeDriver: true,
       }),
     ]);
@@ -60,7 +62,8 @@ export const Toast = React.memo(function Toast({
 
   const rise = progress.interpolate({
     inputRange: [0, 1],
-    outputRange: [scale(14), 0],
+    // Reduce Motion: a plain fade, no rise.
+    outputRange: [reduceMotion ? 0 : MOTION.RISE, 0],
   });
 
   return (
@@ -74,9 +77,9 @@ export const Toast = React.memo(function Toast({
         { opacity: progress, transform: [{ translateY: rise }] },
       ]}
     >
-      <MaterialIcons
+      <Icon
         name={VARIANT_STYLE[variant].icon}
-        size={scale(16)}
+        size={THEME.ICON.SM}
         color={VARIANT_STYLE[variant].color}
       />
       <Text style={styles.text} numberOfLines={2}>
@@ -90,10 +93,10 @@ const styles = StyleSheet.create({
   toast: {
     flexDirection: "row",
     alignItems: "center",
-    gap: scale(8),
-    paddingHorizontal: scale(14),
-    paddingVertical: scale(9),
-    borderRadius: scale(20),
+    gap: THEME.SPACE.SM,
+    paddingHorizontal: THEME.SPACE.LG,
+    paddingVertical: THEME.SPACE.SM,
+    borderRadius: THEME.RADIUS.CIRCLE,
     backgroundColor: THEME.COLORS.SURFACE,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: THEME.COLORS.HAIRLINE,

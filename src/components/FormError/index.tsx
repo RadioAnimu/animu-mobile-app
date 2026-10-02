@@ -1,4 +1,4 @@
-import MaterialIcons from "@react-native-vector-icons/material-icons/static";
+import { Icon } from "@/components/Icon";
 import { StyleSheet, Text, View } from "react-native";
 
 import { THEME } from "@/theme";
@@ -20,7 +20,7 @@ export function FormError({ message, center = false }: Props) {
       accessibilityRole="alert"
       style={[styles.row, center && styles.rowCentered]}
     >
-      <MaterialIcons
+      <Icon
         name="error"
         size={THEME.ICON.MD}
         color={THEME.COLORS.ERROR}

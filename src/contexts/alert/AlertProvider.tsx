@@ -16,12 +16,13 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import MaterialIcons from "@react-native-vector-icons/material-icons/static";
+import { Icon } from "@/components/Icon";
 import HarukaError from "@/assets/error_haruka.webp";
 import HarukaSuccess from "@/assets/success_haruka.webp";
 import { THEME } from "@/theme";
 import { styles } from "@/contexts/alert/styles";
 import { Portal } from "@/contexts/Portal";
+import { PrimaryButton } from "@/components/PrimaryButton";
 import { Toast, type ToastVariant } from "@/components/Toast";
 import { useDict } from "@/hooks/useDict";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -140,7 +141,10 @@ export const AlertProvider: React.FC<{ children: ReactNode }> = ({
         {toastState && (
           <View
             pointerEvents="none"
-            style={[styles.toastWrap, { bottom: insets.bottom + 24 }]}
+            style={[
+              styles.toastWrap,
+              { bottom: insets.bottom + THEME.SPACE.XXL },
+            ]}
           >
             <Toast
               key={toastState.seed}
@@ -167,10 +171,12 @@ export const AlertProvider: React.FC<{ children: ReactNode }> = ({
               <TouchableOpacity
                 accessibilityRole="button"
                 accessibilityLabel={dict.A11Y_CLOSE}
+                activeOpacity={THEME.OPACITY.PRESSED}
+                hitSlop={THEME.HIT_SLOP.MD}
                 onPress={handleClose}
                 style={styles.closeIcon}
               >
-                <MaterialIcons
+                <Icon
                   name="close"
                   size={THEME.ICON.MD}
                   color={THEME.COLORS.TEXT}
@@ -178,13 +184,11 @@ export const AlertProvider: React.FC<{ children: ReactNode }> = ({
               </TouchableOpacity>
               <Image contentFit="contain" source={haruka} style={styles.img} />
               <Text style={styles.text}>{alertState?.message}</Text>
-              <TouchableOpacity
-                accessibilityRole="button"
+              <PrimaryButton
+                label={dict.OK_BUTTON}
                 onPress={handleClose}
                 style={styles.okButton}
-              >
-                <Text style={styles.okText}>{dict.OK_BUTTON}</Text>
-              </TouchableOpacity>
+              />
             </View>
           </KeyboardAvoidingView>
         </Modal>

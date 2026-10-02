@@ -20,6 +20,7 @@ export function ButtonKBPS({
       accessibilityRole="button"
       accessibilityLabel={`${category} ${kbps} kbps`}
       accessibilityState={{ selected }}
+      activeOpacity={THEME.OPACITY.PRESSED}
       onPress={handleChangeStream}
       style={[
         styles.container,
@@ -31,6 +32,7 @@ export function ButtonKBPS({
       ]}
     >
       <Text
+        maxFontSizeMultiplier={THEME.FONT_SCALE.CHROME}
         style={[
           styles.category,
           {
@@ -41,6 +43,7 @@ export function ButtonKBPS({
         {category}
       </Text>
       <Text
+        maxFontSizeMultiplier={THEME.FONT_SCALE.CHROME}
         style={[
           styles.kbps,
           {

@@ -4,6 +4,7 @@ import type { Stream } from "@/core/domain/stream";
 import { ButtonKBPS } from "@/components/ButtonKBPS";
 import { styles } from "@/components/ChooseBitrateSection/styles";
 import { usePlayer } from "@/contexts/player/PlayerProvider";
+import { haptics } from "@/utils/haptics";
 
 export function ChooseBitrateSection() {
   const { changeStream, currentStream, streamOptions } = usePlayer();
@@ -13,6 +14,8 @@ export function ChooseBitrateSection() {
       ({ item }) => (
         <ButtonKBPS
           handleChangeStream={() => {
+            // A selection tick only when the choice actually changes.
+            if (item.url !== currentStream?.url) haptics.select();
             changeStream(item);
           }}
           selected={item.url === currentStream?.url}

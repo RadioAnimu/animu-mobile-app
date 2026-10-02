@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import MaterialIcons from "@react-native-vector-icons/material-icons/static";
+import { Icon } from "@/components/Icon";
 import { Text, View } from "react-native";
 
 import { Avatar } from "@/components/Avatar";
@@ -85,7 +85,7 @@ export function ProfileCard({ user, profile, imageVersion, bannerUri }: Props) {
               </Text>
               {profileUser.verified && (
                 <View style={styles.badge}>
-                  <MaterialIcons
+                  <Icon
                     name="verified"
                     size={BADGE_SIZE}
                     color={THEME.COLORS.BRAND}
@@ -106,7 +106,7 @@ export function ProfileCard({ user, profile, imageVersion, bannerUri }: Props) {
             {profileUser.email && (
               <MetaLine>
                 <View style={styles.metaIcon}>
-                  <MaterialIcons
+                  <Icon
                     name="mail-outline"
                     size={THEME.ICON.MD}
                     color={THEME.COLORS.TEXT_DIM}
@@ -125,7 +125,7 @@ export function ProfileCard({ user, profile, imageVersion, bannerUri }: Props) {
             {lastLogin && (
               <MetaLine>
                 <View style={styles.metaIcon}>
-                  <MaterialIcons
+                  <Icon
                     name="schedule"
                     size={THEME.ICON.MD}
                     color={THEME.COLORS.TEXT_DIM}

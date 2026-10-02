@@ -21,6 +21,7 @@ export function CountdownTimerText({ startTime }: Props) {
 
   return (
       <Text
+        maxFontSizeMultiplier={THEME.FONT_SCALE.CHROME}
         style={[
           {
             fontSize: THEME.FONT_SIZE.BODY,

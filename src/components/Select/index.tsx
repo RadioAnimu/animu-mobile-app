@@ -1,4 +1,4 @@
-import MaterialIcons from "@react-native-vector-icons/material-icons/static";
+import { Icon } from "@/components/Icon";
 import { useState, type ReactNode } from "react";
 import {
   ActivityIndicator,
@@ -13,15 +13,16 @@ import { THEME } from "@/theme";
 import { layoutEase } from "@/utils/layout-animation";
 import { styles } from "@/components/Select/styles";
 import { haptics } from "@/utils/haptics";
+import { useStackedRows } from "@/hooks/useStackedRows";
 
 /** Trailing mark of an option row: spinner while applying, check if chosen. */
 function optionTrailing(isApplying: boolean, isSelected: boolean): ReactNode {
   if (isApplying) {
-    return <ActivityIndicator size="small" color={THEME.COLORS.TEXT_DIM} />;
+    return <ActivityIndicator size="small" color={THEME.COLORS.SPINNER} />;
   }
   if (isSelected) {
     return (
-      <MaterialIcons
+      <Icon
         name="check"
         size={THEME.ICON.MD}
         color={THEME.COLORS.BRAND}
@@ -45,7 +46,7 @@ export interface SelectOption<T extends string> {
 interface Props<T extends string> {
   label: string;
   /** Optional leading icon, matching the Settings rows' icon column. */
-  icon?: React.ComponentProps<typeof MaterialIcons>["name"];
+  icon?: React.ComponentProps<typeof Icon>["name"];
   /** Optional helper line under the label, like the other settings rows. */
   description?: string;
   options: SelectOption<T>[];
@@ -81,6 +82,24 @@ export function Select<T extends string>({
   const selected = options.find((option) => option.key === value);
 
 
+  const stacked = useStackedRows();
+  const valuePill = (
+    <View style={[styles.value, stacked && styles.valueStacked]}>
+      <Text
+        maxFontSizeMultiplier={THEME.FONT_SCALE.CONTENT}
+        style={styles.valueText}
+        numberOfLines={1}
+      >
+        {selected?.label ?? ""}
+      </Text>
+      <Icon
+        name={expanded ? "expand-less" : "expand-more"}
+        size={THEME.ICON.MD}
+        color={THEME.COLORS.TEXT_DIM}
+      />
+    </View>
+  );
+
   const toggle = () => {
     layoutEase();
     setOpen((current) => !current);
@@ -111,15 +130,18 @@ export function Select<T extends string>({
     <View>
       <TouchableOpacity
         accessibilityRole="button"
+        accessibilityLabel={[label, description, selected?.label]
+          .filter(Boolean)
+          .join(", ")}
         accessibilityState={{ expanded, disabled: disabled || undefined }}
-        activeOpacity={0.7}
+        activeOpacity={THEME.OPACITY.PRESSED}
         disabled={disabled}
         onPress={toggle}
         style={[styles.row, disabled && styles.disabled]}
       >
         {icon != null && (
           <View style={styles.rowIcon}>
-            <MaterialIcons
+            <Icon
               name={icon}
               size={THEME.ICON.MD}
               color={THEME.COLORS.TEXT}
@@ -127,21 +149,25 @@ export function Select<T extends string>({
           </View>
         )}
         <View style={styles.body}>
-          <Text style={styles.label}>{label}</Text>
-          {description != null && (
-            <Text style={styles.description}>{description}</Text>
-          )}
-        </View>
-        <View style={styles.value}>
-          <Text style={styles.valueText} numberOfLines={1}>
-            {selected?.label ?? ""}
+          <Text
+            maxFontSizeMultiplier={THEME.FONT_SCALE.CONTENT}
+            style={styles.label}
+          >
+            {label}
           </Text>
-          <MaterialIcons
-            name={expanded ? "expand-less" : "expand-more"}
-            size={THEME.ICON.MD}
-            color={THEME.COLORS.TEXT_DIM}
-          />
+          {description != null && (
+            <Text
+              maxFontSizeMultiplier={THEME.FONT_SCALE.CONTENT}
+              style={styles.description}
+            >
+              {description}
+            </Text>
+          )}
+          {/* Large text: the value pill drops under the label so the label
+              keeps the full row width. */}
+          {stacked && valuePill}
         </View>
+        {!stacked && valuePill}
       </TouchableOpacity>
 
       {expanded && (
@@ -155,11 +181,14 @@ export function Select<T extends string>({
                 {index > 0 && <View style={styles.separator} />}
                 <TouchableOpacity
                   accessibilityRole="button"
+                  accessibilityLabel={[option.label, option.badge, option.meta]
+                    .filter(Boolean)
+                    .join(", ")}
                   accessibilityState={{
                     selected: isSelected,
                     disabled: applying || undefined,
                   }}
-                  activeOpacity={0.7}
+                  activeOpacity={THEME.OPACITY.PRESSED}
                   disabled={applying}
                   onPress={() => void choose(option.key)}
                   style={[
@@ -179,6 +208,7 @@ export function Select<T extends string>({
                   <View style={styles.optionBody}>
                     <View style={styles.optionTitleRow}>
                       <Text
+                        maxFontSizeMultiplier={THEME.FONT_SCALE.CONTENT}
                         style={[
                           styles.optionLabel,
                           isSelected && styles.optionLabelSelected,
@@ -188,12 +218,21 @@ export function Select<T extends string>({
                       </Text>
                       {option.badge != null && (
                         <View style={styles.badge}>
-                          <Text style={styles.badgeText}>{option.badge}</Text>
+                          <Text
+                            maxFontSizeMultiplier={THEME.FONT_SCALE.CONTENT}
+                            style={styles.badgeText}
+                          >
+                            {option.badge}
+                          </Text>
                         </View>
                       )}
                     </View>
                     {option.meta != null && (
-                      <Text style={styles.optionMeta} numberOfLines={2}>
+                      <Text
+                        maxFontSizeMultiplier={THEME.FONT_SCALE.CONTENT}
+                        style={styles.optionMeta}
+                        numberOfLines={2}
+                      >
                         {option.meta}
                       </Text>
                     )}

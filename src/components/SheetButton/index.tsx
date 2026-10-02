@@ -1,5 +1,5 @@
 import type { ComponentProps } from "react";
-import MaterialIcons from "@react-native-vector-icons/material-icons/static";
+import { Icon } from "@/components/Icon";
 import {
   ActivityIndicator,
   Text,
@@ -11,7 +11,7 @@ import {
 import { styles } from "@/components/SheetButton/styles";
 import { THEME } from "@/theme";
 
-type MaterialIconName = ComponentProps<typeof MaterialIcons>["name"];
+type MaterialIconName = ComponentProps<typeof Icon>["name"];
 
 interface Props {
   label: string;
@@ -35,7 +35,7 @@ export function SheetButton({
       accessibilityRole="button"
       accessibilityLabel={label}
       accessibilityState={{ busy: loading, disabled: loading }}
-      activeOpacity={0.7}
+      activeOpacity={THEME.OPACITY.PRESSED}
       disabled={loading}
       onPress={onPress}
       style={[styles.button, loading && styles.busy, style]}
@@ -44,9 +44,14 @@ export function SheetButton({
         <ActivityIndicator color={THEME.COLORS.SURFACE} />
       ) : (
         <>
-          <Text style={styles.label}>{label}</Text>
+          <Text
+            maxFontSizeMultiplier={THEME.FONT_SCALE.CHROME}
+            style={styles.label}
+          >
+            {label}
+          </Text>
           {icon && (
-            <MaterialIcons
+            <Icon
               name={icon}
               size={THEME.ICON.MD}
               color={THEME.COLORS.SURFACE}

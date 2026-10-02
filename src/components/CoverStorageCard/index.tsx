@@ -1,4 +1,4 @@
-import MaterialIcons from "@react-native-vector-icons/material-icons/static";
+import { Icon } from "@/components/Icon";
 import { Alert, Text, TouchableOpacity, View } from "react-native";
 
 import { useUserSettings } from "@/contexts/user/UserSettingsProvider";
@@ -179,7 +179,7 @@ function CleanButton({
     <TouchableOpacity
       accessibilityRole="button"
       accessibilityState={{ disabled }}
-      activeOpacity={0.7}
+      activeOpacity={THEME.OPACITY.PRESSED}
       onPress={confirm}
       disabled={disabled}
       style={[
@@ -188,7 +188,7 @@ function CleanButton({
         disabled && !clearing && styles.cleanDisabled,
       ]}
     >
-      <MaterialIcons
+      <Icon
         name={clearing ? "hourglass-top" : "delete-sweep"}
         size={20}
         color={THEME.COLORS.SURFACE}

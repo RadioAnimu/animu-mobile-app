@@ -1,11 +1,11 @@
 import type { ComponentProps, ReactNode } from "react";
-import MaterialIcons from "@react-native-vector-icons/material-icons/static";
+import { Icon } from "@/components/Icon";
 import { ActivityIndicator, Text, TouchableOpacity, View } from "react-native";
 
 import { styles } from "@/components/ListRow/styles";
 import { THEME } from "@/theme";
 
-export type MaterialIconName = ComponentProps<typeof MaterialIcons>["name"];
+export type MaterialIconName = ComponentProps<typeof Icon>["name"];
 
 /** Fixed leading column that lines every row up with the section headings. */
 export function IconBox({ children }: { children: ReactNode }) {
@@ -15,7 +15,7 @@ export function IconBox({ children }: { children: ReactNode }) {
 export function LeadingIcon({ name }: { name: MaterialIconName }) {
   return (
     <IconBox>
-      <MaterialIcons
+      <Icon
         name={name}
         size={THEME.ICON.MD}
         color={THEME.COLORS.TEXT}
@@ -27,7 +27,8 @@ export function LeadingIcon({ name }: { name: MaterialIconName }) {
 interface RowBodyProps {
   label: string;
   description?: string;
-  /** Replaces the description line with custom content (masked values…). */
+  /** Extra lines under the label and description (masked values, a value
+      stacked under the label at large text sizes…). */
   children?: ReactNode;
 }
 
@@ -37,11 +38,21 @@ export function RowBody({ label, description, children }: RowBodyProps) {
 
   return (
     <View style={hasSecondLine ? styles.body : styles.bodySingle}>
-      <Text style={styles.label}>{label}</Text>
-      {children ??
-        (description != null && (
-          <Text style={styles.description}>{description}</Text>
-        ))}
+      <Text
+        maxFontSizeMultiplier={THEME.FONT_SCALE.CONTENT}
+        style={styles.label}
+      >
+        {label}
+      </Text>
+      {description != null && (
+        <Text
+          maxFontSizeMultiplier={THEME.FONT_SCALE.CONTENT}
+          style={styles.description}
+        >
+          {description}
+        </Text>
+      )}
+      {children}
     </View>
   );
 }
@@ -70,15 +81,16 @@ export function ActionRow({
   return (
     <TouchableOpacity
       accessibilityRole="button"
+      accessibilityLabel={description ? `${label}, ${description}` : label}
       accessibilityState={{ busy: !!busy, disabled: busy || undefined }}
-      activeOpacity={0.7}
+      activeOpacity={THEME.OPACITY.PRESSED}
       disabled={busy}
       onPress={onPress}
       style={[styles.row, busy && styles.rowDisabled]}
     >
       <LeadingIcon name={icon} />
       <RowBody label={label} description={description} />
-      {busy && <ActivityIndicator size="small" color={THEME.COLORS.TEXT} />}
+      {busy && <ActivityIndicator size="small" color={THEME.COLORS.SPINNER} />}
     </TouchableOpacity>
   );
 }

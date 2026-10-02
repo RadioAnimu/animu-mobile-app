@@ -1,10 +1,10 @@
 import { StyleSheet } from "react-native";
 import { THEME } from "@/theme";
 import { scale } from "@/theme/responsive";
+import { CONTINUOUS } from "@/theme/shape";
 
 const CONTENT_WIDTH = scale(311);
 const IMG_HEIGHT = scale(140);
-const PORTAL_Z_INDEX = 9999;
 
 export const styles = StyleSheet.create({
   container: {
@@ -12,14 +12,14 @@ export const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     backgroundColor: THEME.COLORS.SCRIM,
-    zIndex: PORTAL_Z_INDEX,
   },
   content: {
     width: CONTENT_WIDTH,
     backgroundColor: THEME.COLORS.SURFACE,
     alignItems: "center",
-    borderRadius: THEME.RADIUS.MD,
-    padding: THEME.SPACE.SM,
+    borderRadius: THEME.RADIUS.CARD,
+    ...CONTINUOUS,
+    padding: THEME.SPACE.LG,
   },
   closeIcon: {
     alignSelf: "flex-end",
@@ -39,20 +39,13 @@ export const styles = StyleSheet.create({
     width: "85%",
   },
   okButton: {
-    backgroundColor: THEME.COLORS.BRAND,
-    padding: THEME.SPACE.MD,
-    borderRadius: THEME.RADIUS.MD,
-  },
-  okText: {
-    color: THEME.COLORS.TEXT,
-    fontFamily: THEME.FONT_FAMILY.BOLD,
-    fontSize: THEME.FONT_SIZE.BODY,
+    alignSelf: "stretch",
   },
   toastWrap: {
     position: "absolute",
     left: 0,
     right: 0,
     alignItems: "center",
-    zIndex: PORTAL_Z_INDEX,
+    zIndex: THEME.Z_INDEX.TOAST,
   },
 });
