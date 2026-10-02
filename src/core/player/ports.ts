@@ -149,8 +149,9 @@ export interface AudioEnginePort {
   resume(): void;
   pause(): void;
   /**
-   * Drops the live stream's network connection while staying paused (Android:
-   * the paused transport otherwise keeps downloading at the stream bitrate).
+   * Drops the live stream's network connection while staying paused (the
+   * paused transport otherwise keeps downloading at the stream bitrate:
+   * ExoPlayer indefinitely, AVPlayer for ~110s).
    * The next `play()` re-opens the source. Returns whether the connection was
    * released (false where unsupported).
    */

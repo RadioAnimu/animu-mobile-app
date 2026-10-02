@@ -49,6 +49,7 @@ const buildPlayerOptions = () => ({
 interface PatchedStatusFields {
   bufferedAhead?: number | null;
   interruption?: AudioInterruption | null;
+  sampledAt?: number | null;
 }
 
 /**
@@ -112,6 +113,12 @@ export class ExpoAudioAdapter implements AudioEnginePort {
   private audioModeReady = false;
   /** Dedicated silent loop that keeps the audio session rendering (see port). */
   private keepalive: AudioPlayer | null = null;
+  /**
+   * Date.now() (+1: native stamps sub-millisecond) once the last source
+   * open/swap returned — frames sampled before it are dropped (see
+   * `attachStatusListener`).
+   */
+  private openSettledAt = 0;
 
   get hasPlayer(): boolean {
     return this.player != null;
@@ -139,6 +146,7 @@ export class ExpoAudioAdapter implements AudioEnginePort {
   play(url: string): void {
     this.load(url);
     this.player?.play();
+    this.markOpenSettled();
   }
 
   /**
@@ -150,6 +158,7 @@ export class ExpoAudioAdapter implements AudioEnginePort {
     const source = buildStreamSource(url);
     if (this.player) {
       this.player.replace(source);
+      this.markOpenSettled();
       return;
     }
     this.player = createAudioPlayer(source, buildPlayerOptions());
@@ -169,13 +178,15 @@ export class ExpoAudioAdapter implements AudioEnginePort {
   }
 
   releaseStream(): boolean {
-    // Android only: ExoPlayer keeps loading a paused live stream. Swapping to
-    // the bundled silence file closes the HTTP connection. The player is
-    // already paused and `replace` keeps it so — no `pause()` here, which
-    // would also cancel an OS resume pending on audio-focus regain.
-    if (Platform.OS !== "android" || !this.player) return false;
+    // Both platforms keep loading a paused live stream (ExoPlayer for as long
+    // as it is paused; AVPlayer for ~110s, measured). Swapping to the bundled
+    // silence file closes the HTTP connection. The player is already paused
+    // and `replace` keeps it so — no `pause()` here, which would also cancel
+    // an OS resume pending on audio-focus regain / interruption end.
+    if (!this.player) return false;
     try {
       this.player.replace(SILENCE_LOOP as unknown as AudioSource);
+      this.markOpenSettled();
       return true;
     } catch (error) {
       console.warn("[ExpoAudioAdapter] stream release failed:", error);
@@ -285,11 +296,30 @@ export class ExpoAudioAdapter implements AudioEnginePort {
     );
   }
 
+  private markOpenSettled(): void {
+    this.openSettledAt = Date.now() + 1;
+  }
+
+  /**
+   * Forwards native frames, minus the stale ones. A source swap is
+   * synchronous, but frames native sampled before it returned — the replace's
+   * own pause, the time-jump observer, a system-pause flag the following
+   * `play()` clears — are still queued and arrive after it, describing the
+   * player as it was BEFORE the open. Adopting one re-paused a fresh Play
+   * ("press Play twice" after a route loss), and a stale `playing` followed
+   * by the replace's pause read as an interruption, so every re-open armed
+   * the next. A genuine system-pause flag is sticky: the next fresh frame
+   * reports it again. `sampledAt` is iOS-only; unstamped frames pass.
+   */
   private attachStatusListener(): void {
     if (!this.player || !this.statusHandler || this.statusSubscription) return;
     this.statusSubscription = this.player.addListener(
       "playbackStatusUpdate",
-      (status: ExpoAudioStatus) => this.statusHandler?.(toPortStatus(status)),
+      (status: ExpoAudioStatus) => {
+        const sampledAt = (status as PatchedStatusFields).sampledAt;
+        if (sampledAt != null && sampledAt < this.openSettledAt) return;
+        this.statusHandler?.(toPortStatus(status));
+      },
     );
   }
 }
