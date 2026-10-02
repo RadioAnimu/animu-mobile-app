@@ -79,7 +79,10 @@ function Pressable({ children, style, ...props }: AnyProps) {
   return Touchable({ ...props, style: resolvedStyle, children });
 }
 
-const TextInput = React.forwardRef<{ focus: () => void }, AnyProps>(
+const TextInput = React.forwardRef<
+  { focus: () => void; isFocused: () => boolean },
+  AnyProps
+>(
   function TextInput(
     {
       value,
@@ -98,6 +101,7 @@ const TextInput = React.forwardRef<{ focus: () => void }, AnyProps>(
       focus: () => {
         input.current?.focus();
       },
+      isFocused: () => document.activeElement === input.current,
     }));
     return React.createElement("input", {
       ref: input,
@@ -174,18 +178,37 @@ export function createReactNativeMock() {
       sequence: vi.fn(animation),
       loop: vi.fn(animation),
       delay: vi.fn(animation),
+      add: (a: AnimatedValue) => a,
     },
-    Easing: { linear: "linear", inOut: (fn: unknown) => fn, ease: "ease" },
+    Easing: {
+      linear: "linear",
+      ease: "ease",
+      cubic: "cubic",
+      in: (fn: unknown) => fn,
+      out: (fn: unknown) => fn,
+      inOut: (fn: unknown) => fn,
+    },
+    AccessibilityInfo: {
+      isReduceMotionEnabled: vi.fn(() => Promise.resolve(false)),
+      addEventListener: vi.fn(() => ({ remove: vi.fn() })),
+    },
+    PanResponder: {
+      create: vi.fn(() => ({ panHandlers: {} })),
+    },
     Alert: { alert: vi.fn() },
-    Keyboard: { dismiss: vi.fn() },
+    Keyboard: {
+      dismiss: vi.fn(),
+      isVisible: vi.fn(() => false),
+      addListener: vi.fn(() => ({ remove: vi.fn() })),
+    },
     LayoutAnimation: {
       configureNext: vi.fn(),
-      Types: { easeInEaseOut: "easeInEaseOut" },
+      Types: { easeInEaseOut: "easeInEaseOut", keyboard: "keyboard" },
     },
     Platform: { OS: "android", select: (spec: AnyProps) => spec.android ?? spec.default },
     Dimensions: { get: () => ({ width: 393, height: 852 }) },
     PixelRatio: { getFontScale: () => 1, get: () => 1 },
-    useWindowDimensions: () => ({ width: 393, height: 852 }),
+    useWindowDimensions: () => ({ width: 393, height: 852, fontScale: 1 }),
   };
 }
 

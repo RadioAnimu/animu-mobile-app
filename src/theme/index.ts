@@ -25,6 +25,8 @@ export const THEME = {
     SURFACE_SUBTLE: "rgba(255, 255, 255, 0.08)",
 
     SCRIM: "rgba(0, 0, 0, 0.6)",
+    /** Neutral inline spinner on surfaces (filled buttons tint their own). */
+    SPINNER: "rgba(255, 255, 255, 0.7)",
 
     ERROR: "#F87171",
     /**
@@ -48,11 +50,29 @@ export const THEME = {
   OPACITY: {
     DISABLED: 0.5,
     SOFT: 0.7,
+    /** `activeOpacity` of every TouchableOpacity — one pressed state app-wide. */
+    PRESSED: 0.7,
   },
 
   FONT_FAMILY: {
     REGULAR: "proximanova-reg",
     BOLD: "proximanova-bold",
+  },
+
+  /**
+   * Caps on the OS text-size multiplier. Body copy, sheets and forms scale
+   * freely; fixed-format chrome — the player's
+   * sticker strips and chips, bars of a set height, bitrate pills — stops at
+   * the largest non-accessibility size so a 300% setting can't burst it.
+   */
+  FONT_SCALE: {
+    CHROME: 1.35,
+    /**
+     * Rows, menu items and headings: still double size, but short labels
+     * in the narrow drawer and row columns keep whole words instead of
+     * breaking mid-word at the extreme accessibility sizes.
+     */
+    CONTENT: 2,
   },
 
   // Sizes are authored at the 393pt reference and scaled per device.
@@ -74,7 +94,16 @@ export const THEME = {
     HEADING: scale(27.5),
   },
 
+  /** Tracking of the uppercase section headings (drawer + settings pages). */
+  LETTER_SPACING: {
+    CAPS: scale(1.2),
+  },
+
   ICON: {
+    /** Inline glyphs inside text runs: toasts, field errors, email sources. */
+    SM: scale(16),
+    /** Section-heading glyphs (one step under the row icons they head). */
+    SECTION: scale(18),
     MD: scale(22),
     LG: scale(24),
     XL: scale(40),
@@ -89,6 +118,23 @@ export const THEME = {
     XL: scale(20),
     XXL: scale(24),
     XXXL: scale(32),
+  },
+
+  /**
+   * Invisible tap-area extension (pt) for compact icon controls, so a 22pt
+   * glyph still gets a ~44pt target without bloating the layout.
+   */
+  HIT_SLOP: {
+    SM: 8,
+    MD: 12,
+  },
+
+  /** Stacking order for in-tree overlays (native Modals sit above all). */
+  Z_INDEX: {
+    /** Pinned headers above the scroll content they float over. */
+    HEADER: 2,
+    /** App-level toast host above every screen. */
+    TOAST: 100,
   },
 
   /** Chunky outlines of the sticker-style request sheets. */
@@ -111,6 +157,8 @@ export const THEME = {
   LAYOUT: {
     /** Fixed leading-icon column shared by settings/profile rows. */
     ICON_BOX_WIDTH: scale(32),
+    /** Height of a single-line text field (search, email). */
+    FIELD_HEIGHT: scale(48),
     /** Minimum height of a settings/profile row. */
     ROW_MIN_HEIGHT: scale(64),
     /** Brand logo height on the secondary screens (matches the player hero). */

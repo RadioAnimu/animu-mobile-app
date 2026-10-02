@@ -36,7 +36,8 @@ export const SCREEN_STYLES = StyleSheet.create({
 /**
  * Flow screens (MakeRequest, History): a plain full-height container, a
  * centered 85% content column, and the full-width flex wrapper the
- * scrollable results render into.
+ * scrollable results render into. The column runs to the screen's bottom
+ * edge; the lists pad themselves past the home indicator / nav bar.
  */
 export const FLOW_STYLES = StyleSheet.create({
   container: {
@@ -48,7 +49,6 @@ export const FLOW_STYLES = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     width: "85%",
-    marginBottom: THEME.SPACE.LG,
     alignSelf: "center",
   },
   listWrapper: {
