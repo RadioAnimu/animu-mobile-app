@@ -663,10 +663,22 @@ index 149e907..7ad5aef 100644
          }
        }
 diff --git a/node_modules/expo-audio/ios/AudioModule.swift b/node_modules/expo-audio/ios/AudioModule.swift
-index d265606..f6f4c65 100644
+index d265606..44e29b2 100644
 --- a/node_modules/expo-audio/ios/AudioModule.swift
 +++ b/node_modules/expo-audio/ios/AudioModule.swift
-@@ -132,6 +132,10 @@ public class AudioModule: Module {
+@@ -10,6 +10,11 @@ public class AudioModule: Module {
+   private var interruptionMode: InterruptionMode = .mixWithOthers
+   private var interruptedPlayers = Set<String>()
+   private var playerVolumes = [String: Float]()
++  /// PATCH: serializes the interruption bookkeeping (`interruptedPlayers`,
++  /// `playerVolumes`, each player's `interruption`) between the session
++  /// notifications (main thread) and JS play/pause (JS thread), so a user
++  /// pause can never interleave with an interruption-end resume.
++  private let interruptionLock = NSRecursiveLock()
+   private var allowsRecording = false
+   private var allowsBackgroundRecording = false
+   private var sessionOptions: AVAudioSession.CategoryOptions = []
+@@ -132,6 +137,10 @@ public class AudioModule: Module {
          let player = AudioPlayer(avPlayer, interval: updateInterval, source: source)
          player.owningRegistry = self.registry
          player.keepAudioSessionActive = keepAudioSessionActive
@@ -677,18 +689,24 @@ index d265606..f6f4c65 100644
          player.onPlaybackComplete = { [weak self] in
            if !keepAudioSessionActive {
              self?.deactivateSession()
-@@ -211,6 +215,10 @@ public class AudioModule: Module {
+@@ -211,8 +220,14 @@ public class AudioModule: Module {
  
        Function("play") { player in
          try activateSession()
+-        let rate = player.currentRate > 0 ? player.currentRate : 1.0
+-        player.play(at: rate)
 +        // PATCH: an explicit start ends any interruption this player was
 +        // parked for (it must not be resumed again when it ends).
-+        player.interruption = nil
-+        interruptedPlayers.remove(player.id)
-         let rate = player.currentRate > 0 ? player.currentRate : 1.0
-         player.play(at: rate)
++        withInterruptionLock {
++          player.interruption = nil
++          interruptedPlayers.remove(player.id)
++          let rate = player.currentRate > 0 ? player.currentRate : 1.0
++          player.play(at: rate)
++        }
        }
-@@ -242,7 +250,13 @@ public class AudioModule: Module {
+ 
+       Function("setPlaybackRate") { (player, rate: Double, pitchCorrectionQuality: PitchCorrectionQuality?) in
+@@ -242,7 +257,15 @@ public class AudioModule: Module {
        }
  
        Function("pause") { player in
@@ -697,13 +715,15 @@ index d265606..f6f4c65 100644
 +        // `ref.pause()` alone left it set, and the readiness observer then
 +        // restarted a paused player after any source replace (stream change).
 +        // An explicit pause also cancels a pending interruption resume.
-+        player.pause()
-+        player.interruption = nil
-+        interruptedPlayers.remove(player.id)
++        withInterruptionLock {
++          player.pause()
++          player.interruption = nil
++          interruptedPlayers.remove(player.id)
++        }
          if !player.keepAudioSessionActive {
            deactivateSession()
          }
-@@ -571,6 +585,13 @@ public class AudioModule: Module {
+@@ -571,6 +594,13 @@ public class AudioModule: Module {
  
      switch interruptionType {
      case .began:
@@ -717,7 +737,13 @@ index d265606..f6f4c65 100644
        handleInterruptionBegan()
  
      case .ended:
-@@ -591,14 +612,20 @@ public class AudioModule: Module {
+@@ -587,18 +617,26 @@ public class AudioModule: Module {
+   }
+ 
+   private func handleInterruptionBegan() {
++    interruptionLock.lock()
++    defer { interruptionLock.unlock() }
+     interruptedPlayers.removeAll()
      playerVolumes.removeAll()
  
      registry.allPlayables.forEach { playable in
@@ -739,10 +765,12 @@ index d265606..f6f4c65 100644
          }
        }
      }
-@@ -613,16 +640,39 @@ public class AudioModule: Module {
+@@ -613,14 +651,39 @@ public class AudioModule: Module {
    }
  
    private func handleInterruptionEnded(with options: AVAudioSession.InterruptionOptions) {
++    interruptionLock.lock()
++    defer { interruptionLock.unlock() }
 +    // PATCH: only take the session back when the system asks us to resume AND
 +    // no other app has become the primary audio source meanwhile (e.g. Siri
 +    // handing off to a music app). Re-activating a non-mixable session
@@ -766,36 +794,48 @@ index d265606..f6f4c65 100644
      } catch {
        print("Failed to reactivate audio session: \(error)")
 +      endInterruptionWithoutResume()
-     }
-   }
- 
++    }
++  }
++
 +  /// PATCH: the interruption is over but playback stays paused (JS decides).
 +  private func endInterruptionWithoutResume() {
 +    registry.allPlayers.values.forEach { player in
 +      guard interruptedPlayers.contains(player.id) else { return }
 +      player.interruption = nil
 +      player.updateStatus(with: [:])
-+    }
+     }
 +    interruptedPlayers.removeAll()
 +    playerVolumes.removeAll()
-+  }
-+
-   @objc private func handleAudioSessionRouteChange(_ notification: Notification) {
-     guard let userInfo = notification.userInfo,
-       let reasonRaw = userInfo[AVAudioSessionRouteChangeReasonKey] as? UInt,
-@@ -632,7 +682,20 @@ public class AudioModule: Module {
+   }
  
+   @objc private func handleAudioSessionRouteChange(_ notification: Notification) {
+@@ -629,10 +692,34 @@ public class AudioModule: Module {
+       let reason = AVAudioSession.RouteChangeReason(rawValue: reasonRaw) else {
+       return
+     }
++    // PATCH: route changes are posted on a secondary thread; handle them on
++    // main like interruptions so the two never race each other.
++    guard Thread.isMainThread else {
++      DispatchQueue.main.async { [weak self] in self?.handleRouteChange(reason) }
++      return
++    }
++    handleRouteChange(reason)
++  }
+ 
++  private func handleRouteChange(_ reason: AVAudioSession.RouteChangeReason) {
      switch reason {
      case .oldDeviceUnavailable:
 -      pauseAllPlayers()
 +      // PATCH: headphones unplugged / Bluetooth gone. Pause anything that
 +      // wants playback (not only what is audible — a buffering stream would
 +      // otherwise start on the loudspeaker) and tell JS it was the system.
-+      registry.allPlayers.values.forEach { player in
-+        guard player.wantsPlayback else { return }
-+        player.interruption = "route-lost"
-+        player.pause()
-+        player.updateStatus(with: [:])
++      withInterruptionLock {
++        registry.allPlayers.values.forEach { player in
++          guard player.wantsPlayback else { return }
++          player.interruption = "route-lost"
++          player.pause()
++          player.updateStatus(with: [:])
++        }
 +      }
 +      registry.allPlaylists.values.forEach { playlist in
 +        if playlist.isPlaying {
@@ -805,11 +845,24 @@ index d265606..f6f4c65 100644
      default:
        break
      }
+@@ -666,6 +753,12 @@ public class AudioModule: Module {
+   }
+   #endif
+ 
++  private func withInterruptionLock<T>(_ body: () throws -> T) rethrows -> T {
++    interruptionLock.lock()
++    defer { interruptionLock.unlock() }
++    return try body()
++  }
++
+   private func resumeInterruptedPlayers() {
+     registry.allPlayables.forEach { playable in
+       if interruptedPlayers.contains(playable.id) {
 diff --git a/node_modules/expo-audio/ios/AudioPlayer.swift b/node_modules/expo-audio/ios/AudioPlayer.swift
-index 0742943..8020ab4 100644
+index 0742943..04023d6 100644
 --- a/node_modules/expo-audio/ios/AudioPlayer.swift
 +++ b/node_modules/expo-audio/ios/AudioPlayer.swift
-@@ -24,6 +24,24 @@ public class AudioPlayer: SharedRef<AVPlayer>, Playable {
+@@ -24,6 +24,39 @@ public class AudioPlayer: SharedRef<AVPlayer>, Playable {
    }
    var samplingEnabled = false
    var keepAudioSessionActive = false
@@ -824,7 +877,22 @@ index 0742943..8020ab4 100644
 +  /// from a network stall — a pause that lands while the stream is still
 +  /// loading otherwise reads as buffering, and the reconnect logic would
 +  /// re-activate the session and silence the app that just took over.
-+  var interruption: String?
++  /// Written from the JS thread (play/pause) and the main thread (session
++  /// notifications), read wherever a status frame is built — hence the lock.
++  var interruption: String? {
++    get {
++      interruptionLock.lock()
++      defer { interruptionLock.unlock() }
++      return _interruption
++    }
++    set {
++      interruptionLock.lock()
++      defer { interruptionLock.unlock() }
++      _interruption = newValue
++    }
++  }
++  private var _interruption: String?
++  private let interruptionLock = NSLock()
 +
 +  /// PATCH: playback is wanted even if not audible yet (item still loading,
 +  /// or AVPlayer waiting for data). Interruptions must pause these too.
@@ -834,7 +902,7 @@ index 0742943..8020ab4 100644
  
    var isLooping = false {
      didSet {
-@@ -75,12 +93,105 @@ public class AudioPlayer: SharedRef<AVPlayer>, Playable {
+@@ -75,12 +108,105 @@ public class AudioPlayer: SharedRef<AVPlayer>, Playable {
      return Date().timeIntervalSince1970 - currentDate.timeIntervalSince1970
    }
  
@@ -940,7 +1008,7 @@ index 0742943..8020ab4 100644
    }
  
    var isLoaded: Bool {
-@@ -100,13 +211,20 @@ public class AudioPlayer: SharedRef<AVPlayer>, Playable {
+@@ -100,13 +226,20 @@ public class AudioPlayer: SharedRef<AVPlayer>, Playable {
    }
  
    func play(at rate: Float) {
@@ -962,16 +1030,21 @@ index 0742943..8020ab4 100644
  
      if isActiveForLockScreen {
        MediaController.shared.updateNowPlayingInfo(for: self)
-@@ -150,6 +268,8 @@ public class AudioPlayer: SharedRef<AVPlayer>, Playable {
+@@ -150,6 +283,13 @@ public class AudioPlayer: SharedRef<AVPlayer>, Playable {
        "isBuffering": isBuffering,
        "isLive": isLive,
        "currentOffsetFromLive": currentOffsetFromLive,
 +      "bufferedAhead": bufferedAheadSeconds,
 +      "interruption": interruption,
++      // PATCH: when this frame was sampled (epoch ms). A source replace emits
++      // frames that describe the player BEFORE the open (its own pause, the
++      // time-jump observer) and they reach JS after it — JS drops frames
++      // sampled before its last open settled.
++      "sampledAt": Date().timeIntervalSince1970 * 1000,
        "error": nil
      ]
    }
-@@ -198,6 +318,33 @@ public class AudioPlayer: SharedRef<AVPlayer>, Playable {
+@@ -198,6 +338,33 @@ public class AudioPlayer: SharedRef<AVPlayer>, Playable {
    }
  
    private func setupPublisher() {
@@ -1005,7 +1078,7 @@ index 0742943..8020ab4 100644
      ref.publisher(for: \.currentItem?.status)
        .sink { [weak self] status in
          guard let self, let status else {
-@@ -228,6 +375,9 @@ public class AudioPlayer: SharedRef<AVPlayer>, Playable {
+@@ -228,6 +395,9 @@ public class AudioPlayer: SharedRef<AVPlayer>, Playable {
          guard let self else {
            return
          }
@@ -1015,7 +1088,19 @@ index 0742943..8020ab4 100644
          if self.isLooping {
            self.enqueueNextLoopItem()
            self.addPlaybackEndNotification()
-@@ -413,6 +563,8 @@ public class AudioPlayer: SharedRef<AVPlayer>, Playable {
+@@ -279,7 +449,10 @@ public class AudioPlayer: SharedRef<AVPlayer>, Playable {
+ 
+     if wasPlaying {
+       onReady { [weak self] in
+-        guard let self else { return }
++        // PATCH: an interruption / route loss / pause that landed while the
++        // new item was loading cleared the intent — starting now would
++        // re-activate the session and silence the app that took over.
++        guard let self, self.playWanted else { return }
+         self.play(at: self.effectiveRate)
+       }
+     }
+@@ -413,6 +586,8 @@ public class AudioPlayer: SharedRef<AVPlayer>, Playable {
      } else {
        ref.replaceCurrentItem(with: item)
      }
@@ -1024,7 +1109,7 @@ index 0742943..8020ab4 100644
    }
  
    private func enqueueNextLoopItem() {
-@@ -467,6 +619,22 @@ public class AudioPlayer: SharedRef<AVPlayer>, Playable {
+@@ -467,6 +642,22 @@ public class AudioPlayer: SharedRef<AVPlayer>, Playable {
            "didJustFinish": true
          ])
          self.onPlaybackComplete?()
@@ -1047,7 +1132,7 @@ index 0742943..8020ab4 100644
        }
      }
    }
-@@ -496,10 +664,17 @@ public class AudioPlayer: SharedRef<AVPlayer>, Playable {
+@@ -496,10 +687,17 @@ public class AudioPlayer: SharedRef<AVPlayer>, Playable {
    }
  
    func pause() {
