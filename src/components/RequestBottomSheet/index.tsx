@@ -145,7 +145,7 @@ export function RequestBottomSheet({
           user={user}
           value={message}
           onChangeText={handleChangeMessage}
-          editable={!isSubmitting}
+          busy={isSubmitting}
           onSubmitEditing={handleSubmit}
         />
         <RequestSubmitButton

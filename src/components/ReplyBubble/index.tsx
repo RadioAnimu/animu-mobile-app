@@ -18,7 +18,8 @@ interface Props
   /** Spoken label of the input. */
   label: string;
   user: User | null;
-  editable?: boolean;
+  /** Submitting: dims and ignores typing, keeping focus and the keyboard. */
+  busy?: boolean;
   maxLength?: number;
 }
 
@@ -31,7 +32,7 @@ export function ReplyBubble({
   onChangeText,
   label,
   user,
-  editable = true,
+  busy = false,
   maxLength,
   placeholder,
   onSubmitEditing,
@@ -57,19 +58,21 @@ export function ReplyBubble({
           style={[
             styles.bubble,
             focused && styles.bubbleFocused,
-            !editable && styles.disabled,
+            busy && styles.disabled,
           ]}
         >
           <TextInput
             style={styles.input}
             value={value}
-            onChangeText={onChangeText}
-            editable={editable}
+            onChangeText={(text) => {
+              if (!busy) onChangeText(text);
+            }}
             multiline
             maxLength={maxLength}
             placeholder={placeholder}
             placeholderTextColor="rgba(0, 0, 0, 0.45)"
             accessibilityLabel={label}
+            accessibilityState={{ busy }}
             returnKeyType="send"
             submitBehavior="submit"
             onSubmitEditing={onSubmitEditing}

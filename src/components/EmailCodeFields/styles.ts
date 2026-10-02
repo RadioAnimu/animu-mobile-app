@@ -1,10 +1,8 @@
 import { StyleSheet } from "react-native";
 
 import { THEME } from "@/theme";
-import { scale } from "@/theme/responsive";
 
-const FIELD_HEIGHT = scale(48);
-const FIELD_ICON = scale(22);
+const FIELD_ICON = THEME.ICON.MD;
 
 export const styles = StyleSheet.create({
   fieldLabel: {
@@ -20,7 +18,7 @@ export const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: THEME.SPACE.SM,
-    height: FIELD_HEIGHT,
+    height: THEME.LAYOUT.FIELD_HEIGHT,
     paddingHorizontal: THEME.SPACE.LG,
     borderRadius: THEME.RADIUS.MD,
     backgroundColor: THEME.COLORS.INPUT_BG,

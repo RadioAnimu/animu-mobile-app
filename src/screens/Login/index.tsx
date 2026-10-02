@@ -261,7 +261,7 @@ function ConnectStep({
       </Animated.View>
 
       <Animated.View style={[styles.form, formStyle]}>
-        <EmailCodeFields flow={flow} autoFocus />
+        <EmailCodeFields flow={flow} autoFocusEmail />
 
         {error && (
           <View style={styles.errorSlot}>

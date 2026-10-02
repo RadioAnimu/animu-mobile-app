@@ -90,18 +90,31 @@ describe("CodeInput", () => {
     expect(Animated.loop).not.toHaveBeenCalled();
   });
 
-  it("pulls focus back to the field when editing resumes after a verify", () => {
-    const { input, rerender, onChangeText } = setup({ editable: false });
-    expect(document.activeElement).not.toBe(input);
-    rerender(
-      <CodeInput
-        value=""
-        onChangeText={onChangeText}
-        editable
-        accessibilityLabel="Code"
-      />,
-    );
-    expect(document.activeElement).toBe(input);
+  it("stays editable while busy, ignoring typing so focus survives a verify", () => {
+    const { input, onChangeText } = setup({ busy: true });
+    // Flipping `editable` off would blur the field and drop the keyboard.
+    expect(input.disabled).toBe(false);
+    fireEvent.change(input, { target: { value: "1" } });
+    expect(onChangeText).not.toHaveBeenCalled();
+  });
+
+  it("does not blink while busy", () => {
+    const { input } = setup({ busy: true });
+    fireEvent.focus(input);
+    expect(Animated.loop).not.toHaveBeenCalled();
+  });
+
+  it("focuses itself after mounting when autoFocus is set", () => {
+    vi.useFakeTimers();
+    try {
+      const { input } = setup({ autoFocus: true });
+      act(() => {
+        vi.runAllTimers();
+      });
+      expect(document.activeElement).toBe(input);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("does not steal focus when it was editable all along", () => {

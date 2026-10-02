@@ -1,4 +1,4 @@
-import MaterialIcons from "@react-native-vector-icons/material-icons/static";
+import { Icon } from "@/components/Icon";
 import { useState, type Ref } from "react";
 import {
   Text,
@@ -36,6 +36,12 @@ interface Props
   /** Validation message — turns the border red and shows it under the field. */
   error?: string;
   editable?: boolean;
+  /**
+   * The form is submitting: the field dims and ignores typing but keeps
+   * focus, so the keyboard stays up for a retry (flipping `editable` off
+   * would blur it and dismiss the keyboard).
+   */
+  busy?: boolean;
   inputRef?: Ref<TextInput>;
 }
 
@@ -104,7 +110,7 @@ function FieldError({ message }: { message: string }) {
       accessibilityRole="alert"
       style={styles.errorRow}
     >
-      <MaterialIcons
+      <Icon
         name="error-outline"
         size={scale(16)}
         color={THEME.COLORS.ERROR}
@@ -126,6 +132,7 @@ export function FormField({
   optional = false,
   error,
   editable = true,
+  busy = false,
   inputRef,
   multiline = false,
   maxLength,
@@ -135,7 +142,7 @@ export function FormField({
   const [focused, setFocused] = useState(false);
 
   const hasError = error != null;
-  const canClear = !multiline && editable && value.length > 0;
+  const canClear = !multiline && editable && !busy && value.length > 0;
 
   return (
     <View style={styles.wrapper}>
@@ -153,19 +160,22 @@ export function FormField({
           multiline && styles.fieldMultiline,
           focused && styles.fieldFocused,
           hasError && styles.fieldError,
-          !editable && styles.fieldDisabled,
+          (!editable || busy) && styles.fieldDisabled,
         ]}
       >
         <TextInput
           ref={inputRef}
           style={[styles.input, multiline && styles.inputMultiline]}
           value={value}
-          onChangeText={onChangeText}
+          onChangeText={(text) => {
+            if (!busy) onChangeText(text);
+          }}
           editable={editable}
           multiline={multiline}
           maxLength={maxLength}
           placeholderTextColor={PLACEHOLDER_COLOR}
           accessibilityLabel={label}
+          accessibilityState={{ busy }}
           onFocus={() => setFocused(true)}
           onBlur={() => setFocused(false)}
           {...inputProps}
@@ -174,12 +184,12 @@ export function FormField({
           <TouchableOpacity
             accessibilityRole="button"
             accessibilityLabel={dict.A11Y_CLEAR_INPUT}
-            activeOpacity={0.7}
-            hitSlop={8}
+            activeOpacity={THEME.OPACITY.PRESSED}
+            hitSlop={THEME.HIT_SLOP.SM}
             onPress={() => onChangeText("")}
             style={styles.clear}
           >
-            <MaterialIcons
+            <Icon
               name="cancel"
               size={THEME.ICON.MD}
               color={PLACEHOLDER_COLOR}

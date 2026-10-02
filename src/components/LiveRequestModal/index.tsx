@@ -136,7 +136,7 @@ export function LiveRequestModal({ visible, handleClose }: Props) {
     value: formData[field],
     onChangeText: (text: string) => handleChange(field, text),
     error: fieldError(field),
-    editable: !isSubmitting,
+    busy: isSubmitting,
     inputRef: (node: TextInput | null) => registerInput(field, node),
     maxLength: field === "request" ? LIVE_MESSAGE_MAX : LIVE_FIELD_MAX,
     ...(next && {

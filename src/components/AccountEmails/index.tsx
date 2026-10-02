@@ -1,5 +1,5 @@
 import { Fragment, useEffect, useState } from "react";
-import MaterialIcons from "@react-native-vector-icons/material-icons/static";
+import { Icon } from "@/components/Icon";
 import type { AuthAccountEmail, LinkedProvider } from "animu-api";
 import {
   ActivityIndicator,
@@ -20,7 +20,6 @@ import type { Dict } from "@/i18n";
 import { providerLabel } from "@/constants/auth";
 import { RESEND_COOLDOWN_SECONDS } from "@/constants/email-code";
 import { THEME } from "@/theme";
-import { scale } from "@/theme/responsive";
 import { haptics } from "@/utils/haptics";
 import { interpolate } from "@/utils/format";
 import { maskEmail } from "@/utils/mask";
@@ -76,7 +75,7 @@ function EmailRow({
           textStyle={styles.emailValue}
           showLabel={dict.ACCOUNT_SHOW}
           hideLabel={dict.ACCOUNT_HIDE}
-          iconSize={14}
+          iconSize={THEME.ICON.SM}
         />
         {sources.length > 0 && (
           <View style={styles.emailSourceRow}>
@@ -86,7 +85,7 @@ function EmailRow({
                   <Text style={styles.emailSourceSeparator}>·</Text>
                 )}
                 {source.provider && (
-                  <ProviderIcon provider={source.provider} size={scale(16)} />
+                  <ProviderIcon provider={source.provider} size={THEME.ICON.SM} />
                 )}
                 <Text style={styles.emailSource} numberOfLines={1}>
                   {source.label}
@@ -101,13 +100,13 @@ function EmailRow({
           accessibilityRole="button"
           // The masked form, or the label would undo the hidden address.
           accessibilityLabel={`${dict.ACCOUNT_EMAIL_REMOVE} ${maskEmail(email)}`}
-          activeOpacity={0.7}
+          activeOpacity={THEME.OPACITY.PRESSED}
           disabled={busy}
-          hitSlop={8}
+          hitSlop={THEME.HIT_SLOP.SM}
           onPress={() => onRemove(removableItem)}
           style={[styles.removeButton, busy && styles.disabled]}
         >
-          <MaterialIcons
+          <Icon
             name="delete-outline"
             size={THEME.ICON.MD}
             color={THEME.COLORS.ERROR}
@@ -289,7 +288,7 @@ function AddEmailForm({
       {/* The email step's button carries its own spinner. */}
       {flow.busy && onCodeStep && (
         <View style={styles.formBusy}>
-          <ActivityIndicator color={THEME.COLORS.TEXT_DIM} />
+          <ActivityIndicator color={THEME.COLORS.SPINNER} />
         </View>
       )}
 
@@ -410,7 +409,7 @@ export function AccountEmails() {
     <View>
       {showLoading ? (
         <ActivityIndicator
-          color={THEME.COLORS.TEXT_DIM}
+          color={THEME.COLORS.SPINNER}
           style={styles.loading}
         />
       ) : (

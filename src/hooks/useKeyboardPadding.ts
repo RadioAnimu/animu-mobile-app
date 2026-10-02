@@ -1,53 +1,88 @@
 import { useEffect, useState } from "react";
-import { Keyboard, Platform } from "react-native";
+import {
+  Keyboard,
+  LayoutAnimation,
+  Platform,
+  type KeyboardEvent,
+} from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { layoutEase } from "@/utils/layout-animation";
+import { MOTION } from "@/theme/motion";
 
 /**
- * Bottom padding equal to the software keyboard height.
+ * How far the software keyboard reaches ABOVE the bottom safe area — the
+ * extra bottom padding a surface needs on top of its normal safe-area
+ * padding to keep its content visible while typing.
  *
- * We don't use RN's `KeyboardAvoidingView`: on Android edge-to-edge (SDK 57,
- * targetSdk 36) it handles `keyboardDidHide` through `_onKeyboardChange`, so it
- * recomputes padding from the hide event's `screenY` — which is reported wrong
- * in edge-to-edge — and leaves a transparent gap behind after the keyboard
- * closes (the sheet stays "floating"). Here the hide event is always ignored
- * and the padding is reset to 0.
+ * Both platforms report that same quantity, so callers can always add it to
+ * `insets.bottom + gap` without double counting:
+ * - iOS reports the full keyboard frame, which covers the home-indicator
+ *   inset, so the inset is subtracted here.
+ * - Android (RN 0.86, edge-to-edge) already reports `ime - systemBars`, i.e.
+ *   the part above the navigation bar.
  *
- * On iOS the `willShow`/`willHide` pair tracks the keyboard animation; on
- * Android the `didShow`/`didHide` pair avoids the same edge-to-edge
- * `screenY` problem. Screens that already handle iOS through
+ * We don't use RN's `KeyboardAvoidingView`: on Android edge-to-edge it
+ * recomputes padding from the hide event's `screenY` — which is reported
+ * wrong in edge-to-edge — and leaves a transparent gap behind after the
+ * keyboard closes. Here the hide event always resets to 0.
+ *
+ * On iOS the layout change rides the keyboard's own animation (its duration
+ * and curve from the event), so the content moves in lockstep with the
+ * keyboard instead of chasing it. Android only gets reliable heights from
+ * `didShow`/`didHide`, so it uses the app's fast standard ease.
+ *
+ * Screens whose scroll view already handles iOS through
  * `automaticallyAdjustKeyboardInsets` should enable this on Android only.
  */
 export function useKeyboardPadding(enabled: boolean): number {
-  const [padding, setPadding] = useState(0);
+  const [height, setHeight] = useState(0);
+  const { bottom: bottomInset } = useSafeAreaInsets();
 
   useEffect(() => {
     if (!enabled) {
-      setPadding(0);
+      setHeight(0);
       return undefined;
     }
 
-    const animate = () => layoutEase(200);
+    const animate = (event?: KeyboardEvent) => {
+      if (Platform.OS === "ios" && event?.duration) {
+        LayoutAnimation.configureNext({
+          duration: event.duration,
+          update: { type: LayoutAnimation.Types.keyboard },
+        });
+        return;
+      }
+      LayoutAnimation.configureNext({
+        duration: MOTION.DURATION.NORMAL,
+        update: { type: LayoutAnimation.Types.easeInEaseOut },
+      });
+    };
 
-    const subscriptions = [
-      Keyboard.addListener(
-        Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow",
-        (event) => {
-          animate();
-          setPadding(event.endCoordinates.height);
-        },
-      ),
-      Keyboard.addListener(
-        Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide",
-        () => {
-          animate();
-          setPadding(0);
-        },
-      ),
-    ];
+    const onShow = (event: KeyboardEvent) => {
+      animate(event);
+      setHeight(event.endCoordinates.height);
+    };
+    const onHide = (event: KeyboardEvent) => {
+      animate(event);
+      setHeight(0);
+    };
+
+    const subscriptions =
+      Platform.OS === "ios"
+        ? [
+            // iOS re-sends willShow when the keyboard resizes while up
+            // (keyboard type switch, suggestion bar), so heights stay live.
+            Keyboard.addListener("keyboardWillShow", onShow),
+            Keyboard.addListener("keyboardWillHide", onHide),
+          ]
+        : [
+            Keyboard.addListener("keyboardDidShow", onShow),
+            Keyboard.addListener("keyboardDidHide", onHide),
+          ];
 
     return () => subscriptions.forEach((subscription) => subscription.remove());
   }, [enabled]);
 
-  return enabled ? padding : 0;
+  if (!enabled || height === 0) return 0;
+  return Platform.OS === "ios" ? Math.max(0, height - bottomInset) : height;
 }

@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from "react";
-import MaterialIcons from "@react-native-vector-icons/material-icons/static";
+import { Icon } from "@/components/Icon";
 import { Text, TextInput, TouchableOpacity, View } from "react-native";
 
 import { CodeInput, CODE_LENGTH } from "@/components/CodeInput";
 import { PrimaryButton } from "@/components/PrimaryButton";
 import type { EmailCodeFlow } from "@/hooks/useEmailCodeFlow";
 import { useDict } from "@/hooks/useDict";
+import { useFocusOnMount } from "@/hooks/useFocusOnMount";
 import { THEME } from "@/theme";
 import { styles } from "@/components/EmailCodeFields/styles";
 
@@ -15,16 +16,23 @@ import { styles } from "@/components/EmailCodeFields/styles";
  * code step submits itself on the last digit); shared by the Login screen and
  * the Account screen.
  *
- * `autoFocus` is opt-in: the full-screen Login form leans on it, while the
- * Account screen leaves it off so its inline field only raises the keyboard
- * from the user's tap.
+ * `autoFocusEmail` is opt-in: the full-screen Login form leans on it, while
+ * the Account screen leaves it off so its inline field only raises the
+ * keyboard from the user's tap. The code step always takes focus: it only
+ * ever appears because the user just asked for a code, so the number pad
+ * must be up the moment the boxes are.
+ *
+ * Neither field flips `editable` off while a request runs. That blurs the
+ * focused field and dismisses the keyboard on both platforms, which is what
+ * left the code step with no keyboard after "Send code": `busy` locks input
+ * instead and focus survives the round trip.
  */
 export function EmailCodeFields({
   flow,
-  autoFocus = false,
+  autoFocusEmail = false,
 }: {
   flow: EmailCodeFlow;
-  autoFocus?: boolean;
+  autoFocusEmail?: boolean;
 }) {
   const dict = useDict();
   const autoSubmitted = useRef(false);
@@ -34,14 +42,7 @@ export function EmailCodeFields({
   const onCodeStep = flow.step === "code";
   const { code, busy, verify } = flow;
 
-  // A failed send flips `editable` off while the request runs, which blurs
-  // the field on Android; focus it again when the request ends so fixing the
-  // address (and pressing the keyboard's send key) takes no extra tap.
-  const wasBusy = useRef(busy);
-  useEffect(() => {
-    if (!onCodeStep && !busy && wasBusy.current) emailRef.current?.focus();
-    wasBusy.current = busy;
-  }, [busy, onCodeStep]);
+  useFocusOnMount(emailRef, autoFocusEmail && !onCodeStep);
 
   // A complete 4-digit code has no reason to wait for a second tap, so submit
   // as soon as the last box fills. The ref fires once per complete entry
@@ -68,7 +69,9 @@ export function EmailCodeFields({
             ref={emailRef}
             style={styles.input}
             value={flow.email}
-            onChangeText={flow.setEmail}
+            onChangeText={(text) => {
+              if (!flow.busy) flow.setEmail(text);
+            }}
             keyboardType="email-address"
             autoCapitalize="none"
             autoCorrect={false}
@@ -79,9 +82,8 @@ export function EmailCodeFields({
             // below, and stays grayed out until something is typed.
             returnKeyType="send"
             enablesReturnKeyAutomatically
-            autoFocus={autoFocus}
-            editable={!flow.busy}
             accessibilityLabel={dict.LOGIN_EMAIL}
+            accessibilityState={{ busy: flow.busy }}
             placeholder={dict.LOGIN_EMAIL_PLACEHOLDER}
             placeholderTextColor={THEME.COLORS.TEXT_DIM}
             onFocus={() => setFocused(true)}
@@ -92,12 +94,12 @@ export function EmailCodeFields({
             <TouchableOpacity
               accessibilityRole="button"
               accessibilityLabel={dict.A11Y_CLEAR_INPUT}
-              activeOpacity={0.7}
-              hitSlop={8}
+              activeOpacity={THEME.OPACITY.PRESSED}
+              hitSlop={THEME.HIT_SLOP.SM}
               onPress={() => flow.setEmail("")}
               style={styles.fieldIcon}
             >
-              <MaterialIcons
+              <Icon
                 name="cancel"
                 size={THEME.ICON.MD}
                 color={THEME.COLORS.TEXT_DIM}
@@ -125,8 +127,8 @@ export function EmailCodeFields({
       <CodeInput
         value={flow.code}
         onChangeText={flow.setCode}
-        editable={!flow.busy}
-        autoFocus={autoFocus}
+        busy={flow.busy}
+        autoFocus
         accessibilityLabel={dict.LOGIN_CODE}
       />
     </>
