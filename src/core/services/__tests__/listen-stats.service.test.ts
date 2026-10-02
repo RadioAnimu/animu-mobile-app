@@ -483,7 +483,11 @@ describe("listenStatsService streak anchoring", () => {
 });
 
 describe("listenStatsService persistence scheduling", () => {
-  beforeEach(() => {
+  beforeEach(async () => {
+    // Earlier blocks fake only `Date`, so their stop flushes run on real 0 ms
+    // timers — let them land before counting writes here.
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    vi.mocked(AsyncStorage.setItem).mockClear();
     memory.clear();
     vi.useFakeTimers();
     vi.setSystemTime(dayStart(0) + 12 * 3_600_000);
@@ -533,7 +537,7 @@ describe("listenStatsService persistence scheduling", () => {
     expect(AsyncStorage.setItem).toHaveBeenCalledTimes(1);
   });
 
-  it("persists accrued audio promptly when playback stops", async () => {
+  it("persists accrued audio immediately when playback stops", async () => {
     const service = new ListenStatsService();
     await service.initialize();
 
@@ -543,7 +547,8 @@ describe("listenStatsService persistence scheduling", () => {
     service.onAudibleTick(start + 2_000);
     service.onPlaybackStopped();
 
-    await vi.advanceTimersByTimeAsync(2_000);
+    // No delay: iOS may suspend a backgrounded app seconds after audio stops.
+    await vi.advanceTimersByTimeAsync(0);
     expect(AsyncStorage.setItem).toHaveBeenCalledTimes(1);
   });
 

@@ -413,8 +413,11 @@ export class ListenStatsService {
         this.ensureDay(day).sessions += 1;
       }
       this.currentSessionMs = 0;
-      // Audible ticks only schedule slow flushes; persist what accrued now.
-      this.scheduleFlush();
+      // Audible ticks only schedule slow flushes; persist what accrued now —
+      // immediately, not on the 2s event delay: once audio stops, iOS may
+      // suspend a backgrounded app within seconds (and later kill it), taking
+      // the pending timer and up to 30s of ticks with it.
+      this.scheduleFlush(0);
     }
   }
 
