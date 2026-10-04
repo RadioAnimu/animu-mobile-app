@@ -37,43 +37,51 @@ first read.
 
 ## Player core
 
-`src/core/player` decomposes playback into small, testable units composed by a
-**thin orchestrator** (`PlayerService`, `player-service.ts`) that owns no
-playback or data logic itself — it only routes events between units and is the
-single writer of the React stores.
+Playback runs on **[react-native-airwave](https://github.com/rmotafreitas/react-native-airwave)**,
+a native-first player: its native engine owns the state machine, reconnects,
+stall / dead-socket / network recovery, live-edge resumes, audio focus,
+interruptions, the lock screen and remote commands, and background keepalive.
+None of that runs in JS any more, so it keeps working while JS timers are
+frozen.
 
-The **only** modules that import a native media library are the adapters; the
-rest of the engine depends on the ports in `ports.ts` (`AudioEnginePort`,
-`MediaSessionPort`, the shared value types, and the `Timer` seam). Groups:
+`src/core/player` adds what only the app knows:
 
-| Group | Modules | Responsibility |
-| --- | --- | --- |
-| `ports.ts` | — | Library-agnostic vocabulary: `AudioEnginePort`, `MediaSessionPort`, `Timer`; imports no native media lib |
-| `adapters/` | `ExpoAudioAdapter` | The `AudioEnginePort` backed by `expo-audio` — player + audio-session lifecycle (create/replace/resume/pause, status events, decoded-PCM sample channel) |
-| `adapters/` | `PlaybackControlsAdapter` | The `MediaSessionPort` backed by `react-native-playback-controls` — now-playing metadata/status/position + remote (lock-screen) commands |
-| `stream-playback/` | `transport-state` | Explicit play-intent lifecycle (`idle → connecting → playing/paused/reconnecting`) and its status mapping |
-| `stream-playback/` | `backoff` (`BackoffScheduler`) | Reusable exponential-backoff timer — stream reconnects and data retries (base 2 s, cap 30 s) |
-| `stream-playback/` | `now-playing.repository` (`NowPlayingRepository`) | On-air data: realtime SSE ingest + HTTP fallback, parallel fetch, diffing merge, predictive track-end refresh, error backoff |
-| `stream-playback/` | `stream-sync` (`StreamSyncEngine`) | Maps the station timeline onto the audible stream (live offset, `SyncAnchor`, `getSyncedTrackProgress`) |
-| `stream-playback/` | `audible-track` (`AudibleTrackResolver`) | Resolves which track the listener is actually hearing during transitions/SSE gaps |
-| `stream-playback/` | `heartbeat` (`HeartbeatScheduler`) | 1 Hz gate collapsing the native + JS drivers; watchdog; data-poll cadence; fed natively while backgrounded |
-| `stream-playback/` | `progress-ticker` (`ProgressTicker`) | 1 Hz progress tick — progress store updates, track-end detection, native position push |
-| `stream-playback/` | `network-monitor` (`NetworkMonitor`) | Offline → online, online → offline and Wi-Fi ↔ cellular handoff edges (via `@react-native-community/netinfo`): instant reconnect, and an eager stall detector while the link is suspect. Reconnects are skipped (with periodic probes) while offline |
-| `stream-playback/` | `stream-preferences` (`StreamPreferences`) | Persisted stream-quality choice with corrupt-storage safety |
-| `stream-playback/` | `live-buffer.android` / `.ios` | Per-platform live-edge buffer policy — `0` on both, but iOS documents why capping the forward buffer distorts the measured lag |
-| `visualizer/` | `audio-sampler` (`AudioSampler`) + `waveform` + `index.android`/`index.ios` | Android-only PCM sampling + DSP; iOS factory returns a `NoopVisualizerSampler`, so the whole DSP never bundles on iOS |
-| `media-session/` | `now-playing.metadata` (`buildNowPlayingMetadata`) | Pure mapper: app state → native media-session metadata |
-| `storage/` | `artwork` (`ArtworkResolver`), `cover-file-cache`, `cover-image-cache`, `cover-ports` | Cover resolution, disk/image caches and the bundled default |
-| root | `player-service.ts` (`PlayerService`) | The thin orchestrator — routes events between the units, writes the stores |
-| root | `player-factory.ts` | Composition root — wires the production adapters/units and owns the `playerService()` singleton |
-| root | `store.ts` | The three external stores |
-| root | `timer.ts` | The shared scheduling port (`Timer`, `jsTimer`) and the `PumpedTimer` every unit shares |
+| Module | Responsibility |
+| --- | --- |
+| `player-service.ts` (`PlayerService`) | Which stream to play, commands, store writes, lock-screen metadata; follows Airwave's status |
+| `stream-playback/heard-track.ts` (`HeardTrack`) | What the listener is **hearing** and how far into it (see below) |
+| `stream-playback/now-playing.repository.ts` (`NowPlayingRepository`) | On-air data: realtime SSE + HTTP fallback, diffing merge, history, listeners, error backoff (`backoff.ts`) |
+| `stream-playback/stream-preferences.ts` | Persisted stream-quality choice |
+| `visualizer/audio-sampler.ts` (`AudioSampler`) | Oscilloscope windows from Airwave's `audioSample` events (pacing, delay, draw gain) |
+| `media-session/now-playing.metadata.ts` | Pure mapper: track → lock-screen fields (anime as title, cover, duration) |
+| `storage/` | Cover resolution, disk/image caches and the bundled default |
+| `artwork-prefetch.ts` | Warms an announced track's cover before it is heard |
+| `player-factory.ts` | Composition root and the `playerService()` singleton |
+| `store.ts` | The three external stores and the UI's `TransportState` |
+| `ports.ts` | The slice of Airwave's `Player` the core uses (faked in tests) |
 
-The units communicate through narrow, constructor-injected dependencies (the
-`Timer` abstraction replaces raw `setTimeout`, fetchers and connectivity
-subscriptions are injectable). Tests live in the per-folder `__tests__`
-directories and in `src/core/services/__tests__`, and run with `pnpm test`.
+### What is heard: ICY titles
 
+The station's ICY title is exactly the API's `rawtitle`, and it changes about
+1.2 s after the API's `timestart` (measured: 67 track changes over 3 hours,
+0.34–1.85 s, every title matching). Airwave delivers each ICY title **when it
+becomes audible** (iOS: AVPlayer's metadata output; Android: Media3's metadata
+renderer). So an ICY change means "this track is starting *now*, here":
+`HeardTrack` shows the API track whose `raw` equals the title, at 1.2 s, and
+the position advances while audio flows.
+
+The first title after tuning in (or after a re-open at the live edge) is
+already partway: its position is the station clock minus how far the speaker
+trails the live edge (`getProgress().liveOffset ?? bufferedAhead`), with a
+server clock correction from HTTP `date` headers when the device clock is
+grossly wrong. The next track boundary is exact again.
+
+The lock screen gets `updateNowPlaying({ …, duration, elapsed })`; Airwave
+advances the song's progress natively, only while audio plays. No JS timer is
+involved, which matters on Android: React Native fires no JS timers while the
+activity is backgrounded, but native events (ICY titles, status) still run JS.
+
+## State stores
 ## State stores
 
 Snapshot state reaches React through **three external stores split by change
@@ -88,12 +96,10 @@ anything but progress:
 | `stationStore` | current listeners, request/played histories | per API poll (see cadence below) | `useStation()` |
 | `progressStore` | track progress, `showProgress` | every 1s | `useTrackProgress()` |
 
-The data-poll cadence is decided once, in `HeartbeatScheduler`: **5 beats**
-(≈5 s) playing in the foreground, **30** paused in the foreground, **30**
-playing in the background and **60** paused in the background. Beats come from
-either driver — the native `playbackStatusUpdate` stream (which keeps firing
-while backgrounded) or the JS heartbeat task — and the gate collapses them to
-≤1 Hz so concurrent drivers cost a single beat.
+The foreground ticker (1 Hz, only while the app is visible) writes progress
+and polls the API every **5 s** while audio is wanted and every **30 s**
+while paused. In the background nothing polls: the SSE stream and the audible
+ICY titles keep the lock screen current.
 
 ## Repository layout
 
@@ -148,51 +154,21 @@ keeps using relative requires.
   8 s → … capped at 30 s, resetting on the first success. Combined with the
   track-end scheduler, the app recovers from transient outages without user
   intervention.
-- **Real track progress in the media session.** The radio plays server-side, so
-  progress derives from the station's `startTime` + `duration`
-  (`getTrackProgress` in `animu-api`), not from the player's internal position —
-  which on ICY streams is stream time, not track time. The app pushes
-  `durationSec` and periodically re-pushes the elapsed position, letting the OS
-  interpolate the seek bar between snapshots.
+- **Real track progress in the media session.** The radio plays server-side,
+  so a song's progress is not the player's stream position. The song becomes
+  audible with its ICY title; from then on Airwave advances the lock-screen
+  position natively (`updateNowPlaying({ duration, elapsed })`), frozen while
+  audio does not flow.
 - **Realtime now-playing over SSE, with HTTP fallback.** `NowPlayingRepository`
   prefers the station's Server-Sent Events stream (`animu.live`) for track and
   listener updates and silently reverts to HTTP polling for the metadata when
   the stream goes quiet (`LIVE_STALE_MS` = 15 s). History and program still come
   from HTTP on the poll cadence.
-- **Visibility-gated, self-rescheduling polling.** The app-level task runner
-  (`background.service.ts`) re-arms each task only after the previous run
-  settles, so a slow poll never overlaps itself. The `HeartbeatScheduler`
-  decides the cadence once: 5 s playing in the foreground, 30 s paused in the
-  foreground, and 30 s / 60 s in the background (playing / paused). Returning to
-  the foreground always triggers an immediate refresh.
-- **Native heartbeat while backgrounded.** A `playbackStatusUpdate` event beats
-  the 1 Hz `HeartbeatScheduler` from the native player, driving progress,
-  media-session pushes and the data poll even when JS timers are frozen or
-  throttled — so a live show's notification never keeps a stale title/cover.
-  React Native stops firing JS timers entirely while an Android activity is in
-  the background (screen off included), so native frames also pump the shared
-  `PumpedTimer` (reconnect backoff, track boundaries, pause release) and run
-  the recovery checks (watchdog, stall and dead-stream detectors). The patched
-  player keeps that 1 Hz frame going while playback is *wanted* — buffering or
-  idle after a stream error — not only while audio flows. The JS fallback
-  heartbeat is started/stopped by the service itself (visible, or audio
-  wanted), not from the React store, which is frozen in the background.
-- **System pauses are explicit.** The patched `expo-audio` reports why the OS
-  paused the player (`interruption`: audio-focus loss / transient loss /
-  delayed or denied grant on Android, `AVAudioSession` interruption on iOS,
-  headphones or Bluetooth gone on both). `PlayerService` adopts it exactly once
-  as `paused`, so the reconnect chain, watchdog and stall detectors stand down
-  instead of taking the audio straight back from the app that claimed it.
-  Natively, a start never bypasses audio focus, an interruption pauses players
-  that are still loading (not only audible ones), and iOS only resumes after an
-  interruption when the system asks to and no other app is now playing. When
-  the OS does resume, the source is re-opened at the live edge with `load()`,
-  which keeps whatever play state the OS has decided.
-- **One media session.** Only the JS-driven `react-native-playback-controls`
-  session exists; `expo-audio`'s own session is created lazily (never, in this
-  app), so headset / Bluetooth / car buttons always reach JS as user commands.
-  While reconnecting, the session reports play intent, keeping the Android
-  playback service in the foreground through long outages.
+- **Playback lives natively.** Reconnects, stall and dead-stream detection,
+  network handoffs, live-edge resumes, audio focus and interruptions (with
+  their reasons), background keepalive and the single media session are
+  Airwave's. Lock-screen, headset, Bluetooth and car commands reach the native
+  engine directly; the app follows the status events.
 - **Provider-agnostic auth.** `AuthFacade` composes three ports (API, OAuth,
   session store). Provider quirks stay in the adapters: Discord, Google and
   Fluxer delegate the whole redirect to the backend (`mode: "server"` →
@@ -206,32 +182,16 @@ keeps using relative requires.
   (`expo-secure-store`, with the non-sensitive profile projection in
   `AsyncStorage` and legacy plaintext sessions migrated on first read),
   rehydrated on cold start, and re-checked every 60 s by a background task.
-- **Audio visualizer without microphone permission, drawn by a WebView canvas
-  (Android).** The app taps the player's own decoded PCM instead of the
-  microphone. `expo-audio` is patched (`patches/expo-audio+57.0.5.patch`) to
-  replace the `android.media.audiofx.Visualizer` sampler — which the OS gates
-  behind `RECORD_AUDIO` — with an ExoPlayer `TeeAudioProcessor` tap on the
-  decoded playback stream, so no permission is requested. Because Expo can ship
-  `expo-audio` as a precompiled AAR, `package.json` opts it into source builds
-  (`expo.autolinking.buildFromSource: ["expo-audio"]`) so the patch is compiled.
-  The native tap delivers a PCM window only at the audio-buffer rate (~25–40 Hz)
-  and its window does not advance between taps, so `AudioSampler` down-mixes to
-  mono, resamples to 1024 points and publishes each window with its measured
-  interval. A **transparent `react-native-webview`** hosts the *web player's own
-  oscilloscope page* (`player.animu.moe`'s `drawOscilloscope`): it receives the
-  windows over a small hex bridge, interpolates between the last two windows
-  over their measured cadence and strokes a `<canvas>` once per
-  `requestAnimationFrame` (device vsync). So the renderer is Canvas 2D in a
-  WebView — **not** `react-native-svg` (which this app uses only for
-  `ProviderIcon`, `SocialIcon` and `BackArrow` icons). The component unmounts
-  while backgrounded (its `wantsOn` gate includes `isBackgrounded`), and
-  `react-freeze` via `AppStateGate` stops the rest of the tree re-rendering. The
-  app never plays a second stream: the page has
-  no audio element and receives PCM over `postMessage`. On iOS the expo-audio
-  `MTAudioProcessingTap` hook installs on a live `AVPlayer` item but its render
-  callback never fires for indefinite HTTP audio, so the sampler is a no-op and
-  the entire visualizer is excluded from the iOS bundle via platform-suffixed
-  modules.
+- **Audio visualizer without microphone permission, on both platforms, drawn
+  by a WebView canvas.** Airwave streams the decoded audio as `audioSample`
+  windows (mono, 1024 points, with the delay until heard): on Android from an
+  ExoPlayer audio-sink tap, on iOS by decoding the stream's bytes in parallel
+  (AVPlayer never runs an audio tap on HTTP streams). `AudioSampler` paces the
+  windows; a **transparent `react-native-webview`** hosts the *web player's
+  own oscilloscope page* (`player.animu.moe`'s `drawOscilloscope`), which
+  interpolates between windows and strokes a `<canvas>` once per
+  `requestAnimationFrame`. The component unmounts while backgrounded, and the
+  page has no audio element of its own.
 
 ## Tech stack
 
@@ -241,16 +201,16 @@ keeps using relative requires.
 | Build tooling | Expo SDK 57 · EAS Build · Expo dev client |
 | Language | TypeScript 6.0 (strict) |
 | Navigation | React Navigation 7 — a **native stack** (`@react-navigation/native-stack`) whose root is the **drawer** (`@react-navigation/drawer`: Player, history, Make Request); Settings, Stats, Storage, Login, Account and About push on the stack (platform push/pop, iOS swipe-back, Android predictive back; cross-fade with Reduce Motion) |
-| Audio | `expo-audio` (patched: permission-free PCM sampling, interruption reporting, focus-gated starts, live-stream buffering/readiness, network wake mode) · `react-native-playback-controls` (OS media session) |
-| Visualizer (Android) | Transparent `react-native-webview` running the web player's Canvas 2D + `requestAnimationFrame` loop, fed by the Android-only `AudioSampler` (ExoPlayer `TeeAudioProcessor`); unmounted while backgrounded (`AppStateGate` + `react-freeze`). Platform-split (`.android`/`.ios`) so iOS bundles nothing |
+| Audio | `react-native-airwave` (native engine, recovery, focus/interruptions, media session, ICY at audible time, decoded-audio sampling) — vendored tarball in `vendor/` |
+| Visualizer | Transparent `react-native-webview` running the web player's Canvas 2D + `requestAnimationFrame` loop, fed by Airwave's `audioSample` windows (iOS and Android); unmounted while backgrounded (`AppStateGate` + `react-freeze`) |
 | Icons | `@react-native-vector-icons/material-icons` · `react-native-svg` (only `ProviderIcon`, `SocialIcon`, `BackArrow`) |
 | Images | `expo-image` (covers, avatars, localized artwork) |
 | Auth | `animu-api` Auth v5 · `expo-auth-session` + `expo-web-browser` (Discord/Google OAuth 2.0 + PKCE) · `expo-apple-authentication` (Apple) |
 | State | React Context · custom external stores (`useSyncExternalStore`) |
 | Storage | `expo-secure-store` (session token) · `@react-native-async-storage/async-storage` (settings + profile projection) |
 | Realtime | `animu-api` SSE stream (`animu.live`) with HTTP polling fallback |
-| Networking | `expo/fetch` + `AbortController` · `@react-native-community/netinfo` (connectivity) |
+| Networking | `expo/fetch` + `AbortController` |
 | API client | `animu-api` submodule (valibot-validated DTOs) |
-| Background | JS task runner gated by app visibility + native playback-status heartbeat (no OS background-task module) |
+| Background | Playback and its recovery are native (Airwave); JS task runner gated by app visibility for the rest |
 | i18n | Custom dictionary-based localization (PT/EN/ES/JP) |
 | Testing | Vitest (player core, services, domain, hooks, plugins) |

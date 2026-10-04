@@ -35,20 +35,20 @@ This repository is the official mobile application: a real-time internet-radio c
 ## Highlights
 
 - **Live radio streaming** — selectable 320/192 kbps MP3 and 64 kbps AAC+, with dynamic stream discovery and a fallback list.
-- **True now-playing everywhere** — real track progress (derived from the station's `startTime` + `duration`) pushed to the native media session, lock screen and notification, plus background playback on both platforms.
-- **Android audio visualizer** — an oscilloscope fed by the player's own decoded PCM (patched `expo-audio` tap) and drawn by the web player's own canvas loop in a transparent WebView, with **no microphone permission** (iOS omits the feature).
+- **True now-playing everywhere** — the track you *hear* (the stream's ICY title, delivered when audible, matched to the station API) with its real progress on the lock screen and notification, plus background playback on both platforms.
+- **Audio visualizer (iOS and Android)** — an oscilloscope fed by the player's own decoded audio and drawn by the web player's own canvas loop in a transparent WebView, with **no microphone permission**.
 - **Optional accounts** — Discord, Google, Apple, Fluxer and Animu Connect (passwordless email codes), with profile, avatar and provider management. Playback works anonymously.
 - **Requests** — search and request tracks, and send live shout-outs to the DJ panel.
 - **History & preferences** — last requested / last played lists, cover-art quality per view, and PT / EN / ES / JP localisation.
-- **Offline resilience** — exponential-backoff retries, visibility-gated polling and a native background heartbeat.
+- **Offline resilience** — native reconnects (stalls, dead sockets, network handoffs, outages) that keep working with the app in the background, plus exponential-backoff API retries.
 
 Read the full, screen-by-screen breakdown in **[Features](docs/FEATURES.md)**.
 
 ## Tech stack
 
 React Native 0.86 (New Architecture) · React 19 · Expo SDK 57 · TypeScript 6
-(strict) · React Navigation 7 (drawer + native stack) · `expo-audio` +
-`react-native-playback-controls` · `expo/fetch` · `react-native-webview` (visualizer)
+(strict) · React Navigation 7 (drawer + native stack) · `react-native-airwave`
+(native player) · `expo/fetch` · `react-native-webview` (visualizer)
 · custom `useSyncExternalStore` stores · Vitest.
 See **[Architecture](docs/ARCHITECTURE.md)** for the full picture.
 
@@ -56,7 +56,7 @@ See **[Architecture](docs/ARCHITECTURE.md)** for the full picture.
 
 ```bash
 git clone --recurse-submodules https://github.com/RadioAnimu/animu-mobile-app.git
-pnpm install       # applies native patches and builds the animu-api submodule
+pnpm install       # builds the animu-api submodule
 pnpm run android   # or: pnpm run ios
 pnpm test          # vitest
 pnpm run lint      # expo lint

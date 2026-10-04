@@ -22,11 +22,11 @@ project-specific gotchas.
 git clone --recurse-submodules https://github.com/RadioAnimu/animu-mobile-app.git
 # already cloned? git submodule update --init --remote
 
-pnpm install       # applies native patches via postinstall and builds animu-api
+pnpm install       # builds animu-api
 ```
 
-`pnpm install` runs `postinstall`, which applies `patch-package` and builds the
-`animu-api` submodule when needed (`pnpm run build:api`).
+`pnpm install` runs `postinstall`, which builds the `animu-api` submodule when
+needed (`pnpm run build:api`).
 
 > **Why `node-linker=hoisted`?** React Native/Expo need a flat `node_modules`;
 > pnpm's default isolated linking breaks Metro resolution and native module
@@ -41,13 +41,8 @@ pnpm run ios        # build & run on iOS
 ```
 
 > This project uses a **development client** (`expo start --dev-client`) rather
-> than Expo Go, because it depends on native modules
-> (`react-native-playback-controls`, `react-native-webview`) and patched builds
-> applied via `patch-package` (`patches/`): playback-controls (notification
-> artwork/teardown) and expo-audio (permission-free Android PCM sampling for the
-> visualizer). `expo-audio` is opted into source builds via
-> `expo.autolinking.buildFromSource` in `package.json` — without it, Expo would
-> link the precompiled AAR and the patch would be ignored.
+> than Expo Go, because it depends on native modules (`react-native-airwave`,
+> `react-native-webview`).
 
 ## Scripts
 
@@ -114,19 +109,20 @@ them from either `PROXIMA_NOVA_FONTS_URL` (a `.zip`) or
 [`src/assets/fonts/README.md`](../src/assets/fonts/README.md) for the full
 walk-through.
 
-## Patches
+## Player library (react-native-airwave)
 
-Native patches live in `patches/` and are applied automatically by
-`patch-package` on install:
+Playback uses `react-native-airwave`, vendored as a tarball in `vendor/`
+(private package). To update it, build a new tarball in the Airwave repository
+(`npm pack`), replace `vendor/react-native-airwave-<version>.tgz`, then re-add
+it so pnpm recomputes the lockfile integrity (a same-named tarball is otherwise
+served from the store):
 
-- **`react-native-playback-controls`** — notification artwork/seekability and
-  teardown (reads inline artwork bytes so the system notification loader never
-  races a `file://` URI under scoped storage).
-- **`expo-audio`** — permission-free Android PCM sampling for the visualizer
-  (see [Architecture](ARCHITECTURE.md#key-engineering-decisions)).
+```bash
+pnpm remove react-native-airwave
+pnpm add file:./vendor/react-native-airwave-<version>.tgz
+```
 
-If you change a patch, regenerate it with `pnpm exec patch-package <package>`
-and verify a clean `pnpm install` still applies it.
+No native patches are needed; `patch-package` stays wired for future use.
 
 ## Submodule
 

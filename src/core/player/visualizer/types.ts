@@ -1,12 +1,10 @@
-import type { AudioSample } from "@/core/player/ports";
+import type { AudioSample } from "react-native-airwave";
 
 /**
  * Visualizer contracts shared by both platforms.
  *
- * Kept free of any DSP / native imports so both platform bundles can
- * reference the types cheaply. Both platforms consume the same real
- * implementation (`audio-sampler.ts` + `waveform.ts`), wired by
- * `visualizer.android.ts` / `visualizer.ios.ts`.
+ * Kept free of any DSP / native imports. Both platforms use the same
+ * implementation (`audio-sampler.ts`), fed by react-native-airwave.
  */
 
 /**
@@ -35,8 +33,7 @@ export interface VisualizerWindow {
 }
 
 /**
- * The sampler surface used by the player core. Android's `AudioSampler`
- * implements it against the native PCM tap; iOS uses a no-op.
+ * The sampler surface used by the player core (`AudioSampler`).
  */
 export interface VisualizerSampler {
   /** Whether the platform can sample audio at all. */
@@ -64,7 +61,7 @@ export interface VisualizerSampler {
   dispose(): void;
 }
 
-/** Minimum slice of `AudioTransport` the sampler depends on. */
+/** The player's decoded-audio feed (see `player-factory.ts`). */
 export interface SamplingTransport {
   readonly isSamplingSupported: boolean;
   setSamplingEnabled(enabled: boolean): void;

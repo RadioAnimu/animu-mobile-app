@@ -26,7 +26,7 @@ import { pickPreviewArtwork } from "@/core/player/storage/artwork";
  * onto the full one) so the adoption call can still drive the full swap.
  */
 export function prefetchArtwork(
-  deps: Pick<PlayerServiceDependencies, "artwork" | "networkMonitor">,
+  deps: Pick<PlayerServiceDependencies, "artwork"> & { isOnline: () => boolean },
   track: Track | null | undefined,
 ): void {
   const url = track?.artwork;
@@ -34,7 +34,7 @@ export function prefetchArtwork(
   if (deps.artwork.peek(url)) return;
   // No link → skip the pointless attempt; the adoption path retries once
   // connectivity (and the track) is live again.
-  if (!deps.networkMonitor.isOnline()) return;
+  if (!deps.isOnline()) return;
   const preview = pickPreviewArtwork(url, track?.artworks);
   debugLog(
     `[ArtDebug] prefetch START "${track?.title ?? "?"}" artwork=${url} preview=${preview ?? "none"}`,

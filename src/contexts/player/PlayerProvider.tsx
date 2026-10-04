@@ -155,28 +155,9 @@ export const PlayerProvider: React.FC<{
 
     const initializePlayer = async () => {
       try {
-        playerServiceInstance.setRemoteHandlers({
-          play: async () => {
-            await playerServiceInstance.play();
-          },
-          pause: async () => {
-            await playerServiceInstance.pause();
-          },
-          toggle: async () => {
-            if (playerServiceInstance.isPlayingIntent) {
-              await playerServiceInstance.pause();
-            } else {
-              await playerServiceInstance.play();
-            }
-          },
-          stop: async () => {
-            await playerServiceInstance.pause();
-          },
-        });
-
-        if (cancelled) return;
-
-        // Single call: streams + stored pref + native setup + settings + data fetch
+        // Lock screen / headset / car commands are handled natively by the
+        // player (react-native-airwave); the UI follows its status.
+        // Single call: streams + stored pref + settings + data fetch
         await playerServiceInstance.setupPlayer();
 
         if (cancelled) return;
@@ -199,12 +180,6 @@ export const PlayerProvider: React.FC<{
       cancelled = true;
 
       unsubscribeAssistant?.();
-      playerServiceInstance.setRemoteHandlers({
-        play: async () => {},
-        pause: async () => {},
-        toggle: async () => {},
-        stop: async () => {},
-      });
 
       playerServiceInstance.destroy().catch(console.error);
     };

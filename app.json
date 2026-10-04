@@ -90,13 +90,7 @@
       ],
       "expo-asset",
       "expo-web-browser",
-      [
-        "expo-audio",
-        {
-          "recordAudioAndroid": false,
-          "microphonePermission": false
-        }
-      ],
+      "react-native-airwave",
       "expo-apple-authentication",
       "expo-image",
       "@react-native-vector-icons/material-icons",

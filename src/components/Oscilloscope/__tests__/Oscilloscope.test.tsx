@@ -3,7 +3,7 @@ import { act, cleanup, render, screen } from "@testing-library/react";
 import { forwardRef, useImperativeHandle, useState } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { Oscilloscope } from "@/components/Oscilloscope/index.android";
+import { Oscilloscope } from "@/components/Oscilloscope/Oscilloscope";
 
 vi.mock("react-native", async () =>
   (await import("@/__tests__/react-native-mock")).createReactNativeMock(),

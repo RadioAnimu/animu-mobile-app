@@ -2,7 +2,17 @@ import { Track } from "@/core/domain/track";
 import { Stream } from "@/core/domain/stream";
 import { Listeners } from "@/core/domain/listeners";
 import { Program } from "@/core/domain/program";
-import type { TransportState } from "@/core/player/stream-playback/transport-state";
+
+/**
+ * The transport as the UI sees it. `isPlaying` alone can't express
+ * "reconnecting"; consumers that only care about play/pause read `isPlaying`.
+ */
+export type TransportState =
+  | "idle" // nothing loaded yet / torn down
+  | "connecting" // play requested, no audio yet
+  | "playing" // audio flowing
+  | "paused" // paused (by the user or the system)
+  | "reconnecting"; // stream lost while audio is wanted; recovering
 
 // ─── Snapshot types ───
 //

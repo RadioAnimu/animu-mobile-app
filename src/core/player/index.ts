@@ -1,25 +1,18 @@
 /**
- * Player core — a set of small, focused units composed by a thin
- * orchestrator (`player-service.ts`), grouped by concern:
+ * Player core — Rádio Animu on react-native-airwave.
  *
- * - `ports.ts` — the lib-agnostic vocabulary: `AudioEnginePort` and
- *   `MediaSessionPort` plus the shared value types. Nothing here imports a
- *   native media library;
- * - `adapters/` — the ONLY modules that import `expo-audio` /
- *   `react-native-playback-controls` (`ExpoAudioAdapter`,
- *   `PlaybackControlsAdapter`). Swapping an engine, or adopting one library
- *   that provides both, is a new adapter + a factory line;
- * - `stream-playback/` — stream lifecycle (state machine, live buffer,
- *   reconnect/backoff, network monitor, stream preferences, heartbeat,
- *   progress ticker, on-air repository);
- * - `visualizer/` — platform-split PCM sampling + DSP;
- * - `media-session/` — now-playing metadata mapping for the OS session;
- * - `storage/` — cover artwork resolution + file/image caches.
+ * Playback, recovery, audio focus, interruptions and the lock screen are
+ * native (Airwave). This module adds what only the app knows:
  *
- * `player-service.ts`, `player-factory.ts`, `store.ts` and `timer.ts` stay
- * at the root: the orchestrator routes events between the ports and units,
- * the factory wires the production instances (and owns the singleton), the
- * stores are its React surface, and the timer is the shared scheduling port.
+ * - `player-service.ts` — commands, stream choice, store writes, lock-screen
+ *   metadata (the single writer of the React stores);
+ * - `stream-playback/heard-track.ts` — the track being *heard* (the audible
+ *   ICY title matched to the station API) and its position;
+ * - `stream-playback/now-playing.repository.ts` — on-air data (SSE + HTTP);
+ * - `visualizer/` — oscilloscope windows from the player's decoded audio;
+ * - `storage/`, `media-session/` — covers and the lock-screen mapping.
+ *
+ * See docs/ARCHITECTURE.md#player-core.
  */
 export { playerService } from "@/core/player/player-factory";
 export type { VisualizerWindow } from "@/core/player/visualizer/types";

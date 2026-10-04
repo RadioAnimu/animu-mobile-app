@@ -34,17 +34,16 @@ by the OS between snapshots (`durationSec` + periodic elapsed position).
 
 ![Now playing notification](SCREENSHOT: Android media notification and iOS lock-screen player showing the anime title, artist and a progress bar mid-track)
 
-## Home audio visualizer (Android)
+## Home audio visualizer
 
-An oscilloscope fed by the player's own decoded PCM through a patched
-`expo-audio` ExoPlayer tap, rendered by the **web player's own canvas loop** in
-a transparent `react-native-webview` (Canvas 2D + `requestAnimationFrame`) —
-**no microphone permission** and no second audio stream. The line is delayed to
-match the audible output and auto-calibrates its sync; the WebView unmounts
-while backgrounded. On iOS the row is omitted and the whole
-implementation is platform-split out of the iOS bundle (the expo-audio
-`MTAudioProcessingTap` hook installs but its callback never fires for indefinite
-HTTP audio).
+An oscilloscope fed by the player's own decoded audio (react-native-airwave's
+`audioSample` windows), rendered by the **web player's own canvas loop** in a
+transparent `react-native-webview` (Canvas 2D + `requestAnimationFrame`) —
+**no microphone permission** and no second audio stream. The line matches the
+audible output and auto-calibrates its sync; the WebView unmounts while
+backgrounded. Available on iOS too: AVPlayer never taps HTTP streams, so the
+player decodes the stream's bytes in parallel and releases each window when it
+is heard.
 
 ![Android visualizer](SCREENSHOT: Android Home screen with the oscilloscope visible above the player controls, captured while playing)
 
