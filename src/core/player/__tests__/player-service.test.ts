@@ -275,6 +275,17 @@ describe("PlayerService on react-native-airwave", () => {
     expect(t.player.play).toHaveBeenCalled();
   });
 
+  it("a remote play with nothing loaded (app relaunched from Control Center) opens the stream", async () => {
+    const t = setup();
+    t.player.emit("remoteCommand", { command: "play" });
+    await vi.waitFor(() => expect(t.player.load).toHaveBeenCalledTimes(1));
+    expect(t.player.load.mock.calls[0][1]).toEqual({ autoplay: true });
+    // Once loaded, remote commands are Airwave's (native): no second load.
+    t.player.emit("remoteCommand", { command: "togglePlayPause" });
+    await Promise.resolve();
+    expect(t.player.load).toHaveBeenCalledTimes(1);
+  });
+
   it("maps the native state into the transport vocabulary", async () => {
     const t = setup();
     await t.service.setupPlayer();

@@ -5,16 +5,19 @@ import { useResolvedArtwork } from "@/hooks/useResolvedArtwork";
 
 export const TrackCover = React.memo(function TrackCover() {
   const player = usePlayer();
-  const artwork = player.currentTrack?.artwork;
+  const track = player.currentTrack;
   // The now-playing cover joins the media session's own download instead
   // of racing it with a second fetch (`useResolvedArtwork` shares the
   // resolver's in-flight download). The remote URL is the fallback only
   // when the resolver's download failed.
   const cover =
-    useResolvedArtwork(artwork, player.currentTrack?.artworks) ??
+    useResolvedArtwork(track?.artwork || undefined, track?.artworks) ??
     player.defaultArtwork;
 
-  if (!artwork) {
+  // The frame stays while a cover is missing or still downloading (a title
+  // heard before the station names it has none): the default cover holds
+  // the square instead of the layout collapsing.
+  if (!track || !cover) {
     return null;
   }
 

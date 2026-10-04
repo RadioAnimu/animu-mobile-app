@@ -134,6 +134,33 @@ describe("HeardTrack", () => {
     expect(t.heard.elapsedMs()).toBe(90_000);
   });
 
+  it("learns each stream's ICY offset from the changes it hears", () => {
+    const t = setup([track("Old", 0)]);
+    t.heard.useStream("64k");
+    // Each title heard 2.1 s after the station started the song (speaker 6 s behind).
+    const change = (raw: string) => {
+      t.advance(200_000);
+      t.station.tracks = [track(raw, t.now - 8_100)];
+      t.heard.heard(raw, t.now, false, 6_000);
+    };
+    change("S1");
+    change("S2");
+    expect(t.heard.elapsedMs()).toBe(ICY_AFTER_START_MS); // two samples: not yet
+    change("S3");
+    expect(t.heard.icyOffsetMs).toBe(2_100);
+    expect(t.heard.elapsedMs()).toBe(2_100);
+    // A song whose start the API got wrong is not a sample.
+    t.advance(200_000);
+    t.station.tracks = [track("Live show", t.now - 600_000)];
+    t.heard.heard("Live show", t.now, false, 6_000);
+    expect(t.heard.icyOffsetMs).toBe(2_100);
+    // Another stream starts from the default.
+    t.heard.useStream("192k");
+    expect(t.heard.icyOffsetMs).toBe(ICY_AFTER_START_MS);
+    t.heard.useStream("64k");
+    expect(t.heard.icyOffsetMs).toBe(2_100);
+  });
+
   it("freezes the position while audio does not flow", () => {
     const t = setup([track("Song A", 0)]);
     t.heard.heard("Song A", t.now, false, 0);

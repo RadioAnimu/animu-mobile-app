@@ -67,8 +67,16 @@ The station's ICY title is exactly the API's `rawtitle`, and it changes about
 0.34–1.85 s, every title matching). Airwave delivers each ICY title **when it
 becomes audible** (iOS: AVPlayer's metadata output; Android: Media3's metadata
 renderer). So an ICY change means "this track is starting *now*, here":
-`HeardTrack` shows the API track whose `raw` equals the title, at 1.2 s, and
-the position advances while audio flows.
+`HeardTrack` shows the API track whose `raw` equals the title, at the stream's
+ICY offset, and the position advances while audio flows.
+
+The offset is learned per stream. A title waits for the next metadata block,
+which comes every `icy-metaint` bytes: about 0.7 s apart at 192 kbps, but 2 s
+at 64 kbps. Each change heard is one sample: the station clock at that moment,
+minus the song's `timestart`, minus the speaker's lag. Samples outside 0–6 s
+(the API's start is wrong for live shows and jingles) are dropped. After 3
+samples, the median of the last 9 replaces the 1.2 s default. The samples are
+kept in memory, per stream, for the app session.
 
 The first title after tuning in (or after a re-open at the live edge) is
 already partway: its position is the station clock minus how far the speaker
@@ -81,7 +89,13 @@ advances the song's progress natively, only while audio plays. No JS timer is
 involved, which matters on Android: React Native fires no JS timers while the
 activity is backgrounded, but native events (ICY titles, status) still run JS.
 
-## State stores
+Play from Control Center when nothing is loaded: iOS relaunches the app in the
+background when Play is pressed for a terminated Now Playing app. Airwave
+registers the system controls as soon as the player exists. A `play` that
+finds nothing loaded is forwarded to JS as a `remoteCommand`, and
+`PlayerService` opens the stream. A suspended app's player is still loaded,
+so Airwave resumes it natively.
+
 ## State stores
 
 Snapshot state reaches React through **three external stores split by change

@@ -4205,7 +4205,7 @@ packages:
     resolution: {integrity: sha512-UpMYezM4v5/18F28aC66AEsjXIgE02kyEMH6yLdgLXu/UTfa1Ntwck/nNLrbqJsEXW7gPb0coNO9FQse9WTovA==}
 
   react-native-airwave@file:vendor/react-native-airwave-0.1.0.tgz:
-    resolution: {integrity: sha512-WUBPCeJ/glzkEX/Em69D2rR/VZ+7ohkBKNb/dvU4Mdr1YDIzypQ/5NM9TE7erHqSBIUAwmME9AqhENMYTNd9fQ==, tarball: file:vendor/react-native-airwave-0.1.0.tgz}
+    resolution: {integrity: sha512-hNrAg6oC1YCdJlBLw8Ttyc39J5zjdlLpkpfj+xVFJEDBNqLih7HhL2JDmajgpjAP7dot6aTr38iSU+Zxg0UScA==, tarball: file:vendor/react-native-airwave-0.1.0.tgz}
     version: 0.1.0
     peerDependencies:
       expo: '*'
@@ -6613,9 +6613,7 @@ snapshots:
       metro-runtime: 0.84.6
     transitivePeerDependencies:
       - '@babel/core'
-      - bufferutil
       - supports-color
-      - utf-8-validate
 
   '@react-native/normalize-colors@0.86.3': {}
 

@@ -6,15 +6,31 @@ import type { Track } from "@/core/domain/track";
  * Measured against the live stream: 67 consecutive changes over 3 hours
  * (2026-10-04) — min 0.34 s, median 1.18 s, max 1.85 s (`timestart` has
  * one-second resolution). The ICY title also matched the API `rawtitle`
- * byte for byte every time.
+ * byte for byte every time. The default until a stream has learned its own.
  */
 export const ICY_AFTER_START_MS = 1_200;
+/**
+ * Each stream learns its own offset: the title waits for the next metadata
+ * block, every `icy-metaint` bytes — about 0.7 s apart at 192 kbps but 2 s
+ * at 64 kbps. Recent changes feed a median (one per song; noisy alone: the
+ * API's `timestart` has one-second resolution).
+ */
+const OFFSET_WINDOW = 9;
+const OFFSET_MIN_SAMPLES = 3;
+/** Outside this, the API's `timestart` is wrong for the song (live shows, jingles). */
+const OFFSET_MIN_MS = 0;
+const OFFSET_MAX_MS = 6_000;
 /** A server clock correction is applied once its median reaches this (ms). */
 const CLOCK_SKEW_APPLY_MS = 1_500;
 /** Recent skew samples feeding the median. */
 const SKEW_WINDOW = 9;
 /** Skew samples with a longer round trip are too imprecise to use (ms). */
 const SKEW_MAX_RTT_MS = 2_500;
+
+const median = (values: readonly number[]): number => {
+  const sorted = [...values].sort((a, b) => a - b);
+  return sorted[sorted.length >> 1] ?? 0;
+};
 
 /** Where the display's position comes from. */
 interface Anchor {
@@ -41,8 +57,9 @@ export interface HeardTrackOptions {
  * (react-native-airwave: AVPlayer's metadata output / Media3's metadata
  * renderer). The station changes that title ~1.2 s after a track starts, so
  * an ICY change *is* "this track just started, here": the displayed track is
- * the API track whose `raw` equals the title, at {@link ICY_AFTER_START_MS}.
- * No lag estimation, no clock comparison, no predictive track end.
+ * the API track whose `raw` equals the title, at the stream's ICY offset
+ * ({@link ICY_AFTER_START_MS} until the stream has learned its own from the
+ * changes it heard). No predictive track end.
  *
  * The one estimate left is the *first* title after tuning in (or re-opening
  * at the live edge): that track is already partway, so its position comes
@@ -66,6 +83,9 @@ export class HeardTrack {
   private pending: { title: string; heardAt: number; tuneIn: boolean; lagMs: number } | null = null;
   private skewSamples: number[] = [];
   private skewMs = 0;
+  /** Learned ICY offsets (ms) per stream. */
+  private offsets = new Map<string, number[]>();
+  private stream = "";
   private readonly now: () => number;
 
   constructor(private readonly options: HeardTrackOptions) {
@@ -82,6 +102,17 @@ export class HeardTrack {
     return this.anchor != null;
   }
 
+  /** How long after a track starts this stream's ICY title changes (ms). */
+  get icyOffsetMs(): number {
+    const samples = this.offsets.get(this.stream) ?? [];
+    return samples.length < OFFSET_MIN_SAMPLES ? ICY_AFTER_START_MS : median(samples);
+  }
+
+  /** The stream being played: each one keeps its own learned ICY offset. */
+  useStream(key: string): void {
+    this.stream = key;
+  }
+
   /** Elapsed ms into {@link track}, or `null` when unknown / past its end. */
   elapsedMs(now: number = this.now()): number | null {
     const anchor = this.anchor;
@@ -95,7 +126,7 @@ export class HeardTrack {
   /**
    * An ICY title became audible.
    * @param tuneIn first title since the source (re)opened — already partway.
-   * @param lagMs how far the speaker trails the live edge (tune-in only).
+   * @param lagMs how far the speaker trails the live edge.
    */
   heard(title: string, heardAt: number, tuneIn: boolean, lagMs: number): void {
     const wanted = title.trim();
@@ -130,12 +161,12 @@ export class HeardTrack {
       artwork: "",
       duration: 0,
       isRequest: false,
-      startTime: new Date(pending.heardAt - ICY_AFTER_START_MS),
+      startTime: new Date(pending.heardAt - this.icyOffsetMs),
       playlistName: "",
     } as Track;
     // Keep `pending`: `stationChanged` upgrades to the real track.
     const keep = pending;
-    this.adopt(heard, pending.heardAt, pending.tuneIn, pending.lagMs);
+    this.adopt(heard, pending.heardAt, pending.tuneIn, pending.lagMs, false);
     this.pending = keep;
   }
 
@@ -173,15 +204,20 @@ export class HeardTrack {
   setClockSkew(skewMs: number, rttMs: number): void {
     if (!Number.isFinite(skewMs) || rttMs > SKEW_MAX_RTT_MS) return;
     this.skewSamples = [...this.skewSamples, skewMs].slice(-SKEW_WINDOW);
-    const sorted = [...this.skewSamples].sort((a, b) => a - b);
-    const median = sorted[sorted.length >> 1] ?? 0;
-    this.skewMs = Math.abs(median) >= CLOCK_SKEW_APPLY_MS ? median : 0;
+    const skew = median(this.skewSamples);
+    this.skewMs = Math.abs(skew) >= CLOCK_SKEW_APPLY_MS ? skew : 0;
   }
 
   reset(): void {
     this.displayed = null;
     this.anchor = null;
     this.pending = null;
+  }
+
+  private learnOffset(sample: number): void {
+    if (sample < OFFSET_MIN_MS || sample > OFFSET_MAX_MS) return;
+    const samples = this.offsets.get(this.stream) ?? [];
+    this.offsets.set(this.stream, [...samples, sample].slice(-OFFSET_WINDOW));
   }
 
   private find(title: string): Track | null {
@@ -191,15 +227,24 @@ export class HeardTrack {
     return null;
   }
 
-  private adopt(track: Track, heardAt: number, tuneIn: boolean, lagMs: number): void {
+  private adopt(
+    track: Track,
+    heardAt: number,
+    tuneIn: boolean,
+    lagMs: number,
+    fromStation = true,
+  ): void {
     this.pending = null;
-    let elapsed = ICY_AFTER_START_MS;
-    if (tuneIn) {
-      // Already partway: station time at the moment it was heard, minus the
-      // speaker's lag behind the live edge.
-      const start = track.startTime.getTime();
-      if (Number.isFinite(start)) elapsed = heardAt + this.skewMs - start - Math.max(0, lagMs);
-    }
+    // Station time at the moment it was heard, minus the speaker's lag behind
+    // the live edge. A tune-in (already partway) can only be placed this way;
+    // at a change it is one sample of the stream's ICY offset.
+    const start = track.startTime.getTime();
+    const stationElapsed = Number.isFinite(start)
+      ? heardAt + this.skewMs - start - Math.max(0, lagMs)
+      : null;
+    if (!tuneIn && fromStation && stationElapsed != null) this.learnOffset(stationElapsed);
+    let elapsed = this.icyOffsetMs;
+    if (tuneIn && stationElapsed != null) elapsed = stationElapsed;
     if (track.duration > 0) elapsed = Math.min(elapsed, track.duration);
     const now = this.now();
     this.anchor = {

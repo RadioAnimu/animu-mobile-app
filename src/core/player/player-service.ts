@@ -99,6 +99,16 @@ export class PlayerService {
     this.unsubscribe.push(
       player.on("status", (status) => this.handleStatus(status)),
       player.on("metadata", (metadata) => this.handleStreamMetadata(metadata)),
+      // Play from Control Center / the lock screen before anything is loaded
+      // (iOS relaunched the app in the background for it). Airwave handles
+      // every later command natively; this one only the app can answer.
+      player.on("remoteCommand", ({ command }) => {
+        if (command !== "play" && command !== "togglePlayPause") return;
+        if (this.loadedStreamId != null) return;
+        void this.setupPlayer()
+          .then(() => this.play())
+          .catch((error) => console.warn("[PlayerService] remote play:", error));
+      }),
     );
     heard.onChange = () => this.handleDisplayedTrackChange();
     heard.onUnknownTitle = (title) => {
@@ -334,6 +344,7 @@ export class PlayerService {
   private async open(stream: Stream, autoplay: boolean): Promise<void> {
     this.loadedStreamId = stream.id;
     this.tuneIn = true;
+    this.deps.heard.useStream(stream.id);
     this.deps.heard.reopened();
     try {
       await this.deps.player.load(
@@ -393,13 +404,13 @@ export class PlayerService {
     if (!title) return;
     const tuneIn = this.tuneIn;
     this.tuneIn = false;
-    // Tune-in only: how far the speaker trails the live edge right now.
-    let lagMs = 0;
-    if (tuneIn) {
-      const progress = this.deps.player.getProgress();
-      lagMs = (progress.liveOffset ?? progress.bufferedAhead) * 1000;
-    }
-    debugLog(`[PlayerService] heard "${title}" tuneIn=${tuneIn} lag=${Math.round(lagMs)}ms`);
+    // How far the speaker trails the live edge right now (places a tune-in;
+    // at a change it lets the stream learn its ICY offset).
+    const progress = this.deps.player.getProgress();
+    const lagMs = (progress.liveOffset ?? progress.bufferedAhead) * 1000;
+    debugLog(
+      `[PlayerService] heard "${title}" tuneIn=${tuneIn} lag=${Math.round(lagMs)}ms icyOffset=${Math.round(this.deps.heard.icyOffsetMs)}ms`,
+    );
     this.deps.heard.heard(title, metadata.timestamp, tuneIn, lagMs);
   }
 

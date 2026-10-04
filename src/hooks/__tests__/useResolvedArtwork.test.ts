@@ -4,12 +4,20 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { useResolvedArtwork } from "@/hooks/useResolvedArtwork";
 
-const { service } = vi.hoisted(() => ({
-  service: {
-    peekArtwork: vi.fn<(url: string) => string | undefined>(),
-    resolveArtwork: vi.fn(),
-  },
-}));
+const { service } = vi.hoisted(() => {
+  const peek = vi.fn<(url: string) => string | undefined>();
+  return {
+    service: {
+      peek,
+      // A method, like the service's (`this.deps`): an unbound call fails.
+      peekArtwork(this: { peek: typeof peek } | undefined, url: string) {
+        if (!this) throw new TypeError("peekArtwork called unbound");
+        return this.peek(url);
+      },
+      resolveArtwork: vi.fn(),
+    },
+  };
+});
 
 vi.mock("@/core/player", () => ({ playerService: () => service }));
 vi.mock("@/core/player/storage/artwork", () => ({
@@ -21,7 +29,7 @@ const URL_B = "https://cdn.test/b.jpg";
 
 describe("useResolvedArtwork", () => {
   beforeEach(() => {
-    service.peekArtwork.mockReset().mockReturnValue(undefined);
+    service.peek.mockReset().mockReturnValue(undefined);
     service.resolveArtwork.mockReset();
   });
 
@@ -32,8 +40,14 @@ describe("useResolvedArtwork", () => {
   });
 
   it("uses the already-cached local file without downloading", () => {
-    service.peekArtwork.mockReturnValue("file:///cache/a.jpg");
+    service.peek.mockReturnValue("file:///cache/a.jpg");
     const { result } = renderHook(() => useResolvedArtwork(URL_A));
+    expect(result.current).toBe("file:///cache/a.jpg");
+    expect(service.resolveArtwork).not.toHaveBeenCalled();
+  });
+
+  it("uses a local file URI as is, on the first render", () => {
+    const { result } = renderHook(() => useResolvedArtwork("file:///cache/a.jpg"));
     expect(result.current).toBe("file:///cache/a.jpg");
     expect(service.resolveArtwork).not.toHaveBeenCalled();
   });
@@ -73,7 +87,7 @@ describe("useResolvedArtwork", () => {
     service.resolveArtwork.mockImplementationOnce(
       () => new Promise<string>((res) => (finishA = res)),
     );
-    service.peekArtwork.mockImplementation((u) =>
+    service.peek.mockImplementation((u) =>
       u === URL_B ? "file:///b.jpg" : undefined,
     );
     const { result, rerender, unmount } = renderHook(

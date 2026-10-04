@@ -3,6 +3,10 @@ import { playerService } from "@/core/player";
 import { pickPreviewArtwork } from "@/core/player/storage/artwork";
 import type { Artworks } from "animu-api";
 
+/** A file already on disk (the store swaps resolved covers to their file) is used as is. */
+const localFor = (url: string, peek: (url: string) => string | undefined) =>
+  /^https?:/i.test(url) ? peek(url) : url;
+
 /**
  * Resolves a remote artwork URL to the shared resolver's local `file://`
  * URI — the same download the media session runs (one fetch, deduped via
@@ -22,7 +26,7 @@ export function useResolvedArtwork(
   const service = playerService();
 
   const [resolved, setResolved] = useState<string | undefined>(() =>
-    url ? service.peekArtwork(url) : undefined,
+    url ? localFor(url, (u) => service.peekArtwork(u)) : undefined,
   );
 
   useEffect(() => {
@@ -31,7 +35,7 @@ export function useResolvedArtwork(
       return undefined;
     }
     let cancelled = false;
-    const local = service.peekArtwork(url);
+    const local = localFor(url, (u) => service.peekArtwork(u));
     setResolved(local);
     if (local) return undefined;
     setResolved(undefined);
