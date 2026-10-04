@@ -8,7 +8,7 @@ import type {
 } from "react-native-airwave";
 import { PlayerService, type PlayerServiceDependencies } from "@/core/player/player-service";
 import { HeardTrack, ICY_AFTER_START_MS } from "@/core/player/stream-playback/heard-track";
-import { playerStore, progressStore } from "@/core/player/store";
+import { playerStore, progressStore, stationStore } from "@/core/player/store";
 import type { Track } from "@/core/domain/track";
 import type { Stream } from "@/core/domain/stream";
 
@@ -496,6 +496,156 @@ describe("PlayerService on react-native-airwave", () => {
     t.tick();
     expect(t.repository.refresh).toHaveBeenCalledTimes(1);
     vi.useRealTimers();
+  });
+
+  it("delegates artwork, visualizer and history calls to their units", async () => {
+    const t = setup();
+    t.artwork.peek.mockReturnValue("file://cache/x.jpg");
+    expect(t.service.peekArtwork("https://cdn/x.jpg")).toBe("file://cache/x.jpg");
+    const onPreview = vi.fn();
+    await t.service.resolveArtwork("https://cdn/x.jpg", onPreview, "https://cdn/x-small.jpg");
+    expect(t.artwork.resolve).toHaveBeenCalledWith("https://cdn/x.jpg", onPreview, "https://cdn/x-small.jpg");
+    expect(t.service.defaultArtwork).toBe("file://default.png");
+    expect(t.service.isVisualizerSupported).toBe(true);
+    t.service.setVisualizerEnabled(true);
+    expect(t.sampler.setEnabled).toHaveBeenLastCalledWith(true);
+    const listener = vi.fn();
+    t.service.subscribeVisualizerWindows(listener);
+    expect(t.sampler.subscribeWindows).toHaveBeenCalledWith(listener);
+    t.service.reportVisualizerDelay(120);
+    expect(t.sampler.reportAppliedDelay).toHaveBeenCalledWith(120);
+    t.service.setVisualizerSyncTrim(-40);
+    expect(t.sampler.setSyncTrim).toHaveBeenCalledWith(-40);
+    await t.service.refreshHistory("played" as never);
+    expect(t.repository.refreshHistory).toHaveBeenCalledWith("played");
+    expect(t.service.isReady).toBe(true);
+  });
+
+  it("publishes station changes (program, listeners, histories)", async () => {
+    const t = setup();
+    await t.service.setupPlayer();
+    const played = [track("Old")];
+    t.repository.lastPlayedTracks = played;
+    t.repository.listeners = 42 as never;
+    t.repository.onChange({
+      trackChanged: false,
+      programChanged: true,
+      listenersChanged: true,
+      playedChanged: true,
+      requestedChanged: false,
+    });
+    expect(stationStore.getSnapshot()).toMatchObject({
+      currentListeners: 42,
+      lastPlayedTracks: played,
+      lastRequestedTracks: undefined,
+    });
+    t.repository.lastPlayedTracks = [];
+    t.repository.onChange({
+      trackChanged: false,
+      programChanged: false,
+      listenersChanged: false,
+      playedChanged: true,
+      requestedChanged: false,
+    });
+    expect(stationStore.getSnapshot().lastPlayedTracks).toBeUndefined();
+  });
+
+  it("writes no store while the app is hidden, and catches up when it returns", async () => {
+    const t = setup();
+    await t.service.setupPlayer();
+    t.service.setAppActive(false);
+    t.service.setAppActive(false); // unchanged: no-op
+    t.player.setState("playing", true);
+    expect(playerStore.getSnapshot().playbackState).toBe("idle");
+    t.service.setAppActive(true);
+    expect(playerStore.getSnapshot().playbackState).toBe("playing");
+  });
+
+  it("survives a failing data fetch, load, lock-screen update and poll", async () => {
+    vi.useFakeTimers();
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const t = setup();
+    t.repository.refresh.mockRejectedValue(new Error("offline"));
+    await t.service.setupPlayer();
+    expect(playerStore.getSnapshot().isInitialized).toBe(true);
+    t.player.load.mockRejectedValueOnce(new Error("bad source"));
+    t.player.updateNowPlaying.mockRejectedValue(new Error("released"));
+    await t.service.play();
+    t.player.setState("playing", true);
+    t.player.hear("Song A");
+    vi.advanceTimersByTime(6_000);
+    t.tick();
+    await vi.runAllTimersAsync();
+    expect(warn).toHaveBeenCalledWith("[PlayerService] load:", expect.any(Error));
+    expect(warn).toHaveBeenCalledWith("[PlayerService] now playing:", expect.any(Error));
+    warn.mockRestore();
+    vi.useRealTimers();
+  });
+
+  it("a play that cannot restore the stream reports the error and drops the intent", async () => {
+    const error = vi.spyOn(console, "error").mockImplementation(() => {});
+    const t = setup();
+    await t.service.setupPlayer();
+    t.preferences.restore.mockRejectedValueOnce(new Error("storage"));
+    await expect(t.service.play()).rejects.toThrow("storage");
+    expect(t.service.isPlayingIntent).toBe(false);
+    error.mockRestore();
+  });
+
+  it("ignores no-ops: same stream, untitled metadata, other remote commands", async () => {
+    const t = setup();
+    await t.service.setupPlayer();
+    await t.service.changeStream(STREAMS[0]); // already current
+    expect(t.preferences.set).not.toHaveBeenCalled();
+    await t.service.play();
+    t.player.emit("metadata", { raw: {}, timestamp: Date.now() });
+    expect(playerStore.getSnapshot().syncing).toBe(true);
+    t.player.load.mockClear();
+    t.player.emit("remoteCommand", { command: "next" });
+    await Promise.resolve();
+    expect(t.player.load).not.toHaveBeenCalled();
+  });
+
+  it("publishes the low-res cover preview first, only while it is still current", async () => {
+    const t = setup();
+    let preview: () => void = () => {};
+    t.artwork.resolve.mockImplementation(
+      (_url: string, onPreview?: (local: string) => void) =>
+        new Promise<string>(() => {
+          preview = () => onPreview?.("file://cache/a-small.jpg");
+        }),
+    );
+    await t.service.setupPlayer();
+    await t.service.play();
+    t.player.setState("playing", true);
+    t.player.hear("Song A");
+    const before = t.player.updateNowPlaying.mock.calls.length;
+    const previewA = preview;
+    previewA();
+    expect(t.player.updateNowPlaying.mock.calls.length).toBe(before + 1);
+    // Another song is heard: a late preview of the old cover publishes nothing.
+    t.announce(track("Song B"));
+    t.player.hear("Song B");
+    const after = t.player.updateNowPlaying.mock.calls.length;
+    previewA();
+    expect(t.player.updateNowPlaying.mock.calls.length).toBe(after);
+  });
+
+  it("teardown during setup, twice, or with a failing release stays safe", async () => {
+    const error = vi.spyOn(console, "error").mockImplementation(() => {});
+    const t = setup();
+    t.player.release.mockRejectedValueOnce(new Error("gone"));
+    const setupDone = t.service.setupPlayer();
+    await t.service.destroy();
+    await t.service.destroy();
+    await setupDone;
+    expect(t.onDestroyed).toHaveBeenCalledTimes(1);
+    expect(error).toHaveBeenCalledWith("[PlayerService] release failed:", expect.any(Error));
+    expect(playerStore.getSnapshot().isInitialized).toBe(false);
+    await t.service.pause();
+    expect(t.player.pause).not.toHaveBeenCalled();
+    t.tick();
+    error.mockRestore();
   });
 
   it("destroy releases the native player and the singleton", async () => {
