@@ -56,7 +56,7 @@ See **[Architecture](docs/ARCHITECTURE.md)** for the full picture.
 
 ```bash
 git clone --recurse-submodules https://github.com/RadioAnimu/animu-mobile-app.git
-pnpm install       # builds the animu-api submodule
+pnpm install
 pnpm run android   # or: pnpm run ios
 pnpm test          # vitest
 pnpm run lint      # expo lint

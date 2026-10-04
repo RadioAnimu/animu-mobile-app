@@ -119,11 +119,15 @@ pipeline {
       agent { label 'animu-android-native' }
       steps {
         checkout scm
-        sh '''
-          set -eux
-          git submodule update --init --recursive
-          test -d "$WORKSPACE/packages/animu-api" || { echo "animu-api submodule missing"; exit 1; }
-        '''
+        // react-native-airwave is a private submodule: a read-only token
+        // (Secret text credential `airwave-read-token`) checks it out. The
+        // script fails when either submodule is missing.
+        withCredentials([string(credentialsId: 'airwave-read-token', variable: 'AIRWAVE_READ_TOKEN')]) {
+          sh '''
+            set -eux
+            bash scripts/init-submodules.sh
+          '''
+        }
       }
     }
 
@@ -171,15 +175,16 @@ pipeline {
 
             # Install dependencies only when the lockfile changed. node_modules
             # churn invalidates Gradle's JS/native task caches, so a no-op
-            # install must stay a no-op. (The animu-api dep is a symlink, so a
-            # submodule rev change does not need a reinstall — handled below.)
+            # install must stay a no-op. (The animu-api and react-native-airwave
+            # deps are symlinks, so a submodule rev change needs no reinstall;
+            # Airwave is compiled from source, animu-api's dist is handled below.)
             STAMP="$WORKSPACE/.deps-stamp"
             WANT="$(sha256sum pnpm-lock.yaml | cut -d" " -f1)"
             HAVE="$( [ -f "$STAMP" ] && cat "$STAMP" || echo none )"
             if [ "$WANT" != "$HAVE" ] || [ ! -d node_modules ]; then
               echo "Dependencies changed (or first run): installing"
-              # Start from pristine packages: patch-package fails on a node_modules left
-              # patched or half-restored by a previous build.
+              # Start from pristine packages: a node_modules left by a previous build
+              # can be half-restored.
               rm -rf node_modules
               pnpm install --frozen-lockfile
               printf "%s" "$WANT" > "$STAMP"
@@ -266,6 +271,7 @@ pipeline {
           pnpm exec expo lint
           pnpm test:coverage
           pnpm run check:animu-api
+          pnpm run check:airwave
           pnpm run doctor:gate
         '''
       }
@@ -331,7 +337,10 @@ pipeline {
           # unchanged so Gradle stays incremental; regenerate when app.json,
           # the plugins, or the Expo/RN versions change (or FORCE_PREBUILD=1).
           NATIVE_STAMP="$WORKSPACE/.native-stamp"
-          WANT=$(sha256sum app.json plugins/*.js pnpm-lock.yaml 2>/dev/null | sha256sum | cut -d' ' -f1)
+          # Airwave's config plugin runs at prebuild too (its native code is
+          # compiled from the submodule by Gradle, so a bump needs no prebuild).
+          WANT=$(sha256sum app.json plugins/*.js pnpm-lock.yaml \
+            packages/react-native-airwave/app.plugin.js 2>/dev/null | sha256sum | cut -d' ' -f1)
           HAVE=$( [ -f "$NATIVE_STAMP" ] && cat "$NATIVE_STAMP" || echo none )
           if [ ! -d android ] || [ "$WANT" != "$HAVE" ] || [ "${FORCE_PREBUILD:-0}" = "1" ]; then
             echo "Regenerating android/ (native config changed)"
@@ -347,8 +356,8 @@ pipeline {
           WANT="$(sha256sum pnpm-lock.yaml | cut -d" " -f1)"
           HAVE="$( [ -f "$STAMP" ] && cat "$STAMP" || echo none )"
           if [ "$WANT" != "$HAVE" ] || [ ! -d node_modules ]; then
-            # Start from pristine packages: patch-package fails on a node_modules left
-            # patched or half-restored by a previous build.
+            # Start from pristine packages: a node_modules left by a previous build
+            # can be half-restored.
             rm -rf node_modules
             pnpm install --frozen-lockfile
             printf "%s" "$WANT" > "$STAMP"

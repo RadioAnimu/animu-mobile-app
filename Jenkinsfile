@@ -38,15 +38,18 @@ pipeline {
         }
       }
       steps {
-        sh '''
+        // react-native-airwave is a private submodule: a read-only token
+        // (Secret text credential `airwave-read-token`) checks it out.
+        withCredentials([string(credentialsId: 'airwave-read-token', variable: 'AIRWAVE_READ_TOKEN')]) {
+          sh '''
           set -eux
           git config --global --add safe.directory "$WORKSPACE"
-          git submodule update --init --recursive
+          bash scripts/init-submodules.sh
           corepack enable
           echo "node $(node --version) / pnpm $(pnpm --version)"
 
-          # Start from pristine packages: patch-package fails on a node_modules left
-          # patched or half-restored by a previous build.
+          # Start from pristine packages: a node_modules left by a previous build
+          # can be half-restored.
           rm -rf node_modules
           pnpm install --frozen-lockfile
 
@@ -62,6 +65,8 @@ pipeline {
           pnpm test:coverage
           # The API client is a git submodule compiled into the app.
           pnpm run check:animu-api
+          # So is the audio player (its own Yarn install, removed afterwards).
+          pnpm run check:airwave
 
           # Bundles the app so broken asset paths and unresolvable imports fail
           # CI (TypeScript cannot catch these).
@@ -75,7 +80,8 @@ pipeline {
 
           # React Doctor gate (any finding fails the build).
           pnpm run doctor:gate
-        '''
+          '''
+        }
       }
       post {
         always {

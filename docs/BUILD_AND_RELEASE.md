@@ -51,12 +51,13 @@ SDK/NDK). The release job is parameterized:
 ### Pipeline steps
 
 1. Validate parameters and `app.json` (version/versionCode must match).
-2. Checkout the repo **with submodules** (`packages/animu-api`).
+2. Checkout the repo **with submodules** (`packages/animu-api`, and the private
+   `packages/react-native-airwave` with the `airwave-read-token` credential).
 3. Install dependencies with pnpm — only when `pnpm-lock.yaml` changed (stamped).
 4. `TRUST_CI`: if the CI job has a SUCCESS build for `HEAD`, the pre-release
    checks are skipped; otherwise they run (typecheck, lint, tests, React Doctor).
 5. `expo prebuild --platform android` — only when `app.json` / `plugins` /
-   lockfile changed (stamped). Otherwise the existing `android/` is reused so
+   lockfile / Airwave's config plugin changed (stamped). Otherwise the existing `android/` is reused so
    Gradle stays incremental.
 6. Inject the release signing config (see below) and run
    `./gradlew :app:bundleRelease`.
@@ -107,6 +108,15 @@ submodule commit changed**. When it does, it first tries to download the
 prebuilt `dist/` from the `animu-api` job for that exact commit
 (`scripts/fetch-animu-api-dist.mjs`) and falls back to building from source if
 no successful build exists yet. An unchanged pin reuses the existing `dist/`.
+
+### `packages/react-native-airwave`
+
+The audio player is a private git submodule consumed from source (see
+[Development → Player library](DEVELOPMENT.md#player-library-react-native-airwave)):
+Gradle compiles its `android/` and Metro bundles its `src/`, so a pin change
+needs neither a reinstall nor a prebuild. Its own Jenkins job
+(`Jenkinsfile` in the Airwave repository) runs lint, typecheck and tests, and
+archives the npm package (`react-native-airwave.tgz`) for each commit.
 
 ### expo-dev-client in release builds
 

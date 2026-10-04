@@ -31,7 +31,14 @@ const SONARJS_DISABLED = new Set([
 module.exports = defineConfig([
   expoConfig,
   {
-    ignores: ["dist/*", "android/*", "ios/*", "node_modules/*"],
+    ignores: [
+      "dist/*",
+      "android/*",
+      "ios/*",
+      "node_modules/*",
+      // The Airwave submodule has its own ESLint config and CI.
+      "packages/react-native-airwave/**",
+    ],
     rules: {
       // Expo SDK 57's config enables the React Compiler lint rules, including
       // `react-hooks/refs` (kept on). `set-state-in-effect` is off: the app

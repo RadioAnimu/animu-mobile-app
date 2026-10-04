@@ -48,16 +48,19 @@ pipeline {
           checkout scm
           // Coverage feeds the analysis (sonar.javascript.lcov.reportPaths).
           // Same toolchain as the release job: host Node + corepack-pinned pnpm.
-          sh '''
-            set -eux
-            git submodule update --init --recursive
-            corepack enable
-            # Start from pristine packages: patch-package fails on a node_modules left
-            # patched or half-restored by a previous build.
-            rm -rf node_modules
-            pnpm install --frozen-lockfile
-            CI=true pnpm test:coverage
-          '''
+          // The private Airwave submodule needs the `airwave-read-token` credential.
+          withCredentials([string(credentialsId: 'airwave-read-token', variable: 'AIRWAVE_READ_TOKEN')]) {
+            sh '''
+              set -eux
+              bash scripts/init-submodules.sh
+              corepack enable
+              # Start from pristine packages: a node_modules left by a previous build
+              # can be half-restored.
+              rm -rf node_modules
+              pnpm install --frozen-lockfile
+              CI=true pnpm test:coverage
+            '''
+          }
           sh '''
             set -eux
             TOKEN_FILE="$HOME/sonarqube/analysis-token"

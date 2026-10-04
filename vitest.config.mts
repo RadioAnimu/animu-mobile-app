@@ -1,4 +1,4 @@
-import { defineConfig } from "vitest/config";
+import { configDefaults, defineConfig } from "vitest/config";
 import { fileURLToPath } from "node:url";
 
 const srcDir = fileURLToPath(new URL("./src", import.meta.url));
@@ -11,6 +11,8 @@ export default defineConfig({
   // implementations stay intact.
   test: {
     clearMocks: true,
+    // The Airwave submodule has its own (Jest) suite: `pnpm check:airwave`.
+    exclude: [...configDefaults.exclude, "packages/react-native-airwave/**"],
     // Jenkins' `junit` step picks up junit.xml; without a reporter it would
     // silently publish nothing.
     reporters: process.env.CI

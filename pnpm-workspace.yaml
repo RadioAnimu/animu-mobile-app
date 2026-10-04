@@ -6,6 +6,11 @@
 # node-linker=hoisted, build it with the root's TypeScript 6 instead.
 packages:
   - "packages/*"
+  # react-native-airwave (submodule) is linked, not a workspace member: as a
+  # member, its devDependencies (its own react-native, Jest, the example app)
+  # would be installed into this tree, and Metro would bundle two React
+  # Natives. `link:` installs nothing for it; its peers resolve from the root.
+  - "!packages/react-native-airwave"
 
 # Supply-chain hardening — react-doctor's require-pnpm-hardening rule wants
 # these keys; both are pnpm 10+ features.
@@ -38,6 +43,20 @@ trustPolicyExclude:
   - eslint-import-resolver-typescript@3.10.1
   - ua-parser-js@0.7.41
   - why-is-node-running@3.2.2
+
+# Advisories with no fixed release, accepted where the code never runs in the
+# app. Each entry names its path and reason; remove it once a fix ships.
+auditConfig:
+  ignoreGhsas:
+    # node-forge <=1.4.0 (RSA PKCS#1 v1.5 signature verification), via
+    # expo > @expo/cli: dev-server tooling (local HTTPS certificates), not
+    # part of the app bundle. No patched node-forge exists.
+    - GHSA-86w9-cpqp-85rv
+    # braces <=3.0.3 (stack exhaustion on deeply nested patterns), via
+    # expo > @expo/cli > @expo/metro-file-map > micromatch: build tooling
+    # matching the project's own fixed globs, not part of the app bundle.
+    # 3.0.3 is the latest braces release.
+    - GHSA-vfj7-8cjw-p6xm
 
 # pnpm 10 blocks dependency build scripts by default. Only this one needs to
 # run (it fetches a native binding for unrs-resolver, used by eslint import

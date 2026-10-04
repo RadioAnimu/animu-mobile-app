@@ -62,6 +62,7 @@ pnpm run ios        # build & run on iOS
 | `pnpm run check:expo-deps` | `expo install --check`: every Expo-managed dependency matches the SDK |
 | `pnpm run check:audit` | `pnpm audit` for known-vulnerable dependencies |
 | `pnpm run check:animu-api` | Typecheck and test the `animu-api` submodule |
+| `pnpm run check:airwave` | Typecheck and test the `react-native-airwave` submodule (own Yarn install, removed afterwards) |
 | `pnpm run install:apk` | Uninstall + install the newest local `.apk` on a connected device |
 
 
@@ -111,24 +112,45 @@ walk-through.
 
 ## Player library (react-native-airwave)
 
-Playback uses `react-native-airwave`, vendored as a tarball in `vendor/`
-(private package). To update it, build a new tarball in the Airwave repository
-(`npm pack`), replace `vendor/react-native-airwave-<version>.tgz`, then re-add
-it so pnpm recomputes the lockfile integrity (a same-named tarball is otherwise
-served from the store):
+Playback uses `react-native-airwave`, the git submodule at
+`packages/react-native-airwave` ([rmotafreitas/react-native-airwave](https://github.com/rmotafreitas/react-native-airwave),
+a **private** repository: cloning it needs read access). It is consumed from
+source, with no build step:
+
+- `link:` dependency (a symlink in `node_modules`), and **not** a pnpm workspace
+  member. As a member, its devDependencies (its own `react-native`, Jest, the
+  example app) would be installed into the app's tree, and Metro would bundle
+  two React Natives.
+- Metro and TypeScript resolve its `react-native-airwave-source` export
+  condition (`src/`); `metro.config.js` also blocks the submodule's own
+  `node_modules` and example apps.
+- iOS/Android autolinking compile its `ios/` and `android/` directly.
+- `tsc`, Vitest, ESLint and React Doctor skip the submodule's own project
+  (`react-doctor.config.json` selects the app). It has its own CI; run its
+  checks here with `pnpm run check:airwave`.
+
+To update the player, commit and push in the Airwave repository, then move the
+pin:
 
 ```bash
-pnpm remove react-native-airwave
-pnpm add file:./vendor/react-native-airwave-<version>.tgz
+git -C packages/react-native-airwave pull origin main
+git add packages/react-native-airwave
 ```
 
-No native patches are needed; `patch-package` stays wired for future use.
+No reinstall is needed (it is a symlink). Rebuild the native app when native
+code changed.
 
-## Submodule
+No native patches are needed (`patch-package` was removed with the last patch).
 
-`packages/animu-api` is a [git submodule](https://git-scm.com/docs/git-submodule)
-pointing at the separate [`RadioAnimu/animu-api`](https://github.com/RadioAnimu/animu-api)
-repository. Always clone with `--recurse-submodules`, and after pulling run:
+## Submodules
+
+Two [git submodules](https://git-scm.com/docs/git-submodule) live in
+`packages/`: `animu-api` ([`RadioAnimu/animu-api`](https://github.com/RadioAnimu/animu-api))
+and `react-native-airwave` (private, see
+[Player library](#player-library-react-native-airwave)). Always clone with
+`--recurse-submodules`. CI checks them out with `scripts/init-submodules.sh`,
+which authenticates to the private repository with `AIRWAVE_READ_TOKEN` when
+set. After pulling, run:
 
 ```bash
 git submodule update --init --remote
@@ -151,12 +173,24 @@ push to `main` and on pull requests:
    `pnpm run check:expo-doctor` — `expo-doctor` project health checks.
 5. `pnpm run check:audit` — dependency vulnerability audit.
 6. `pnpm test:coverage` — Vitest with the coverage floor (writes `junit.xml` when `CI` is set).
-7. `pnpm run check:animu-api` — the submodule's own typecheck and tests.
+7. `pnpm run check:animu-api` and `pnpm run check:airwave` — the submodules'
+   own typecheck and tests.
 8. **Bundle smoke test** — `expo export:embed` for Android, catching broken asset
    paths and unresolvable imports that TypeScript can't see.
 9. **React Doctor gate** — `pnpm run doctor:gate`, fails on any finding.
 
 `react-doctor.yml` posts advisory PR feedback separately.
+
+The private Airwave submodule needs a read-only token in CI: a fine-grained
+personal access token with **Contents: read** on `rmotafreitas/react-native-airwave`,
+stored as the GitHub Actions secret `AIRWAVE_READ_TOKEN` and as the Jenkins
+Secret text credential `airwave-read-token` (used by the CI, release and
+SonarQube jobs).
+
+`pnpm run check:audit` ignores two advisories with no fixed release, both in
+Expo's build/dev tooling and not in the app bundle (`node-forge`, `braces`).
+They are listed with their reasons under `auditConfig` in `pnpm-workspace.yaml`;
+remove each once a fix ships.
 
 ## Troubleshooting
 
