@@ -2,9 +2,6 @@
   "extends": "expo/tsconfig.base",
   "compilerOptions": {
     "strict": true,
-    // `react-native-airwave-source`: the Airwave submodule is consumed from
-    // source (see metro.config.js). Expo's base condition is kept.
-    "customConditions": ["react-native", "react-native-airwave-source"],
     "paths": {
       "@/*": ["./src/*"],
       "@app/*": ["./*"]
@@ -13,6 +10,8 @@
   // Expo's base excludes, plus the Airwave submodule's own project (its tests,
   // example apps and scripts). Its sources the app imports are still checked.
   "exclude": [
+    "${configDir}/coverage",
+    "${configDir}/dist",
     "${configDir}/node_modules",
     "${configDir}/babel.config.js",
     "${configDir}/metro.config.js",

@@ -34,7 +34,7 @@ vi.mock("expo-secure-store", () => ({
   }),
 }));
 
-const USER = { handle: "haru", username: "haru", avatarUrl: "" } as User;
+const USER = { handle: "haru", username: "haru", avatarUrl: "", sessionToken: "tok-1" } as User;
 const SESSION: StoredSession = { sessionToken: "tok-1", user: USER };
 const TOKEN_KEY = "auth.sessionToken";
 const USER_KEY = "auth.sessionUser";
@@ -52,6 +52,7 @@ describe("SecureSessionStore", () => {
 
     expect(secure.get(TOKEN_KEY)).toBe("tok-1");
     expect(memory.get(USER_KEY)).toContain("haru");
+    expect(memory.get(USER_KEY)).not.toContain("tok-1");
     expect(memory.has(LEGACY_KEY)).toBe(false);
   });
 
@@ -96,16 +97,35 @@ describe("SecureSessionStore", () => {
     expect(secure.size).toBe(0);
   });
 
-  it("degrades to the plain blob when no secure store exists", async () => {
+  it("refuses plaintext persistence when secure storage is unavailable", async () => {
     secureAvailable = false;
     const store = new SecureSessionStore();
+    await expect(store.save(SESSION)).rejects.toThrow("Secure session storage is unavailable");
+    expect(memory.size).toBe(0);
+    expect(await store.load()).toBeNull();
+  });
 
-    await store.save(SESSION);
-    expect(memory.get(LEGACY_KEY)).toContain("tok-1");
-
-    // Legacy storage is not migrated away when it is the active format.
+  it("defers legacy adoption until secure storage recovers", async () => {
+    secureAvailable = false;
+    memory.set(LEGACY_KEY, JSON.stringify(SESSION));
+    const store = new SecureSessionStore();
+    expect(await store.load()).toBeNull();
+    secureAvailable = true;
     expect(await store.load()).toEqual(SESSION);
-    expect(memory.has(LEGACY_KEY)).toBe(true);
+    expect(memory.has(LEGACY_KEY)).toBe(false);
+    expect(memory.get(USER_KEY)).not.toContain("tok-1");
+  });
+
+  it("scrubs tokens from old profile projections during restore", async () => {
+    secure.set(TOKEN_KEY, "tok-1");
+    memory.set(USER_KEY, JSON.stringify(USER));
+    expect(await new SecureSessionStore().load()).toEqual(SESSION);
+    expect(memory.get(USER_KEY)).not.toContain("tok-1");
+  });
+
+  it("rejects a pending-flow timestamp in the future", async () => {
+    memory.set("auth.serverFlowPendingAt", String(Date.now() + 60_000));
+    expect(await new SecureSessionStore().takeServerAuthPending()).toBe(false);
   });
 
   it("ignores an orphan token with no user projection", async () => {

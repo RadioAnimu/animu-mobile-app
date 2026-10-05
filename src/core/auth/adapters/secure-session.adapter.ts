@@ -17,7 +17,7 @@ const PENDING_TTL_MS = 10 * 60_000;
 function pendingFresh(raw: string | null, now: number): boolean {
   if (!raw) return false;
   const armedAt = Number(raw);
-  return Number.isFinite(armedAt) && armedAt > 0 && now - armedAt <= PENDING_TTL_MS;
+  return Number.isFinite(armedAt) && armedAt > 0 && now >= armedAt && now - armedAt <= PENDING_TTL_MS;
 }
 
 function parseUser(raw: string | null): User | null {
@@ -46,14 +46,13 @@ function parseBlob(raw: string | null): StoredSession | null {
  * Only the token is sensitive: it is written to `expo-secure-store`
  * (iOS Keychain / Android Keystore-backed), while the display projection
  * (username, avatar, provider) lives in AsyncStorage. A session previously
- * persisted in plaintext by older builds is migrated on first read, and
- * environments without a secure store (e.g. web) degrade to the old
- * single-blob layout so the app still works.
+ * persisted in plaintext by older builds is migrated on first secure read.
+ * If secure storage is unavailable, saving fails instead of persisting secrets
+ * in plaintext. Anonymous playback remains available.
  *
  * The native module is resolved lazily (first use, not import): it evaluates
- * its native constants eagerly, so running on a binary that does not support
- * the module must degrade to plain storage instead of throwing at import and
- * crashing every launch.
+ * its native constants eagerly. Missing native support must not crash launch;
+ * it prevents session persistence instead.
  */
 export class SecureSessionStore implements SessionStorePort {
   /** `undefined` = not resolved yet; `null` = native module unavailable. */
@@ -67,7 +66,7 @@ export class SecureSessionStore implements SessionStorePort {
       this.secureStore = await import("expo-secure-store");
     } catch (error) {
       console.warn(
-        "[SessionStore] SecureStore native module unavailable — using plain storage:",
+        "[SessionStore] SecureStore native module unavailable — cannot persist sessions:",
         error,
       );
       this.secureStore = null;
@@ -83,7 +82,7 @@ export class SecureSessionStore implements SessionStorePort {
       this.secureAvailable = await store.isAvailableAsync();
     } catch (error) {
       console.warn(
-        "[SessionStore] SecureStore unavailable, falling back to plain storage:",
+        "[SessionStore] SecureStore unavailable; cannot persist sessions:",
         error,
       );
       this.secureAvailable = false;
@@ -101,23 +100,22 @@ export class SecureSessionStore implements SessionStorePort {
         AsyncStorage.getItem(USER_KEY),
       ]);
 
-      if (token) {
-        const user = parseUser(userRaw);
-        if (user) return { sessionToken: token, user };
-        // Token without its projection (interrupted write / corruption):
-        // treat as no session rather than surfacing a half-built user.
+      const user = parseUser(userRaw);
+      if (token && user) {
+        // Remove plaintext tokens left by older profile projections.
+        if (user.sessionToken) await this.save({ sessionToken: token, user });
+        return { sessionToken: token, user: { ...user, sessionToken: token } };
       }
+      // Token without its projection (interrupted write / corruption) is not
+      // a usable session.
 
       // Migrate a legacy plaintext blob from an older build — only when we
-      // can actually upgrade it to the keychain. Without a secure store the
-      // legacy blob IS the storage format, so it must be left in place.
+      // can upgrade it to the keychain. Otherwise defer migration until the
+      // secure store recovers; do not adopt an insecure session.
       const legacy = parseBlob(await AsyncStorage.getItem(LEGACY_KEY));
-      if (legacy) {
-        if (await this.usableSecureStore()) {
-          await this.save(legacy);
-          await AsyncStorage.removeItem(LEGACY_KEY).catch(() => {});
-        }
-        return legacy;
+      if (legacy && await this.usableSecureStore()) {
+        await this.save(legacy);
+        return { ...legacy, user: { ...legacy.user, sessionToken: legacy.sessionToken } };
       }
 
       return null;
@@ -130,12 +128,13 @@ export class SecureSessionStore implements SessionStorePort {
   async save(session: StoredSession): Promise<void> {
     const store = await this.usableSecureStore();
     if (!store) {
-      await AsyncStorage.setItem(LEGACY_KEY, JSON.stringify(session));
-      return;
+      throw new Error("Secure session storage is unavailable; please try signing in again");
     }
     // Projection first: a crash between the two writes must not leave an
     // orphan token with no user (which `load` would reject anyway).
-    await AsyncStorage.setItem(USER_KEY, JSON.stringify(session.user));
+    const projection = { ...session.user };
+    delete (projection as Partial<User>).sessionToken;
+    await AsyncStorage.setItem(USER_KEY, JSON.stringify(projection));
     await store.setItemAsync(TOKEN_KEY, session.sessionToken, {
       // Device-scoped: the token must not travel to another device via an
       // unencrypted iOS backup/transfer. AFTER_FIRST_UNLOCK keeps it readable
