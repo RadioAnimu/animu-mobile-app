@@ -134,31 +134,36 @@ describe("HeardTrack", () => {
     expect(t.heard.elapsedMs()).toBe(90_000);
   });
 
-  it("learns each stream's ICY offset from the changes it hears", () => {
+  it("calibrates the tune-in per stream from the changes it hears", () => {
     const t = setup([track("Old", 0)]);
     t.heard.useStream("64k");
-    // Each title heard 2.1 s after the station started the song (speaker 6 s behind).
+    // The lag reads 5 s short on this stream: each title is heard when the
+    // station clock says 6.2 s in (1.2 s + 5 s), not 1.2 s.
     const change = (raw: string) => {
       t.advance(200_000);
-      t.station.tracks = [track(raw, t.now - 8_100)];
+      t.station.tracks = [track(raw, t.now - 12_200)];
       t.heard.heard(raw, t.now, false, 6_000);
     };
     change("S1");
+    // At a change the heard title is the truth: no estimate involved.
+    expect(t.heard.elapsedMs()).toBe(ICY_AFTER_START_MS);
+    expect(t.heard.tuneInBiasMs).toBe(5_000);
     change("S2");
-    expect(t.heard.elapsedMs()).toBe(ICY_AFTER_START_MS); // two samples: not yet
-    change("S3");
-    expect(t.heard.icyOffsetMs).toBe(2_100);
-    expect(t.heard.elapsedMs()).toBe(2_100);
     // A song whose start the API got wrong is not a sample.
     t.advance(200_000);
     t.station.tracks = [track("Live show", t.now - 600_000)];
     t.heard.heard("Live show", t.now, false, 6_000);
-    expect(t.heard.icyOffsetMs).toBe(2_100);
-    // Another stream starts from the default.
+    expect(t.heard.tuneInBiasMs).toBe(5_000);
+    // The next tune-in is corrected by it: 60 s on air, 6 s lag, 5 s bias.
+    t.station.tracks = [track("Live", t.now - 60_000)];
+    t.heard.reopened();
+    t.heard.heard("Live", t.now, true, 6_000);
+    expect(t.heard.elapsedMs()).toBe(49_000);
+    // Another stream has its own (none yet).
     t.heard.useStream("192k");
-    expect(t.heard.icyOffsetMs).toBe(ICY_AFTER_START_MS);
+    expect(t.heard.tuneInBiasMs).toBe(0);
     t.heard.useStream("64k");
-    expect(t.heard.icyOffsetMs).toBe(2_100);
+    expect(t.heard.tuneInBiasMs).toBe(5_000);
   });
 
   it("freezes the position while audio does not flow", () => {

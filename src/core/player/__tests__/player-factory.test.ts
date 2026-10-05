@@ -72,9 +72,10 @@ describe("player factory", () => {
       diagnostics: expect.any(Boolean),
       metadata: { useStreamMetadataForNowPlaying: false },
       android: { stopOnTaskRemoved: true },
+      progressInterval: 1_000,
     });
     expect([...players[0].listeners.keys()]).toEqual(
-      expect.arrayContaining(["status", "metadata", "remoteCommand"]),
+      expect.arrayContaining(["status", "metadata", "remoteCommand", "progress"]),
     );
     // Server clock samples reach the heard-track clock (no throw, any value).
     skew.listener?.(30_000, 100);

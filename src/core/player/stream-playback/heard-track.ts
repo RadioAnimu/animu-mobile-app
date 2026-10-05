@@ -6,20 +6,21 @@ import type { Track } from "@/core/domain/track";
  * Measured against the live stream: 67 consecutive changes over 3 hours
  * (2026-10-04) — min 0.34 s, median 1.18 s, max 1.85 s (`timestart` has
  * one-second resolution). The ICY title also matched the API `rawtitle`
- * byte for byte every time. The default until a stream has learned its own.
+ * byte for byte every time. The transcoded 192 / 64 kbps mounts carry the
+ * title at the same point of the audio, within 0.7 s (cross-correlating the
+ * three mounts' decoded audio, 2026-10-05).
  */
 export const ICY_AFTER_START_MS = 1_200;
 /**
- * Each stream learns its own offset: the title waits for the next metadata
- * block, every `icy-metaint` bytes — about 0.7 s apart at 192 kbps but 2 s
- * at 64 kbps. Recent changes feed a median (one per song; noisy alone: the
- * API's `timestart` has one-second resolution).
+ * The tune-in position is computed, not heard: station time minus the
+ * measured lag. Every title change heard afterwards shows how far that
+ * computation is off on this stream (a platform that under-reads the lag
+ * right after connecting); the median of recent ones corrects the next
+ * tune-in.
  */
-const OFFSET_WINDOW = 9;
-const OFFSET_MIN_SAMPLES = 3;
-/** Outside this, the API's `timestart` is wrong for the song (live shows, jingles). */
-const OFFSET_MIN_MS = 0;
-const OFFSET_MAX_MS = 6_000;
+const CALIBRATION_WINDOW = 9;
+/** A sample this far off is the API's `timestart` being wrong (live shows, jingles). */
+const CALIBRATION_MAX_MS = 15_000;
 /** A server clock correction is applied once its median reaches this (ms). */
 const CLOCK_SKEW_APPLY_MS = 1_500;
 /** Recent skew samples feeding the median. */
@@ -40,6 +41,8 @@ interface Anchor {
   at: number;
   /** Advancing (audio flowing) since `at`. */
   running: boolean;
+  /** Computed at a tune-in, not heard at a change. */
+  estimated: boolean;
 }
 
 export interface HeardTrackOptions {
@@ -63,8 +66,9 @@ export interface HeardTrackOptions {
  *
  * The one estimate left is the *first* title after tuning in (or re-opening
  * at the live edge): that track is already partway, so its position comes
- * from the station clock minus how far the speaker trails the live edge.
- * It is corrected at the next track boundary.
+ * from the station clock minus how far the speaker trails the live edge,
+ * corrected by what this stream's heard title changes showed (see
+ * {@link CALIBRATION_WINDOW}). It is exact again at the next track boundary.
  */
 export class HeardTrack {
   /** The displayed track changed (title, cover, position). */
@@ -83,8 +87,8 @@ export class HeardTrack {
   private pending: { title: string; heardAt: number; tuneIn: boolean; lagMs: number } | null = null;
   private skewSamples: number[] = [];
   private skewMs = 0;
-  /** Learned ICY offsets (ms) per stream. */
-  private offsets = new Map<string, number[]>();
+  /** Per stream: how far the computed position was ahead of the heard one (ms). */
+  private calibration = new Map<string, number[]>();
   private stream = "";
   private readonly now: () => number;
 
@@ -97,18 +101,28 @@ export class HeardTrack {
     return this.displayed ?? this.options.stationTrack();
   }
 
+  /**
+   * The position was computed at a tune-in (station time minus a lag reading
+   * taken the moment the first title played), not heard at a change. Right
+   * after connecting that reading can be early: the player may still be
+   * loading the connect burst. Prefer a settled clock while this is true.
+   */
+  get estimated(): boolean {
+    return this.anchor?.estimated ?? false;
+  }
+
   /** Whether the position is known (a title was heard since the last open). */
   get anchored(): boolean {
     return this.anchor != null;
   }
 
-  /** How long after a track starts this stream's ICY title changes (ms). */
-  get icyOffsetMs(): number {
-    const samples = this.offsets.get(this.stream) ?? [];
-    return samples.length < OFFSET_MIN_SAMPLES ? ICY_AFTER_START_MS : median(samples);
+  /** How far this stream's computed (tune-in) position runs ahead of the audio (ms). */
+  get tuneInBiasMs(): number {
+    const samples = this.calibration.get(this.stream);
+    return samples?.length ? median(samples) : 0;
   }
 
-  /** The stream being played: each one keeps its own learned ICY offset. */
+  /** The stream being played: each one keeps its own calibration. */
   useStream(key: string): void {
     this.stream = key;
   }
@@ -161,7 +175,7 @@ export class HeardTrack {
       artwork: "",
       duration: 0,
       isRequest: false,
-      startTime: new Date(pending.heardAt - this.icyOffsetMs),
+      startTime: new Date(pending.heardAt - ICY_AFTER_START_MS),
       playlistName: "",
     } as Track;
     // Keep `pending`: `stationChanged` upgrades to the real track.
@@ -188,6 +202,7 @@ export class HeardTrack {
       elapsedMs: anchor.elapsedMs + (anchor.running ? Math.max(0, now - anchor.at) : 0),
       at: now,
       running,
+      estimated: anchor.estimated,
     };
   }
 
@@ -214,10 +229,10 @@ export class HeardTrack {
     this.pending = null;
   }
 
-  private learnOffset(sample: number): void {
-    if (sample < OFFSET_MIN_MS || sample > OFFSET_MAX_MS) return;
-    const samples = this.offsets.get(this.stream) ?? [];
-    this.offsets.set(this.stream, [...samples, sample].slice(-OFFSET_WINDOW));
+  private calibrate(sample: number): void {
+    if (Math.abs(sample) > CALIBRATION_MAX_MS) return;
+    const samples = this.calibration.get(this.stream) ?? [];
+    this.calibration.set(this.stream, [...samples, sample].slice(-CALIBRATION_WINDOW));
   }
 
   private find(title: string): Track | null {
@@ -237,20 +252,23 @@ export class HeardTrack {
     this.pending = null;
     // Station time at the moment it was heard, minus the speaker's lag behind
     // the live edge. A tune-in (already partway) can only be placed this way;
-    // at a change it is one sample of the stream's ICY offset.
+    // at a change, where the heard title is the truth, it calibrates that.
     const start = track.startTime.getTime();
     const stationElapsed = Number.isFinite(start)
       ? heardAt + this.skewMs - start - Math.max(0, lagMs)
       : null;
-    if (!tuneIn && fromStation && stationElapsed != null) this.learnOffset(stationElapsed);
-    let elapsed = this.icyOffsetMs;
-    if (tuneIn && stationElapsed != null) elapsed = stationElapsed;
+    if (!tuneIn && fromStation && stationElapsed != null) {
+      this.calibrate(stationElapsed - ICY_AFTER_START_MS);
+    }
+    let elapsed = ICY_AFTER_START_MS;
+    if (tuneIn && stationElapsed != null) elapsed = stationElapsed - this.tuneInBiasMs;
     if (track.duration > 0) elapsed = Math.min(elapsed, track.duration);
     const now = this.now();
     this.anchor = {
       elapsedMs: Math.max(0, elapsed) + Math.max(0, now - heardAt),
       at: now,
       running: true,
+      estimated: tuneIn,
     };
     this.displayed = track;
     this.onChange();

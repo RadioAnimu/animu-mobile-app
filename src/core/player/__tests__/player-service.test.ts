@@ -7,7 +7,11 @@ import type {
   PlayerStatus,
 } from "react-native-airwave";
 import { PlayerService, type PlayerServiceDependencies } from "@/core/player/player-service";
+import { AudibleTrackResolver } from "@/core/player/stream-playback/audible-track";
 import { HeardTrack, ICY_AFTER_START_MS } from "@/core/player/stream-playback/heard-track";
+import { NowHearing } from "@/core/player/stream-playback/now-hearing";
+import { StreamSyncEngine } from "@/core/player/stream-playback/stream-sync";
+import { jsTimer } from "@/core/player/timer";
 import { playerStore, progressStore, stationStore } from "@/core/player/store";
 import type { Track } from "@/core/domain/track";
 import type { Stream } from "@/core/domain/stream";
@@ -165,6 +169,13 @@ const setup = () => {
     candidates: () => [repository.currentTrack, ...repository.lastPlayedTracks],
     stationTrack: () => repository.currentTrack,
   });
+  const sync = new StreamSyncEngine();
+  const audible = new AudibleTrackResolver({
+    getStationTrack: () => repository.currentTrack,
+    sync,
+    timer: jsTimer,
+  });
+  const hearing = new NowHearing({ heard, sync, audible });
   const sampler = {
     isSupported: true,
     isActive: false,
@@ -199,6 +210,7 @@ const setup = () => {
     streamPreferences: preferences,
     artwork,
     heard,
+    hearing,
     sampler,
     stats,
     ticker,
@@ -207,6 +219,7 @@ const setup = () => {
   return {
     service,
     player,
+    hearing,
     repository,
     preferences,
     artwork,
@@ -215,6 +228,13 @@ const setup = () => {
     ticker,
     onDestroyed,
     tick: () => tick?.(),
+    /** `seconds` of 1 Hz native progress readings, `lagS` behind the live edge. */
+    settle(seconds: number, lagS: number) {
+      for (let i = 0; i < seconds; i++) {
+        vi.advanceTimersByTime(1_000);
+        player.emit("progress", { liveOffset: null, bufferedAhead: lagS, position: 0 });
+      }
+    },
     /** The station announces a new track (SSE / poll). */
     announce(next: Track) {
       repository.lastPlayedTracks = repository.currentTrack
@@ -308,26 +328,32 @@ describe("PlayerService on react-native-airwave", () => {
     expect(playerStore.getSnapshot().isPlaying).toBe(false);
   });
 
-  it("tune-in: the first heard title is placed partway (station time minus lag)", async () => {
-    const t = setup();
+  it("tune-in: the heard title is shown at once, its position once the clock settles", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-10-05T05:00:00Z"));
+    const t = setup(); // Song A: on air for 30 s
     await t.service.setupPlayer();
     await t.service.play();
     t.player.setState("buffering", true);
     t.player.setState("playing", true);
     expect(playerStore.getSnapshot().syncing).toBe(true);
     t.player.hear("Song A");
-    // On air for 30 s at the live edge; the speaker trails by 6 s.
-    const progress = progressStore.getSnapshot().currentTrackProgress!;
-    expect(progress).toBeGreaterThanOrEqual(23_900);
-    expect(progress).toBeLessThan(24_500);
+    // The song is known; how far into it is not yet (the burst may still be loading).
+    expect(playerStore.getSnapshot().currentTrack?.raw).toBe("Song A");
+    expect(playerStore.getSnapshot().syncing).toBe(true);
+    expect(lastNowPlaying(t.player)?.duration).toBeUndefined();
+    // 1 Hz native readings: the speaker trails the live edge by 6 s.
+    t.settle(5, 6);
     expect(playerStore.getSnapshot().syncing).toBe(false);
+    // Settled at the 4th reading: 34 s on air, 6 s behind. The lock screen
+    // gets it then and advances it natively.
     const nowPlaying = lastNowPlaying(t.player)!;
-    expect(nowPlaying).toMatchObject({
-      title: "Song A (anime)",
-      artist: "Artist",
-      duration: 200,
-    });
-    expect(nowPlaying.elapsed).toBeCloseTo(progress / 1000, 0);
+    expect(nowPlaying).toMatchObject({ title: "Song A (anime)", artist: "Artist", duration: 200 });
+    expect(nowPlaying.elapsed).toBeCloseTo(28, 1);
+    // The UI's tick: 35 s on air.
+    t.tick();
+    expect(progressStore.getSnapshot().currentTrackProgress).toBe(29_000);
+    vi.useRealTimers();
   });
 
   it("a heard title change switches the display at the ICY offset, not before", async () => {
@@ -365,18 +391,28 @@ describe("PlayerService on react-native-airwave", () => {
   });
 
   it("a re-open (reconnect / live-edge resume) makes the next title a tune-in", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-10-05T05:00:00Z"));
     const t = setup();
     await t.service.setupPlayer();
     await t.service.play();
     t.player.setState("playing", true);
     t.player.hear("Song A");
+    t.settle(5, 6);
+    expect(lastNowPlaying(t.player)?.duration).toBe(200);
     t.player.setState("reconnecting", true);
     expect(playerStore.getSnapshot().syncing).toBe(true);
     expect(progressStore.getSnapshot().currentTrackProgress).toBeNull();
+    // The lock screen drops the stale position too.
+    expect(lastNowPlaying(t.player)?.duration).toBeUndefined();
     t.player.setState("loading", true);
     t.player.setState("playing", true);
     t.player.hear("Song A");
-    expect(progressStore.getSnapshot().currentTrackProgress).toBeGreaterThan(20_000);
+    t.settle(5, 8); // the new connection trails by 8 s
+    t.tick();
+    // 40 s on air, the new connection 8 s behind.
+    expect(progressStore.getSnapshot().currentTrackProgress).toBe(32_000);
+    vi.useRealTimers();
   });
 
   it("no song progress on the lock screen during a live program", async () => {
@@ -495,6 +531,39 @@ describe("PlayerService on react-native-airwave", () => {
     vi.advanceTimersByTime(21_000);
     t.tick();
     expect(t.repository.refresh).toHaveBeenCalledTimes(1);
+    vi.useRealTimers();
+  });
+
+  it("a stream without ICY titles falls back to the audible clock", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-10-05T05:00:00Z"));
+    const t = setup();
+    t.repository.currentTrack = track("Song A", { startTime: new Date(Date.now() - 60_000) });
+    await t.service.setupPlayer();
+    await t.service.play();
+    t.player.setState("playing", true);
+    // 1 Hz native readings: the speaker trails the live edge by 6 s.
+    const second = () => {
+      vi.advanceTimersByTime(1_000);
+      t.player.emit("progress", { liveOffset: null, bufferedAhead: 6, position: 0 });
+    };
+    for (let i = 0; i < 5; i++) second();
+    expect(t.hearing.mode).toBe("icy"); // still waiting for a title
+    for (let i = 0; i < 10; i++) second();
+    expect(t.hearing.mode).toBe("clock");
+    // Taken over 12 s in (72 s on air, 6 s behind): the lock screen got 66 s
+    // and advances natively from there.
+    expect(lastNowPlaying(t.player)).toMatchObject({ duration: 200 });
+    expect(lastNowPlaying(t.player)!.elapsed).toBeCloseTo(66, 0);
+    // Now 75 s on air: the UI's tick shows 69 s.
+    t.tick();
+    const progress = progressStore.getSnapshot().currentTrackProgress!;
+    expect(progress).toBeGreaterThan(68_500);
+    expect(progress).toBeLessThan(69_500);
+    expect(playerStore.getSnapshot().syncing).toBe(false);
+    // A title is heard after all: ICY is the truth again.
+    t.player.hear("Song A");
+    expect(t.hearing.mode).toBe("icy");
     vi.useRealTimers();
   });
 

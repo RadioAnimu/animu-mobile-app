@@ -49,7 +49,9 @@ frozen.
 | Module | Responsibility |
 | --- | --- |
 | `player-service.ts` (`PlayerService`) | Which stream to play, commands, store writes, lock-screen metadata; follows Airwave's status |
-| `stream-playback/heard-track.ts` (`HeardTrack`) | What the listener is **hearing** and how far into it (see below) |
+| `stream-playback/now-hearing.ts` (`NowHearing`) | What the listener is **hearing** and how far into it (see below) |
+| `stream-playback/heard-track.ts` (`HeardTrack`) | The ICY source: titles as they play, tune-in calibration |
+| `stream-playback/stream-sync.ts`, `audible-track.ts` | The audible clock and the track on it (fallback without ICY) |
 | `stream-playback/now-playing.repository.ts` (`NowPlayingRepository`) | On-air data: realtime SSE + HTTP fallback, diffing merge, history, listeners, error backoff (`backoff.ts`) |
 | `stream-playback/stream-preferences.ts` | Persisted stream-quality choice |
 | `visualizer/audio-sampler.ts` (`AudioSampler`) | Oscilloscope windows from Airwave's `audioSample` events (pacing, delay, draw gain) |
@@ -60,29 +62,48 @@ frozen.
 | `store.ts` | The three external stores and the UI's `TransportState` |
 | `ports.ts` | The slice of Airwave's `Player` the core uses (faked in tests) |
 
-### What is heard: ICY titles
+### What is heard: ICY titles, with the audible clock behind them
 
-The station's ICY title is exactly the API's `rawtitle`, and it changes about
-1.2 s after the API's `timestart` (measured: 67 track changes over 3 hours,
-0.34–1.85 s, every title matching). Airwave delivers each ICY title **when it
-becomes audible** (iOS: AVPlayer's metadata output; Android: Media3's metadata
-renderer). So an ICY change means "this track is starting *now*, here":
-`HeardTrack` shows the API track whose `raw` equals the title, at the stream's
-ICY offset, and the position advances while audio flows.
+`NowHearing` answers "what is the listener hearing, and how far into it?"
+from two independent sources.
 
-The offset is learned per stream. A title waits for the next metadata block,
-which comes every `icy-metaint` bytes: about 0.7 s apart at 192 kbps, but 2 s
-at 64 kbps. Each change heard is one sample: the station clock at that moment,
-minus the song's `timestart`, minus the speaker's lag. Samples outside 0–6 s
-(the API's start is wrong for live shows and jingles) are dropped. After 3
-samples, the median of the last 9 replaces the 1.2 s default. The samples are
-kept in memory, per stream, for the app session.
+**ICY titles (`HeardTrack`) are the truth at every song change.** The ICY
+title is exactly the API's `rawtitle` and changes about 1.2 s after its
+`timestart` (67 changes over 3 hours, 0.34–1.85 s). The transcoded mounts
+carry it at the same point of the audio. Recording 320, 192 and 64 at once and
+cross-correlating their decoded audio puts every 192 / 64 title within 0.7 s
+of 320's, with live edges 0.2–0.6 s behind it (2026-10-05). Airwave reports
+each title **when it plays** (iOS: AVPlayer's metadata output, measured on the
+64 kbps mount: 16.4–17.1 s after the title arrived, its buffer; Android:
+Media3's metadata renderer). So a title change means "this track started 1.2 s
+ago, here", on every stream.
 
-The first title after tuning in (or after a re-open at the live edge) is
-already partway: its position is the station clock minus how far the speaker
-trails the live edge (`getProgress().liveOffset ?? bufferedAhead`), with a
-server clock correction from HTTP `date` headers when the device clock is
-grossly wrong. The next track boundary is exact again.
+The one computed position is a **tune-in** (first title after opening,
+switching stream or a live-edge resume). The title says which song, but it is
+already partway: its position is station time minus how far the speaker trails
+the live edge, with a server clock correction from HTTP `date` headers when
+the device clock is grossly wrong. That lag is taken from the audible clock
+once it has settled (1 Hz readings, a few seconds of "calculating"), not from
+the moment the first title plays. The first title plays at once, while the
+connect burst is still loading: 1.6 s of audio on 320, 7 s on 192, 17 s on
+64. A reading taken then was the 192 / 64 kbps regression: Android had 4.8 s
+buffered of the 17 s actually behind the edge, and iOS `loadedTimeRanges` read
+11.6 s (Airwave now measures the iOS live offset from what its stream proxy
+handed the player). Each title change heard afterwards shows how far the
+tune-in computation was off on this stream. The median of the last 9 corrects
+the next tune-in.
+
+Measured after the fix (2026-10-05, tune-in vs the next heard change, which
+carries the station's own ±1 s `timestart` jitter): 64 kbps 0.9 s on iOS and
+Android (before: 5.6 s and 16 s), 192 kbps 0.3 s on iOS.
+
+**The audible clock (`StreamSyncEngine` + `AudibleTrackResolver`)** is the
+pre-ICY model: wall clock minus the measured lag, smoothed. The station's
+track shows once the clock reaches its start. It drives the display when a
+stream carries no ICY titles (12 s of playback without one), so the app never
+depends on one source alone. It is fed by Airwave's `progress` events: 1 Hz
+readings from a native timer while playing, which also pump its boundary
+timer on Android, where JS timers do not run in the background.
 
 The lock screen gets `updateNowPlaying({ …, duration, elapsed })`; Airwave
 advances the song's progress natively, only while audio plays. No JS timer is

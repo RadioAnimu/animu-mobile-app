@@ -12,10 +12,13 @@ import {
   CoverCacheSeeder,
   ExpoImageCoverDiskCache,
 } from "@/core/player/storage/cover-image-cache";
+import { AudibleTrackResolver } from "@/core/player/stream-playback/audible-track";
 import { HeardTrack } from "@/core/player/stream-playback/heard-track";
+import { NowHearing } from "@/core/player/stream-playback/now-hearing";
 import { NowPlayingRepository } from "@/core/player/stream-playback/now-playing.repository";
 import { StreamPreferences } from "@/core/player/stream-playback/stream-preferences";
-import { jsTimer } from "@/core/player/timer";
+import { StreamSyncEngine } from "@/core/player/stream-playback/stream-sync";
+import { createPumpedTimer, jsTimer } from "@/core/player/timer";
 import { AudioSampler, WAVE_POINTS } from "@/core/player/visualizer/audio-sampler";
 
 /** Foreground UI tick (store progress, polls). Never needed for playback. */
@@ -42,6 +45,9 @@ export const createPlayerService = (onDestroyed?: () => void): PlayerService => 
     metadata: { useStreamMetadataForNowPlaying: false },
     // Swiping the app away ends playback (the controls never outlive the app).
     android: { stopOnTaskRemoved: true },
+    // Native-timer readings while playing: the audible clock's lag, and JS at
+    // song boundaries where JS timers are frozen (Android background).
+    progressInterval: 1_000,
   });
   const streamPreferences = new StreamPreferences();
   const repository = new NowPlayingRepository({
@@ -56,8 +62,19 @@ export const createPlayerService = (onDestroyed?: () => void): PlayerService => 
     candidates: () => [repository.currentTrack, ...repository.lastPlayedTracks],
     stationTrack: () => repository.currentTrack,
   });
-  // Only the tune-in position compares clocks: correct a grossly wrong device clock.
-  setServerSkewListener((skewMs, rttMs) => heard.setClockSkew(skewMs, rttMs));
+  // The audible clock: the station's track on the measured lag (drives the
+  // display when a stream has no ICY titles). Its boundary timer is also
+  // pumped by the native progress readings.
+  const sync = new StreamSyncEngine();
+  const boundaryTimer = createPumpedTimer();
+  const audible = new AudibleTrackResolver({
+    getStationTrack: () => repository.currentTrack,
+    sync,
+    timer: boundaryTimer,
+  });
+  const hearing = new NowHearing({ heard, sync, audible, pump: () => boundaryTimer.pump() });
+  // Station-time comparisons (tune-in, the clock): correct a grossly wrong device clock.
+  setServerSkewListener((skewMs, rttMs) => hearing.setClockSkew(skewMs, rttMs));
   // Bridges the lock-screen cover with the in-app image cache (both directions).
   const coverDiskCache = new ExpoImageCoverDiskCache();
   const coverLookup = new CachedCoverLookup(coverDiskCache);
@@ -87,6 +104,7 @@ export const createPlayerService = (onDestroyed?: () => void): PlayerService => 
     streamPreferences,
     artwork,
     heard,
+    hearing,
     sampler,
     stats: listenStatsService,
     ticker: createTicker(),

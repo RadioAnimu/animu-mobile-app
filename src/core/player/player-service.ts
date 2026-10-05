@@ -9,6 +9,7 @@ import type { AudioPlayer, NowPlayingMetadata } from "@/core/player/ports";
 import { buildNowPlayingMetadata } from "@/core/player/media-session/now-playing.metadata";
 import { pickPreviewArtwork, type ArtworkResolver } from "@/core/player/storage/artwork";
 import type { HeardTrack } from "@/core/player/stream-playback/heard-track";
+import type { NowHearing } from "@/core/player/stream-playback/now-hearing";
 import type { NowPlayingRepository } from "@/core/player/stream-playback/now-playing.repository";
 import type { StreamPreferences } from "@/core/player/stream-playback/stream-preferences";
 import {
@@ -37,7 +38,10 @@ export interface PlayerServiceDependencies {
   repository: NowPlayingRepository;
   streamPreferences: StreamPreferences;
   artwork: ArtworkResolver;
+  /** ICY titles in: what the stream says is heard. */
   heard: HeardTrack;
+  /** What is heard and how far into it (ICY, or the audible clock without it). */
+  hearing: NowHearing;
   sampler: VisualizerSampler;
   /** On-device listen stats (optional for test fixtures). */
   stats?: typeof listenStatsService;
@@ -71,9 +75,9 @@ const TRANSPORT: Record<PlaybackState, TransportState> = {
  *
  * - which stream to play (user preference, bitrate picker);
  * - what is on air (`NowPlayingRepository`: SSE + HTTP, history, listeners);
- * - what is *heard* (`HeardTrack`: the station's track matching the audible
- *   ICY title) and how far into it — shown in the UI and on the lock screen,
- *   where Airwave advances the song's progress natively;
+ * - what is *heard* and how far into it (`NowHearing`: the ICY titles as
+ *   they play, the audible clock behind them) — shown in the UI and on the
+ *   lock screen, where Airwave advances the song's progress natively;
  * - cover art (local cache), the visualizer, listen stats.
  *
  * It is the single writer of the React stores.
@@ -95,10 +99,14 @@ export class PlayerService {
   private readonly unsubscribe: (() => void)[] = [];
 
   constructor(private readonly deps: PlayerServiceDependencies) {
-    const { player, repository, heard } = deps;
+    const { player, repository, heard, hearing } = deps;
     this.unsubscribe.push(
       player.on("status", (status) => this.handleStatus(status)),
       player.on("metadata", (metadata) => this.handleStreamMetadata(metadata)),
+      // Native-timer readings while playing: they keep the audible clock
+      // measured, and run JS at song boundaries even where JS timers are
+      // frozen (Android in the background).
+      player.on("progress", (reading) => hearing.progress(reading)),
       // Play from Control Center / the lock screen before anything is loaded
       // (iOS relaunched the app in the background for it). Airwave handles
       // every later command natively; this one only the app can answer.
@@ -111,6 +119,7 @@ export class PlayerService {
       }),
     );
     heard.onChange = () => this.handleDisplayedTrackChange();
+    hearing.onChange = () => this.handleDisplayedTrackChange();
     heard.onUnknownTitle = (title) => {
       // Event-driven, no timer: a stuck refresh is expired by time, then one
       // HTTP fetch names the track (the SSE may be down in the background).
@@ -127,6 +136,7 @@ export class PlayerService {
           repository.currentTrack,
         );
         heard.stationChanged();
+        hearing.stationChanged();
       }
       if (change.programChanged) this.emitPlayer();
       if (change.listenersChanged || change.playedChanged || change.requestedChanged) {
@@ -155,9 +165,9 @@ export class PlayerService {
   getNowPlayingMetadata(): NowPlayingMetadata {
     const { artwork } = this.deps;
     const meta = buildNowPlayingMetadata({
-      track: artwork.apply(this.deps.heard.track),
+      track: artwork.apply(this.deps.hearing.track),
       isLive: this.deps.repository.currentProgram?.isLive ?? false,
-      showProgress: this.deps.repository.showProgress && this.deps.heard.anchored,
+      showProgress: this.deps.repository.showProgress && this.deps.hearing.anchored,
       defaultCover: artwork.defaultCover,
     });
     if (!meta.artwork || artwork.isRemote(meta.artwork)) meta.artwork = artwork.defaultCover;
@@ -277,7 +287,7 @@ export class PlayerService {
     this.deps.repository.dispose();
     this.deps.repository.clear();
     this.deps.artwork.reset();
-    this.deps.heard.reset();
+    this.deps.hearing.reset();
     this.deps.streamPreferences.reset();
     try {
       await this.deps.player.release();
@@ -346,6 +356,7 @@ export class PlayerService {
     this.tuneIn = true;
     this.deps.heard.useStream(stream.id);
     this.deps.heard.reopened();
+    this.deps.hearing.reopened();
     try {
       await this.deps.player.load(
         {
@@ -389,8 +400,13 @@ export class PlayerService {
     if (reopening && !this.tuneIn) {
       this.tuneIn = true;
       this.deps.heard.reopened();
+      this.deps.hearing.reopened();
+      // The lock screen drops the song's position too until the tune-in places
+      // it (natively it would keep advancing the one from before the re-open).
+      this.pushNowPlaying();
     }
     this.deps.heard.setRunning(playing);
+    this.deps.hearing.setPlaying(playing);
     this.deps.sampler.setPlaying(playing);
     this.updateLiveStreamLifecycle();
     this.updateTicker();
@@ -405,13 +421,14 @@ export class PlayerService {
     const tuneIn = this.tuneIn;
     this.tuneIn = false;
     // How far the speaker trails the live edge right now (places a tune-in;
-    // at a change it lets the stream learn its ICY offset).
+    // at a change it calibrates the next one).
     const progress = this.deps.player.getProgress();
     const lagMs = (progress.liveOffset ?? progress.bufferedAhead) * 1000;
     debugLog(
-      `[PlayerService] heard "${title}" tuneIn=${tuneIn} lag=${Math.round(lagMs)}ms icyOffset=${Math.round(this.deps.heard.icyOffsetMs)}ms`,
+      `[PlayerService] heard "${title}" tuneIn=${tuneIn} lag=${Math.round(lagMs)}ms tuneInBias=${Math.round(this.deps.heard.tuneInBiasMs)}ms`,
     );
     this.deps.heard.heard(title, metadata.timestamp, tuneIn, lagMs);
+    this.deps.hearing.titleWasHeard();
   }
 
   /**
@@ -419,8 +436,8 @@ export class PlayerService {
    * heard): UI, progress, lock screen and stats move together.
    */
   private handleDisplayedTrackChange(): void {
-    if (this.deps.heard.anchored) {
-      this.deps.stats?.onTrackHeard(this.deps.heard.track, this.lastState === "playing");
+    if (this.deps.hearing.anchored) {
+      this.deps.stats?.onTrackHeard(this.deps.hearing.track, this.lastState === "playing");
     }
     this.tickStats();
     this.emitPlayer();
@@ -436,10 +453,10 @@ export class PlayerService {
   private updateNowPlaying(): void {
     if (this.loadedStreamId == null) return;
     this.pushNowPlaying();
-    const track = this.deps.heard.track;
+    const track = this.deps.hearing.track;
     const url = track?.artwork;
     if (!track || !url || !this.deps.artwork.isRemote(url) || this.deps.artwork.peek(url)) return;
-    const stillCurrent = () => this.deps.heard.track?.artwork === url;
+    const stillCurrent = () => this.deps.hearing.track?.artwork === url;
     void this.deps.artwork
       .resolve(
         url,
@@ -461,7 +478,7 @@ export class PlayerService {
 
   private pushNowPlaying(): void {
     const meta = this.getNowPlayingMetadata();
-    const elapsed = this.deps.heard.elapsedMs();
+    const elapsed = this.deps.hearing.elapsedMs();
     void this.deps.player
       .updateNowPlaying({
         title: meta.title,
@@ -510,7 +527,7 @@ export class PlayerService {
   private emitPlayer(): void {
     if (!this.appActive) return;
     const next: PlayerSnapshot = {
-      currentTrack: this.deps.artwork.apply(this.deps.heard.track) ?? undefined,
+      currentTrack: this.deps.artwork.apply(this.deps.hearing.track) ?? undefined,
       currentProgram: this.deps.repository.currentProgram ?? undefined,
       currentStream: this.deps.streamPreferences.current,
       streamOptions: this.streamOptions,
@@ -519,7 +536,7 @@ export class PlayerService {
       isInitialized: this.initialized,
       // Audio wanted but no title heard since the source opened: the position
       // is not known yet ("calculating" in the header / countdown).
-      syncing: this.isPlayingIntent && !this.deps.heard.anchored,
+      syncing: this.isPlayingIntent && !this.deps.hearing.anchored,
     };
     playerStore.setSnapshot(next);
   }
@@ -540,7 +557,7 @@ export class PlayerService {
   private emitProgress(): void {
     if (!this.appActive) return;
     progressStore.setSnapshot({
-      currentTrackProgress: this.deps.heard.elapsedMs(),
+      currentTrackProgress: this.deps.hearing.elapsedMs(),
       showProgress: this.deps.repository.showProgress,
     });
   }
