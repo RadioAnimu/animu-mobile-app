@@ -21,7 +21,7 @@ const fail = (msg) => {
   process.exit(0);
 };
 
-if (!jobPath || !sha) fail("missing <jobPath> or <sha>");
+if (!jobPath || !/^[a-f0-9]{40}$/.test(sha ?? "")) fail("missing <jobPath> or <sha>");
 if (!JENKINS_URL || !JENKINS_USER || !JENKINS_API_TOKEN) fail("missing Jenkins env");
 
 const base = JENKINS_URL.replace(/\/+$/, "");
@@ -39,11 +39,11 @@ const auth = Buffer.from(`${JENKINS_USER}:${JENKINS_API_TOKEN}`).toString("base6
 
 let builds;
 try {
-  const res = await fetch(url, { headers: { Authorization: `Basic ${auth}` } });
+  const res = await fetch(url, { headers: { Authorization: `Basic ${auth}` }, redirect: "error", signal: AbortSignal.timeout(30000) });
   if (!res.ok) fail(`HTTP ${res.status}`);
   builds = (await res.json()).builds ?? [];
 } catch (e) {
-  fail(e.message);
+  fail("Jenkins lookup failed");
 }
 
 const match = builds.find((b) => {

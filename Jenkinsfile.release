@@ -88,6 +88,7 @@ pipeline {
       steps {
         sh '''
           set -eux
+          mkdir -p "$TMPDIR"
           case "${BUMP:-none}" in
             none|versionCode|patch|minor|major) ;;
             *) echo "invalid BUMP: $BUMP"; exit 1 ;;
@@ -120,9 +121,9 @@ pipeline {
       steps {
         checkout scm
         // react-native-airwave is a private submodule: a read-only token
-        // (Secret text credential `airwave-read-token`) checks it out. The
+        // (SSH credential `airwave-read-key`) checks it out. The
         // script fails when either submodule is missing.
-        withCredentials([string(credentialsId: 'airwave-read-token', variable: 'AIRWAVE_READ_TOKEN')]) {
+        withCredentials([sshUserPrivateKey(credentialsId: 'airwave-read-key', keyFileVariable: 'AIRWAVE_SSH_KEY_FILE')]) {
           sh '''
             set -eux
             bash scripts/init-submodules.sh
@@ -138,12 +139,7 @@ pipeline {
       agent { label 'animu-android-native' }
       steps {
         script {
-          def bumpArgs = "--bump '${params.BUMP ?: "none"}'"
-          if (params.VERSION) bumpArgs += " --version '${params.VERSION}'"
-          if (params.VERSION_CODE) bumpArgs += " --code '${params.VERSION_CODE}'"
-          // The script also writes "<out>.version" / "<out>.versionCode" so we
-          // don't need the Pipeline Utility Steps plugin for JSON parsing.
-          sh(script: "node scripts/bump-version.mjs ${bumpArgs} --out .release-version", returnStdout: true)
+          sh(script: 'node scripts/bump-version.mjs --bump "$BUMP" --version "$VERSION" --code "$VERSION_CODE" --out .release-version', returnStdout: true)
           env.VERSION = readFile('.release-version.version').trim()
           env.VERSION_CODE = readFile('.release-version.versionCode').trim()
           env.TAG = params.TAG ?: "v${env.VERSION}"
@@ -179,7 +175,7 @@ pipeline {
             # deps are symlinks, so a submodule rev change needs no reinstall;
             # Airwave is compiled from source, animu-api's dist is handled below.)
             STAMP="$WORKSPACE/.deps-stamp"
-            WANT="$(sha256sum pnpm-lock.yaml | cut -d" " -f1)"
+            WANT="$(sha256sum pnpm-lock.yaml package.json pnpm-workspace.yaml .npmrc | sha256sum | cut -d' ' -f1)"
             HAVE="$( [ -f "$STAMP" ] && cat "$STAMP" || echo none )"
             if [ "$WANT" != "$HAVE" ] || [ ! -d node_modules ]; then
               echo "Dependencies changed (or first run): installing"
@@ -192,31 +188,17 @@ pipeline {
               echo "Dependencies unchanged; reusing node_modules"
             fi
 
-            # animu-api dist: prefer the prebuilt artifact published by the
-            # animu-api Jenkins job for the pinned submodule commit; fall back
-            # to building from source when no matching build exists. Only runs
-            # when the pin changed or dist is missing.
-            ANIMU_REV=$(git -C packages/animu-api rev-parse HEAD 2>/dev/null || echo none)
-            ANIMU_STAMP="$WORKSPACE/.animu-api-stamp"
-            BUILT_REV="$( [ -f "$ANIMU_STAMP" ] && cat "$ANIMU_STAMP" || echo none )"
-            if [ ! -f packages/animu-api/dist/esm/index.js ] || [ "$ANIMU_REV" != "$BUILT_REV" ]; then
-              if node scripts/fetch-animu-api-dist.mjs Animu/animu-api "$ANIMU_REV" packages/animu-api/dist; then
-                :
-              else
-                echo "animu-api: no prebuilt artifact for $ANIMU_REV; building from source"
-                pnpm --filter animu-api run build
-              fi
-              printf "%s" "$ANIMU_REV" > "$ANIMU_STAMP"
-            else
-              echo "animu-api unchanged (rev $ANIMU_REV); reusing dist/"
-            fi
+            # Both linked submodules reuse only verified output for their pins.
+            node scripts/prepare-submodules.mjs
 
             # Decode the upload keystore once, into a workspace-local path the
             # Gradle signing injection reads. Passwords go to mode-600 files so
             # they never appear in the console log. Removed after the build.
             mkdir -p "$WORKSPACE/.signing"
             chmod 700 "$WORKSPACE/.signing"
-            echo "$ANDROID_UPLOAD_KEYSTORE_B64" | base64 -d > "$WORKSPACE/.signing.json"
+            set +x
+            umask 077
+            printf "%s" "$ANDROID_UPLOAD_KEYSTORE_B64" | base64 -d > "$WORKSPACE/.signing.json"
             node -e '
               const fs = require("fs");
               const j = JSON.parse(fs.readFileSync(process.env.WORKSPACE + "/.signing.json", "utf8"));
@@ -238,15 +220,12 @@ pipeline {
     // a SUCCESS build for HEAD, skip the checks below. Otherwise they run.
     stage('Check CI status for this commit') {
       agent { label 'animu-android-native' }
-      when { expression { return params.TRUST_CI } }
+      when { expression { return params.TRUST_CI && params.BUMP == 'none' && !params.VERSION && !params.VERSION_CODE } }
       steps {
         withCredentials([string(credentialsId: 'jenkins-api-token', variable: 'JENKINS_API_TOKEN')]) {
           script {
-            def base = (env.JENKINS_URL ?: env.BUILD_URL ?: "")
-              .replaceAll(/\/job\/.*$/, "").replaceAll(/\/+$/, "")
-            def jobName = params.CI_JOB_NAME ?: "Animu/animu-mobile-app"
             def verified = sh(
-              script: "JENKINS_URL='${base}' node scripts/check-ci-build.mjs '${jobName}' \"\$(git rev-parse HEAD)\"",
+              script: 'node scripts/check-ci-build.mjs "$CI_JOB_NAME" "$(git rev-parse HEAD)"',
               returnStdout: true
             ).trim()
             env.CI_VERIFIED = verified
@@ -264,14 +243,17 @@ pipeline {
       steps {
         sh '''
           set -eux
+          pnpm run test:tooling
           pnpm run typecheck
           pnpm run check:expo-deps
           pnpm run check:expo-doctor
           pnpm run check:audit
-          pnpm exec expo lint
+          pnpm run lint
           pnpm test:coverage
           pnpm run check:animu-api
           pnpm run check:airwave
+          pnpm exec expo export:embed --platform android --entry-file index.js --bundle-output "$TMPDIR/index.android.bundle" --assets-dest "$TMPDIR/animu-assets" --dev false
+          node scripts/check-bundle-size.mjs "$TMPDIR/index.android.bundle" 3500000 "$TMPDIR/animu-assets" 2000000
           pnpm run doctor:gate
         '''
       }
@@ -319,7 +301,8 @@ pipeline {
             git add app.json
             git commit -m "chore(release): v${VERSION} (versionCode ${VERSION_CODE})"
             # Push with the token so the branch protection/HTTP auth is satisfied.
-            git push "https://x-access-token:${GH_TOKEN}@github.com/RadioAnimu/animu-mobile-app.git" HEAD:main
+            set +x
+            git -c credential.helper= -c 'credential.helper=!f() { echo username=x-access-token; echo "password=$GH_TOKEN"; }; f' push https://github.com/RadioAnimu/animu-mobile-app.git HEAD:main
           '''
         }
       }
@@ -353,7 +336,7 @@ pipeline {
           # Make sure node_modules match the generated project. Reuse the stamp
           # from the Install stage so we only install when something changed.
           STAMP="$WORKSPACE/.deps-stamp"
-          WANT="$(sha256sum pnpm-lock.yaml | cut -d" " -f1)"
+          WANT="$(sha256sum pnpm-lock.yaml package.json pnpm-workspace.yaml .npmrc | sha256sum | cut -d' ' -f1)"
           HAVE="$( [ -f "$STAMP" ] && cat "$STAMP" || echo none )"
           if [ "$WANT" != "$HAVE" ] || [ ! -d node_modules ]; then
             # Start from pristine packages: a node_modules left by a previous build
@@ -612,7 +595,7 @@ pipeline {
             AAB="animu-${VERSION}-code${VERSION_CODE}.aab"
             APK="animu-${VERSION}-code${VERSION_CODE}.apk"
 
-            set -- --title "${TAG} (Android)" --target main --notes-file RELEASE_NOTES.md
+            set -- --title "${TAG} (Android)" --target "$(git rev-parse HEAD)" --notes-file RELEASE_NOTES.md
             [ "$DRAFT" = "true" ] && set -- "$@" --draft
             [ "$PRERELEASE" = "true" ] && set -- "$@" --prerelease
 

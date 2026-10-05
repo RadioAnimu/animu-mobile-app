@@ -8,8 +8,9 @@
  * usage: node scripts/react-doctor-gate.mjs
  */
 import { spawnSync } from "node:child_process";
+import { validateDoctorReport } from "./doctor-report.mjs";
 
-const run = spawnSync("pnpm", ["exec", "react-doctor", "--json", "-y"], {
+const run = spawnSync("pnpm", ["exec", "react-doctor", "--json", "--scope", "full", "--blocking", "none", "-y"], {
   encoding: "utf8",
   maxBuffer: 64 * 1024 * 1024,
 });
@@ -23,11 +24,14 @@ try {
   process.exit(1);
 }
 
-const { summary, diagnostics = [] } = report;
-if (!report.ok || !summary) {
-  console.error("React Doctor did not complete:", report.error ?? "unknown error");
+if (run.error || run.status !== 0) {
+  console.error("React Doctor process failed");
   process.exit(1);
 }
+let diagnostics;
+try { diagnostics = validateDoctorReport(report, process.cwd()); }
+catch (error) { console.error(error.message); process.exit(1); }
+const { summary } = report;
 
 console.log(
   `React Doctor: score ${summary.score}, ${summary.errorCount} error(s), ${summary.warningCount} warning(s)`,

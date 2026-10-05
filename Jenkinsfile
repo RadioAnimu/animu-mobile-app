@@ -25,6 +25,7 @@ pipeline {
 
   environment {
     CI = 'true'
+    JENKINS_USER = 'rmotafreitas'
     EXPO_NO_TELEMETRY = '1'
     COREPACK_ENABLE_DOWNLOAD_PROMPT = '0'
   }
@@ -39,8 +40,8 @@ pipeline {
       }
       steps {
         // react-native-airwave is a private submodule: a read-only token
-        // (Secret text credential `airwave-read-token`) checks it out.
-        withCredentials([string(credentialsId: 'airwave-read-token', variable: 'AIRWAVE_READ_TOKEN')]) {
+        // (SSH credential `airwave-read-key`) checks it out.
+        withCredentials([sshUserPrivateKey(credentialsId: 'airwave-read-key', keyFileVariable: 'AIRWAVE_SSH_KEY_FILE'), string(credentialsId: 'jenkins-api-token', variable: 'JENKINS_API_TOKEN')]) {
           sh '''
           set -eux
           git config --global --add safe.directory "$WORKSPACE"
@@ -53,6 +54,7 @@ pipeline {
           rm -rf node_modules
           pnpm install --frozen-lockfile
 
+          pnpm run test:tooling
           pnpm run typecheck
           # Expo-managed packages must match the installed SDK (deliberate
           # exceptions live in expo.install.exclude).
@@ -61,7 +63,7 @@ pipeline {
           pnpm run check:expo-doctor
           # Known-vulnerability gate on the resolved dependency tree.
           pnpm run check:audit
-          pnpm exec expo lint
+          pnpm run lint
           pnpm test:coverage
           # The API client is a git submodule compiled into the app.
           pnpm run check:animu-api

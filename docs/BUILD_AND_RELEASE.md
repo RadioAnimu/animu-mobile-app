@@ -11,7 +11,7 @@ platform build numbers:
 | --- | --- | --- |
 | `expo.version` | `app.json` / `package.json` | `3.0.0` |
 | `expo.ios.buildNumber` | `app.json` | `6` |
-| `expo.android.versionCode` | `app.json` | `15` |
+| `expo.android.versionCode` | `app.json` | `16` |
 
 `eas.json` sets `appVersionSource: "local"` and `autoIncrement: false`, so
 **bump these by hand** before a store build.
@@ -32,11 +32,11 @@ all signed with the Play upload key:
 
 | Job | Jenkinsfile | Purpose |
 | --- | --- | --- |
-| `animu-mobile-app` | `Jenkinsfile` | CI: typecheck, lint, Expo SDK alignment, dependency audit, `vitest`, animu-api checks, Android bundle smoke test, React Doctor ≥ 85. |
+| `animu-mobile-app` | `Jenkinsfile` | CI: typecheck, lint, Expo SDK alignment, dependency audit, `vitest`, animu-api checks, Android bundle smoke test, complete React Doctor scan with zero findings. |
 | `animu-mobile-app-release` | `Jenkinsfile.release` | Parameterized release build (below). |
 
-Both run on the `animu-android-native` host agent (Node, JDK 17, Android
-SDK/NDK). The release job is parameterized:
+CI runs in the Node container; release builds run on the
+`animu-android-native` host agent (Node, JDK 17, Android SDK/NDK). The release job is parameterized:
 
 | Parameter | Meaning |
 | --- | --- |
@@ -52,8 +52,8 @@ SDK/NDK). The release job is parameterized:
 
 1. Validate parameters and `app.json` (version/versionCode must match).
 2. Checkout the repo **with submodules** (`packages/animu-api`, and the private
-   `packages/react-native-airwave` with the `airwave-read-token` credential).
-3. Install dependencies with pnpm — only when `pnpm-lock.yaml` changed (stamped).
+   `packages/react-native-airwave` with the `airwave-read-key` credential).
+3. Install dependencies with pnpm — when dependency configuration changes (stamped); verify both library outputs every run.
 4. `TRUST_CI`: if the CI job has a SUCCESS build for `HEAD`, the pre-release
    checks are skipped; otherwise they run (typecheck, lint, tests, React Doctor).
 5. `expo prebuild --platform android` — only when `app.json` / `plugins` /
@@ -92,31 +92,40 @@ The Proxima Nova fonts are gitignored. For releases they are staged on the
 Jenkins host at `~/.animu-secrets/fonts/` and copied into `src/assets/fonts/`
 by the pipeline. See [Development → Fonts](DEVELOPMENT.md#fonts).
 
-### `packages/animu-api`
+### Shared submodule builds
 
-`packages/animu-api` is a git submodule consumed as a `file:` dependency
-(symlinked into `node_modules`). Its `dist/` (ESM + CJS) is built during
-`pnpm install` (pnpm runs the package's `prepublishOnly` script).
+Both `animu-api` and `react-native-airwave` are pinned Git submodules consumed
+through `link:packages/<name>`. Their canonical repositories are
+[RadioAnimu/animu-api](https://github.com/RadioAnimu/animu-api) and the private
+[rmotafreitas/react-native-airwave](https://github.com/rmotafreitas/react-native-airwave).
 
-The library also has its own Jenkins job — **`animu-api`**
-([RadioAnimu/animu-api](https://github.com/RadioAnimu/animu-api), `Jenkinsfile`)
-— which typechecks, tests, builds, and archives `animu-api-dist.tar.gz` for each
-commit.
+`pnpm install` runs `scripts/prepare-submodules.mjs` for both libraries. It
+reuses output only when the source tree is clean, the commit matches, and the
+output digest matches its local stamp. When Jenkins credentials are available,
+it first looks for a successful library build at that exact commit:
 
-The mobile release rebuilds `packages/animu-api` **only when the pinned
-submodule commit changed**. When it does, it first tries to download the
-prebuilt `dist/` from the `animu-api` job for that exact commit
-(`scripts/fetch-animu-api-dist.mjs`) and falls back to building from source if
-no successful build exists yet. An unchanged pin reuses the existing `dist/`.
+| Library | Jenkins job | Artifact | Output used |
+| --- | --- | --- | --- |
+| API | `Animu/animu-api` | `animu-api-dist.tar.gz` | `dist/` |
+| Airwave | `Animu/react-native-airwave` | `react-native-airwave.tgz` | `lib/` |
 
-### `packages/react-native-airwave`
+Unavailable or invalid artifacts cause a source build with the library's
+lockfile and package manager in a temporary isolated directory. Downloads have
+time/size bounds; archive links and traversal are rejected. Local edits always
+build from the current worktree and are never stamped as a clean commit.
+Airwave's native sources still compile within the app's Gradle/Xcode build;
+compiled native binaries cannot be reused across arbitrary app configurations.
 
-The audio player is a private git submodule consumed from source (see
-[Development → Player library](DEVELOPMENT.md#player-library-react-native-airwave)):
-Gradle compiles its `android/` and Metro bundles its `src/`, so a pin change
-needs neither a reinstall nor a prebuild. Its own Jenkins job
-(`Jenkinsfile` in the Airwave repository) runs lint, typecheck and tests, and
-archives the npm package (`react-native-airwave.tgz`) for each commit.
+`check:animu-api` and `check:airwave` validate the actual pinned worktrees in
+isolated installs. Airwave runs lint, typecheck, coverage thresholds and package
+build; API runs typecheck, tests and both module builds. Neither deletes a
+local developer install nor exposes another React Native to Metro.
+
+Private checkout uses a read-only repository deploy key: GitHub Actions secret
+`AIRWAVE_SSH_KEY`, Jenkins SSH credential `airwave-read-key`. GitHub host keys
+are pinned in `scripts/github-known-hosts` (GitHub's HTTPS `/meta` API). Jenkins
+SCM must leave submodule initialization to `scripts/init-submodules.sh`; an
+unauthenticated automatic checkout fails before the pipeline can bind the key.
 
 ### expo-dev-client in release builds
 

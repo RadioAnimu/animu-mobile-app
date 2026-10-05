@@ -1,0 +1,10 @@
+#!/usr/bin/env node
+import { isolated, libraries } from "./submodules.mjs";
+const name = process.argv[2];
+if (!libraries[name]) throw new Error(`Unknown submodule: ${name}`);
+isolated(name, (_dir, run) => {
+  if (name === "react-native-airwave") run("lint", "--max-warnings", "0");
+  run("typecheck");
+  run(name === "react-native-airwave" ? "test:coverage" : "test");
+  run(name === "react-native-airwave" ? "prepare" : "build");
+});

@@ -20,14 +20,14 @@ project-specific gotchas.
 
 ```bash
 git clone --recurse-submodules https://github.com/RadioAnimu/animu-mobile-app.git
-# already cloned? git submodule update --init --remote
+# already cloned? git submodule update --init --recursive
 
-pnpm install       # builds animu-api
+pnpm install       # prepares both pinned libraries
 ```
 
-`pnpm install` builds the `animu-api` submodule (pnpm runs its
-`prepublishOnly` script for the workspace package; `pnpm run build:api` does
-the same by hand).
+`pnpm install` prepares both linked submodules from matching Jenkins artifacts
+or isolated source builds. See [shared submodule builds](BUILD_AND_RELEASE.md#shared-submodule-builds).
+Use `pnpm run build:api` / `pnpm run build:airwave` to prepare either manually.
 
 > **Why `node-linker=hoisted`?** React Native/Expo need a flat `node_modules`;
 > pnpm's default isolated linking breaks Metro resolution and native module
@@ -116,15 +116,14 @@ walk-through.
 Playback uses `react-native-airwave`, the git submodule at
 `packages/react-native-airwave` ([rmotafreitas/react-native-airwave](https://github.com/rmotafreitas/react-native-airwave),
 a **private** repository: cloning it needs read access). It is consumed from
-source, with no build step:
+compiled JavaScript and pinned native source:
 
 - `link:` dependency (a symlink in `node_modules`), and **not** a pnpm workspace
   member. As a member, its devDependencies (its own `react-native`, Jest, the
   example app) would be installed into the app's tree, and Metro would bundle
   two React Natives.
-- Metro and TypeScript resolve its `react-native-airwave-source` export
-  condition (`src/`); `metro.config.js` also blocks the submodule's own
-  `node_modules` and example apps.
+- Metro and TypeScript resolve the compiled `lib/` exports, prepared by
+  `pnpm install`; Metro blocks the submodule's own installs and example apps.
 - iOS/Android autolinking compile its `ios/` and `android/` directly.
 - `tsc`, Vitest, ESLint and React Doctor skip the submodule's own project
   (`react-doctor.config.json` selects the app). It has its own CI; run its
@@ -154,7 +153,7 @@ which authenticates to the private repository with `AIRWAVE_READ_TOKEN` when
 set. After pulling, run:
 
 ```bash
-git submodule update --init --remote
+git submodule update --init --recursive
 pnpm run build:api
 ```
 
@@ -185,7 +184,7 @@ push to `main` and on pull requests:
 The private Airwave submodule needs a read-only token in CI: a fine-grained
 personal access token with **Contents: read** on `rmotafreitas/react-native-airwave`,
 stored as the GitHub Actions secret `AIRWAVE_READ_TOKEN` and as the Jenkins
-Secret text credential `airwave-read-token` (used by the CI, release and
+SSH credential `airwave-read-key` (used by the CI, release and
 SonarQube jobs).
 
 `pnpm run check:audit` ignores two advisories with no fixed release, both in

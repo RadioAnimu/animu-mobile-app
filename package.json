@@ -7,14 +7,14 @@
     "android": "expo run:android",
     "ios": "expo run:ios",
     "install:apk": "adb uninstall com.nessjs.animu; adb install $(ls -t dist/*.apk 2>/dev/null | head -1)",
-    "lint": "expo lint",
+    "lint": "expo lint -- --max-warnings 0",
     "typecheck": "tsc --noEmit",
     "check:expo-deps": "expo install --check",
     "check:expo-doctor": "expo-doctor",
     "check:audit": "pnpm audit --audit-level high",
-    "check:animu-api": "pnpm --dir packages/animu-api run typecheck && pnpm --dir packages/animu-api test",
-    "check:airwave": "bash scripts/check-airwave.sh",
-    "build:api": "pnpm --dir packages/animu-api run build",
+    "check:animu-api": "node scripts/check-submodule.mjs animu-api",
+    "check:airwave": "node scripts/check-submodule.mjs react-native-airwave",
+    "build:api": "node scripts/prepare-submodules.mjs animu-api",
     "fonts": "node scripts/fetch-fonts.mjs",
     "eas-build-pre-install": "node scripts/fetch-fonts.mjs",
     "splash": "node scripts/generate-splash.mjs",
@@ -22,7 +22,10 @@
     "test:coverage": "vitest run --coverage",
     "doctor": "react-doctor",
     "doctor:gate": "node scripts/react-doctor-gate.mjs",
-    "check:bundle-size": "node scripts/check-bundle-size.mjs"
+    "check:bundle-size": "node scripts/check-bundle-size.mjs",
+    "postinstall": "node scripts/prepare-submodules.mjs",
+    "build:airwave": "node scripts/prepare-submodules.mjs react-native-airwave",
+    "test:tooling": "node --test scripts/__tests__/*.test.mjs"
   },
   "dependencies": {
     "@react-native-async-storage/async-storage": "2.2.0",
@@ -30,7 +33,7 @@
     "@react-navigation/drawer": "^7.14.2",
     "@react-navigation/native": "^7.4.1",
     "@react-navigation/native-stack": "^7.19.2",
-    "animu-api": "file:packages/animu-api",
+    "animu-api": "link:packages/animu-api",
     "expo": "~57.0.26",
     "expo-apple-authentication": "~57.0.2",
     "expo-application": "~57.0.3",
@@ -83,7 +86,8 @@
     "react-doctor": "^0.9.14",
     "react-dom": "19.2.3",
     "typescript": "~6.0.3",
-    "vitest": "^5.0.2"
+    "vitest": "^5.0.2",
+    "tar": "7.5.22"
   },
   "overrides": {
     "uuid": "^11.1.1"

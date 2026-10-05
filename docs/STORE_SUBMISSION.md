@@ -118,5 +118,5 @@ user has an account with us"); leave the remaining categories "NO".
       collected" today — inaccurate; answer from the table in the Play doc)
 - [ ] **Data deletion** web URL set in Play Console
 - [ ] Content rating questionnaire answered
-- [ ] `versionCode` bumped (currently 15)
+- [ ] `versionCode` bumped (currently 16)
 - [ ] Target API 36 / foreground service `mediaPlayback` (already configured)

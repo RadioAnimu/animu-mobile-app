@@ -12,7 +12,7 @@ export default defineConfig({
   test: {
     clearMocks: true,
     // The Airwave submodule has its own (Jest) suite: `pnpm check:airwave`.
-    exclude: [...configDefaults.exclude, "packages/react-native-airwave/**"],
+    exclude: [...configDefaults.exclude, "packages/react-native-airwave/**", "scripts/__tests__/**"],
     // Jenkins' `junit` step picks up junit.xml; without a reporter it would
     // silently publish nothing.
     reporters: process.env.CI

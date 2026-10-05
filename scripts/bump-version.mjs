@@ -56,7 +56,7 @@ if (bump === "versionCode") {
 if (versionOverride) bumped.version = versionOverride;
 if (codeOverride) bumped.versionCode = Number(codeOverride);
 
-if (!bumped.version || !Number.isInteger(bumped.versionCode) || bumped.versionCode < 1) {
+if (!/^\d+\.\d+\.\d+$/.test(bumped.version) || !Number.isSafeInteger(bumped.versionCode) || bumped.versionCode < 1 || bumped.versionCode > 2100000000) {
   console.error(`[bump] refusing invalid version/versionCode: ${JSON.stringify(bumped)}`);
   process.exit(1);
 }

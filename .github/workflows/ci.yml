@@ -19,10 +19,13 @@ jobs:
     steps:
       - uses: actions/checkout@v5
         with:
-          submodules: recursive
-          # react-native-airwave is a private submodule: AIRWAVE_READ_TOKEN is
-          # a read-only token for it (the public repos need none).
-          token: ${{ secrets.AIRWAVE_READ_TOKEN || github.token }}
+          persist-credentials: false
+
+      - name: Initialize pinned submodules
+        env:
+          AIRWAVE_SSH_KEY: ${{ secrets.AIRWAVE_SSH_KEY }}
+          AIRWAVE_READ_TOKEN: ${{ secrets.AIRWAVE_READ_TOKEN }}
+        run: bash scripts/init-submodules.sh
 
       - uses: pnpm/action-setup@v4
 
@@ -33,6 +36,9 @@ jobs:
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+
+      - name: Tooling regression tests
+        run: pnpm run test:tooling
 
       - name: Typecheck
         run: pnpm run typecheck
@@ -53,7 +59,7 @@ jobs:
         run: pnpm run check:audit
 
       - name: Lint
-        run: pnpm exec expo lint
+        run: pnpm run lint
 
       - name: Test (with coverage)
         run: pnpm test:coverage
@@ -78,6 +84,9 @@ jobs:
       # (TypeScript can't catch these — asset modules are declared by wildcard).
       - name: Bundle smoke test
         run: pnpm exec expo export:embed --platform android --entry-file index.js --bundle-output /tmp/index.android.bundle --assets-dest /tmp/animu-assets --dev false
+
+      - name: Bundle size budget
+        run: node scripts/check-bundle-size.mjs /tmp/index.android.bundle 3500000 /tmp/animu-assets 2000000
 
       # Fails the build on any React Doctor finding.
       # Advisory PR feedback lives in react-doctor.yml; this is the hard gate.

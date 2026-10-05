@@ -41,15 +41,14 @@ pipeline {
           ).trim()
           if (code != '200') {
             echo "SonarQube is not running (HTTP ${code}) — skipping analysis."
-            currentBuild.result = 'NOT_BUILT'
-            return
+            error("SonarQube is unavailable; required analysis did not run")
           }
 
           checkout scm
           // Coverage feeds the analysis (sonar.javascript.lcov.reportPaths).
           // Same toolchain as the release job: host Node + corepack-pinned pnpm.
-          // The private Airwave submodule needs the `airwave-read-token` credential.
-          withCredentials([string(credentialsId: 'airwave-read-token', variable: 'AIRWAVE_READ_TOKEN')]) {
+          // The private Airwave submodule needs the `airwave-read-key` credential.
+          withCredentials([sshUserPrivateKey(credentialsId: 'airwave-read-key', keyFileVariable: 'AIRWAVE_SSH_KEY_FILE')]) {
             sh '''
               set -eux
               bash scripts/init-submodules.sh
@@ -69,11 +68,13 @@ pipeline {
 
             # qualitygate.wait makes the build fail when the quality gate fails,
             # instead of only uploading the report.
+            set +x
+            export SONAR_TOKEN="$(cat "$TOKEN_FILE")"
             docker run --rm \
               --network host \
               -v "$WORKSPACE:/usr/src" \
               -w /usr/src \
-              -e SONAR_TOKEN="$(cat "$TOKEN_FILE")" \
+              -e SONAR_TOKEN \
               -e SONAR_USER_HOME=/tmp/.sonar \
               sonarsource/sonar-scanner-cli \
               -Dsonar.host.url=http://localhost:9001 \

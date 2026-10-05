@@ -1,23 +1,28 @@
 #!/usr/bin/env bash
-# Checks out the git submodules: packages/animu-api (public) and
-# packages/react-native-airwave (a private repository).
-#
-# CI sets AIRWAVE_READ_TOKEN (a read-only token for the Airwave repository):
-# git then authenticates through a one-shot credential helper, so the token
-# never lands in a URL, the console log or .git/config. Without it, your own
-# git credentials are used.
+# Pinned checkouts, with read-only authentication scoped to the private library.
 set -euo pipefail
 cd "$(dirname "$0")/.."
-
-if [ -n "${AIRWAVE_READ_TOKEN:-}" ]; then
-  # The empty helper first clears any configured helper (keychain, store).
-  # Single quotes: the helper's shell expands the variable, not this one.
+git submodule sync --recursive
+if [ -n "${AIRWAVE_SSH_KEY:-}${AIRWAVE_SSH_KEY_FILE:-}" ]; then
+  task_key_dir=$(mktemp -d)
+  trap 'rm -rf "$task_key_dir"' EXIT
+  chmod 700 "$task_key_dir"
+  if [ -n "${AIRWAVE_SSH_KEY_FILE:-}" ]; then
+    cp "$AIRWAVE_SSH_KEY_FILE" "$task_key_dir/key"
+  else
+    printf '%s\n' "$AIRWAVE_SSH_KEY" > "$task_key_dir/key"
+  fi
+  chmod 600 "$task_key_dir/key"
+  export GIT_SSH_COMMAND="ssh -i '$task_key_dir/key' -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile='$PWD/scripts/github-known-hosts'"
+  git -c url.git@github.com:rmotafreitas/react-native-airwave.git.insteadOf=https://github.com/rmotafreitas/react-native-airwave.git \
+    submodule update --init --recursive
+elif [ -n "${AIRWAVE_READ_TOKEN:-}" ]; then
   git -c credential.helper= \
     -c 'credential.helper=!f() { echo username=x-access-token; echo "password=${AIRWAVE_READ_TOKEN}"; }; f' \
     submodule update --init --recursive
 else
   git submodule update --init --recursive
 fi
-
-test -f packages/animu-api/package.json || { echo "animu-api submodule missing" >&2; exit 1; }
-test -f packages/react-native-airwave/package.json || { echo "react-native-airwave submodule missing" >&2; exit 1; }
+for name in animu-api react-native-airwave; do
+  test -f "packages/$name/package.json" || { echo "$name submodule missing" >&2; exit 1; }
+done
