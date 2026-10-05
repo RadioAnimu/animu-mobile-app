@@ -25,8 +25,9 @@ git clone --recurse-submodules https://github.com/RadioAnimu/animu-mobile-app.gi
 pnpm install       # builds animu-api
 ```
 
-`pnpm install` runs `postinstall`, which builds the `animu-api` submodule when
-needed (`pnpm run build:api`).
+`pnpm install` builds the `animu-api` submodule (pnpm runs its
+`prepublishOnly` script for the workspace package; `pnpm run build:api` does
+the same by hand).
 
 > **Why `node-linker=hoisted`?** React Native/Expo need a flat `node_modules`;
 > pnpm's default isolated linking breaks Metro resolution and native module

@@ -95,8 +95,8 @@ by the pipeline. See [Development → Fonts](DEVELOPMENT.md#fonts).
 ### `packages/animu-api`
 
 `packages/animu-api` is a git submodule consumed as a `file:` dependency
-(symlinked into `node_modules`). Its `dist/` (ESM + CJS) is built by the app's
-`postinstall` hook.
+(symlinked into `node_modules`). Its `dist/` (ESM + CJS) is built during
+`pnpm install` (pnpm runs the package's `prepublishOnly` script).
 
 The library also has its own Jenkins job — **`animu-api`**
 ([RadioAnimu/animu-api](https://github.com/RadioAnimu/animu-api), `Jenkinsfile`)
