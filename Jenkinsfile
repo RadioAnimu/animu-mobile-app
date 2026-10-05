@@ -45,6 +45,8 @@ pipeline {
           sh '''
           set -eux
           git config --global --add safe.directory "$WORKSPACE"
+          git config --global --add safe.directory "$WORKSPACE/packages/animu-api"
+          git config --global --add safe.directory "$WORKSPACE/packages/react-native-airwave"
           bash scripts/init-submodules.sh
           corepack enable
           echo "node $(node --version) / pnpm $(pnpm --version)"
