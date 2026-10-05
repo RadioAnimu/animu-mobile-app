@@ -39,6 +39,28 @@ module.exports = defineConfig([
       // The Airwave submodule has its own ESLint config and CI.
       "packages/react-native-airwave/**",
     ],
+    settings: {
+      "import/resolver": {
+        // The Airwave submodule is consumed from source (no lib/ build): its
+        // `react-native-airwave-source` export condition, as in tsconfig.json
+        // and metro.config.js, then the resolver's defaults.
+        typescript: {
+          conditionNames: [
+            "react-native-airwave-source",
+            "types",
+            "import",
+            "esm2020",
+            "es2020",
+            "es2015",
+            "require",
+            "node",
+            "node-addons",
+            "browser",
+            "default",
+          ],
+        },
+      },
+    },
     rules: {
       // Expo SDK 57's config enables the React Compiler lint rules, including
       // `react-hooks/refs` (kept on). `set-state-in-effect` is off: the app
