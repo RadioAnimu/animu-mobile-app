@@ -129,6 +129,10 @@ No critical finding identified in the inspected code and executed checks.
   have explicit exceptions. Both are compiled in the verified Android/iOS app;
   the player also has mandatory independent native/JS gates. This is a registry
   metadata gap, not proof of incompatibility. Newly unknown packages now fail.
+- **Local SDK metadata tooling mismatch — fixed.** Command-line tools 19 could
+  not fully read the SDK's XML v4 metadata. Tools 23 now occupy the correct
+  `latest` directory; the old version is retained separately. The installed SDK
+  metadata check passes without the XML warning and recognizes the 16 KB image.
 
 - **Incorrect icon file extension — fixed.** Expo wrote PNG bytes as `.webp`.
   Generation now renames only confirmed PNG launcher resources, retaining bytes
@@ -167,6 +171,22 @@ No critical finding identified in the inspected code and executed checks.
 - Expo’s managed-version check intentionally excludes WebView and view-shot;
   these selected versions are validated by native builds rather than asserted
   compatible solely through a green dependency check.
+- Independent `jarsigner` verification reports a valid AAB signature. Its
+  certificate-chain/self-signed warnings reflect the Android upload identity;
+  the timestamp warning concerns certificate expiry in 2050. Gradle places the
+  JAR manifest last, so streaming `JarInputStream` verification cannot discover
+  it first; ZIP/JarFile verification succeeds. The AAB has no symlinks. The APK
+  separately verifies with Android v2/v3 signatures; min SDK 24 needs no v1
+  signature, and SourceStamp/v4 are not prerequisites for this direct artifact.
+- A naive RELRO-end modulus check flagged padding in 37 native libraries.
+  Inspection of all 46 RELRO segments found no writable data overlapping the
+  rounded protection range. Bionic's page-rounding behavior and the 16 KB runtime
+  test support this disposition; no blanket rebuild or suppression was applied.
+- AltStore feeds continue to describe the published 2.0.5 release. All 19 listed
+  download/variant URLs match existing release assets. PAL's size matches an IPA
+  variant, as specified by AltStore, rather than the small manifest JSON file.
+  New iOS feed metadata/permissions must be generated from the eventual signed
+  3.0.0 export; the existing feed was not falsely advanced or republished.
 
 ## Validation scope and evidence
 
@@ -194,13 +214,36 @@ No critical finding identified in the inspected code and executed checks.
   selection, native media controls/pause, background playback, network-loss
   buffering and recovery, and the assistant play deep link were exercised.
   Expected offline DNS errors were handled; no fatal application crash appeared.
-  The emulator uses 4 KB pages, so ELF/ZIP checks do not substitute for a physical
-  16 KB device test. Existing development-signed emulator data was preserved.
+  Existing development-signed emulator data was preserved.
+- Final signed Jenkins #15 APK also installed and launched on a separate Android
+  36 ARM64 **16 KB emulator** (`getconf PAGE_SIZE = 16384`, page-size compatibility
+  fallback disabled). Live MP3/AAC, background playback, media pause, simulated
+  incoming-call pause/recovery, native audio-track activation, and an empty crash
+  buffer verify actual runtime compatibility. Physical-device coverage remains
+  separate from this emulator evidence.
 - iOS: Release simulator build and unsigned ARM64 device archive with iOS 27 SDK;
   archive inspection found 14 privacy manifests, audio background mode, add-only
   Photos disclosure, and arbitrary-load networking disabled. Anonymous live radio,
   metadata, quality selection (AAC 64 / MP3 320), and pause were exercised in the
   simulator. This is not distribution-signing or App Store Connect validation.
+
+The final engineering revision is `8ca7034` (submodule pins above). It passed
+fresh-checkout GitHub CI and clean dependency-install Jenkins CI; the signed
+release re-ran all pre-release checks with `TRUST_CI=false`. Output cleanup before
+validation and success-only archiving were verified in the actual release log.
+Downloaded final AAB/APK checksums, bundle validation, manifest/ELF validation,
+ZIP alignment and cryptographic signatures were independently checked again.
+
+| Pipeline | Verified run |
+| --- | --- |
+| Jenkins application CI | [#54 — success](http://100.96.182.112:8081/job/Animu/job/animu-mobile-app/54/) |
+| Jenkins signed Android release | [#15 — success and artifacts](http://100.96.182.112:8081/job/Animu/job/animu-mobile-app-release/15/) |
+| Jenkins SonarQube | [#15 — success](http://100.96.182.112:8081/job/Animu/job/animu-sonar/15/) |
+| GitHub CI | [37403492436 — success](https://github.com/RadioAnimu/animu-mobile-app/actions/runs/37403492436) |
+| GitHub CodeQL | [37403492508 — success](https://github.com/RadioAnimu/animu-mobile-app/actions/runs/37403492508) |
+| GitHub React Doctor | [37403492541 — success](https://github.com/RadioAnimu/animu-mobile-app/actions/runs/37403492541) |
+| API GitHub CI / Jenkins | [37397636243](https://github.com/RadioAnimu/animu-api/actions/runs/37397636243) / [#23](http://100.96.182.112:8081/job/Animu/job/animu-api/23/) — success |
+| Player GitHub CI / Jenkins | [37397639587](https://github.com/rmotafreitas/react-native-anything-player/actions/runs/37397639587) / [#4](http://100.96.182.112:8081/job/Animu/job/react-native-anything-player/4/) — success |
 
 ## Remaining Android lint warnings
 
@@ -226,7 +269,7 @@ The repaired full lint report has **0 errors / 26 warnings**:
 | Live authentication/account deletion | Need disposable account and verification of backend behavior, not just mocked responses. | Full production assessment: yes |
 | Music/artwork/font rights, review account, content ratings, FGS console declaration | Require owner attestations and current console information. Do not infer rights or current questionnaires from code. | Yes where required |
 | Build-number availability | Current version 3.0.0, Android code 16, iOS build 6; compare against uploaded builds before choosing next values. | If already used |
-| Physical-device/large-screen/interruption coverage | Simulator/emulator checks do not prove Bluetooth, calls, car integration, Android 16 KB runtime, or iPad compatibility. | Release verification remains incomplete |
+| Physical-device/large-screen/interruption coverage | 16 KB emulator and simulated-call checks pass; actual Bluetooth/phone/car devices, tablet/foldable layout and iPad compatibility still need verification. | Release verification remains incomplete |
 | Unpatched build-tool findings | Track upstream fixes; keep scoped gates and input assumptions under review. | No demonstrated mobile runtime blocker; security debt remains |
 | Jenkins password rotation | Owner must rotate the disclosed credential and review access. | Operational security remediation |
 
@@ -242,3 +285,6 @@ Authoritative references checked during this audit:
 [Apple SDK minimum](https://developer.apple.com/news/?id=ueeok6yw),
 [Google account deletion](https://support.google.com/googleplay/android-developer/answer/13327111),
 [current public Play declaration](https://play.google.com/store/apps/details?id=com.nessjs.animu).
+Additional warning dispositions use [Android signing documentation](https://developer.android.com/studio/publish/app-signing),
+[Bionic ELF/RELRO protection code](https://android.googlesource.com/platform/bionic/+/refs/heads/main/linker/linker_phdr.cpp),
+and [AltStore source metadata specifications](https://faq.altstore.io/developers/make-a-source).
