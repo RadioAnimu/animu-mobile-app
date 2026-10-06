@@ -68,6 +68,11 @@ CI runs in the Node container; release builds run on the
    `RELEASE_NOTES.md`.
 10. Optionally create the GitHub release and upload the artifacts.
 
+The universal APK uses the upload key. Google Play App Signing may use a
+different app-signing key, so matching APK/AAB upload signatures do not prove
+that the APK can update a Play-installed app. Verify the channel's certificate
+in Play Console before promising cross-channel updates.
+
 ### Signing (Play uploads)
 
 The Play upload keystore is stored in the Jenkins `android-upload-keystore`

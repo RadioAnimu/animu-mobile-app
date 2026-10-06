@@ -8,6 +8,16 @@ import zipfile
 ANDROID = "{http://schemas.android.com/apk/res/android}"
 
 
+def media_playback_type(value):
+    # bundletool renders typed Android flag attributes as hexadecimal integers.
+    if "mediaPlayback" in value.split("|"):
+        return True
+    try:
+        return bool(int(value, 0) & 0x2)
+    except ValueError:
+        return False
+
+
 def validate_manifest(manifest, config):
     expected = config["expo"]
     if manifest.get("package") != expected["android"]["package"]:
@@ -31,7 +41,7 @@ def validate_manifest(manifest, config):
     permissions = {entry.get(ANDROID + "name") for entry in manifest.findall("uses-permission")}
     if permissions & blocked:
         raise ValueError("Blocked permission found in merged release manifest")
-    if not any("mediaPlayback" in service.get(ANDROID + "foregroundServiceType", "").split("|")
+    if not any(media_playback_type(service.get(ANDROID + "foregroundServiceType", ""))
                for service in app.findall("service")):
         raise ValueError("Background playback service declaration missing")
 

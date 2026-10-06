@@ -42,6 +42,16 @@ class ManifestTests(unittest.TestCase):
     def test_accepts_release_defaults(self):
         artifact.validate_manifest(self.manifest, self.config)
 
+    def test_understands_compiled_service_flags_without_accepting_other_types(self):
+        service = self.manifest.find("application/service")
+        for flag in ["0x00000002", "0x00000003", "2"]:
+            service.set(artifact.ANDROID + "foregroundServiceType", flag)
+            artifact.validate_manifest(self.manifest, self.config)
+        for flag in ["0x00000001", "camera", "", "unknown"]:
+            service.set(artifact.ANDROID + "foregroundServiceType", flag)
+            with self.assertRaises(ValueError):
+                artifact.validate_manifest(self.manifest, self.config)
+
     def test_rejects_debug_test_and_cleartext_configuration(self):
         app = self.manifest.find("application")
         for attribute in ["debuggable", "testOnly", "usesCleartextTraffic"]:

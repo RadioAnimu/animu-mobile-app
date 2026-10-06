@@ -160,7 +160,9 @@ No critical finding identified in the inspected code and executed checks.
   The release pipeline additionally verifies AAB format, configured package/
   versions/target SDK, absence of debug/test/cleartext flags and blocked permissions,
   the media-playback service, 64-bit ELF alignment, bundle 16 KB packaging,
-  APK zip alignment, and matching non-debug upload signatures. Seven artifact
+  APK zip alignment, and matching non-debug upload signatures. Play App Signing
+  can use a different certificate; upload signatures alone do not prove APK
+  update compatibility with the Play-installed channel. Eight artifact
   validator tests reject unsafe flags, leaked permissions, and incompatible ELF.
 - iOS: Release simulator build and unsigned ARM64 device archive with iOS 27 SDK;
   archive inspection found 14 privacy manifests, audio background mode, add-only

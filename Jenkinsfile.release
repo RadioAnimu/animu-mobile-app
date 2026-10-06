@@ -391,7 +391,8 @@ pipeline {
 
     // Derive the universal APK from the AAB with bundletool instead of running
     // a second Gradle build. Signing uses the same upload keystore, so the APK
-    // carries the same signer as the AAB/Play and stays updatable.
+    // carries the upload signer. Play may re-sign with a different app key;
+    // direct-install APKs then update only the same direct-install channel.
     stage('Derive universal APK from AAB') {
       agent { label 'animu-android-native' }
       steps {
