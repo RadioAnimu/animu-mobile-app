@@ -6,6 +6,7 @@ import { CodeInput, CODE_LENGTH } from "@/components/CodeInput";
 import { PrimaryButton } from "@/components/PrimaryButton";
 import type { EmailCodeFlow } from "@/hooks/useEmailCodeFlow";
 import { useDict } from "@/hooks/useDict";
+import { useInputVisibility } from "@/contexts/Portal/InputVisibilityContext";
 import { useFocusOnMount } from "@/hooks/useFocusOnMount";
 import { THEME } from "@/theme";
 import { styles } from "@/components/EmailCodeFields/styles";
@@ -39,10 +40,13 @@ export function EmailCodeFields({
   const [focused, setFocused] = useState(false);
   const emailRef = useRef<TextInput | null>(null);
 
+  const reveal = useInputVisibility();
+  const [hasEnteredCode, setHasEnteredCode] = useState(false);
   const onCodeStep = flow.step === "code";
   const { code, busy, verify } = flow;
 
-  useFocusOnMount(emailRef, autoFocusEmail && !onCodeStep);
+  if (onCodeStep && !hasEnteredCode) setHasEnteredCode(true);
+  useFocusOnMount(emailRef, !onCodeStep && (autoFocusEmail || hasEnteredCode));
 
   // A complete 4-digit code has no reason to wait for a second tap, so submit
   // as soon as the last box fills. The ref fires once per complete entry
@@ -81,12 +85,13 @@ export function EmailCodeFields({
             // The keyboard's send key is a shortcut for the visible button
             // below, and stays grayed out until something is typed.
             returnKeyType="send"
+            submitBehavior="submit"
             enablesReturnKeyAutomatically
             accessibilityLabel={dict.LOGIN_EMAIL}
             accessibilityState={{ busy: flow.busy }}
             placeholder={dict.LOGIN_EMAIL_PLACEHOLDER}
             placeholderTextColor={THEME.COLORS.TEXT_DIM}
-            onFocus={() => setFocused(true)}
+            onFocus={() => { setFocused(true); reveal(emailRef.current); }}
             onBlur={() => setFocused(false)}
             onSubmitEditing={flow.sendCode}
           />

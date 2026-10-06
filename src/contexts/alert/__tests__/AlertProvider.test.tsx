@@ -29,13 +29,15 @@ vi.mock("react-native", () => {
     // Like the real Modal: nothing is mounted while not visible.
     Modal: ({ visible, children }: { visible: boolean; children: React.ReactNode }) =>
       visible ? React.createElement("div", { role: "dialog" }, children) : null,
-    KeyboardAvoidingView: passthrough("div"),
+    Keyboard: { dismiss: vi.fn(), isVisible: vi.fn(() => false) },
+    ScrollView: passthrough("div"),
     View: passthrough("div"),
     Text: passthrough("span"),
     TouchableOpacity: passthrough("button"),
   };
 });
 
+vi.mock("@/hooks/useKeyboardPadding", () => ({ useKeyboardPadding: () => 0 }));
 vi.mock("expo-image", () => ({
   Image: ({ source }: { source: unknown }) =>
     React.createElement("img", { "data-source": String(source), alt: "" }),
@@ -130,41 +132,20 @@ describe("AlertProvider", () => {
     );
   });
 
-  it("auto-dismisses after 3 seconds", () => {
+  it("keeps an acknowledgment dialog open until the user dismisses it", () => {
     renderProvider();
     fireEvent.click(screen.getByText("success"));
-
-    act(() => {
-      vi.advanceTimersByTime(2_999);
-    });
+    act(() => { vi.advanceTimersByTime(30_000); });
     expect(screen.getByRole("dialog")).toBeTruthy();
-    act(() => {
-      vi.advanceTimersByTime(1);
-    });
-    expect(screen.queryByRole("dialog")).toBeNull();
   });
 
-  it("a second alert replaces the first and is not cut short by the first's timer", () => {
+  it("a second alert replaces the first without stacking dialogs", () => {
     renderProvider();
     fireEvent.click(screen.getByText("success"));
-    act(() => {
-      vi.advanceTimersByTime(2_000);
-    });
     fireEvent.click(screen.getByText("error"));
-
     expect(screen.queryByText("Saved!")).toBeNull();
     expect(screen.getByText("Boom")).toBeTruthy();
-
-    // The first timer would have fired at 3s (1s from now); the second must
-    // live a full 3s from ITS start.
-    act(() => {
-      vi.advanceTimersByTime(2_999);
-    });
-    expect(screen.getByText("Boom")).toBeTruthy();
-    act(() => {
-      vi.advanceTimersByTime(1);
-    });
-    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(screen.getAllByRole("dialog")).toHaveLength(1);
   });
 
   it("closes from the OK and close buttons", () => {

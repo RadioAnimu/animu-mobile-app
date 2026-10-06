@@ -61,7 +61,7 @@ const TRANSPORT: Record<PlaybackState, TransportState> = {
   paused: "paused",
   reconnecting: "reconnecting",
   ended: "paused",
-  error: "paused",
+  error: "error",
 };
 
 /**
@@ -381,7 +381,7 @@ export class PlayerService {
   }
 
   async refreshHistory(type: HistoryType): Promise<void> {
-    await this.deps.repository.refreshHistory(type);
+    await this.deps.repository.refreshHistory(type, true);
   }
 
   // ── Native events ──

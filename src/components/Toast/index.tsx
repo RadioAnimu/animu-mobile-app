@@ -1,5 +1,5 @@
-import React, { useEffect, useMemo } from "react";
-import { Animated, StyleSheet, Text } from "react-native";
+import React, { useEffect, useMemo, useState } from "react";
+import { AccessibilityInfo, Platform, Animated, StyleSheet, Text } from "react-native";
 import { Icon } from "@/components/Icon";
 import { useReducedMotion } from "@/hooks/useReducedMotion";
 import { THEME } from "@/theme";
@@ -8,15 +8,9 @@ import { MOTION } from "@/theme/motion";
 export type ToastVariant = "success" | "error" | "info";
 
 /** Failures linger longer than confirmations — they take longer to read. */
-const TOAST_HOLD_MS: Record<ToastVariant, number> = {
-  success: 1800,
-  info: 2400,
-  error: 4000,
-};
-
 const VARIANT_STYLE = {
-  success: { icon: "check-circle", color: THEME.COLORS.BRAND },
-  info: { icon: "info", color: THEME.COLORS.TEXT_SOFT },
+  success: { icon: "check-circle", color: THEME.COLORS.SUCCESS },
+  info: { icon: "info", color: THEME.COLORS.INFO },
   error: { icon: "error", color: THEME.COLORS.ERROR },
 } as const;
 
@@ -34,7 +28,19 @@ export const Toast = React.memo(function Toast({
   variant?: ToastVariant;
   onDone?: () => void;
 }) {
-  const holdMs = TOAST_HOLD_MS[variant];
+  const [holdMs, setHoldMs] = useState(THEME.FEEDBACK.HOLD_MS[variant]);
+  useEffect(() => {
+    let alive = true;
+    const duration = THEME.FEEDBACK.HOLD_MS[variant];
+    if (Platform.OS === "android") {
+      AccessibilityInfo.getRecommendedTimeoutMillis(duration)
+        .then((recommended) => { if (alive) setHoldMs(recommended); })
+        .catch(() => {});
+    } else {
+      AccessibilityInfo.announceForAccessibility(message);
+    }
+    return () => { alive = false; };
+  }, [message, variant]);
   const progress = useMemo(() => new Animated.Value(0), []);
   const reduceMotion = useReducedMotion();
 
@@ -82,7 +88,7 @@ export const Toast = React.memo(function Toast({
         size={THEME.ICON.SM}
         color={VARIANT_STYLE[variant].color}
       />
-      <Text style={styles.text} numberOfLines={2}>
+      <Text style={styles.text}>
         {message}
       </Text>
     </Animated.View>
@@ -100,8 +106,8 @@ const styles = StyleSheet.create({
     backgroundColor: THEME.COLORS.SURFACE,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: THEME.COLORS.HAIRLINE,
-    maxWidth: "86%",
-    boxShadow: "0px 4px 8px rgba(0, 0, 0, 0.35)",
+    maxWidth: THEME.LAYOUT.FLOW_WIDTH,
+    boxShadow: THEME.ELEVATION.TOAST,
   },
   toastError: {
     borderWidth: THEME.BORDER_WIDTH.THIN,

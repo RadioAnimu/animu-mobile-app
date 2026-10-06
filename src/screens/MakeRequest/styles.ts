@@ -4,7 +4,6 @@ import { FLOW_STYLES } from "@/theme/screen";
 import { scale } from "@/theme/responsive";
 
 const INPUT_HEIGHT = THEME.LAYOUT.FIELD_HEIGHT;
-const FIELD_ICON = THEME.ICON.MD;
 
 export const styles = StyleSheet.create({
   container: FLOW_STYLES.container,
@@ -24,12 +23,12 @@ export const styles = StyleSheet.create({
     gap: THEME.SPACE.MD,
   },
   input: {
-    height: INPUT_HEIGHT,
+    minHeight: INPUT_HEIGHT,
     width: "100%",
     // The app's field recipe (see EmailCodeFields): INPUT_BG, a hairline
     // INPUT_BORDER that turns brand while focused, MD radius.
     borderRadius: THEME.RADIUS.MD,
-    borderWidth: 1,
+    borderWidth: THEME.BORDER_WIDTH.OUTLINE,
     borderColor: THEME.COLORS.INPUT_BORDER,
     backgroundColor: THEME.COLORS.INPUT_BG,
     color: THEME.COLORS.TEXT,
@@ -39,9 +38,9 @@ export const styles = StyleSheet.create({
     textAlignVertical: "center",
     includeFontPadding: false,
     paddingLeft: THEME.SPACE.LG,
-    paddingVertical: 0,
+    paddingVertical: THEME.SPACE.SM,
     // Reserves the in-field icon slot so text never runs under it.
-    paddingRight: FIELD_ICON + THEME.SPACE.LG,
+    paddingRight: THEME.LAYOUT.TOUCH_TARGET + THEME.SPACE.SM,
   },
   inputFocused: {
     borderColor: THEME.COLORS.BRAND,
@@ -54,9 +53,9 @@ export const styles = StyleSheet.create({
   fieldIcon: {
     position: "absolute",
     right: THEME.SPACE.SM,
-    top: (INPUT_HEIGHT - FIELD_ICON) / 2,
-    width: FIELD_ICON,
-    height: FIELD_ICON,
+    top: 0,
+    bottom: 0,
+    width: THEME.LAYOUT.TOUCH_TARGET,
     borderRadius: THEME.RADIUS.CIRCLE,
     alignItems: "center",
     justifyContent: "center",
@@ -79,6 +78,8 @@ export const styles = StyleSheet.create({
     fontSize: THEME.FONT_SIZE.BODY,
   },
   retryButton: {
+    minHeight: THEME.LAYOUT.TOUCH_TARGET,
+    justifyContent: "center",
     backgroundColor: THEME.COLORS.BRAND,
     borderRadius: THEME.RADIUS.SM,
     paddingHorizontal: THEME.SPACE.MD,

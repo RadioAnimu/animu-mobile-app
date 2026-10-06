@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Text, TextInput, View, type TextInputProps } from "react-native";
 
+import { useInputVisibility } from "@/contexts/Portal/InputVisibilityContext";
 import { Avatar } from "@/components/Avatar";
 import { ChatBubble } from "@/components/ChatBubble";
 import { useAuth } from "@/contexts/auth/AuthProvider";
@@ -18,7 +19,7 @@ interface Props
   /** Spoken label of the input. */
   label: string;
   user: User | null;
-  /** Submitting: dims and ignores typing, keeping focus and the keyboard. */
+  /** Submitting: ignores typing, keeping focus and the keyboard. */
   busy?: boolean;
   maxLength?: number;
 }
@@ -38,6 +39,8 @@ export function ReplyBubble({
   onSubmitEditing,
 }: Readonly<Props>) {
   const { profile } = useAuth();
+  const ref = useRef<TextInput | null>(null);
+  const reveal = useInputVisibility();
   const [focused, setFocused] = useState(false);
 
   // The stored session can predate the provider handle; the profile is fresher.
@@ -58,10 +61,10 @@ export function ReplyBubble({
           style={[
             styles.bubble,
             focused && styles.bubbleFocused,
-            busy && styles.disabled,
           ]}
         >
           <TextInput
+            ref={ref}
             style={styles.input}
             value={value}
             onChangeText={(text) => {
@@ -70,13 +73,13 @@ export function ReplyBubble({
             multiline
             maxLength={maxLength}
             placeholder={placeholder}
-            placeholderTextColor="rgba(0, 0, 0, 0.45)"
+            placeholderTextColor={THEME.COLORS.PLACEHOLDER_ON_LIGHT}
             accessibilityLabel={label}
             accessibilityState={{ busy }}
             returnKeyType="send"
             submitBehavior="submit"
             onSubmitEditing={onSubmitEditing}
-            onFocus={() => setFocused(true)}
+            onFocus={() => { setFocused(true); reveal(ref.current); }}
             onBlur={() => setFocused(false)}
           />
         </ChatBubble>

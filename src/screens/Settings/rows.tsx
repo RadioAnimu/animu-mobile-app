@@ -8,6 +8,8 @@ import {
   RowBody,
   type MaterialIconName,
 } from "@/components/ListRow";
+import { useReducedMotion } from "@/hooks/useReducedMotion";
+import { MOTION } from "@/theme/motion";
 import { THEME } from "@/theme";
 import type { Dict } from "@/i18n";
 import type { AuthProfile, User } from "@/core/domain/user";
@@ -97,16 +99,19 @@ interface SwitchProps {
 }
 
 function Switch({ value, disabled }: Readonly<SwitchProps>) {
+  const reducedMotion = useReducedMotion();
   const [position] = useState(() => new Animated.Value(value ? 1 : 0));
 
   useEffect(() => {
-    Animated.spring(position, {
+    if (reducedMotion) { position.setValue(value ? 1 : 0); return undefined; }
+    const animation = Animated.spring(position, {
       toValue: value ? 1 : 0,
-      speed: 30,
-      bounciness: 4,
+      ...MOTION.SPRING,
       useNativeDriver: true,
-    }).start();
-  }, [value, position]);
+    });
+    animation.start();
+    return () => animation.stop();
+  }, [value, position, reducedMotion]);
 
   const translateX = position.interpolate({
     inputRange: [0, 1],

@@ -1,3 +1,4 @@
+import { THEME } from "@/theme";
 import { Text, View } from "react-native";
 
 import type { ListenDay } from "@/core/services/listen-stats.service";
@@ -63,7 +64,7 @@ export function DayDetail({
               key={h}
               style={[
                 styles.bar,
-                { height: Math.max(2, Math.round((ms / maxHour) * 72)) },
+                { height: Math.max(THEME.CHART.BAR_MIN, Math.round((ms / maxHour) * THEME.CHART.BAR_HEIGHT)) },
                 ms > 0 && h === day.hours.indexOf(maxHour) && styles.barPeak,
               ]}
             />

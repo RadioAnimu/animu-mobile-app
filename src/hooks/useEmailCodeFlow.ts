@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { AnimuApiError } from "animu-api";
 
 import type { Dict } from "@/i18n";
@@ -58,6 +58,7 @@ export function useEmailCodeFlow(
     onVerified,
   } = options;
   const dict = useDict();
+  const inFlight = useRef(false);
   const [step, setStep] = useState<EmailCodeStep>("email");
   const [email, setEmail] = useState("");
   const [code, setCode] = useState("");
@@ -78,12 +79,13 @@ export function useEmailCodeFlow(
   }, []);
 
   const sendCode = useCallback(async () => {
-    if (busy) return;
+    if (inFlight.current) return;
     const address = email.trim();
     if (!address) {
       setError(dict.LOGIN_MISSING_FIELDS);
       return;
     }
+    inFlight.current = true;
     setBusy(true);
     setError(null);
     try {
@@ -94,10 +96,10 @@ export function useEmailCodeFlow(
     } catch (err) {
       setError(mapRequestError(err));
     } finally {
+      inFlight.current = false;
       setBusy(false);
     }
   }, [
-    busy,
     email,
     dict.LOGIN_MISSING_FIELDS,
     requestCode,
@@ -106,12 +108,13 @@ export function useEmailCodeFlow(
   ]);
 
   const verify = useCallback(async () => {
-    if (busy) return;
+    if (inFlight.current) return;
     const value = code.trim();
     if (!value) {
       setError(dict.LOGIN_MISSING_FIELDS);
       return;
     }
+    inFlight.current = true;
     setBusy(true);
     setError(null);
     try {
@@ -125,10 +128,10 @@ export function useEmailCodeFlow(
       setCode("");
       setError(mapVerifyError(err));
     } finally {
+      inFlight.current = false;
       setBusy(false);
     }
   }, [
-    busy,
     code,
     email,
     dict.LOGIN_MISSING_FIELDS,

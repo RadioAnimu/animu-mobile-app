@@ -5,12 +5,12 @@ import { hardShadow } from "@/theme/shape";
 // Same recipe as the green banner: brand fill, violet frame, hard shadow.
 export const styles = StyleSheet.create({
   button: {
+    minHeight: THEME.LAYOUT.TOUCH_TARGET,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     gap: THEME.SPACE.SM,
     marginTop: THEME.SPACE.XS,
-    marginBottom: THEME.SPACE.SM,
     paddingVertical: THEME.SPACE.MD,
     paddingHorizontal: THEME.SPACE.XL,
     borderRadius: THEME.RADIUS.LG,
@@ -23,6 +23,8 @@ export const styles = StyleSheet.create({
     opacity: THEME.OPACITY.DISABLED,
   },
   label: {
+    flexShrink: 1,
+    textAlign: "center",
     color: THEME.COLORS.SURFACE,
     fontFamily: THEME.FONT_FAMILY.BOLD,
     fontSize: THEME.FONT_SIZE.LIST,

@@ -34,6 +34,7 @@ export function ConnectActions({
         accessibilityRole="button"
         activeOpacity={THEME.OPACITY.PRESSED}
         disabled={resendLocked}
+        accessibilityState={{ disabled: resendLocked }}
         style={styles.action}
         onPress={() => {
           haptics.tap();
@@ -53,6 +54,7 @@ export function ConnectActions({
         accessibilityRole="button"
         activeOpacity={THEME.OPACITY.PRESSED}
         disabled={busy}
+        accessibilityState={{ disabled: busy }}
         style={styles.action}
         onPress={onChangeEmail}
       >
@@ -67,15 +69,20 @@ export function ConnectActions({
 const styles = StyleSheet.create({
   row: {
     flexDirection: "row",
+    flexWrap: "wrap",
     alignItems: "center",
     justifyContent: "center",
     gap: THEME.SPACE.MD,
   },
   // Text-only links: vertical padding lifts the tap area toward 44pt.
   action: {
+    minHeight: THEME.LAYOUT.TOUCH_TARGET,
+    flexShrink: 1,
+    justifyContent: "center",
     paddingVertical: THEME.SPACE.MD,
   },
   link: {
+    textAlign: "center",
     color: THEME.COLORS.TEXT_SOFT,
     fontFamily: THEME.FONT_FAMILY.BOLD,
     fontSize: THEME.FONT_SIZE.BODY,

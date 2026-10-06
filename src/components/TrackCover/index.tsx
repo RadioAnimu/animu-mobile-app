@@ -17,7 +17,7 @@ export const TrackCover = React.memo(function TrackCover() {
   // The frame stays while a cover is missing or still downloading (a title
   // heard before the station names it has none): the default cover holds
   // the square instead of the layout collapsing.
-  if (!track || !cover) {
+  if (!cover) {
     return null;
   }
 

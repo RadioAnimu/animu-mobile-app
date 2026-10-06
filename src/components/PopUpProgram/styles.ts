@@ -8,7 +8,6 @@ export const styles = StyleSheet.create({
   scrollContent: {
     alignItems: "center",
     paddingHorizontal: THEME.SPACE.LG,
-    paddingBottom: THEME.SPACE.SM,
     gap: THEME.SPACE.MD,
   },
   img: {
@@ -26,7 +25,6 @@ export const styles = StyleSheet.create({
     flexDirection: "column",
     gap: THEME.SPACE.SM,
     width: "100%",
-    paddingBottom: THEME.SPACE.XS,
   },
   label: {
     color: THEME.COLORS.TEXT,

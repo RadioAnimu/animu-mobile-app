@@ -1,6 +1,6 @@
 import { StyleSheet } from "react-native";
 import { THEME } from "@/theme";
-import { CONTENT_WIDTH, SCREEN_WIDTH, scale } from "@/theme/responsive";
+import { scale } from "@/theme/responsive";
 
 const CONTAINER_HEIGHT = scale(67);
 const VIEW_MIN_HEIGHT = scale(72);
@@ -31,14 +31,15 @@ export const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: THEME.COLORS.SURFACE,
-    width: SCREEN_WIDTH,
+    width: "100%",
     height: CONTAINER_HEIGHT,
   },
   row: {
     alignItems: "center",
     flexDirection: "row",
     justifyContent: "space-around",
-    width: CONTENT_WIDTH,
+    width: "100%",
+    maxWidth: THEME.LAYOUT.CONTENT_MAX_WIDTH,
     height: "100%",
   },
   playBtn: {

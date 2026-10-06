@@ -23,7 +23,7 @@ export const SCREEN_STYLES = StyleSheet.create({
     // The first section drops its own top margin, so this inset is the one
     // gap under the header on every page.
     paddingTop: THEME.SPACE.XXL,
-    paddingBottom: THEME.SPACE.XXXL,
+    paddingBottom: THEME.SPACE.XXL,
   },
   group: {
     backgroundColor: THEME.COLORS.SURFACE,
@@ -48,7 +48,8 @@ export const FLOW_STYLES = StyleSheet.create({
     flexDirection: "column",
     justifyContent: "center",
     alignItems: "center",
-    width: "85%",
+    width: THEME.LAYOUT.FLOW_WIDTH,
+    maxWidth: THEME.LAYOUT.CONTENT_MAX_WIDTH,
     alignSelf: "center",
   },
   listWrapper: {

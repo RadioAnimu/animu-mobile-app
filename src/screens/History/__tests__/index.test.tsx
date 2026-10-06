@@ -151,21 +151,21 @@ describe("History", () => {
   it("pull-to-refresh reloads the feed on screen", async () => {
     renderHistory("requests");
     await act(async () => void fireEvent.click(screen.getByText("pull")));
-    expect(mocks.player.refreshData).toHaveBeenCalledTimes(1);
-    expect(mocks.player.refreshHistory).not.toHaveBeenCalled();
+    expect(mocks.player.refreshHistory).toHaveBeenCalledExactlyOnceWith("requests");
+    expect(mocks.player.refreshData).not.toHaveBeenCalled();
 
     cleanup();
     renderHistory("played");
     await act(async () => void fireEvent.click(screen.getByText("pull")));
-    expect(mocks.player.refreshHistory).toHaveBeenCalledExactlyOnceWith("played");
+    expect(mocks.player.refreshHistory).toHaveBeenLastCalledWith("played");
   });
 
   it("tells the user when a refresh fails", async () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
-    mocks.player = { ...mocks.player, refreshData: vi.fn().mockRejectedValue(new Error("x")) };
+    mocks.player = { ...mocks.player, refreshHistory: vi.fn().mockRejectedValue(new Error("x")) };
     renderHistory("requests");
     await act(async () => void fireEvent.click(screen.getByText("pull")));
-    expect(mocks.toast).toHaveBeenCalledWith("Request failed");
+    expect(mocks.toast).toHaveBeenCalledWith("Request failed", "error");
     expect(screen.getByTestId("list").getAttribute("data-refreshing")).toBe("false");
     warn.mockRestore();
   });

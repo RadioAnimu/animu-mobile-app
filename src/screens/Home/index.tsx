@@ -13,6 +13,7 @@ import { Logo } from "@/components/Logo";
 import { Oscilloscope } from "@/components/Oscilloscope";
 import { PopUpProgram } from "@/components/PopUpProgram";
 import { Program } from "@/components/Program";
+import { PlaybackStatus } from "@/screens/Home/PlaybackStatus";
 import { TimeRemaining } from "@/components/TimeRemaining";
 
 // Styles
@@ -22,9 +23,7 @@ import { useScrollEndPadding } from "@/hooks/useScrollEndPadding";
 import { THEME } from "@/theme";
 
 export const Home = () => {
-  const [isModalVisible, setIsModalVisible] = useState(false);
-  const [isLiveRequestModalVisible, setIsLiveRequestModalVisible] =
-    useState(false);
+  const [sheet, setSheet] = useState<"program" | "live" | null>(null);
 
   // Re-tapping the drawer's active item scrolls this page back to the top.
   const scrollRef = useRef<ScrollView | null>(null);
@@ -36,15 +35,15 @@ export const Home = () => {
 
   // UI Handlers
   const handleOpenProgramModal = useCallback(() => {
-    setIsModalVisible(true);
+    setSheet("program");
   }, []);
 
   const handleCloseProgramModal = useCallback(() => {
-    setIsModalVisible(false);
+    setSheet(null);
   }, []);
 
   const handleLiveRequestModal = useCallback((state: boolean) => {
-    setIsLiveRequestModalVisible(state);
+    setSheet(state ? "live" : null);
   }, []);
 
   return (
@@ -52,12 +51,14 @@ export const Home = () => {
       {/* Pinned above the scroll view: an overscroll pull must never drag
           the header down and expose the artwork behind the status bar. */}
       <HeaderBar openLiveRequestModal={() => handleLiveRequestModal(true)} />
-      <ScrollView ref={scrollRef}>
+      <ScrollView ref={scrollRef} bounces={false} overScrollMode="never" contentInsetAdjustmentBehavior="never">
         <View style={styles.containerApp}>
           <View style={styles.logoAndOscilloscope}>
             <Oscilloscope />
             <Logo size={THEME.LAYOUT.LOGO_HEIGHT} />
           </View>
+
+          <PlaybackStatus />
 
           <View style={styles.listenersWrapper}>
             <Listeners />
@@ -86,12 +87,12 @@ export const Home = () => {
       </ScrollView>
 
       <LiveRequestModal
-        visible={isLiveRequestModalVisible}
+        visible={sheet === "live"}
         handleClose={() => handleLiveRequestModal(false)}
       />
 
       <PopUpProgram
-        visible={isModalVisible}
+        visible={sheet === "program"}
         handleClose={handleCloseProgramModal}
       />
     </SafeAreaView>

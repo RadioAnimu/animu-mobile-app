@@ -19,6 +19,9 @@ vi.mock("@react-native-vector-icons/material-icons/static", async () =>
 );
 vi.mock("expo-image", () => ({ Image: () => <img alt="" /> }));
 vi.mock("@/assets/success_haruka.webp", () => ({ default: 1 }));
+vi.mock("@/components/KeyboardScrollView", () => ({
+  KeyboardScrollView: ({ children }: { children: ReactNode }) => <div>{children}</div>,
+}));
 vi.mock("@/components/Sheet", () => ({
   Sheet: ({
     visible,
@@ -96,6 +99,17 @@ afterEach(() => {
 });
 
 describe("RequestBottomSheet", () => {
+  it("preserves an unsent draft for the same track, and clears it for another account", () => {
+    const props = { visible: true, track, user, onClose: vi.fn(), onSubmit: vi.fn(), onRequestSuccess: vi.fn() };
+    const { rerender } = render(<RequestBottomSheet {...props} />);
+    fireEvent.change(screen.getByLabelText("Message"), { target: { value: "Keep my draft" } });
+    rerender(<RequestBottomSheet {...props} visible={false} track={undefined} />);
+    rerender(<RequestBottomSheet {...props} />);
+    expect((screen.getByLabelText("Message") as HTMLInputElement).value).toBe("Keep my draft");
+    rerender(<RequestBottomSheet {...props} visible={false} />);
+    rerender(<RequestBottomSheet {...props} user={{ id: "another", username: "Another" } as never} />);
+    expect((screen.getByLabelText("Message") as HTMLInputElement).value).toBe("");
+  });
   it("shows the track, the requester and the optional message field", () => {
     setup();
 

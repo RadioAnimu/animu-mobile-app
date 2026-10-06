@@ -17,9 +17,11 @@ const mocks = vi.hoisted(() => ({
   navigation: { openDrawer: vi.fn(), navigate: vi.fn() },
   player: {} as Record<string, unknown>,
   backgrounded: false,
-  haptics: { tap: vi.fn() },
+  haptics: { tap: vi.fn(), error: vi.fn() },
+  toast: vi.fn(),
 }));
 
+vi.mock("@/contexts/alert/AlertProvider", () => ({ useAlert: () => ({ toast: mocks.toast }) }));
 vi.mock("@react-navigation/native", () => ({
   useNavigation: () => mocks.navigation,
 }));
@@ -46,6 +48,7 @@ vi.mock("@/hooks/useDict", () => ({
     A11Y_OPEN_MENU: "Open menu",
     A11Y_PLAY: "Play",
     A11Y_PAUSE: "Pause",
+    PLAYER_PLAYBACK_FAILED: "Unable to play",
     A11Y_MAKE_REQUEST: "Make request",
   }),
 }));
@@ -176,6 +179,7 @@ describe("HeaderBar", () => {
       await waitFor(() =>
         expect(warn).toHaveBeenCalledWith("[HeaderBar] play/pause failed:", expect.any(Error)),
       );
+      expect(mocks.toast).toHaveBeenCalledWith("Unable to play", "error");
       fireEvent.click(button());
       await waitFor(() => expect(play).toHaveBeenCalledTimes(2));
       warn.mockRestore();

@@ -71,7 +71,8 @@ export const styles = StyleSheet.create({
   method: {
     flexDirection: "row",
     alignItems: "center",
-    height: scale(48),
+    minHeight: THEME.LAYOUT.TOUCH_TARGET,
+    paddingVertical: THEME.SPACE.MD,
     paddingHorizontal: CONTENT_PADDING,
     borderRadius: THEME.RADIUS.CIRCLE,
     borderWidth: 1,
@@ -100,6 +101,8 @@ export const styles = StyleSheet.create({
     backgroundColor: THEME.COLORS.HAIRLINE,
   },
   dividerText: {
+    flexShrink: 1,
+    textAlign: "center",
     color: THEME.COLORS.TEXT_DIM,
     fontFamily: THEME.FONT_FAMILY.REGULAR,
     fontSize: THEME.FONT_SIZE.CAPTION,

@@ -14,14 +14,21 @@ export const styles = StyleSheet.create({
     backgroundColor: THEME.COLORS.SCRIM,
   },
   content: {
-    width: CONTENT_WIDTH,
+    width: "88%",
+    maxWidth: CONTENT_WIDTH,
+    maxHeight: "100%",
     backgroundColor: THEME.COLORS.SURFACE,
     alignItems: "center",
     borderRadius: THEME.RADIUS.CARD,
     ...CONTINUOUS,
     padding: THEME.SPACE.LG,
   },
+  dialogBody: { alignItems: "center" },
   closeIcon: {
+    width: THEME.LAYOUT.TOUCH_TARGET,
+    height: THEME.LAYOUT.TOUCH_TARGET,
+    alignItems: "center",
+    justifyContent: "center",
     alignSelf: "flex-end",
   },
   img: {

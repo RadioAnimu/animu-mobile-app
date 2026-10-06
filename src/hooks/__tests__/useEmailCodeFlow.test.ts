@@ -64,6 +64,21 @@ const makeOptions = () => ({
 });
 
 describe("useEmailCodeFlow", () => {
+  it("blocks double submission in the same render before busy commits", async () => {
+    let complete!: () => void;
+    const options = makeOptions();
+    options.requestCode.mockImplementation(() => new Promise<void>((resolve) => { complete = resolve; }));
+    const { result } = renderHook(() => useEmailCodeFlow(options));
+    act(() => result.current.setEmail("a@b.com"));
+    await act(async () => {
+      const first = result.current.sendCode();
+      const duplicate = result.current.sendCode();
+      expect(options.requestCode).toHaveBeenCalledTimes(1);
+      complete();
+      await Promise.all([first, duplicate]);
+    });
+    expect(result.current.step).toBe("code");
+  });
   it("rejects an empty email without calling the API", async () => {
     const options = makeOptions();
     const { result } = renderHook(() => useEmailCodeFlow(options));

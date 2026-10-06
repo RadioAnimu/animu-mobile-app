@@ -1,5 +1,6 @@
-import { useEffect, type RefObject } from "react";
+import { useContext, useEffect, type RefObject } from "react";
 import type { TextInput } from "react-native";
+import { PresentationReadyContext } from "@/contexts/Portal/PresentationContext";
 
 /**
  * Focuses a text input once it has mounted and laid out — the reliable
@@ -10,15 +11,16 @@ import type { TextInput } from "react-native";
  * responder in the same commit (taking the keyboard down with it) and a
  * scroll view may still be laying the new step out, so the keyboard simply
  * never shows. Focusing two frames later — after the commit has mounted and
- * laid out — raises the keyboard every time; an already-focused field is
+ * laid out — requests focus from the ready native view; an already-focused field is
  * left alone.
  */
 export function useFocusOnMount(
   ref: RefObject<TextInput | null>,
   enabled: boolean,
 ): void {
+  const ready = useContext(PresentationReadyContext);
   useEffect(() => {
-    if (!enabled) return undefined;
+    if (!enabled || !ready) return undefined;
     let frame = requestAnimationFrame(() => {
       frame = requestAnimationFrame(() => {
         const input = ref.current;
@@ -26,5 +28,5 @@ export function useFocusOnMount(
       });
     });
     return () => cancelAnimationFrame(frame);
-  }, [enabled, ref]);
+  }, [enabled, ready, ref]);
 }

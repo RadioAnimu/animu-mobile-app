@@ -48,6 +48,7 @@ class ErrorBoundary extends React.Component<Props, State> {
         <Text style={styles.message}>{t.ERROR_MESSAGE}</Text>
         <TouchableOpacity
           accessibilityRole="button"
+          activeOpacity={THEME.OPACITY.PRESSED}
           onPress={this.reset}
           style={styles.button}
         >
@@ -79,6 +80,8 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   button: {
+    minHeight: THEME.LAYOUT.TOUCH_TARGET,
+    justifyContent: "center",
     backgroundColor: THEME.COLORS.SURFACE,
     paddingHorizontal: THEME.SPACE.XXL,
     paddingVertical: THEME.SPACE.MD,

@@ -11,10 +11,17 @@ import { Easing } from "react-native";
  */
 export const MOTION = {
   DURATION: {
-    FAST: 150,
-    NORMAL: 220,
-    SLOW: 300,
+    INSTANT: 0,
+    FAST: 75,
+    NORMAL: 110,
+    SLOW: 150,
+    SPLASH: 125,
   },
+  STAGGER: 20,
+  /** Reading/caret rhythms are not navigation transitions. */
+  CARET_HALF: 550,
+  PULSE_HALF: 650,
+  SPRING: { speed: 60, bounciness: 0 },
   /** Elements arriving decelerate into place; leaving ones accelerate out. */
   EASING: {
     ENTER: Easing.out(Easing.cubic),

@@ -4,7 +4,7 @@ import { THEME } from "@/theme";
 import { scale } from "@/theme/responsive";
 
 /** Widest a box grows; narrower screens let the row shrink instead. */
-const BOX_MAX = scale(60);
+const BOX_MAX = THEME.LAYOUT.CODE_BOX;
 
 export const styles = StyleSheet.create({
   row: {
@@ -20,7 +20,7 @@ export const styles = StyleSheet.create({
     aspectRatio: 1,
     borderRadius: THEME.RADIUS.MD,
     backgroundColor: THEME.COLORS.INPUT_BG,
-    borderWidth: 1,
+    borderWidth: THEME.BORDER_WIDTH.OUTLINE,
     borderColor: THEME.COLORS.INPUT_BORDER,
     alignItems: "center",
     justifyContent: "center",
@@ -59,7 +59,7 @@ export const styles = StyleSheet.create({
     // imperceptible opacity instead. Kept just above zero — `opacity: 0`
     // drops the node from the accessibility tree on both platforms — and the
     // boxes carry every visual.
-    opacity: 0.01,
+    opacity: THEME.OPACITY.HIDDEN_INPUT,
     backgroundColor: "transparent",
     padding: 0,
   },

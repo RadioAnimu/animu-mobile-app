@@ -316,7 +316,7 @@ describe("PlayerService on react-native-anything-player", () => {
       ["playing", "playing"],
       ["reconnecting", "reconnecting"],
       ["paused", "paused"],
-      ["error", "paused"],
+      ["error", "error"],
     ];
     for (const [native, ui] of states) {
       t.player.setState(native, native !== "paused" && native !== "error");
@@ -586,7 +586,7 @@ describe("PlayerService on react-native-anything-player", () => {
     t.service.setVisualizerSyncTrim(-40);
     expect(t.sampler.setSyncTrim).toHaveBeenCalledWith(-40);
     await t.service.refreshHistory("played" as never);
-    expect(t.repository.refreshHistory).toHaveBeenCalledWith("played");
+    expect(t.repository.refreshHistory).toHaveBeenCalledWith("played", true);
     expect(t.service.isReady).toBe(true);
   });
 

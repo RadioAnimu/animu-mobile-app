@@ -8,7 +8,7 @@ import {
 } from "@react-navigation/native-stack";
 import type { NavigatorScreenParams } from "@react-navigation/native";
 
-import { useWindowDimensions } from "react-native";
+import { Platform, useWindowDimensions } from "react-native";
 import { CustomDrawerContent, DrawerIcon } from "@/components/CustomDrawer";
 import { MakeRequest } from "@/screens/MakeRequest";
 import { Home } from "@/screens/Home";
@@ -22,6 +22,7 @@ import { Account } from "@/screens/Account";
 import { About } from "@/screens/About";
 import { useDict } from "@/hooks/useDict";
 import { useReducedMotion } from "@/hooks/useReducedMotion";
+import { MOTION } from "@/theme/motion";
 import type { HistoryType } from "animu-api";
 
 interface HistoryProps {
@@ -145,13 +146,15 @@ const LOGIN_CONTENT = { backgroundColor: THEME.COLORS.APP_BG } as const;
 
 export function AppRoutes() {
   const reduceMotion = useReducedMotion();
+  const pushAnimation = Platform.OS === "ios" ? "simple_push" : "default";
 
   const screenOptions: NativeStackNavigationOptions = {
     headerShown: false,
     contentStyle: DETAIL_CONTENT,
     // Platform push/pop by default; a plain cross-fade when the system asks
     // for reduced motion.
-    animation: reduceMotion ? "fade" : "default",
+    animation: reduceMotion ? "fade" : pushAnimation,
+    animationDuration: MOTION.DURATION.SLOW,
   };
 
   return (

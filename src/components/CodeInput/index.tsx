@@ -1,7 +1,11 @@
 import { useEffect, useRef, useState } from "react";
-import { Animated, Text, TextInput, View } from "react-native";
+import { Animated, Text, TextInput, View, useWindowDimensions } from "react-native";
 
 import { styles } from "@/components/CodeInput/styles";
+import { useInputVisibility } from "@/contexts/Portal/InputVisibilityContext";
+import { useReducedMotion } from "@/hooks/useReducedMotion";
+import { MOTION } from "@/theme/motion";
+import { THEME } from "@/theme";
 import { useFocusOnMount } from "@/hooks/useFocusOnMount";
 
 /** Digits the Animu Connect email code is made of. */
@@ -39,6 +43,10 @@ export function CodeInput({
   autoFocus = false,
   accessibilityLabel,
 }: Readonly<Props>) {
+  const reveal = useInputVisibility();
+  const reducedMotion = useReducedMotion();
+  const { fontScale } = useWindowDimensions();
+  const digitMinHeight = THEME.FONT_SIZE.TITLE * fontScale + THEME.SPACE.LG * 2;
   const [focused, setFocused] = useState(false);
   const inputRef = useRef<TextInput | null>(null);
   const [caret] = useState(() => new Animated.Value(1));
@@ -51,7 +59,7 @@ export function CodeInput({
   const activeIndex = digits.length < CODE_LENGTH ? digits.length : -1;
 
   useEffect(() => {
-    if (!focused || !active) {
+    if (!focused || !active || reducedMotion) {
       caret.setValue(1);
       return undefined;
     }
@@ -59,19 +67,19 @@ export function CodeInput({
       Animated.sequence([
         Animated.timing(caret, {
           toValue: 0,
-          duration: 550,
+          duration: MOTION.CARET_HALF,
           useNativeDriver: true,
         }),
         Animated.timing(caret, {
           toValue: 1,
-          duration: 550,
+          duration: MOTION.CARET_HALF,
           useNativeDriver: true,
         }),
       ]),
     );
     loop.start();
     return () => loop.stop();
-  }, [caret, active, focused]);
+  }, [caret, active, focused, reducedMotion]);
 
   const boxContent = (char: string, index: number) => {
     if (char) return <Text style={styles.digit}>{char}</Text>;
@@ -89,6 +97,7 @@ export function CodeInput({
           accessible={false}
           style={[
             styles.box,
+            { minHeight: digitMinHeight },
             focused && active && index === activeIndex && styles.boxActive,
             !active && styles.boxDisabled,
           ]}
@@ -109,10 +118,6 @@ export function CodeInput({
         }}
         keyboardType="number-pad"
         inputMode="numeric"
-        // Native focus in the mounting commit hands the keyboard straight
-        // over from the outgoing email field; the mount hook above is the
-        // fallback when that loses the race.
-        autoFocus={autoFocus}
         textContentType="oneTimeCode"
         autoComplete="one-time-code"
         maxLength={CODE_LENGTH}
@@ -122,7 +127,7 @@ export function CodeInput({
         autoCapitalize="none"
         accessibilityLabel={accessibilityLabel}
         accessibilityState={{ busy }}
-        onFocus={() => setFocused(true)}
+        onFocus={() => { setFocused(true); reveal(inputRef.current); }}
         onBlur={() => setFocused(false)}
         style={styles.input}
       />

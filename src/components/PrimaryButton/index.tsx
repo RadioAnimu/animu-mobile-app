@@ -54,7 +54,7 @@ export function PrimaryButton({
           <Icon
             name={icon}
             size={THEME.ICON.MD}
-            color={THEME.COLORS.TEXT_ON_LIGHT}
+            color={disabled ? THEME.COLORS.TEXT_DIM : THEME.COLORS.TEXT_ON_LIGHT}
           />
         )
       )}

@@ -129,6 +129,13 @@ const PROGRAMS: Program[] = [
 const DICT = {
   PROGRAMS,
   TIME_REMAINING: "Time remaining",
+  PLAYER_CONNECTING: "Connecting…",
+  PLAYER_RECONNECTING: "Reconnecting…",
+  PLAYER_METADATA_UNAVAILABLE: "Song details are unavailable. You can still use the player.",
+  PLAYER_PLAYBACK_FAILED: "Unable to play. Try again.",
+  STATS_DAY_EMPTY: "No listening recorded for this day.",
+  STATS_PREVIOUS_DAY: "Previous day",
+  STATS_NEXT_DAY: "Next day",
   SYNCHRONIZING: "Syntonizing",
   WITH_DJ: "WITH",
   MENU: "Menu",
@@ -163,6 +170,7 @@ const DICT = {
   SETTINGS_VISUALIZER_SWITCH: "Sound wave",
   SETTINGS_MEMORY_CLEAR_CACHE_SWITCH: "Reuse downloaded covers",
   SETTINGS_STORAGE_TOTAL: "Cached covers",
+  SETTINGS_STORAGE_FILE: "file",
   SETTINGS_STORAGE_FILES: "files",
   SETTINGS_STORAGE_LIVE: "Now playing (live)",
   SETTINGS_STORAGE_REQUESTED: "Last requests",
@@ -336,6 +344,7 @@ const DICT = {
   REQUEST_ERROR_PEDIBLOCK:
     "This track was already requested. Available again after {time}.",
   REQUEST_ERROR_PEDIBLOCK_RECENT: "This track was requested too recently.",
+  REQUEST_ERROR_BLOCK_90_GENERIC: "Too many songs from this anime or artist in the last 90 minutes. Try again later.",
   REQUEST_ERROR_BLOCK_90:
     'Too many songs from "{detail}" in the last 90 minutes.',
   REQUEST_ERROR_HARUBLOCK: "This track was played too recently by the AutoDJ.",

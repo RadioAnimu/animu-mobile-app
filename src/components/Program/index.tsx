@@ -25,6 +25,7 @@ export const Program = React.memo(function Program({ handleClick }: Props) {
       // The visible content includes the DJ line; the overriding label must
       // carry it too or VoiceOver/TalkBack silently drops it.
       accessibilityLabel={`${program.name}. ${dict.WITH_DJ}: ${program.dj}`}
+      activeOpacity={THEME.OPACITY.PRESSED}
       onPress={handleClick}
       style={styles.container}
     >

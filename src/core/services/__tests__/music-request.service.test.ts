@@ -29,6 +29,7 @@ vi.mock("@/i18n", () => ({
       REQUEST_ERROR_PEDIBLOCK: "PEDIBLOCK[{time}]",
       REQUEST_ERROR_PEDIBLOCK_RECENT: "PEDIBLOCK_RECENT",
       REQUEST_ERROR_BLOCK_90: "BLOCK_90[{detail}]",
+      REQUEST_ERROR_BLOCK_90_GENERIC: "BLOCK_90_GENERIC",
       REQUEST_ERROR_HARUBLOCK: "HARUBLOCK",
       ERROR_STRIKE_AND_OUT: "STRIKE_AND_OUT",
       REQUEST_ERROR_ONAIR: "ONAIR",
@@ -81,6 +82,11 @@ describe("getSubmissionErrorMessage", () => {
     expect(getSubmissionErrorMessage("ARTISTBLOCK", "LiSA")).toBe(
       "BLOCK_90[LiSA]",
     );
+  });
+
+  it("handles a missing block detail without displaying empty names", () => {
+    expect(getSubmissionErrorMessage("ANIBLOCK")).toBe("BLOCK_90_GENERIC");
+    expect(getSubmissionErrorMessage("ARTISTBLOCK", "  ")).toBe("BLOCK_90_GENERIC");
   });
 
   it("interpolates the cooldown time for PEDIBLOCK", () => {

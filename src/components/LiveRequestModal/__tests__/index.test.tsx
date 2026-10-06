@@ -20,6 +20,9 @@ vi.mock("@react-native-vector-icons/material-icons/static", async () =>
 );
 vi.mock("expo-image", () => ({ Image: () => <img alt="" /> }));
 vi.mock("@/assets/success_haruka.webp", () => ({ default: 1 }));
+vi.mock("@/components/KeyboardScrollView", () => ({
+  KeyboardScrollView: ({ children }: { children: ReactNode }) => <div>{children}</div>,
+}));
 vi.mock("@/components/Sheet", () => ({
   Sheet: ({
     visible,

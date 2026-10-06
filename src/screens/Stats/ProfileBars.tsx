@@ -1,3 +1,4 @@
+import { THEME } from "@/theme";
 import React from "react";
 import { Text, View } from "react-native";
 
@@ -35,7 +36,7 @@ export function ProfileBars({
             key={bar.id}
             style={[
               styles.bar,
-              { height: Math.max(2, Math.round((bar.value / max) * 72)) },
+              { height: Math.max(THEME.CHART.BAR_MIN, Math.round((bar.value / max) * THEME.CHART.BAR_HEIGHT)) },
               bar.id === peakId && styles.barPeak,
             ]}
           />

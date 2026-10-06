@@ -1,5 +1,5 @@
 import { Icon } from "@/components/Icon";
-import { useState, type Ref } from "react";
+import { useImperativeHandle, useRef, useState, type Ref } from "react";
 import {
   Text,
   TextInput,
@@ -10,7 +10,7 @@ import {
 
 import { useDict } from "@/hooks/useDict";
 import { THEME } from "@/theme";
-import { scale } from "@/theme/responsive";
+import { useInputVisibility } from "@/contexts/Portal/InputVisibilityContext";
 import { styles } from "@/components/FormField/styles";
 
 interface Props
@@ -37,7 +37,7 @@ interface Props
   error?: string;
   editable?: boolean;
   /**
-   * The form is submitting: the field dims and ignores typing but keeps
+   * The form is submitting: the field ignores typing but keeps
    * focus, so the keyboard stays up for a retry (flipping `editable` off
    * would blur it and dismiss the keyboard).
    */
@@ -49,7 +49,7 @@ interface Props
 const COUNTER_THRESHOLD = 0.8;
 
 /** Placeholder and clear icon on the white field. */
-const PLACEHOLDER_COLOR = "rgba(0, 0, 0, 0.45)";
+const PLACEHOLDER_COLOR = THEME.COLORS.PLACEHOLDER_ON_LIGHT;
 
 interface HeaderProps {
   label: string;
@@ -112,7 +112,7 @@ function FieldError({ message }: Readonly<{ message: string }>) {
     >
       <Icon
         name="error-outline"
-        size={scale(16)}
+        size={THEME.ICON.SM}
         color={THEME.COLORS.ERROR}
       />
       <Text style={styles.errorText}>{message}</Text>
@@ -140,7 +140,12 @@ export function FormField({
 }: Readonly<Props>) {
   const dict = useDict();
   const [focused, setFocused] = useState(false);
+  const ref = useRef<TextInput | null>(null);
+  const reveal = useInputVisibility();
+  useImperativeHandle(inputRef, () => ref.current!, []);
 
+  // Keep the native input ancestry stable while submitting. Changing parent
+  // opacity can reparent Fabric views and close Android’s input session.
   const hasError = error != null;
   const canClear = !multiline && editable && !busy && value.length > 0;
 
@@ -160,11 +165,11 @@ export function FormField({
           multiline && styles.fieldMultiline,
           focused && styles.fieldFocused,
           hasError && styles.fieldError,
-          (!editable || busy) && styles.fieldDisabled,
+          !editable && styles.fieldDisabled,
         ]}
       >
         <TextInput
-          ref={inputRef}
+          ref={ref}
           style={[styles.input, multiline && styles.inputMultiline]}
           value={value}
           onChangeText={(text) => {
@@ -176,7 +181,7 @@ export function FormField({
           placeholderTextColor={PLACEHOLDER_COLOR}
           accessibilityLabel={label}
           accessibilityState={{ busy }}
-          onFocus={() => setFocused(true)}
+          onFocus={() => { setFocused(true); reveal(ref.current); }}
           onBlur={() => setFocused(false)}
           {...inputProps}
         />

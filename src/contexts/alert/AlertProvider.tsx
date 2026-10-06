@@ -3,14 +3,13 @@ import React, {
   useContext,
   useState,
   ReactNode,
-  useRef,
   useCallback,
-  useEffect,
   useMemo,
 } from "react";
 import { Image, type ImageSource } from "expo-image";
 import {
-  KeyboardAvoidingView,
+  Keyboard,
+  ScrollView,
   Modal,
   Text,
   TouchableOpacity,
@@ -39,6 +38,7 @@ interface ToastState {
   variant: ToastVariant;
   /** Bumped on every call so re-triggering remounts (fresh fade animation). */
   seed: number;
+  placement: "top" | "bottom";
 }
 
 interface AlertContextProps {
@@ -62,32 +62,14 @@ export const AlertProvider: React.FC<{ children: ReactNode }> = ({
 }) => {
   const [alertState, setAlertState] = useState<Alert | null>(null);
   const [toastState, setToastState] = useState<ToastState | null>(null);
-  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
-
-  // Clear any existing timeout when alert changes
-  useEffect(() => {
-    return () => {
-      if (timeoutRef.current) clearTimeout(timeoutRef.current);
-    };
-  }, []);
-
   const setAlert = useCallback((message: string, type: AlertType) => {
+    Keyboard.dismiss();
     setAlertState({ message, type });
-    // Auto-dismiss after 3 seconds. Clear the previous timer first — a
-    // second alert arriving within the window must not be dismissed by
-    // the first alert's pending timeout.
-    if (timeoutRef.current) clearTimeout(timeoutRef.current);
-    timeoutRef.current = setTimeout(() => {
-      timeoutRef.current = null;
-      setAlertState(null);
-    }, 3000);
+    setToastState(null);
   }, []);
 
-  const clearAlert = useCallback(() => {
-    if (timeoutRef.current) clearTimeout(timeoutRef.current);
-    timeoutRef.current = null;
-    setAlertState(null);
-  }, []);
+  // A dialog asks for acknowledgment, so it remains until dismissed.
+  const clearAlert = useCallback(() => setAlertState(null), []);
 
   const success = useCallback(
     (message: string) => {
@@ -109,6 +91,9 @@ export const AlertProvider: React.FC<{ children: ReactNode }> = ({
         message,
         variant,
         seed: (prev?.seed ?? 0) + 1,
+        // Keep placement for the toast's lifetime. Closing the keyboard must
+        // not send a notification travelling from the header to the footer.
+        placement: Keyboard.isVisible() ? "top" : "bottom",
       }));
     },
     [],
@@ -138,12 +123,14 @@ export const AlertProvider: React.FC<{ children: ReactNode }> = ({
     <AlertContext.Provider value={value}>
       {children}
       <Portal name="toast">
-        {toastState && (
+        {toastState && !visible && (
           <View
             pointerEvents="none"
             style={[
               styles.toastWrap,
-              { bottom: insets.bottom + THEME.SPACE.XXL },
+              toastState.placement === "top"
+                ? { top: insets.top + THEME.SPACE.LG }
+                : { bottom: insets.bottom + THEME.SPACE.LG },
             ]}
           >
             <Toast
@@ -160,13 +147,11 @@ export const AlertProvider: React.FC<{ children: ReactNode }> = ({
           animationType="fade"
           visible={visible}
           statusBarTranslucent
+          navigationBarTranslucent
           transparent
           onRequestClose={handleClose}
         >
-          <KeyboardAvoidingView
-            behavior="padding"
-            style={styles.container}
-          >
+          <View style={[styles.container, { paddingTop: insets.top + THEME.SPACE.LG, paddingBottom: insets.bottom + THEME.SPACE.LG }]} >
             <View style={styles.content} accessibilityViewIsModal>
               <TouchableOpacity
                 accessibilityRole="button"
@@ -182,15 +167,17 @@ export const AlertProvider: React.FC<{ children: ReactNode }> = ({
                   color={THEME.COLORS.TEXT}
                 />
               </TouchableOpacity>
+              <ScrollView contentContainerStyle={styles.dialogBody} showsVerticalScrollIndicator={false}>
               <Image contentFit="contain" source={haruka} style={styles.img} />
               <Text style={styles.text}>{alertState?.message}</Text>
+              </ScrollView>
               <PrimaryButton
                 label={dict.OK_BUTTON}
                 onPress={handleClose}
                 style={styles.okButton}
               />
             </View>
-          </KeyboardAvoidingView>
+          </View>
         </Modal>
       </Portal>
     </AlertContext.Provider>

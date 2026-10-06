@@ -4,6 +4,7 @@ import type { StyleProp, TextStyle } from "react-native";
 import { Animated, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 
 import { useReducedMotion } from "@/hooks/useReducedMotion";
+import { MOTION } from "@/theme/motion";
 import { THEME } from "@/theme";
 
 interface Props {
@@ -19,7 +20,7 @@ interface Props {
   iconSize?: number;
 }
 
-const AUTO_HIDE_MS = 5000;
+const AUTO_HIDE_MS = THEME.FEEDBACK.MASK_AUTO_HIDE_MS;
 
 /**
  * A personal identifier (email, handle, id) that renders masked by default
@@ -39,13 +40,14 @@ export function MaskedValue({
   const reduceMotion = useReducedMotion();
 
   useEffect(() => {
-    Animated.spring(motion, {
+    const animation = Animated.spring(motion, {
       // Reduce Motion: the value just swaps, without the scale pop.
       toValue: revealed && !reduceMotion ? 1 : 0,
-      speed: 30,
-      bounciness: 4,
+      ...MOTION.SPRING,
       useNativeDriver: true,
-    }).start();
+    });
+    animation.start();
+    return () => animation.stop();
   }, [motion, revealed, reduceMotion]);
 
   useEffect(() => {
@@ -83,7 +85,7 @@ export function MaskedValue({
           accessibilityRole="button"
           accessibilityLabel={revealed ? hideLabel : showLabel}
           activeOpacity={THEME.OPACITY.PRESSED}
-          hitSlop={THEME.HIT_SLOP.MD}
+          style={styles.revealButton}
           onPress={toggle}
         >
           <Icon
@@ -105,6 +107,12 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: THEME.SPACE.SM,
+  },
+  revealButton: {
+    width: THEME.LAYOUT.TOUCH_TARGET,
+    minHeight: THEME.LAYOUT.TOUCH_TARGET,
+    alignItems: "center",
+    justifyContent: "center",
   },
   value: {
     flexShrink: 1,

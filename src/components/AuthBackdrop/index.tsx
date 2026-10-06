@@ -1,3 +1,4 @@
+import { THEME } from "@/theme";
 import { StyleSheet } from "react-native";
 import Svg, {
   Defs,
@@ -29,15 +30,15 @@ export function AuthBackdrop() {
     >
       <Defs>
         <LinearGradient id="authScrim" x1="0" y1="0" x2="0" y2="1">
-          <Stop offset="0" stopColor="#0B001A" stopOpacity="0.66" />
-          <Stop offset="0.4" stopColor="#0B001A" stopOpacity="0.58" />
-          <Stop offset="0.72" stopColor="#15002F" stopOpacity="0.84" />
-          <Stop offset="1" stopColor="#0B001A" stopOpacity="0.96" />
+          <Stop offset="0" stopColor={THEME.COLORS.AUTH_VIGNETTE} stopOpacity="0.66" />
+          <Stop offset="0.4" stopColor={THEME.COLORS.AUTH_VIGNETTE} stopOpacity="0.58" />
+          <Stop offset="0.72" stopColor={THEME.COLORS.AUTH_VIGNETTE_SOFT} stopOpacity="0.84" />
+          <Stop offset="1" stopColor={THEME.COLORS.AUTH_VIGNETTE} stopOpacity="0.96" />
         </LinearGradient>
         <RadialGradient id="authGlow" cx="50%" cy="16%" r="60%">
-          <Stop offset="0" stopColor="#6BDB00" stopOpacity="0.12" />
-          <Stop offset="0.5" stopColor="#6BDB00" stopOpacity="0.04" />
-          <Stop offset="1" stopColor="#6BDB00" stopOpacity="0" />
+          <Stop offset="0" stopColor={THEME.COLORS.BRAND} stopOpacity="0.12" />
+          <Stop offset="0.5" stopColor={THEME.COLORS.BRAND} stopOpacity="0.04" />
+          <Stop offset="1" stopColor={THEME.COLORS.BRAND} stopOpacity="0" />
         </RadialGradient>
       </Defs>
       <Rect width="100%" height="100%" fill="url(#authScrim)" />

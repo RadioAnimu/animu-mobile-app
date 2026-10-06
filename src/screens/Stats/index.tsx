@@ -18,7 +18,6 @@ import type { RootStackParamList } from "@/routes/app.routes";
 import { ShareCardSection } from "@/screens/Stats/ShareCardSection";
 import { StatsContent } from "@/screens/Stats/StatsContent";
 import { styles } from "@/screens/Stats/styles";
-import { haptics } from "@/utils/haptics";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Stats">;
 
@@ -56,7 +55,6 @@ export function Stats({ navigation }: Readonly<Props>) {
   // Pull to refresh: re-read the on-device stats and, when signed in, pull a
   // fresh profile so the card's avatar and banner update too.
   const refresh = useCallback(async () => {
-    haptics.select();
     setRefreshing(true);
     try {
       await refreshProfile();
@@ -65,7 +63,7 @@ export function Stats({ navigation }: Readonly<Props>) {
       toast(dict.ACCOUNT_REFRESHED);
     } catch (error) {
       console.warn("[Stats] refresh failed:", error);
-      toast(dict.STATS_CARD_FAILED);
+      toast(dict.STATS_CARD_FAILED, "error");
     } finally {
       setRefreshing(false);
     }

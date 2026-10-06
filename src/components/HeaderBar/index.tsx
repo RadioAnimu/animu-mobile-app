@@ -19,6 +19,7 @@ import noteIcon from "@/assets/icons/note.webp";
 import pauseAffordanceImage from "@/assets/play_square_btn.webp";
 import playAffordanceImage from "@/assets/play_triangle_btn.webp";
 import { IMGS } from "@/i18n";
+import { MOTION } from "@/theme/motion";
 import { THEME } from "@/theme";
 import { CONTAINER_HEIGHT, ICON_HIT_SLOP, styles } from "@/components/HeaderBar/styles";
 import { useUserSettings } from "@/contexts/user/UserSettingsProvider";
@@ -38,20 +39,49 @@ import {
   isSubVisibleStep,
 } from "@/utils/progress";
 import type { DrawerParamList } from "@/routes/app.routes";
-import { haptics } from "@/utils/haptics";
+import type { Program } from "@/core/domain/program";
+import { usePlaybackToggle } from "@/hooks/usePlaybackToggle";
 
 interface Props {
   openLiveRequestModal?: () => void;
 }
-
-type Status = "playing" | "paused" | "changing";
 
 const PULSE_OPACITY = 0.05;
 const PULSE_DURATION = 1750;
 /** Resting vertical offset of the live badge; the pulse bobs it up and back. */
 const PULSE_TRAVEL = 50;
 const PULSE_BOB = PULSE_TRAVEL * 2 * PULSE_OPACITY;
-const PROGRESS_ANIM_DURATION = 300;
+const PROGRESS_ANIM_DURATION = MOTION.DURATION.SLOW;
+
+/** One availability decision drives the action, disabled state and tint. */
+function requestDestination(program: Program | undefined, canOpenLive: boolean) {
+  if (!program?.isLive) return "search";
+  return program.acceptingRequests && canOpenLive ? "live" : "closed";
+}
+
+function PlaybackButton({ isPlaying, changing, onPress }: Readonly<{
+  isPlaying: boolean;
+  changing: boolean;
+  onPress: () => void;
+}>) {
+  const dict = useDict();
+  return (
+    <TouchableOpacity
+      accessibilityRole="button"
+      accessibilityLabel={isPlaying ? dict.A11Y_PAUSE : dict.A11Y_PLAY}
+      activeOpacity={THEME.OPACITY.PRESSED}
+      disabled={changing}
+      accessibilityState={{ disabled: changing, busy: changing }}
+      onPress={onPress}
+    >
+      <Image
+        contentFit="contain"
+        style={[styles.playBtn, { opacity: changing ? THEME.OPACITY.DISABLED : 1 }]}
+        source={isPlaying ? pauseAffordanceImage : playAffordanceImage}
+      />
+    </TouchableOpacity>
+  );
+}
 
 export function HeaderBar({ openLiveRequestModal }: Readonly<Props>) {
   const navigation =
@@ -63,6 +93,8 @@ export function HeaderBar({ openLiveRequestModal }: Readonly<Props>) {
   const reduceMotion = useReducedMotion();
   const { width: windowWidth } = useWindowDimensions();
   const { currentTrack, currentProgram } = player;
+  const requestAction = requestDestination(currentProgram, Boolean(openLiveRequestModal));
+  const requestsClosed = requestAction === "closed";
   const { currentTrackProgress } = useTrackProgress();
   // The bar spawns AT the live ratio (cold start, screen switch, thaw after
   // a background freeze) — no first frame at 0 that then snaps forward.
@@ -71,7 +103,7 @@ export function HeaderBar({ openLiveRequestModal }: Readonly<Props>) {
       progressRatio(currentTrackProgress, currentTrack?.duration),
     ),
   );
-  const [status, setStatus] = useState<Status>("playing");
+  const { changing, toggle } = usePlaybackToggle(player);
   // Smoothed so the bar advances continuously between the ~1 Hz updates
   // instead of stuttering on a late/jittery progress value.
   const smoothedElapsed = useSmoothedElapsed(
@@ -95,8 +127,6 @@ export function HeaderBar({ openLiveRequestModal }: Readonly<Props>) {
   const lastBarTarget = useRef(0);
   const lastBarRun = useRef(0);
   const wasSyncing = useRef(player.syncing);
-  /** Re-entrancy guard: two taps in one frame must not toggle twice. */
-  const changingRef = useRef(false);
 
   useEffect(() => {
     const duration = currentTrack?.duration ?? 0;
@@ -205,69 +235,28 @@ export function HeaderBar({ openLiveRequestModal }: Readonly<Props>) {
             accessibilityRole="button"
             accessibilityLabel={dict.A11Y_OPEN_MENU}
             hitSlop={ICON_HIT_SLOP}
+            activeOpacity={THEME.OPACITY.PRESSED}
             onPress={() => {
               navigation.openDrawer();
             }}
           >
             <Image contentFit="contain" style={styles.menuBtn} source={menuIcon} />
           </TouchableOpacity>
-          <TouchableOpacity
-            accessibilityRole="button"
-            accessibilityLabel={
-              player.isPlaying ? dict.A11Y_PAUSE : dict.A11Y_PLAY
-            }
-            accessibilityState={{ disabled: status === "changing" }}
-            onPress={async () => {
-              if (changingRef.current) return;
-              changingRef.current = true;
-              setStatus("changing");
-              haptics.tap();
-              // Capture the pre-toggle truth: after the await the render
-              // closure's `player.isPlaying` is stale (the store moved, this
-              // render did not), so re-reading it would report the WRONG
-              // state. On failure revert to that same truth; the provider
-              // already logs, the catch is the defensive backstop.
-              const wasPlaying = player.isPlaying;
-              try {
-                if (wasPlaying) {
-                  await player.pause();
-                } else {
-                  await player.play();
-                }
-                setStatus(wasPlaying ? "paused" : "playing");
-              } catch (error) {
-                console.warn("[HeaderBar] play/pause failed:", error);
-                setStatus(wasPlaying ? "playing" : "paused");
-              } finally {
-                changingRef.current = false;
-              }
-            }}
-          >
-            <Image
-              contentFit="contain"
-              style={[
-                styles.playBtn,
-                {
-                  opacity: status === "changing" ? THEME.OPACITY.DISABLED : 1,
-                },
-              ]}
-              source={!player.isPlaying ? playAffordanceImage : pauseAffordanceImage}
-            />
-          </TouchableOpacity>
+          <PlaybackButton isPlaying={player.isPlaying} changing={changing} onPress={() => void toggle()} />
 
           <TouchableOpacity
             accessibilityRole="button"
             accessibilityLabel={dict.A11Y_MAKE_REQUEST}
             hitSlop={ICON_HIT_SLOP}
+            activeOpacity={THEME.OPACITY.PRESSED}
+            disabled={requestsClosed}
+            accessibilityState={{ disabled: requestsClosed }}
             onPress={() => {
-              if (currentProgram?.isLive) {
-                // Live: requests go through the modal, or nowhere while closed.
-                if (currentProgram.acceptingRequests && openLiveRequestModal) {
-                  openLiveRequestModal();
-                }
+              if (requestAction === "live") {
+                openLiveRequestModal?.();
                 return;
               }
-              navigation.navigate("MakeRequest");
+              if (requestAction === "search") navigation.navigate("MakeRequest");
             }}
             style={styles.noteWrapper}
           >
@@ -281,7 +270,7 @@ export function HeaderBar({ openLiveRequestModal }: Readonly<Props>) {
                 <LiveRequestComponent />
               </Animated.View>
             )}
-            <Image contentFit="contain" style={styles.noteIcon} source={noteIcon} />
+            <Image contentFit="contain" style={[styles.noteIcon, requestsClosed && { opacity: THEME.OPACITY.DISABLED }]} source={noteIcon} />
           </TouchableOpacity>
         </View>
       </View>

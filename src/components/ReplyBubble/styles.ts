@@ -29,9 +29,6 @@ export const styles = StyleSheet.create({
     ...hardShadow(),
   },
   bubbleFocused: hardShadow(THEME.COLORS.BRAND, 3),
-  disabled: {
-    opacity: THEME.OPACITY.DISABLED,
-  },
   input: {
     minHeight: scale(28),
     maxHeight: scale(104),

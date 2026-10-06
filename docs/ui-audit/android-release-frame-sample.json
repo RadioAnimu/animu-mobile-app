@@ -1,0 +1,104 @@
+{
+  "configuration": "Pixel 7 AVD, API 36, x86_64, 1080x2400 / 420 dpi, release APK",
+  "renderer": "Android Emulator OpenGL ES Translator / Google SwiftShader",
+  "context": "Warmed navigation, Account typing, keyboard show/hide, snapshots; not a controlled before/after benchmark",
+  "metrics": {
+    "available": true,
+    "totalFrameCount": 253,
+    "droppedFrameCount": 135,
+    "droppedFramePercent": 53.4,
+    "sampleWindowMs": 71734,
+    "frameDeadlineMs": 16.7,
+    "refreshRateHz": 60,
+    "windowStartedAt": "2026-10-06T19:33:26.557Z",
+    "windowEndedAt": "2026-10-06T19:34:38.292Z",
+    "timestampSource": "estimated-from-device-uptime",
+    "measuredAt": "2026-10-06T19:34:38.292Z",
+    "method": "adb-shell-dumpsys-gfxinfo-framestats",
+    "source": "android-gfxinfo-summary",
+    "worstWindows": [
+      {
+        "startOffsetMs": 56537,
+        "endOffsetMs": 70387,
+        "startAt": "2026-10-06T19:34:23.095Z",
+        "endAt": "2026-10-06T19:34:36.945Z",
+        "missedDeadlineFrameCount": 105,
+        "worstFrameMs": 116.9
+      },
+      {
+        "startOffsetMs": 71437,
+        "endOffsetMs": 71739,
+        "startAt": "2026-10-06T19:34:37.995Z",
+        "endAt": "2026-10-06T19:34:38.297Z",
+        "missedDeadlineFrameCount": 14,
+        "worstFrameMs": 68.7
+      }
+    ],
+    "relatedActions": [
+      {
+        "command": "click",
+        "at": "2026-10-06T19:33:45.430Z",
+        "offsetMs": 18873,
+        "target": "Abrir menu"
+      },
+      {
+        "command": "snapshot",
+        "at": "2026-10-06T19:33:46.136Z",
+        "offsetMs": 19579
+      },
+      {
+        "command": "click",
+        "at": "2026-10-06T19:33:54.083Z",
+        "offsetMs": 27526,
+        "target": "Ness \ud83c\udff8, Conta"
+      },
+      {
+        "command": "snapshot",
+        "at": "2026-10-06T19:33:54.973Z",
+        "offsetMs": 28416
+      },
+      {
+        "command": "click",
+        "at": "2026-10-06T19:34:14.038Z",
+        "offsetMs": 47481,
+        "target": "Ness \ud83c\udff8"
+      },
+      {
+        "command": "scroll",
+        "at": "2026-10-06T19:34:15.297Z",
+        "offsetMs": 48740
+      },
+      {
+        "command": "snapshot",
+        "at": "2026-10-06T19:34:16.411Z",
+        "offsetMs": 49854
+      },
+      {
+        "command": "click",
+        "at": "2026-10-06T19:34:24.624Z",
+        "offsetMs": 58067,
+        "target": "voce@exemplo.com"
+      },
+      {
+        "command": "screenshot",
+        "at": "2026-10-06T19:34:28.299Z",
+        "offsetMs": 61742
+      },
+      {
+        "command": "back",
+        "at": "2026-10-06T19:34:29.259Z",
+        "offsetMs": 62702
+      },
+      {
+        "command": "back",
+        "at": "2026-10-06T19:34:36.379Z",
+        "offsetMs": 69822
+      },
+      {
+        "command": "snapshot",
+        "at": "2026-10-06T19:34:37.412Z",
+        "offsetMs": 70855
+      }
+    ]
+  }
+}

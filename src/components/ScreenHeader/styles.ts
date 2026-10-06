@@ -4,7 +4,7 @@ import { THEME } from "@/theme";
 import { scale } from "@/theme/responsive";
 
 const HEADER_HEIGHT = scale(72);
-const HEADER_BUTTON = scale(44);
+const HEADER_BUTTON = THEME.LAYOUT.TOUCH_TARGET;
 
 export { HEADER_HEIGHT };
 

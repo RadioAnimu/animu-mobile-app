@@ -15,10 +15,12 @@ import {
   StyleSheet,
   Text,
   View,
+  useWindowDimensions,
   type LayoutChangeEvent,
   type StyleProp,
   type TextStyle,
 } from "react-native";
+import { useReducedMotion } from "@/hooks/useReducedMotion";
 import { useIsBackgrounded } from "@/contexts/app-state/AppStateProvider";
 import { scale } from "@/theme/responsive";
 import { THEME } from "@/theme";
@@ -118,6 +120,67 @@ export function MarqueeGroup({
   );
 }
 
+function MarqueeContent({ text, style, staticText, overflows, translateX, spacer, onTextWidth }: {
+  text: string;
+  style?: StyleProp<TextStyle>;
+  staticText: boolean;
+  overflows: boolean;
+  translateX: Animated.Value;
+  spacer: number;
+  onTextWidth: (width: number) => void;
+}) {
+  return (
+    <>
+      {/* In-flow line: reserves the height and shows the text when it fits. */}
+      <Text
+        maxFontSizeMultiplier={staticText ? undefined : THEME.FONT_SCALE.CHROME}
+        numberOfLines={staticText ? undefined : 1}
+        ellipsizeMode="clip"
+        style={[style, overflows && !staticText && styles.ghost]}
+      >
+        {text}
+      </Text>
+      <ScrollView
+        horizontal
+        scrollEnabled={false}
+        showsHorizontalScrollIndicator={false}
+        pointerEvents="none"
+        accessible={false}
+        importantForAccessibility="no-hide-descendants"
+        style={StyleSheet.absoluteFill}
+      >
+        <Animated.View
+          style={[
+            styles.track,
+            // Transform is always attached (like the original lib) so the
+            // native node never re-attaches mid-flight; it stays 0 when the
+            // text fits.
+            { transform: [{ translateX }] },
+          ]}
+        >
+          <Text
+            maxFontSizeMultiplier={THEME.FONT_SCALE.CHROME}
+            numberOfLines={1}
+            style={[style, (!overflows || staticText) && styles.ghost]}
+            onLayout={(e) => onTextWidth(e.nativeEvent.layout.width)}
+          >
+            {text}
+          </Text>
+          <View style={{ width: spacer }} />
+          <Text
+            maxFontSizeMultiplier={THEME.FONT_SCALE.CHROME}
+            numberOfLines={1}
+            style={[style, (!overflows || staticText) && styles.ghost]}
+          >
+            {text}
+          </Text>
+        </Animated.View>
+      </ScrollView>
+    </>
+  );
+
+}
+
 /**
  * Lightweight marquee built on the built-in Animated API (native driver).
  *
@@ -137,6 +200,9 @@ export const Marquee = React.memo(function Marquee({
 }: MarqueeProps) {
   const group = useContext(GroupContext);
   const isBackgrounded = useIsBackgrounded();
+  const reducedMotion = useReducedMotion();
+  const { fontScale } = useWindowDimensions();
+  const staticText = reducedMotion || fontScale > THEME.FONT_SCALE.CHROME;
   const [containerWidth, setContainerWidth] = useState(0);
   const [textWidth, setTextWidth] = useState(0);
   const translateX = useMemo(() => new Animated.Value(0), []);
@@ -177,7 +243,7 @@ export const Marquee = React.memo(function Marquee({
     // Hidden app: stop scrolling entirely. Native-driven animations keep
     // running in the background (Android especially), burning CPU on a
     // marquee nobody can see.
-    if (!overflows || cycle === null || isBackgrounded) return undefined;
+    if (!overflows || cycle === null || isBackgrounded || staticText) return undefined;
 
     // Manual chaining (like react-native-text-ticker's animateScroll):
     // Animated.loop with a native-driven sequence(delay, timing) runs the
@@ -224,56 +290,13 @@ export const Marquee = React.memo(function Marquee({
     holdDelay,
     translateX,
     isBackgrounded,
+    staticText,
   ]);
 
   const content = (
-    <>
-      {/* In-flow line: reserves the height and shows the text when it fits. */}
-      <Text
-        maxFontSizeMultiplier={THEME.FONT_SCALE.CHROME}
-        numberOfLines={1}
-        ellipsizeMode="clip"
-        style={[style, overflows && styles.ghost]}
-      >
-        {text}
-      </Text>
-      <ScrollView
-        horizontal
-        scrollEnabled={false}
-        showsHorizontalScrollIndicator={false}
-        pointerEvents="none"
-        accessible={false}
-        importantForAccessibility="no-hide-descendants"
-        style={StyleSheet.absoluteFill}
-      >
-        <Animated.View
-          style={[
-            styles.track,
-            // Transform is always attached (like the original lib) so the
-            // native node never re-attaches mid-flight; it stays 0 when the
-            // text fits.
-            { transform: [{ translateX }] },
-          ]}
-        >
-          <Text
-            maxFontSizeMultiplier={THEME.FONT_SCALE.CHROME}
-            numberOfLines={1}
-            style={[style, !overflows && styles.ghost]}
-            onLayout={(e) => setTextWidth(e.nativeEvent.layout.width)}
-          >
-            {text}
-          </Text>
-          <View style={{ width: spacer }} />
-          <Text
-            maxFontSizeMultiplier={THEME.FONT_SCALE.CHROME}
-            numberOfLines={1}
-            style={[style, !overflows && styles.ghost]}
-          >
-            {text}
-          </Text>
-        </Animated.View>
-      </ScrollView>
-    </>
+    <MarqueeContent text={text} style={style} staticText={staticText}
+      overflows={overflows} translateX={translateX} spacer={spacer}
+      onTextWidth={setTextWidth} />
   );
 
   const lineProps = {
@@ -313,6 +336,6 @@ const styles = StyleSheet.create({
     opacity: 0,
   },
   pressed: {
-    opacity: 0.7,
+    opacity: THEME.OPACITY.PRESSED,
   },
 });

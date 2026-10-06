@@ -85,7 +85,7 @@ export const getSubmissionErrorMessage = (
         : t.REQUEST_ERROR_PEDIBLOCK_RECENT;
     case "ANIBLOCK":
     case "ARTISTBLOCK":
-      return withDetail(t.REQUEST_ERROR_BLOCK_90);
+      return detail?.trim() ? withDetail(t.REQUEST_ERROR_BLOCK_90) : t.REQUEST_ERROR_BLOCK_90_GENERIC;
     case "HARUBLOCK":
       return t.REQUEST_ERROR_HARUBLOCK;
     case "STRIKE AND OUT":

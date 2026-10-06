@@ -104,6 +104,15 @@ const makeRepository = (
 };
 
 describe("NowPlayingRepository", () => {
+  it("propagates an explicit history refresh failure while keeping background refresh best effort", async () => {
+    const error = new Error("offline");
+    const log = vi.spyOn(console, "error").mockImplementation(() => {});
+    const { repository } = makeRepository({ getTrackHistory: vi.fn().mockRejectedValue(error) });
+    await expect(repository.refreshHistory("played", true)).rejects.toBe(error);
+    await expect(repository.refreshHistory("played")).resolves.toBeUndefined();
+    log.mockRestore();
+  });
+
   it("merges data and reports only real changes", async () => {
     const { repository, changes, setStreamMetadata } = makeRepository();
 

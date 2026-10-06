@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { ScrollView, Text, View } from "react-native";
+import { useEffect, useState } from "react";
+import { Text, View } from "react-native";
 
 import { MusicRequest } from "@/core/domain/music-request";
 import { User } from "@/core/domain/user";
@@ -10,6 +10,8 @@ import { Cover } from "@/components/Cover";
 import { styles } from "@/components/RequestBottomSheet/styles";
 import { RequestSubmitButton } from "@/components/RequestSubmitButton";
 import { Sheet } from "@/components/Sheet";
+import { KeyboardScrollView } from "@/components/KeyboardScrollView";
+import { KeyboardFormRegion } from "@/components/KeyboardFormRegion";
 import { HarukaBubble } from "@/components/HarukaBubble";
 import { ReplyBubble } from "@/components/ReplyBubble";
 import { haptics } from "@/utils/haptics";
@@ -62,22 +64,18 @@ export function RequestBottomSheet({
   const [message, setMessage] = useState("");
   const [status, setStatus] = useState<SubmitStatus>("idle");
 
-  // Reset form when modal opens with a new track — "adjust state during
-  // render" pattern (compiler-safe, no cascading effect render)
-  const [prevOpenState, setPrevOpenState] = useState({
-    visible,
-    trackId: track?.id,
-  });
-  if (
-    prevOpenState.visible !== visible ||
-    prevOpenState.trackId !== track?.id
-  ) {
-    setPrevOpenState({ visible, trackId: track?.id });
+  const [wasVisible, setWasVisible] = useState(visible);
+  const [draft, setDraft] = useState({ trackId: track?.id, owner: user?.id });
+  const changedDraft = visible && (draft.trackId !== track?.id || draft.owner !== user?.id);
+  if (wasVisible !== visible || changedDraft) {
+    setWasVisible(visible);
     if (visible) {
-      setMessage("");
+      if (changedDraft || status === "success") setMessage("");
+      setDraft({ trackId: track?.id, owner: user?.id });
       setStatus("idle");
     }
   }
+  useEffect(() => { if (!visible) clearChip(); }, [visible, clearChip]);
 
   const fail = (text: string) => {
     haptics.error();
@@ -130,7 +128,7 @@ export function RequestBottomSheet({
       chip={chip}
       onChipDone={clearChip}
     >
-      <ScrollView
+      <KeyboardScrollView avoidKeyboard={false}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"
@@ -139,6 +137,7 @@ export function RequestBottomSheet({
         {track && <TrackCard track={track} />}
 
         <HarukaBubble text={dict.INFO_REQUEST} />
+        <KeyboardFormRegion style={styles.replyForm}>
         <ReplyBubble
           label={dict.FORM_LABEL_REQUEST}
           placeholder={dict.SEND_REQUEST_PLACEHOLDER}
@@ -153,7 +152,8 @@ export function RequestBottomSheet({
           failed={isError}
           onPress={handleSubmit}
         />
-      </ScrollView>
+        </KeyboardFormRegion>
+      </KeyboardScrollView>
     </Sheet>
   );
 }

@@ -35,7 +35,7 @@ import { MOTION } from "@/theme/motion";
  * `automaticallyAdjustKeyboardInsets` should enable this on Android only.
  */
 export function useKeyboardPadding(enabled: boolean): number {
-  const [height, setHeight] = useState(0);
+  const [height, setHeight] = useState(() => Keyboard.metrics()?.height ?? 0);
   const { bottom: bottomInset } = useSafeAreaInsets();
 
   useEffect(() => {
@@ -43,6 +43,9 @@ export function useKeyboardPadding(enabled: boolean): number {
       setHeight(0);
       return undefined;
     }
+    // A modal can open while another input's keyboard is already visible.
+    // Seed from the native keyboard cache instead of waiting for a new show.
+    setHeight(Keyboard.metrics()?.height ?? 0);
 
     const animate = (event?: KeyboardEvent) => {
       if (Platform.OS === "ios" && event?.duration) {
@@ -53,7 +56,7 @@ export function useKeyboardPadding(enabled: boolean): number {
         return;
       }
       LayoutAnimation.configureNext({
-        duration: MOTION.DURATION.NORMAL,
+        duration: MOTION.DURATION.FAST,
         update: { type: LayoutAnimation.Types.easeInEaseOut },
       });
     };
@@ -72,7 +75,7 @@ export function useKeyboardPadding(enabled: boolean): number {
         ? [
             // iOS re-sends willShow when the keyboard resizes while up
             // (keyboard type switch, suggestion bar), so heights stay live.
-            Keyboard.addListener("keyboardWillShow", onShow),
+            Keyboard.addListener("keyboardWillChangeFrame", onShow),
             Keyboard.addListener("keyboardWillHide", onHide),
           ]
         : [

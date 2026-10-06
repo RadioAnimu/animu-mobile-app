@@ -6,6 +6,7 @@ const HEADPHONES_ICON = scale(20);
 
 export const styles = StyleSheet.create({
   container: {
+    maxWidth: THEME.LAYOUT.CONTENT_WIDTH,
     justifyContent: "center",
     alignItems: "center",
     flexDirection: "row",
@@ -15,6 +16,7 @@ export const styles = StyleSheet.create({
     gap: THEME.SPACE.XS,
   },
   text: {
+    flexShrink: 1,
     fontSize: THEME.FONT_SIZE.HEADING,
     fontFamily: THEME.FONT_FAMILY.BOLD,
     verticalAlign: "middle",

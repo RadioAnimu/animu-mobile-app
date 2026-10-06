@@ -58,6 +58,7 @@ export const Listeners = React.memo(function Listeners() {
       style={[styles.container, { backgroundColor: palette.background }]}
     >
       <Text
+        numberOfLines={1}
         maxFontSizeMultiplier={THEME.FONT_SCALE.CHROME}
         style={[styles.text, { color: palette.text }]}
       >
@@ -69,6 +70,7 @@ export const Listeners = React.memo(function Listeners() {
         source={highlighted ? headphonesWhite : headphones}
       />
       <Text
+        numberOfLines={1}
         maxFontSizeMultiplier={THEME.FONT_SCALE.CHROME}
         style={[
           styles.text,

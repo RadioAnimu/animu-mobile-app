@@ -11,10 +11,6 @@ import {
   HEAT_WEEKS,
   styles,
 } from "@/screens/Stats/styles";
-import {
-  formatListenDuration,
-  listenDurationUnits,
-} from "@/utils/format";
 import { THEME } from "@/theme";
 
 interface Cell {
@@ -58,18 +54,18 @@ export function Heatmap({
   const todayMs = dayStartMs(dayKeyOf(today.getTime()));
   // Snap to the Sunday that starts the current week, then walk back a full
   // week per column — HEAT_WEEKS columns ending "this week".
-  const weekStart = todayMs - today.getDay() * 86_400_000;
-  const firstMs = weekStart - (HEAT_WEEKS - 1) * 7 * 86_400_000;
+  const first = new Date(today.getFullYear(), today.getMonth(), today.getDate() - today.getDay() - (HEAT_WEEKS - 1) * 7);
 
   const weeks: Cell[][] = [];
   const monthLabels: ({ index: number; label: string } | null)[] = [];
   let lastMonth = -1;
   let lastLabelAt = -3;
   for (let w = 0; w < HEAT_WEEKS; w++) {
-    const columnStart = firstMs + w * 7 * 86_400_000;
+    const columnDate = new Date(first.getFullYear(), first.getMonth(), first.getDate() + w * 7);
     const column: Cell[] = [];
     for (let d = 0; d < 7; d++) {
-      const cellMs = columnStart + d * 86_400_000;
+      // Calendar arithmetic keeps local midnight and weekdays aligned at DST.
+      const cellMs = new Date(columnDate.getFullYear(), columnDate.getMonth(), columnDate.getDate() + d).getTime();
       const key = dayKeyOf(cellMs);
       // Days after today render as invisible placeholders (grid alignment).
       column.push({
@@ -79,7 +75,7 @@ export function Heatmap({
       });
     }
     weeks.push(column);
-    const month = new Date(columnStart).getMonth();
+    const month = columnDate.getMonth();
     // Skip a label when the previous one is too close (consecutive weeks
     // changing month would overlap at one column apart).
     if (month !== lastMonth && w - lastLabelAt >= 2) {
@@ -99,6 +95,11 @@ export function Heatmap({
     <View>
       <ScrollView
         horizontal
+        // The day navigator exposes the same drill-down with comfortable
+        // controls and avoids 180 tiny cells in TalkBack/VoiceOver's order.
+        accessibilityElementsHidden
+        collapsable={false}
+        importantForAccessibility="no-hide-descendants"
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.heatGrid}
         style={styles.heatScroll}
@@ -134,19 +135,11 @@ export function Heatmap({
                     return <View key={cell.key} style={styles.heatCell} />;
                   }
                   const isSelected = cell.key === selected;
-                  // Localized date + duration, not a raw ISO key and an
-                  // English "min" — this is what screen readers announce.
-                  const a11yLabel = `${new Date(
-                    dayStartMs(cell.key),
-                  ).toLocaleDateString()}: ${formatListenDuration(
-                    cell.ms / 60_000,
-                    listenDurationUnits(dict),
-                  )}`;
                   return (
                     <TouchableOpacity
                       key={cell.key}
-                      accessibilityRole="button"
-                      accessibilityLabel={a11yLabel}
+                      accessible={false}
+                      importantForAccessibility="no"
                       activeOpacity={THEME.OPACITY.PRESSED}
                       onPress={() =>
                         onSelect(isSelected ? null : cell.key)

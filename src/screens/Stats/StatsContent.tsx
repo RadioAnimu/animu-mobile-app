@@ -7,6 +7,7 @@ import type { ListenStatsSnapshot } from "@/core/services/listen-stats.service";
 import type { Dict } from "@/i18n";
 import { DayDetail } from "@/screens/Stats/DayDetail";
 import { Heatmap } from "@/screens/Stats/Heatmap";
+import { DayNavigator } from "@/screens/Stats/DayNavigator";
 import type { ProfileBar } from "@/screens/Stats/ProfileBars";
 import { ProfileBars } from "@/screens/Stats/ProfileBars";
 import { styles } from "@/screens/Stats/styles";
@@ -120,11 +121,18 @@ export function StatsContent({
           onSelect={onSelectDay}
           dict={dict}
         />
+        <DayNavigator selected={selectedDay} onSelect={onSelectDay} dict={dict} />
       </View>
       <Text style={styles.hint}>{dict.STATS_HEATMAP_HINT}</Text>
       {selectedDay != null && selectedData != null && (
         <View style={[styles.group, styles.detailGap]}>
           <DayDetail dayKey={selectedDay} day={selectedData} dict={dict} />
+        </View>
+      )}
+      {selectedDay != null && selectedData == null && (
+        <View style={[styles.group, styles.cardPadding, styles.detailGap]}>
+          <Text style={styles.dayTitle}>{selectedDay}</Text>
+          <Text style={styles.emptyText}>{dict.STATS_DAY_EMPTY}</Text>
         </View>
       )}
 

@@ -1,9 +1,11 @@
-import { useState } from "react";
-import { ScrollView, TextInput } from "react-native";
+import { useEffect, useState } from "react";
+import { TextInput } from "react-native";
 
 import { FormField } from "@/components/FormField";
 import { RequestSubmitButton } from "@/components/RequestSubmitButton";
 import { Sheet } from "@/components/Sheet";
+import { KeyboardScrollView } from "@/components/KeyboardScrollView";
+import { KeyboardFormRegion } from "@/components/KeyboardFormRegion";
 import { SheetBanner } from "@/components/SheetBanner";
 import { styles } from "@/components/LiveRequestModal/styles";
 import { useAlert } from "@/contexts/alert/AlertProvider";
@@ -38,6 +40,7 @@ export function LiveRequestModal({ visible, handleClose }: Readonly<Props>) {
   const { user } = useAuth();
   const { toast } = useAlert();
   const { chip, showChip, clearChip } = useChip();
+  useEffect(() => { if (!visible) clearChip(); }, [visible, clearChip]);
   const defaultName = user?.nickname || user?.username || "";
 
   const { formData, setters, setField, reset } = useLiveRequestForm({
@@ -157,7 +160,7 @@ export function LiveRequestModal({ visible, handleClose }: Readonly<Props>) {
       chip={chip}
       onChipDone={clearChip}
     >
-      <ScrollView
+      <KeyboardScrollView avoidKeyboard={false}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"
@@ -190,6 +193,7 @@ export function LiveRequestModal({ visible, handleClose }: Readonly<Props>) {
           placeholder={t.FORM_PLACEHOLDER_ANIME}
           {...fieldProps("anime", "request")}
         />
+        <KeyboardFormRegion style={styles.replyForm}>
         <FormField
           label={t.FORM_LABEL_REQUEST}
           optional
@@ -203,7 +207,8 @@ export function LiveRequestModal({ visible, handleClose }: Readonly<Props>) {
           failed={isError}
           onPress={handleSubmit}
         />
-      </ScrollView>
+        </KeyboardFormRegion>
+      </KeyboardScrollView>
     </Sheet>
   );
 }

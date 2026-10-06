@@ -1,10 +1,12 @@
 import { useEffect, useState } from "react";
+import { useReducedMotion } from "@/hooks/useReducedMotion";
+import { MOTION } from "@/theme/motion";
 import { Animated, Easing } from "react-native";
 
 /** How dim the "calculating" pulse dips. */
 const BLINK_MIN = 0.35;
 /** Length of each half of the pulse, in ms. */
-const BLINK_HALF_MS = 650;
+const BLINK_HALF_MS = MOTION.PULSE_HALF;
 
 /**
  * "Calculating" pulse: fades an Animated.Value towards `min` and back while
@@ -13,10 +15,11 @@ const BLINK_HALF_MS = 650;
  * renderers can hide behind `active` without stale mid-pulse opacity.
  */
 export function useBlink(active: boolean) {
+  const reducedMotion = useReducedMotion();
   const [blink] = useState(() => new Animated.Value(1));
 
   useEffect(() => {
-    if (!active) {
+    if (!active || reducedMotion) {
       blink.setValue(1);
       return undefined;
     }
@@ -42,7 +45,7 @@ export function useBlink(active: boolean) {
       loop.stop();
       blink.setValue(1);
     };
-  }, [active, blink]);
+  }, [active, blink, reducedMotion]);
 
   return blink;
 }

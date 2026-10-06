@@ -4,6 +4,7 @@ import type { AuthAccountEmail, LinkedProvider } from "animu-api";
 import {
   ActivityIndicator,
   Alert,
+  Keyboard,
   Text,
   TouchableOpacity,
   View,
@@ -26,6 +27,7 @@ import { maskEmail } from "@/utils/mask";
 import { CodeSubtitle } from "@/components/CodeSubtitle";
 import { ConnectActions } from "@/components/ConnectActions";
 import { EmailCodeFields } from "@/components/EmailCodeFields";
+import { KeyboardFormRegion } from "@/components/KeyboardFormRegion";
 import { FormError } from "@/components/FormError";
 import { LeadingIcon } from "@/components/ListRow";
 import { MaskedValue } from "@/components/MaskedValue";
@@ -265,7 +267,7 @@ function AddEmailForm({
   const onCodeStep = flow.step === "code";
 
   return (
-    <View style={styles.form}>
+    <KeyboardFormRegion style={styles.form}>
       <Text style={styles.formHint}>
         {onCodeStep ? (
           <CodeSubtitle
@@ -302,7 +304,7 @@ function AddEmailForm({
           />
         </View>
       )}
-    </View>
+    </KeyboardFormRegion>
   );
 }
 
@@ -344,6 +346,7 @@ export function AccountEmails() {
       toast(dict.LOGIN_CODE_SENT);
     },
     onVerified: () => {
+      Keyboard.dismiss();
       haptics.success();
       toast(dict.ACCOUNT_EMAIL_SAVED);
     },

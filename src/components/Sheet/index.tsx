@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import {
   Animated,
+  Keyboard,
   Modal,
   ModalProps,
   StyleSheet,
@@ -17,12 +18,13 @@ import { useKeyboardPadding } from "@/hooks/useKeyboardPadding";
 import { useReducedMotion } from "@/hooks/useReducedMotion";
 import type { ChipState } from "@/hooks/useChip";
 import { Toast } from "@/components/Toast";
+import { PresentationReadyContext } from "@/contexts/Portal/PresentationContext";
 import { THEME } from "@/theme";
 import { MOTION } from "@/theme/motion";
 import { scale } from "@/theme/responsive";
 import { CONTINUOUS } from "@/theme/shape";
 
-const CLOSE_AREA_HEIGHT = scale(35);
+const CLOSE_AREA_HEIGHT = THEME.LAYOUT.SHEET_HANDLE_HEIGHT;
 const DRAG_ICON_HEIGHT = scale(14);
 /** A drag past this share of the sheet's height (or a flick) dismisses it. */
 const DISMISS_RATIO = 0.25;
@@ -70,7 +72,6 @@ export function Sheet({
   // come back through `rest` and win over the sheet's invariants.
   ...rest
 }: Readonly<Props>) {
-  const keyboardPadding = useKeyboardPadding(withKeyboard && visible);
   const insets = useSafeAreaInsets();
   const dict = useDict();
   const reduceMotion = useReducedMotion();
@@ -78,6 +79,8 @@ export function Sheet({
 
   // The modal stays mounted until the exit animation has played.
   const [mounted, setMounted] = useState(visible);
+  const keyboardPadding = useKeyboardPadding(withKeyboard && mounted);
+  const [ready, setReady] = useState(false);
   if (visible && !mounted) setMounted(true);
 
   const [progress] = useState(() => new Animated.Value(0));
@@ -86,6 +89,7 @@ export function Sheet({
 
   useEffect(() => {
     if (!mounted) return undefined;
+    if (!visible) Keyboard.dismiss();
     if (visible) drag.setValue(0);
     const animation = Animated.timing(progress, {
       toValue: visible ? 1 : 0,
@@ -94,10 +98,16 @@ export function Sheet({
       useNativeDriver: true,
     });
     animation.start(({ finished }) => {
-      if (finished && !visible) setMounted(false);
+      if (finished && !visible) { setMounted(false); setReady(false); }
     });
     return () => animation.stop();
   }, [visible, mounted, progress, drag]);
+
+  const dismiss = () => {
+    if (!closable) return;
+    Keyboard.dismiss();
+    onClose();
+  };
 
   // Handle drag, on the plain responder props so every value is read in its
   // event handler: the start point and the last sample give the travel and
@@ -107,8 +117,7 @@ export function Sheet({
   const settleDrag = () => {
     Animated.spring(drag, {
       toValue: 0,
-      speed: 24,
-      bounciness: 0,
+      ...MOTION.SPRING,
       useNativeDriver: true,
     }).start();
   };
@@ -142,11 +151,11 @@ export function Sheet({
     },
     onResponderRelease: (event: GestureResponderEvent) => {
       const travel = event.nativeEvent.pageY - dragStart.current.y;
-      const dismiss =
+      const shouldDismiss =
         travel > sheetHeight.current * DISMISS_RATIO ||
         dragStart.current.velocity > DISMISS_VELOCITY;
-      if (dismiss) {
-        onClose();
+      if (shouldDismiss) {
+        dismiss();
         return;
       }
       settleDrag();
@@ -169,9 +178,10 @@ export function Sheet({
       transparent
       statusBarTranslucent
       navigationBarTranslucent
-      onRequestClose={closable ? onClose : undefined}
+      onRequestClose={dismiss}
+      onShow={(event) => { setReady(true); rest.onShow?.(event); }}
     >
-      <View style={[styles.overlay, { paddingTop: insets.top }]}>
+      <View style={[styles.overlay, { paddingTop: insets.top, paddingBottom: keyboardPadding }]}>
         <Animated.View
           pointerEvents="none"
           style={[styles.scrim, { opacity: progress }]}
@@ -182,12 +192,11 @@ export function Sheet({
           accessible={false}
           style={styles.backdrop}
           activeOpacity={1}
-          onPress={closable ? onClose : undefined}
+          onPress={dismiss}
         />
-        {/* The bottom padding clears the home indicator / Android nav bar
-            (Modals are always edge-to-edge since RN 0.86) and, while typing,
-            the keyboard — the surface itself runs behind the keyboard so no
-            scrim gap opens between them. */}
+        {/* One system inset + one content gap. Keyboard avoidance belongs
+            to the overlay, so it reduces the available height instead of
+            inflating the sheet with a keyboard-sized empty footer. */}
         <Animated.View
           accessibilityViewIsModal
           onLayout={(event) => {
@@ -195,9 +204,11 @@ export function Sheet({
           }}
           style={[
             styles.sheet,
-            maxHeight != null && { maxHeight },
+            { maxHeight: maxHeight ?? THEME.LAYOUT.SHEET_MAX_HEIGHT },
             {
-              paddingBottom: insets.bottom + THEME.SPACE.LG + keyboardPadding,
+              paddingBottom: insets.bottom + THEME.SPACE.LG,
+              paddingLeft: insets.left,
+              paddingRight: insets.right,
               opacity: reduceMotion ? progress : 1,
               transform: [{ translateY: Animated.add(slide, drag) }],
             },
@@ -208,7 +219,10 @@ export function Sheet({
               accessibilityRole="button"
               accessibilityLabel={dict.A11Y_CLOSE}
               style={styles.closeArea}
-              onPress={closable ? onClose : undefined}
+              onPress={dismiss}
+              disabled={!closable}
+              accessibilityState={{ disabled: !closable }}
+              activeOpacity={THEME.OPACITY.PRESSED}
             >
               <Image
                 contentFit="contain"
@@ -217,7 +231,9 @@ export function Sheet({
               />
             </TouchableOpacity>
           </View>
-          {children}
+          <PresentationReadyContext.Provider value={ready && visible}>
+            {children}
+          </PresentationReadyContext.Provider>
         </Animated.View>
         {chip && (
           <View

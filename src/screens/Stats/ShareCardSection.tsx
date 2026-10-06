@@ -24,7 +24,6 @@ import { useUserSettings } from "@/contexts/user/UserSettingsProvider";
 import { ShareCard } from "@/screens/Stats/ShareCard";
 import { styles } from "@/screens/Stats/styles";
 import { THEME } from "@/theme";
-import { scale } from "@/theme/responsive";
 import { haptics } from "@/utils/haptics";
 import { resolveMediaSource } from "@/utils/authImage";
 
@@ -101,7 +100,7 @@ export function ShareCardSection({
         const uri = await captureCard();
         if (kind === "share") {
           if (!(await Sharing.isAvailableAsync())) {
-            toast(dict.STATS_CARD_FAILED);
+            toast(dict.STATS_CARD_FAILED, "error");
             return;
           }
           await Sharing.shareAsync(uri, {
@@ -110,7 +109,7 @@ export function ShareCardSection({
           });
         } else {
           if (!(await canSaveToPhotoLibrary())) {
-            toast(dict.STATS_CARD_FAILED);
+            toast(dict.STATS_CARD_FAILED, "error");
             return;
           }
           await MediaLibrary.Asset.create(uri);
@@ -122,7 +121,7 @@ export function ShareCardSection({
         discardTmpFile(uri);
       } catch (error) {
         console.warn("[ShareCard] failed:", error);
-        toast(dict.STATS_CARD_FAILED);
+        toast(dict.STATS_CARD_FAILED, "error");
       } finally {
         setBusy(null);
       }
@@ -155,7 +154,7 @@ export function ShareCardSection({
           >
             <Icon
               name="login"
-              size={18}
+              size={THEME.ICON.SECTION}
               color={THEME.COLORS.TEXT_ON_LIGHT}
             />
             <Text style={styles.shareActionLabel}>
@@ -206,7 +205,7 @@ export function ShareCardSection({
             )}
             accentColor={banner?.color ?? undefined}
             logoSource={IMGS[settings.selectedLanguage].LOGO}
-            actionsInset={androidDownload ? scale(104) : scale(56)}
+            actionsInset={THEME.LAYOUT.TOUCH_TARGET * (androidDownload ? 2 : 1) + THEME.SPACE.LG + (androidDownload ? THEME.SPACE.SM : 0)}
             snap={snap}
             dict={dict}
           />

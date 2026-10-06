@@ -82,7 +82,7 @@ export function CoverStorageCard({
         </View>
         {!measuring && hasData && (
           <Text style={styles.totalCount}>
-            {snapshot?.totalCount ?? 0} {dict.SETTINGS_STORAGE_FILES}
+            {snapshot?.totalCount ?? 0} {snapshot?.totalCount === 1 ? dict.SETTINGS_STORAGE_FILE : dict.SETTINGS_STORAGE_FILES}
           </Text>
         )}
       </View>

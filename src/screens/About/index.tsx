@@ -12,6 +12,7 @@ import { Logo } from "@/components/Logo";
 import { ScreenHeader } from "@/components/ScreenHeader";
 import { SectionTitle } from "@/components/SectionTitle";
 import { SocialIcon, type SocialBrand } from "@/components/SocialIcon";
+import { useStackedRows } from "@/hooks/useStackedRows";
 import { useDict } from "@/hooks/useDict";
 import { useScrollEndPadding } from "@/hooks/useScrollEndPadding";
 import type { RootStackParamList } from "@/routes/app.routes";
@@ -46,6 +47,7 @@ interface DetailRowProps {
 
 /** Read-only key/value row (no chevron, no press) — the "Device details" row. */
 function DetailRow({ icon, label, value }: Readonly<DetailRowProps>) {
+  const stacked = useStackedRows();
   return (
     <View style={styles.row}>
       <View style={styles.rowIcon}>
@@ -55,10 +57,11 @@ function DetailRow({ icon, label, value }: Readonly<DetailRowProps>) {
           color={THEME.COLORS.TEXT}
         />
       </View>
-      <Text style={styles.rowLabel}>{label}</Text>
-      <Text style={styles.rowValue} numberOfLines={1}>
-        {value}
-      </Text>
+      <View style={styles.detailBody}>
+        <Text style={styles.rowLabel}>{label}</Text>
+        {stacked && <Text style={styles.detailValue}>{value}</Text>}
+      </View>
+      {!stacked && <Text style={styles.rowValue} numberOfLines={1}>{value}</Text>}
     </View>
   );
 }

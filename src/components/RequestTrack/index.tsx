@@ -19,6 +19,9 @@ export const RequestTrack = React.memo(function RequestTrack({ track }: Props) {
     <TouchableOpacity
       accessibilityRole="button"
       accessibilityLabel={`${track.artist} | ${track.raw}`}
+      accessibilityState={{ disabled: !track.requestable }}
+      disabled={!track.requestable}
+      activeOpacity={THEME.OPACITY.PRESSED}
       onPress={() => onTrackRequest(track)}
       style={[
         styles.container,

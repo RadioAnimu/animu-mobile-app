@@ -12,7 +12,8 @@ export type TransportState =
   | "connecting" // play requested, no audio yet
   | "playing" // audio flowing
   | "paused" // paused (by the user or the system)
-  | "reconnecting"; // stream lost while audio is wanted; recovering
+  | "reconnecting"
+  | "error"; // stream lost while audio is wanted; recovering
 
 // ─── Snapshot types ───
 //

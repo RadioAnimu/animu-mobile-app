@@ -209,49 +209,19 @@ export const PlayerProvider: React.FC<{
 
   // ─── Action wrappers — delegate to the service (which auto-emits) ───
 
-  const play = useCallback(async () => {
-    try {
-      await playerServiceInstance.play();
-    } catch (error) {
-      console.error("[PlayerProvider] Play error:", error);
-    }
-  }, [playerServiceInstance]);
-
-  const pause = useCallback(async () => {
-    try {
-      await playerServiceInstance.pause();
-    } catch (error) {
-      console.error("[PlayerProvider] Pause error:", error);
-    }
-  }, [playerServiceInstance]);
-
+  // UI callers own feedback. Propagate failures so play, bitrate and refresh
+  // controls cannot report success after the native/network operation failed.
+  const play = useCallback(() => playerServiceInstance.play(), [playerServiceInstance]);
+  const pause = useCallback(() => playerServiceInstance.pause(), [playerServiceInstance]);
   const changeStream = useCallback(
-    async (stream: Stream) => {
-      try {
-        await playerServiceInstance.changeStream(stream);
-      } catch (error) {
-        console.error("[PlayerProvider] Stream change error:", error);
-      }
-    },
+    (stream: Stream) => playerServiceInstance.changeStream(stream),
     [playerServiceInstance],
   );
-
   const refreshData = useCallback(async () => {
-    try {
-      await playerServiceInstance.refreshData();
-    } catch (error) {
-      console.error("[PlayerProvider] Error refreshing data:", error);
-    }
+    await playerServiceInstance.refreshData();
   }, [playerServiceInstance]);
-
   const refreshHistory = useCallback(
-    async (type: "requests" | "played") => {
-      try {
-        await playerServiceInstance.refreshHistory(type);
-      } catch (error) {
-        console.error("[PlayerProvider] Error refreshing history:", error);
-      }
-    },
+    (type: "requests" | "played") => playerServiceInstance.refreshHistory(type),
     [playerServiceInstance],
   );
 

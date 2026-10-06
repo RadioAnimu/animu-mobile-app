@@ -64,21 +64,14 @@ export function History({ route }: Readonly<Props>) {
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     try {
-      // `refreshData` only re-fetches the requested feed; the played feed is
-      // otherwise refreshed only on track change, so pull-to-refresh must ask
-      // for the list currently on screen.
-      if (isRequestHistory) {
-        await player.refreshData();
-      } else {
-        await player.refreshHistory("played");
-      }
+      await player.refreshHistory(historyType);
     } catch (error) {
       console.warn("[History] refresh failed:", error);
-      toast(dict.REQUEST_ERROR);
+      toast(dict.REQUEST_ERROR, "error");
     } finally {
       setRefreshing(false);
     }
-  }, [player, isRequestHistory, toast, dict.REQUEST_ERROR]);
+  }, [player, historyType, toast, dict.REQUEST_ERROR]);
 
   const showCovers = isRequestHistory
     ? settings.lastRequestedCovers

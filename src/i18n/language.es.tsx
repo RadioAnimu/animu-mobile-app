@@ -130,6 +130,13 @@ const PROGRAMS: Program[] = [
 const DICT: Dict = {
   PROGRAMS,
   TIME_REMAINING: "Tiempo restante",
+  PLAYER_CONNECTING: "Conectando…",
+  PLAYER_RECONNECTING: "Reconectando…",
+  PLAYER_METADATA_UNAVAILABLE: "Los detalles de la canción no están disponibles. Puedes seguir usando el reproductor.",
+  PLAYER_PLAYBACK_FAILED: "No se pudo reproducir. Inténtalo de nuevo.",
+  STATS_DAY_EMPTY: "No se registró ninguna escucha este día.",
+  STATS_PREVIOUS_DAY: "Día anterior",
+  STATS_NEXT_DAY: "Día siguiente",
   SYNCHRONIZING: "Sintonizando",
   WITH_DJ: "CON",
   MENU: "Menú",
@@ -164,6 +171,7 @@ const DICT: Dict = {
   SETTINGS_VISUALIZER_SWITCH: "Onda de sonido",
   SETTINGS_MEMORY_CLEAR_CACHE_SWITCH: "Reutilizar portadas descargadas",
   SETTINGS_STORAGE_TOTAL: "Portadas guardadas",
+  SETTINGS_STORAGE_FILE: "archivo",
   SETTINGS_STORAGE_FILES: "archivos",
   SETTINGS_STORAGE_LIVE: "Reproduciendo (en vivo)",
   SETTINGS_STORAGE_REQUESTED: "Solicitudes recientes",
@@ -344,6 +352,7 @@ const DICT: Dict = {
   REQUEST_ERROR_PEDIBLOCK:
     "Esta canción ya fue solicitada. Disponible de nuevo después de {time}.",
   REQUEST_ERROR_PEDIBLOCK_RECENT: "Esta canción fue solicitada hace muy poco.",
+  REQUEST_ERROR_BLOCK_90_GENERIC: "Demasiadas canciones de este anime o artista en los últimos 90 minutos. Inténtalo más tarde.",
   REQUEST_ERROR_BLOCK_90:
     'Demasiadas canciones de "{detail}" en los últimos 90 minutos.',
   REQUEST_ERROR_HARUBLOCK: "Esta canción sonó hace muy poco en el AutoDJ.",

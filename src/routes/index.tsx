@@ -1,5 +1,6 @@
-import { DefaultTheme, NavigationContainer } from "@react-navigation/native";
+import { DarkTheme, NavigationContainer } from "@react-navigation/native";
 import { AppRoutes } from "@/routes/app.routes";
+import { THEME } from "@/theme";
 
 /**
  * The app paints its own full-screen artwork behind the navigator
@@ -10,8 +11,16 @@ import { AppRoutes } from "@/routes/app.routes";
  * showed white instead of the artwork until this was overridden.
  */
 const NAV_THEME = {
-  ...DefaultTheme,
-  colors: { ...DefaultTheme.colors, background: "transparent" },
+  ...DarkTheme,
+  colors: {
+    ...DarkTheme.colors,
+    background: "transparent",
+    primary: THEME.COLORS.BRAND,
+    card: THEME.COLORS.SURFACE,
+    text: THEME.COLORS.TEXT,
+    border: THEME.COLORS.HAIRLINE,
+    notification: THEME.COLORS.ERROR,
+  },
 };
 
 export function Routes() {

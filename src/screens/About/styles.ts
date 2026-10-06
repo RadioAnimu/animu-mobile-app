@@ -28,6 +28,8 @@ export const styles = StyleSheet.create({
     ...ROW_STYLES.label,
     flex: 1,
   },
+  detailBody: { flex: 1, gap: THEME.SPACE.XS, paddingVertical: THEME.SPACE.MD },
+  detailValue: { color: THEME.COLORS.TEXT_SOFT, fontFamily: THEME.FONT_FAMILY.REGULAR, fontSize: THEME.FONT_SIZE.BODY },
   rowValue: {
     flexShrink: 1,
     marginLeft: THEME.SPACE.MD,

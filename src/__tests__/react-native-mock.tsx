@@ -189,6 +189,8 @@ export function createReactNativeMock() {
       inOut: (fn: unknown) => fn,
     },
     AccessibilityInfo: {
+      getRecommendedTimeoutMillis: vi.fn((ms: number) => Promise.resolve(ms)),
+      announceForAccessibility: vi.fn(),
       isReduceMotionEnabled: vi.fn(() => Promise.resolve(false)),
       addEventListener: vi.fn(() => ({ remove: vi.fn() })),
     },
@@ -199,6 +201,7 @@ export function createReactNativeMock() {
     Keyboard: {
       dismiss: vi.fn(),
       isVisible: vi.fn(() => false),
+      metrics: vi.fn(() => undefined),
       addListener: vi.fn(() => ({ remove: vi.fn() })),
     },
     LayoutAnimation: {

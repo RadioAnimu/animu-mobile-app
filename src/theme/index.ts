@@ -29,6 +29,18 @@ export const THEME = {
     SPINNER: "rgba(255, 255, 255, 0.7)",
 
     ERROR: "#F87171",
+    SUCCESS: "#6BDB00",
+    WARNING: "#FBBF24",
+    INFO: "#FFFFFF",
+    PLACEHOLDER_ON_LIGHT: "#737373",
+    SHADOW: "rgba(0, 0, 0, 0.35)",
+    AUTH_VIGNETTE: "#0B001A",
+    AUTH_VIGNETTE_SOFT: "#15002F",
+    CHART_LEVELS: ["rgba(255, 255, 255, 0.06)", "rgba(107, 219, 0, 0.25)", "rgba(107, 219, 0, 0.45)", "rgba(107, 219, 0, 0.7)", "#6BDB00"],
+    CACHE_REQUESTED: "#C77DFF",
+    CACHE_PLAYED: "#4FC3F7",
+    CACHE_SEARCH: "#FFCF56",
+    CHART_BAR: "rgba(107, 219, 0, 0.35)",
     /**
      * Solid fill for destructive buttons. Derived from the error hue but
      * shifted slightly cool toward the app's violet surfaces (hue 352°) and
@@ -52,6 +64,7 @@ export const THEME = {
     SOFT: 0.7,
     /** `activeOpacity` of every TouchableOpacity — one pressed state app-wide. */
     PRESSED: 0.7,
+    HIDDEN_INPUT: 0.01,
   },
 
   FONT_FAMILY: {
@@ -139,6 +152,7 @@ export const THEME = {
 
   /** Chunky outlines of the sticker-style request sheets. */
   BORDER_WIDTH: {
+    OUTLINE: 1,
     THIN: scale(2),
     THICK: scale(3),
   },
@@ -155,6 +169,13 @@ export const THEME = {
   },
 
   LAYOUT: {
+    /** Android's 48dp minimum also clears iOS's 44pt recommendation. */
+    TOUCH_TARGET: 48,
+    BUTTON_HEIGHT: scale(48),
+    SHEET_HANDLE_HEIGHT: 48,
+    SHEET_MAX_HEIGHT: "90%" as const,
+    CODE_BOX: scale(60),
+    FLOW_WIDTH: "88%" as const,
     /** Fixed leading-icon column shared by settings/profile rows. */
     ICON_BOX_WIDTH: scale(32),
     /** Height of a single-line text field (search, email). */
@@ -167,4 +188,13 @@ export const THEME = {
     CONTENT_WIDTH: "88%" as const,
     CONTENT_MAX_WIDTH,
   },
+  ELEVATION: {
+    TOAST: [{ offsetX: 0, offsetY: 4, blurRadius: 8, color: "rgba(0, 0, 0, 0.35)" }],
+  },
+  FEEDBACK: {
+    HOLD_MS: { success: 2400, info: 3200, error: 5000 },
+    MASK_AUTO_HIDE_MS: 5000,
+  },
+  SCROLL: { EVENT_THROTTLE: 16 },
+  CHART: { HEAT_WEEKS: 26, CELL: 10, GAP: 2, RADIUS: 2, BAR_HEIGHT: 72, BAR_MIN: 2 },
 };

@@ -6,11 +6,11 @@ import { hardShadow } from "@/theme/shape";
 const COVER = scale(76);
 
 export const styles = StyleSheet.create({
+  replyForm: { gap: THEME.SPACE.LG },
   scrollContent: {
     gap: THEME.SPACE.LG,
     paddingHorizontal: THEME.SPACE.LG,
     paddingTop: THEME.SPACE.SM,
-    paddingBottom: THEME.SPACE.MD,
   },
   trackRow: {
     flexDirection: "row",

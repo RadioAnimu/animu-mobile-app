@@ -6,9 +6,8 @@ import {
   ActivityIndicator,
   Animated,
   BackHandler,
+  Keyboard,
   Linking,
-  Platform,
-  ScrollView,
   Text,
   TouchableOpacity,
   View,
@@ -39,7 +38,8 @@ import {
   emailCodeError,
   type EmailCodeFlow,
 } from "@/hooks/useEmailCodeFlow";
-import { useKeyboardPadding } from "@/hooks/useKeyboardPadding";
+import { KeyboardScrollView } from "@/components/KeyboardScrollView";
+import { KeyboardFormRegion } from "@/components/KeyboardFormRegion";
 import { useReducedMotion } from "@/hooks/useReducedMotion";
 import { useResendCooldown } from "@/hooks/useResendCooldown";
 import { haptics } from "@/utils/haptics";
@@ -53,7 +53,7 @@ type Props = NativeStackScreenProps<RootStackParamList, "Login">;
 type Step = "method" | "connect";
 
 /** Gap between the entrance of consecutive blocks — a beat, not a wait. */
-const ENTRANCE_STAGGER = 40;
+const ENTRANCE_STAGGER = MOTION.STAGGER;
 
 /**
  * Fade-and-rise entrance for an auth block. Each section starts a beat after
@@ -75,7 +75,7 @@ function useEntrance(step = 0) {
     });
     animation.start();
     return () => animation.stop();
-  }, [step, progress]);
+  }, [step, progress, reduceMotion]);
 
   return {
     opacity: progress,
@@ -266,6 +266,7 @@ function ConnectStep({
       </Animated.View>
 
       <Animated.View style={[styles.form, formStyle]}>
+        <KeyboardFormRegion>
         <EmailCodeFields flow={flow} autoFocusEmail />
 
         {error && (
@@ -291,6 +292,7 @@ function ConnectStep({
             />
           </View>
         )}
+        </KeyboardFormRegion>
       </Animated.View>
 
       {!onCodeStep && (
@@ -322,12 +324,8 @@ export function Login({ navigation }: Readonly<Props>) {
   const [providerError, setProviderError] = useState<string | null>(null);
   const resend = useResendCooldown(RESEND_COOLDOWN_SECONDS);
 
-  // Android edge-to-edge draws behind the software keyboard, so the bottom
-  // form would stay hidden while typing; iOS is covered by the scroll view's
-  // `automaticallyAdjustKeyboardInsets` below.
-  const keyboardPadding = useKeyboardPadding(Platform.OS === "android");
-
   const finish = () => {
+    Keyboard.dismiss();
     if (navigation.canGoBack()) {
       navigation.goBack();
     } else {
@@ -444,16 +442,9 @@ export function Login({ navigation }: Readonly<Props>) {
             <BackArrow />
           </TouchableOpacity>
         </View>
-        <ScrollView
-          contentContainerStyle={[
-            styles.content,
-            keyboardPadding > 0 && {
-              paddingBottom: keyboardPadding + THEME.SPACE.XXXL,
-            },
-          ]}
-          // iOS keeps the scroll view clear of the software keyboard so the
-          // focused field scrolls into view (Android resizes the window).
-          automaticallyAdjustKeyboardInsets
+        <KeyboardScrollView
+          bottomInsetConsumed
+          contentContainerStyle={styles.content}
           keyboardShouldPersistTaps="handled"
           keyboardDismissMode="on-drag"
           showsVerticalScrollIndicator={false}
@@ -477,7 +468,7 @@ export function Login({ navigation }: Readonly<Props>) {
               onResend={flow.sendCode}
             />
           )}
-        </ScrollView>
+        </KeyboardScrollView>
       </SafeAreaView>
     </Background>
   );

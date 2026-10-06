@@ -45,7 +45,6 @@ export function SheetButton({
       ) : (
         <>
           <Text
-            maxFontSizeMultiplier={THEME.FONT_SCALE.CHROME}
             style={styles.label}
           >
             {label}

@@ -575,7 +575,7 @@ export class NowPlayingRepository {
    * already known stop nothing but add nothing (dedup by `raw`, first =
    * newest occurrence wins for repeats within one payload).
    */
-  async refreshHistory(type: HistoryType): Promise<void> {
+  async refreshHistory(type: HistoryType, propagateErrors = false): Promise<void> {
     if (this.disposed) return;
     try {
       const tracks = await this.options.fetchers.getTrackHistory(
@@ -624,6 +624,7 @@ export class NowPlayingRepository {
         `[NowPlayingRepository] Error refreshing ${type} history:`,
         error,
       );
+      if (propagateErrors) throw error;
     }
   }
 

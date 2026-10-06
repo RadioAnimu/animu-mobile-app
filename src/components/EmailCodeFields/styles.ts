@@ -18,7 +18,7 @@ export const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: THEME.SPACE.SM,
-    height: THEME.LAYOUT.FIELD_HEIGHT,
+    minHeight: THEME.LAYOUT.FIELD_HEIGHT,
     paddingHorizontal: THEME.SPACE.LG,
     borderRadius: THEME.RADIUS.MD,
     backgroundColor: THEME.COLORS.INPUT_BG,
@@ -32,6 +32,7 @@ export const styles = StyleSheet.create({
     marginTop: THEME.SPACE.LG,
   },
   input: {
+    minHeight: THEME.LAYOUT.FIELD_HEIGHT,
     flex: 1,
     padding: 0,
     color: THEME.COLORS.TEXT,

@@ -5,18 +5,12 @@ import { scale } from "@/theme/responsive";
 import { SCREEN_STYLES } from "@/theme/screen";
 import { CONTINUOUS, avatarRadius } from "@/theme/shape";
 
-export const HEAT_CELL = 10;
-export const HEAT_GAP = 2;
-export const HEAT_WEEKS = 26;
+export const HEAT_CELL = THEME.CHART.CELL;
+export const HEAT_GAP = THEME.CHART.GAP;
+export const HEAT_WEEKS = THEME.CHART.HEAT_WEEKS;
 
 /** Heat intensity steps — brand green from a whisper to full. */
-export const HEAT_LEVELS = [
-  "rgba(255, 255, 255, 0.06)",
-  "rgba(107, 219, 0, 0.25)",
-  "rgba(107, 219, 0, 0.45)",
-  "rgba(107, 219, 0, 0.7)",
-  THEME.COLORS.BRAND,
-] as const;
+export const HEAT_LEVELS = THEME.COLORS.CHART_LEVELS;
 
 export const styles = StyleSheet.create({
   container: SCREEN_STYLES.container,
@@ -100,7 +94,7 @@ export const styles = StyleSheet.create({
   heatCell: {
     width: HEAT_CELL,
     height: HEAT_CELL,
-    borderRadius: 2,
+    borderRadius: THEME.CHART.RADIUS,
   },
   heatCellSelected: {
     borderWidth: 1,
@@ -122,7 +116,7 @@ export const styles = StyleSheet.create({
   heatLegendCell: {
     width: HEAT_CELL,
     height: HEAT_CELL,
-    borderRadius: 2,
+    borderRadius: THEME.CHART.RADIUS,
   },
   // ── Streak / detail rows ──
   row: {
@@ -131,13 +125,18 @@ export const styles = StyleSheet.create({
     justifyContent: "space-between",
     minHeight: THEME.LAYOUT.ROW_MIN_HEIGHT,
     paddingHorizontal: THEME.SPACE.LG,
+    paddingVertical: THEME.SPACE.MD,
   },
   rowLabel: {
+    flex: 1,
+    paddingRight: THEME.SPACE.MD,
     color: THEME.COLORS.TEXT,
     fontFamily: THEME.FONT_FAMILY.BOLD,
     fontSize: THEME.FONT_SIZE.LIST,
   },
   rowValue: {
+    flexShrink: 1,
+    textAlign: "right",
     color: THEME.COLORS.TEXT_SOFT,
     fontFamily: THEME.FONT_FAMILY.REGULAR,
     fontSize: THEME.FONT_SIZE.LIST,
@@ -174,13 +173,13 @@ export const styles = StyleSheet.create({
     alignItems: "flex-end",
     flexDirection: "row",
     gap: THEME.SPACE.XXS,
-    height: 72,
+    height: THEME.CHART.BAR_HEIGHT,
   },
   bar: {
-    backgroundColor: "rgba(107, 219, 0, 0.35)",
-    borderRadius: 2,
+    backgroundColor: THEME.COLORS.CHART_BAR,
+    borderRadius: THEME.CHART.RADIUS,
     flex: 1,
-    minHeight: 2,
+    minHeight: THEME.CHART.BAR_MIN,
   },
   barPeak: {
     backgroundColor: THEME.COLORS.BRAND,
@@ -361,9 +360,9 @@ export const styles = StyleSheet.create({
     alignItems: "center",
     backgroundColor: THEME.COLORS.SCRIM,
     borderRadius: THEME.RADIUS.CIRCLE,
-    height: scale(40),
+    height: THEME.LAYOUT.TOUCH_TARGET,
     justifyContent: "center",
-    width: scale(40),
+    width: THEME.LAYOUT.TOUCH_TARGET,
   },
   cardActionDisabled: {
     opacity: THEME.OPACITY.DISABLED,
@@ -371,15 +370,18 @@ export const styles = StyleSheet.create({
   shareActionButton: {
     alignItems: "center",
     backgroundColor: THEME.COLORS.BRAND,
-    borderRadius: 999,
+    borderRadius: THEME.RADIUS.CIRCLE,
     flexDirection: "row",
     flex: 1,
     gap: THEME.SPACE.SM,
     justifyContent: "center",
-    minHeight: scale(44),
+    minHeight: THEME.LAYOUT.TOUCH_TARGET,
+    paddingVertical: THEME.SPACE.MD,
     paddingHorizontal: THEME.SPACE.LG,
   },
   shareActionLabel: {
+    flexShrink: 1,
+    textAlign: "center",
     color: THEME.COLORS.TEXT_ON_LIGHT,
     fontFamily: THEME.FONT_FAMILY.BOLD,
     fontSize: THEME.FONT_SIZE.BODY,

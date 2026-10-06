@@ -1,3 +1,4 @@
+import { useReducedMotion } from "@/hooks/useReducedMotion";
 import React, { useCallback, useEffect, useRef } from "react";
 import { View, useWindowDimensions } from "react-native";
 import { WebView } from "react-native-webview";
@@ -209,6 +210,7 @@ const PAGE_HTML = `<!DOCTYPE html>
  * pauses it while backgrounded.
  */
 export const Oscilloscope = React.memo(function Oscilloscope() {
+  const reducedMotion = useReducedMotion();
   const {
     subscribeVisualizerWindows,
     reportVisualizerDelay,
@@ -224,11 +226,12 @@ export const Oscilloscope = React.memo(function Oscilloscope() {
   const pageReadyRef = useRef(false);
   /** Monotonic bridge message counter (dedupe guard across platforms). */
   const bridgeSeqRef = useRef(0);
+  const visible = !isBackgrounded && !reducedMotion;
   const wantsOn =
     isPlaying &&
     visualizerSupported &&
     settings.visualizerHz > 0 &&
-    !isBackgrounded;
+    visible;
 
 
   const post = useCallback(
@@ -291,7 +294,7 @@ export const Oscilloscope = React.memo(function Oscilloscope() {
   if (!wantsOn) return null;
 
   return (
-    <View style={styles.container} pointerEvents="none">
+    <View style={styles.container} pointerEvents="none" accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
       {/* The WebView *is* the 127px strip: nesting it inside the old 75px
           `canvas` view double-offset the trace (wrapper centred the 127px
           viewport 26px down, then the page offset the canvas another 26px). */}

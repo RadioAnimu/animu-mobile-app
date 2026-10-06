@@ -3,7 +3,7 @@ import { THEME } from "@/theme";
 import { scale } from "@/theme/responsive";
 
 const BTN_WIDTH = scale(91);
-const BTN_HEIGHT = scale(41);
+const BTN_HEIGHT = THEME.LAYOUT.TOUCH_TARGET;
 
 export const styles = StyleSheet.create({
   container: {
@@ -16,7 +16,6 @@ export const styles = StyleSheet.create({
     paddingVertical: THEME.SPACE.XXS,
     width: BTN_WIDTH,
     borderRadius: THEME.RADIUS.SM,
-    marginBottom: THEME.SPACE.SM,
   },
   kbps: {
     fontSize: THEME.FONT_SIZE.LIST,

@@ -8,9 +8,9 @@ import { THEME } from "@/theme";
  */
 export const COVER_CATEGORY_COLORS: Record<CoverCacheCategory, string> = {
   live: THEME.COLORS.BRAND,
-  requested: "#C77DFF",
-  played: "#4FC3F7",
-  search: "#FFCF56",
+  requested: THEME.COLORS.CACHE_REQUESTED,
+  played: THEME.COLORS.CACHE_PLAYED,
+  search: THEME.COLORS.CACHE_SEARCH,
 };
 
 const COVER_CATEGORY_LABEL_KEYS = {

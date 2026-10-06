@@ -3,8 +3,6 @@ import { Icon } from "@/components/Icon";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import {
   Alert,
-  Platform,
-  ScrollView,
   Text,
   View,
 } from "react-native";
@@ -22,7 +20,7 @@ import { useAlert } from "@/contexts/alert/AlertProvider";
 import { useAuth } from "@/contexts/auth/AuthProvider";
 import { useDict } from "@/hooks/useDict";
 import { useScrollEndPadding } from "@/hooks/useScrollEndPadding";
-import { useKeyboardPadding } from "@/hooks/useKeyboardPadding";
+import { KeyboardScrollView } from "@/components/KeyboardScrollView";
 import { AuthFlowCancelled } from "@/core/auth";
 import { haptics } from "@/utils/haptics";
 import { interpolate } from "@/utils/format";
@@ -51,11 +49,6 @@ export function Account({ navigation }: Readonly<Props>) {
   } = useAuth();
   const dict = useDict();
   const endPadding = useScrollEndPadding();
-
-  // Animu Connect's add-email form is inline in this scroll view, so the
-  // screen owns the keyboard inset (Android edge-to-edge; iOS handles it
-  // through `automaticallyAdjustKeyboardInsets` below).
-  const keyboardPadding = useKeyboardPadding(Platform.OS === "android");
 
   const [busy, setBusy] = useState<string | null>(null);
 
@@ -166,12 +159,11 @@ export function Account({ navigation }: Readonly<Props>) {
   return (
     <SafeAreaView style={styles.container} edges={["left", "right"]}>
       {renderHeader()}
-      <ScrollView
+      <KeyboardScrollView
         contentContainerStyle={[
           styles.content,
-          { paddingBottom: endPadding + keyboardPadding },
+          { paddingBottom: endPadding },
         ]}
-        automaticallyAdjustKeyboardInsets
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"
         refreshControl={
@@ -243,7 +235,7 @@ export function Account({ navigation }: Readonly<Props>) {
           busy={busy === "delete"}
           onPress={confirmDelete}
         />
-      </ScrollView>
+      </KeyboardScrollView>
     </SafeAreaView>
   );
 }
