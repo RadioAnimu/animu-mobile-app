@@ -26,7 +26,6 @@ if (ccacheBinary == null) {
   // Plain Strings: AGP's cmake arguments list rejects GString.
   def cLauncher = "-DCMAKE_C_COMPILER_LAUNCHER=" + ccacheBinary
   def cxxLauncher = "-DCMAKE_CXX_COMPILER_LAUNCHER=" + ccacheBinary
-  def asmLauncher = "-DCMAKE_ASM_COMPILER_LAUNCHER=" + ccacheBinary
 
   allprojects { p ->
     p.afterEvaluate {
@@ -34,7 +33,7 @@ if (ccacheBinary == null) {
       if (android == null) return
       try {
         def args = android.defaultConfig.externalNativeBuild.cmake.arguments
-        [cLauncher, cxxLauncher, asmLauncher].each { a ->
+        [cLauncher, cxxLauncher].each { a ->
           if (!args.contains(a)) args.add(a)
         }
         println "[ccache] ${p.path}: compiler launcher added"

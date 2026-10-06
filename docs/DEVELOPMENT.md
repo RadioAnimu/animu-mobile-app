@@ -115,7 +115,7 @@ walk-through.
 
 Playback uses `react-native-anything-player`, the git submodule at
 `packages/react-native-anything-player` ([rmotafreitas/react-native-anything-player](https://github.com/rmotafreitas/react-native-anything-player),
-a **private** repository: cloning it needs read access). It is consumed from
+a **public** repository). It is consumed from
 compiled JavaScript and pinned native source:
 
 - `link:` dependency (a symlink in `node_modules`), and **not** a pnpm workspace
@@ -129,7 +129,7 @@ compiled JavaScript and pinned native source:
   (`react-doctor.config.json` selects the app). It has its own CI; run its
   checks here with `pnpm run check:player`.
 
-To update the player, commit and push in the Airwave repository, then move the
+To update the player, commit and push in the Anything Player repository, then move the
 pin:
 
 ```bash
@@ -140,17 +140,18 @@ git add packages/react-native-anything-player
 No reinstall is needed (it is a symlink). Rebuild the native app when native
 code changed.
 
-No native patches are needed (`patch-package` was removed with the last patch).
+Lockfile-pinned pnpm patches repair the Worklets/Reanimated Kotlin script layout
+for full Android lint and separate the gesture-handler iOS long-press callback
+from its configuration property. See `patches/`; revalidate them on upgrades.
 
 ## Submodules
 
 Two [git submodules](https://git-scm.com/docs/git-submodule) live in
 `packages/`: `animu-api` ([`RadioAnimu/animu-api`](https://github.com/RadioAnimu/animu-api))
-and `react-native-anything-player` (private, see
+and `react-native-anything-player` (public, see
 [Player library](#player-library-react-native-anything-player)). Always clone with
 `--recurse-submodules`. CI checks them out with `scripts/init-submodules.sh`,
-which authenticates to the private repository with `AIRWAVE_READ_TOKEN` when
-set. After pulling, run:
+which fetches complete public history without an additional read credential. After pulling, run:
 
 ```bash
 git submodule update --init --recursive
@@ -166,12 +167,12 @@ release pipeline consumes that for the pinned commit when available. See
 `.github/workflows/ci.yml` and the Jenkins `animu-mobile-app` job run on every
 push to `main` and on pull requests:
 
-1. `pnpm install --frozen-lockfile` (which builds the `animu-api` submodule).
+1. `pnpm install --frozen-lockfile` (prepares both pinned libraries, reusing verified output or matching Jenkins artifacts).
 2. `pnpm run typecheck` — typecheck.
 3. `pnpm run lint` — lint (SonarJS rules run as errors on production code).
 4. `pnpm run check:expo-deps` — Expo SDK dependency alignment, then
    `pnpm run check:expo-doctor` — `expo-doctor` project health checks.
-5. `pnpm run check:audit` — dependency vulnerability audit.
+5. `pnpm run check:secrets` — complete app/library history, then `pnpm run check:audit` — dependency vulnerability audit.
 6. `pnpm test:coverage` — Vitest with the coverage floor (writes `junit.xml` when `CI` is set).
 7. `pnpm run check:animu-api` and `pnpm run check:player` — the submodules'
    own typecheck and tests.
@@ -181,24 +182,24 @@ push to `main` and on pull requests:
 
 `react-doctor.yml` posts advisory PR feedback separately.
 
-The private Airwave submodule needs a read-only token in CI: a fine-grained
-personal access token with **Contents: read** on `rmotafreitas/react-native-anything-player`,
-stored as the GitHub Actions secret `AIRWAVE_READ_TOKEN` and as the Jenkins
-SSH credential `airwave-read-key` (used by the CI, release and
-SonarQube jobs).
+Both submodules are public. No `AIRWAVE_READ_TOKEN` or player deploy key is
+required. Jenkins artifact access uses the existing `jenkins-api-token` secret;
+local builds fall back to compiling pinned source when Jenkins is unavailable.
 
-`pnpm run check:audit` ignores two advisories with no fixed release, both in
-Expo's build/dev tooling and not in the app bundle (`node-forge`, `braces`).
-They are listed with their reasons under `auditConfig` in `pnpm-workspace.yaml`;
-remove each once a fix ships.
+`pnpm run check:secrets` scans complete available Git history and current files
+in all three repositories. Shallow history fails the gate.
+`pnpm run check:audit` prints every advisory. Two unpatched high advisories are
+reviewed only at specific build-tool versions and dependency paths (`node-forge`,
+`braces`); an unknown high/critical finding or a new runtime path fails. These are
+remaining debt, not resolved vulnerabilities. The policy and regression tests
+live in `scripts/dependency-audit.mjs`.
 
 ## Troubleshooting
 
 - **Native module missing / "requires dev client"** — you ran Expo Go. Use
   `pnpm run android` / `pnpm run ios` (dev client).
-- **Visualizer unavailable on iOS** — expected; the feature is Android-only.
-- **`animu-api` build errors after a pull** — run `git submodule update --init
-  --remote && pnpm run build:api`.
+- **Visualizer** — uses native audio samples on both platforms; inspect player availability and selected settings if it is missing.
+- **`animu-api` build errors after a pull** — run `bash scripts/init-submodules.sh && pnpm run build:api`.
 - **Metro can't resolve `@/…`** — confirm `tsconfig.json` paths and restart with
   `pnpm exec expo start --clear`.
 - **Metro can't resolve a workspace package after switching to pnpm** — make sure

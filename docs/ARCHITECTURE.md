@@ -48,19 +48,19 @@ frozen.
 
 | Module | Responsibility |
 | --- | --- |
-| `player-service.ts` (`PlayerService`) | Which stream to play, commands, store writes, lock-screen metadata; follows Airwave's status |
+| `player-service.ts` (`PlayerService`) | Which stream to play, commands, store writes, lock-screen metadata; follows Anything Player's status |
 | `stream-playback/now-hearing.ts` (`NowHearing`) | What the listener is **hearing** and how far into it (see below) |
 | `stream-playback/heard-track.ts` (`HeardTrack`) | The ICY source: titles as they play, tune-in calibration |
 | `stream-playback/stream-sync.ts`, `audible-track.ts` | The audible clock and the track on it (fallback without ICY) |
 | `stream-playback/now-playing.repository.ts` (`NowPlayingRepository`) | On-air data: realtime SSE + HTTP fallback, diffing merge, history, listeners, error backoff (`backoff.ts`) |
 | `stream-playback/stream-preferences.ts` | Persisted stream-quality choice |
-| `visualizer/audio-sampler.ts` (`AudioSampler`) | Oscilloscope windows from Airwave's `audioSample` events (pacing, delay, draw gain) |
+| `visualizer/audio-sampler.ts` (`AudioSampler`) | Oscilloscope windows from Anything Player's `audioSample` events (pacing, delay, draw gain) |
 | `media-session/now-playing.metadata.ts` | Pure mapper: track → lock-screen fields (anime as title, cover, duration) |
 | `storage/` | Cover resolution, disk/image caches and the bundled default |
 | `artwork-prefetch.ts` | Warms an announced track's cover before it is heard |
 | `player-factory.ts` | Composition root and the `playerService()` singleton |
 | `store.ts` | The three external stores and the UI's `TransportState` |
-| `ports.ts` | The slice of Airwave's `Player` the core uses (faked in tests) |
+| `ports.ts` | The slice of Anything Player's `Player` the core uses (faked in tests) |
 
 ### What is heard: ICY titles, with the audible clock behind them
 
@@ -72,7 +72,7 @@ title is exactly the API's `rawtitle` and changes about 1.2 s after its
 `timestart` (67 changes over 3 hours, 0.34–1.85 s). The transcoded mounts
 carry it at the same point of the audio. Recording 320, 192 and 64 at once and
 cross-correlating their decoded audio puts every 192 / 64 title within 0.7 s
-of 320's, with live edges 0.2–0.6 s behind it (2026-10-05). Airwave reports
+of 320's, with live edges 0.2–0.6 s behind it (2026-10-05). Anything Player reports
 each title **when it plays** (iOS: AVPlayer's metadata output, measured on the
 64 kbps mount: 16.4–17.1 s after the title arrived, its buffer; Android:
 Media3's metadata renderer). So a title change means "this track started 1.2 s
@@ -88,7 +88,7 @@ the moment the first title plays. The first title plays at once, while the
 connect burst is still loading: 1.6 s of audio on 320, 7 s on 192, 17 s on
 64. A reading taken then was the 192 / 64 kbps regression: Android had 4.8 s
 buffered of the 17 s actually behind the edge, and iOS `loadedTimeRanges` read
-11.6 s (Airwave now measures the iOS live offset from what its stream proxy
+11.6 s (Anything Player now measures the iOS live offset from what its stream proxy
 handed the player). Each title change heard afterwards shows how far the
 tune-in computation was off on this stream. The median of the last 9 corrects
 the next tune-in.
@@ -101,21 +101,21 @@ Android (before: 5.6 s and 16 s), 192 kbps 0.3 s on iOS.
 pre-ICY model: wall clock minus the measured lag, smoothed. The station's
 track shows once the clock reaches its start. It drives the display when a
 stream carries no ICY titles (12 s of playback without one), so the app never
-depends on one source alone. It is fed by Airwave's `progress` events: 1 Hz
+depends on one source alone. It is fed by Anything Player's `progress` events: 1 Hz
 readings from a native timer while playing, which also pump its boundary
 timer on Android, where JS timers do not run in the background.
 
-The lock screen gets `updateNowPlaying({ …, duration, elapsed })`; Airwave
+The lock screen gets `updateNowPlaying({ …, duration, elapsed })`; Anything Player
 advances the song's progress natively, only while audio plays. No JS timer is
 involved, which matters on Android: React Native fires no JS timers while the
 activity is backgrounded, but native events (ICY titles, status) still run JS.
 
 Play from Control Center when nothing is loaded: iOS relaunches the app in the
-background when Play is pressed for a terminated Now Playing app. Airwave
+background when Play is pressed for a terminated Now Playing app. Anything Player
 registers the system controls as soon as the player exists. A `play` that
 finds nothing loaded is forwarded to JS as a `remoteCommand`, and
 `PlayerService` opens the stream. A suspended app's player is still loaded,
-so Airwave resumes it natively.
+so Anything Player resumes it natively.
 
 ## State stores
 
@@ -191,7 +191,7 @@ keeps using relative requires.
   intervention.
 - **Real track progress in the media session.** The radio plays server-side,
   so a song's progress is not the player's stream position. The song becomes
-  audible with its ICY title; from then on Airwave advances the lock-screen
+  audible with its ICY title; from then on Anything Player advances the lock-screen
   position natively (`updateNowPlaying({ duration, elapsed })`), frozen while
   audio does not flow.
 - **Realtime now-playing over SSE, with HTTP fallback.** `NowPlayingRepository`
@@ -202,7 +202,7 @@ keeps using relative requires.
 - **Playback lives natively.** Reconnects, stall and dead-stream detection,
   network handoffs, live-edge resumes, audio focus and interruptions (with
   their reasons), background keepalive and the single media session are
-  Airwave's. Lock-screen, headset, Bluetooth and car commands reach the native
+  Anything Player's. Lock-screen, headset, Bluetooth and car commands reach the native
   engine directly; the app follows the status events.
 - **Provider-agnostic auth.** `AuthFacade` composes three ports (API, OAuth,
   session store). Provider quirks stay in the adapters: Discord, Google and
@@ -218,7 +218,7 @@ keeps using relative requires.
   `AsyncStorage` and legacy plaintext sessions migrated on first read),
   rehydrated on cold start, and re-checked every 60 s by a background task.
 - **Audio visualizer without microphone permission, on both platforms, drawn
-  by a WebView canvas.** Airwave streams the decoded audio as `audioSample`
+  by a WebView canvas.** Anything Player streams the decoded audio as `audioSample`
   windows (mono, 1024 points, with the delay until heard): on Android from an
   ExoPlayer audio-sink tap, on iOS by decoding the stream's bytes in parallel
   (AVPlayer never runs an audio tap on HTTP streams). `AudioSampler` paces the
@@ -237,7 +237,7 @@ keeps using relative requires.
 | Language | TypeScript 6.0 (strict) |
 | Navigation | React Navigation 7 — a **native stack** (`@react-navigation/native-stack`) whose root is the **drawer** (`@react-navigation/drawer`: Player, history, Make Request); Settings, Stats, Storage, Login, Account and About push on the stack (platform push/pop, iOS swipe-back, Android predictive back; cross-fade with Reduce Motion) |
 | Audio | `react-native-anything-player` (native engine, recovery, focus/interruptions, media session, ICY at audible time, decoded-audio sampling) — vendored tarball in `vendor/` |
-| Visualizer | Transparent `react-native-webview` running the web player's Canvas 2D + `requestAnimationFrame` loop, fed by Airwave's `audioSample` windows (iOS and Android); unmounted while backgrounded (`AppStateGate` + `react-freeze`) |
+| Visualizer | Transparent `react-native-webview` running the web player's Canvas 2D + `requestAnimationFrame` loop, fed by Anything Player's `audioSample` windows (iOS and Android); unmounted while backgrounded (`AppStateGate` + `react-freeze`) |
 | Icons | `@react-native-vector-icons/material-icons` · `react-native-svg` (only `ProviderIcon`, `SocialIcon`, `BackArrow`) |
 | Images | `expo-image` (covers, avatars, localized artwork) |
 | Auth | `animu-api` Auth v5 · `expo-auth-session` + `expo-web-browser` (Discord/Google OAuth 2.0 + PKCE) · `expo-apple-authentication` (Apple) |
@@ -246,6 +246,6 @@ keeps using relative requires.
 | Realtime | `animu-api` SSE stream (`animu.live`) with HTTP polling fallback |
 | Networking | `expo/fetch` + `AbortController` |
 | API client | `animu-api` submodule (valibot-validated DTOs) |
-| Background | Playback and its recovery are native (Airwave); JS task runner gated by app visibility for the rest |
+| Background | Playback and its recovery are native (Anything Player); JS task runner gated by app visibility for the rest |
 | i18n | Custom dictionary-based localization (PT/EN/ES/JP) |
 | Testing | Vitest (player core, services, domain, hooks, plugins) |

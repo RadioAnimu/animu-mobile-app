@@ -30,8 +30,9 @@ policy edits live in [`STORE_SUBMISSION.md`](STORE_SUBMISSION.md).
 
 Mirror the [data inventory](STORE_SUBMISSION.md#data-inventory-source-of-truth-for-both-stores).
 
-**Data Not Collected:** on-device only — session token, profile projection,
-cover cache, settings.
+**Local storage:** the stored session token, profile projection, cover cache
+and settings do not by themselves add collection. Authenticated API requests
+transmit the session token; assess server processing together with account data.
 
 **Data Collected — linked to the user, used for App Functionality, not for
 tracking:**
@@ -61,21 +62,19 @@ Profile screens need a signed-in account.
 
 ## Age rating (2.3.6)
 
-Answer the App Store Connect questionnaire honestly. From **September 2026** the
-social-media capability questions are mandatory for submissions and updates.
+Answer the current App Store Connect questionnaire from the actual app behavior.
 
 - No social feed and no user-to-user content → answer the social-media
   capability questions **No**.
 - Answer content questions from the actual music, live programs and cover art.
   Let the current questionnaire determine the rating; do not choose an assumed
   minimum or use an older rating scale.
-- Korea (from Oct 2026): "infrequent mature or suggestive themes" moves to 12+.
+- Complete any territory-specific questions in the current console.
 
 ## Platform (2.4.1)
 
 iPhone-only (`ios.supportsTablet: false`) → runs on iPad in compatibility mode.
-Reviewers test on iPhone 17 Pro Max and iPad Air 11" (M3); verify it launches and
-is usable in scaled mode on iPad before submitting.
+Verify it launches and is usable in scaled mode on iPad before submitting.
 
 ## Sign-in (4.8)
 

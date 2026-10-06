@@ -115,7 +115,8 @@
     },
     "patchedDependencies": {
       "react-native-worklets@0.10.1": "patches/react-native-worklets@0.10.1.patch",
-      "react-native-reanimated@4.5.1": "patches/react-native-reanimated@4.5.1.patch"
+      "react-native-reanimated@4.5.1": "patches/react-native-reanimated@4.5.1.patch",
+      "react-native-gesture-handler@2.32.0": "patches/react-native-gesture-handler@2.32.0.patch"
     }
   }
 }

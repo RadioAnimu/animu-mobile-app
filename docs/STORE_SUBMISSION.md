@@ -22,7 +22,8 @@ features. No ads, no in-app purchases, no subscriptions, no analytics/tracking.
 
 ## Data inventory (source of truth for both stores)
 
-Client-side flows traced from the code; backend retention and onward disclosure
+Client-side flows traced from the code; retention entries below are proposed
+policy targets, not verified backend guarantees. Backend retention and onward disclosure
 require the station operator’s confirmation. "Collected" = transmitted off-device; "on-device" data is
 not collection.
 
@@ -40,9 +41,9 @@ not collection.
 | Profile projection | AsyncStorage | Yes | Until logout/deletion | On-device only |
 | Cover cache, settings | device storage | Automatic | Local cache | On-device only |
 
-Key point: account and request data are **optional but retained** (until
-deletion, or publicly displayed for requests) — not temporary. Local caches are
-temporary and never transmitted.
+Account and request flows transmit personal information. Confirm actual
+retention and public forwarding with the operator before setting store answers.
+Local caches themselves add no collection.
 
 ## Privacy policy — exact edits (live at <https://www.animu.com.br/privacypolicy>)
 
