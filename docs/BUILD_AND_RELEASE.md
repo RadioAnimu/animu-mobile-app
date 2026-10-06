@@ -32,7 +32,7 @@ all signed with the Play upload key:
 
 | Job | Jenkinsfile | Purpose |
 | --- | --- | --- |
-| `animu-mobile-app` | `Jenkinsfile` | CI: typecheck, lint, Expo SDK alignment, dependency audit, `vitest`, animu-api checks, Android bundle smoke test, complete React Doctor scan with zero findings. |
+| `animu-mobile-app` | `Jenkinsfile` | CI: typecheck, lint, Expo SDK alignment, dependency and full-history secret audits, `vitest`, both library checks, Android bundle smoke test, complete React Doctor scan with zero findings. |
 | `animu-mobile-app-release` | `Jenkinsfile.release` | Parameterized release build (below). |
 
 CI runs in the Node container; release builds run on the
@@ -59,10 +59,10 @@ CI runs in the Node container; release builds run on the
    lockfile / Anything Player's config plugin changed (stamped). Otherwise the existing `android/` is reused so
    Gradle stays incremental.
 6. Inject the release signing config (see below) and run
-   `./gradlew :app:bundleRelease`.
-7. Derive the universal APK from the AAB with **bundletool**
+   `./gradlew :app:lintRelease :react-native-anything-player:testReleaseUnitTest :app:bundleRelease`.
+7. Validate the bundle, merged release manifest, and every shipped 64-bit ELF library for 16 KB compatibility. Derive the universal APK from the AAB with **bundletool**
    (`--mode=universal`) instead of a second Gradle build.
-8. Verify both artifacts are **not** signed with the Android debug key and that
+8. Check the APK with `zipalign -c -P 16 4`; verify both artifacts are **not** signed with the Android debug key and that
    the APK signer matches the AAB signer.
 9. Write SHA-256 checksums, per-device Play download sizes (bundletool), and
    `RELEASE_NOTES.md`.

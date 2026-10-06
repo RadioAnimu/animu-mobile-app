@@ -404,10 +404,19 @@ pipeline {
           BUNDLETOOL_JAR="$TOOLS/bundletool.jar"
           mkdir -p "$TOOLS" "$TMPDIR"
 
-          if [ ! -f "$BUNDLETOOL_JAR" ]; then
+          BUNDLETOOL_SHA256=675786493983787ffa11550bdb7c0715679a44e1643f3ff980a529e9c822595c
+          if [ ! -f "$BUNDLETOOL_JAR" ] || [ "$(sha256sum "$BUNDLETOOL_JAR" | cut -d' ' -f1)" != "$BUNDLETOOL_SHA256" ]; then
             curl -fsSL -o "$BUNDLETOOL_JAR" \
               "https://github.com/google/bundletool/releases/download/${BUNDLETOOL_VERSION}/bundletool-all-${BUNDLETOOL_VERSION}.jar"
           fi
+
+          echo "$BUNDLETOOL_SHA256  $BUNDLETOOL_JAR" | sha256sum -c -
+          java -jar "$BUNDLETOOL_JAR" validate --bundle="$AAB"
+          java -jar "$BUNDLETOOL_JAR" dump config --bundle="$AAB" > "$TMPDIR/bundle-config.txt"
+          grep -q PAGE_ALIGNMENT_16K "$TMPDIR/bundle-config.txt"
+          java -jar "$BUNDLETOOL_JAR" dump manifest --bundle="$AAB" > "$TMPDIR/release-manifest.xml"
+          python3 -m unittest discover -s scripts/__tests__ -p '*_test.py'
+          python3 scripts/validate-android-artifact.py "$AAB" "$TMPDIR/release-manifest.xml" app.json
 
           APKS="$TMPDIR/universal.apks"
           rm -f "$APKS"
@@ -424,6 +433,7 @@ pipeline {
           rm -rf "$TMPDIR/universal-extract"
           unzip -o -q "$APKS" -d "$TMPDIR/universal-extract"
           cp "$TMPDIR/universal-extract/universal.apk" "$APK"
+          "$ANDROID_SDK_ROOT/build-tools/$(node -p "require('./app.json').expo.plugins.find(p => Array.isArray(p) && p[0] === 'expo-build-properties')[1].android.buildToolsVersion")/zipalign" -c -P 16 4 "$APK"
           ls -la "$APK"
         '''
       }

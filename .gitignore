@@ -76,3 +76,6 @@ junit.xml
 .native-stamp
 .animu-api-stamp
 .release-version*
+
+# Python validation bytecode
+__pycache__/
