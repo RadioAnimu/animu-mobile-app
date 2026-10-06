@@ -18,6 +18,8 @@ minimumReleaseAge: 4320
 # ...which is what this exclusion is for: the Expo/RN packages we track
 # deliberately (and bump together with the SDK) skip the 3-day wait.
 minimumReleaseAgeExclude:
+  # Reviewed security fix for GHSA-68fv-2mgg-jv7q, published October 5.
+  - source-map-js@1.2.2
   - expo
   - expo-*
   - react
@@ -39,19 +41,8 @@ trustPolicyExclude:
   - ua-parser-js@0.7.41
   - why-is-node-running@3.2.2
 
-# Advisories with no fixed release, accepted where the code never runs in the
-# app. Each entry names its path and reason; remove it once a fix ships.
-auditConfig:
-  ignoreGhsas:
-    # node-forge <=1.4.0 (RSA PKCS#1 v1.5 signature verification), via
-    # expo > @expo/cli: dev-server tooling (local HTTPS certificates), not
-    # part of the app bundle. No patched node-forge exists.
-    - GHSA-86w9-cpqp-85rv
-    # braces <=3.0.3 (stack exhaustion on deeply nested patterns), via
-    # expo > @expo/cli > @expo/metro-file-map > micromatch: build tooling
-    # matching the project's own fixed globs, not part of the app bundle.
-    # 3.0.3 is the latest braces release.
-    - GHSA-vfj7-8cjw-p6xm
+# Audit exceptions are scoped to exact resolved build-tool paths by
+# scripts/dependency-audit.mjs; the raw findings remain visible in CI.
 
 # pnpm 10 blocks dependency build scripts by default. Only this one needs to
 # run (it fetches a native binding for unrs-resolver, used by eslint import

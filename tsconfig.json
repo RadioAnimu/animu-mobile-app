@@ -7,8 +7,8 @@
       "@app/*": ["./*"]
     }
   },
-  // Expo's base excludes, plus the Airwave submodule's own project (its tests,
-  // example apps and scripts). Its sources the app imports are still checked.
+  // Libraries have isolated toolchain checks in check:animu-api / check:player.
+  // Imported declarations remain part of the app's type checking.
   "exclude": [
     "${configDir}/coverage",
     "${configDir}/dist",
@@ -18,6 +18,6 @@
     "${configDir}/jest.config.js",
     "${configDir}/android",
     "${configDir}/ios",
-    "${configDir}/packages/react-native-anything-player"
+    "${configDir}/packages"
   ]
 }

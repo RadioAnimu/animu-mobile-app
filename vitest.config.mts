@@ -11,8 +11,8 @@ export default defineConfig({
   // implementations stay intact.
   test: {
     clearMocks: true,
-    // The Airwave submodule has its own (Jest) suite: `pnpm check:player`.
-    exclude: [...configDefaults.exclude, "packages/react-native-anything-player/**", "scripts/__tests__/**"],
+    // Both pinned libraries run their own suites via check:animu-api / check:player.
+    exclude: [...configDefaults.exclude, "packages/**", "scripts/__tests__/**"],
     // Jenkins' `junit` step picks up junit.xml; without a reporter it would
     // silently publish nothing.
     reporters: process.env.CI

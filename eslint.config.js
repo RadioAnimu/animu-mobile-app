@@ -29,6 +29,7 @@ const SONARJS_DISABLED = new Set([
 ]);
 
 module.exports = defineConfig([
+  { ignores: ["packages/**"] },
   expoConfig,
   {
     ignores: [
@@ -36,8 +37,6 @@ module.exports = defineConfig([
       "android/*",
       "ios/*",
       "node_modules/*",
-      // The Airwave submodule has its own ESLint config and CI.
-      "packages/react-native-anything-player/**",
     ],
     rules: {
       // Expo SDK 57's config enables the React Compiler lint rules, including

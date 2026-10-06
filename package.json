@@ -11,7 +11,7 @@
     "typecheck": "tsc --noEmit",
     "check:expo-deps": "expo install --check",
     "check:expo-doctor": "expo-doctor",
-    "check:audit": "pnpm audit --audit-level high",
+    "check:audit": "node scripts/check-dependency-audit.mjs",
     "check:animu-api": "node scripts/check-submodule.mjs animu-api",
     "check:player": "node scripts/check-submodule.mjs react-native-anything-player",
     "build:api": "node scripts/prepare-submodules.mjs animu-api",
@@ -109,10 +109,12 @@
   "packageManager": "pnpm@10.34.6",
   "pnpm": {
     "overrides": {
-      "uuid": "^11.1.1"
+      "uuid": "^11.1.1",
+      "source-map-js": "1.2.2"
     },
     "patchedDependencies": {
-      "react-native-worklets@0.10.1": "patches/react-native-worklets@0.10.1.patch"
+      "react-native-worklets@0.10.1": "patches/react-native-worklets@0.10.1.patch",
+      "react-native-reanimated@4.5.1": "patches/react-native-reanimated@4.5.1.patch"
     }
   }
 }
