@@ -1,7 +1,7 @@
-import type { Player } from "react-native-airwave";
+import type { Player } from "react-native-anything-player";
 
 /**
- * The slice of react-native-airwave's `Player` the core uses. Playback,
+ * The slice of react-native-anything-player's `Player` the core uses. Playback,
  * recovery (stalls, reconnects, network, live edge), audio focus,
  * interruptions, the media session and remote commands all live natively in
  * Airwave; the core only sends commands and follows its status. Tests

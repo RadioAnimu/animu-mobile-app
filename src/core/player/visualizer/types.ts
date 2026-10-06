@@ -1,10 +1,10 @@
-import type { AudioSample } from "react-native-airwave";
+import type { AudioSample } from "react-native-anything-player";
 
 /**
  * Visualizer contracts shared by both platforms.
  *
  * Kept free of any DSP / native imports. Both platforms use the same
- * implementation (`audio-sampler.ts`), fed by react-native-airwave.
+ * implementation (`audio-sampler.ts`), fed by react-native-anything-player.
  */
 
 /**

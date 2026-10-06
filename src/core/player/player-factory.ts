@@ -1,4 +1,4 @@
-import { Player } from "react-native-airwave";
+import { Player } from "react-native-anything-player";
 import { setServerSkewListener } from "@/api/client";
 import { animuService } from "@/core/services/animu.service";
 import { coverCacheRegistry } from "@/core/services/cover-cache-registry.service";
@@ -26,7 +26,7 @@ const createTicker = (): Ticker => {
   let id: ReturnType<typeof setInterval> | null = null;
   return {
     start(tick) {
-      if (id == null) id = setInterval(tick, 1_000);
+      id ??= setInterval(tick, 1_000);
     },
     stop() {
       if (id != null) clearInterval(id);

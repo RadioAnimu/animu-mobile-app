@@ -1,5 +1,5 @@
 import type { HistoryType } from "animu-api";
-import type { MediaMetadata, PlaybackState, PlayerStatus } from "react-native-airwave";
+import type { MediaMetadata, PlaybackState, PlayerStatus } from "react-native-anything-player";
 import type { Stream } from "@/core/domain/stream";
 import { userSettingsService } from "@/core/services/user-settings.service";
 import type { listenStatsService } from "@/core/services/listen-stats.service";
@@ -65,7 +65,7 @@ const TRANSPORT: Record<PlaybackState, TransportState> = {
 };
 
 /**
- * The app's player: Rádio Animu's streams on react-native-airwave, with the
+ * The app's player: Rádio Animu's streams on react-native-anything-player, with the
  * station's own now-playing data on top.
  *
  * Airwave owns playback natively — the state machine, reconnects, stall and

@@ -36,7 +36,7 @@ by the OS between snapshots (`durationSec` + periodic elapsed position).
 
 ## Home audio visualizer
 
-An oscilloscope fed by the player's own decoded audio (react-native-airwave's
+An oscilloscope fed by the player's own decoded audio (react-native-anything-player's
 `audioSample` windows), rendered by the **web player's own canvas loop** in a
 transparent `react-native-webview` (Canvas 2D + `requestAnimationFrame`) —
 **no microphone permission** and no second audio stream. The line matches the

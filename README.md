@@ -47,7 +47,7 @@ Read the full, screen-by-screen breakdown in **[Features](docs/FEATURES.md)**.
 ## Tech stack
 
 React Native 0.86 (New Architecture) · React 19 · Expo SDK 57 · TypeScript 6
-(strict) · React Navigation 7 (drawer + native stack) · `react-native-airwave`
+(strict) · React Navigation 7 (drawer + native stack) · `react-native-anything-player`
 (native player) · `expo/fetch` · `react-native-webview` (visualizer)
 · custom `useSyncExternalStore` stores · Vitest.
 See **[Architecture](docs/ARCHITECTURE.md)** for the full picture.

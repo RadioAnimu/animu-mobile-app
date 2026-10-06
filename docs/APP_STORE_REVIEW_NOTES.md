@@ -16,11 +16,7 @@ policy edits live in [`STORE_SUBMISSION.md`](STORE_SUBMISSION.md).
 > - **Account deletion** is available in-app: Account → Delete account.
 > - **Sign in:** Sign in with Apple is offered alongside Google, Discord and
 >   email sign-in codes.
-> - **Over-the-air updates (2.5.2):** the app can download JS bundles from its
->   own GitHub release feed to ship **bug fixes, security fixes and performance
->   work only**. It never adds features, screens or changes the app's purpose.
->   A bundle is applied only when its native runtime version matches the
->   installed binary.
+> - **Updates:** this build does not download or execute replacement JavaScript bundles. App updates are distributed through the store.
 > - **User content (1.2):** the only user-submitted content is the optional live
 >   request / shout-out form, delivered privately to the station's DJ panel and
 >   moderated by station staff. It is not shown to other users in the app —
@@ -70,9 +66,9 @@ social-media capability questions are mandatory for submissions and updates.
 
 - No social feed and no user-to-user content → answer the social-media
   capability questions **No**.
-- It streams anime music and displays anime cover art fetched at runtime. A
-  **12+** rating is the realistic floor; choose **17+** for margin on suggestive
-  covers.
+- Answer content questions from the actual music, live programs and cover art.
+  Let the current questionnaire determine the rating; do not choose an assumed
+  minimum or use an older rating scale.
 - Korea (from Oct 2026): "infrequent mature or suggestive themes" moves to 12+.
 
 ## Platform (2.4.1)

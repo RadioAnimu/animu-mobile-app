@@ -33,22 +33,21 @@ pipeline {
       agent { label 'animu-android-native' }
       steps {
         script {
-          // Skip cleanly when the SonarQube stack is not running. It is optional:
-          // stop it with `docker compose -f ~/sonarqube/docker-compose.yml down`.
+          // Analysis is a required gate; an unavailable service must fail visibly.
           def code = sh(
             script: "curl -s -o /dev/null -w '%{http_code}' --max-time 5 http://localhost:9001/api/system/status || true",
             returnStdout: true
           ).trim()
           if (code != '200') {
-            echo "SonarQube is not running (HTTP ${code}) — skipping analysis."
+            echo "SonarQube is not running (HTTP ${code}) — required analysis unavailable."
             error("SonarQube is unavailable; required analysis did not run")
           }
 
           checkout scm
           // Coverage feeds the analysis (sonar.javascript.lcov.reportPaths).
           // Same toolchain as the release job: host Node + corepack-pinned pnpm.
-          // The private Airwave submodule needs the `airwave-read-key` credential.
-          withCredentials([sshUserPrivateKey(credentialsId: 'airwave-read-key', keyFileVariable: 'AIRWAVE_SSH_KEY_FILE')]) {
+          // Both libraries are public pinned submodules.
+          script {
             sh '''
               set -eux
               bash scripts/init-submodules.sh

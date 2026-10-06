@@ -120,10 +120,10 @@ pipeline {
       agent { label 'animu-android-native' }
       steps {
         checkout scm
-        // react-native-airwave is a private submodule: a read-only token
-        // (SSH credential `airwave-read-key`) checks it out. The
+        // react-native-anything-player is a public submodule, checked out at its pinned revision.
+        // The
         // script fails when either submodule is missing.
-        withCredentials([sshUserPrivateKey(credentialsId: 'airwave-read-key', keyFileVariable: 'AIRWAVE_SSH_KEY_FILE')]) {
+        script {
           sh '''
             set -eux
             bash scripts/init-submodules.sh
@@ -171,7 +171,7 @@ pipeline {
 
             # Install dependencies only when the lockfile changed. node_modules
             # churn invalidates Gradle's JS/native task caches, so a no-op
-            # install must stay a no-op. (The animu-api and react-native-airwave
+            # install must stay a no-op. (The animu-api and react-native-anything-player
             # deps are symlinks, so a submodule rev change needs no reinstall;
             # Airwave is compiled from source, animu-api's dist is handled below.)
             STAMP="$WORKSPACE/.deps-stamp"
@@ -251,7 +251,7 @@ pipeline {
           pnpm run lint
           pnpm test:coverage
           pnpm run check:animu-api
-          pnpm run check:airwave
+          pnpm run check:player
           pnpm exec expo export:embed --platform android --entry-file index.js --bundle-output "$TMPDIR/index.android.bundle" --assets-dest "$TMPDIR/animu-assets" --dev false
           node scripts/check-bundle-size.mjs "$TMPDIR/index.android.bundle" 3500000 "$TMPDIR/animu-assets" 2000000
           pnpm run doctor:gate
@@ -323,7 +323,7 @@ pipeline {
           # Airwave's config plugin runs at prebuild too (its native code is
           # compiled from the submodule by Gradle, so a bump needs no prebuild).
           WANT=$(sha256sum app.json plugins/*.js pnpm-lock.yaml \
-            packages/react-native-airwave/app.plugin.js 2>/dev/null | sha256sum | cut -d' ' -f1)
+            packages/react-native-anything-player/app.plugin.js 2>/dev/null | sha256sum | cut -d' ' -f1)
           HAVE=$( [ -f "$NATIVE_STAMP" ] && cat "$NATIVE_STAMP" || echo none )
           if [ ! -d android ] || [ "$WANT" != "$HAVE" ] || [ "${FORCE_PREBUILD:-0}" = "1" ]; then
             echo "Regenerating android/ (native config changed)"

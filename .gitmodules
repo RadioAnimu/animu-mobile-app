@@ -1,6 +1,6 @@
 [submodule "packages/animu-api"]
 	path = packages/animu-api
 	url = https://github.com/RadioAnimu/animu-api.git
-[submodule "packages/react-native-airwave"]
-	path = packages/react-native-airwave
-	url = https://github.com/rmotafreitas/react-native-airwave.git
+[submodule "packages/react-native-anything-player"]
+	path = packages/react-native-anything-player
+	url = https://github.com/rmotafreitas/react-native-anything-player.git

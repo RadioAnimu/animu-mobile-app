@@ -13,7 +13,7 @@
     "check:expo-doctor": "expo-doctor",
     "check:audit": "pnpm audit --audit-level high",
     "check:animu-api": "node scripts/check-submodule.mjs animu-api",
-    "check:airwave": "node scripts/check-submodule.mjs react-native-airwave",
+    "check:player": "node scripts/check-submodule.mjs react-native-anything-player",
     "build:api": "node scripts/prepare-submodules.mjs animu-api",
     "fonts": "node scripts/fetch-fonts.mjs",
     "eas-build-pre-install": "node scripts/fetch-fonts.mjs",
@@ -24,7 +24,7 @@
     "doctor:gate": "node scripts/react-doctor-gate.mjs",
     "check:bundle-size": "node scripts/check-bundle-size.mjs",
     "postinstall": "node scripts/prepare-submodules.mjs",
-    "build:airwave": "node scripts/prepare-submodules.mjs react-native-airwave",
+    "build:player": "node scripts/prepare-submodules.mjs react-native-anything-player",
     "test:tooling": "node --test scripts/__tests__/*.test.mjs"
   },
   "dependencies": {
@@ -59,7 +59,7 @@
     "react": "19.2.3",
     "react-freeze": "^1.0.4",
     "react-native": "0.86.3",
-    "react-native-airwave": "link:packages/react-native-airwave",
+    "react-native-anything-player": "link:packages/react-native-anything-player",
     "react-native-gesture-handler": "~2.32.0",
     "react-native-reanimated": "4.5.1",
     "react-native-safe-area-context": "~5.7.0",
@@ -85,9 +85,9 @@
     "jsdom": "^30.1.1",
     "react-doctor": "^0.9.14",
     "react-dom": "19.2.3",
+    "tar": "7.5.22",
     "typescript": "~6.0.3",
-    "vitest": "^5.0.2",
-    "tar": "7.5.22"
+    "vitest": "^5.0.2"
   },
   "overrides": {
     "uuid": "^11.1.1"
@@ -110,6 +110,9 @@
   "pnpm": {
     "overrides": {
       "uuid": "^11.1.1"
+    },
+    "patchedDependencies": {
+      "react-native-worklets@0.10.1": "patches/react-native-worklets@0.10.1.patch"
     }
   }
 }

@@ -57,7 +57,7 @@ export interface HeardTrackOptions {
  * What the listener is hearing right now, and how far into it.
  *
  * The player delivers each ICY title at the moment it becomes **audible**
- * (react-native-airwave: AVPlayer's metadata output / Media3's metadata
+ * (react-native-anything-player: AVPlayer's metadata output / Media3's metadata
  * renderer). The station changes that title ~1.2 s after a track starts, so
  * an ICY change *is* "this track just started, here": the displayed track is
  * the API track whose `raw` equals the title, at the stream's ICY offset
@@ -88,7 +88,7 @@ export class HeardTrack {
   private skewSamples: number[] = [];
   private skewMs = 0;
   /** Per stream: how far the computed position was ahead of the heard one (ms). */
-  private calibration = new Map<string, number[]>();
+  private readonly calibration = new Map<string, number[]>();
   private stream = "";
   private readonly now: () => number;
 
@@ -163,7 +163,7 @@ export class HeardTrack {
    */
   unresolved(title: string): void {
     const pending = this.pending;
-    if (!pending || pending.title !== title) return;
+    if (pending?.title !== title) return;
     const { title: name, artist, anime } = parseNowPlayingTitle(title);
     const heard = {
       id: "0",
@@ -237,7 +237,7 @@ export class HeardTrack {
 
   private find(title: string): Track | null {
     for (const track of this.options.candidates()) {
-      if (track && track.raw.trim() === title) return track;
+      if (track?.raw.trim() === title) return track;
     }
     return null;
   }

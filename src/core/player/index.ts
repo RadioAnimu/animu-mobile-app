@@ -1,5 +1,5 @@
 /**
- * Player core — Rádio Animu on react-native-airwave.
+ * Player core — Rádio Animu on react-native-anything-player.
  *
  * Playback, recovery, audio focus, interruptions and the lock screen are
  * native (Airwave). This module adds what only the app knows:

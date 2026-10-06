@@ -12,7 +12,7 @@ const { players, skew } = vi.hoisted(() => ({
   skew: { listener: null as ((skewMs: number, rttMs: number) => void) | null },
 }));
 
-vi.mock("react-native-airwave", () => ({
+vi.mock("react-native-anything-player", () => ({
   Player: class {
     listeners = new Map<string, (...args: unknown[]) => void>();
     setAudioSampling = vi.fn(() => true);

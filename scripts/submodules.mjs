@@ -10,9 +10,9 @@ export const libraries = {
     output: "dist", entry: "esm/index.js", types: "esm/index.d.ts",
     job: "Animu/animu-api", artifact: "animu-api-dist.tar.gz", prefix: "dist/",
   },
-  "react-native-airwave": {
+  "react-native-anything-player": {
     output: "lib", entry: "module/index.js", types: "typescript/src/index.d.ts",
-    job: "Animu/react-native-airwave", artifact: "react-native-airwave.tgz", prefix: "package/lib/",
+    job: "Animu/react-native-anything-player", artifact: "react-native-anything-player.tgz", prefix: "package/lib/",
   },
 };
 export function run(command, args, cwd) {

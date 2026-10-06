@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import type { AudioSample } from "react-native-airwave";
+import type { AudioSample } from "react-native-anything-player";
 import { AudioSampler } from "@/core/player/visualizer/audio-sampler";
 import type { VisualizerWindow } from "@/core/player/visualizer/types";
 
@@ -30,7 +30,7 @@ const setup = () => {
   return { sampler, transport, windows, sample, active: () => handler != null };
 };
 
-describe("AudioSampler (react-native-airwave windows)", () => {
+describe("AudioSampler (react-native-anything-player windows)", () => {
   it("samples only while enabled, foregrounded and playing", () => {
     const t = setup();
     t.sampler.setEnabled(true);

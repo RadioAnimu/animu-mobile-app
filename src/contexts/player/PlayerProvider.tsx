@@ -156,7 +156,7 @@ export const PlayerProvider: React.FC<{
     const initializePlayer = async () => {
       try {
         // Lock screen / headset / car commands are handled natively by the
-        // player (react-native-airwave); the UI follows its status.
+        // player (react-native-anything-player); the UI follows its status.
         // Single call: streams + stored pref + settings + data fetch
         await playerServiceInstance.setupPlayer();
 

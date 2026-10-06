@@ -10,7 +10,9 @@ privacy policy edits live in [`STORE_SUBMISSION.md`](STORE_SUBMISSION.md).
 The listing currently declares **"No data collected"** — that is inaccurate and
 must be corrected to match the [data inventory](STORE_SUBMISSION.md#data-inventory-source-of-truth-for-both-stores).
 
-**Data collected** (all optional — "users can choose whether to provide"):
+**Account/request data collected** (optional). Automatic operational headers
+and server logs must also be assessed against the backend’s actual retention
+and use; do not label all transmitted data optional.
 
 | Play category | Data type | Collected | Shared | Optional | Purpose |
 | --- | --- | --- | --- | --- | --- |
@@ -29,9 +31,10 @@ must be corrected to match the [data inventory](STORE_SUBMISSION.md#data-invento
   transmits nothing; it adds no collection.
 - **Not collected:** location, financial info, health, messages, contacts,
   calendar, web browsing, files/docs.
-- **Shared:** none with third parties from the app (data goes to the station's
-  own backend). Note: request content is displayed on the public Discord server
-  — if you treat that as sharing, mark the user-content row as shared.
+- **Shared:** assess the backend’s onward disclosure too. Request content
+  posted to Discord must be disclosed unless a specific Google Play sharing
+  exception applies; confirm informed user consent and the applicable exception
+  before choosing “not shared.”
 - **Security:** data encrypted in transit (HTTPS) — yes.
 - **Deletion:** users can request deletion — yes (see below).
 
@@ -41,7 +44,9 @@ Play requires apps with accounts to offer deletion **both in-app and via a web
 URL**.
 
 - In-app: **Account → Delete account** ✅
-- Web URL: point to the privacy policy / data-subject request form, e.g.
+- Web URL: verify an accessible account-deletion request path, clearly naming
+  the app/developer and explaining what is deleted or retained. A privacy page
+  alone is insufficient unless it provides that path. Candidate to verify:
   `https://www.animu.com.br/privacypolicy` (or the Termly DSAR link).
 
 ## Content rating (Play Console → App content → Content rating)
@@ -64,20 +69,19 @@ content. Re-rate only if the questionnaire answers change.
 | Item | Status |
 | --- | --- |
 | Target API level | `compileSdk`/`targetSdk` **36** ✅ |
-| Foreground service type | `FOREGROUND_SERVICE_MEDIA_PLAYBACK` + `foregroundServiceType="mediaPlayback"` (from `react-native-airwave`) ✅ |
+| Foreground service type | `FOREGROUND_SERVICE_MEDIA_PLAYBACK` + `foregroundServiceType="mediaPlayback"` (from `react-native-anything-player`) ✅ |
 | Permission forms | None required — only normal permissions (INTERNET, WAKE_LOCK, VIBRATE, MODIFY_AUDIO_SETTINGS, FGS) ✅ |
 | `RECORD_AUDIO` | Blocked ✅ |
 | Media/storage permissions | `READ_MEDIA_*` and `READ_EXTERNAL_STORAGE` blocked in `app.json` (save-only photo flow); `WRITE_EXTERNAL_STORAGE` kept at `maxSdkVersion 32` for legacy saves ✅ |
-| `versionCode` | Bump before upload (currently 14) ✅ |
+| `versionCode` | Bump before upload (currently 16) ✅ |
 | AAB | Production profile builds an app bundle ✅ |
 
 ## Notes for review (Play Console → App review → Notes)
 
 > Free, non-profit anime-radio client. No ads, no purchases, no analytics.
 > Sign-in (Google / Discord / Apple / email code) is optional — playback works
-> anonymously. Account deletion is available in-app. The app updates its JS
-> bundle over the air from its own GitHub release feed for **bug fixes only**;
-> it never changes the app's features or purpose.
+> anonymously. Account deletion is available in-app. This build does not
+> download replacement JavaScript bundles; app updates use the store.
 
 ## Store listing copy
 

@@ -37,7 +37,7 @@ module.exports = defineConfig([
       "ios/*",
       "node_modules/*",
       // The Airwave submodule has its own ESLint config and CI.
-      "packages/react-native-airwave/**",
+      "packages/react-native-anything-player/**",
     ],
     rules: {
       // Expo SDK 57's config enables the React Compiler lint rules, including

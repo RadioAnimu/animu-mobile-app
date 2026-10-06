@@ -90,7 +90,7 @@
       ],
       "expo-asset",
       "expo-web-browser",
-      "react-native-airwave",
+      "react-native-anything-player",
       "expo-apple-authentication",
       "expo-image",
       "@react-native-vector-icons/material-icons",

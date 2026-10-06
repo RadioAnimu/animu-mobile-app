@@ -39,14 +39,12 @@ pipeline {
         }
       }
       steps {
-        // react-native-airwave is a private submodule: a read-only token
-        // (SSH credential `airwave-read-key`) checks it out.
-        withCredentials([sshUserPrivateKey(credentialsId: 'airwave-read-key', keyFileVariable: 'AIRWAVE_SSH_KEY_FILE'), string(credentialsId: 'jenkins-api-token', variable: 'JENKINS_API_TOKEN')]) {
+        withCredentials([string(credentialsId: 'jenkins-api-token', variable: 'JENKINS_API_TOKEN')]) {
           sh '''
           set -eux
           git config --global --add safe.directory "$WORKSPACE"
           git config --global --add safe.directory "$WORKSPACE/packages/animu-api"
-          git config --global --add safe.directory "$WORKSPACE/packages/react-native-airwave"
+          git config --global --add safe.directory "$WORKSPACE/packages/react-native-anything-player"
           bash scripts/init-submodules.sh
           corepack enable
           echo "node $(node --version) / pnpm $(pnpm --version)"
@@ -70,7 +68,7 @@ pipeline {
           # The API client is a git submodule compiled into the app.
           pnpm run check:animu-api
           # So is the audio player (its own Yarn install, removed afterwards).
-          pnpm run check:airwave
+          pnpm run check:player
 
           # Bundles the app so broken asset paths and unresolvable imports fail
           # CI (TypeScript cannot catch these).

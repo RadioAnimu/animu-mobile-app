@@ -51,13 +51,12 @@ CI runs in the Node container; release builds run on the
 ### Pipeline steps
 
 1. Validate parameters and `app.json` (version/versionCode must match).
-2. Checkout the repo **with submodules** (`packages/animu-api`, and the private
-   `packages/react-native-airwave` with the `airwave-read-key` credential).
+2. Checkout both public submodules at their pinned revisions.
 3. Install dependencies with pnpm — when dependency configuration changes (stamped); verify both library outputs every run.
 4. `TRUST_CI`: if the CI job has a SUCCESS build for `HEAD`, the pre-release
    checks are skipped; otherwise they run (typecheck, lint, tests, React Doctor).
 5. `expo prebuild --platform android` — only when `app.json` / `plugins` /
-   lockfile / Airwave's config plugin changed (stamped). Otherwise the existing `android/` is reused so
+   lockfile / Anything Player's config plugin changed (stamped). Otherwise the existing `android/` is reused so
    Gradle stays incremental.
 6. Inject the release signing config (see below) and run
    `./gradlew :app:bundleRelease`.
@@ -94,10 +93,10 @@ by the pipeline. See [Development → Fonts](DEVELOPMENT.md#fonts).
 
 ### Shared submodule builds
 
-Both `animu-api` and `react-native-airwave` are pinned Git submodules consumed
+Both `animu-api` and `react-native-anything-player` are pinned Git submodules consumed
 through `link:packages/<name>`. Their canonical repositories are
-[RadioAnimu/animu-api](https://github.com/RadioAnimu/animu-api) and the private
-[rmotafreitas/react-native-airwave](https://github.com/rmotafreitas/react-native-airwave).
+[RadioAnimu/animu-api](https://github.com/RadioAnimu/animu-api) and
+[rmotafreitas/react-native-anything-player](https://github.com/rmotafreitas/react-native-anything-player).
 
 `pnpm install` runs `scripts/prepare-submodules.mjs` for both libraries. It
 reuses output only when the source tree is clean, the commit matches, and the
@@ -107,25 +106,23 @@ it first looks for a successful library build at that exact commit:
 | Library | Jenkins job | Artifact | Output used |
 | --- | --- | --- | --- |
 | API | `Animu/animu-api` | `animu-api-dist.tar.gz` | `dist/` |
-| Airwave | `Animu/react-native-airwave` | `react-native-airwave.tgz` | `lib/` |
+| Anything Player | `Animu/react-native-anything-player` | `react-native-anything-player.tgz` | `lib/` |
 
 Unavailable or invalid artifacts cause a source build with the library's
 lockfile and package manager in a temporary isolated directory. Downloads have
 time/size bounds; archive links and traversal are rejected. Local edits always
 build from the current worktree and are never stamped as a clean commit.
-Airwave's native sources still compile within the app's Gradle/Xcode build;
+Anything Player's native sources still compile within the app's Gradle/Xcode build;
 compiled native binaries cannot be reused across arbitrary app configurations.
 
-`check:animu-api` and `check:airwave` validate the actual pinned worktrees in
-isolated installs. Airwave runs lint, typecheck, coverage thresholds and package
+`check:animu-api` and `check:player` validate the actual pinned worktrees in
+isolated installs. Anything Player runs lint, typecheck, coverage thresholds and package
 build; API runs typecheck, tests and both module builds. Neither deletes a
 local developer install nor exposes another React Native to Metro.
 
-Private checkout uses a read-only repository deploy key: GitHub Actions secret
-`AIRWAVE_SSH_KEY`, Jenkins SSH credential `airwave-read-key`. GitHub host keys
-are pinned in `scripts/github-known-hosts` (GitHub's HTTPS `/meta` API). Jenkins
-SCM must leave submodule initialization to `scripts/init-submodules.sh`; an
-unauthenticated automatic checkout fails before the pipeline can bind the key.
+Both repositories are public and use their canonical HTTPS URLs. No repository
+read token is required. Jenkins SCM leaves submodule initialization to
+`scripts/init-submodules.sh`, shared with GitHub Actions and developer installs.
 
 ### expo-dev-client in release builds
 

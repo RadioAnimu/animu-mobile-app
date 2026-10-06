@@ -37,7 +37,7 @@ first read.
 
 ## Player core
 
-Playback runs on **[react-native-airwave](https://github.com/rmotafreitas/react-native-airwave)**,
+Playback runs on **[react-native-anything-player](https://github.com/rmotafreitas/react-native-anything-player)**,
 a native-first player: its native engine owns the state machine, reconnects,
 stall / dead-socket / network recovery, live-edge resumes, audio focus,
 interruptions, the lock screen and remote commands, and background keepalive.
@@ -236,7 +236,7 @@ keeps using relative requires.
 | Build tooling | Expo SDK 57 · EAS Build · Expo dev client |
 | Language | TypeScript 6.0 (strict) |
 | Navigation | React Navigation 7 — a **native stack** (`@react-navigation/native-stack`) whose root is the **drawer** (`@react-navigation/drawer`: Player, history, Make Request); Settings, Stats, Storage, Login, Account and About push on the stack (platform push/pop, iOS swipe-back, Android predictive back; cross-fade with Reduce Motion) |
-| Audio | `react-native-airwave` (native engine, recovery, focus/interruptions, media session, ICY at audible time, decoded-audio sampling) — vendored tarball in `vendor/` |
+| Audio | `react-native-anything-player` (native engine, recovery, focus/interruptions, media session, ICY at audible time, decoded-audio sampling) — vendored tarball in `vendor/` |
 | Visualizer | Transparent `react-native-webview` running the web player's Canvas 2D + `requestAnimationFrame` loop, fed by Airwave's `audioSample` windows (iOS and Android); unmounted while backgrounded (`AppStateGate` + `react-freeze`) |
 | Icons | `@react-native-vector-icons/material-icons` · `react-native-svg` (only `ProviderIcon`, `SocialIcon`, `BackArrow`) |
 | Images | `expo-image` (covers, avatars, localized artwork) |

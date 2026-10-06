@@ -22,7 +22,8 @@ features. No ads, no in-app purchases, no subscriptions, no analytics/tracking.
 
 ## Data inventory (source of truth for both stores)
 
-Traced from the code. "Collected" = transmitted off-device; "on-device" data is
+Client-side flows traced from the code; backend retention and onward disclosure
+require the station operator’s confirmation. "Collected" = transmitted off-device; "on-device" data is
 not collection.
 
 | Data | Destination | Optional? | Retention | Third parties |
@@ -30,12 +31,12 @@ not collection.
 | Name / username | station backend (auth) | Yes — only if you sign in | Until account deletion | No |
 | Email address | station backend (auth) | Yes — only if you sign in | Until account deletion | No |
 | User IDs (provider, handle) | station backend (auth) | Yes — only if you sign in | Until account deletion | No |
-| Avatar / banner (photos) | station backend (auth) | Yes — only if you upload | Until account deletion | No |
+| Avatar / banner (photos) | provider/station backend, fetched for display | Yes — sign-in/profile features | Until account deletion | No |
 | Music request (name, track) | station backend (requests) | Yes — sign-in + submit | Persisted; shown on station homepage | Public on station site |
 | Live request / shout-out (name, city, message) | station backend (DJ panel) | Yes — message field is optional | Persisted; shown on Discord | Posted to Discord |
 | Client headers (platform, app/build version, language, device model, OS, region) | every API call | Automatic | Server logs | No |
 | IP address | server logs | Automatic | Server logs (moderation) | No |
-| Session token | iOS Keychain / Android Keystore | Yes | Until logout/deletion | On-device only |
+| Session token | secure local storage and authenticated station API requests | Yes | Until logout/deletion | No |
 | Profile projection | AsyncStorage | Yes | Until logout/deletion | On-device only |
 | Cover cache, settings | device storage | Automatic | Local cache | On-device only |
 
@@ -45,8 +46,11 @@ temporary and never transmitted.
 
 ## Privacy policy — exact edits (live at <https://www.animu.com.br/privacypolicy>)
 
-The live policy is Termly boilerplate and does not match the app. Apply these
-four edits (paste-ready text) before submission:
+The previous review found Termly boilerplate that did not match the app.
+Recheck the live page and confirm backend retention/deletion practices before
+applying these proposed edits; they are not a verified statement of server
+behavior. Store-console values below are prior observations, not a fresh
+console audit.
 
 **1. §1 "WHAT INFORMATION DO WE COLLECT?" — replace the bullet list with:**
 

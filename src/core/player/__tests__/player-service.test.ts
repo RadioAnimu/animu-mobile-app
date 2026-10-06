@@ -5,7 +5,7 @@ import type {
   PlaybackState,
   PlayerEventMap,
   PlayerStatus,
-} from "react-native-airwave";
+} from "react-native-anything-player";
 import { PlayerService, type PlayerServiceDependencies } from "@/core/player/player-service";
 import { AudibleTrackResolver } from "@/core/player/stream-playback/audible-track";
 import { HeardTrack, ICY_AFTER_START_MS } from "@/core/player/stream-playback/heard-track";
@@ -255,7 +255,7 @@ const setup = () => {
 const lastNowPlaying = (player: FakePlayer) =>
   player.updateNowPlaying.mock.calls.at(-1)?.[0] as AirwaveNowPlaying | undefined;
 
-describe("PlayerService on react-native-airwave", () => {
+describe("PlayerService on react-native-anything-player", () => {
   beforeEach(() => {
     vi.useRealTimers();
   });
@@ -691,13 +691,13 @@ describe("PlayerService on react-native-airwave", () => {
     const before = t.player.updateNowPlaying.mock.calls.length;
     const previewA = preview;
     previewA();
-    expect(t.player.updateNowPlaying.mock.calls.length).toBe(before + 1);
+    expect(t.player.updateNowPlaying.mock.calls).toHaveLength(before + 1);
     // Another song is heard: a late preview of the old cover publishes nothing.
     t.announce(track("Song B"));
     t.player.hear("Song B");
     const after = t.player.updateNowPlaying.mock.calls.length;
     previewA();
-    expect(t.player.updateNowPlaying.mock.calls.length).toBe(after);
+    expect(t.player.updateNowPlaying.mock.calls).toHaveLength(after);
   });
 
   it("teardown during setup, twice, or with a failing release stays safe", async () => {

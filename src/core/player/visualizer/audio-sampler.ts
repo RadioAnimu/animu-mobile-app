@@ -1,4 +1,4 @@
-import type { AudioSample } from "react-native-airwave";
+import type { AudioSample } from "react-native-anything-player";
 import type {
   SamplingTransport,
   VisualizerSampler,
@@ -9,7 +9,7 @@ import type {
  * Oscilloscope sampler — turns the player's decoded-audio windows into the
  * windows the WebView visualizer interpolates between.
  *
- * react-native-airwave does the DSP natively (downmix, resample to
+ * react-native-anything-player does the DSP natively (downmix, resample to
  * {@link WAVE_POINTS}, level) on both platforms — including live streams on
  * iOS, where AVPlayer's own audio tap never runs. What is left here is pacing
  * and presentation: the measured window cadence (median, so decode bursts do

@@ -18,6 +18,6 @@
     "${configDir}/jest.config.js",
     "${configDir}/android",
     "${configDir}/ios",
-    "${configDir}/packages/react-native-airwave"
+    "${configDir}/packages/react-native-anything-player"
   ]
 }

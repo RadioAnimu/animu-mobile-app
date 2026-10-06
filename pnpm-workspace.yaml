@@ -6,11 +6,11 @@
 # node-linker=hoisted, build it with the root's TypeScript 6 instead.
 packages:
   - "packages/*"
-  # react-native-airwave (submodule) is linked, not a workspace member: as a
+  # react-native-anything-player (submodule) is linked, not a workspace member: as a
   # member, its devDependencies (its own react-native, Jest, the example app)
   # would be installed into this tree, and Metro would bundle two React
   # Natives. `link:` installs nothing for it; its peers resolve from the root.
-  - "!packages/react-native-airwave"
+  - "!packages/react-native-anything-player"
 
 # Supply-chain hardening — react-doctor's require-pnpm-hardening rule wants
 # these keys; both are pnpm 10+ features.

@@ -22,9 +22,6 @@ jobs:
           persist-credentials: false
 
       - name: Initialize pinned submodules
-        env:
-          AIRWAVE_SSH_KEY: ${{ secrets.AIRWAVE_SSH_KEY }}
-          AIRWAVE_READ_TOKEN: ${{ secrets.AIRWAVE_READ_TOKEN }}
         run: bash scripts/init-submodules.sh
 
       - uses: pnpm/action-setup@v4
@@ -69,8 +66,8 @@ jobs:
         run: pnpm run check:animu-api
 
       # So is the audio player (its own Yarn install, removed afterwards).
-      - name: react-native-airwave typecheck + tests
-        run: pnpm run check:airwave
+      - name: react-native-anything-player typecheck + tests
+        run: pnpm run check:player
 
       - name: Upload coverage (lcov)
         if: always()

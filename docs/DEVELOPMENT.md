@@ -27,7 +27,7 @@ pnpm install       # prepares both pinned libraries
 
 `pnpm install` prepares both linked submodules from matching Jenkins artifacts
 or isolated source builds. See [shared submodule builds](BUILD_AND_RELEASE.md#shared-submodule-builds).
-Use `pnpm run build:api` / `pnpm run build:airwave` to prepare either manually.
+Use `pnpm run build:api` / `pnpm run build:player` to prepare either manually.
 
 > **Why `node-linker=hoisted`?** React Native/Expo need a flat `node_modules`;
 > pnpm's default isolated linking breaks Metro resolution and native module
@@ -42,7 +42,7 @@ pnpm run ios        # build & run on iOS
 ```
 
 > This project uses a **development client** (`expo start --dev-client`) rather
-> than Expo Go, because it depends on native modules (`react-native-airwave`,
+> than Expo Go, because it depends on native modules (`react-native-anything-player`,
 > `react-native-webview`).
 
 ## Scripts
@@ -63,7 +63,7 @@ pnpm run ios        # build & run on iOS
 | `pnpm run check:expo-deps` | `expo install --check`: every Expo-managed dependency matches the SDK |
 | `pnpm run check:audit` | `pnpm audit` for known-vulnerable dependencies |
 | `pnpm run check:animu-api` | Typecheck and test the `animu-api` submodule |
-| `pnpm run check:airwave` | Typecheck and test the `react-native-airwave` submodule (own Yarn install, removed afterwards) |
+| `pnpm run check:player` | Typecheck and test the `react-native-anything-player` submodule (own Yarn install, removed afterwards) |
 | `pnpm run install:apk` | Uninstall + install the newest local `.apk` on a connected device |
 
 
@@ -111,10 +111,10 @@ them from either `PROXIMA_NOVA_FONTS_URL` (a `.zip`) or
 [`src/assets/fonts/README.md`](../src/assets/fonts/README.md) for the full
 walk-through.
 
-## Player library (react-native-airwave)
+## Player library (react-native-anything-player)
 
-Playback uses `react-native-airwave`, the git submodule at
-`packages/react-native-airwave` ([rmotafreitas/react-native-airwave](https://github.com/rmotafreitas/react-native-airwave),
+Playback uses `react-native-anything-player`, the git submodule at
+`packages/react-native-anything-player` ([rmotafreitas/react-native-anything-player](https://github.com/rmotafreitas/react-native-anything-player),
 a **private** repository: cloning it needs read access). It is consumed from
 compiled JavaScript and pinned native source:
 
@@ -127,14 +127,14 @@ compiled JavaScript and pinned native source:
 - iOS/Android autolinking compile its `ios/` and `android/` directly.
 - `tsc`, Vitest, ESLint and React Doctor skip the submodule's own project
   (`react-doctor.config.json` selects the app). It has its own CI; run its
-  checks here with `pnpm run check:airwave`.
+  checks here with `pnpm run check:player`.
 
 To update the player, commit and push in the Airwave repository, then move the
 pin:
 
 ```bash
-git -C packages/react-native-airwave pull origin main
-git add packages/react-native-airwave
+git -C packages/react-native-anything-player pull origin main
+git add packages/react-native-anything-player
 ```
 
 No reinstall is needed (it is a symlink). Rebuild the native app when native
@@ -146,8 +146,8 @@ No native patches are needed (`patch-package` was removed with the last patch).
 
 Two [git submodules](https://git-scm.com/docs/git-submodule) live in
 `packages/`: `animu-api` ([`RadioAnimu/animu-api`](https://github.com/RadioAnimu/animu-api))
-and `react-native-airwave` (private, see
-[Player library](#player-library-react-native-airwave)). Always clone with
+and `react-native-anything-player` (private, see
+[Player library](#player-library-react-native-anything-player)). Always clone with
 `--recurse-submodules`. CI checks them out with `scripts/init-submodules.sh`,
 which authenticates to the private repository with `AIRWAVE_READ_TOKEN` when
 set. After pulling, run:
@@ -173,7 +173,7 @@ push to `main` and on pull requests:
    `pnpm run check:expo-doctor` — `expo-doctor` project health checks.
 5. `pnpm run check:audit` — dependency vulnerability audit.
 6. `pnpm test:coverage` — Vitest with the coverage floor (writes `junit.xml` when `CI` is set).
-7. `pnpm run check:animu-api` and `pnpm run check:airwave` — the submodules'
+7. `pnpm run check:animu-api` and `pnpm run check:player` — the submodules'
    own typecheck and tests.
 8. **Bundle smoke test** — `expo export:embed` for Android, catching broken asset
    paths and unresolvable imports that TypeScript can't see.
@@ -182,7 +182,7 @@ push to `main` and on pull requests:
 `react-doctor.yml` posts advisory PR feedback separately.
 
 The private Airwave submodule needs a read-only token in CI: a fine-grained
-personal access token with **Contents: read** on `rmotafreitas/react-native-airwave`,
+personal access token with **Contents: read** on `rmotafreitas/react-native-anything-player`,
 stored as the GitHub Actions secret `AIRWAVE_READ_TOKEN` and as the Jenkins
 SSH credential `airwave-read-key` (used by the CI, release and
 SonarQube jobs).
