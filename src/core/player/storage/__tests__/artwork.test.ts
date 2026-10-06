@@ -75,9 +75,7 @@ describe("pickPreviewArtwork", () => {
   it("never picks a size the API did not report (the CDN 302s unknown sizes to a placeholder)", () => {
     // No artworks report → no preview at all, even though the naming
     // scheme could "derive" a `_tiny` URL.
-    expect(pickPreviewArtwork("https://cdn.test/trackImage1_large.jpg")).toBe(
-      null,
-    );
+    expect(pickPreviewArtwork("https://cdn.test/trackImage1_large.jpg")).toBeNull();
     // Only a same-or-worse size reported → no smaller candidate exists.
     expect(
       pickPreviewArtwork("https://cdn.test/trackImage1_medium.jpg", {
@@ -178,6 +176,20 @@ describe("ArtworkResolver", () => {
       expect(local).toBe(resolver.peek(url));
       expect(local).toMatch(/^file:\/\/mock\/cache\/animu-cover-[0-9a-f]+\.jpg$/);
       expect(assetMocks.fromURI).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      ["https://images.test/cover.png", "animu-cover-29dde955.jpg"],
+      ["https://images.test/🦊.png", "animu-cover-8f85bede.jpg"],
+    ])("preserves existing cache file identity for %s", async (url, filename) => {
+      fileSystemMocks.directDownload.mockImplementation(
+        async (_url: string, file: { exists: boolean; size: number }) => {
+          file.exists = true;
+          file.size = 128;
+        },
+      );
+      const resolver = new ArtworkResolver();
+      expect(await resolver.resolve(url)).toBe(`file://mock/cache/${filename}`);
     });
 
     it("shares one download between concurrent callers", async () => {
