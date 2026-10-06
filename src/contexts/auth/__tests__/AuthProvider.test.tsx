@@ -325,12 +325,8 @@ describe("AuthProvider", () => {
       expect(mocks.background.stopTask).toHaveBeenCalledWith("session-check");
 
       await emitAppState("active");
-      expect(mocks.facade.getSessionStatus.mock.calls.length).toBe(
-        checksBefore + 1,
-      );
-      expect(mocks.background.startTask.mock.calls.length).toBe(
-        startsBefore + 1,
-      );
+      expect(mocks.facade.getSessionStatus.mock.calls).toHaveLength(checksBefore + 1);
+      expect(mocks.background.startTask.mock.calls).toHaveLength(startsBefore + 1);
     });
 
     it("ignores transient inactive -> active flips that never backgrounded", async () => {
