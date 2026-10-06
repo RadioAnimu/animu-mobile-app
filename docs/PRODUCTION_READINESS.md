@@ -117,6 +117,19 @@ No critical finding identified in the inspected code and executed checks.
 
 ### Low
 
+- **Destructive APK installer — fixed.** The convenience command uninstalled
+  the app (erasing local data) before installing. It now uses `adb install -r`,
+  supports an explicit artifact path and adb's `ANDROID_SERIAL`, and fails on
+  signer mismatch without automatically deleting the existing installation.
+  A signed emulator update preserved the selected AAC setting; a deliberately
+  mismatched development installation rejected the update and remained installed.
+- **Broad metadata warning bypass — fixed.** Expo Doctor no longer hides every
+  package absent from React Native Directory. Only material-icons (the maintained
+  split vector-icons package) and the renamed Anything Player lack metadata and
+  have explicit exceptions. Both are compiled in the verified Android/iOS app;
+  the player also has mandatory independent native/JS gates. This is a registry
+  metadata gap, not proof of incompatibility. Newly unknown packages now fail.
+
 - **Incorrect icon file extension — fixed.** Expo wrote PNG bytes as `.webp`.
   Generation now renames only confirmed PNG launcher resources, retaining bytes
   and resource identifiers. Tests preserve actual WebP files; 15 lint warnings

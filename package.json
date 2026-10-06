@@ -6,7 +6,7 @@
     "start": "expo start --dev-client",
     "android": "expo run:android",
     "ios": "expo run:ios",
-    "install:apk": "adb uninstall com.nessjs.animu; adb install $(ls -t dist/*.apk 2>/dev/null | head -1)",
+    "install:apk": "node scripts/install-apk.mjs",
     "lint": "expo lint -- --max-warnings 0",
     "typecheck": "tsc --noEmit",
     "check:expo-deps": "expo install --check",
@@ -97,7 +97,11 @@
   "expo": {
     "doctor": {
       "reactNativeDirectoryCheck": {
-        "listUnknownPackages": false
+        "listUnknownPackages": true,
+        "exclude": [
+          "@react-native-vector-icons/material-icons",
+          "react-native-anything-player"
+        ]
       }
     },
     "install": {

@@ -64,7 +64,7 @@ pnpm run ios        # build & run on iOS
 | `pnpm run check:audit` | `pnpm audit` for known-vulnerable dependencies |
 | `pnpm run check:animu-api` | Typecheck and test the `animu-api` submodule |
 | `pnpm run check:player` | Typecheck and test the `react-native-anything-player` submodule (own Yarn install, removed afterwards) |
-| `pnpm run install:apk` | Uninstall + install the newest local `.apk` on a connected device |
+| `pnpm run install:apk [path.apk]` | Install/update without erasing app data; otherwise select the newest APK in `dist/` or `release-artifacts/`. Use `ANDROID_SERIAL` with multiple devices. Signer mismatches fail. |
 
 
 ## Testing
