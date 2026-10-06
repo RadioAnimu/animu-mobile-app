@@ -109,7 +109,7 @@ export const splitByHour = (
   endMs: number,
 ): { day: string; hour: number; ms: number }[] => {
   const buckets: { day: string; hour: number; ms: number }[] = [];
-  if (!(endMs > startMs)) return buckets;
+  if (endMs <= startMs || !Number.isFinite(endMs) || !Number.isFinite(startMs)) return buckets;
   let cursor = startMs;
   while (cursor < endMs) {
     const day = dayKeyOf(cursor);
@@ -386,7 +386,7 @@ export class ListenStatsService {
   /** Attributes [startMs, endMs) of audible audio to days/hours. */
   private addAudibleMs(startMs: number, endMs: number): void {
     if (!this.loaded) return;
-    if (!(endMs > startMs)) return;
+    if (endMs <= startMs || !Number.isFinite(endMs) || !Number.isFinite(startMs)) return;
     // Cap pathological gaps (clock jumps, suspended JS): a segment longer
     // than an hour of wall time is clipped — real 1 Hz segments are ~1s.
     if (endMs - startMs > 3_600_000) return;

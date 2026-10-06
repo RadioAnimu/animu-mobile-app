@@ -71,7 +71,7 @@ export function StatsContent({
   selectedDay,
   onSelectDay,
   onReset,
-}: Props) {
+}: Readonly<Props>) {
   const [resetting, setResetting] = useState(false);
   const selectedData = selectedDay != null ? snap.days[selectedDay] : undefined;
 

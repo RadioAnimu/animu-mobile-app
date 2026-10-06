@@ -22,7 +22,7 @@ interface Props {
  * the URL with the session token and a cache-busting revision. Degrades to a
  * neutral person glyph with bounded retries instead of a blank frame.
  */
-export function Avatar({ uri, size = scale(40), style, iconSize }: Props) {
+export function Avatar({ uri, size = scale(40), style, iconSize }: Readonly<Props>) {
   const { user, imageVersion, media } = useAuth();
   const { failed, retry, fail } = useBoundedRetry(uri ?? "");
 

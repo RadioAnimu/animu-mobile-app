@@ -277,7 +277,7 @@ function useAccountActions({
  * for nothing, so it pauses and re-checks once on return.
  */
 function useSessionCheck(
-  userRef: React.MutableRefObject<User | null>,
+  userRef: React.RefObject<User | null>,
   clearSession: () => Promise<void>,
 ): () => void {
   const pausedRef = useRef(false);

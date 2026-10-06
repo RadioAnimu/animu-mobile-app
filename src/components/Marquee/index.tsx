@@ -68,10 +68,10 @@ function pickCycle(group: GroupApi | null, own: number | null): number | null {
 export function MarqueeGroup({
   children,
   delay = 2500,
-}: {
+}: Readonly<{
   children: ReactNode;
   delay?: number;
-}) {
+}>) {
   const nextId = useRef(0);
   // id -> pass duration; null while that member is still measuring.
   const [records, setRecords] = useState<Map<number, number | null>>(

@@ -21,7 +21,7 @@ const MENU_ICON_SIZE = THEME.ICON.MD;
 const SECTION_ICON_SIZE = THEME.ICON.SECTION;
 
 /** Routes unavailable while a live DJ is on air (requests go via the live sheet). */
-const LIVE_LOCKED_ROUTES: readonly string[] = ["MakeRequest"];
+const LIVE_LOCKED_ROUTES = new Set(["MakeRequest"]);
 
 type MaterialIconName = ComponentProps<typeof Icon>["name"];
 
@@ -35,7 +35,7 @@ export function DrawerIcon({
   name,
   size = MENU_ICON_SIZE,
   color = THEME.COLORS.TEXT,
-}: DrawerIconProps) {
+}: Readonly<DrawerIconProps>) {
   return (
     <View style={styles.iconBox}>
       <Icon name={name} size={size} color={color} />
@@ -49,7 +49,7 @@ interface SeparatorProps {
   icon?: JSX.Element;
 }
 
-function Separator({ sectionTitle, icon }: SeparatorProps) {
+function Separator({ sectionTitle, icon }: Readonly<SeparatorProps>) {
   return (
     <View style={styles.section}>
       {icon}
@@ -69,7 +69,7 @@ function NavItems({
   state,
   descriptors,
   navigation,
-}: DrawerContentComponentProps) {
+}: Readonly<DrawerContentComponentProps>) {
   const dict = useDict();
   const { toast } = useAlert();
   const { currentProgram } = usePlayer();
@@ -89,7 +89,7 @@ function NavItems({
             : (options.title ?? route.name);
         const accent = focused ? THEME.COLORS.SURFACE : THEME.COLORS.TEXT;
 
-        const locked = isLive && LIVE_LOCKED_ROUTES.includes(route.name);
+        const locked = isLive && LIVE_LOCKED_ROUTES.has(route.name);
 
         const onPress = () => {
           if (locked) {
@@ -153,7 +153,7 @@ interface AccountRowProps {
  *   profile row); the whole chip opens Settings.
  * - Signed out: the chip opens Login and a separate gear opens Settings.
  */
-function AccountRow({ onOpenLogin, onOpenSettings }: AccountRowProps) {
+function AccountRow({ onOpenLogin, onOpenSettings }: Readonly<AccountRowProps>) {
   const { user, profile } = useAuth();
   const dict = useDict();
 
@@ -240,7 +240,7 @@ function AccountRow({ onOpenLogin, onOpenSettings }: AccountRowProps) {
   );
 }
 
-export function CustomDrawerContent(props: DrawerContentComponentProps) {
+export function CustomDrawerContent(props: Readonly<DrawerContentComponentProps>) {
   const dict = useDict();
   const { navigation } = props;
 

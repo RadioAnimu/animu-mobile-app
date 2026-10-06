@@ -84,7 +84,7 @@ describe("pickPreviewArtwork", () => {
         medium: "https://cdn.test/trackImage1_medium.jpg",
         large: "https://cdn.test/trackImage1_large.jpg",
       } as never),
-    ).toBe(null);
+    ).toBeNull();
   });
 });
 

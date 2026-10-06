@@ -7,7 +7,7 @@ interface Props {
 }
 
 /** Entry row to the About screen: versions, credits, donors, licensing. */
-export function AboutSection({ onPress }: Props) {
+export function AboutSection({ onPress }: Readonly<Props>) {
   const dict = useDict();
 
   return (

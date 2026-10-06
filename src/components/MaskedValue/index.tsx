@@ -33,7 +33,7 @@ export function MaskedValue({
   hideLabel,
   textStyle,
   iconSize = THEME.ICON.SM,
-}: Props) {
+}: Readonly<Props>) {
   const [revealed, setRevealed] = useState(false);
   const [motion] = useState(() => new Animated.Value(0));
   const reduceMotion = useReducedMotion();

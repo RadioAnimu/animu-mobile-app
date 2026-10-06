@@ -54,7 +54,7 @@ function EmailRow({
   dict,
   busy,
   onRemove,
-}: {
+}: Readonly<{
   email: string;
   /** Every provider that registered the address (or Animu Connect itself). */
   sources: EmailSource[];
@@ -63,7 +63,7 @@ function EmailRow({
   dict: Dict;
   busy: boolean;
   onRemove: (item: AuthAccountEmail) => void;
-}) {
+}>) {
   return (
     <View style={styles.emailRow}>
       <LeadingIcon name="mail-outline" />
@@ -205,12 +205,12 @@ function EmailList({
   dict,
   busy,
   onRemove,
-}: {
+}: Readonly<{
   groups: EmailGroup[];
   dict: Dict;
   busy: boolean;
   onRemove: (item: AuthAccountEmail) => void;
-}) {
+}>) {
   if (groups.length === 0) {
     return <Text style={styles.empty}>{dict.ACCOUNT_EMAIL_EMPTY}</Text>;
   }
@@ -255,13 +255,13 @@ function AddEmailForm({
   resendRemaining,
   onResend,
   onChangeEmail,
-}: {
+}: Readonly<{
   flow: EmailCodeFlow;
   dict: Dict;
   resendRemaining: number;
   onResend: () => void;
   onChangeEmail: () => void;
-}) {
+}>) {
   const onCodeStep = flow.step === "code";
 
   return (

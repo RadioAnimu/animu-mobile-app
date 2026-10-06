@@ -16,7 +16,7 @@ interface Props {
  * back arrow on the left, title centered between the two 44px slots, and a
  * SURFACE bar that extends under the status bar.
  */
-export function ScreenHeader({ title, onBack }: Props) {
+export function ScreenHeader({ title, onBack }: Readonly<Props>) {
   const insets = useSafeAreaInsets();
   const dict = useDict();
 

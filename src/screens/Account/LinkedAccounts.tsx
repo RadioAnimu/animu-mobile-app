@@ -155,7 +155,7 @@ export function LinkedAccounts({
   busy,
   onLink,
   onUnlink,
-}: Props) {
+}: Readonly<Props>) {
   const dict = useDict();
 
   // Unconfigured providers are omitted entirely rather than rendered as a

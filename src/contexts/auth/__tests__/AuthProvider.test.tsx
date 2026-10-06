@@ -340,7 +340,7 @@ describe("AuthProvider", () => {
       await emitAppState("inactive");
       await emitAppState("active");
 
-      expect(mocks.facade.getSessionStatus.mock.calls.length).toBe(checksBefore);
+      expect(mocks.facade.getSessionStatus.mock.calls).toHaveLength(checksBefore);
     });
   });
 

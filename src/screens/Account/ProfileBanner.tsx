@@ -23,7 +23,7 @@ interface Props {
  * instead of leaving an empty strip. If every attempt fails the strip
  * simply stays the accent color — the layout never collapses.
  */
-export function ProfileBanner({ source, fallbackColor, revision }: Props) {
+export function ProfileBanner({ source, fallbackColor, revision }: Readonly<Props>) {
   const { failed, fail } = useBoundedRetry(revision);
 
   return (

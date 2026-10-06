@@ -53,7 +53,7 @@ const PULSE_TRAVEL = 50;
 const PULSE_BOB = PULSE_TRAVEL * 2 * PULSE_OPACITY;
 const PROGRESS_ANIM_DURATION = 300;
 
-export function HeaderBar({ openLiveRequestModal }: Props) {
+export function HeaderBar({ openLiveRequestModal }: Readonly<Props>) {
   const navigation =
     useNavigation<DrawerNavigationProp<DrawerParamList>>();
   const insets = useSafeAreaInsets();

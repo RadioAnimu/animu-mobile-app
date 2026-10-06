@@ -56,7 +56,7 @@ export function ShareCardSection({
   imageVersion,
   snap,
   onSignIn,
-}: Props) {
+}: Readonly<Props>) {
   const dict = useDict();
   const { settings } = useUserSettings();
   const { media } = useAuth();
@@ -253,7 +253,7 @@ function CardActionButton({
   busy,
   disabled = busy,
   onPress,
-}: ActionProps) {
+}: Readonly<ActionProps>) {
   return (
     <TouchableOpacity
       accessibilityRole="button"

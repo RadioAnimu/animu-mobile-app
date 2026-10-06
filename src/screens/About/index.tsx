@@ -45,7 +45,7 @@ interface DetailRowProps {
 }
 
 /** Read-only key/value row (no chevron, no press) — the "Device details" row. */
-function DetailRow({ icon, label, value }: DetailRowProps) {
+function DetailRow({ icon, label, value }: Readonly<DetailRowProps>) {
   return (
     <View style={styles.row}>
       <View style={styles.rowIcon}>
@@ -70,7 +70,7 @@ interface SocialRowProps {
 }
 
 /** Link row that leads with the network's real brand mark. */
-function SocialRow({ brand, label, url }: SocialRowProps) {
+function SocialRow({ brand, label, url }: Readonly<SocialRowProps>) {
   return (
     <TouchableOpacity
       accessibilityRole="link"
@@ -101,7 +101,7 @@ function SocialRow({ brand, label, url }: SocialRowProps) {
  * the Select rows: tap to unfold the thank-you note and every donor in
  * place — no modal, no portal.
  */
-function DonorDisclosure({ label, intro }: { label: string; intro: string }) {
+function DonorDisclosure({ label, intro }: Readonly<{ label: string; intro: string }>) {
   const [expanded, setExpanded] = useState(false);
 
   const toggle = () => {
@@ -158,7 +158,7 @@ function DonorDisclosure({ label, intro }: { label: string; intro: string }) {
   );
 }
 
-export function About({ navigation }: Props) {
+export function About({ navigation }: Readonly<Props>) {
   const dict = useDict();
   const endPadding = useScrollEndPadding();
   const info = useAppInfo();

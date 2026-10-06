@@ -8,11 +8,11 @@ import { THEME } from "@/theme";
 export type MaterialIconName = ComponentProps<typeof Icon>["name"];
 
 /** Fixed leading column that lines every row up with the section headings. */
-export function IconBox({ children }: { children: ReactNode }) {
+export function IconBox({ children }: Readonly<{ children: ReactNode }>) {
   return <View style={styles.iconBox}>{children}</View>;
 }
 
-export function LeadingIcon({ name }: { name: MaterialIconName }) {
+export function LeadingIcon({ name }: Readonly<{ name: MaterialIconName }>) {
   return (
     <IconBox>
       <Icon
@@ -33,7 +33,7 @@ interface RowBodyProps {
 }
 
 /** The label + optional supporting line every row type renders mid-row. */
-export function RowBody({ label, description, children }: RowBodyProps) {
+export function RowBody({ label, description, children }: Readonly<RowBodyProps>) {
   const hasSecondLine = description != null || children != null;
 
   return (
@@ -77,7 +77,7 @@ export function ActionRow({
   description,
   onPress,
   busy,
-}: ActionRowProps) {
+}: Readonly<ActionRowProps>) {
   return (
     <TouchableOpacity
       accessibilityRole="button"

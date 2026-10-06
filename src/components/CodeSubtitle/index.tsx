@@ -9,7 +9,7 @@ interface Props {
 }
 
 /** The code-step sentence with the destination address emphasized. */
-export function CodeSubtitle({ template, email }: Props) {
+export function CodeSubtitle({ template, email }: Readonly<Props>) {
   const [before, after] = template.split("{email}");
   return (
     <>

@@ -73,7 +73,7 @@ export function Select<T extends string>({
   value,
   onChange,
   disabled,
-}: Props<T>) {
+}: Readonly<Props<T>>) {
   const [open, setOpen] = useState(false);
   const [applyingKey, setApplyingKey] = useState<T | null>(null);
   const applying = applyingKey != null;

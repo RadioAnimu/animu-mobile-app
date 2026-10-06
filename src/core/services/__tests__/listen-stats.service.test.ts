@@ -5,6 +5,7 @@ import {
   ListenStatsService,
   MIN_SESSION_MS,
   dayKeyOf,
+  splitByHour,
 } from "@/core/services/listen-stats.service";
 import type { Track } from "@/core/domain/track";
 
@@ -613,5 +614,16 @@ describe("listenStatsService persistence scheduling", () => {
     vi.mocked(AsyncStorage.removeItem).mockRejectedValueOnce(new Error("io"));
     await expect(service.reset()).resolves.toBeUndefined();
     expect(warn).toHaveBeenCalledWith("[ListenStats] reset failed:", expect.any(Error));
+  });
+});
+
+
+describe("splitByHour invalid ranges", () => {
+  it.each([
+    [Number.NaN, 1], [0, Number.NaN],
+    [0, Number.POSITIVE_INFINITY], [Number.NEGATIVE_INFINITY, 1],
+    [1, 1], [2, 1],
+  ])("returns no buckets for %s to %s instead of looping", (start, end) => {
+    expect(splitByHour(start, end)).toEqual([]);
   });
 });

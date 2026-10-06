@@ -34,7 +34,7 @@ function dateLabel(value: Date | null): string | null {
   });
 }
 
-function MetaLine({ children }: { children: ReactNode }) {
+function MetaLine({ children }: Readonly<{ children: ReactNode }>) {
   return <View style={styles.metaLine}>{children}</View>;
 }
 
@@ -43,7 +43,7 @@ function MetaLine({ children }: { children: ReactNode }) {
  * off its bottom-left, then the display name (verified badge inline), the
  * @handle beside it, then icon meta lines (last login, sign-in method).
  */
-export function ProfileCard({ user, profile, imageVersion, bannerUri }: Props) {
+export function ProfileCard({ user, profile, imageVersion, bannerUri }: Readonly<Props>) {
   const dict = useDict();
   const profileUser = profile?.user ?? user;
   const name = getUserName({ handle: null, username: profileUser.username });

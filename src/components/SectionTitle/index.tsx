@@ -18,7 +18,7 @@ interface Props {
 }
 
 /** Uppercase section heading with a leading icon, used across settings pages. */
-export function SectionTitle({ title, icon, first }: Props) {
+export function SectionTitle({ title, icon, first }: Readonly<Props>) {
   return (
     <View
       accessibilityRole="header"

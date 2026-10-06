@@ -14,7 +14,7 @@ export function ButtonKBPS({
   category,
   kbps,
   handleChangeStream,
-}: Props) {
+}: Readonly<Props>) {
   return (
     <TouchableOpacity
       accessibilityRole="button"

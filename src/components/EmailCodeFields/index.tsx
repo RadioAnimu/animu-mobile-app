@@ -30,10 +30,10 @@ import { styles } from "@/components/EmailCodeFields/styles";
 export function EmailCodeFields({
   flow,
   autoFocusEmail = false,
-}: {
+}: Readonly<{
   flow: EmailCodeFlow;
   autoFocusEmail?: boolean;
-}) {
+}>) {
   const dict = useDict();
   const autoSubmitted = useRef(false);
   const [focused, setFocused] = useState(false);

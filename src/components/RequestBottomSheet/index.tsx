@@ -26,7 +26,7 @@ interface Props {
   onRequestSuccess: (trackId: string) => void;
 }
 
-function TrackCard({ track }: { track: MusicRequest }) {
+function TrackCard({ track }: Readonly<{ track: MusicRequest }>) {
   return (
     <View style={styles.trackRow}>
       <Cover cover={track.artwork} style={styles.cover} category="search" />
@@ -54,7 +54,7 @@ export function RequestBottomSheet({
   onClose,
   onSubmit,
   onRequestSuccess,
-}: Props) {
+}: Readonly<Props>) {
   const dict = useDict();
   const { toast } = useAlert();
   const { chip, showChip, clearChip } = useChip();

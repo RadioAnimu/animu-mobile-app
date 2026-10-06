@@ -16,7 +16,7 @@ interface Props {
  * re-reads on every focus, so a listening session that ended since the last
  * visit is reflected without an app restart (drawer screens stay mounted).
  */
-export function ListenStatsSection({ onPress }: Props) {
+export function ListenStatsSection({ onPress }: Readonly<Props>) {
   const dict = useDict();
   const [totalLabel, setTotalLabel] = useState<string>("—");
 

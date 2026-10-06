@@ -54,7 +54,7 @@ interface Props {
  * renders the bundled asset at intrinsic size inside a transparent
  * frame (small logo, background showing through).
  */
-export function Cover({ cover, style, recyclingKey, category }: Props) {
+export function Cover({ cover, style, recyclingKey, category }: Readonly<Props>) {
   const { settings } = useUserSettings();
   // Failure count lives per URL in a ref, NOT in the state that derives the
   // fallback: clearing that state to retry used to discard the count and the

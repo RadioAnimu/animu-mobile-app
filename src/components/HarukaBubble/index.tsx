@@ -11,7 +11,7 @@ interface Props {
 }
 
 /** Haruka's face (cropped from her success art) saying `text` in a bubble. */
-export function HarukaBubble({ text }: Props) {
+export function HarukaBubble({ text }: Readonly<Props>) {
   return (
     <View style={styles.row}>
       <View style={styles.avatar}>

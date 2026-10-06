@@ -22,7 +22,7 @@ interface AccountRowProps {
   onPress: () => void;
 }
 
-export function AccountRow({ user, profile, dict, onPress }: AccountRowProps) {
+export function AccountRow({ user, profile, dict, onPress }: Readonly<AccountRowProps>) {
   const handle = profile?.user.handle || user?.handle;
   const label = user
     ? [profile?.user.username || user.username, handle && `@${handle}`]
@@ -96,7 +96,7 @@ interface SwitchProps {
   disabled?: boolean;
 }
 
-function Switch({ value, disabled }: SwitchProps) {
+function Switch({ value, disabled }: Readonly<SwitchProps>) {
   const [position] = useState(() => new Animated.Value(value ? 1 : 0));
 
   useEffect(() => {
@@ -151,7 +151,7 @@ export function SettingsRow({
   value,
   onToggle,
   disabled,
-}: SettingsRowProps) {
+}: Readonly<SettingsRowProps>) {
   return (
     <TouchableOpacity
       accessibilityRole="switch"
@@ -186,7 +186,7 @@ export function ValueRow({
   value,
   description,
   onPress,
-}: ValueRowProps) {
+}: Readonly<ValueRowProps>) {
   const stacked = useStackedRows();
   const valueText = (
     <Text
@@ -231,7 +231,7 @@ interface InfoRowProps {
 }
 
 /** Non-interactive row that explains a capability (e.g. voice commands). */
-export function InfoRow({ label, icon, description }: InfoRowProps) {
+export function InfoRow({ label, icon, description }: Readonly<InfoRowProps>) {
   return (
     <View style={styles.row}>
       <LeadingIcon name={icon} />
@@ -248,7 +248,7 @@ interface LinkRowProps {
 }
 
 /** Opens an external URL — privacy policy, license, store-required links. */
-export function LinkRow({ label, icon, description, onPress }: LinkRowProps) {
+export function LinkRow({ label, icon, description, onPress }: Readonly<LinkRowProps>) {
   return (
     <TouchableOpacity
       accessibilityRole="link"

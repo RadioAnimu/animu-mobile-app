@@ -42,7 +42,7 @@ export function ResultsList({
   loadingMore,
   onEndReached,
   bottomPadding,
-}: Props) {
+}: Readonly<Props>) {
   return (
     <FlatList
       ref={listRef}

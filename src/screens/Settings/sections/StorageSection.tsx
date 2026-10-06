@@ -13,7 +13,7 @@ interface Props {
 }
 
 /** Rows for the cover-cache toggle plus the plain-language "free up space" shortcut. */
-export function StorageSection({ onOpenStorage }: Props) {
+export function StorageSection({ onOpenStorage }: Readonly<Props>) {
   const { settings, updateSettings } = useUserSettings();
   const dict = useDict();
   const showFreedToast = useFreedCoverToast();

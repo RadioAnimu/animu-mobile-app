@@ -51,7 +51,7 @@ const PARTITION_ICONS: Record<CoverCacheCategory, IconName> = {
  * Advanced area that splits the ceiling between the four partitions —
  * the split the trim engine already enforces, now visible and editable.
  */
-export function Storage({ navigation }: Props) {
+export function Storage({ navigation }: Readonly<Props>) {
   const { settings, updateSettings } = useUserSettings();
   const { capacity, refresh } = useDeviceStorage();
   const dict = useDict();

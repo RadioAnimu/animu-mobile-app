@@ -9,7 +9,7 @@ interface Props {
 }
 
 /** Account entry row — the one setting tied to *who* is listening. */
-export function AccountSection({ user, profile, onPress }: Props) {
+export function AccountSection({ user, profile, onPress }: Readonly<Props>) {
   const dict = useDict();
 
   return (

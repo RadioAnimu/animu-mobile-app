@@ -11,7 +11,7 @@ import { useIsBackgrounded } from "@/contexts/app-state/AppStateProvider";
  * something else triggers a state change while hidden, no reconciliation
  * happens. Only the providers (playback, auth, settings) stay live.
  */
-export function AppStateGate({ children }: { children: ReactNode }) {
+export function AppStateGate({ children }: Readonly<{ children: ReactNode }>) {
   const isBackgrounded = useIsBackgrounded();
   return <Freeze freeze={isBackgrounded}>{children}</Freeze>;
 }

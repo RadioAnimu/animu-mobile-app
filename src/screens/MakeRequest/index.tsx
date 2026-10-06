@@ -75,14 +75,14 @@ function SearchBar({
   onSubmit,
   onClear,
   onFocusChange,
-}: {
+}: Readonly<{
   dict: Dict;
   query: string;
   onChangeText: (query: string) => void;
   onSubmit: () => void;
   onClear: () => void;
   onFocusChange: (focused: boolean) => void;
-}) {
+}>) {
   const inputRef = useRef<TextInput | null>(null);
   const [focused, setFocused] = useState(false);
   const hasQuery = query !== "";
@@ -156,10 +156,10 @@ function SearchBar({
 function SearchErrorBanner({
   dict,
   onRetry,
-}: {
+}: Readonly<{
   dict: Dict;
   onRetry: () => void;
-}) {
+}>) {
   return (
     <View style={styles.errorBanner}>
       <Text style={styles.errorText}>{dict.REQUEST_SEARCH_ERROR}</Text>

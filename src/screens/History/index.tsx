@@ -42,7 +42,7 @@ type HistoryTrack = NonNullable<
 const rowKey = (item: HistoryTrack): string =>
   `${item.raw}-${new Date(item.startTime).getTime()}`;
 
-export function History({ route }: Props) {
+export function History({ route }: Readonly<Props>) {
   const { historyType } = route.params;
   const isRequestHistory = historyType === "requests";
 

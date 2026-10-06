@@ -20,7 +20,7 @@ import { StorageSection } from "@/screens/Settings/sections/StorageSection";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Settings">;
 
-export function Settings({ navigation }: Props) {
+export function Settings({ navigation }: Readonly<Props>) {
   const { user, profile } = useAuth();
   const dict = useDict();
   const endPadding = useScrollEndPadding();

@@ -17,7 +17,7 @@ type Props = Omit<
  * with the brand on every screen — on Android a brand arrow on the surface
  * disc, on iOS a brand spinner over the content.
  */
-export function AppRefreshControl(props: Props) {
+export function AppRefreshControl(props: Readonly<Props>) {
   return (
     <RefreshControl
       {...props}

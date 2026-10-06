@@ -6,7 +6,7 @@ interface Props {
   startTime: number;
 }
 
-export function CountdownTimerText({ startTime }: Props) {
+export function CountdownTimerText({ startTime }: Readonly<Props>) {
   const formatTimer = (timeStamp: number): string => {
     if (timeStamp <= 0) {
       timeStamp = 0;

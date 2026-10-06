@@ -24,7 +24,7 @@ export function ConnectActions({
   resendRemaining,
   onResend,
   onChangeEmail,
-}: Props) {
+}: Readonly<Props>) {
   const dict = useDict();
   const resendLocked = busy || resendRemaining > 0;
 

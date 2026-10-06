@@ -17,14 +17,14 @@ export function RecentSearches({
   onRemove,
   onClear,
   bottomPadding,
-}: {
+}: Readonly<{
   dict: Dict;
   items: string[];
   onPick: (query: string) => void;
   onRemove: (query: string) => void;
   onClear: () => void;
   bottomPadding: number;
-}) {
+}>) {
   return (
     <ScrollView
       style={styles.recent}

@@ -359,12 +359,10 @@ export class NowPlayingRepository {
     this.lastLiveEventAt = Date.now();
     if (!this.mergeListeners(listeners)) return;
     this.onChange({
-      ...{
-        trackChanged: false,
-        programChanged: false,
-        playedChanged: false,
-        requestedChanged: false,
-      },
+      trackChanged: false,
+      programChanged: false,
+      playedChanged: false,
+      requestedChanged: false,
       listenersChanged: true,
     });
   }

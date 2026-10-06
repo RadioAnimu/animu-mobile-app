@@ -33,7 +33,7 @@ interface Props {
   handleClose: () => void;
 }
 
-export function LiveRequestModal({ visible, handleClose }: Props) {
+export function LiveRequestModal({ visible, handleClose }: Readonly<Props>) {
   const t = useDict();
   const { user } = useAuth();
   const { toast } = useAlert();

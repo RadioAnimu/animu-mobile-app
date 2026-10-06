@@ -38,7 +38,7 @@ export function CodeInput({
   busy = false,
   autoFocus = false,
   accessibilityLabel,
-}: Props) {
+}: Readonly<Props>) {
   const [focused, setFocused] = useState(false);
   const inputRef = useRef<TextInput | null>(null);
   const [caret] = useState(() => new Animated.Value(1));

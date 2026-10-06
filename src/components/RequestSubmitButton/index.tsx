@@ -9,7 +9,7 @@ interface Props {
 }
 
 /** The send button both request sheets share: Send, spinner, then Try again. */
-export function RequestSubmitButton({ submitting, failed, onPress }: Props) {
+export function RequestSubmitButton({ submitting, failed, onPress }: Readonly<Props>) {
   const dict = useDict();
 
   return (

@@ -12,7 +12,7 @@ interface Props {
 }
 
 /** A message bubble with a chat-style tail toward its speaker. */
-export function ChatBubble({ side, color, children, style }: Props) {
+export function ChatBubble({ side, color, children, style }: Readonly<Props>) {
   const left = side === "left";
 
   return (

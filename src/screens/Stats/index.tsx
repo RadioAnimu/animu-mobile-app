@@ -28,7 +28,7 @@ type Props = NativeStackScreenProps<RootStackParamList, "Stats">;
  * listening profile. Everything shown is measured locally — nothing
  * leaves the phone.
  */
-export function Stats({ navigation }: Props) {
+export function Stats({ navigation }: Readonly<Props>) {
   const dict = useDict();
   const endPadding = useScrollEndPadding();
   const { user, profile, imageVersion, refreshProfile } = useAuth();

@@ -68,7 +68,7 @@ function FieldHeader({
   hasError,
   length,
   maxLength,
-}: HeaderProps) {
+}: Readonly<HeaderProps>) {
   const dict = useDict();
   const showCounter =
     maxLength != null && length >= maxLength * COUNTER_THRESHOLD;
@@ -103,7 +103,7 @@ function FieldHeader({
 }
 
 /** Inline validation message, announced politely to screen readers. */
-function FieldError({ message }: { message: string }) {
+function FieldError({ message }: Readonly<{ message: string }>) {
   return (
     <View
       accessibilityLiveRegion="polite"
@@ -137,7 +137,7 @@ export function FormField({
   multiline = false,
   maxLength,
   ...inputProps
-}: Props) {
+}: Readonly<Props>) {
   const dict = useDict();
   const [focused, setFocused] = useState(false);
 

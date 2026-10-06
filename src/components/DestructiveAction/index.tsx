@@ -28,7 +28,7 @@ export function DestructiveAction({
   onPress,
   busy,
   description,
-}: Props) {
+}: Readonly<Props>) {
   return (
     <TouchableOpacity
       accessibilityRole="button"

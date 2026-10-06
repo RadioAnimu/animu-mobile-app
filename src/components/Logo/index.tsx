@@ -13,7 +13,7 @@ const DEFAULT_SIZE = scale(100);
 /** Used when a source's intrinsic dimensions can't be resolved. */
 const FALLBACK_ASPECT_RATIO = 1200 / 630;
 
-export function Logo({ size, img }: Props) {
+export function Logo({ size, img }: Readonly<Props>) {
   const { settings } = useUserSettings();
 
   const source = img ?? IMGS[settings.selectedLanguage].LOGO;

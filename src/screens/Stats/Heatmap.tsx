@@ -48,12 +48,12 @@ export function Heatmap({
   selected,
   onSelect,
   dict,
-}: {
+}: Readonly<{
   days: Record<string, ListenDay>;
   selected: string | null;
   onSelect: (day: string | null) => void;
   dict: Dict;
-}) {
+}>) {
   const today = new Date();
   const todayMs = dayStartMs(dayKeyOf(today.getTime()));
   // Snap to the Sunday that starts the current week, then walk back a full

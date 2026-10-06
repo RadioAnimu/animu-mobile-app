@@ -49,7 +49,7 @@ export function ShareCard({
   actionsInset,
   snap,
   dict,
-}: Props) {
+}: Readonly<Props>) {
   const theme = cardThemeFromAccent(accentColor);
   const streakLabel = formatStreakLabel(snap.maxStreak, dict);
   const covers = snap.topRequests.slice(0, 5);

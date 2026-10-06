@@ -29,7 +29,7 @@ export function SheetButton({
   loading = false,
   icon,
   style,
-}: Props) {
+}: Readonly<Props>) {
   return (
     <TouchableOpacity
       accessibilityRole="button"

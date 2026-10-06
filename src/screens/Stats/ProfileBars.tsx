@@ -18,10 +18,10 @@ export interface ProfileBar {
 export function ProfileBars({
   bars,
   emptyLabel,
-}: {
+}: Readonly<{
   bars: ProfileBar[];
   emptyLabel: string;
-}) {
+}>) {
   const max = Math.max(...bars.map((b) => b.value), 0);
   if (max <= 0) {
     return <Text style={styles.emptyText}>{emptyLabel}</Text>;

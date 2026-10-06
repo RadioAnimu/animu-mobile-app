@@ -145,7 +145,7 @@ export class StreamSyncEngine {
    */
   private clockSkewMs = 0;
   /** Recent raw skew samples (ms) — the applied skew is their median. */
-  private skewSamples: number[] = [];
+  private readonly skewSamples: number[] = [];
   /**
    * Consecutive `isLive: false` frames seen. An item teardown/report gap
    * flips the flag for a frame or two; only a sustained non-live source

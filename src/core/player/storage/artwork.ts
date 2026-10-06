@@ -48,7 +48,9 @@ function coverFileName(url: string): string {
 function coverFileNameFor(key: string): string {
   let hash = 5381;
   for (let i = 0; i < key.length; i++) {
-    hash = ((hash << 5) + hash + key.charCodeAt(i)) | 0;
+    // Indexing preserves the existing UTF-16 cache keys, including surrogate pairs.
+    const codeUnit = key[i].codePointAt(0) ?? 0;
+    hash = (Math.imul(hash, 33) + codeUnit) >>> 0;
   }
   return `${COVER_FILE_PREFIX}${(hash >>> 0).toString(16)}.jpg`;
 }

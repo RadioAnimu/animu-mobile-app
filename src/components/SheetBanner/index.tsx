@@ -13,7 +13,7 @@ interface Props {
 }
 
 /** The chunky green title strip, like the banners on Haruka's section art. */
-export function SheetBanner({ title, live = false, sticker }: Props) {
+export function SheetBanner({ title, live = false, sticker }: Readonly<Props>) {
   return (
     <View style={styles.wrapper}>
       <View style={styles.banner}>

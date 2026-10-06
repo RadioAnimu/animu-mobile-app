@@ -91,7 +91,7 @@ function useEntrance(step = 0) {
 }
 
 /** "By continuing, you agree to our <Privacy Policy>." — link inside the copy. */
-function LegalLine({ dict }: { dict: Dict }) {
+function LegalLine({ dict }: Readonly<{ dict: Dict }>) {
   const [before, after] = dict.LOGIN_LEGAL.split("{link}");
 
   return (
@@ -136,7 +136,7 @@ function MethodStep({
   error,
   onProvider,
   onConnect,
-}: MethodStepProps) {
+}: Readonly<MethodStepProps>) {
   const heroStyle = useEntrance(0);
   const connectStyle = useEntrance(1);
   const providersStyle = useEntrance(2);
@@ -235,7 +235,7 @@ function ConnectStep({
   error,
   resendRemaining,
   onResend,
-}: ConnectStepProps) {
+}: Readonly<ConnectStepProps>) {
   const onCodeStep = flow.step === "code";
   const headerStyle = useEntrance(0);
   const formStyle = useEntrance(1);
@@ -306,7 +306,7 @@ function ConnectStep({
  * options. The connect step swaps the hero for a centered form: email first,
  * then the 4-digit code.
  */
-export function Login({ navigation }: Props) {
+export function Login({ navigation }: Readonly<Props>) {
   const { toast } = useAlert();
   const {
     providers,

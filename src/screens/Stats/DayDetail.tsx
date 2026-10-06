@@ -13,11 +13,11 @@ export function DayDetail({
   dayKey,
   day,
   dict,
-}: {
+}: Readonly<{
   dayKey: string;
   day: ListenDay;
   dict: Dict;
-}) {
+}>) {
   const [y, m, d] = dayKey.split("-").map(Number);
   const date = new Date(y, m - 1, d);
   const thisYear = new Date().getFullYear();

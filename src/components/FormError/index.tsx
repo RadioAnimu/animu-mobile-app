@@ -13,7 +13,7 @@ interface Props {
  * Inline Auth failure notice, matching the request submit sheet: the error hue
  * on the icon and the message, no card around it.
  */
-export function FormError({ message, center = false }: Props) {
+export function FormError({ message, center = false }: Readonly<Props>) {
   return (
     <View
       accessibilityLiveRegion="polite"

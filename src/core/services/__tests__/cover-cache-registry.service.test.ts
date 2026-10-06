@@ -110,7 +110,7 @@ describe("CoverCacheRegistry", () => {
       registry.tag(URLS.search, "search");
     }
     await new Promise<void>((r) => setTimeout(r, 0));
-    expect(setItem.mock.calls.length).toBe(afterFirstStable);
+    expect(setItem.mock.calls).toHaveLength(afterFirstStable);
   });
 
   it("tag() keeps the FIFO ring honest: re-tag moves the entry to the tail", () => {

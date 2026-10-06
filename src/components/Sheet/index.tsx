@@ -69,7 +69,7 @@ export function Sheet({
   // (animationType, transparent, statusBarTranslucent, …) can't silently
   // come back through `rest` and win over the sheet's invariants.
   ...rest
-}: Props) {
+}: Readonly<Props>) {
   const keyboardPadding = useKeyboardPadding(withKeyboard && visible);
   const insets = useSafeAreaInsets();
   const dict = useDict();

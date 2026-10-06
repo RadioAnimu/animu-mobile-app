@@ -36,7 +36,7 @@ export function ReplyBubble({
   maxLength,
   placeholder,
   onSubmitEditing,
-}: Props) {
+}: Readonly<Props>) {
   const { profile } = useAuth();
   const [focused, setFocused] = useState(false);
 

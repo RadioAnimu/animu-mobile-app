@@ -9,7 +9,7 @@ interface Props {
 }
 
 /** Tilted katakana callout in the style of Haruka's section art. */
-export function Sticker({ text, style }: Props) {
+export function Sticker({ text, style }: Readonly<Props>) {
   return (
     <View
       accessible={false}

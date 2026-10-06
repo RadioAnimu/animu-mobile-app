@@ -34,7 +34,7 @@ import { ProfileCard } from "@/screens/Account/ProfileCard";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Account">;
 
-export function Account({ navigation }: Props) {
+export function Account({ navigation }: Readonly<Props>) {
   const { toast, error: showError } = useAlert();
   const {
     user,

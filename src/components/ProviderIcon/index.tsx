@@ -57,7 +57,7 @@ export function ProviderIcon({
   provider,
   size = THEME.ICON.MD,
   color = THEME.COLORS.TEXT,
-}: Props) {
+}: Readonly<Props>) {
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
       <Path d={PATHS[provider] ?? LOGIN_PATH} fill={color} />

@@ -24,10 +24,10 @@ import { styles } from "@/components/CoverStorageCard/styles";
 function LegendRow({
   slice,
   totalBytes,
-}: {
+}: Readonly<{
   slice: CoverStorageSlice;
   totalBytes: number;
-}) {
+}>) {
   const dict = useDict();
   return (
     <View style={styles.legendRow} accessibilityRole="text">
@@ -61,11 +61,11 @@ export function CoverStorageCard({
   snapshot,
   measuring,
   measure,
-}: {
+}: Readonly<{
   snapshot: CoverStorageSnapshot | null;
   measuring: boolean;
   measure: () => Promise<CoverStorageSnapshot | null>;
-}) {
+}>) {
   const { settings } = useUserSettings();
   const dict = useDict();
   const totalBytes = snapshot?.totalBytes ?? 0;
@@ -128,11 +128,11 @@ function CleanButton({
   totalBytes,
   hasData,
   measure,
-}: {
+}: Readonly<{
   totalBytes: number;
   hasData: boolean;
   measure: () => Promise<CoverStorageSnapshot | null>;
-}) {
+}>) {
   const dict = useDict();
   const notifyFreed = useFreedCoverToast();
   // One store-wide wipe flag — drives both the clean button and the

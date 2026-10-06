@@ -34,7 +34,7 @@ export function PrimaryButton({
   disabled = false,
   icon,
   style,
-}: Props) {
+}: Readonly<Props>) {
   const blocked = disabled || loading;
 
   return (
