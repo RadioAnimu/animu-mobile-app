@@ -10,7 +10,10 @@ const exceptions = {
   },
   "GHSA-vfj7-8cjw-p6xm": {
     name: "braces", version: "3.0.3",
-    paths: [".>expo>@expo/cli>@expo/metro-file-map>micromatch>braces"],
+    paths: [
+      ".>expo>@expo/cli>@expo/metro-file-map>micromatch>braces",
+      ".>expo>@expo/metro>metro-file-map>micromatch>braces",
+    ],
     dependents: ["micromatch@npm:4.0.8"],
     reason: "Build-tool matching of repository-controlled globs; no published fix",
   },

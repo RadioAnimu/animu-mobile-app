@@ -17,6 +17,14 @@ test("reviewed build-tool risk remains visible and does not allow an added runti
   assert.equal(blocking(assessPnpm(report(changed))), true);
 });
 
+test("Expo's direct Metro build-tool path remains scoped to the reviewed glob dependency", () => {
+  const changed = structuredClone(braces);
+  changed.findings[0].paths = [".>expo>@expo/metro>metro-file-map>micromatch>braces"];
+  assert.equal(blocking(assessPnpm(report(changed))), false);
+  changed.findings[0].paths.push(".>expo>@expo/metro>runtime-parser>braces");
+  assert.equal(blocking(assessPnpm(report(changed))), true);
+});
+
 test("a published fix or an unknown high advisory fails the gate", () => {
   assert.equal(blocking(assessPnpm(report({ ...braces, patched_versions: ">=3.0.4" }))), true);
   assert.equal(blocking(assessPnpm(report({ ...braces, github_advisory_id: "GHSA-new-risk" }))), true);

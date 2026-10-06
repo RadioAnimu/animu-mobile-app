@@ -35,21 +35,21 @@
     "@react-navigation/native": "^7.4.1",
     "@react-navigation/native-stack": "^7.19.2",
     "animu-api": "link:packages/animu-api",
-    "expo": "~57.0.26",
+    "expo": "~57.0.27",
     "expo-apple-authentication": "~57.0.2",
     "expo-application": "~57.0.3",
-    "expo-asset": "~57.0.18",
-    "expo-auth-session": "~57.0.13",
+    "expo-asset": "~57.0.19",
+    "expo-auth-session": "~57.0.14",
     "expo-build-properties": "~57.0.22",
     "expo-clipboard": "~57.0.2",
-    "expo-constants": "~57.0.20",
+    "expo-constants": "~57.0.21",
     "expo-dev-client": "~57.0.19",
     "expo-device": "~57.0.2",
     "expo-file-system": "~57.0.7",
     "expo-font": "~57.0.4",
     "expo-haptics": "~57.0.3",
     "expo-image": "~57.0.5",
-    "expo-linking": "~57.0.11",
+    "expo-linking": "~57.0.12",
     "expo-localization": "~57.0.2",
     "expo-media-library": "~57.0.5",
     "expo-secure-store": "~57.0.4",
@@ -115,7 +115,8 @@
   "pnpm": {
     "overrides": {
       "uuid": "^11.1.1",
-      "source-map-js": "1.2.2"
+      "source-map-js": "1.2.2",
+      "react-devtools-core>shell-quote": "1.11.0"
     },
     "patchedDependencies": {
       "react-native-worklets@0.10.1": "patches/react-native-worklets@0.10.1.patch",
