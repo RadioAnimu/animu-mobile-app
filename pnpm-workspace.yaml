@@ -18,8 +18,21 @@ minimumReleaseAge: 4320
 # ...which is what this exclusion is for: the Expo/RN packages we track
 # deliberately (and bump together with the SDK) skip the 3-day wait.
 minimumReleaseAgeExclude:
+  # Exact internal versions from the reviewed October 6 SDK 57 patch release.
+  - "@expo/config-plugins@57.0.10"
+  - babel-preset-expo@57.0.14
+  - "@expo/config@57.0.10"
+  - "@expo/cli@57.0.28"
+  - "@expo/metro-config@57.0.13"
+  - "@expo/image-utils@0.11.6"
+  - "@expo/metro-file-map@57.0.4"
+  - "@expo/require-utils@57.0.6"
+  - "@expo/router-server@57.0.12"
+  - "@expo/prebuild-config@57.0.17"
   # Reviewed security fix for GHSA-68fv-2mgg-jv7q, published October 5.
   - source-map-js@1.2.2
+  # Patched GHSA-pqg4-j6r4-53mv; registry signature and upstream release reviewed.
+  - shell-quote@1.11.0
   - expo
   - expo-*
   - react
@@ -36,6 +49,26 @@ minimumReleaseAgeExclude:
 # releases carried provenance attestations that the resolved versions don't.
 trustPolicy: no-downgrade
 trustPolicyExclude:
+  # SDK 57 patch release: npm registry signatures verified; published source
+  # matches expo/expo commit 50ac74f1ab5682c8e32b24da6e5e97dd4dbbb80f.
+  # These versions lack trusted-publisher evidence; keep exceptions exact.
+  - expo@57.0.27
+  - expo-asset@57.0.19
+  - expo-auth-session@57.0.14
+  - expo-constants@57.0.21
+  - expo-linking@57.0.12
+  - expo-modules-autolinking@57.0.14
+  - "@expo/config-plugins@57.0.10"
+  - expo-modules-core@57.0.21
+  - babel-preset-expo@57.0.14
+  - "@expo/config@57.0.10"
+  - "@expo/cli@57.0.28"
+  - "@expo/metro-config@57.0.13"
+  - "@expo/image-utils@0.11.6"
+  - "@expo/metro-file-map@57.0.4"
+  - "@expo/require-utils@57.0.6"
+  - "@expo/router-server@57.0.12"
+  - "@expo/prebuild-config@57.0.17"
   - semver
   - eslint-import-resolver-typescript@3.10.1
   - ua-parser-js@0.7.41
