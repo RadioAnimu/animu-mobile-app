@@ -121,8 +121,7 @@ pipeline {
       steps {
         checkout scm
         // react-native-anything-player is a public submodule, checked out at its pinned revision.
-        // The
-        // script fails when either submodule is missing.
+        // Initialization fails when either submodule is missing.
         script {
           sh '''
             set -eux
@@ -173,7 +172,7 @@ pipeline {
             # churn invalidates Gradle's JS/native task caches, so a no-op
             # install must stay a no-op. (The animu-api and react-native-anything-player
             # deps are symlinks, so a submodule rev change needs no reinstall;
-            # Airwave is compiled from source, animu-api's dist is handled below.)
+            # Both compiled library outputs are verified below.)
             STAMP="$WORKSPACE/.deps-stamp"
             WANT="$(sha256sum pnpm-lock.yaml package.json pnpm-workspace.yaml .npmrc | sha256sum | cut -d' ' -f1)"
             HAVE="$( [ -f "$STAMP" ] && cat "$STAMP" || echo none )"
@@ -320,7 +319,7 @@ pipeline {
           # unchanged so Gradle stays incremental; regenerate when app.json,
           # the plugins, or the Expo/RN versions change (or FORCE_PREBUILD=1).
           NATIVE_STAMP="$WORKSPACE/.native-stamp"
-          # Airwave's config plugin runs at prebuild too (its native code is
+          # The player's config plugin runs at prebuild too (its native code is
           # compiled from the submodule by Gradle, so a bump needs no prebuild).
           WANT=$(sha256sum app.json plugins/*.js pnpm-lock.yaml \
             packages/react-native-anything-player/app.plugin.js 2>/dev/null | sha256sum | cut -d' ' -f1)

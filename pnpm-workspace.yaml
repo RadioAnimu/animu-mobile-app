@@ -1,16 +1,11 @@
 # pnpm workspace + settings.
 #
-# `packages/*` lets the animu-api submodule be resolved by a single root
-# install, so its own toolchain (TypeScript 5) is used to build it — a nested
-# `pnpm install` from the submodule would recurse into this workspace and, under
-# node-linker=hoisted, build it with the root's TypeScript 6 instead.
+# Only the API's runtime dependency (valibot) participates in this workspace.
+# The native player uses its isolated Yarn toolchain and is linked from the root.
+# An explicit list also prevents an obsolete submodule directory in a reused
+# Jenkins workspace from becoming an unintended package after a rename.
 packages:
-  - "packages/*"
-  # react-native-anything-player (submodule) is linked, not a workspace member: as a
-  # member, its devDependencies (its own react-native, Jest, the example app)
-  # would be installed into this tree, and Metro would bundle two React
-  # Natives. `link:` installs nothing for it; its peers resolve from the root.
-  - "!packages/react-native-anything-player"
+  - "packages/animu-api"
 
 # Supply-chain hardening — react-doctor's require-pnpm-hardening rule wants
 # these keys; both are pnpm 10+ features.
