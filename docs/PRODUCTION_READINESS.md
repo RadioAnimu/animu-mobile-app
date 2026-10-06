@@ -90,6 +90,10 @@ No critical finding identified in the inspected code and executed checks.
   `0x00000002`. It now checks the actual bit while still rejecting unrelated
   service types. Eight tests and a real signed AAB verify the parser; all 46
   shipped 64-bit libraries pass ELF checks, and APK zip alignment/checksums pass.
+- **Stale release artifacts — fixed.** A failed build in a reused Jenkins
+  workspace retained the preceding APK and checksums beside its new AAB.
+  Release output is now cleared before validation and archived only after the
+  complete release succeeds; dependency/native caches remain reusable.
 - **Two unpatched high-severity tool advisories — remaining debt.** Raw audits
   report `node-forge` GHSA-86w9-cpqp-85rv and `braces` GHSA-vfj7-8cjw-p6xm. Reviewed
   exposure is Expo certificate tooling/repository-controlled glob processing,

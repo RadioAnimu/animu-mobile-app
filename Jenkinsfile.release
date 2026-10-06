@@ -88,6 +88,9 @@ pipeline {
       steps {
         sh '''
           set -eux
+          # Artifacts belong to this run, unlike the persistent build caches.
+          # Clear them before any validation can fail in a reused workspace.
+          rm -rf "$WORKSPACE/$ARTIFACT_DIR"
           mkdir -p "$TMPDIR"
           case "${BUMP:-none}" in
             none|versionCode|patch|minor|major) ;;
@@ -636,10 +639,15 @@ pipeline {
           if command -v ccache >/dev/null 2>&1; then ccache -s 2>/dev/null | head -8 || true; fi
           if [ -d "$ARTIFACT_DIR" ]; then ls -la "$ARTIFACT_DIR"; fi
         '''
-        archiveArtifacts artifacts: 'release-artifacts/*', allowEmptyArchive: true, fingerprint: true
       }
     }
-    success { echo 'Release pipeline succeeded.' }
+    success {
+      node('animu-android-native') {
+        // Only fully validated releases expose downloadable artifacts.
+        archiveArtifacts artifacts: 'release-artifacts/*', allowEmptyArchive: false, fingerprint: true
+      }
+      echo 'Release pipeline succeeded.'
+    }
     failure { echo 'Release pipeline failed.' }
   }
 }
