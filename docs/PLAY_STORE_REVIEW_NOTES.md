@@ -72,7 +72,7 @@ content. Re-rate only if the questionnaire answers change.
 | Foreground service type | `FOREGROUND_SERVICE_MEDIA_PLAYBACK` + `foregroundServiceType="mediaPlayback"` (from `react-native-anything-player`) ✅ |
 | Permission forms | Normal network/playback permissions; legacy write permission only on API ≤28; assess the media-playback FGS declaration in Play Console ✅ |
 | `RECORD_AUDIO` | Blocked ✅ |
-| Media/storage permissions | `READ_MEDIA_*` and `READ_EXTERNAL_STORAGE` blocked in `app.json` (save-only photo flow); `WRITE_EXTERNAL_STORAGE` kept at `maxSdkVersion 28` for legacy saves ✅ |
+| Media/storage permissions | `READ_MEDIA_VISUAL_USER_SELECTED` and `READ_EXTERNAL_STORAGE` blocked; empty granular permissions prevent read-media requests (save-only photo flow); `WRITE_EXTERNAL_STORAGE` kept at `maxSdkVersion 28` for legacy saves ✅ |
 | `versionCode` | Bump before upload (currently 16) ✅ |
 | AAB | Production profile builds an app bundle ✅ |
 

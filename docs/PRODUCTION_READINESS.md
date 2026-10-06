@@ -85,6 +85,11 @@ No critical finding identified in the inspected code and executed checks.
   without moving local feature branches or gitlinks. Secret scanning refuses
   shallow repositories and checks all available history plus current files in
   each repository with a checksum-pinned Gitleaks binary.
+- **Compiled artifact flag parsing — fixed.** The new validator initially
+  expected textual `mediaPlayback`; bundletool emits the typed value
+  `0x00000002`. It now checks the actual bit while still rejecting unrelated
+  service types. Eight tests and a real signed AAB verify the parser; all 46
+  shipped 64-bit libraries pass ELF checks, and APK zip alignment/checksums pass.
 - **Two unpatched high-severity tool advisories — remaining debt.** Raw audits
   report `node-forge` GHSA-86w9-cpqp-85rv and `braces` GHSA-vfj7-8cjw-p6xm. Reviewed
   exposure is Expo certificate tooling/repository-controlled glob processing,
@@ -135,6 +140,10 @@ No critical finding identified in the inspected code and executed checks.
   declaration as a LinkedIn credential. Every occurrence was reviewed. The
   exception matches only that exact line and file path; a synthetic credential
   beside it still fails. Inline allow-comments cannot bypass scanning.
+- The Android device helper sometimes captured only SystemUI while the app
+  was playing. Native media-session state, screenshots, and crash logs provide
+  separate runtime evidence; deterministic playback-time accessibility/E2E
+  automation remains to be established.
 - Sonar’s fixed-hour histogram and fixed-digit verification slots use semantic
   indexes; their reviewed false positives were resolved individually. `typeof
   __DEV__` remains necessary when the ambient binding is absent in Node.
@@ -164,6 +173,12 @@ No critical finding identified in the inspected code and executed checks.
   can use a different certificate; upload signatures alone do not prove APK
   update compatibility with the Play-installed channel. Eight artifact
   validator tests reject unsafe flags, leaked permissions, and incompatible ELF.
+- Android signed APK: clean-emulator install/launch, live MP3 playback, AAC
+  selection, native media controls/pause, background playback, network-loss
+  buffering and recovery, and the assistant play deep link were exercised.
+  Expected offline DNS errors were handled; no fatal application crash appeared.
+  The emulator uses 4 KB pages, so ELF/ZIP checks do not substitute for a physical
+  16 KB device test. Existing development-signed emulator data was preserved.
 - iOS: Release simulator build and unsigned ARM64 device archive with iOS 27 SDK;
   archive inspection found 14 privacy manifests, audio background mode, add-only
   Photos disclosure, and arbitrary-load networking disabled. Anonymous live radio,
