@@ -20,6 +20,7 @@ jobs:
       - uses: actions/checkout@v5
         with:
           persist-credentials: false
+          fetch-depth: 0
 
       - name: Initialize pinned submodules
         run: bash scripts/init-submodules.sh
@@ -52,6 +53,9 @@ jobs:
         run: pnpm run check:expo-doctor
 
       # Known-vulnerability gate on the resolved dependency tree.
+      - name: Secret scan (complete app and library history)
+        run: pnpm run check:secrets
+
       - name: Dependency audit
         run: pnpm run check:audit
 

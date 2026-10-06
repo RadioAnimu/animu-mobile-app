@@ -1,6 +1,7 @@
 import React, { useCallback, useRef, useState } from "react";
 import { Icon } from "@/components/Icon";
 import * as MediaLibrary from "expo-media-library";
+import { canSaveToPhotoLibrary } from "@/utils/mediaLibrary";
 import * as Sharing from "expo-sharing";
 import { File } from "expo-file-system";
 import { captureRef } from "react-native-view-shot";
@@ -108,9 +109,7 @@ export function ShareCardSection({
             dialogTitle: dict.STATS_CARD_SHARE,
           });
         } else {
-          // Write-only permission is all "save to photos" needs.
-          const permissions = await MediaLibrary.requestPermissionsAsync(true);
-          if (!permissions.granted && !permissions.canAskAgain) {
+          if (!(await canSaveToPhotoLibrary())) {
             toast(dict.STATS_CARD_FAILED);
             return;
           }

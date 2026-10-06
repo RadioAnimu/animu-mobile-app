@@ -25,7 +25,8 @@
     "check:bundle-size": "node scripts/check-bundle-size.mjs",
     "postinstall": "node scripts/prepare-submodules.mjs",
     "build:player": "node scripts/prepare-submodules.mjs react-native-anything-player",
-    "test:tooling": "node --test scripts/__tests__/*.test.mjs"
+    "test:tooling": "node --test scripts/__tests__/*.test.mjs",
+    "check:secrets": "node scripts/check-secrets.mjs"
   },
   "dependencies": {
     "@react-native-async-storage/async-storage": "2.2.0",

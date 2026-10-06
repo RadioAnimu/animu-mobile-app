@@ -62,6 +62,7 @@ pipeline {
           # App config schema, duplicate native modules, SDK compatibility.
           pnpm run check:expo-doctor
           # Known-vulnerability gate on the resolved dependency tree.
+          pnpm run check:secrets
           pnpm run check:audit
           pnpm run lint
           pnpm test:coverage

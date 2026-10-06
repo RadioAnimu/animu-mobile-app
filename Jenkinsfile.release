@@ -246,6 +246,7 @@ pipeline {
           pnpm run typecheck
           pnpm run check:expo-deps
           pnpm run check:expo-doctor
+          pnpm run check:secrets
           pnpm run check:audit
           pnpm run lint
           pnpm test:coverage
@@ -376,12 +377,9 @@ pipeline {
 
           mkdir -p "$ARTIFACT_DIR" "$GRADLE_USER_HOME" "$TMPDIR" "$CCACHE_DIR"
           # -I wires ccache into every native module (scripts/ccache.gradle).
-          # AGP's lintVitalRelease (fatal-issue checks) runs as part of the
-          #   bundle: it is the gate Play-blocking manifest/resource errors hit.
-          #   (The full `lintRelease` is not run: Android Lint crashes inside
-          #   the react-native-worklets module, a tooling bug unrelated to app code.)
+          # Full lint and native player regressions are mandatory release gates.
           cd android
-          ./gradlew :app:bundleRelease --no-daemon \
+          ./gradlew :app:lintRelease :react-native-anything-player:testReleaseUnitTest :app:bundleRelease --no-daemon \
             -I "$WORKSPACE/scripts/ccache.gradle"
           cd ..
           cp android/app/build/outputs/bundle/release/app-release.aab \

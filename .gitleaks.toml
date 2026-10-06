@@ -1,0 +1,12 @@
+title = "Animu secret scanning"
+[extend]
+useDefault = true
+
+[[rules]]
+id = "linkedin-client-id"
+[[rules.allowlists]]
+description = "Reviewed TypeScript union, not a LinkedIn credential (70 historical hits)"
+condition = "AND"
+regexTarget = "line"
+regexes = ['''^\s*linkedInfo: LinkedProvider \| undefined;\s*$''']
+paths = ['''(^|/)src/screens/Account/LinkedAccounts\.tsx$''']

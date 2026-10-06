@@ -113,7 +113,8 @@
           "photosPermission": false,
           "granularPermissions": []
         }
-      ]
+      ],
+      "./plugins/withAndroidReleaseResources"
     ],
     "extra": {
       "eas": {
