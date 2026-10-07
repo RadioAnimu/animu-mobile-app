@@ -117,6 +117,36 @@ finds nothing loaded is forwarded to JS as a `remoteCommand`, and
 `PlayerService` opens the stream. A suspended app's player is still loaded,
 so Anything Player resumes it natively.
 
+## Lyrics
+
+`src/core/lyrics` shows the heard song's lyrics; `src/core/japanese` adds the
+opt-in reading dictionary. Both follow the player core's discipline: ports,
+constructor-injected units, a composition root, external stores.
+
+| Module | Responsibility |
+| --- | --- |
+| `lyrics-service.ts` (`LyricsService`) | Lookups for the shown song (memory → disk → LRCLIB), shared between callers, never emitted for a song no longer shown; prefetch of the announced song only while lyrics are on screen |
+| `matcher.ts`, `text.ts` | Validating provider rows: title/artist identity (script, width, name order, bracketed titles, `(CV: …)`), version conflicts (instrumental, language, live), and whether the timing fits the cut on air (±4 s) |
+| `lrc.ts` | LRC / enhanced LRC → a timeline of lines (measured word timing only) and interludes (intro, marked or long breaks) |
+| `ports.ts`, `file-cache.ts`, `src/api/lrclib.ts` | Provider and cache ports; LRCLIB client (validated rows, retries); one JSON file per song in the cache directory |
+| `pronunciation.ts` | Romaji / hiragana label of a line |
+| `japanese/dictionary-manager.ts` | Download (verified against the published package), removal, lazy tokenizer build |
+| `japanese/tokenizer.ts`, `reader.ts` | kuromoji's loader rebuilt without Node APIs; hiragana and word-split romaji |
+
+**Timing.** Lyrics run on the same axis as the progress bar:
+`PlayerService.heardPosition()` reads `NowHearing` (the ICY title anchor, or the
+settled audible clock) on demand. `useHeardPosition` samples it at 4 Hz on the
+JS thread and only re-anchors on a real change (pause, a new anchor, > 60 ms
+drift); a Reanimated frame callback advances it on the UI thread, so the active
+line, the word fill and the interlude dots never wait for JS. The station's
+`startTime` alone would run up to a stream lag (17 s on 64 kbps) ahead of the
+speaker.
+
+**Screen.** `src/screens/Lyrics` is a full-screen modal route. The list is not a
+`FlatList`: every row knows its own offset and springs to the follow target
+after a delay that grows with its distance from the active line (the ripple),
+or tracks the finger while browsing (a gesture-handler pan with decay).
+
 ## State stores
 
 Snapshot state reaches React through **three external stores split by change
@@ -149,6 +179,8 @@ src/
 │   ├── assistant/        # Deep-link handler for Siri / Google Assistant
 │   ├── auth/             # AuthFacade + ports (API, OAuth, session store)
 │   ├── domain/           # Thin re-exports of animu-api entities + helpers
+│   ├── japanese/         # Opt-in reading dictionary (kuromoji + IPADIC)
+│   ├── lyrics/           # Synced lyrics: LRCLIB lookups, matching, LRC timeline
 │   ├── player/           # Playback engine (transport, repository, orchestrator…)
 │   └── services/         # API facade, requests, background tasks, settings
 ├── hooks/                # Shared hooks (dict, retry, clipboard, request flows)

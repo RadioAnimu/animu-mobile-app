@@ -124,6 +124,19 @@ const TextInput = React.forwardRef<
   },
 );
 
+/** Renders every item (no virtualization), with the header and footer. */
+function FlatList({ data, renderItem, keyExtractor, ListHeaderComponent, ListFooterComponent }: AnyProps) {
+  return React.createElement(
+    "div",
+    null,
+    ListHeaderComponent ?? null,
+    (data as unknown[]).map((item, index) =>
+      React.createElement(React.Fragment, { key: keyExtractor ? keyExtractor(item, index) : index }, renderItem({ item, index })),
+    ),
+    ListFooterComponent ?? null,
+  );
+}
+
 function ActivityIndicator({ testID }: AnyProps) {
   return React.createElement("div", {
     role: "progressbar",
@@ -159,6 +172,7 @@ export function createReactNativeMock() {
     View: host("div"),
     Text: host("span"),
     ScrollView: host("div"),
+    FlatList,
     TouchableOpacity: Touchable,
     Pressable,
     TextInput,

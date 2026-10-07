@@ -34,6 +34,13 @@ describe("userSettingsService.initialize", () => {
     expect(settings.hapticsEnabled).toBe(false);
   });
 
+  it("falls back to the default lyrics pronunciation when storage holds an unknown one", async () => {
+    memory.set("userSettings", JSON.stringify({ lyricsPronunciation: "katakana" }));
+    expect((await userSettingsService.initialize()).lyricsPronunciation).toBe("romaji");
+    memory.set("userSettings", JSON.stringify({ lyricsPronunciation: "hiragana" }));
+    expect((await userSettingsService.initialize()).lyricsPronunciation).toBe("hiragana");
+  });
+
   it("keeps a supported language untouched", async () => {
     memory.set("userSettings", JSON.stringify({ selectedLanguage: "EN" }));
 

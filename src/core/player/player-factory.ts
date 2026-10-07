@@ -3,6 +3,7 @@ import { setServerSkewListener } from "@/api/client";
 import { animuService } from "@/core/services/animu.service";
 import { coverCacheRegistry } from "@/core/services/cover-cache-registry.service";
 import { listenStatsService } from "@/core/services/listen-stats.service";
+import { lyricsService } from "@/core/lyrics";
 import { userSettingsService } from "@/core/services/user-settings.service";
 import { CONFIG } from "@/utils/player.config";
 import { PlayerService, type Ticker } from "@/core/player/player-service";
@@ -109,6 +110,7 @@ export const createPlayerService = (onDestroyed?: () => void): PlayerService => 
     stats: listenStatsService,
     ticker: createTicker(),
     onDestroyed,
+    onTrackAnnounced: (track) => lyricsService().prefetch(track),
   });
 };
 

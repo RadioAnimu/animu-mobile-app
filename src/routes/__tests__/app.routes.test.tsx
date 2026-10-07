@@ -31,7 +31,7 @@ interface NavigatorProps {
 interface StackScreenProps {
   name: string;
   component: unknown;
-  options?: { contentStyle?: { backgroundColor: string } };
+  options?: { contentStyle?: { backgroundColor: string }; presentation?: string; animation?: string };
 }
 interface StackNavigatorProps {
   screenOptions: { headerShown: boolean; animation: string };
@@ -95,6 +95,7 @@ vi.mock("@/screens/Storage", () => ({ Storage: () => null }));
 vi.mock("@/screens/Login", () => ({ Login: () => null }));
 vi.mock("@/screens/Account", () => ({ Account: () => null }));
 vi.mock("@/screens/About", () => ({ About: () => null }));
+vi.mock("@/screens/Lyrics", () => ({ Lyrics: () => null }));
 
 vi.mock("@/hooks/useDict", () => ({
   useDict: () => ({
@@ -137,8 +138,21 @@ describe("AppRoutes", () => {
       "Login",
       "Account",
       "About",
+      "Lyrics",
     ]);
     expect(captured.stack!.screenOptions.headerShown).toBe(false);
+  });
+
+  it("raises the lyrics over the player (a fade with Reduce Motion)", () => {
+    render(<AppRoutes />);
+    const lyrics = captured.stackScreens.find((s) => s.name === "Lyrics")!;
+    expect(lyrics.options?.presentation).toBe("fullScreenModal");
+    expect(lyrics.options?.animation).toBe("slide_from_bottom");
+    cleanup();
+    captured.reduceMotion = true;
+    render(<AppRoutes />);
+    const reduced = captured.stackScreens.filter((s) => s.name === "Lyrics").at(-1)!;
+    expect(reduced.options?.animation).toBe("fade");
   });
 
   it("uses the platform push, or a cross-fade with Reduce Motion", () => {

@@ -47,6 +47,44 @@ is heard.
 
 ![Android visualizer](SCREENSHOT: Android Home screen with the oscilloscope visible above the player controls, captured while playing)
 
+## Synced lyrics
+
+The lyrics button in the cover's corner opens a full-screen, Apple Music-style
+lyrics view of the song being **heard** (not the one the station announced):
+
+- **Synced to the speaker** — the active line follows the player's audible
+  clock (ICY title changes, the measured stream lag), sampled 4× a second and
+  advanced every frame on the UI thread. A line lights up 150 ms before its
+  stamp; while the position is still being measured the header reads
+  "Syntonizing…" and no line is lit.
+- **The Apple Music read** — large bold lines, the active one lit and followed
+  in the upper third; each change ripples down the list (rows further below
+  start later), with breathing dots through the intro and instrumental breaks.
+  Lyrics with real word timing (enhanced LRC) fill word by word; line-synced
+  lyrics light whole lines — word times are never guessed. Dragging browses;
+  the view returns to the song 3 s later or on a tap.
+- **The right version** — lyrics come from [LRCLIB](https://lrclib.net). Every
+  row is checked against the station's title, artist, anime and the length of
+  the cut on air: TV-size, full and live cuts differ, so lyrics timed for
+  another cut are shown untimed (with a note), and instrumental, karaoke and
+  other-language versions are rejected. Lookups are cached (found: 30 days,
+  not found: 12 hours); while the view is open, the next announced song is
+  looked up before it is heard.
+- **Romaji / hiragana** — Japanese lines can show their romaji or hiragana
+  reading underneath (Settings → Lyrics, or the "Aa" button). Kanji readings
+  need the opt-in **Japanese dictionary** (17.8 MB, kuromoji + IPADIC),
+  downloaded on demand from jsDelivr/unpkg and verified file by file (size +
+  MD5 of the published package). With it installed, kanji titles also match
+  the station's romaji (新時代 ↔ Shin Jidai).
+- **Accessible** — Reduce Motion drops the ripple and the drifting backdrop;
+  with a screen reader the lyrics become a plain list with the current line
+  marked.
+
+Only the station's song names are sent to LRCLIB (no account, a neutral
+User-Agent without device details).
+
+![Lyrics](SCREENSHOT: the lyrics view mid-song — blurred cover backdrop, the active line lit with the next lines dimmed below, romaji under a Japanese line)
+
 ## Authentication
 
 Multi-provider sign-in exchanging for a session on the Animu backend. The

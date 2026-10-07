@@ -47,4 +47,9 @@ export interface UserSettings {
    * on devices/platforms without haptics support.
    */
   hapticsEnabled: boolean;
+  /**
+   * Label under each Japanese lyric line: romaji, hiragana (kanji resolved),
+   * or none. Needs the offline Japanese dictionary; `romaji` by default.
+   */
+  lyricsPronunciation: "off" | "romaji" | "hiragana";
 }

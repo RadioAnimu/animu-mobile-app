@@ -1,6 +1,7 @@
 import type { HistoryType } from "animu-api";
 import type { MediaMetadata, PlaybackState, PlayerStatus } from "react-native-anything-player";
 import type { Stream } from "@/core/domain/stream";
+import type { Track } from "@/core/domain/track";
 import { userSettingsService } from "@/core/services/user-settings.service";
 import type { listenStatsService } from "@/core/services/listen-stats.service";
 import { animuApi } from "@/api/client";
@@ -49,6 +50,21 @@ export interface PlayerServiceDependencies {
   ticker: Ticker;
   /** Called once teardown finished (releases the app-wide singleton). */
   onDestroyed?: () => void;
+  /**
+   * The station announced a track: it is heard a stream lag later (seconds).
+   * Lets other features warm up for it (lyrics).
+   */
+  onTrackAnnounced?: (track: Track | null) => void;
+}
+
+/** The heard song's position, read on demand (the lyrics clock samples it). */
+export interface HeardPosition {
+  /** `raw` of the heard track, to match it to what the UI shows. */
+  raw: string;
+  /** Elapsed ms into the track at the moment of the call. */
+  elapsedMs: number;
+  /** Audio is flowing: the position advances with the wall clock. */
+  advancing: boolean;
 }
 
 /** Airwave's playback state → the UI's transport vocabulary. */
@@ -135,6 +151,7 @@ export class PlayerService {
           { artwork: deps.artwork, isOnline: () => player.status.network !== "offline" },
           repository.currentTrack,
         );
+        deps.onTrackAnnounced?.(repository.currentTrack);
         heard.stationChanged();
         hearing.stationChanged();
       }
@@ -172,6 +189,18 @@ export class PlayerService {
     });
     if (!meta.artwork || artwork.isRemote(meta.artwork)) meta.artwork = artwork.defaultCover;
     return meta;
+  }
+
+  /**
+   * Where the listener is in the heard song, right now — `null` while that is
+   * not known (no title heard / the clock not settled since the source
+   * opened) or past the song's end. Cheap: arithmetic on the current anchor.
+   */
+  heardPosition(): HeardPosition | null {
+    const track = this.deps.hearing.track;
+    const elapsedMs = this.deps.hearing.elapsedMs();
+    if (!track || elapsedMs == null || !this.deps.hearing.anchored) return null;
+    return { raw: track.raw, elapsedMs, advancing: this.lastState === "playing" };
   }
 
   peekArtwork(url: string): string | undefined {

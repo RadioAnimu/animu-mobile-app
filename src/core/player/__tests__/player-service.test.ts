@@ -129,7 +129,7 @@ class FakePlayer {
   }
 }
 
-const setup = () => {
+const setup = (extra: Partial<PlayerServiceDependencies> = {}) => {
   const player = new FakePlayer();
   const repository = {
     onChange: (_c: unknown) => {},
@@ -215,6 +215,7 @@ const setup = () => {
     stats,
     ticker,
     onDestroyed,
+    ...extra,
   } as unknown as PlayerServiceDependencies);
   return {
     service,
@@ -376,6 +377,32 @@ describe("PlayerService on react-native-anything-player", () => {
       expect.objectContaining({ raw: "Song B" }),
       true,
     );
+  });
+
+  it("reads the heard position on demand (the lyrics clock)", async () => {
+    const t = setup();
+    await t.service.setupPlayer();
+    await t.service.play();
+    t.player.setState("playing", true);
+    expect(t.service.heardPosition()).toBeNull(); // nothing heard since opening
+    t.player.hear("Song A");
+    t.announce(track("Song B", { startTime: new Date() }));
+    t.player.hear("Song B");
+    const playing = t.service.heardPosition()!;
+    expect(playing.raw).toBe("Song B");
+    expect(playing.advancing).toBe(true);
+    expect(playing.elapsedMs).toBeGreaterThanOrEqual(ICY_AFTER_START_MS);
+    expect(playing.elapsedMs).toBeLessThan(ICY_AFTER_START_MS + 200);
+    t.player.setState("paused", false);
+    expect(t.service.heardPosition()).toMatchObject({ raw: "Song B", advancing: false });
+  });
+
+  it("tells listeners about each announced track, before it is heard", async () => {
+    const onTrackAnnounced = vi.fn();
+    const t = setup({ onTrackAnnounced });
+    await t.service.setupPlayer();
+    t.announce(track("Song B"));
+    expect(onTrackAnnounced).toHaveBeenCalledWith(expect.objectContaining({ raw: "Song B" }));
   });
 
   it("a title heard before the API names it is adopted when the API catches up", async () => {

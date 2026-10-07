@@ -9,6 +9,7 @@ import { HeaderBar } from "@/components/HeaderBar";
 import { Listeners } from "@/components/Listeners";
 import { Live } from "@/components/Live";
 import { LiveRequestModal } from "@/components/LiveRequestModal";
+import { LyricsButton } from "@/components/LyricsButton";
 import { Logo } from "@/components/Logo";
 import { Oscilloscope } from "@/components/Oscilloscope";
 import { PopUpProgram } from "@/components/PopUpProgram";
@@ -65,6 +66,7 @@ export const Home = () => {
 
           <View style={styles.coverWrapper}>
             <TrackCover />
+            <LyricsButton />
           </View>
 
           <View style={styles.timeRemainingWrapper}>

@@ -20,6 +20,7 @@ import {
   type PlayerSnapshot,
   type ProgressSnapshot,
   type StationSnapshot,
+  type HeardPosition,
   type VisualizerWindow,
 } from "@/core/player";
 import { Loading } from "@/screens/Loading";
@@ -57,6 +58,12 @@ type PlayerContextType = PlayerSnapshot & {
    * window, so the native sampler can auto-calibrate its sync offset.
    */
   reportVisualizerDelay: (appliedMs: number) => void;
+  /**
+   * Hot-path read of the heard song's position (see
+   * `PlayerService.heardPosition`) — sampled by the lyrics clock, which
+   * animates between samples itself.
+   */
+  readHeardPosition: () => HeardPosition | null;
 };
 
 // Pre-bootstrap sentinels: callers that mount before `setupPlayer` resolves
@@ -76,6 +83,7 @@ const PlayerContext = createContext<PlayerContextType>({
   visualizerSupported: false,
   subscribeVisualizerWindows: () => () => {},
   reportVisualizerDelay: () => {},
+  readHeardPosition: () => null,
   isPlaying: false,
   playbackState: "idle",
   isInitialized: false,
@@ -267,6 +275,11 @@ export const PlayerProvider: React.FC<{
     [playerServiceInstance],
   );
 
+  const readHeardPosition = useCallback(
+    () => playerServiceInstance.heardPosition(),
+    [playerServiceInstance],
+  );
+
   // ─── Context values ───
 
   const playerContextValue = useMemo<PlayerContextType>(
@@ -283,6 +296,7 @@ export const PlayerProvider: React.FC<{
       visualizerSupported: playerServiceInstance.isVisualizerSupported,
       subscribeVisualizerWindows,
       reportVisualizerDelay,
+      readHeardPosition,
     }),
     [
       playerSnapshot,
@@ -294,6 +308,7 @@ export const PlayerProvider: React.FC<{
       playerServiceInstance,
       subscribeVisualizerWindows,
       reportVisualizerDelay,
+      readHeardPosition,
     ],
   );
 

@@ -15,6 +15,7 @@ import { AccountSection } from "@/screens/Settings/sections/AccountSection";
 import { BehaviorSection } from "@/screens/Settings/sections/BehaviorSection";
 import { CoverDataSection } from "@/screens/Settings/sections/CoverDataSection";
 import { ListenStatsSection } from "@/screens/Settings/sections/ListenStatsSection";
+import { LyricsSection } from "@/screens/Settings/sections/LyricsSection";
 import { ResetSection } from "@/screens/Settings/sections/ResetSection";
 import { StorageSection } from "@/screens/Settings/sections/StorageSection";
 
@@ -50,6 +51,8 @@ export function Settings({ navigation }: Readonly<Props>) {
         </View>
 
         <BehaviorSection />
+
+        <LyricsSection />
 
         {/* Covers and their on-disk cache are one topic: one card. */}
         <SectionTitle title={dict.SETTINGS_SAVE_DATA_TITLE} icon="image" />

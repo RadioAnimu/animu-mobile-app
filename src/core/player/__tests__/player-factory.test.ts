@@ -2,7 +2,8 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 // The factory wires real units around the native player — stub what reaches
 // native modules or the network.
-const { players, skew } = vi.hoisted(() => ({
+const { players, skew, prefetch } = vi.hoisted(() => ({
+  prefetch: vi.fn(),
   players: [] as {
     options: unknown;
     listeners: Map<string, (...args: unknown[]) => void>;
@@ -46,6 +47,7 @@ vi.mock("@react-native-async-storage/async-storage", () => ({
 vi.mock("../../services/animu.service", () => ({
   animuService: { abortInFlightRequests: vi.fn() },
 }));
+vi.mock("@/core/lyrics", () => ({ lyricsService: () => ({ prefetch }) }));
 vi.mock("../../../api/client", () => ({
   setServerSkewListener: (listener: (skewMs: number, rttMs: number) => void) => {
     skew.listener = listener;
