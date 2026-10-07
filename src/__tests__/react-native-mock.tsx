@@ -210,6 +210,12 @@ export function createReactNativeMock() {
       create: vi.fn(() => ({ panHandlers: {} })),
     },
     Alert: { alert: vi.fn() },
+    InteractionManager: {
+      runAfterInteractions: (task: () => void) => {
+        task();
+        return { cancel: () => {} };
+      },
+    },
     Keyboard: {
       dismiss: vi.fn(),
       isVisible: vi.fn(() => false),

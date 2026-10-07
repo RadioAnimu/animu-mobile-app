@@ -131,9 +131,9 @@ constructor-injected units, a composition root, external stores.
 | `ports.ts`, `file-cache.ts`, `src/api/lrclib.ts` | Provider and cache ports; LRCLIB client (validated rows, retries); one JSON file per song in the cache directory |
 | `romaji-pair.ts` | A romaji upload of the same lines, paired by start time and checked against the line's kana |
 | `pronunciation.ts` | Romaji / hiragana label of a line (dictionary) |
-| `japanese/dictionary-manager.ts` | Download (verified against the published package), one-time unpack, removal; the reader built while lyrics are open and released after |
+| `japanese/dictionary-manager.ts` | All-or-nothing install (verified download with watchdog, retries and mirrors, one-time unpack), cancel, removal, cleanup of interrupted installs; the reader built while lyrics are open and released after |
 | `japanese/unpack.ts` | Streaming gunzip (fflate) in ~12 ms steps that yield to the event loop; trims the zero padding |
-| `japanese/tokenizer.ts`, `reader.ts` | kuromoji's loader rebuilt without Node APIs, from the stored files, step by step; hiragana and word-split romaji |
+| `japanese/tokenizer.ts`, `reader.ts` | kuromoji's loader rebuilt without Node APIs from the stored files, its target maps read in steps; hiragana and word-split romaji |
 
 **Timing.** Lyrics run on the same axis as the progress bar:
 `PlayerService.heardPosition()` reads `NowHearing` (the ICY title anchor, or the
@@ -147,9 +147,21 @@ speaker.
 **The dictionary's cost.** Pure-JS gunzip of IPADIC takes ~20 s on Hermes, so
 it never runs per session: the files are unpacked once after the download (in
 steps, the app stays responsive) and stored trimmed (62 MB). A session reads
-them natively, pads them back and builds the tokenizer in ~3 s, the longest
-single step (kuromoji's own token table) holding the JS thread ~1.3 s on an
-emulator. The reader holds ~90 MB and exists only while lyrics are open.
+them natively and builds the tokenizer around kuromoji's classes: its one
+heavy step, the target maps (~1 M integers), is read in ~8 ms steps; files
+read only within their data are handed over unpadded (kuromoji's padding was
+20 MB of zeros in memory and ~150 000 empty character classes); labels for a
+song are read in ~8 ms steps too. A test builds both loaders from the real
+IPADIC and requires identical tokens. kuromoji and fflate are loaded through
+dynamic imports: someone who never installs the dictionary never evaluates
+them (they cost ~66 KB of bundle).
+
+**Download.** The install is all-or-nothing: each file is downloaded with a
+no-progress watchdog (20 s), retried over both mirrors with backoff
+(2/5/10/20 s) — a network switch or short outage costs a retry, not the
+install — verified, unpacked, stored. A failure, a cancel, or an app killed
+mid-way (found at the next launch) deletes the whole directory; free space is
+checked up front.
 
 **Screen.** `src/screens/Lyrics` is a full-screen modal route. The list is not a
 `FlatList`: every row knows its own offset and springs to the follow target

@@ -10,11 +10,12 @@ import { useHeardPosition } from "@/hooks/useHeardPosition";
 import { useLyrics } from "@/hooks/useLyrics";
 import { useReducedMotion } from "@/hooks/useReducedMotion";
 import { useResolvedArtwork } from "@/hooks/useResolvedArtwork";
+import { japaneseDictionary } from "@/core/japanese";
 import type { RootStackParamList } from "@/routes/app.routes";
-import { DictionaryPrompt } from "@/screens/Lyrics/DictionaryPrompt";
 import { LyricsBackground } from "@/screens/Lyrics/LyricsBackground";
 import { LyricsBody } from "@/screens/Lyrics/LyricsBody";
 import { LyricsHeader } from "@/screens/Lyrics/LyricsHeader";
+import { PronunciationMenu } from "@/screens/Lyrics/PronunciationMenu";
 import { styles } from "@/screens/Lyrics/styles";
 import { usePronunciation } from "@/screens/Lyrics/usePronunciation";
 
@@ -50,10 +51,8 @@ export function Lyrics({ navigation }: Readonly<Props>) {
         cover={cover}
         title={track?.title ?? ""}
         subtitle={syncing ? `${dict.SYNCHRONIZING}…` : (track?.artist ?? "")}
-        pronunciation={pronunciation.button}
         onClose={() => navigation.goBack()}
       />
-      {pronunciation.promptOpen ? <DictionaryPrompt dictionary={pronunciation.dictionary} /> : null}
       <PronunciationNotice preparing={pronunciation.preparing} failed={pronunciation.failed} />
       <View style={[styles.body, { marginBottom: insets.bottom }]}>
         <LyricsBody
@@ -66,6 +65,22 @@ export function Lyrics({ navigation }: Readonly<Props>) {
           onRetry={retry}
         />
       </View>
+      {pronunciation.modes.length > 0 ? (
+        <PronunciationMenu
+          mode={pronunciation.mode}
+          modes={pronunciation.modes}
+          dictionary={pronunciation.dictionary}
+          onSelect={pronunciation.select}
+          onInstall={() => {
+            japaneseDictionary.install().catch(() => {});
+          }}
+          onCancelInstall={() => {
+            japaneseDictionary.cancel().catch(() => {});
+          }}
+          bottomInset={insets.bottom}
+          reduceMotion={reduceMotion}
+        />
+      ) : null}
     </GestureHandlerRootView>
   );
 }

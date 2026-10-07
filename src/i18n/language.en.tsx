@@ -468,13 +468,9 @@ const DICT = {
   LYRICS_PRONUNCIATION_OFF: "Off",
   LYRICS_PRONUNCIATION_ROMAJI: "Romaji",
   LYRICS_PRONUNCIATION_HIRAGANA: "Hiragana",
-  LYRICS_DICTIONARY_PROMPT_TITLE: "Read along in romaji",
-  LYRICS_DICTIONARY_PROMPT: "Download the Japanese dictionary to see romaji or hiragana under every line.",
-  LYRICS_DICTIONARY_DOWNLOAD: "Download",
   LYRICS_DICTIONARY_PREPARING: "Preparing readings…",
   LYRICS_DICTIONARY_FAILED: "The dictionary couldn't be loaded",
   SETTINGS_LYRICS_TITLE: "Lyrics",
-  SETTINGS_LYRICS_PRONUNCIATION_ROW: "Japanese pronunciation",
   SETTINGS_JP_DICTIONARY_ROW: "Japanese dictionary",
   SETTINGS_JP_DICTIONARY_DESC: "Kanji readings for romaji and hiragana",
   SETTINGS_JP_DICTIONARY_DOWNLOAD: "Download",
@@ -484,6 +480,12 @@ const DICT = {
   SETTINGS_JP_DICTIONARY_REMOVE_MSG: "Romaji and hiragana stay hidden until you download it again.",
   SETTINGS_JP_DICTIONARY_REMOVE: "Remove",
   SETTINGS_JP_DICTIONARY_SIZE: "{download} download, {stored} on device",
+  LYRICS_DICTIONARY_NEEDED: "Needs the Japanese dictionary",
+  SETTINGS_JP_DICTIONARY_NO_SPACE: "Not enough free space",
+  SETTINGS_JP_DICTIONARY_STOP: "Stop download",
+  SETTINGS_JP_DICTIONARY_STOP_TITLE: "Stop downloading the dictionary?",
+  SETTINGS_JP_DICTIONARY_STOP_MSG: "What's downloaded so far will be deleted.",
+  SETTINGS_JP_DICTIONARY_KEEP: "Keep downloading",
 };
 
 const OnAirLabel = (props: SvgProps) => (

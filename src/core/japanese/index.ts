@@ -13,18 +13,21 @@ import {
   type JapaneseDictionarySnapshot,
 } from "@/core/japanese/dictionary-manager";
 import { DictionaryFileStorage } from "@/core/japanese/file-storage";
-import { buildTokenizer } from "@/core/japanese/tokenizer";
 import type { Romanizer } from "@/core/lyrics/text";
 
 export const japaneseDictionaryStore = createStore<JapaneseDictionarySnapshot>(JAPANESE_DICTIONARY_INITIAL);
 
 export const dictionaryStorage = new DictionaryFileStorage();
 
-/** App-wide dictionary (composition root). */
+/**
+ * App-wide dictionary (composition root). kuromoji and the inflater load on
+ * first use: someone who never installs the dictionary never runs them.
+ */
 export const japaneseDictionary = new JapaneseDictionary({
   storage: dictionaryStorage,
   store: japaneseDictionaryStore,
-  buildTokenizer,
+  buildTokenizer: async (load) => (await import("@/core/japanese/tokenizer")).buildTokenizer(load),
+  unpack: async (...args) => (await import("@/core/japanese/unpack")).gunzipTrimmed(...args),
 });
 
 /** The reader's readings, once loaded (`null` before). */

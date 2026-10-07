@@ -27,14 +27,25 @@ export class DictionaryFileStorage implements DictionaryStorage {
     return file.exists ? { bytes: file.size, md5: file.md5 } : null;
   }
 
-  async download(url: string, name: DictionaryFileName, onBytes: (written: number) => void): Promise<void> {
+  async download(
+    url: string,
+    name: DictionaryFileName,
+    onBytes: (written: number) => void,
+    signal: AbortSignal,
+  ): Promise<void> {
     this.ensureDir();
     const target = this.file(name);
     if (target.exists) target.delete();
     const task = File.createDownloadTask(url, target, {
       onProgress: ({ bytesWritten }: { bytesWritten: number }) => onBytes(bytesWritten),
+      signal,
     });
-    await task.downloadAsync();
+    try {
+      // `null` is a paused task: nothing here pauses, so it did not finish.
+      if (!(await task.downloadAsync())) throw new Error(`${name}: download did not finish`);
+    } finally {
+      task.release();
+    }
   }
 
   async readDownload(name: DictionaryFileName): Promise<Uint8Array> {
@@ -74,5 +85,14 @@ export class DictionaryFileStorage implements DictionaryStorage {
 
   async removeAll(): Promise<void> {
     if (this.dir.exists) this.dir.delete();
+  }
+
+  freeBytes(): number {
+    try {
+      return Paths.availableDiskSpace ?? 0;
+    } catch {
+      // Unknown: let the install try (a full disk then fails the write).
+      return Number.POSITIVE_INFINITY;
+    }
   }
 }

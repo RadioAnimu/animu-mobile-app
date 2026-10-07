@@ -471,13 +471,9 @@ const DICT: Dict = {
   LYRICS_PRONUNCIATION_OFF: "オフ",
   LYRICS_PRONUNCIATION_ROMAJI: "ローマ字",
   LYRICS_PRONUNCIATION_HIRAGANA: "ひらがな",
-  LYRICS_DICTIONARY_PROMPT_TITLE: "ローマ字で一緒に歌おう",
-  LYRICS_DICTIONARY_PROMPT: "日本語辞書をダウンロードすると、各行の下にローマ字またはひらがなが表示されます。",
-  LYRICS_DICTIONARY_DOWNLOAD: "ダウンロード",
   LYRICS_DICTIONARY_PREPARING: "読み方を準備しています…",
   LYRICS_DICTIONARY_FAILED: "辞書を読み込めませんでした",
   SETTINGS_LYRICS_TITLE: "歌詞",
-  SETTINGS_LYRICS_PRONUNCIATION_ROW: "日本語の読み方",
   SETTINGS_JP_DICTIONARY_ROW: "日本語辞書",
   SETTINGS_JP_DICTIONARY_DESC: "ローマ字とひらがなのための漢字の読み",
   SETTINGS_JP_DICTIONARY_DOWNLOAD: "ダウンロード",
@@ -487,6 +483,12 @@ const DICT: Dict = {
   SETTINGS_JP_DICTIONARY_REMOVE_MSG: "再度ダウンロードするまで、ローマ字とひらがなは表示されません。",
   SETTINGS_JP_DICTIONARY_REMOVE: "削除",
   SETTINGS_JP_DICTIONARY_SIZE: "ダウンロード {download}・端末内 {stored}",
+  LYRICS_DICTIONARY_NEEDED: "日本語辞書が必要です",
+  SETTINGS_JP_DICTIONARY_NO_SPACE: "空き容量が足りません",
+  SETTINGS_JP_DICTIONARY_STOP: "ダウンロードを中止",
+  SETTINGS_JP_DICTIONARY_STOP_TITLE: "辞書のダウンロードを中止しますか？",
+  SETTINGS_JP_DICTIONARY_STOP_MSG: "ここまでにダウンロードした分は削除されます。",
+  SETTINGS_JP_DICTIONARY_KEEP: "ダウンロードを続ける",
 };
 
 const OnAirLabel = (props: SvgProps) => (

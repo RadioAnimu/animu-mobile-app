@@ -1,8 +1,10 @@
-import { StyleSheet, TouchableOpacity } from "react-native";
+import { useEffect } from "react";
+import { InteractionManager, StyleSheet, TouchableOpacity } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { Icon } from "@/components/Icon";
 import { usePlayer } from "@/contexts/player/PlayerProvider";
+import { japaneseDictionary } from "@/core/japanese";
 import { LyricsService } from "@/core/lyrics";
 import { useDict } from "@/hooks/useDict";
 import type { RootStackParamList } from "@/routes/app.routes";
@@ -18,6 +20,16 @@ export function LyricsButton() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { currentTrack } = usePlayer();
   const dict = useDict();
+
+  // At launch, once the player has settled: adopt the Japanese dictionary,
+  // or delete an install the app was killed in (no dead files until Settings
+  // or the lyrics happen to open).
+  useEffect(() => {
+    const task = InteractionManager.runAfterInteractions(() => {
+      japaneseDictionary.restore().catch(() => {});
+    });
+    return () => task.cancel();
+  }, []);
 
   if (!LyricsService.isSong(currentTrack)) return null;
 

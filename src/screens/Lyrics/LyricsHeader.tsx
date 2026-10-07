@@ -3,7 +3,6 @@ import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { scheduleOnRN } from "react-native-worklets";
 import { Cover } from "@/components/Cover";
-import type { PronunciationMode } from "@/core/lyrics/pronunciation";
 import { useDict } from "@/hooks/useDict";
 import { styles } from "@/screens/Lyrics/styles";
 import { THEME } from "@/theme";
@@ -12,28 +11,18 @@ import { THEME } from "@/theme";
 const CLOSE_DISTANCE = 80;
 const CLOSE_VELOCITY = 800;
 
-export interface PronunciationButton {
-  mode: PronunciationMode;
-  /** Labels are possible: the button cycles modes, else it offers the dictionary. */
-  canLabel: boolean;
-  promptOpen: boolean;
-  onPress: () => void;
-}
-
 interface Props {
   cover: string | undefined;
   title: string;
   subtitle: string;
-  /** Shown for Japanese lyrics only. */
-  pronunciation: PronunciationButton | null;
   onClose: () => void;
 }
 
 /**
- * Apple Music's sheet head: the grabber (tap or swipe down to close), the
- * song (cover, title, artist) and the pronunciation toggle.
+ * Apple Music's sheet head: the grabber (tap or swipe down to close) and the
+ * song (cover, title, artist).
  */
-export function LyricsHeader({ cover, title, subtitle, pronunciation, onClose }: Readonly<Props>) {
+export function LyricsHeader({ cover, title, subtitle, onClose }: Readonly<Props>) {
   const insets = useSafeAreaInsets();
   const dict = useDict();
 
@@ -66,35 +55,8 @@ export function LyricsHeader({ cover, title, subtitle, pronunciation, onClose }:
               {subtitle}
             </Text>
           </View>
-          {pronunciation ? <PronunciationToggle {...pronunciation} /> : null}
         </View>
       </View>
     </GestureDetector>
-  );
-}
-
-function PronunciationToggle({ mode, canLabel, promptOpen, onPress }: Readonly<PronunciationButton>) {
-  const dict = useDict();
-  const on = canLabel && mode !== "off";
-  const modeName = {
-    off: dict.LYRICS_PRONUNCIATION_OFF,
-    romaji: dict.LYRICS_PRONUNCIATION_ROMAJI,
-    hiragana: dict.LYRICS_PRONUNCIATION_HIRAGANA,
-  }[mode];
-
-  return (
-    <TouchableOpacity
-      accessibilityRole="button"
-      accessibilityLabel={canLabel ? `${dict.LYRICS_PRONUNCIATION}, ${modeName}` : dict.LYRICS_PRONUNCIATION}
-      accessibilityState={canLabel ? undefined : { expanded: promptOpen }}
-      activeOpacity={THEME.OPACITY.PRESSED}
-      hitSlop={THEME.HIT_SLOP.SM}
-      onPress={onPress}
-      style={[styles.roundButton, on && styles.roundButtonOn]}
-    >
-      <Text style={[styles.pronunciationGlyph, on && styles.pronunciationGlyphOn]}>
-        {on && mode === "hiragana" ? "あ" : "Aa"}
-      </Text>
-    </TouchableOpacity>
   );
 }

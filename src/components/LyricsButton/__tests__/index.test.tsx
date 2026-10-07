@@ -5,6 +5,7 @@ import { LyricsButton } from "@/components/LyricsButton";
 
 const mocks = vi.hoisted(() => ({
   navigate: vi.fn(),
+  restore: vi.fn(async () => {}),
   track: null as Record<string, unknown> | null,
 }));
 
@@ -12,6 +13,7 @@ vi.mock("react-native", async () => (await import("@/__tests__/react-native-mock
 vi.mock("@react-navigation/native", () => ({ useNavigation: () => ({ navigate: mocks.navigate }) }));
 vi.mock("@/components/Icon", () => ({ Icon: () => <i /> }));
 vi.mock("@/contexts/player/PlayerProvider", () => ({ usePlayer: () => ({ currentTrack: mocks.track }) }));
+vi.mock("@/core/japanese", () => ({ japaneseDictionary: { restore: mocks.restore } }));
 vi.mock("@/core/lyrics", () => ({
   LyricsService: { isSong: (track: { raw?: string } | null) => Boolean(track && !track.raw?.toLowerCase().includes("animu")) },
 }));
@@ -26,6 +28,12 @@ describe("LyricsButton", () => {
     render(<LyricsButton />);
     fireEvent.click(screen.getByRole("button", { name: "Show lyrics" }));
     expect(mocks.navigate).toHaveBeenCalledWith("Lyrics");
+  });
+
+  it("cleans up an interrupted dictionary install at launch", () => {
+    mocks.track = null;
+    render(<LyricsButton />);
+    expect(mocks.restore).toHaveBeenCalled();
   });
 
   it("is absent for station filler", () => {

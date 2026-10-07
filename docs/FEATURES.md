@@ -74,21 +74,26 @@ lyrics view of the song being **heard** (not the one the station announced):
   script wins over a romaji upload. Lookups are cached (found: 30 days,
   not found: 12 hours); while the view is open, the next announced song is
   looked up before it is heard.
-- **Romaji / hiragana** — Japanese lines can show their romaji or hiragana
-  reading underneath (Settings → Lyrics, or the "Aa" button), from two
-  sources:
+- **Romaji / hiragana** — for Japanese lyrics, a round button bottom-left
+  (Apple Music's speech-bubble glyph) opens a menu: Romaji, Hiragana, Off.
+  The choice is remembered. Two sources:
   - **Human romaji** — LRCLIB often has a song twice, in Japanese and in
     romaji. Lines that start together are paired (and only when the romaji
     actually spells the Japanese line's kana, so translations are rejected).
     No download; about a third of the station's Japanese songs.
-  - **The Japanese dictionary** (opt-in) — kuromoji + IPADIC: kanji readings
-    for every line, hiragana mode, and kanji titles matching the station's
-    romaji (新時代 ↔ Shin Jidai). 17.8 MB download from jsDelivr/unpkg,
-    verified file by file (size + MD5 of the published package), unpacked
-    once in small steps (~20 s, the app stays responsive) and stored without
-    its zero padding: 62 MB on the device. While lyrics are open its reader
-    is built (~3 s, after the screen settles) and holds ~90 MB; it is
-    released when they close.
+  - **The Japanese dictionary** (opt-in, from that menu or Settings → Lyrics)
+    — kuromoji + IPADIC: kanji readings for every line, hiragana mode, and
+    kanji titles matching the station's romaji (新時代 ↔ Shin Jidai).
+    17.8 MB download from jsDelivr/unpkg, verified file by file (size + MD5
+    of the published package), unpacked once in small steps (the app stays
+    responsive) and stored without its zero padding: 62 MB on the device.
+    The download rides out a dropped connection, a Wi-Fi ↔ mobile switch or
+    a stalled link (retries with backoff, a 20 s no-progress watchdog, a
+    second mirror), checks free space first, can be stopped, and an install
+    that fails, is stopped or is cut short by the app being killed leaves no
+    file behind. While lyrics are open the reader is built in steps and
+    released when they close; nobody who skips the dictionary ever runs its
+    code (it loads on first use).
 - **Accessible** — Reduce Motion drops the ripple and the drifting backdrop;
   with a screen reader the lyrics become a plain list with the current line
   marked.

@@ -18,13 +18,41 @@ function attaches(token: KuromojiToken): boolean {
   return ATTACHED_POS.has(token.pos) || ATTACHED_DETAIL.has(token.pos_detail_1);
 }
 
-/** One token as hiragana and romaji (a Latin token stays as written). */
-function readToken(token: KuromojiToken): { hiragana: string; romaji: string } {
+/**
+ * A word's pieces: kana (romanized together, so a small っ at the end of one
+ * token doubles the next one's consonant — なっ + て → natte) or text kept as
+ * written (Latin, particles said differently from how they are written).
+ */
+type Piece = { kana: string } | { literal: string };
+
+/** One token as hiragana and as a piece of its word. */
+function readToken(token: KuromojiToken): { hiragana: string; piece: Piece } {
   const surface = token.surface_form;
   const kana = hasReading(token.reading) ? token.reading : surface;
-  if (!isKana(kana)) return { hiragana: surface, romaji: surface };
+  if (!isKana(kana)) return { hiragana: surface, piece: { literal: surface } };
   const particle = token.pos === "助詞" ? PARTICLE_ROMAJI[surface] : undefined;
-  return { hiragana: toHiragana(kana), romaji: particle ?? toRomaji(kana) };
+  return { hiragana: toHiragana(kana), piece: particle ? { literal: particle } : { kana } };
+}
+
+/** A word cannot end on a small っ: it doubles what follows (行っ + ちゃった). */
+function endsInSokuon(pieces: Piece[]): boolean {
+  const last = pieces.at(-1);
+  return last != null && "kana" in last && /[っッ]$/.test(last.kana);
+}
+
+/** A word's romaji: runs of kana romanized as one. */
+function romajiOf(pieces: Piece[]): string {
+  let romaji = "";
+  let kana = "";
+  for (const piece of pieces) {
+    if ("kana" in piece) {
+      kana += piece.kana;
+      continue;
+    }
+    romaji += toRomaji(kana) + piece.literal;
+    kana = "";
+  }
+  return romaji + toRomaji(kana);
 }
 
 /**
@@ -50,7 +78,7 @@ export class JapaneseReader {
     const hit = this.cache.get(text);
     if (hit) return hit;
     let hiragana = "";
-    const words: string[] = [];
+    const words: Piece[][] = [];
     for (const token of this.tokenizer.tokenize(text)) {
       if (!token.surface_form.trim()) {
         hiragana += token.surface_form;
@@ -58,10 +86,12 @@ export class JapaneseReader {
       }
       const read = readToken(token);
       hiragana += read.hiragana;
-      if (words.length > 0 && attaches(token)) words[words.length - 1] += read.romaji;
-      else words.push(read.romaji);
+      const previous = words.at(-1);
+      if (previous && (attaches(token) || endsInSokuon(previous))) previous.push(read.piece);
+      else words.push([read.piece]);
     }
-    const result = { hiragana, romaji: words.join(" ").replace(/\s+([,.!?、。！？])/g, "$1") };
+    const romaji = words.map(romajiOf).join(" ").replace(/\s+([,.!?、。！？])/g, "$1");
+    const result = { hiragana, romaji };
     this.cache.set(text, result);
     return result;
   }

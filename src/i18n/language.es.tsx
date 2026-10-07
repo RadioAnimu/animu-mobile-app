@@ -480,13 +480,9 @@ const DICT: Dict = {
   LYRICS_PRONUNCIATION_OFF: "Desactivada",
   LYRICS_PRONUNCIATION_ROMAJI: "Romaji",
   LYRICS_PRONUNCIATION_HIRAGANA: "Hiragana",
-  LYRICS_DICTIONARY_PROMPT_TITLE: "Sigue la letra en romaji",
-  LYRICS_DICTIONARY_PROMPT: "Descarga el diccionario de japonés para ver romaji o hiragana bajo cada verso.",
-  LYRICS_DICTIONARY_DOWNLOAD: "Descargar",
   LYRICS_DICTIONARY_PREPARING: "Preparando la lectura…",
   LYRICS_DICTIONARY_FAILED: "No se pudo cargar el diccionario",
   SETTINGS_LYRICS_TITLE: "Letras",
-  SETTINGS_LYRICS_PRONUNCIATION_ROW: "Pronunciación del japonés",
   SETTINGS_JP_DICTIONARY_ROW: "Diccionario de japonés",
   SETTINGS_JP_DICTIONARY_DESC: "Lectura de los kanji para romaji y hiragana",
   SETTINGS_JP_DICTIONARY_DOWNLOAD: "Descargar",
@@ -496,6 +492,12 @@ const DICT: Dict = {
   SETTINGS_JP_DICTIONARY_REMOVE_MSG: "El romaji y el hiragana quedan ocultos hasta que lo descargues de nuevo.",
   SETTINGS_JP_DICTIONARY_REMOVE: "Eliminar",
   SETTINGS_JP_DICTIONARY_SIZE: "{download} de descarga, {stored} en el dispositivo",
+  LYRICS_DICTIONARY_NEEDED: "Requiere el diccionario de japonés",
+  SETTINGS_JP_DICTIONARY_NO_SPACE: "No hay suficiente espacio libre",
+  SETTINGS_JP_DICTIONARY_STOP: "Detener descarga",
+  SETTINGS_JP_DICTIONARY_STOP_TITLE: "¿Detener la descarga del diccionario?",
+  SETTINGS_JP_DICTIONARY_STOP_MSG: "Se borrará lo que ya se descargó.",
+  SETTINGS_JP_DICTIONARY_KEEP: "Seguir descargando",
 };
 
 const OnAirLabel = (props: SvgProps) => (
