@@ -1,10 +1,4 @@
-// kuromoji 0.1.2 and zlibjs ship no types; only the pieces the app loads.
-
-declare module "zlibjs/bin/gunzip.min.js" {
-  export const Zlib: {
-    Gunzip: new (input: Uint8Array) => { decompress(): Uint8Array };
-  };
-}
+// kuromoji 0.1.2 ships no types; only the pieces the app loads.
 
 declare module "kuromoji/src/dict/DynamicDictionaries" {
   export default class DynamicDictionaries {
@@ -23,8 +17,11 @@ declare module "kuromoji/src/dict/DynamicDictionaries" {
 }
 
 declare module "kuromoji/src/Tokenizer" {
+  /** An IPADIC token: surface form, part of speech, reading… */
+  export type IpadicToken = Record<string, string | number | undefined>;
+
   export default class Tokenizer {
     constructor(dictionaries: object);
-    tokenize(text: string): Record<string, string | number | undefined>[];
+    tokenize(text: string): IpadicToken[];
   }
 }

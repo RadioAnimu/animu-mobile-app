@@ -1,9 +1,9 @@
 import { Text, TouchableOpacity, View } from "react-native";
-import { DICTIONARY_BYTES, japaneseDictionary, type JapaneseDictionarySnapshot } from "@/core/japanese";
+import { japaneseDictionary, type JapaneseDictionarySnapshot } from "@/core/japanese";
 import { useDict } from "@/hooks/useDict";
 import { styles } from "@/screens/Lyrics/styles";
+import { dictionarySize } from "@/screens/Settings/sections/dictionary-size";
 import { THEME } from "@/theme";
-import { formatBytes } from "@/utils/format";
 import { haptics } from "@/utils/haptics";
 
 /** Offers the Japanese dictionary where the pronunciation labels would be. */
@@ -19,7 +19,7 @@ export function DictionaryPrompt({ dictionary }: Readonly<{ dictionary: Japanese
       </Text>
       <View style={styles.promptActions}>
         <Text style={styles.promptText}>
-          {downloading ? `${Math.round(dictionary.progress * 100)}%` : formatBytes(DICTIONARY_BYTES)}
+          {downloading ? `${Math.round(dictionary.progress * 100)}%` : dictionarySize(dict)}
         </Text>
         <TouchableOpacity
           accessibilityRole="button"

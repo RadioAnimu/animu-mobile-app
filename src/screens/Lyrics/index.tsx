@@ -2,6 +2,7 @@ import { Text, View } from "react-native";
 import { useIsFocused } from "@react-navigation/native";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useIsBackgrounded } from "@/contexts/app-state/AppStateProvider";
 import { usePlayer } from "@/contexts/player/PlayerProvider";
 import { useDict } from "@/hooks/useDict";
@@ -14,7 +15,6 @@ import { DictionaryPrompt } from "@/screens/Lyrics/DictionaryPrompt";
 import { LyricsBackground } from "@/screens/Lyrics/LyricsBackground";
 import { LyricsBody } from "@/screens/Lyrics/LyricsBody";
 import { LyricsHeader } from "@/screens/Lyrics/LyricsHeader";
-import { PlaybackBar } from "@/screens/Lyrics/PlaybackBar";
 import { styles } from "@/screens/Lyrics/styles";
 import { usePronunciation } from "@/screens/Lyrics/usePronunciation";
 
@@ -28,6 +28,7 @@ type Props = NativeStackScreenProps<RootStackParamList, "Lyrics">;
  */
 export function Lyrics({ navigation }: Readonly<Props>) {
   const dict = useDict();
+  const insets = useSafeAreaInsets();
   const player = usePlayer();
   const reduceMotion = useReducedMotion();
   const isBackgrounded = useIsBackgrounded();
@@ -53,10 +54,8 @@ export function Lyrics({ navigation }: Readonly<Props>) {
         onClose={() => navigation.goBack()}
       />
       {pronunciation.promptOpen ? <DictionaryPrompt dictionary={pronunciation.dictionary} /> : null}
-      {pronunciation.preparing ? (
-        <Text style={[styles.notice, styles.column]}>{dict.LYRICS_DICTIONARY_PREPARING}</Text>
-      ) : null}
-      <View style={styles.body}>
+      <PronunciationNotice preparing={pronunciation.preparing} failed={pronunciation.failed} />
+      <View style={[styles.body, { marginBottom: insets.bottom }]}>
         <LyricsBody
           status={status}
           lyrics={lyrics}
@@ -67,7 +66,17 @@ export function Lyrics({ navigation }: Readonly<Props>) {
           onRetry={retry}
         />
       </View>
-      <PlaybackBar />
     </GestureHandlerRootView>
+  );
+}
+
+/** Why the labels are not there yet (being prepared) or at all (failed). */
+function PronunciationNotice({ preparing, failed }: Readonly<{ preparing: boolean; failed: boolean }>) {
+  const dict = useDict();
+  if (!preparing && !failed) return null;
+  return (
+    <Text style={[styles.notice, styles.column]} accessibilityLiveRegion="polite">
+      {failed ? dict.LYRICS_DICTIONARY_FAILED : dict.LYRICS_DICTIONARY_PREPARING}
+    </Text>
   );
 }

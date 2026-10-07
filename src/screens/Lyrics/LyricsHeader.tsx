@@ -14,8 +14,8 @@ const CLOSE_VELOCITY = 800;
 
 export interface PronunciationButton {
   mode: PronunciationMode;
-  /** The dictionary is installed: the button cycles modes, else it offers it. */
-  installed: boolean;
+  /** Labels are possible: the button cycles modes, else it offers the dictionary. */
+  canLabel: boolean;
   promptOpen: boolean;
   onPress: () => void;
 }
@@ -73,9 +73,9 @@ export function LyricsHeader({ cover, title, subtitle, pronunciation, onClose }:
   );
 }
 
-function PronunciationToggle({ mode, installed, promptOpen, onPress }: Readonly<PronunciationButton>) {
+function PronunciationToggle({ mode, canLabel, promptOpen, onPress }: Readonly<PronunciationButton>) {
   const dict = useDict();
-  const on = installed && mode !== "off";
+  const on = canLabel && mode !== "off";
   const modeName = {
     off: dict.LYRICS_PRONUNCIATION_OFF,
     romaji: dict.LYRICS_PRONUNCIATION_ROMAJI,
@@ -85,8 +85,8 @@ function PronunciationToggle({ mode, installed, promptOpen, onPress }: Readonly<
   return (
     <TouchableOpacity
       accessibilityRole="button"
-      accessibilityLabel={installed ? `${dict.LYRICS_PRONUNCIATION}, ${modeName}` : dict.LYRICS_PRONUNCIATION}
-      accessibilityState={installed ? undefined : { expanded: promptOpen }}
+      accessibilityLabel={canLabel ? `${dict.LYRICS_PRONUNCIATION}, ${modeName}` : dict.LYRICS_PRONUNCIATION}
+      accessibilityState={canLabel ? undefined : { expanded: promptOpen }}
       activeOpacity={THEME.OPACITY.PRESSED}
       hitSlop={THEME.HIT_SLOP.SM}
       onPress={onPress}

@@ -80,6 +80,7 @@ describe("LyricsBody", () => {
       kind: "synced",
       entries: [{ kind: "line", startMs: 0, endMs: 1, text: "a", words: null }],
       wordTimed: false,
+      romaji: null,
       language: "other",
       source,
     };

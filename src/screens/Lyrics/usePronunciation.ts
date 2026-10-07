@@ -8,21 +8,40 @@ import { useJapaneseDictionary } from "@/hooks/useJapaneseDictionary";
 import type { PronunciationButton } from "@/screens/Lyrics/LyricsHeader";
 import { haptics } from "@/utils/haptics";
 
-const NEXT_MODE: Record<PronunciationMode, PronunciationMode> = {
-  off: "romaji",
-  romaji: "hiragana",
-  hiragana: "off",
-};
-
 const isJapanese = (lyrics: Lyrics | null): boolean =>
   lyrics != null && lyrics.kind !== "instrumental" && lyrics.language === "ja";
 
+/** Romaji from a sibling upload, when LRCLIB has one for these lines. */
+const pairedRomaji = (lyrics: Lyrics | null): string[] | null =>
+  lyrics?.kind === "synced" ? lyrics.romaji : null;
+
+/**
+ * The modes this song can show: romaji from its sibling upload, or anything
+ * the dictionary reads. Empty: only the dictionary would help.
+ */
+export function modesFor(lyrics: Lyrics | null, installed: boolean): PronunciationMode[] {
+  if (!isJapanese(lyrics)) return [];
+  if (installed) return ["off", "romaji", "hiragana"];
+  return pairedRomaji(lyrics) ? ["off", "romaji"] : [];
+}
+
+/** The stored mode where the song allows it, else the closest it can show. */
+export function effectiveMode(mode: PronunciationMode, modes: readonly PronunciationMode[]): PronunciationMode {
+  if (modes.includes(mode)) return mode;
+  return mode !== "off" && modes.includes("romaji") ? "romaji" : "off";
+}
+
 /** Pronunciation labels for every line of the song (`""` for none). */
 export function labelsOf(lyrics: Lyrics | null, mode: PronunciationMode, reader: JapaneseReader | null): string[] {
-  if (!lyrics || !isJapanese(lyrics)) return [];
+  if (!lyrics || !isJapanese(lyrics) || mode === "off") return [];
   if (lyrics.kind === "plain") return lyrics.lines.map((text) => pronunciationOf(text, mode, reader));
   if (lyrics.kind !== "synced") return [];
-  return lyrics.entries.map((entry) => (entry.kind === "line" ? pronunciationOf(entry.text, mode, reader) : ""));
+  // Human romaji first (the sibling upload), the dictionary for the rest.
+  const paired = mode === "romaji" ? lyrics.romaji : null;
+  return lyrics.entries.map((entry, index) => {
+    if (entry.kind !== "line") return "";
+    return paired?.[index] || pronunciationOf(entry.text, mode, reader);
+  });
 }
 
 export interface Pronunciation {
@@ -33,21 +52,25 @@ export interface Pronunciation {
   promptOpen: boolean;
   /** The reader is being built (labels follow shortly). */
   preparing: boolean;
+  /** The reader could not be built: no dictionary labels this session. */
+  failed: boolean;
   dictionary: JapaneseDictionarySnapshot;
 }
 
 /**
- * Romaji / hiragana under Japanese lines: the user's mode, the dictionary it
- * needs (offered in place when missing) and its reader, built once the
- * screen has settled — it takes seconds of JS.
+ * Romaji / hiragana under Japanese lines: the user's mode, the sources the
+ * song has (a romaji sibling upload, the opt-in dictionary — offered in place
+ * when neither exists) and the dictionary's reader, built once the screen has
+ * settled and released when it closes.
  */
 export function usePronunciation(lyrics: Lyrics | null): Pronunciation {
   const { settings, updateSettings } = useUserSettings();
   const dictionary = useJapaneseDictionary();
   const [promptWanted, setPromptWanted] = useState(false);
   const installed = dictionary.install === "installed";
+  const modes = modesFor(lyrics, installed);
+  const mode = effectiveMode(settings.lyricsPronunciation, modes);
   const japanese = isJapanese(lyrics);
-  const mode = settings.lyricsPronunciation;
 
   useEffect(() => {
     if (!installed) return undefined;
@@ -57,29 +80,38 @@ export function usePronunciation(lyrics: Lyrics | null): Pronunciation {
     return () => task.cancel();
   }, [installed]);
 
+  // The reader holds ~100 MB: only while the lyrics are open.
+  useEffect(() => () => japaneseDictionary.unloadReader(), []);
+
   const reader = dictionary.reader === "ready" ? japaneseDictionary.currentReader : null;
   const labels = useMemo(() => labelsOf(lyrics, mode, reader), [lyrics, mode, reader]);
-  // Once installed, the prompt has done its job.
-  const promptOpen = japanese && promptWanted && !installed;
+  const promptOpen = japanese && modes.length === 0 && promptWanted;
 
   const button: PronunciationButton | null = japanese
     ? {
         mode,
-        installed,
+        canLabel: modes.length > 0,
         promptOpen,
         onPress: () => {
           haptics.select();
-          if (installed) updateSettings({ lyricsPronunciation: NEXT_MODE[mode] }).catch(() => {});
-          else setPromptWanted((open) => !open);
+          if (modes.length === 0) {
+            setPromptWanted((open) => !open);
+            return;
+          }
+          const next = modes[(modes.indexOf(mode) + 1) % modes.length];
+          updateSettings({ lyricsPronunciation: next }).catch(() => {});
         },
       }
     : null;
 
+  // Only the dictionary's labels wait for the reader.
+  const needsReader = installed && mode !== "off" && (mode === "hiragana" || !pairedRomaji(lyrics));
   return {
     labels,
     button,
     promptOpen,
-    preparing: japanese && installed && mode !== "off" && dictionary.reader === "loading",
+    preparing: needsReader && dictionary.reader === "loading",
+    failed: needsReader && dictionary.reader === "error",
     dictionary,
   };
 }

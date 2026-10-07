@@ -2,7 +2,8 @@ import { isRealTrack, type Track } from "@/core/domain/track";
 import type { ExternalStore } from "@/core/external-store";
 import { detectLanguage } from "@/core/lyrics/language";
 import { buildTimeline, parseLrc, plainLines, syncedToPlain } from "@/core/lyrics/lrc";
-import { isTimedFor, pickBest } from "@/core/lyrics/matcher";
+import { inJapaneseScript, isTimedFor, pickBest, type ScoredCandidate } from "@/core/lyrics/matcher";
+import { findRomajiSibling, pairRomaji } from "@/core/lyrics/romaji-pair";
 import type { LookupResult, LyricsCache, LyricsProvider } from "@/core/lyrics/ports";
 import { LYRICS_IDLE, type LyricsSnapshot } from "@/core/lyrics/store";
 import { normalize, type Romanizer } from "@/core/lyrics/text";
@@ -187,7 +188,9 @@ export class LyricsService {
   /**
    * Exact lookup first (fast, duration-matched), then wider searches whose
    * rows accumulate: a weak first round can still surface the right row. It
-   * stops as soon as lyrics timed for this cut are found.
+   * stops once lyrics timed for this cut, in Japanese script, are found (and
+   * a search has looked for their romaji twin); otherwise every step runs
+   * once (the result is cached).
    */
   private async resolve(track: Track): Promise<LookupResult> {
     const { provider } = this.deps;
@@ -214,13 +217,20 @@ export class LyricsService {
       () => provider.search({ trackName: title }),
     ];
 
-    let best = null;
-    for (const step of steps) {
+    let best: ScoredCandidate | null = null;
+    let romaji: LyricsCandidate | null = null;
+    for (const [index, step] of steps.entries()) {
       collect(await step());
-      best = pickBest(query, [...rows.values()], this.deps.romanizer());
-      if (best && isTimedFor(best)) break;
+      const romanize = this.deps.romanizer();
+      best = pickBest(query, [...rows.values()], romanize);
+      // A romaji upload keeps the wider searches going: they find the original.
+      const original = best && isTimedFor(best) && inJapaneseScript(best.candidate) ? best : null;
+      romaji = original ? findRomajiSibling(query, original, [...rows.values()], romanize) : null;
+      // The original is found; one search past the exact lookup also looks for
+      // its romaji twin.
+      if (original && (romaji || index >= 1)) break;
     }
-    return best ? { kind: "match", candidate: best.candidate, timed: isTimedFor(best) } : { kind: "none" };
+    return best ? { kind: "match", candidate: best.candidate, timed: isTimedFor(best), romaji } : { kind: "none" };
   }
 }
 
@@ -249,6 +259,7 @@ export function toLyrics(result: LookupResult): Lyrics | null {
         kind: "synced",
         entries,
         wordTimed: entries.some((entry) => entry.kind === "line" && entry.words != null),
+        romaji: result.romaji?.syncedLyrics ? pairRomaji(entries, result.romaji.syncedLyrics) : null,
         language: detectLanguage(lines),
         source,
       };

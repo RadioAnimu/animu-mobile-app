@@ -9,7 +9,13 @@ export interface LyricsProvider {
 
 /** A lookup's outcome, as cached: the accepted row, or a known miss. */
 export type LookupResult =
-  | { kind: "match"; candidate: LyricsCandidate; timed: boolean }
+  | {
+      kind: "match";
+      candidate: LyricsCandidate;
+      timed: boolean;
+      /** A romaji upload of the same lines (see `romaji-pair.ts`). */
+      romaji?: LyricsCandidate | null;
+    }
   | { kind: "none" };
 
 export interface CachedLookup {

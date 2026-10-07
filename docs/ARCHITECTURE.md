@@ -129,9 +129,11 @@ constructor-injected units, a composition root, external stores.
 | `matcher.ts`, `text.ts` | Validating provider rows: title/artist identity (script, width, name order, bracketed titles, `(CV: …)`), version conflicts (instrumental, language, live), and whether the timing fits the cut on air (±4 s) |
 | `lrc.ts` | LRC / enhanced LRC → a timeline of lines (measured word timing only) and interludes (intro, marked or long breaks) |
 | `ports.ts`, `file-cache.ts`, `src/api/lrclib.ts` | Provider and cache ports; LRCLIB client (validated rows, retries); one JSON file per song in the cache directory |
-| `pronunciation.ts` | Romaji / hiragana label of a line |
-| `japanese/dictionary-manager.ts` | Download (verified against the published package), removal, lazy tokenizer build |
-| `japanese/tokenizer.ts`, `reader.ts` | kuromoji's loader rebuilt without Node APIs; hiragana and word-split romaji |
+| `romaji-pair.ts` | A romaji upload of the same lines, paired by start time and checked against the line's kana |
+| `pronunciation.ts` | Romaji / hiragana label of a line (dictionary) |
+| `japanese/dictionary-manager.ts` | Download (verified against the published package), one-time unpack, removal; the reader built while lyrics are open and released after |
+| `japanese/unpack.ts` | Streaming gunzip (fflate) in ~12 ms steps that yield to the event loop; trims the zero padding |
+| `japanese/tokenizer.ts`, `reader.ts` | kuromoji's loader rebuilt without Node APIs, from the stored files, step by step; hiragana and word-split romaji |
 
 **Timing.** Lyrics run on the same axis as the progress bar:
 `PlayerService.heardPosition()` reads `NowHearing` (the ICY title anchor, or the
@@ -141,6 +143,13 @@ drift); a Reanimated frame callback advances it on the UI thread, so the active
 line, the word fill and the interlude dots never wait for JS. The station's
 `startTime` alone would run up to a stream lag (17 s on 64 kbps) ahead of the
 speaker.
+
+**The dictionary's cost.** Pure-JS gunzip of IPADIC takes ~20 s on Hermes, so
+it never runs per session: the files are unpacked once after the download (in
+steps, the app stays responsive) and stored trimmed (62 MB). A session reads
+them natively, pads them back and builds the tokenizer in ~3 s, the longest
+single step (kuromoji's own token table) holding the JS thread ~1.3 s on an
+emulator. The reader holds ~90 MB and exists only while lyrics are open.
 
 **Screen.** `src/screens/Lyrics` is a full-screen modal route. The list is not a
 `FlatList`: every row knows its own offset and springs to the follow target

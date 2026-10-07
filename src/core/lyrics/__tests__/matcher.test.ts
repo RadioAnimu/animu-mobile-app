@@ -121,6 +121,13 @@ describe("pickBest", () => {
     expect(pickBest(kick, [far, near])?.candidate).toBe(near);
   });
 
+  it("prefers the original Japanese script over a romaji upload", () => {
+    const value = track({ title: "Kawaki wo Ameku", artist: "Minami", durationMs: 251_900 });
+    const romaji = row({ trackName: "Kawaki wo Ameku", artistName: "Minami", durationSec: 251.9, syncedLyrics: "[00:22.06]No destiny fusawashiku nai" });
+    const original = row({ trackName: "Kawakiwoameku", artistName: "Minami", durationSec: 252, syncedLyrics: "[00:21.94]No destiny ふさわしく無い" });
+    expect(pickBest(value, [romaji, original])?.candidate).toBe(original);
+  });
+
   it("falls back to another cut's lyrics, untimed", () => {
     const otherCut = row({ trackName: "KICK BACK", artistName: "Kenshi Yonezu", durationSec: 87 });
     const best = pickBest(kick, [otherCut]);

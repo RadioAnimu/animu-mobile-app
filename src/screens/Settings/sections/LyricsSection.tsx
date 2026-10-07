@@ -5,13 +5,13 @@ import { RowDivider } from "@/components/ListRow";
 import { SectionTitle } from "@/components/SectionTitle";
 import { Select, type SelectOption } from "@/components/Select";
 import { useUserSettings } from "@/contexts/user/UserSettingsProvider";
-import { DICTIONARY_BYTES, japaneseDictionary } from "@/core/japanese";
+import { japaneseDictionary } from "@/core/japanese";
 import type { PronunciationMode } from "@/core/lyrics/pronunciation";
 import { useDict } from "@/hooks/useDict";
 import { useJapaneseDictionary } from "@/hooks/useJapaneseDictionary";
 import { ValueRow } from "@/screens/Settings/rows";
 import { styles } from "@/screens/Settings/styles";
-import { formatBytes } from "@/utils/format";
+import { dictionarySize } from "@/screens/Settings/sections/dictionary-size";
 import { haptics } from "@/utils/haptics";
 
 /** Lyrics preferences: the Japanese pronunciation label and its dictionary. */
@@ -71,7 +71,7 @@ export function LyricsSection() {
         <ValueRow
           icon="menu-book"
           label={dict.SETTINGS_JP_DICTIONARY_ROW}
-          description={`${dict.SETTINGS_JP_DICTIONARY_DESC} · ${formatBytes(DICTIONARY_BYTES)}`}
+          description={`${dict.SETTINGS_JP_DICTIONARY_DESC} · ${dictionarySize(dict)}`}
           value={status}
           onPress={onDictionary}
         />

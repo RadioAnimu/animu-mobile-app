@@ -483,6 +483,7 @@ const DICT = {
   SETTINGS_JP_DICTIONARY_REMOVE_TITLE: "Remove the Japanese dictionary?",
   SETTINGS_JP_DICTIONARY_REMOVE_MSG: "Romaji and hiragana stay hidden until you download it again.",
   SETTINGS_JP_DICTIONARY_REMOVE: "Remove",
+  SETTINGS_JP_DICTIONARY_SIZE: "{download} download, {stored} on device",
 };
 
 const OnAirLabel = (props: SvgProps) => (

@@ -397,6 +397,19 @@ describe("PlayerService on react-native-anything-player", () => {
     expect(t.service.heardPosition()).toMatchObject({ raw: "Song B", advancing: false });
   });
 
+  it("holds the heard position at the song's end until the next title", async () => {
+    vi.useFakeTimers();
+    const t = setup();
+    await t.service.setupPlayer();
+    await t.service.play();
+    t.player.setState("playing", true);
+    t.player.hear("Song A");
+    t.announce(track("Song B", { startTime: new Date() }));
+    t.player.hear("Song B");
+    vi.advanceTimersByTime(250_000); // the fixture's songs last 200 s
+    expect(t.service.heardPosition()).toEqual({ raw: "Song B", elapsedMs: 200_000, advancing: false });
+  });
+
   it("tells listeners about each announced track, before it is heard", async () => {
     const onTrackAnnounced = vi.fn();
     const t = setup({ onTrackAnnounced });

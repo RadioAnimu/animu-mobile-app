@@ -121,10 +121,20 @@ function usefulness(scored: ScoredCandidate): number {
   return candidate.instrumental && durationFits ? 1 : 0;
 }
 
+const KANA = /[\u3041-\u30ff]/;
+
+/**
+ * Lyrics in Japanese script: the original, not a romaji upload of it (the
+ * pronunciation label adds romaji underneath, like Apple Music).
+ */
+export function inJapaneseScript(candidate: LyricsCandidate): boolean {
+  return KANA.test(candidate.syncedLyrics ?? candidate.plainLyrics ?? "");
+}
+
 /**
  * The best accepted row, or `null`. Lyrics timed for the cut on air win over
- * untimed ones; among equals, the surer identity and then the closer
- * duration.
+ * untimed ones; among equals, the original Japanese script over romaji, then
+ * the surer identity, then the closer duration.
  */
 export function pickBest(
   track: TrackQuery,
@@ -138,7 +148,8 @@ export function pickBest(
     const useful = usefulness(scored);
     if (scored.identity === 0 || useful === 0) continue;
     // Identity separates rows by more than a rounding error only.
-    const rank = useful * 10 + Math.round(scored.identity * 20) / 20;
+    const script = inJapaneseScript(candidate) ? 5 : 0;
+    const rank = useful * 10 + script + Math.round(scored.identity * 20) / 20;
     const better =
       rank > bestRank ||
       (rank === bestRank && best != null && scored.durationDeltaMs < best.durationDeltaMs);

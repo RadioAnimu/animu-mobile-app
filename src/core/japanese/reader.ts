@@ -6,9 +6,13 @@ const PARTICLE_ROMAJI: Record<string, string> = { "は": "wa", "へ": "e", "を"
 
 const hasReading = (value: string | undefined): value is string => Boolean(value) && value !== "*";
 
-/** Parts of speech that join the previous word (`tabe` + `te`, `iki` + `masu`). */
+/**
+ * Parts of speech that join the previous word (`tabe` + `te`, `iki` + `masu`,
+ * `se` + `zu`). Dependent nouns and verbs (の, いる) stay words of their own:
+ * `hoshii no sa`, `mite ita` — Apple Music's split.
+ */
 const ATTACHED_POS = new Set(["助動詞", "記号"]);
-const ATTACHED_DETAIL = new Set(["接尾", "非自立", "接続助詞"]);
+const ATTACHED_DETAIL = new Set(["接尾", "接続助詞"]);
 
 function attaches(token: KuromojiToken): boolean {
   return ATTACHED_POS.has(token.pos) || ATTACHED_DETAIL.has(token.pos_detail_1);

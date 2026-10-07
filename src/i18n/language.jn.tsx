@@ -486,6 +486,7 @@ const DICT: Dict = {
   SETTINGS_JP_DICTIONARY_REMOVE_TITLE: "日本語辞書を削除しますか？",
   SETTINGS_JP_DICTIONARY_REMOVE_MSG: "再度ダウンロードするまで、ローマ字とひらがなは表示されません。",
   SETTINGS_JP_DICTIONARY_REMOVE: "削除",
+  SETTINGS_JP_DICTIONARY_SIZE: "ダウンロード {download}・端末内 {stored}",
 };
 
 const OnAirLabel = (props: SvgProps) => (

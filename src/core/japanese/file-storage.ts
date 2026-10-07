@@ -3,10 +3,13 @@ import type { DictionaryStorage } from "@/core/japanese/dictionary-manager";
 import type { DictionaryFileName } from "@/core/japanese/dictionary";
 
 const VERSION_FILE = "version.txt";
+/** `base.dat.gz` downloaded → `base.dat` stored, unpacked. */
+const storedName = (name: DictionaryFileName) => name.replace(/\.gz$/, "");
 
 /**
  * The dictionary lives in the documents directory (not the cache): the OS
- * must not purge a 17.8 MB download the user asked for.
+ * must not purge a download the user asked for. Downloads are removed once
+ * unpacked.
  */
 export class DictionaryFileStorage implements DictionaryStorage {
   private readonly dir = new Directory(Paths.document, "japanese-dictionary");
@@ -19,10 +22,9 @@ export class DictionaryFileStorage implements DictionaryStorage {
     if (!this.dir.exists) this.dir.create({ idempotent: true, intermediates: true });
   }
 
-  async stat(name: DictionaryFileName, withMd5: boolean) {
+  async statDownload(name: DictionaryFileName) {
     const file = this.file(name);
-    if (!file.exists) return null;
-    return { bytes: file.size, md5: withMd5 ? file.md5 : null };
+    return file.exists ? { bytes: file.size, md5: file.md5 } : null;
   }
 
   async download(url: string, name: DictionaryFileName, onBytes: (written: number) => void): Promise<void> {
@@ -35,13 +37,29 @@ export class DictionaryFileStorage implements DictionaryStorage {
     await task.downloadAsync();
   }
 
-  async remove(name: DictionaryFileName): Promise<void> {
+  async readDownload(name: DictionaryFileName): Promise<Uint8Array> {
+    return this.file(name).bytes();
+  }
+
+  async removeDownload(name: DictionaryFileName): Promise<void> {
     const file = this.file(name);
     if (file.exists) file.delete();
   }
 
-  async read(name: DictionaryFileName): Promise<Uint8Array> {
-    return this.file(name).bytes();
+  async statStored(name: DictionaryFileName): Promise<number | null> {
+    const file = this.file(storedName(name));
+    return file.exists ? file.size : null;
+  }
+
+  async writeStored(name: DictionaryFileName, bytes: Uint8Array): Promise<void> {
+    this.ensureDir();
+    const file = this.file(storedName(name));
+    if (file.exists) file.delete();
+    file.write(bytes);
+  }
+
+  async readStored(name: DictionaryFileName): Promise<Uint8Array> {
+    return this.file(storedName(name)).bytes();
   }
 
   async readVersion(): Promise<string | null> {
@@ -56,10 +74,5 @@ export class DictionaryFileStorage implements DictionaryStorage {
 
   async removeAll(): Promise<void> {
     if (this.dir.exists) this.dir.delete();
-  }
-
-  /** Bytes on disk (Storage screen). */
-  size(): number {
-    return this.dir.exists ? (this.dir.size ?? 0) : 0;
   }
 }

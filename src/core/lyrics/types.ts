@@ -55,6 +55,11 @@ export type Lyrics =
       entries: LyricEntry[];
       /** At least one line carries measured word timing. */
       wordTimed: boolean;
+      /**
+       * Romaji per entry from a sibling upload (`""` where none), or `null`
+       * when LRCLIB has no romaji transcription of these lines.
+       */
+      romaji: string[] | null;
       language: LyricsLanguage;
       source: LyricsSource;
     }

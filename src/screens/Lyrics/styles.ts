@@ -241,18 +241,4 @@ export const styles = StyleSheet.create({
     justifyContent: "space-between",
     marginTop: THEME.SPACE.SM,
   },
-  footerBar: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    paddingTop: THEME.SPACE.SM,
-  },
-  playButton: {
-    width: scale(60),
-    height: scale(60),
-    borderRadius: THEME.RADIUS.CIRCLE,
-    backgroundColor: "rgba(255, 255, 255, 0.16)",
-    alignItems: "center",
-    justifyContent: "center",
-  },
 });

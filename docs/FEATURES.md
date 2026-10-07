@@ -61,21 +61,34 @@ lyrics view of the song being **heard** (not the one the station announced):
   in the upper third; each change ripples down the list (rows further below
   start later), with breathing dots through the intro and instrumental breaks.
   Lyrics with real word timing (enhanced LRC) fill word by word; line-synced
-  lyrics light whole lines — word times are never guessed. Dragging browses;
-  the view returns to the song 3 s later or on a tap.
+  lyrics light whole lines — word times are never guessed. Lines further from
+  the lit one fade and blur (blur on Android 12+; iOS keeps view blur behind
+  an experimental React Native flag, so there it is the fade alone). Dragging
+  browses; the view returns to the song 3 s later or on a tap. Swipe down on
+  the header (or tap the grabber) to close.
 - **The right version** — lyrics come from [LRCLIB](https://lrclib.net). Every
   row is checked against the station's title, artist, anime and the length of
   the cut on air: TV-size, full and live cuts differ, so lyrics timed for
   another cut are shown untimed (with a note), and instrumental, karaoke and
-  other-language versions are rejected. Lookups are cached (found: 30 days,
+  other-language versions are rejected; among equals, the original Japanese
+  script wins over a romaji upload. Lookups are cached (found: 30 days,
   not found: 12 hours); while the view is open, the next announced song is
   looked up before it is heard.
 - **Romaji / hiragana** — Japanese lines can show their romaji or hiragana
-  reading underneath (Settings → Lyrics, or the "Aa" button). Kanji readings
-  need the opt-in **Japanese dictionary** (17.8 MB, kuromoji + IPADIC),
-  downloaded on demand from jsDelivr/unpkg and verified file by file (size +
-  MD5 of the published package). With it installed, kanji titles also match
-  the station's romaji (新時代 ↔ Shin Jidai).
+  reading underneath (Settings → Lyrics, or the "Aa" button), from two
+  sources:
+  - **Human romaji** — LRCLIB often has a song twice, in Japanese and in
+    romaji. Lines that start together are paired (and only when the romaji
+    actually spells the Japanese line's kana, so translations are rejected).
+    No download; about a third of the station's Japanese songs.
+  - **The Japanese dictionary** (opt-in) — kuromoji + IPADIC: kanji readings
+    for every line, hiragana mode, and kanji titles matching the station's
+    romaji (新時代 ↔ Shin Jidai). 17.8 MB download from jsDelivr/unpkg,
+    verified file by file (size + MD5 of the published package), unpacked
+    once in small steps (~20 s, the app stays responsive) and stored without
+    its zero padding: 62 MB on the device. While lyrics are open its reader
+    is built (~3 s, after the screen settles) and holds ~90 MB; it is
+    released when they close.
 - **Accessible** — Reduce Motion drops the ripple and the drifting backdrop;
   with a screen reader the lyrics become a plain list with the current line
   marked.

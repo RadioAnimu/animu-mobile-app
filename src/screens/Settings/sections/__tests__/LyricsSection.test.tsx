@@ -24,6 +24,7 @@ vi.mock("@/contexts/user/UserSettingsProvider", () => ({
 }));
 vi.mock("@/core/japanese", () => ({
   DICTIONARY_BYTES: 17_791_956,
+  DICTIONARY_STORED_BYTES: 64_554_959,
   japaneseDictionary: { install: mocks.install, remove: mocks.remove },
 }));
 vi.mock("@/hooks/useJapaneseDictionary", () => ({ useJapaneseDictionary: () => mocks.snapshot }));
@@ -53,7 +54,7 @@ describe("LyricsSection", () => {
 
   it("downloads the dictionary, showing its size and progress", () => {
     render(<LyricsSection />);
-    expect(dictionaryRow().getAttribute("aria-label")).toContain("17 MB");
+    expect(dictionaryRow().getAttribute("aria-label")).toContain("SETTINGS_JP_DICTIONARY_SIZE");
     fireEvent.click(dictionaryRow());
     expect(mocks.install).toHaveBeenCalled();
     cleanup();

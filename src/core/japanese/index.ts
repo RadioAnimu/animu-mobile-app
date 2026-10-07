@@ -35,6 +35,6 @@ export const japaneseReader = {
   },
 };
 
-export { DICTIONARY_BYTES } from "@/core/japanese/dictionary";
+export { DICTIONARY_BYTES, DICTIONARY_STORED_BYTES } from "@/core/japanese/dictionary";
 export type { JapaneseReader } from "@/core/japanese/reader";
 export type { JapaneseDictionarySnapshot, DictionaryInstall, ReaderStatus } from "@/core/japanese/dictionary-manager";

@@ -194,12 +194,19 @@ export class PlayerService {
   /**
    * Where the listener is in the heard song, right now — `null` while that is
    * not known (no title heard / the clock not settled since the source
-   * opened) or past the song's end. Cheap: arithmetic on the current anchor.
+   * opened); held at the song's end once past it. Cheap: arithmetic on the
+   * current anchor.
    */
   heardPosition(): HeardPosition | null {
-    const track = this.deps.hearing.track;
-    const elapsedMs = this.deps.hearing.elapsedMs();
-    if (!track || elapsedMs == null || !this.deps.hearing.anchored) return null;
+    const { hearing } = this.deps;
+    const track = hearing.track;
+    if (!track || !hearing.anchored) return null;
+    const elapsedMs = hearing.elapsedMs();
+    // Known but past the song's end (the next title is not heard yet): the
+    // song is over, not lost — hold at its end.
+    if (elapsedMs == null) {
+      return track.duration > 0 ? { raw: track.raw, elapsedMs: track.duration, advancing: false } : null;
+    }
     return { raw: track.raw, elapsedMs, advancing: this.lastState === "playing" };
   }
 

@@ -37,8 +37,8 @@ const candidate = (overrides: Partial<LyricsCandidate> = {}): LyricsCandidate =>
   albumName: "LEO-NiNE",
   durationSec: 235,
   instrumental: false,
-  plainLyrics: "Tsuyoku nareru riyuu wo shitta",
-  syncedLyrics: "[00:01.00]Tsuyoku nareru riyuu wo shitta\n[00:05.00]Boku wo tsurete susume",
+  plainLyrics: "強くなれる理由を知った",
+  syncedLyrics: "[00:01.00]強くなれる理由を知った\n[00:05.00]僕を連れて進め",
   ...overrides,
 });
 
@@ -85,7 +85,7 @@ describe("LyricsService", () => {
     });
   });
 
-  it("shows timed lyrics from the exact lookup without searching", async () => {
+  it("shows timed lyrics from the exact lookup, one search looking for a romaji twin", async () => {
     provider.get.mockResolvedValue(candidate());
     service.show(track());
     expect(store.getSnapshot().status).toBe("loading");
@@ -95,7 +95,8 @@ describe("LyricsService", () => {
     expect(snapshot.trackKey).toBe(LyricsService.keyOf(track()));
     expect(snapshot.lyrics?.kind).toBe("synced");
     expect(provider.get).toHaveBeenCalledWith({ trackName: "Gurenge", artistName: "LiSA", durationSec: 235 });
-    expect(provider.search).not.toHaveBeenCalled();
+    expect(provider.search).toHaveBeenCalledTimes(1);
+    expect(snapshot.lyrics?.kind === "synced" && snapshot.lyrics.romaji).toBeNull();
     expect(cache.write).toHaveBeenCalledTimes(1);
   });
 
@@ -110,6 +111,37 @@ describe("LyricsService", () => {
     expect(provider.search).toHaveBeenCalledTimes(2);
     const lyrics = store.getSnapshot().lyrics;
     expect(lyrics?.kind === "synced" && lyrics.source.id).toBe(2);
+  });
+
+  it("keeps searching past a romaji upload for the original script", async () => {
+    const romaji = candidate({ id: 1, syncedLyrics: "[00:01.00]Tsuyoku nareru riyuu wo shitta" });
+    provider.get.mockResolvedValue(romaji);
+    provider.search.mockResolvedValueOnce([]).mockResolvedValueOnce([candidate({ id: 2, trackName: "Gurenge" })]);
+    service.show(track());
+    await flush();
+    expect(provider.search).toHaveBeenCalledTimes(2);
+    const lyrics = store.getSnapshot().lyrics;
+    expect(lyrics?.kind === "synced" && lyrics.source.id).toBe(2);
+  });
+
+  it("pairs the original with a romaji upload of the same lines", async () => {
+    const original = candidate({ syncedLyrics: "[00:01.00]強くなれる理由を知った\n[00:05.00]僕を連れて進め" });
+    const romaji = candidate({ id: 8, syncedLyrics: "[00:01.10]Tsuyoku nareru riyuu wo shitta\n[00:05.05]Boku wo tsurete susume" });
+    provider.get.mockResolvedValue(original);
+    provider.search.mockResolvedValueOnce([romaji]);
+    service.show(track());
+    await flush();
+    expect(provider.search).toHaveBeenCalledTimes(1);
+    const lyrics = store.getSnapshot().lyrics;
+    expect(lyrics?.kind === "synced" && lyrics.romaji).toEqual(["Tsuyoku nareru riyuu wo shitta", "Boku wo tsurete susume"]);
+  });
+
+  it("keeps a romaji upload when it is all there is", async () => {
+    provider.get.mockResolvedValue(candidate({ syncedLyrics: "[00:01.00]Tsuyoku nareru riyuu wo shitta" }));
+    service.show(track());
+    await flush();
+    expect(provider.search).toHaveBeenCalledTimes(3);
+    expect(store.getSnapshot().lyrics?.kind).toBe("synced");
   });
 
   it("shows another cut's lyrics untimed when nothing fits", async () => {
