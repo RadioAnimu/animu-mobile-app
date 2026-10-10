@@ -1,6 +1,7 @@
 import { Text, View } from "react-native";
 import type { SharedValue } from "react-native-reanimated";
 import type { Lyrics, LyricsStatus } from "@/core/lyrics";
+import type { LineLabel } from "@/core/lyrics/pronunciation";
 import { useDict } from "@/hooks/useDict";
 import { LyricsMessage } from "@/screens/Lyrics/LyricsMessage";
 import { PlainLyrics } from "@/screens/Lyrics/PlainLyrics";
@@ -10,7 +11,7 @@ import { styles } from "@/screens/Lyrics/styles";
 interface Props {
   status: LyricsStatus;
   lyrics: Lyrics | null;
-  labels: readonly string[];
+  labels: readonly (LineLabel | null)[];
   position: SharedValue<number>;
   known: boolean;
   reduceMotion: boolean;

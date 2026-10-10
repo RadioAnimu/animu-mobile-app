@@ -1,6 +1,7 @@
 import { toHiragana } from "wanakana";
 import { buildTimeline, parseLrc } from "@/core/lyrics/lrc";
 import { inJapaneseScript, isTimedFor, scoreCandidate, type ScoredCandidate } from "@/core/lyrics/matcher";
+import { alignRomaji } from "@/core/lyrics/segments";
 import type { Romanizer } from "@/core/lyrics/text";
 import type { LyricEntry, LyricsCandidate, TrackQuery } from "@/core/lyrics/types";
 
@@ -40,6 +41,25 @@ function spelled(kana: string, reading: string): number {
 }
 
 /**
+ * The shortest run of romaji lines that aligns word by word with `text`;
+ * failing that, the shortest one spelling the most of its kana.
+ */
+function fewestReading(text: string, kana: string, lines: readonly string[]): string {
+  let best = lines[0];
+  let bestSpelled = -1;
+  for (let count = 1; count <= lines.length; count += 1) {
+    const reading = lines.slice(0, count).join(" ");
+    if (alignRomaji(text, reading)) return reading;
+    const score = spelled(kana, toHiragana(reading.toLowerCase()));
+    if (score > bestSpelled) {
+      best = reading;
+      bestSpelled = score;
+    }
+  }
+  return best;
+}
+
+/**
  * Romaji for each entry from a sibling upload (`""` where none: interludes,
  * English lines, unmatched lines), or `null` when the sibling is not a romaji
  * transcription of these lines.
@@ -62,11 +82,17 @@ export function pairRomaji(entries: readonly LyricEntry[], romajiLrc: string): s
       }
     }
     if (!partner || JAPANESE.test(partner.text)) return "";
+    // One Japanese line can hold two romaji lines (強くなれる理由を知った 僕を連れて進め),
+    // and a romaji line can run into the next Japanese one: take the fewest
+    // romaji lines that read the whole Japanese line.
+    const first = partner;
+    const candidates = [first, ...rows.filter((row) => row.startMs > first.startMs && row.startMs < entry.endMs - PAIR_WINDOW_MS)];
+    const kana = toHiragana(entry.text.match(KANA)?.join("") ?? "");
+    const reading = fewestReading(entry.text, kana, candidates.map((row) => row.text));
     paired += 1;
     // Particles are written as said (は → wa): small misses are expected.
-    const kana = toHiragana(entry.text.match(KANA)?.join("") ?? "");
-    spelling += spelled(kana, toHiragana(partner.text.toLowerCase()));
-    return partner.text;
+    spelling += spelled(kana, toHiragana(reading.toLowerCase()));
+    return reading;
   });
 
   if (japanese === 0 || paired / japanese < MIN_PAIRED || spelling / paired < MIN_SPELLED) return null;

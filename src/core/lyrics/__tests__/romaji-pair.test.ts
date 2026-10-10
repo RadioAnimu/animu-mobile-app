@@ -30,6 +30,18 @@ describe("pairRomaji", () => {
     expect(labels).toHaveLength(entries.length);
   });
 
+  it("gives one Japanese line every romaji line sung within it, and no more", () => {
+    const joined = buildTimeline(parseLrc("[00:10.00]強くなれる理由を知った 僕を連れて進め\n[00:20.00]泥だらけの走馬灯に酔う"));
+    const split = `[00:10.10]Tsuyoku nareru riyuu wo shitta
+[00:14.50]Boku wo tsurete susume
+[00:20.05]Dorodarake no soumatou ni you`;
+    expect(pairRomaji(joined, split)).toEqual([
+      "", // the intro
+      "Tsuyoku nareru riyuu wo shitta Boku wo tsurete susume",
+      "Dorodarake no soumatou ni you",
+    ]);
+  });
+
   it("rejects a translation and lines that do not line up", () => {
     expect(pairRomaji(entries, spanish)).toBeNull();
     const shifted = romaji.replace(/\[00:(\d\d)/g, (_, s) => `[01:${s}`);

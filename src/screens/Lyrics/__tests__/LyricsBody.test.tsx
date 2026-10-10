@@ -6,6 +6,11 @@ import { LyricsBody } from "@/screens/Lyrics/LyricsBody";
 
 vi.mock("react-native", async () => (await import("@/__tests__/react-native-mock")).createReactNativeMock());
 vi.mock("@/components/Icon", () => ({ Icon: ({ name }: { name: string }) => <i data-icon={name} /> }));
+vi.mock("@/screens/Lyrics/Segments", () => ({
+  SegmentColumns: ({ segments }: { segments: { text: string; label: string }[] }) => (
+    <div data-testid="columns">{segments.map((segment) => `${segment.text}/${segment.label}`).join(" ")}</div>
+  ),
+}));
 vi.mock("@/screens/Lyrics/SyncedLyrics", () => ({
   SyncedLyrics: ({ entries, known }: { entries: unknown[]; known: boolean }) => (
     <div data-testid="synced" data-count={entries.length} data-known={String(known)} />
@@ -68,10 +73,16 @@ describe("LyricsBody", () => {
 
   it("shows untimed lyrics with their labels, and why they are not synced", () => {
     const lyrics: Lyrics = { kind: "plain", lines: ["君の名は", "", "Hello"], otherCut: true, language: "ja", source };
-    body({ lyrics, labels: ["kimi no na wa", "", ""] });
+    body({
+      lyrics,
+      labels: [
+        { kind: "words", segments: [{ text: "君の名は", label: "kimi no na wa", spaceAfter: false }] },
+        null,
+        null,
+      ],
+    });
     expect(screen.getByText("Not synced to this version")).toBeTruthy();
-    expect(screen.getByText("君の名は")).toBeTruthy();
-    expect(screen.getByText("kimi no na wa")).toBeTruthy();
+    expect(screen.getByTestId("columns").textContent).toBe("君の名は/kimi no na wa");
     expect(screen.getByText("Lyrics from LRCLIB")).toBeTruthy();
   });
 

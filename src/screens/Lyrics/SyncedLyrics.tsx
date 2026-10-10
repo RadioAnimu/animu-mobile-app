@@ -12,6 +12,7 @@ import Animated, {
 import { scheduleOnRN } from "react-native-worklets";
 import { entryIndexAt, entryKey } from "@/core/lyrics/lrc";
 import type { LyricEntry } from "@/core/lyrics/types";
+import { labelText, type LineLabel } from "@/core/lyrics/pronunciation";
 import { useScreenReader } from "@/hooks/useScreenReader";
 import {
   LyricRow,
@@ -49,8 +50,8 @@ class DelayedCall {
 
 interface Props {
   entries: LyricEntry[];
-  /** Pronunciation label per entry (`""` for none). */
-  labels: readonly string[];
+  /** The reading under each entry (`null` for none). */
+  labels: readonly (LineLabel | null)[];
   position: SharedValue<number>;
   known: boolean;
   reduceMotion: boolean;
@@ -101,7 +102,7 @@ export function SyncedLyrics({ entries, labels, position, known, reduceMotion, f
       activeIndex.set(index);
       const rows = tops.get();
       if (rows.length > 0) {
-        const anchor = viewport.get() * LYRIC.ANCHOR;
+        const anchor = LYRIC.ANCHOR;
         const row = Math.min(Math.max(index, 0), rows.length - 1);
         follow.set({
           y: rows[row] - anchor,
@@ -121,13 +122,15 @@ export function SyncedLyrics({ entries, labels, position, known, reduceMotion, f
   const flushLayout = useCallback(() => {
     flushScheduled.current = false;
     tops.set([...rowTops.current]);
-    const anchor = viewport.get() * LYRIC.ANCHOR;
     const target = follow.get();
-    const row = Math.min(Math.max(target.active, 0), rowTops.current.length - 1);
+    // The line playing now: on opening mid-song it was found before any row
+    // was laid out, so the follow target cannot be trusted yet.
+    const playing = activeIndex.get();
+    const row = Math.min(Math.max(playing === UNKNOWN_INDEX ? 0 : playing, 0), rowTops.current.length - 1);
     if (row < 0) return;
-    // A relayout (label toggle, rotation, text size) re-places without a ripple.
-    follow.set({ y: rowTops.current[row] - anchor, active: row, seq: target.seq + 1, instant: true });
-  }, [follow, tops, viewport]);
+    // A relayout (opening, label toggle, rotation, text size) re-places without a ripple.
+    follow.set({ y: rowTops.current[row] - LYRIC.ANCHOR, active: row, seq: target.seq + 1, instant: true });
+  }, [activeIndex, follow, tops]);
 
   const onRowLayout = useCallback(
     (index: number, top: number) => {
@@ -165,7 +168,7 @@ export function SyncedLyrics({ entries, labels, position, known, reduceMotion, f
   const gesture = useMemo(() => {
     const bounds = () => {
       "worklet";
-      const anchor = viewport.get() * LYRIC.ANCHOR;
+      const anchor = LYRIC.ANCHOR;
       return { min: -anchor, max: Math.max(-anchor, contentHeight.get() - anchor) };
     };
     const pan = Gesture.Pan()
@@ -191,7 +194,7 @@ export function SyncedLyrics({ entries, labels, position, known, reduceMotion, f
       if (browsing.get()) scheduleOnRN(resumeFollow);
     });
     return Gesture.Race(pan, tap);
-  }, [browsing, contentHeight, dragStart, follow, holdResume, manual, resumeFollow, scheduleResume, viewport]);
+  }, [browsing, contentHeight, dragStart, follow, holdResume, manual, resumeFollow, scheduleResume]);
 
   // VoiceOver / TalkBack: a plain list the reader can walk, current line marked.
   if (screenReader) {
@@ -212,7 +215,7 @@ export function SyncedLyrics({ entries, labels, position, known, reduceMotion, f
               key={entryKey(entry)}
               entry={entry}
               index={index}
-              label={labels[index] ?? ""}
+              label={labels[index] ?? null}
               depth={depthOf(index, active)}
               browsing={browsingNow}
               position={position}
@@ -240,11 +243,11 @@ function ReaderList({
   labels,
   active,
   footer,
-}: Readonly<{ entries: LyricEntry[]; labels: readonly string[]; active: number; footer: ReactNode }>) {
+}: Readonly<{ entries: LyricEntry[]; labels: readonly (LineLabel | null)[]; active: number; footer: ReactNode }>) {
   const rows = useMemo(
     () =>
       entries.flatMap((entry, index) =>
-        entry.kind === "line" ? [{ key: entryKey(entry), index, text: entry.text, label: labels[index] ?? "" }] : [],
+        entry.kind === "line" ? [{ key: entryKey(entry), index, text: entry.text, label: labelText(labels[index] ?? null) }] : [],
       ),
     [entries, labels],
   );

@@ -129,8 +129,9 @@ constructor-injected units, a composition root, external stores.
 | `matcher.ts`, `text.ts` | Validating provider rows: title/artist identity (script, width, name order, bracketed titles, `(CV: …)`), version conflicts (instrumental, language, live), and whether the timing fits the cut on air (±4 s) |
 | `lrc.ts` | LRC / enhanced LRC → a timeline of lines (measured word timing only) and interludes (intro, marked or long breaks) |
 | `ports.ts`, `file-cache.ts`, `src/api/lrclib.ts` | Provider and cache ports; LRCLIB client (validated rows, retries); one JSON file per song in the cache directory |
-| `romaji-pair.ts` | A romaji upload of the same lines, paired by start time and checked against the line's kana |
-| `pronunciation.ts` | Romaji / hiragana label of a line (dictionary) |
+| `romaji-pair.ts` | A romaji upload of the same lines, paired by start time (a Japanese line takes the fewest romaji lines that read it) and checked against the line's kana |
+| `segments.ts` | A romaji line split onto the Japanese one word by word (kana anchors, kanji runs as wildcards, memoized backtracking); segments timed from the word timing |
+| `pronunciation.ts` | The reading under a line, best source first: human romaji by word, human romaji as a line, dictionary by word |
 | `japanese/dictionary-manager.ts` | All-or-nothing install (verified download with watchdog, retries and mirrors, one-time unpack), cancel, removal, cleanup of interrupted installs; the reader built while lyrics are open and released after |
 | `japanese/unpack.ts` | Streaming gunzip (fflate) in ~12 ms steps that yield to the event loop; trims the zero padding |
 | `japanese/tokenizer.ts`, `reader.ts` | kuromoji's loader rebuilt without Node APIs from the stored files, its target maps read in steps; hiragana and word-split romaji |

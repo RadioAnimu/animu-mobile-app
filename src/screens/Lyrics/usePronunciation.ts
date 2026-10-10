@@ -3,7 +3,7 @@ import { InteractionManager } from "react-native";
 import { useUserSettings } from "@/contexts/user/UserSettingsProvider";
 import { japaneseDictionary, type JapaneseDictionarySnapshot, type JapaneseReader } from "@/core/japanese";
 import type { Lyrics } from "@/core/lyrics/types";
-import { pronunciationOf, type PronunciationMode } from "@/core/lyrics/pronunciation";
+import { lineLabel, type LineLabel, type PronunciationMode } from "@/core/lyrics/pronunciation";
 import { useJapaneseDictionary } from "@/hooks/useJapaneseDictionary";
 
 const isJapanese = (lyrics: Lyrics | null): boolean =>
@@ -41,10 +41,13 @@ function linesOf(lyrics: Lyrics | null, mode: PronunciationMode): { text: string
   }));
 }
 
-/** Pronunciation labels for every line of the song (`""` for none), at once. */
-export function labelsOf(lyrics: Lyrics | null, mode: PronunciationMode, reader: JapaneseReader | null): string[] {
-  // Human romaji first (the sibling upload), the dictionary for the rest.
-  return (linesOf(lyrics, mode) ?? []).map(({ text, paired }) => paired || pronunciationOf(text, mode, reader));
+/** The reading under every line of the song (`null` for none), at once. */
+export function labelsOf(
+  lyrics: Lyrics | null,
+  mode: PronunciationMode,
+  reader: JapaneseReader | null,
+): (LineLabel | null)[] {
+  return (linesOf(lyrics, mode) ?? []).map(({ text, paired }) => lineLabel(text, mode, reader, paired));
 }
 
 /** JS time spent reading lines before yielding (ms). */
@@ -59,16 +62,16 @@ export async function labelsInSteps(
   mode: PronunciationMode,
   reader: JapaneseReader,
   yieldNow: () => Promise<void> = () => new Promise((resolve) => setTimeout(resolve, 0)),
-): Promise<string[]> {
+): Promise<(LineLabel | null)[]> {
   const lines = linesOf(lyrics, mode) ?? [];
-  const labels: string[] = [];
+  const labels: (LineLabel | null)[] = [];
   let started = Date.now();
   for (const { text, paired } of lines) {
     if (Date.now() - started >= LABEL_BUDGET_MS) {
       await yieldNow();
       started = Date.now();
     }
-    labels.push(paired || pronunciationOf(text, mode, reader));
+    labels.push(lineLabel(text, mode, reader, paired));
   }
   return labels;
 }
@@ -78,11 +81,11 @@ interface ReadLabels {
   lyrics: Lyrics | null;
   mode: PronunciationMode;
   reader: JapaneseReader;
-  labels: string[];
+  labels: (LineLabel | null)[];
 }
 
 export interface Pronunciation {
-  labels: string[];
+  labels: (LineLabel | null)[];
   /** The mode shown (the stored one, where the song allows it). */
   mode: PronunciationMode;
   /** Modes the song can show; empty for non-Japanese lyrics (no menu). */

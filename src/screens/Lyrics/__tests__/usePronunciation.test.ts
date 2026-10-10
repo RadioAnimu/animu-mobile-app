@@ -22,7 +22,10 @@ const synced = (romaji: string[] | null): Lyrics => ({
   language: "ja",
   source,
 });
-const reader = { romaji: (text: string) => `r(${text})`, hiragana: (text: string) => `h(${text})` } as unknown as JapaneseReader;
+/** A dictionary reading each line as one word. */
+const reader = {
+  words: (text: string) => [{ text, romaji: `r(${text})`, hiragana: `h(${text})`, spaceAfter: false }],
+} as unknown as JapaneseReader;
 
 describe("pronunciation modes", () => {
   it("offers romaji from a sibling upload without the dictionary, everything with it", () => {
@@ -39,10 +42,12 @@ describe("pronunciation modes", () => {
   });
 
   it("labels with the human romaji first, the dictionary for the rest", () => {
-    expect(labelsOf(synced(["", "kimi no na wa", ""]), "romaji", reader)).toEqual(["", "kimi no na wa", "r(夢を見ていた)"]);
-    expect(labelsOf(synced(["", "kimi no na wa", ""]), "hiragana", reader)).toEqual(["", "h(君の名は)", "h(夢を見ていた)"]);
+    const text = (labels: ReturnType<typeof labelsOf>) =>
+      labels.map((label) => (label?.kind === "line" ? label.text : label?.segments.map((segment) => segment.label).join("|") ?? null));
+    expect(text(labelsOf(synced(["", "kimi no na wa", ""]), "romaji", reader))).toEqual([null, "kimi|no|na|wa", "r(夢を見ていた)"]);
+    expect(text(labelsOf(synced(["", "kimi no na wa", ""]), "hiragana", reader))).toEqual([null, "h(君の名は)", "h(夢を見ていた)"]);
     expect(labelsOf(synced(["", "kimi no na wa", ""]), "off", reader)).toEqual([]);
-    expect(labelsOf(synced(["", "kimi no na wa", ""]), "romaji", null)).toEqual(["", "kimi no na wa", ""]);
+    expect(text(labelsOf(synced(["", "kimi no na wa", ""]), "romaji", null))).toEqual([null, "kimi|no|na|wa", null]);
   });
 });
 

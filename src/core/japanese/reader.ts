@@ -59,39 +59,74 @@ function romajiOf(pieces: Piece[]): string {
  * Readings of Japanese text with kanji resolved (kuromoji + IPADIC): the
  * hiragana a learner reads, and Hepburn-style romaji split into words.
  */
+/** A word of a line as the dictionary reads it. */
+export interface ReadWord {
+  /** The word as written (punctuation after it included). */
+  text: string;
+  hiragana: string;
+  romaji: string;
+  /** A space follows it in the line. */
+  spaceAfter: boolean;
+}
+
+interface WordBuilder {
+  text: string;
+  hiragana: string;
+  pieces: Piece[];
+  spaceAfter: boolean;
+}
+
 export class JapaneseReader {
-  private readonly cache = new Map<string, { hiragana: string; romaji: string }>();
+  private readonly cache = new Map<string, ReadWord[]>();
 
   constructor(private readonly tokenizer: JapaneseTokenizer) {}
 
   /** The whole line in hiragana (`君の名は` → `きみのなは`). */
   hiragana(text: string): string {
-    return this.read(text).hiragana;
+    return this.words(text)
+      .map((word) => word.hiragana + (word.spaceAfter ? " " : ""))
+      .join("")
+      .trim();
   }
 
   /** The line in romaji, word by word (`君の名は` → `kimi no na wa`). */
   romaji(text: string): string {
-    return this.read(text).romaji;
+    return this.words(text)
+      .map((word) => word.romaji)
+      .filter(Boolean)
+      .join(" ")
+      .replace(/\s+([,.!?、。！？])/g, "$1");
   }
 
-  private read(text: string): { hiragana: string; romaji: string } {
+  /**
+   * The line word by word (`この痛みさえも` → この / 痛み / さえ / も), each with
+   * its readings — what goes under each word, Apple Music style.
+   */
+  words(text: string): ReadWord[] {
     const hit = this.cache.get(text);
     if (hit) return hit;
-    let hiragana = "";
-    const words: Piece[][] = [];
+    const words: WordBuilder[] = [];
     for (const token of this.tokenizer.tokenize(text)) {
+      const previous = words.at(-1);
       if (!token.surface_form.trim()) {
-        hiragana += token.surface_form;
+        if (previous) previous.spaceAfter = true;
         continue;
       }
       const read = readToken(token);
-      hiragana += read.hiragana;
-      const previous = words.at(-1);
-      if (previous && (attaches(token) || endsInSokuon(previous))) previous.push(read.piece);
-      else words.push([read.piece]);
+      if (previous && !previous.spaceAfter && (attaches(token) || endsInSokuon(previous.pieces))) {
+        previous.text += token.surface_form;
+        previous.hiragana += read.hiragana;
+        previous.pieces.push(read.piece);
+      } else {
+        words.push({ text: token.surface_form, hiragana: read.hiragana, pieces: [read.piece], spaceAfter: false });
+      }
     }
-    const romaji = words.map(romajiOf).join(" ").replace(/\s+([,.!?、。！？])/g, "$1");
-    const result = { hiragana, romaji };
+    const result = words.map(({ text: written, hiragana, pieces, spaceAfter }) => ({
+      text: written,
+      hiragana,
+      romaji: romajiOf(pieces).replace(/[、。！？]/g, ""),
+      spaceAfter,
+    }));
     this.cache.set(text, result);
     return result;
   }

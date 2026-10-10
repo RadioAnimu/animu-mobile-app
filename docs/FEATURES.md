@@ -58,7 +58,8 @@ lyrics view of the song being **heard** (not the one the station announced):
   stamp; while the position is still being measured the header reads
   "Syntonizing…" and no line is lit.
 - **The Apple Music read** — large bold lines, the active one lit and followed
-  in the upper third; each change ripples down the list (rows further below
+  near the top, the line before it fading out under the header; each change
+  ripples down the list (rows further below
   start later), with breathing dots through the intro and instrumental breaks.
   Lyrics with real word timing (enhanced LRC) fill word by word; line-synced
   lyrics light whole lines — word times are never guessed. Lines further from
@@ -76,11 +77,19 @@ lyrics view of the song being **heard** (not the one the station announced):
   looked up before it is heard.
 - **Romaji / hiragana** — for Japanese lyrics, a round button bottom-left
   (Apple Music's speech-bubble glyph) opens a menu: Romaji, Hiragana, Off.
-  The choice is remembered. Two sources:
+  The choice is remembered. Readings sit word by word under their words
+  (この痛み / さえ / も over kono itami / sae / mo), lighting with each word as it
+  is sung when the lyrics carry word timing. Per line, the best source wins:
+  human romaji split onto the Japanese, then human romaji as one line (when
+  it does not split), then the dictionary word by word; hiragana goes only
+  under words with kanji. Two sources:
   - **Human romaji** — LRCLIB often has a song twice, in Japanese and in
     romaji. Lines that start together are paired (and only when the romaji
-    actually spells the Japanese line's kana, so translations are rejected).
-    No download; about a third of the station's Japanese songs.
+    actually spells the Japanese line's kana, so translations are rejected);
+    a Japanese line written as two romaji lines gets both. About 88% of such
+    lines split word by word (measured on real uploads); the rest show one
+    reading under the line. No download; about a third of the station's
+    Japanese songs.
   - **The Japanese dictionary** (opt-in, from that menu or Settings → Lyrics)
     — kuromoji + IPADIC: kanji readings for every line, hiragana mode, and
     kanji titles matching the station's romaji (新時代 ↔ Shin Jidai).

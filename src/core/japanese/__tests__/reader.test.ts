@@ -104,6 +104,19 @@ describe("JapaneseReader (kuromoji + IPADIC)", () => {
     expect(reader.romaji("行っちゃった")).toBe("itchatta");
   });
 
+  it("splits a line into words with their readings", () => {
+    expect(reader.words("この痛みさえも").map(({ text, romaji, hiragana }) => [text, romaji, hiragana])).toEqual([
+      ["この", "kono", "この"],
+      ["痛み", "itami", "いたみ"],
+      ["さえ", "sae", "さえ"],
+      ["も", "mo", "も"],
+    ]);
+    const spaced = reader.words("No destiny ふさわしく無い");
+    // 無い follows as an auxiliary here: one word, one column.
+    expect(spaced.map((word) => word.text)).toEqual(["No", "destiny", "ふさわしく無い"]);
+    expect(spaced.map((word) => word.spaceAfter)).toEqual([true, true, false]);
+  });
+
   it("keeps Latin text as written", () => {
     expect(reader.romaji("Hello 世界")).toBe("Hello sekai");
   });

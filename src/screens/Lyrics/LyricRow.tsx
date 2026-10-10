@@ -1,4 +1,4 @@
-import { memo, useState } from "react";
+import { memo } from "react";
 import { Text, View, type LayoutChangeEvent } from "react-native";
 import Animated, {
   interpolate,
@@ -11,7 +11,9 @@ import Animated, {
   Extrapolation,
   type SharedValue,
 } from "react-native-reanimated";
-import type { LyricEntry, LyricLine, LyricWord } from "@/core/lyrics";
+import type { LyricEntry, LyricLine } from "@/core/lyrics";
+import type { LineLabel } from "@/core/lyrics/pronunciation";
+import { SegmentColumns, SungColumns, SungWords } from "@/screens/Lyrics/Segments";
 import { LYRIC, styles } from "@/screens/Lyrics/styles";
 
 /** `activeIndex` while the heard position is not known. */
@@ -111,8 +113,8 @@ export function useRowOffset(motion: ListMotion, index: number): SharedValue<num
 interface RowProps {
   entry: LyricEntry;
   index: number;
-  /** Pronunciation label (romaji / hiragana), `""` for none. */
-  label: string;
+  /** The reading (romaji / hiragana), `null` for none. */
+  label: LineLabel | null;
   /**
    * Distance from the lit line (React side: word wipe, blur, accessibility),
    * clamped to ±{@link DEPTH_LIMIT}; `0` is the lit line.
@@ -162,9 +164,11 @@ export const LyricRow = memo(function LyricRow({
 
   const animatedStyle = useAnimatedStyle(() => {
     // Fade at the viewport's edges (no mask needed: rows fade themselves).
+    // At the top: full at the lit line's place, gone once the row is above
+    // the edge — a line leaving under the header is faint before it is cut.
     const screenTop = top.get() - y.get();
     const edge = LYRIC.EDGE_FADE;
-    const fadeTop = interpolate(screenTop + height.get(), [0, edge], [0, 1], Extrapolation.CLAMP);
+    const fadeTop = interpolate(screenTop, [-height.get(), LYRIC.ANCHOR], [0, 1], Extrapolation.CLAMP);
     const fadeBottom = interpolate(screenTop, [viewport.get() - edge, viewport.get()], [1, 0], Extrapolation.CLAMP);
     // The lit line stands a touch larger than the rest (follows the fade).
     const scale = reduceMotion || interlude ? 1 : interpolate(emphasis.get(), [0.5, 1], [0.97, 1], Extrapolation.CLAMP);
@@ -200,17 +204,28 @@ export const LyricRow = memo(function LyricRow({
   );
 });
 
-/** A line's text (word by word while sung, if timed) and its label. */
+/**
+ * A line and its reading: word by word in columns (each word over its
+ * reading), or the line with one reading under it; while sung, words fill
+ * with the word timing.
+ */
 function LineContent({
   line,
   label,
   sung,
   position,
-}: Readonly<{ line: LyricLine; label: string; sung: boolean; position: SharedValue<number> }>) {
+}: Readonly<{ line: LyricLine; label: LineLabel | null; sung: boolean; position: SharedValue<number> }>) {
+  if (label?.kind === "words") {
+    return sung && line.words ? (
+      <SungColumns segments={label.segments} words={line.words} position={position} />
+    ) : (
+      <SegmentColumns segments={label.segments} />
+    );
+  }
   return (
     <>
       {sung && line.words ? (
-        <WordLine words={line.words} position={position} />
+        <SungWords words={line.words} position={position} />
       ) : (
         <Text maxFontSizeMultiplier={1.4} style={styles.lineText}>
           {line.text}
@@ -218,55 +233,10 @@ function LineContent({
       )}
       {label ? (
         <Text maxFontSizeMultiplier={1.4} style={styles.label}>
-          {label}
+          {label.text}
         </Text>
       ) : null}
     </>
-  );
-}
-
-/** The active line, word by word: each word fills as it is sung. */
-function WordLine({ words, position }: Readonly<{ words: LyricWord[]; position: SharedValue<number> }>) {
-  return (
-    <View style={styles.words}>
-      {words.map((word) => (
-        <SungWord key={`${word.startMs}:${word.text}`} word={word} position={position} />
-      ))}
-    </View>
-  );
-}
-
-const WORD_SPACE = LYRIC.SIZE * 0.26;
-
-function SungWord({ word, position }: Readonly<{ word: LyricWord; position: SharedValue<number> }>) {
-  const [width, setWidth] = useState(0);
-  const span = Math.max(1, word.endMs - word.startMs);
-
-  const fill = useAnimatedStyle(() => {
-    const progress = Math.min(1, Math.max(0, (position.get() - word.startMs) / span));
-    return { width: width * progress };
-  });
-  // Sung words rise a hair, like Apple Music's syllable lift.
-  const lift = useAnimatedStyle(() => {
-    const progress = Math.min(1, Math.max(0, (position.get() - word.startMs) / span));
-    return { transform: [{ translateY: -1.5 * progress }] };
-  });
-
-  return (
-    <Animated.View style={[{ marginRight: word.spaceAfter ? WORD_SPACE : 0 }, lift]}>
-      <Text
-        maxFontSizeMultiplier={1.4}
-        style={[styles.lineText, styles.wordDim]}
-        onLayout={(event) => setWidth(event.nativeEvent.layout.width)}
-      >
-        {word.text}
-      </Text>
-      <Animated.View style={[styles.wordFill, fill]} pointerEvents="none">
-        <Text maxFontSizeMultiplier={1.4} numberOfLines={1} style={[styles.lineText, { width }]}>
-          {word.text}
-        </Text>
-      </Animated.View>
-    </Animated.View>
   );
 }
 

@@ -10,8 +10,11 @@ export const LYRIC = {
   LABEL_LINE_HEIGHT: scale(23),
   /** Space between lines. */
   GAP: scale(26),
-  /** Where the active line's top sits, as a share of the lyrics viewport. */
-  ANCHOR: 0.3,
+  /**
+   * Where the lit line's top sits below the header: Apple Music keeps it
+   * near the top, the line before it just showing (faded) above.
+   */
+  ANCHOR: scale(64),
   /** Rows fade out over this distance at the viewport's top / bottom edge. */
   EDGE_FADE: scale(72),
   DOT: scale(11),
@@ -116,9 +119,18 @@ export const styles = StyleSheet.create({
     opacity: 0.92,
     marginTop: THEME.SPACE.XXS,
   },
-  words: {
+  /** A line as word columns (each word over its reading). */
+  segments: {
     flexDirection: "row",
     flexWrap: "wrap",
+    alignItems: "flex-start",
+  },
+  segment: {
+    alignItems: "flex-start",
+  },
+  /** Readings never touch the next word's, even when wider than their word. */
+  segmentLabel: {
+    paddingRight: scale(8),
   },
   wordDim: {
     opacity: 0.35,
