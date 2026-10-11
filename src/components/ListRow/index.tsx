@@ -82,7 +82,7 @@ export function ActionRow({
     <TouchableOpacity
       accessibilityRole="button"
       accessibilityLabel={description ? `${label}, ${description}` : label}
-      accessibilityState={{ busy: !!busy, disabled: busy || undefined }}
+      accessibilityState={{ busy: !!busy, disabled: !!busy }}
       activeOpacity={THEME.OPACITY.PRESSED}
       disabled={busy}
       onPress={onPress}

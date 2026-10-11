@@ -33,7 +33,7 @@ export function DestructiveAction({
     <TouchableOpacity
       accessibilityRole="button"
       accessibilityLabel={description ? `${label}, ${description}` : label}
-      accessibilityState={{ disabled: busy || undefined }}
+      accessibilityState={{ disabled: !!busy }}
       activeOpacity={THEME.OPACITY.PRESSED}
       onPress={onPress}
       disabled={busy}

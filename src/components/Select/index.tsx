@@ -133,7 +133,7 @@ export function Select<T extends string>({
         accessibilityLabel={[label, description, selected?.label]
           .filter(Boolean)
           .join(", ")}
-        accessibilityState={{ expanded, disabled: disabled || undefined }}
+        accessibilityState={{ expanded, disabled: !!disabled }}
         activeOpacity={THEME.OPACITY.PRESSED}
         disabled={disabled}
         onPress={toggle}
@@ -186,7 +186,7 @@ export function Select<T extends string>({
                     .join(", ")}
                   accessibilityState={{
                     selected: isSelected,
-                    disabled: applying || undefined,
+                    disabled: !!applying,
                   }}
                   activeOpacity={THEME.OPACITY.PRESSED}
                   disabled={applying}

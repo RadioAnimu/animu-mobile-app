@@ -258,8 +258,11 @@ function CardActionButton({
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel}
       accessibilityState={{
-        disabled: disabled || undefined,
-        busy: busy || undefined,
+        // Explicit booleans: on Android an `undefined` field does not clear a
+        // previously reported `true`, so TalkBack kept saying "busy" after
+        // the save had finished.
+        disabled: !!disabled,
+        busy,
       }}
       activeOpacity={THEME.OPACITY.PRESSED}
       disabled={disabled || busy}

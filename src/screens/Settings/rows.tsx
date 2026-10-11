@@ -156,7 +156,7 @@ export function SettingsRow({
     <TouchableOpacity
       accessibilityRole="switch"
       accessibilityLabel={description ? `${label}, ${description}` : label}
-      accessibilityState={{ checked: value, disabled: disabled || undefined }}
+      accessibilityState={{ checked: value, disabled: !!disabled }}
       activeOpacity={THEME.OPACITY.PRESSED}
       onPress={() => {
         haptics.select();
