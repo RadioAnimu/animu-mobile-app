@@ -1,3 +1,4 @@
+import { Buffer } from 'node:buffer';
 // Portable outputs bound to an exact commit and a successful trusted CI run.
 // No package dependencies: coverage can be restored before an install.
 import fs from 'node:fs';

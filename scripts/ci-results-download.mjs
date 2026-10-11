@@ -1,3 +1,4 @@
+import { Buffer } from 'node:buffer';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -24,7 +25,9 @@ export function successfulBuild(build, sha) {
   return build.result === 'SUCCESS' && !build.building && Number.isSafeInteger(build.number) && build.actions?.some(a => a.lastBuiltRevision?.SHA1 === sha);
 }
 async function jenkins(job, sha) {
-  const { JENKINS_URL, JENKINS_USER, JENKINS_API_TOKEN } = process.env;
+  const JENKINS_URL = process.env.JENKINS_URL;
+  const JENKINS_USER = process.env.JENKINS_USER;
+  const JENKINS_API_TOKEN = process.env.JENKINS_API_TOKEN;
   if (!JENKINS_URL || !JENKINS_USER || !JENKINS_API_TOKEN) return null;
   const url = new URL(JENKINS_URL);
   if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password) throw new Error('Invalid Jenkins URL');
