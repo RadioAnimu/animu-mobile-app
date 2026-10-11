@@ -67,12 +67,6 @@ pipeline {
     // /tmp is a small tmpfs; point temp at the real disk.
     TMPDIR = '/home/rmotafreitas/jenkins-tmp'
     TMP = '/home/rmotafreitas/jenkins-tmp'
-    // Persistent Gradle cache so rebuilds are incremental instead of cold.
-    GRADLE_USER_HOME = "${WORKSPACE}/.gradle-home"
-    // ccache persists native (C/C++) object compilation across builds.
-    CCACHE_DIR = "${WORKSPACE}/.gradle-home/ccache"
-    // Relocatable cache config (base_dir / hash_dir) versions with the repo.
-    CCACHE_CONFIGPATH = "${WORKSPACE}/scripts/ccache.conf"
     // The daemon is intentionally disabled per invocation (--no-daemon): each
     // job runs one build, so a lingering daemon would just hold memory. The
     // configuration cache is NOT enabled because the RN/Expo Gradle plugins
@@ -110,6 +104,14 @@ pipeline {
     stage('Toolchain') {
       agent { label 'animu-android-native' }
       steps {
+        // WORKSPACE is unavailable in the top-level environment with agent none.
+        // Resolve paths only after the native agent has allocated its workspace.
+        script {
+          def workspacePath = pwd()
+          env.GRADLE_USER_HOME = "${workspacePath}/.gradle-home"
+          env.CCACHE_DIR = "${workspacePath}/.gradle-home/ccache"
+          env.CCACHE_CONFIGPATH = "${workspacePath}/scripts/ccache.conf"
+        }
         sh '''
           set -eux
           corepack enable
