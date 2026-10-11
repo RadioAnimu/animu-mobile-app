@@ -21,7 +21,10 @@ Do not delete all dependencies or SDK/Gradle caches on each build. SDK/NDK versi
 on the Jenkins native agent are already persistent. Do not upload the entire SDK
 or share writable Gradle dependency directories between independent machines.
 Keep the shared Jenkins build-host lock: this host also runs Sonar and an emulator,
-and parallel native builds have previously exhausted memory.
+and parallel native builds have previously exhausted memory. The release uses two
+Gradle workers and two Ninja compile slots per native project, retaining the
+tested 4 GB Gradle heap. A live build with the previous six-worker setting filled
+the host's 12 GB swap during this review.
 
 ## Portable results
 
@@ -74,3 +77,5 @@ incompatible configuration cache or skipping signing/native validation.
 - [Gradle forum: parallel CI cache use](https://discuss.gradle.org/t/using-gradle-build-cache-in-parallel-ci-cd-pipeline-runs/44614): shared writable dependency caches have locking constraints.
 - [Turbo task inputs](https://github.com/vercel/turborepo/blob/main/apps/docs/content/docs/reference/configuration.mdx) and [community discussion](https://github.com/vercel/turborepo/discussions/8877): explicitly hash native sources outside the example workspace.
 - [CocoaPods command reference](https://guides.cocoapods.org/terminal/commands.html): install pinned pods; update specs when needed.
+
+- [CMake Ninja job pools](https://cmake.org/cmake/help/latest/prop_gbl/JOB_POOLS.html): bound compiler concurrency independently of Gradle workers.

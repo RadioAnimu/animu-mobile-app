@@ -359,6 +359,7 @@ pipeline {
           # Give the Gradle JVM a bounded heap. The prebuild default (2g) is
           # tight for R8/minify, but 6g plus Kotlin/R8 workers plus a concurrent
           # CI job overruns this 16 GB host and the kernel OOM-kills the daemon.
+          # Two workers bound parallel lint/Kotlin/native tasks on the shared 16 GB host.
           # Rewrite the block each run so tuning changes take effect even when a
           # previous android/ is reused.
           sed -i '/# animu-ci-tuning/,$d' android/gradle.properties
@@ -367,7 +368,7 @@ pipeline {
             echo "org.gradle.jvmargs=-Xmx4g -XX:MaxMetaspaceSize=768m -XX:+UseParallelGC"
             echo "org.gradle.parallel=true"
             echo "org.gradle.caching=true"
-            echo "org.gradle.workers.max=6"
+            echo "org.gradle.workers.max=2"
           } >> android/gradle.properties
         '''
       }
@@ -648,6 +649,7 @@ pipeline {
       node('animu-android-native') {
         // Only fully validated releases expose downloadable artifacts.
         archiveArtifacts artifacts: 'release-artifacts/*', allowEmptyArchive: false, fingerprint: true
+        archiveArtifacts artifacts: 'android/build/reports/profile/**', allowEmptyArchive: true
       }
       echo 'Release pipeline succeeded.'
     }
