@@ -1,4 +1,4 @@
-/** Progress-ratio math shared by bar renderers (clamp is UI, not domain). */
+/** Progress math shared by the bar and the countdown (clamp is UI, not domain). */
 
 /**
  * Elapsed ms → 0..1 bar ratio, clamped. Invalid/absent progress reads as
@@ -12,50 +12,39 @@ export function progressRatio(
   return Math.min(Math.max(elapsedMs / durationMs, 0), 1);
 }
 
-/** Move smaller than this never needs the snap path (per-bar floor). */
-const SNAP_FLOOR_RATIO = 0.03;
-/** Real playback can advance at at most 1×; corrections get 1.5× slack. */
-const REALTIME_TOLERANCE = 1.5;
-/** Cap on wall time considered, so a long silent stretch can't inflate it. */
-const MAX_SINCE_MS = 3000;
-
-/**
- * Snap-vs-animate decision for the progress bar, scale-aware.
- *
- * A move counts as a CORRECTION (track change, sync fix, thaw re-anchor)
- * when it exceeds what real audio could have played during the wall time
- * between renders (× tolerance), with a small per-bar floor. This keeps
- * short tracks (8s bumpers) animated at fresh 1 Hz steps instead of
- * treating every normal advance as a snap, while long-frozen catches-ups
- * stay instant. Absent duration degrades to plain animate.
- */
-export function isBarCorrection(
-  move: number,
-  sinceEffectMs: number,
-  durationMs: number | undefined,
-): boolean {
-  // Real playback only ever ADVANCES the bar: any backward move is a
-  // correction (new track reset, sync re-lock after a thaw), never natural
-  // travel — so it snaps regardless of duration/timing, above the floor.
-  if (move < 0) return Math.abs(move) > SNAP_FLOOR_RATIO;
-  if (!durationMs || !Number.isFinite(durationMs) || durationMs <= 0) {
-    // No duration to scale by — fall back to the flat floor.
-    return move > SNAP_FLOOR_RATIO;
-  }
-  const expected = (Math.max(0, Math.min(sinceEffectMs, MAX_SINCE_MS)) / durationMs) * REALTIME_TOLERANCE;
-  return Math.abs(move) > Math.max(SNAP_FLOOR_RATIO, expected);
+/** The progress store's real-time anchor (see `ProgressSnapshot`). */
+export interface ProgressAnchor {
+  /** Elapsed ms at `progressAt`; `null` while unknown. */
+  progressMs: number | null;
+  /** Wall clock the anchor holds at. */
+  progressAt: number;
+  /** Advancing in real time from `progressAt`. */
+  progressRunning: boolean;
 }
 
-/** A bar step smaller than this many dp is invisible as motion. */
-const SMOOTH_STEP_DP = 1.5;
+/**
+ * Elapsed ms of `anchor` at wall clock `now`, within the track (`null` while
+ * unknown). Past the end it holds at the end: the next song is not heard yet.
+ */
+export function elapsedAt(
+  anchor: ProgressAnchor,
+  durationMs: number | undefined,
+  now: number,
+): number | null {
+  const { progressMs, progressAt, progressRunning } = anchor;
+  if (progressMs == null || !Number.isFinite(progressMs)) return null;
+  const elapsed = Math.max(
+    0,
+    progressMs + (progressRunning ? Math.max(0, now - progressAt) : 0),
+  );
+  return durationMs && durationMs > 0 ? Math.min(elapsed, durationMs) : elapsed;
+}
 
 /**
- * Whether a forward bar step is too small to be seen as motion. Animating
- * such steps keeps a native animation permanently in flight (the ~4 Hz
- * smoothed ticks overlap a 300 ms tween), which holds the whole window at
- * vsync rate to move a bar by roughly one pixel. Those steps are set
- * directly; larger ones (short tracks) still tween.
+ * Wait (ms) until a whole-second countdown showing `remainingMs` flips to its
+ * next value — scheduling to the boundary itself makes every displayed second
+ * last exactly one second, instead of whenever a polling tick happens to land.
  */
-export function isSubVisibleStep(move: number, barWidthDp: number): boolean {
-  return move >= 0 && move * barWidthDp < SMOOTH_STEP_DP;
+export function msUntilNextSecond(remainingMs: number): number {
+  return (Math.max(0, remainingMs) % 1_000) + 1;
 }

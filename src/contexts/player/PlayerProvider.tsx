@@ -30,7 +30,7 @@ import { hideSplashOnce } from "@/screens/Loading/splash";
 //
 // - usePlayer()        → now-playing data + actions (per song / action)
 // - useStation()       → listeners + histories (per API poll)
-// - useTrackProgress() → progress (every 1s)
+// - useTrackProgress() → progress (per re-anchor)
 //
 // A component reading from only one context never re-renders for the
 // others' updates.
@@ -93,7 +93,9 @@ const PlayerContext = createContext<PlayerContextType>({
 const StationContext = createContext<StationSnapshot>({});
 
 const ProgressContext = createContext<ProgressSnapshot>({
-  currentTrackProgress: null,
+  progressMs: null,
+  progressAt: 0,
+  progressRunning: false,
   showProgress: false,
 });
 
@@ -329,5 +331,5 @@ export const usePlayer = () => useContext(PlayerContext);
 /** Poll data — current listeners and the request/played histories. */
 export const useStation = () => useContext(StationContext);
 
-/** Track progress (every 1s while a track plays). */
+/** Track progress: a real-time anchor, re-published only when it moves. */
 export const useTrackProgress = () => useContext(ProgressContext);

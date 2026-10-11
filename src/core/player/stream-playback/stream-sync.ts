@@ -66,6 +66,18 @@ const SETTLE_STABLE_MS = 1_500;
 const SETTLE_MAX_MS = 12_000;
 /** A delay move of at least this counts as "still moving". */
 const SETTLE_EPSILON_MS = 200;
+/**
+ * Safety net for the locked clock (see {@link StreamSyncEngine.anchor}): the
+ * lag readings may only *under*-read the real lag (the player cannot hold
+ * audio the station has not sent yet), so a lock taken while the connect
+ * burst was still loading shows up as the readings climbing past it. Once
+ * they have stayed at least this far above the lock for
+ * {@link RELOCK_BEHIND_FRAMES} consecutive readings, the lock is re-taken.
+ * Readings below the lock are under-reads and never move it.
+ */
+const RELOCK_BEHIND_MS = 2_000;
+/** Consecutive readings (≈1 Hz) the lock must look behind before it moves. */
+const RELOCK_BEHIND_FRAMES = 5;
 
 /** A native live-offset reading, in the shape the audio port reports it. */
 export interface LiveOffsetStatus {
@@ -80,6 +92,31 @@ export interface LiveOffsetStatus {
    * still the delay the listener hears.
    */
   bufferedAheadSeconds?: number | null;
+}
+
+/**
+ * The audible clock as a fixed point: the station time the speaker is at
+ * when the wall clock reads `at`, advancing in real time from there while
+ * `running`. Unchanged between lock events, so consumers can extrapolate it
+ * themselves (a native animation, a countdown) without polling.
+ */
+export interface AudibleAnchor {
+  /** Station-timeline epoch ms heard at `at`. */
+  stationMs: number;
+  /** Wall-clock epoch ms of the anchor. */
+  at: number;
+  /** Audio flows: the station time advances with the wall clock. */
+  running: boolean;
+}
+
+/** A locked audible clock: station time = wall clock + `offsetMs`. */
+interface ClockLock {
+  /** Station time minus wall clock while audio flows (skew − lag). */
+  offsetMs: number;
+  /** Wall clock the current lock segment began at (lock, resume, re-lock). */
+  at: number;
+  /** Wall clock audio stopped at; `null` while it flows. */
+  heldAt: number | null;
 }
 
 /**
@@ -120,6 +157,17 @@ export interface SyncAnchor {
  * position, predictive track-end) reads `now()` instead of `Date.now()`, so
  * they all land on the audio the user actually hears — including the extra
  * delay of an AAC+ relay, with no per-codec constants.
+ *
+ * **Once settled, the clock is locked.** The lag readings jitter with
+ * network delivery (the forward buffer saw-tooths as chunks land), but while
+ * audio plays without a stall the real lag cannot change: the speaker moves
+ * through the stream at exactly real time. So the settled estimate is frozen
+ * into a fixed wall-clock offset and every consumer advances in true
+ * seconds from it — no more uneven seconds, no forward/backward nudges.
+ * The only real lag changes are the times audio stops (pause, stall), which
+ * {@link setRunning} adds to the lag; a re-open {@link reset}s and measures
+ * again. The readings keep feeding the estimate, and only move the lock when
+ * they are clearly and lastingly behind it (see {@link RELOCK_BEHIND_MS}).
  *
  * The engine is measurement-driven but defensive: the last known delay is
  * kept when a reading is missing, `isLive: false` clears it, and a large
@@ -173,6 +221,12 @@ export class StreamSyncEngine {
    * trusted.
    */
   private lastMeasuredAtMs = 0;
+  /** The locked clock, from the moment the estimate settled (`null` before). */
+  private lock: ClockLock | null = null;
+  /** Whether audio is flowing (the locked clock advances only while it is). */
+  private running = true;
+  /** Consecutive readings the estimate sat clearly above the locked lag. */
+  private behindFrames = 0;
 
   /**
    * Folds a native status reading into the delay estimate.
@@ -206,6 +260,7 @@ export class StreamSyncEngine {
         this.delayChangedAtMs = 0;
         this.settledLatch = false;
         this.lastMeasuredAtMs = 0;
+        this.unlock();
       }
       // Live (or in a brief teardown gap): keep the last known delay.
       return;
@@ -242,6 +297,68 @@ export class StreamSyncEngine {
       // Delay moved less than the settle epsilon: it stays "settled".
     }
     this.lastMeasuredAtMs = now;
+    this.refreshLock(now);
+    this.checkLockBehind(measured, now);
+  }
+
+  /**
+   * Audio started or stopped flowing (pause, stall, resume). While it is
+   * stopped the station keeps broadcasting, so the locked clock holds still
+   * and the time spent stopped is added to the lag when audio resumes.
+   */
+  setRunning(running: boolean, at: number = Date.now()): void {
+    if (this.running === running) return;
+    this.running = running;
+    this.behindFrames = 0;
+    const lock = this.lock;
+    if (!lock) return;
+    if (running) {
+      if (lock.heldAt != null) lock.offsetMs -= at - lock.heldAt;
+      lock.heldAt = null;
+      lock.at = at;
+    } else {
+      lock.heldAt = at;
+    }
+  }
+
+  /**
+   * Latches {@link settled} and locks the clock in the same instant, so the
+   * first settled position is the locked one.
+   */
+  private refreshLock(now: number = Date.now()): void {
+    if (this.settledLatch || !this.evaluateSettled(now)) return;
+    this.settledLatch = true;
+    this.lock = {
+      offsetMs: this.clockSkewMs - this.delayMs,
+      at: now,
+      heldAt: this.running ? null : now,
+    };
+    this.behindFrames = 0;
+  }
+
+  /**
+   * Re-takes the lock when the raw readings have stayed clearly above it —
+   * the lock was taken on an under-read (see {@link RELOCK_BEHIND_MS}). Raw,
+   * not the eased estimate: it lingers high after a one-off spike.
+   */
+  private checkLockBehind(measuredMs: number, now: number): void {
+    const lock = this.lock;
+    if (!lock || lock.heldAt != null) return;
+    const lockedDelay = this.clockSkewMs - lock.offsetMs;
+    if (measuredMs - lockedDelay < RELOCK_BEHIND_MS) {
+      this.behindFrames = 0;
+      return;
+    }
+    this.behindFrames += 1;
+    if (this.behindFrames < RELOCK_BEHIND_FRAMES) return;
+    lock.offsetMs = this.clockSkewMs - measuredMs;
+    lock.at = now;
+    this.behindFrames = 0;
+  }
+
+  private unlock(): void {
+    this.lock = null;
+    this.behindFrames = 0;
   }
 
   /**
@@ -264,7 +381,7 @@ export class StreamSyncEngine {
     this.recalibrate = true;
   }
 
-  /** Clears the estimate (new stream, reconnect, teardown). */
+  /** Clears the estimate and the lock (new stream, reconnect, teardown). */
   reset(): void {
     this.delayMs = 0;
     this.measured = false;
@@ -275,18 +392,38 @@ export class StreamSyncEngine {
     this.delayChangedAtMs = 0;
     this.settledLatch = false;
     this.lastMeasuredAtMs = 0;
+    this.unlock();
   }
 
   /**
    * The listener's "now" on the station timeline (epoch ms): what the
-   * speaker is producing this instant rather than the live point. Applies
-   * the server clock correction and, until a live offset has been measured,
-   * falls back to the corrected wall clock.
+   * speaker is producing this instant rather than the live point. Once
+   * settled this is the locked clock (real-time seconds, held while audio is
+   * stopped). Before that it follows the running estimate, with the server
+   * clock correction, and falls back to the corrected wall clock until a
+   * live offset has been measured.
    */
   now(): number {
-    const wall = Date.now() + this.clockSkewMs;
+    const now = Date.now();
+    this.refreshLock(now);
+    const lock = this.lock;
+    if (lock) return (lock.heldAt ?? now) + lock.offsetMs;
+    const wall = now + this.clockSkewMs;
     if (!this.measured) return wall;
     return wall - this.delayMs;
+  }
+
+  /**
+   * The locked clock as a fixed point, or `null` until it has settled. Only
+   * changes when the lock does (settling, a pause / resume, a re-lock), so it
+   * is cheap to compare and to hand to the UI.
+   */
+  get anchor(): AudibleAnchor | null {
+    this.refreshLock();
+    const lock = this.lock;
+    if (!lock) return null;
+    const at = lock.heldAt ?? lock.at;
+    return { stationMs: at + lock.offsetMs, at, running: lock.heldAt == null };
   }
 
   /**
@@ -342,20 +479,17 @@ export class StreamSyncEngine {
    *
    * Once true it is latched until the next {@link reset}: later small drifts
    * (the fall easing, the re-lock snap a track change arms) must not flip the
-   * UI back to "calculating". Evaluating latches it, so the value can only
-   * ever transition false once, then stay true.
+   * UI back to "calculating". Evaluating latches it — and locks the clock —
+   * so the value can only ever transition false once, then stay true.
    */
   get settled(): boolean {
-    if (!this.settledLatch && this.evaluateSettled()) {
-      this.settledLatch = true;
-    }
+    this.refreshLock();
     return this.settledLatch;
   }
 
   /** Time/quiet-window check behind {@link settled} (pre-latch). */
-  private evaluateSettled(): boolean {
+  private evaluateSettled(now: number): boolean {
     if (!this.measured || this.measuredSinceMs === 0) return false;
-    const now = Date.now();
     const sinceMeasured = now - this.measuredSinceMs;
     if (sinceMeasured < SETTLE_MIN_MS) return false;
     if (sinceMeasured >= SETTLE_MAX_MS) return true;

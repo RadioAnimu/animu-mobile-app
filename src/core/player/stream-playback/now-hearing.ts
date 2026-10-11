@@ -1,10 +1,7 @@
 import type { Track } from "@/core/domain/track";
 import type { AudibleTrackResolver } from "@/core/player/stream-playback/audible-track";
-import type { HeardTrack } from "@/core/player/stream-playback/heard-track";
-import {
-  getSyncedTrackProgress,
-  type StreamSyncEngine,
-} from "@/core/player/stream-playback/stream-sync";
+import type { HeardTrack, TrackPosition } from "@/core/player/stream-playback/heard-track";
+import type { StreamSyncEngine } from "@/core/player/stream-playback/stream-sync";
 
 /**
  * Playing this long since the source opened without a single ICY title means
@@ -87,30 +84,60 @@ export class NowHearing {
     return heard.anchored && (!heard.estimated || sync.settled);
   }
 
-  /** Elapsed ms into {@link track}, or `null` when unknown / past its end. */
-  elapsedMs(): number | null {
+  /**
+   * Where {@link track} is, as a fixed point the UI and the lock screen
+   * extrapolate in real time — `null` while unknown. Every source ends up
+   * here as wall-clock seconds: a heard title anchors at its change, and a
+   * computed position (tune-in, no ICY) comes off the *locked* audible clock.
+   * So once known it only moves at real events (a title, pause / resume, a
+   * re-open), never with the jitter of the lag readings.
+   */
+  position(): TrackPosition | null {
     const { heard, audible } = this.deps;
-    if (this.mode === "clock") return this.clockElapsed(audible.track, 0);
-    if (!heard.estimated) return heard.elapsedMs();
-    return heard.anchored ? this.clockElapsed(heard.track, heard.tuneInBiasMs) : null;
+    if (this.mode === "clock") return this.clockPosition(audible.track, 0);
+    if (!heard.estimated) return heard.position;
+    return heard.anchored ? this.clockPosition(heard.track, heard.tuneInBiasMs) : null;
   }
 
-  /** `track`'s position on the settled audible clock, less a calibration (ms). */
-  private clockElapsed(track: Track | null, biasMs: number): number | null {
-    if (!this.deps.sync.settled) return null;
-    return getSyncedTrackProgress(track, this.deps.sync.now() - biasMs).elapsedMs;
+  /** Elapsed ms into {@link track} right now, or `null` when unknown / not within it. */
+  elapsedMs(): number | null {
+    const position = this.position();
+    const track = this.track;
+    if (!position || !track) return null;
+    const elapsed = positionAt(position, this.now());
+    if (elapsed < 0) return null;
+    if (track.duration > 0 && elapsed > track.duration) return null;
+    return elapsed;
+  }
+
+  /** `track` on the locked audible clock, less a calibration (ms). */
+  private clockPosition(track: Track | null, biasMs: number): TrackPosition | null {
+    const anchor = this.deps.sync.settled ? this.deps.sync.anchor : null;
+    const start = track?.startTime?.getTime();
+    if (!anchor || start == null || !Number.isFinite(start)) return null;
+    return {
+      elapsedMs: anchor.stationMs - biasMs - start,
+      at: anchor.at,
+      running: anchor.running,
+    };
   }
 
   /** A native progress reading (Airwave `progress` events, ~1 Hz while playing). */
   progress(reading: LagReading): void {
-    this.deps.sync.updateFromStatus({
+    const { sync, heard } = this.deps;
+    const lockBefore = sync.anchor;
+    sync.updateFromStatus({
       isLive: true,
       offsetFromLive: reading.liveOffset,
       bufferedAheadSeconds: reading.bufferedAhead,
     });
     this.deps.pump?.();
     this.deps.audible.adoptIfDue();
-    this.checkMode();
+    const reported = this.checkMode();
+    // A re-lock moved a clock-driven position: the lock screen follows.
+    const clockDriven = this.mode === "clock" || heard.estimated;
+    const relocked = lockBefore != null && lockBefore.stationMs !== sync.anchor?.stationMs;
+    if (!reported && clockDriven && relocked) this.onChange();
   }
 
   /** An ICY title was heard (after {@link HeardTrack.heard}). */
@@ -121,6 +148,7 @@ export class NowHearing {
 
   setPlaying(playing: boolean): void {
     if (playing) this.playingSince ??= this.now();
+    this.deps.sync.setRunning(playing, this.now());
     this.checkMode();
   }
 
@@ -154,7 +182,8 @@ export class NowHearing {
     this.deps.audible.reset();
   }
 
-  private checkMode(): void {
+  /** Fires {@link onChange} when the source or its settling changed; returns whether it did. */
+  private checkMode(): boolean {
     const { mode, anchored } = this;
     const modeChanged = mode !== this.lastMode;
     // The clock settling gives the position: the lock screen needs it too.
@@ -165,5 +194,11 @@ export class NowHearing {
     this.lastAnchored = anchored;
     if (modeChanged && mode === "clock") this.deps.audible.reconcile();
     if (modeChanged || settled) this.onChange();
+    return modeChanged || settled;
   }
 }
+
+/** Elapsed ms of `position` at wall clock `now`. */
+export const positionAt = (position: TrackPosition, now: number): number =>
+  position.elapsedMs + (position.running ? Math.max(0, now - position.at) : 0);
+

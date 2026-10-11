@@ -19,7 +19,7 @@ export type TransportState =
 //
 // Three stores by change cadence — components opt into the granularity
 // they need, so a listener-count tick never re-renders the now-playing
-// UI and a 1 Hz progress tick never re-renders anything but progress.
+// UI and a progress re-anchor never re-renders anything but progress.
 
 /** "Now playing" — changes per song / program / stream / user action. */
 export type PlayerSnapshot = {
@@ -55,9 +55,19 @@ export type StationSnapshot = {
   lastRequestedTracks?: Track[];
 };
 
-/** Progress — changes every second while a track plays. */
+/**
+ * Progress — where the heard track is, as a fixed point the UI advances in
+ * real time itself (a native bar animation, a countdown timed to each second).
+ * It changes only when the position is re-placed (a title heard, the clock
+ * locked, pause / resume), not while a track plays.
+ */
 export type ProgressSnapshot = {
-  currentTrackProgress: number | null;
+  /** Elapsed ms into the heard track at {@link progressAt}; `null` while unknown. */
+  progressMs: number | null;
+  /** Wall clock (epoch ms) {@link progressMs} holds at. */
+  progressAt: number;
+  /** Audio flows: the position advances with the wall clock from {@link progressAt}. */
+  progressRunning: boolean;
   showProgress: boolean;
 };
 
@@ -73,6 +83,8 @@ export const playerStore = createStore<PlayerSnapshot>({
 export const stationStore = createStore<StationSnapshot>({});
 
 export const progressStore = createStore<ProgressSnapshot>({
-  currentTrackProgress: null,
+  progressMs: null,
+  progressAt: 0,
+  progressRunning: false,
   showProgress: false,
 });

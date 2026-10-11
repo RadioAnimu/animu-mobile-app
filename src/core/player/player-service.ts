@@ -10,7 +10,7 @@ import type { AudioPlayer, NowPlayingMetadata } from "@/core/player/ports";
 import { buildNowPlayingMetadata } from "@/core/player/media-session/now-playing.metadata";
 import { pickPreviewArtwork, type ArtworkResolver } from "@/core/player/storage/artwork";
 import type { HeardTrack } from "@/core/player/stream-playback/heard-track";
-import type { NowHearing } from "@/core/player/stream-playback/now-hearing";
+import { positionAt, type NowHearing } from "@/core/player/stream-playback/now-hearing";
 import type { NowPlayingRepository } from "@/core/player/stream-playback/now-playing.repository";
 import type { StreamPreferences } from "@/core/player/stream-playback/stream-preferences";
 import {
@@ -514,7 +514,7 @@ export class PlayerService {
 
   private pushNowPlaying(): void {
     const meta = this.getNowPlayingMetadata();
-    const elapsed = this.deps.hearing.elapsedMs();
+    const elapsed = this.heardElapsedMs();
     void this.deps.player
       .updateNowPlaying({
         title: meta.title,
@@ -528,6 +528,20 @@ export class PlayerService {
           : {}),
       })
       .catch((error) => console.warn("[PlayerService] now playing:", error));
+  }
+
+  /**
+   * Elapsed ms for the lock screen, from the same anchor as the UI: held at
+   * the song's end once past it (the next title is not heard yet), so the
+   * seek bar stays full instead of disappearing.
+   */
+  private heardElapsedMs(): number | null {
+    const { hearing } = this.deps;
+    const position = hearing.position();
+    const duration = hearing.track?.duration ?? 0;
+    if (!position) return null;
+    const elapsed = Math.max(0, positionAt(position, Date.now()));
+    return duration > 0 ? Math.min(elapsed, duration) : elapsed;
   }
 
   // ── Foreground ticker ──
@@ -595,8 +609,13 @@ export class PlayerService {
 
   private emitProgress(): void {
     if (!this.appActive) return;
+    // An anchor, not a sample: the snapshot only changes when the position
+    // is re-placed, and the UI advances it in real time between.
+    const position = this.deps.hearing.position();
     progressStore.setSnapshot({
-      currentTrackProgress: this.deps.hearing.elapsedMs(),
+      progressMs: position?.elapsedMs ?? null,
+      progressAt: position?.at ?? 0,
+      progressRunning: position?.running ?? false,
       showProgress: this.deps.repository.showProgress,
     });
   }

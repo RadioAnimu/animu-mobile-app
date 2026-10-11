@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { isBarCorrection, isSubVisibleStep, progressRatio } from "@/utils/progress";
+import { elapsedAt, msUntilNextSecond, progressRatio } from "@/utils/progress";
 
 describe("progressRatio", () => {
   it("clamps elapsed into the 0..1 bar range", () => {
@@ -17,70 +17,33 @@ describe("progressRatio", () => {
   });
 });
 
-describe("isBarCorrection", () => {
-  const SHORT = 8_000; // 8s track
-  const LONG = 3_000_000; // 50m track
+describe("elapsedAt", () => {
+  const anchor = { progressMs: 10_000, progressAt: 1_000, progressRunning: true };
 
-  it("a fresh per-tick advance on a short track animates, not snaps", () => {
-    // 250ms of audio ≈ 3.1% of an 8s track — a normal smooth advance.
-    expect(isBarCorrection(0.031_25, 250, SHORT)).toBe(false);
+  it("advances a running anchor in real time", () => {
+    expect(elapsedAt(anchor, 60_000, 1_000)).toBe(10_000);
+    expect(elapsedAt(anchor, 60_000, 4_500)).toBe(13_500);
   });
 
-  it("a normal per-tick advance on a long track animates too", () => {
-    // 250ms of audio on a 50m track is a minuscule ratio movement.
-    expect(isBarCorrection(0.000_008, 250, LONG)).toBe(false);
+  it("holds a stopped anchor", () => {
+    expect(elapsedAt({ ...anchor, progressRunning: false }, 60_000, 9_000)).toBe(10_000);
   });
 
-  it("a move beyond real-playback speed is a correction and snaps", () => {
-    // Sync fix on a long track: 10% jump out of nowhere (250ms since render).
-    expect(isBarCorrection(0.1, 250, LONG)).toBe(true);
+  it("holds at the song's end and never goes below its start", () => {
+    expect(elapsedAt(anchor, 12_000, 99_000)).toBe(12_000);
+    expect(elapsedAt({ ...anchor, progressMs: -3_000 }, 60_000, 1_000)).toBe(0);
   });
 
-  it("a track change resetting to 0 is a correction", () => {
-    expect(isBarCorrection(-0.9, 250, LONG)).toBe(true);
-    expect(isBarCorrection(-0.1, 250, SHORT)).toBe(true);
-  });
-
-  it("the per-bar floor still snaps sub-real-time jitter on long tracks", () => {
-    // Tiny wall-time window but a jump above the floor.
-    expect(isBarCorrection(0.05, 10, LONG)).toBe(true);
-  });
-
-  it("without a duration the flat floor applies in both directions", () => {
-    expect(isBarCorrection(0.05, 250, undefined)).toBe(true);
-    // Track change resetting to 0 with no known duration must snap, not sweep.
-    expect(isBarCorrection(-0.4, 250, 0)).toBe(true);
-    expect(isBarCorrection(-0.01, 250, undefined)).toBe(false);
-  });
-
-  it("any backward move above the floor is a correction, even within the real-time window", () => {
-    // A sync re-lock after a thaw can pull the bar back; real playback never
-    // travels backwards, so this must snap on short tracks too.
-    expect(isBarCorrection(-0.05, 250, SHORT)).toBe(true);
-    expect(isBarCorrection(-0.01, 250, SHORT)).toBe(false);
-  });
-
-  it("a late update crossing the max real-time window still animates", () => {
-    // 2s of silent wall time on a 8s track: expected ≈ 37.5%… beyond that
-    // the correction is a real re-anchor.
-    expect(isBarCorrection(0.5, 2000, SHORT)).toBe(true);
-    // But a gap explainable by real playback stays smooth.
-    expect(isBarCorrection(0.3, 2000, SHORT)).toBe(false);
+  it("is unknown without an anchor, and unbounded without a duration", () => {
+    expect(elapsedAt({ ...anchor, progressMs: null }, 60_000, 2_000)).toBeNull();
+    expect(elapsedAt(anchor, 0, 101_000)).toBe(110_000);
   });
 });
 
-describe("isSubVisibleStep", () => {
-  it("treats a 250ms advance on a long track as invisible on a phone-width bar", () => {
-    // 250ms of a 4 min track on a 360dp bar ≈ 0.375dp.
-    expect(isSubVisibleStep(250 / 240_000, 360)).toBe(true);
-  });
-
-  it("keeps animating when the step is visible (short tracks)", () => {
-    // 250ms of an 8s track on a 360dp bar ≈ 11dp.
-    expect(isSubVisibleStep(250 / 8_000, 360)).toBe(false);
-  });
-
-  it("never swallows backward moves", () => {
-    expect(isSubVisibleStep(-0.0001, 360)).toBe(false);
+describe("msUntilNextSecond", () => {
+  it("waits for the remaining time to cross the next whole second", () => {
+    expect(msUntilNextSecond(5_300)).toBe(301);
+    expect(msUntilNextSecond(5_000)).toBe(1);
+    expect(msUntilNextSecond(4_999)).toBe(1_000);
   });
 });

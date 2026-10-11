@@ -134,6 +134,59 @@ describe("NowHearing", () => {
     expect(t.hearing.mode).toBe("clock");
   });
 
+  describe("once synced, the position only moves in real time", () => {
+    const jitter = [14.2, 17.9, 12.5, 16.1, 15.4, 13.3, 17.0, 11.8];
+
+    it("a tune-in ignores later lag jitter", () => {
+      const t = setup(); // Song A: on air for 60 s
+      t.hearing.setPlaying(true);
+      t.heard.heard("Song A", Date.now(), true, 4_800);
+      t.hearing.titleWasHeard();
+      t.play(4, 17);
+      const position = t.hearing.position();
+      expect(t.hearing.elapsedMs()).toBe(47_000);
+      t.changes.mockClear();
+      for (const lag of jitter) t.play(1, lag);
+      expect(t.hearing.position()).toEqual(position);
+      expect(t.hearing.elapsedMs()).toBe(47_000 + jitter.length * 1_000);
+      expect(t.changes).not.toHaveBeenCalled(); // nothing to re-push to the lock screen
+    });
+
+    it("without titles, the clock ignores later lag jitter", () => {
+      const t = setup();
+      t.hearing.setPlaying(true);
+      t.play(13, 6);
+      expect(t.hearing.elapsedMs()).toBe(67_000);
+      const position = t.hearing.position();
+      for (const lag of jitter.map((l) => l - 10)) t.play(1, lag);
+      expect(t.hearing.position()).toEqual(position);
+      expect(t.hearing.elapsedMs()).toBe(67_000 + jitter.length * 1_000);
+    });
+
+    it("holds through a pause and resumes where the audio was", () => {
+      const t = setup();
+      t.hearing.setPlaying(true);
+      t.play(13, 6);
+      t.hearing.setPlaying(false);
+      vi.advanceTimersByTime(30_000);
+      expect(t.hearing.position()?.running).toBe(false);
+      expect(t.hearing.elapsedMs()).toBe(67_000);
+      t.hearing.setPlaying(true);
+      t.play(2, 36); // the buffer now trails by the 30 s paused as well
+      expect(t.hearing.elapsedMs()).toBe(69_000);
+    });
+
+    it("a re-lock (the lock was early) reaches the lock screen", () => {
+      const t = setup();
+      t.hearing.setPlaying(true);
+      t.play(13, 6);
+      t.changes.mockClear();
+      t.play(5, 9); // the connect burst finished loading: 3 s more behind
+      expect(t.changes).toHaveBeenCalledTimes(1);
+      expect(t.hearing.elapsedMs()).toBe(67_000 + 5_000 - 3_000);
+    });
+  });
+
   it("does not count paused time before audio ever played", () => {
     const t = setup();
     t.play(30);

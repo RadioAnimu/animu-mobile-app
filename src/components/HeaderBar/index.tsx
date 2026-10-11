@@ -2,13 +2,7 @@ import { useNavigation } from "@react-navigation/native";
 import type { DrawerNavigationProp } from "@react-navigation/drawer";
 import { useEffect, useRef, useState } from "react";
 import { Image } from "expo-image";
-import {
-  Animated,
-  Easing,
-  TouchableOpacity,
-  View,
-  useWindowDimensions,
-} from "react-native";
+import { Animated, Easing, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import menuIcon from "@/assets/icons/menu.webp";
 import noteIcon from "@/assets/icons/note.webp";
@@ -31,12 +25,7 @@ import { useIsBackgrounded } from "@/contexts/app-state/AppStateProvider";
 import { useDict } from "@/hooks/useDict";
 import { useBlink } from "@/hooks/useBlink";
 import { useReducedMotion } from "@/hooks/useReducedMotion";
-import { useSmoothedElapsed } from "@/hooks/useSmoothedElapsed";
-import {
-  progressRatio,
-  isBarCorrection,
-  isSubVisibleStep,
-} from "@/utils/progress";
+import { elapsedAt, progressRatio } from "@/utils/progress";
 import type { DrawerParamList } from "@/routes/app.routes";
 import { haptics } from "@/utils/haptics";
 
@@ -51,7 +40,6 @@ const PULSE_DURATION = 1750;
 /** Resting vertical offset of the live badge; the pulse bobs it up and back. */
 const PULSE_TRAVEL = 50;
 const PULSE_BOB = PULSE_TRAVEL * 2 * PULSE_OPACITY;
-const PROGRESS_ANIM_DURATION = 300;
 
 export function HeaderBar({ openLiveRequestModal }: Readonly<Props>) {
   const navigation =
@@ -61,23 +49,18 @@ export function HeaderBar({ openLiveRequestModal }: Readonly<Props>) {
   const player = usePlayer();
   const isBackgrounded = useIsBackgrounded();
   const reduceMotion = useReducedMotion();
-  const { width: windowWidth } = useWindowDimensions();
   const { currentTrack, currentProgram } = player;
-  const { currentTrackProgress, showProgress } = useTrackProgress();
+  const progress = useTrackProgress();
+  const { progressMs, progressAt, progressRunning, showProgress } = progress;
+  const duration = currentTrack?.duration ?? 0;
   // The bar spawns AT the live ratio (cold start, screen switch, thaw after
   // a background freeze) — no first frame at 0 that then snaps forward.
   const [progressAnim] = useState(() =>
     new Animated.Value(
-      progressRatio(currentTrackProgress, currentTrack?.duration),
+      progressRatio(elapsedAt(progress, duration, Date.now()), duration),
     ),
   );
   const [status, setStatus] = useState<Status>("playing");
-  // Smoothed so the bar advances continuously between the ~1 Hz updates
-  // instead of stuttering on a late/jittery progress value.
-  const smoothedElapsed = useSmoothedElapsed(
-    currentTrackProgress,
-    currentTrack?.raw,
-  );
   /** Still locking the audible clock — the bar is a guess until then. */
   const syncing = player.syncing;
 
@@ -88,56 +71,30 @@ export function HeaderBar({ openLiveRequestModal }: Readonly<Props>) {
   // (and resets to full opacity) the moment sync lands or the app hides.
   const syncBlink = useBlink(syncing && showProgress && !isBackgrounded);
 
-  // Last bar target, to tell a real jump (new track / sync completed) from the
-  // small per-tick advance.
-  const lastBarTarget = useRef(0);
-  const lastBarRun = useRef(0);
-  const wasSyncing = useRef(player.syncing);
   /** Re-entrancy guard: two taps in one frame must not toggle twice. */
   const changingRef = useRef(false);
 
+  // The position is a real-time anchor, so the bar runs optimistically: placed
+  // at the live ratio, then ONE linear native animation to the song's end.
+  // Nothing re-drives it per second — only a re-anchor (new song, sync locked,
+  // pause / resume) restarts it, from exactly where the audio is.
   useEffect(() => {
-    const duration = currentTrack?.duration ?? 0;
-    const hasProgress =
-      smoothedElapsed != null &&
-      Number.isFinite(smoothedElapsed) &&
-      Number.isFinite(duration) &&
-      duration > 0;
-
-    const target = hasProgress ? progressRatio(smoothedElapsed, duration) : 0;
-
-    const previous = lastBarTarget.current;
-    lastBarTarget.current = target;
-    const nowMs = Date.now();
-    const sinceEffect = lastBarRun.current ? nowMs - lastBarRun.current : 0;
-    lastBarRun.current = nowMs;
-    const justSynced = wasSyncing.current && !syncing;
-    wasSyncing.current = syncing;
-
-    // Spotify-style: a move bigger than real playback could have produced
-    // since the last render — the next track resetting to 0, or the
-    // corrected position once synchronizing finishes — SNAPS so the bar
-    // never sweeps back. Normal per-tick advances animate, which keeps
-    // short tracks smooth along with long ones.
-    if (justSynced || isBarCorrection(target - previous, sinceEffect, duration)) {
-      progressAnim.setValue(target);
-      return;
+    const anchor = { progressMs, progressAt, progressRunning };
+    const elapsed = elapsedAt(anchor, duration, Date.now());
+    const ratio = progressRatio(elapsed, duration);
+    progressAnim.setValue(ratio);
+    if (elapsed == null || !progressRunning || isBackgrounded || ratio >= 1) {
+      return undefined;
     }
-
-    // A sub-pixel advance (long track) is set directly: tweening it would
-    // keep a native animation in flight nonstop for no visible gain.
-    if (isSubVisibleStep(target - previous, windowWidth)) {
-      progressAnim.setValue(target);
-      return;
-    }
-
-    Animated.timing(progressAnim, {
-      toValue: target,
-      duration: PROGRESS_ANIM_DURATION,
+    const run = Animated.timing(progressAnim, {
+      toValue: 1,
+      duration: duration - elapsed,
       easing: Easing.linear,
       useNativeDriver: true,
-    }).start();
-  }, [progressAnim, currentTrack, smoothedElapsed, syncing, windowWidth]);
+    });
+    run.start();
+    return () => run.stop();
+  }, [progressAnim, progressMs, progressAt, progressRunning, duration, isBackgrounded]);
 
   const showLiveBadge = Boolean(currentProgram?.isLive && openLiveRequestModal);
 
