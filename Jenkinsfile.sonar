@@ -31,8 +31,8 @@ pipeline {
               # Retain dependencies for TypeScript analysis, but skip postinstall
               # builds: coverage and compiled packages come from validated CI.
               pnpm install --frozen-lockfile --ignore-scripts
+              node scripts/prepare-submodules.mjs
               if ! node scripts/ci-results.mjs restore RadioAnimu/animu-mobile-app; then
-                node scripts/prepare-submodules.mjs
                 CI=true pnpm run test:coverage
               fi
               test -s coverage/lcov.info
