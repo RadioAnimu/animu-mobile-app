@@ -6,19 +6,24 @@ import { Cover } from "@/components/Cover";
 
 // The mocked Image records which SOURCE it was rendered with, so the test
 // can observe the fallback↔remote reload cycle without a real image decoder.
+const LOADED = (width: number, height: number) => ({
+  source: { width, height },
+});
 const renders: ("remote" | "bundled")[] = [];
 // Latest props handed to the mocked Image (onError/onLoad drive the flow).
 let lastProps: {
   source: { uri?: string } | number | object;
   onError?: () => void;
-  onLoad?: () => void;
+  onLoad?: (event: { source: { width: number; height: number } }) => void;
+  style?: unknown;
 } | null = null;
 
 vi.mock("expo-image", () => ({
   Image: (props: {
     source: { uri?: string } | number | object;
     onError?: () => void;
-    onLoad?: () => void;
+    onLoad?: (event: { source: { width: number; height: number } }) => void;
+    style?: unknown;
   }) => {
     lastProps = props;
     const isRemote = typeof props.source === "object" && "uri" in props.source;
@@ -59,7 +64,7 @@ describe("Cover bounded retry", () => {
 
     // Failure #1 → fallback (the bundled asset) shows and LOADS.
     act(() => lastProps?.onError?.());
-    act(() => lastProps?.onLoad?.()); // fallback onLoad — must NOT reset the counter
+    act(() => lastProps?.onLoad?.(LOADED(240, 240))); // fallback onLoad — must NOT reset the counter
 
     // Retry after the 3s delay; failure #2 must exhaust the bound.
     act(() => vi.advanceTimersByTime(3000));
@@ -81,7 +86,32 @@ describe("Cover bounded retry", () => {
     expect(REMOTE_ATTEMPTS()).toBe(2); // failure #1 → retry reloads
 
     // The retry succeeds: state is clean again for any future failure.
-    act(() => lastProps?.onLoad?.());
+    act(() => lastProps?.onLoad?.(LOADED(240, 240)));
     expect(lastProps?.source).toHaveProperty("uri", COVER);
+  });
+
+  it("keeps the square frame unless asked to preserve the aspect ratio", () => {
+    render(<Cover cover={COVER} />);
+
+    act(() => lastProps?.onLoad?.(LOADED(300, 600)));
+    expect(JSON.stringify(lastProps?.style)).not.toContain("aspectRatio");
+  });
+
+  it("follows the image's real proportions at the frame's width", () => {
+    const { rerender } = render(<Cover cover={COVER} preserveAspectRatio />);
+    expect(lastProps?.style).toContainEqual(
+      expect.objectContaining({ aspectRatio: 1 }),
+    );
+
+    act(() => lastProps?.onLoad?.(LOADED(300, 600)));
+    expect(lastProps?.style).toContainEqual(
+      expect.objectContaining({ aspectRatio: 0.5, height: null }),
+    );
+
+    // A new cover never renders with the previous artwork's proportions.
+    rerender(<Cover cover="https://cdn.test/other.jpg" preserveAspectRatio />);
+    expect(lastProps?.style).toContainEqual(
+      expect.objectContaining({ aspectRatio: 1 }),
+    );
   });
 });

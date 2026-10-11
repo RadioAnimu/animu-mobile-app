@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Image, type ImageStyle } from "expo-image";
 import type { StyleProp } from "react-native";
 import DEFAULT_COVER from "@app/assets/default-cover.png";
-import { styles } from "@/components/Cover/styles";
+import { SIZE, styles } from "@/components/Cover/styles";
 import { THEME } from "@/theme";
 import { useUserSettings } from "@/contexts/user/UserSettingsProvider";
 import { RETRY_DELAY_MS } from "@/hooks/useBoundedRetry";
@@ -31,6 +31,12 @@ interface Props {
    * Only meaningful while the disk cache is on.
    */
   category?: CoverCacheCategory;
+  /**
+   * Shows the artwork in its real proportions instead of cropping it to the
+   * square: the width stays the frame's, the height follows the image. The
+   * frame is square until the image reports its size.
+   */
+  preserveAspectRatio?: boolean;
 }
 
 /**
@@ -54,7 +60,13 @@ interface Props {
  * renders the bundled asset at intrinsic size inside a transparent
  * frame (small logo, background showing through).
  */
-export function Cover({ cover, style, recyclingKey, category }: Readonly<Props>) {
+export function Cover({
+  cover,
+  style,
+  recyclingKey,
+  category,
+  preserveAspectRatio,
+}: Readonly<Props>) {
   const { settings } = useUserSettings();
   // Failure count lives per URL in a ref, NOT in the state that derives the
   // fallback: clearing that state to retry used to discard the count and the
@@ -62,6 +74,11 @@ export function Cover({ cover, style, recyclingKey, category }: Readonly<Props>)
   // the fallback; the ref survives the retry.
   const attemptsByUrl = useRef<Map<string, number>>(new Map());
   const [failedUrl, setFailedUrl] = useState<string | null>(null);
+  // Tied to the URL like `failedUrl`, so a new cover never renders one frame
+  // with the previous artwork's proportions.
+  const [measured, setMeasured] = useState<{ url: string; ratio: number } | null>(
+    null,
+  );
 
   // Attribute the cached file to this surface — what the storage card reports.
   useEffect(() => {
@@ -71,6 +88,10 @@ export function Cover({ cover, style, recyclingKey, category }: Readonly<Props>)
   }, [cover, category, settings.cacheEnabled]);
 
   const showFallback = failedUrl === cover;
+  const ratio =
+    preserveAspectRatio && !showFallback && measured?.url === cover
+      ? measured.ratio
+      : 1;
 
   // Self-heal transient failures (bounded — a dead URL stops retrying)
   useEffect(() => {
@@ -83,7 +104,11 @@ export function Cover({ cover, style, recyclingKey, category }: Readonly<Props>)
   return (
     <Image
       source={showFallback ? DEFAULT_COVER : { uri: cover }}
-      style={[{ backgroundColor: THEME.COLORS.APP_BG }, style ?? styles.image]}
+      style={[
+        { backgroundColor: THEME.COLORS.APP_BG },
+        style ?? styles.image,
+        preserveAspectRatio && { width: SIZE, height: null, aspectRatio: ratio },
+      ]}
       placeholder={DEFAULT_COVER}
       placeholderContentFit="cover"
       onError={() => {
@@ -93,11 +118,15 @@ export function Cover({ cover, style, recyclingKey, category }: Readonly<Props>)
         );
         setFailedUrl(cover);
       }}
-      onLoad={() => {
+      onLoad={(event) => {
         // The fallback (bundled asset) loads too and fires this — it must
         // NOT clear the failure state or it wipes the attempt counter and
         // the bounded retry loops forever on a dead URL.
         if (!showFallback) {
+          const { width, height } = event.source;
+          if (preserveAspectRatio && width > 0 && height > 0) {
+            setMeasured({ url: cover, ratio: width / height });
+          }
           attemptsByUrl.current.delete(cover);
           setFailedUrl(null);
         }
