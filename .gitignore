@@ -69,6 +69,9 @@ src/assets/fonts/*.otf
 coverage/
 junit.xml
 
+# Persistent native build cache
+.gradle-home/
+
 # CI release signing scratch (Jenkins workspace only)
 .signing/
 .signing.json
