@@ -20,8 +20,6 @@ jobs:
     env:
       CI: true
       GH_TOKEN: ${{ github.token }}
-      YARN_GLOBAL_FOLDER: ${{ runner.temp }}/animu-yarn
-      XDG_CACHE_HOME: ${{ runner.temp }}/animu-tools
     steps:
       - uses: actions/checkout@v7
         with:
@@ -37,6 +35,11 @@ jobs:
         with:
           node-version: 22
           cache: pnpm
+
+      - name: Configure download stores
+        run: |
+          echo "YARN_GLOBAL_FOLDER=$RUNNER_TEMP/animu-yarn" >> "$GITHUB_ENV"
+          echo "XDG_CACHE_HOME=$RUNNER_TEMP/animu-tools" >> "$GITHUB_ENV"
 
       - name: Cache isolated library downloads and verified tools
         uses: actions/cache@v5
