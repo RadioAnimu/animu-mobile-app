@@ -5,199 +5,337 @@ import { scale } from "@/theme/responsive";
 import { SCREEN_STYLES } from "@/theme/screen";
 import { CONTINUOUS, avatarRadius } from "@/theme/shape";
 
-export const HEAT_CELL = 10;
-export const HEAT_GAP = 2;
-export const HEAT_WEEKS = 26;
+/** Smallest heatmap cell — the grid shows as many weeks as fit at this size. */
+export const HEAT_MIN_CELL = scale(14);
+export const HEAT_GAP = scale(3);
+/** Bounds on the week columns the heatmap shows (≈2 – 6 months). */
+export const HEAT_MIN_WEEKS = 8;
+export const HEAT_MAX_WEEKS = 26;
+/** Weekday-letter column left of the grid, and its gap to the first week. */
+export const HEAT_DOW_WIDTH = scale(16);
+export const HEAT_DOW_GAP = THEME.SPACE.XS;
 
-/** Heat intensity steps — brand green from a whisper to full. */
+/**
+ * Heat intensity steps on the SURFACE card: an empty step lifted just off
+ * the surface, then one green hue from deep to full brand. Opaque, so the
+ * mid steps stay green — translucent brand over violet mixes to olive grey.
+ */
 export const HEAT_LEVELS = [
-  "rgba(255, 255, 255, 0.06)",
-  "rgba(107, 219, 0, 0.25)",
-  "rgba(107, 219, 0, 0.45)",
-  "rgba(107, 219, 0, 0.7)",
+  "#3A1667",
+  "#1F4D1C",
+  "#2F7A12",
+  "#4FAE06",
   THEME.COLORS.BRAND,
 ] as const;
+
+/** Plain bars of the profile/day histograms; the peak gets full brand. */
+const BAR_COLOR = HEAT_LEVELS[2];
+const BARS_HEIGHT = scale(64);
+
+/**
+ * Share card logo box, at the logo canvas' own 1200×630 ratio: the visible
+ * art comes out ≈70pt wide — a touch over the first card's, still a
+ * signature rather than a headline.
+ */
+const SHARE_LOGO_H = scale(46);
+const SHARE_LOGO_W = SHARE_LOGO_H * (1200 / 630);
+
+const caption = {
+  color: THEME.COLORS.TEXT_DIM,
+  fontFamily: THEME.FONT_FAMILY.REGULAR,
+  fontSize: THEME.FONT_SIZE.CAPTION,
+} as const;
 
 export const styles = StyleSheet.create({
   container: SCREEN_STYLES.container,
   content: SCREEN_STYLES.content,
   group: SCREEN_STYLES.group,
-  cardPadding: {
-    padding: THEME.SPACE.LG,
+  divider: {
+    backgroundColor: THEME.COLORS.HAIRLINE,
+    height: StyleSheet.hairlineWidth,
   },
-  hint: {
-    color: THEME.COLORS.TEXT_DIM,
-    fontFamily: THEME.FONT_FAMILY.REGULAR,
-    fontSize: THEME.FONT_SIZE.CAPTION,
-    marginTop: THEME.SPACE.SM,
-    paddingHorizontal: THEME.SPACE.LG,
-  },
-  detailGap: {
-    marginTop: THEME.SPACE.XL,
-  },
-  afterCardGap: {
-    marginTop: THEME.SPACE.XXL,
-  },
-  // A true two-column grid: every value starts on one of two shared
-  // x-positions instead of wherever the label before it happened to end.
-  overview: {
+  caption,
+
+  // ── Sign-in state notice ──
+  notice: {
+    alignItems: "flex-start",
+    borderColor: THEME.COLORS.HAIRLINE_SOFT,
+    borderRadius: THEME.RADIUS.CARD,
+    ...CONTINUOUS,
+    borderWidth: 1,
     flexDirection: "row",
-    flexWrap: "wrap",
-    rowGap: THEME.SPACE.XL,
-    padding: THEME.SPACE.LG,
-  },
-  statItem: {
-    gap: THEME.SPACE.XXS,
-    width: "50%",
-    paddingRight: THEME.SPACE.SM,
-  },
-  statLabel: {
-    color: THEME.COLORS.TEXT_DIM,
-    fontFamily: THEME.FONT_FAMILY.REGULAR,
-    fontSize: THEME.FONT_SIZE.CAPTION,
-  },
-  statValue: {
-    color: THEME.COLORS.TEXT,
-    fontFamily: THEME.FONT_FAMILY.BOLD,
-    fontSize: THEME.FONT_SIZE.LIST,
-  },
-  // ── Heatmap ──
-  heatScroll: {
-    flexGrow: 0,
-  },
-  heatGrid: {
+    gap: THEME.SPACE.SM,
+    marginTop: THEME.SPACE.MD,
     padding: THEME.SPACE.MD,
   },
-  heatMonthRow: {
+  noticeText: {
+    color: THEME.COLORS.TEXT_SOFT,
+    flex: 1,
+    fontFamily: THEME.FONT_FAMILY.REGULAR,
+    fontSize: THEME.FONT_SIZE.LABEL,
+    lineHeight: THEME.LINE_HEIGHT.CAPTION,
+  },
+
+  // ── Overview ──
+  hero: {
+    gap: THEME.SPACE.XXS,
+    padding: THEME.SPACE.LG,
+  },
+  heroValue: {
+    color: THEME.COLORS.TEXT,
+    fontFamily: THEME.FONT_FAMILY.BOLD,
+    fontSize: scale(34),
+  },
+  heroMeta: {
+    ...caption,
+    color: THEME.COLORS.TEXT_SOFT,
+  },
+  tiles: {
     flexDirection: "row",
-    // Align with the week columns: grid padding + the weekday-letter column
-    // (icon box + gap) that the labels must clear.
-    marginLeft: THEME.SPACE.MD + THEME.SPACE.MD + THEME.SPACE.XXS,
-    marginBottom: THEME.SPACE.XXS,
-    height: THEME.FONT_SIZE.CAPTION,
+    flexWrap: "wrap",
+    gap: THEME.SPACE.SM,
+    marginTop: THEME.SPACE.SM,
+  },
+  // Two per row: half the row minus half the gap between them.
+  tile: {
+    ...SCREEN_STYLES.group,
+    flexBasis: "48%",
+    flexGrow: 1,
+    gap: THEME.SPACE.XS,
+    padding: THEME.SPACE.MD,
+  },
+  tileValue: {
+    color: THEME.COLORS.TEXT,
+    fontFamily: THEME.FONT_FAMILY.BOLD,
+    fontSize: THEME.FONT_SIZE.HEADING,
+  },
+  tileLabel: caption,
+
+  // ── Top songs / anime ──
+  topEmpty: {
+    padding: THEME.SPACE.LG,
+  },
+  topRow: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: THEME.SPACE.MD,
+    paddingHorizontal: THEME.SPACE.LG,
+    paddingVertical: THEME.SPACE.SM,
+  },
+  topDivider: {
+    backgroundColor: THEME.COLORS.HAIRLINE,
+    height: StyleSheet.hairlineWidth,
+    // Inset to the text column: rank + cover + their gaps.
+    marginLeft: THEME.SPACE.LG + scale(18) + scale(44) + THEME.SPACE.MD * 2,
+  },
+  topRank: {
+    color: THEME.COLORS.TEXT_DIM,
+    fontFamily: THEME.FONT_FAMILY.BOLD,
+    fontSize: THEME.FONT_SIZE.BODY,
+    textAlign: "center",
+    width: scale(18),
+  },
+  topRankFirst: {
+    color: THEME.COLORS.BRAND,
+  },
+  topCover: {
+    alignItems: "center",
+    backgroundColor: THEME.COLORS.SURFACE_SUBTLE,
+    borderRadius: THEME.RADIUS.SM,
+    ...CONTINUOUS,
+    height: scale(44),
+    justifyContent: "center",
+    overflow: "hidden",
+    width: scale(44),
+  },
+  topCoverImage: {
+    height: "100%",
+    width: "100%",
+  },
+  topText: {
+    flex: 1,
+    gap: THEME.SPACE.XXS,
+  },
+  topTitle: {
+    color: THEME.COLORS.TEXT,
+    fontFamily: THEME.FONT_FAMILY.BOLD,
+    fontSize: THEME.FONT_SIZE.BODY,
+  },
+  topPlays: {
+    ...caption,
+    color: THEME.COLORS.TEXT_SOFT,
+  },
+
+  // ── Heatmap ──
+  heatCard: {
+    gap: THEME.SPACE.SM,
+    padding: THEME.SPACE.LG,
+  },
+  heatMonthRow: {
+    height: THEME.LINE_HEIGHT.CAPTION,
+    marginLeft: HEAT_DOW_WIDTH + HEAT_DOW_GAP,
   },
   heatMonthLabel: {
-    color: THEME.COLORS.TEXT_DIM,
-    fontFamily: THEME.FONT_FAMILY.REGULAR,
-    fontSize: THEME.FONT_SIZE.CAPTION,
+    ...caption,
     position: "absolute",
+    top: 0,
   },
   heatBodyRow: {
     flexDirection: "row",
+    gap: HEAT_DOW_GAP,
   },
   heatDowColumn: {
-    width: THEME.SPACE.MD,
-    justifyContent: "space-between",
-    marginRight: THEME.SPACE.XXS,
+    gap: HEAT_GAP,
+    width: HEAT_DOW_WIDTH,
   },
   heatDowLabel: {
-    color: THEME.COLORS.TEXT_DIM,
-    fontFamily: THEME.FONT_FAMILY.REGULAR,
-    fontSize: THEME.FONT_SIZE.CAPTION,
-    lineHeight: HEAT_CELL,
+    ...caption,
+    fontSize: scale(10),
+    textAlign: "left",
+  },
+  heatWeeks: {
+    flexDirection: "row",
+    gap: HEAT_GAP,
   },
   heatWeek: {
     gap: HEAT_GAP,
-    marginRight: HEAT_GAP,
   },
   heatCell: {
-    width: HEAT_CELL,
-    height: HEAT_CELL,
-    borderRadius: THEME.RADIUS.XS,
+    borderRadius: THEME.RADIUS.XS + 1,
+  },
+  heatCellToday: {
+    borderColor: THEME.COLORS.TEXT_DIM,
+    borderWidth: 1,
   },
   heatCellSelected: {
-    borderWidth: 1,
     borderColor: THEME.COLORS.TEXT,
+    borderWidth: 2,
+  },
+  heatFooter: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: THEME.SPACE.SM,
+    justifyContent: "space-between",
   },
   heatLegend: {
     alignItems: "center",
     flexDirection: "row",
-    gap: THEME.SPACE.XS,
-    justifyContent: "flex-end",
-    paddingHorizontal: THEME.SPACE.MD,
-    paddingBottom: THEME.SPACE.MD,
-  },
-  heatLegendLabel: {
-    color: THEME.COLORS.TEXT_DIM,
-    fontFamily: THEME.FONT_FAMILY.REGULAR,
-    fontSize: THEME.FONT_SIZE.CAPTION,
+    gap: THEME.SPACE.XXS,
   },
   heatLegendCell: {
-    width: HEAT_CELL,
-    height: HEAT_CELL,
     borderRadius: THEME.RADIUS.XS,
+    height: scale(10),
+    width: scale(10),
   },
-  // ── Streak / detail rows ──
-  row: {
-    alignItems: "center",
+
+  // ── Day detail ──
+  dayDetail: {
+    gap: THEME.SPACE.MD,
+    padding: THEME.SPACE.LG,
+  },
+  dayHeader: {
+    alignItems: "baseline",
     flexDirection: "row",
-    justifyContent: "space-between",
-    minHeight: THEME.LAYOUT.ROW_MIN_HEIGHT,
-    paddingHorizontal: THEME.SPACE.LG,
-  },
-  rowLabel: {
-    color: THEME.COLORS.TEXT,
-    fontFamily: THEME.FONT_FAMILY.BOLD,
-    fontSize: THEME.FONT_SIZE.LIST,
-  },
-  rowValue: {
-    color: THEME.COLORS.TEXT_SOFT,
-    fontFamily: THEME.FONT_FAMILY.REGULAR,
-    fontSize: THEME.FONT_SIZE.LIST,
-  },
-  divider: {
-    backgroundColor: THEME.COLORS.HAIRLINE,
-    height: StyleSheet.hairlineWidth,
-    marginLeft: THEME.SPACE.LG,
+    gap: THEME.SPACE.SM,
   },
   dayTitle: {
     color: THEME.COLORS.TEXT,
     fontFamily: THEME.FONT_FAMILY.BOLD,
-    fontSize: THEME.FONT_SIZE.SUBHEAD,
+    fontSize: THEME.FONT_SIZE.LIST,
   },
   dayGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: THEME.SPACE.XL,
-    paddingBottom: THEME.SPACE.MD,
+    rowGap: THEME.SPACE.MD,
   },
+  dayStat: {
+    gap: THEME.SPACE.XXS,
+    paddingRight: THEME.SPACE.SM,
+    width: "33.33%",
+  },
+  dayStatValue: {
+    color: THEME.COLORS.TEXT,
+    fontFamily: THEME.FONT_FAMILY.BOLD,
+    fontSize: THEME.FONT_SIZE.LIST,
+  },
+
   // ── Profile bars ──
   profileGroup: {
-    flexDirection: "column",
-    gap: THEME.SPACE.LG,
+    gap: THEME.SPACE.XL,
     padding: THEME.SPACE.LG,
   },
-  profileCaption: {
-    color: THEME.COLORS.TEXT_DIM,
-    fontFamily: THEME.FONT_FAMILY.REGULAR,
-    fontSize: THEME.FONT_SIZE.CAPTION,
-    marginBottom: THEME.SPACE.XS,
+  profileBlock: {
+    gap: THEME.SPACE.SM,
+  },
+  profileHeader: {
+    alignItems: "baseline",
+    flexDirection: "row",
+    gap: THEME.SPACE.SM,
+    justifyContent: "space-between",
+  },
+  profilePeak: {
+    color: THEME.COLORS.BRAND,
+    flexShrink: 1,
+    fontFamily: THEME.FONT_FAMILY.BOLD,
+    fontSize: THEME.FONT_SIZE.LABEL,
+    textAlign: "right",
   },
   barsRow: {
     alignItems: "flex-end",
     flexDirection: "row",
-    gap: THEME.SPACE.XXS,
-    height: 72,
+    gap: scale(3),
+    height: BARS_HEIGHT,
   },
   bar: {
-    backgroundColor: "rgba(107, 219, 0, 0.35)",
-    borderRadius: THEME.RADIUS.XS,
+    backgroundColor: BAR_COLOR,
+    // Rounded data end, square baseline.
+    borderTopLeftRadius: THEME.RADIUS.XS,
+    borderTopRightRadius: THEME.RADIUS.XS,
     flex: 1,
-    minHeight: 2,
+  },
+  barEmpty: {
+    backgroundColor: THEME.COLORS.HAIRLINE_SOFT,
   },
   barPeak: {
     backgroundColor: THEME.COLORS.BRAND,
   },
+  barsBaseline: {
+    backgroundColor: THEME.COLORS.HAIRLINE,
+    height: StyleSheet.hairlineWidth,
+  },
   barsLabels: {
     flexDirection: "row",
-    gap: THEME.SPACE.XXS,
-    marginTop: THEME.SPACE.XXS,
+    gap: scale(3),
   },
   barLabel: {
-    color: THEME.COLORS.TEXT_DIM,
+    ...caption,
     flex: 1,
-    fontFamily: THEME.FONT_FAMILY.REGULAR,
     fontSize: scale(10),
+    textAlign: "center",
+  },
+  // Hour axis: a label every 6 hours, anchored at its bar's left edge so
+  // "0" sits under midnight instead of floating between bars.
+  barLabelHour: {
+    ...caption,
+    fontSize: scale(10),
+    position: "absolute",
+    top: 0,
+  },
+  hourAxis: {
+    height: THEME.LINE_HEIGHT.CAPTION,
+  },
+
+  // ── Empty state ──
+  emptyCard: {
+    alignItems: "center",
+    gap: THEME.SPACE.SM,
+    marginTop: THEME.SPACE.XXL,
+    padding: THEME.SPACE.XL,
+  },
+  emptyTitle: {
+    color: THEME.COLORS.TEXT,
+    fontFamily: THEME.FONT_FAMILY.BOLD,
+    fontSize: THEME.FONT_SIZE.LIST,
     textAlign: "center",
   },
   emptyText: {
@@ -205,28 +343,9 @@ export const styles = StyleSheet.create({
     fontFamily: THEME.FONT_FAMILY.REGULAR,
     fontSize: THEME.FONT_SIZE.BODY,
     lineHeight: THEME.LINE_HEIGHT.RELAXED,
-    padding: THEME.SPACE.LG,
     textAlign: "center",
   },
-  emptyTitle: {
-    color: THEME.COLORS.TEXT,
-    fontFamily: THEME.FONT_FAMILY.BOLD,
-    fontSize: THEME.FONT_SIZE.LIST,
-    paddingBottom: THEME.SPACE.SM,
-    textAlign: "center",
-  },
-  emptyCard: {
-    alignItems: "center",
-    padding: THEME.SPACE.XL,
-  },
-  footnote: {
-    color: THEME.COLORS.TEXT_DIM,
-    fontFamily: THEME.FONT_FAMILY.REGULAR,
-    fontSize: THEME.FONT_SIZE.CAPTION,
-    lineHeight: THEME.LINE_HEIGHT.BODY,
-    paddingHorizontal: THEME.SPACE.LG,
-    textAlign: "center",
-  },
+
   // ── Share card ──
   // Content-driven height with an explicit row rhythm (gap between rows) —
   // no minHeight/stretch, so the card is exactly as tall as its rows.
@@ -235,14 +354,7 @@ export const styles = StyleSheet.create({
     ...CONTINUOUS,
     overflow: "hidden",
   },
-  shareCardBanner: {
-    bottom: 0,
-    left: 0,
-    position: "absolute",
-    right: 0,
-    top: 0,
-  },
-  shareCardScrim: {
+  shareCardFill: {
     bottom: 0,
     left: 0,
     position: "absolute",
@@ -265,7 +377,6 @@ export const styles = StyleSheet.create({
     borderRadius: avatarRadius(scale(48)),
     ...CONTINUOUS,
     borderWidth: scale(2),
-    borderColor: THEME.COLORS.BRAND,
     backgroundColor: "rgba(0, 0, 0, 0.25)",
   },
   shareCardNames: {
@@ -275,9 +386,6 @@ export const styles = StyleSheet.create({
   shareCardName: {
     fontFamily: THEME.FONT_FAMILY.BOLD,
     fontSize: THEME.FONT_SIZE.SUBHEAD,
-    textShadowRadius: scale(6),
-    textShadowColor: "rgba(0, 0, 0, 0.35)",
-    textShadowOffset: { width: 0, height: 1 },
   },
   shareCardHandle: {
     fontFamily: THEME.FONT_FAMILY.REGULAR,
@@ -286,41 +394,39 @@ export const styles = StyleSheet.create({
   shareCardStats: {
     alignItems: "flex-end",
     flexDirection: "row",
-    gap: THEME.SPACE.XL,
+    gap: THEME.SPACE.LG,
   },
   shareCardStat: {
+    flexShrink: 1,
     gap: THEME.SPACE.XXS,
   },
-  shareCardStatLabel: {
+  shareCardLabel: {
     fontFamily: THEME.FONT_FAMILY.REGULAR,
     fontSize: THEME.FONT_SIZE.CAPTION,
   },
   shareCardStatValue: {
     fontFamily: THEME.FONT_FAMILY.BOLD,
     fontSize: THEME.FONT_SIZE.HEADING,
-    textShadowRadius: scale(6),
-    textShadowColor: "rgba(0, 0, 0, 0.35)",
-    textShadowOffset: { width: 0, height: 1 },
   },
   shareCardStatDivider: {
     alignSelf: "stretch",
     width: StyleSheet.hairlineWidth,
     marginBottom: THEME.SPACE.XXS,
-    opacity: 0.5,
   },
   shareCardFooter: {
     alignItems: "flex-end",
     flexDirection: "row",
+    gap: THEME.SPACE.MD,
   },
   shareCardRequests: {
+    flexShrink: 1,
     gap: THEME.SPACE.XS,
   },
   shareCardCoverRow: {
     flexDirection: "row",
-    gap: THEME.SPACE.XS,
   },
   // Square thumbs stacked like a deck — each one tucks under the previous
-  // (newest on top); `contentFit: "cover"` crops any artwork ratio to 1:1.
+  // (most-requested on top); `contentFit: "cover"` crops any artwork to 1:1.
   shareCardCover: {
     backgroundColor: "rgba(0, 0, 0, 0.25)",
     borderColor: "rgba(255, 255, 255, 0.4)",
@@ -332,22 +438,44 @@ export const styles = StyleSheet.create({
   shareCardCoverOverlap: {
     marginLeft: -scale(12),
   },
+  // Logo over the station address, pinned bottom-right; the address is
+  // centred under the art.
+  shareCardSignature: {
+    alignItems: "center",
+    gap: THEME.SPACE.XXS,
+    marginLeft: "auto",
+  },
+  // The logo PNG is a 1200×630 canvas with transparent margins around the
+  // art (≈11% left, 10% right, 10% top, 15% bottom). The box keeps that
+  // ratio and the negative margins trim the empty canvas on every side, so
+  // the signature column is exactly as wide as the visible art — the art
+  // sits flush right and the address centres on the art itself.
   shareCardLogoWrap: {
-    height: scale(38),
-    width: scale(132),
+    height: SHARE_LOGO_H,
+    marginBottom: -SHARE_LOGO_H * 0.15,
+    marginLeft: -SHARE_LOGO_W * 0.11,
+    marginRight: -SHARE_LOGO_W * 0.1,
+    marginTop: -SHARE_LOGO_H * 0.1,
+    width: SHARE_LOGO_W,
   },
   // Dark blurred copy of the logo PNG behind the artwork — alpha-shaped
   // contrast boost instead of a rectangular chip/shadow.
   shareCardLogoShadow: {
-    height: scale(38),
+    height: SHARE_LOGO_H,
     left: 0,
     position: "absolute",
-    top: scale(2.5),
-    width: scale(132),
+    top: scale(1),
+    width: SHARE_LOGO_W,
   },
   shareCardLogo: {
-    height: scale(38),
-    width: scale(132),
+    height: SHARE_LOGO_H,
+    width: SHARE_LOGO_W,
+  },
+  // Narrower than the logo above it — an address line, not a second logo.
+  shareCardUrl: {
+    fontFamily: THEME.FONT_FAMILY.BOLD,
+    fontSize: scale(8),
+    letterSpacing: scale(0.4),
   },
   // Floating action buttons over the card's top-right corner (same recipe
   // as the Account profile's floating refresh): scrim circle, white icon.
@@ -360,33 +488,35 @@ export const styles = StyleSheet.create({
     right: THEME.SPACE.MD,
     top: THEME.SPACE.MD,
   },
+  // Frosted disc: the button draws a blurred slice of the card behind it
+  // (`cardActionFrost`) under a light violet tint and a hairline rim.
   cardActionButton: {
     alignItems: "center",
-    backgroundColor: THEME.COLORS.SCRIM,
+    backgroundColor: "rgba(22, 1, 53, 0.25)",
+    borderColor: "rgba(255, 255, 255, 0.28)",
     borderRadius: THEME.RADIUS.CIRCLE,
+    borderWidth: StyleSheet.hairlineWidth,
     height: scale(40),
     justifyContent: "center",
+    overflow: "hidden",
     width: scale(40),
+  },
+  cardActionFrost: {
+    position: "absolute",
+  },
+  cardActionTint: {
+    backgroundColor: "rgba(22, 1, 53, 0.22)",
+    bottom: 0,
+    left: 0,
+    position: "absolute",
+    right: 0,
+    top: 0,
   },
   cardActionDisabled: {
     opacity: THEME.OPACITY.DISABLED,
   },
-  shareActionButton: {
-    alignItems: "center",
-    backgroundColor: THEME.COLORS.BRAND,
-    borderRadius: THEME.RADIUS.CIRCLE,
-    flexDirection: "row",
-    flex: 1,
-    gap: THEME.SPACE.SM,
-    justifyContent: "center",
-    minHeight: THEME.LAYOUT.CONTROL_HEIGHT,
-    paddingHorizontal: THEME.SPACE.LG,
-  },
-  shareActionLabel: {
-    color: THEME.COLORS.TEXT_ON_LIGHT,
-    fontFamily: THEME.FONT_FAMILY.BOLD,
-    fontSize: THEME.FONT_SIZE.BODY,
-  },
+
+  // ── Signed-out card ──
   lockedCard: {
     alignItems: "center",
     gap: THEME.SPACE.MD,
@@ -401,5 +531,12 @@ export const styles = StyleSheet.create({
     height: scale(56),
     justifyContent: "center",
     width: scale(56),
+  },
+  lockedText: {
+    gap: THEME.SPACE.XS,
+  },
+  lockedButton: {
+    alignSelf: "stretch",
+    marginTop: THEME.SPACE.XS,
   },
 });

@@ -163,6 +163,14 @@ export class NowPlayingRepository {
   private liveQuality: ArtworkQuality | null = null;
   /** Date.now() of the last SSE event (song or listeners); null = no data yet. */
   private lastLiveEventAt: number | null = null;
+  /**
+   * The stream's last `song_change` is the station's current item. Cleared by
+   * a live error — a song payload that failed validation is dropped there, and
+   * the daemon only sends the next one at the next title change — until a
+   * song lands again. `listeners` pushes keep the stream fresh but can't
+   * vouch for the track, so the poll's HTTP leg stays on meanwhile.
+   */
+  private liveTrackCurrent = false;
 
   constructor(private readonly options: NowPlayingRepositoryOptions) {
     this.retryScheduler = new BackoffScheduler({
@@ -274,6 +282,7 @@ export class NowPlayingRepository {
           // The stale marker below is what re-routes the poll to HTTP.
           console.warn("[NowPlayingRepository] live stream error:", error);
           this.lastLiveEventAt = null;
+          this.liveTrackCurrent = false;
         },
       },
     );
@@ -308,6 +317,7 @@ export class NowPlayingRepository {
     const unsubscribe = this.liveSubscription;
     this.liveSubscription = null;
     this.lastLiveEventAt = null;
+    this.liveTrackCurrent = false;
     unsubscribe?.();
   }
 
@@ -320,6 +330,7 @@ export class NowPlayingRepository {
   private ingestSong(song: LiveNowPlaying): void {
     if (this.disposed) return;
     this.lastLiveEventAt = Date.now();
+    this.liveTrackCurrent = true;
 
     // Follow the station's on-air item exactly like the HTTP leg did: real
     // songs AND filler (jingles/idents/transitions) both become current, so
@@ -462,13 +473,14 @@ export class NowPlayingRepository {
 
   /**
    * Whether the live (SSE) source currently owns track/listener state: a
-   * subscription exists, it has delivered a track, and its last event is
-   * inside the staleness window.
+   * subscription exists, it has delivered a track with no error since, and
+   * its last event is inside the staleness window.
    */
   private isLiveAuthoritative(): boolean {
+    const vouchesForTrack =
+      this.liveSubscription != null && this.liveTrackCurrent && this.currentTrackValue != null;
     return (
-      this.liveSubscription != null &&
-      this.currentTrackValue != null &&
+      vouchesForTrack &&
       this.lastLiveEventAt != null &&
       Date.now() - this.lastLiveEventAt <= LIVE_STALE_MS
     );

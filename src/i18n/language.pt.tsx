@@ -227,7 +227,8 @@ const DICT: Dict = {
   STATS_UNIT_HOURS: "h",
   STATS_UNIT_MINUTES: "min",
   STATS_HEATMAP_TITLE: "Mapa de calor",
-  STATS_HEATMAP_HINT: "Últimos 6 meses — toque num dia para ver detalhes",
+  STATS_HEATMAP_HINT: "Toque num dia para ver detalhes",
+  STATS_HEATMAP_RANGE: "Últimas {n} semanas",
   STATS_LESS: "Menos",
   STATS_MORE: "Mais",
   STATS_PROFILE_TITLE: "Perfil de escuta",
@@ -237,14 +238,29 @@ const DICT: Dict = {
   STATS_EMPTY_TITLE: "Nenhuma escuta registrada ainda",
   STATS_EMPTY:
     "Toque no play e seu tempo de escuta, sessões e músicas ouvidas vão se acumular aqui. Tudo é medido apenas neste aparelho.",
-  STATS_ON_DEVICE:
-    "Medido neste aparelho — nada é enviado ou vinculado à sua conta.",
+  STATS_NOTICE_SIGNED_IN:
+    "Suas estatísticas ficam só neste aparelho — não são sincronizadas com a sua conta, então reinstalar o app ou trocar de celular começa do zero.",
+  STATS_NOTICE_SIGNED_OUT:
+    "Você não está conectado. A escuta continua sendo registrada neste aparelho e aparece toda no seu cartão quando você entrar.",
+  STATS_DAY_EMPTY: "Nenhuma escuta neste dia",
+  STATS_TODAY: "Hoje",
+  STATS_SINCE: "Desde {date}",
+  STATS_BEST_DAY: "Melhor dia {value}",
+  STATS_PEAK: "Pico {value}",
+  STATS_DATE: "{d} {m}",
   STATS_RESET_ROW: "Apagar estatísticas",
   STATS_RESET_CONFIRM_TITLE: "Apagar estatísticas de escuta?",
   STATS_RESET_CONFIRM_MSG:
     "Todo o histórico de escuta gravado neste aparelho será apagado.",
   STATS_RESET_CONFIRM: "Apagar",
-  STATS_CARD_REQUESTS: "Top pedidas",
+  STATS_TOP_REQUESTS: "Mais pedidas",
+  STATS_CARD_LISTENED: "Tempo ouvido",
+  STATS_CARD_STREAK: "Sequência",
+  STATS_CARD_REQUESTS_SENT: "Pedidos",
+  STATS_TOP_REQUESTS_EMPTY: "Peça músicas e as suas favoritas aparecem aqui.",
+  STATS_REQUEST_EARLIER: "Pedido anterior",
+  STATS_REQUESTS_N: "{n} pedidos",
+  STATS_REQUEST_ONE: "1 pedido",
   STATS_CARD_TITLE: "Cartão de escuta",
   STATS_CARD_SHARE: "Compartilhar",
   STATS_CARD_DOWNLOAD: "Baixar",
@@ -254,6 +270,7 @@ const DICT: Dict = {
   STATS_CARD_LOCKED_DESC:
     "Entre na sua conta para transformar sua escuta em um cartão para compartilhar com os amigos.",
   STATS_DOW: ["D", "S", "T", "Q", "Q", "S", "S"],
+  STATS_DOW_LONG: ["Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"],
   STATS_MONTHS: [
     "Jan",
     "Fev",

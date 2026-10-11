@@ -663,6 +663,7 @@ describe("NowPlayingRepository — live SSE ingestion", () => {
     pushSong: (track: Track | null, listeners?: number) => void;
     pushListeners: (value: number) => void;
     pushOpen: () => void;
+    pushError: () => void;
     getStreamMetadataSpy: ReturnType<typeof vi.fn>;
     unsubscribe: ReturnType<typeof vi.fn>;
   }
@@ -707,6 +708,7 @@ describe("NowPlayingRepository — live SSE ingestion", () => {
         handlers.onSongChange(makeLiveNowPlaying(track, listeners)),
       pushListeners: (value) => handlers.onListeners({ value }),
       pushOpen: () => handlers.onOpen?.(),
+      pushError: () => handlers.onError?.(new Error("Live event payload is invalid")),
     };
   };
 
@@ -838,6 +840,43 @@ describe("NowPlayingRepository — live SSE ingestion", () => {
       expect(fixture.repository.currentTrack?.raw).toBe("Live - Song");
     } finally {
       vi.useRealTimers();
+    }
+  });
+
+  it("a dropped song_change is not masked by later listener pushes", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      const fixture = withLive();
+      fixture.pushSong(makeTrack({ raw: "Rádio Animu - Vinheta", duration: 10_000 }), 12);
+      // The next song's payload failed validation (the client reports it and
+      // drops the event); the listener count keeps the stream "fresh".
+      fixture.pushError();
+      fixture.pushListeners(13);
+
+      await fixture.repository.refresh();
+
+      expect(fixture.getStreamMetadataSpy).toHaveBeenCalledTimes(1);
+      expect(fixture.repository.currentTrack?.raw).toBe("Http - Fallback");
+    } finally {
+      warn.mockRestore();
+    }
+  });
+
+  it("the next song_change after an error makes the stream the source again", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      const fixture = withLive();
+      fixture.pushSong(makeTrack({ raw: "Live - Song" }), 12);
+      fixture.pushError();
+      fixture.pushOpen(); // reconnected; the seeded song follows
+      fixture.pushSong(makeTrack({ raw: "Live - Song 2" }), 12);
+
+      await fixture.repository.refresh();
+
+      expect(fixture.getStreamMetadataSpy).not.toHaveBeenCalled();
+      expect(fixture.repository.currentTrack?.raw).toBe("Live - Song 2");
+    } finally {
+      warn.mockRestore();
     }
   });
 

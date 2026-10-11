@@ -1,3 +1,5 @@
+import type { TextStyle } from "react-native";
+
 import { THEME } from "@/theme";
 
 /**
@@ -12,13 +14,27 @@ import { THEME } from "@/theme";
 export interface CardTheme {
   /** Primary text color (name, stat values). */
   text: string;
-  /** Secondary text color (labels, handle, brand). */
+  /** Secondary text color (labels, handle, address). */
   subtext: string;
   /** Dimming layer over the banner. */
   scrim: string;
-  /** Avatar ring / divider color. */
+  /** Avatar ring. */
   ring: string;
+  /** Hairlines between the stats. */
+  divider: string;
+  /**
+   * Soft text shadow in the stain's own tone — dark under white text, light
+   * under ink — so text holds up where the banner art is busier or brighter
+   * than its average color suggests.
+   */
+  halo: TextStyle;
 }
+
+const haloOf = (color: string): TextStyle => ({
+  textShadowColor: color,
+  textShadowOffset: { width: 0, height: 1 },
+  textShadowRadius: 6,
+});
 
 /** Relative luminance (WCAG) of a #rgb/#rrggbb hex color, 0 (black) → 1 (white). */
 export const hexLuminance = (hex: string): number => {
@@ -43,15 +59,19 @@ export const cardThemeFromAccent = (accent: string | undefined): CardTheme => {
   if (luminance > 0.55) {
     return {
       text: THEME.COLORS.BG_DEEP,
-      subtext: "rgba(22, 1, 53, 0.72)",
-      scrim: "rgba(255, 255, 255, 0.42)",
+      subtext: "rgba(22, 1, 53, 0.78)",
+      scrim: "rgba(255, 255, 255, 0.5)",
       ring: "rgba(22, 1, 53, 0.35)",
+      divider: "rgba(22, 1, 53, 0.25)",
+      halo: haloOf("rgba(255, 255, 255, 0.65)"),
     };
   }
   return {
     text: THEME.COLORS.TEXT,
-    subtext: "rgba(255, 255, 255, 0.72)",
-    scrim: "rgba(22, 1, 53, 0.55)",
+    subtext: "rgba(255, 255, 255, 0.78)",
+    scrim: "rgba(22, 1, 53, 0.6)",
     ring: THEME.COLORS.BRAND,
+    divider: "rgba(255, 255, 255, 0.3)",
+    halo: haloOf("rgba(0, 0, 0, 0.5)"),
   };
 };

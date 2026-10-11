@@ -40,13 +40,13 @@ describe("hexLuminance", () => {
 describe("cardThemeFromAccent", () => {
   it("uses the light stain + ink text for bright accents", () => {
     const theme = cardThemeFromAccent("#ffffff");
-    expect(theme.scrim).toBe("rgba(255, 255, 255, 0.42)");
+    expect(theme.scrim).toBe("rgba(255, 255, 255, 0.5)");
   });
 
   it("uses the dark stain + white text for dark accents", () => {
     const theme = cardThemeFromAccent("#000000");
-    expect(theme.scrim).toBe("rgba(22, 1, 53, 0.55)");
-    expect(theme.subtext).toBe("rgba(255, 255, 255, 0.72)");
+    expect(theme.scrim).toBe("rgba(22, 1, 53, 0.6)");
+    expect(theme.subtext).toBe("rgba(255, 255, 255, 0.78)");
   });
 
   it("defaults to the dark theme without an accent", () => {

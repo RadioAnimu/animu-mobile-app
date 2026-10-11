@@ -473,7 +473,8 @@ describe("MakeRequest screen", () => {
       });
       expect(mocks.service.submitRequest).toHaveBeenCalledWith(
         { trackId: "t1", message: "for my friend", sessionId: "sess" },
-        "art.jpg",
+        // The song's details feed the listen-stats top-requests ranking.
+        expect.objectContaining({ artwork: "art.jpg" }),
       );
     });
 

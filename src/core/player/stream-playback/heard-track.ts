@@ -140,6 +140,25 @@ export class HeardTrack {
     return samples?.length ? median(samples) : 0;
   }
 
+  /** The station's current track (what it announced last). */
+  get stationTrack(): Track | null {
+    return this.options.stationTrack();
+  }
+
+  /** A heard title is still waiting for the station to name it (or shown as itself). */
+  get awaitingStation(): boolean {
+    return this.pending != null;
+  }
+
+  /** Whether the heard track has played past its own length. */
+  pastEnd(now: number = this.now()): boolean {
+    const anchor = this.anchor;
+    const track = this.displayed;
+    if (!anchor || !track || track.duration <= 0) return false;
+    const elapsed = anchor.elapsedMs + (anchor.running ? Math.max(0, now - anchor.at) : 0);
+    return elapsed > track.duration;
+  }
+
   /** The stream being played: each one keeps its own calibration. */
   useStream(key: string): void {
     this.stream = key;

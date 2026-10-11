@@ -228,7 +228,8 @@ const DICT: Dict = {
   STATS_UNIT_HOURS: "h",
   STATS_UNIT_MINUTES: "min",
   STATS_HEATMAP_TITLE: "Mapa de calor",
-  STATS_HEATMAP_HINT: "Últimos 6 meses — toca un día para ver detalles",
+  STATS_HEATMAP_HINT: "Toca un día para ver detalles",
+  STATS_HEATMAP_RANGE: "Últimas {n} semanas",
   STATS_LESS: "Menos",
   STATS_MORE: "Más",
   STATS_PROFILE_TITLE: "Perfil de escucha",
@@ -238,14 +239,29 @@ const DICT: Dict = {
   STATS_EMPTY_TITLE: "Aún no hay escucha registrada",
   STATS_EMPTY:
     "Dale play a la radio y tu tiempo de escucha, sesiones y canciones escuchadas se acumularán aquí. Todo se mide solo en este dispositivo.",
-  STATS_ON_DEVICE:
-    "Medido en este dispositivo — nada se sube ni se vincula a tu cuenta.",
+  STATS_NOTICE_SIGNED_IN:
+    "Tus estadísticas se guardan solo en este teléfono — no se sincronizan con tu cuenta, así que reinstalar la app o cambiar de teléfono las reinicia.",
+  STATS_NOTICE_SIGNED_OUT:
+    "No has iniciado sesión. Tu escucha se sigue registrando en este teléfono y aparecerá completa en tu tarjeta cuando inicies sesión.",
+  STATS_DAY_EMPTY: "Sin escucha este día",
+  STATS_TODAY: "Hoy",
+  STATS_SINCE: "Desde {date}",
+  STATS_BEST_DAY: "Mejor día {value}",
+  STATS_PEAK: "Pico {value}",
+  STATS_DATE: "{d} {m}",
   STATS_RESET_ROW: "Restablecer estadísticas",
   STATS_RESET_CONFIRM_TITLE: "¿Restablecer estadísticas de escucha?",
   STATS_RESET_CONFIRM_MSG:
     "Se borrará todo el historial de escucha grabado en este dispositivo.",
   STATS_RESET_CONFIRM: "Restablecer",
-  STATS_CARD_REQUESTS: "Top solicitadas",
+  STATS_TOP_REQUESTS: "Más pedidas",
+  STATS_CARD_LISTENED: "Escuchado",
+  STATS_CARD_STREAK: "Racha",
+  STATS_CARD_REQUESTS_SENT: "Pedidos",
+  STATS_TOP_REQUESTS_EMPTY: "Pide canciones y tus favoritas aparecerán aquí.",
+  STATS_REQUEST_EARLIER: "Pedido anterior",
+  STATS_REQUESTS_N: "{n} pedidos",
+  STATS_REQUEST_ONE: "1 pedido",
   STATS_CARD_TITLE: "Tarjeta de escucha",
   STATS_CARD_SHARE: "Compartir",
   STATS_CARD_DOWNLOAD: "Descargar",
@@ -255,6 +271,7 @@ const DICT: Dict = {
   STATS_CARD_LOCKED_DESC:
     "Inicia sesión para convertir tu escucha en una tarjeta para compartir con tus amigos.",
   STATS_DOW: ["D", "L", "M", "M", "J", "V", "S"],
+  STATS_DOW_LONG: ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"],
   STATS_MONTHS: [
     "Ene",
     "Feb",

@@ -539,6 +539,14 @@ describe("PlayerService on react-native-anything-player", () => {
     expect(lastNowPlaying(t.player)).toMatchObject({ artist: "Artist X" });
   });
 
+  it("native progress readings drive the stuck-refresh watchdog (no JS timer)", async () => {
+    const t = setup();
+    await t.service.setupPlayer();
+    t.repository.expireStuckRefresh.mockClear();
+    t.player.emit("progress", { liveOffset: null, bufferedAhead: 6, position: 0 });
+    expect(t.repository.expireStuckRefresh).toHaveBeenCalledTimes(1);
+  });
+
   it("changing the stream re-tunes a loaded player, keeping the play intent", async () => {
     const t = setup();
     await t.service.setupPlayer();
@@ -773,6 +781,31 @@ describe("PlayerService on react-native-anything-player", () => {
     expect(t.player.pause).not.toHaveBeenCalled();
     t.tick();
     error.mockRestore();
+  });
+
+  it("frees the singleton before the native release, then never writes the stores again", async () => {
+    const t = setup();
+    await t.service.setupPlayer();
+    // A play still opening the stream when teardown starts (back exit).
+    let finishLoad = () => {};
+    t.player.load.mockImplementationOnce(
+      () => new Promise((resolve) => (finishLoad = () => resolve(t.player.status))),
+    );
+    const playing = t.service.play();
+    await vi.waitFor(() => expect(t.player.load).toHaveBeenCalled());
+    let finishRelease = () => {};
+    t.player.release.mockImplementationOnce(() => new Promise<void>((resolve) => (finishRelease = resolve)));
+    const destroyed = t.service.destroy();
+    expect(t.onDestroyed).toHaveBeenCalled();
+    expect(playerStore.getSnapshot().isInitialized).toBe(false);
+    // A replacement service boots while the native release is still pending.
+    playerStore.setSnapshot({ ...playerStore.getSnapshot(), isInitialized: true });
+    finishLoad();
+    await playing;
+    t.player.setState("playing", true);
+    finishRelease();
+    await destroyed;
+    expect(playerStore.getSnapshot().isInitialized).toBe(true);
   });
 
   it("destroy releases the native player and the singleton", async () => {

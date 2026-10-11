@@ -9,6 +9,14 @@ import type { StreamSyncEngine } from "@/core/player/stream-playback/stream-sync
  * block 2 s in): the audible clock takes over.
  */
 export const ICY_MISSING_MS = 12_000;
+/**
+ * The heard track is past its own length and a different station item has
+ * been audible on the settled clock this long: its ICY title never reached
+ * the player (dropped, or the station did not send it). Far past the normal
+ * 1.2 s, and past any lag misreading, so it only catches a title that is not
+ * coming — the display shows the station's item until the next title.
+ */
+export const ICY_OVERDUE_MS = 30_000;
 
 /** A native progress reading (seconds), as Airwave reports it. */
 export interface LagReading {
@@ -57,6 +65,7 @@ export class NowHearing {
   private playingSince: number | null = null;
   private lastMode: "icy" | "clock" = "icy";
   private lastAnchored = false;
+  private lastOverdue: string | null = null;
   private readonly now: () => number;
 
   constructor(private readonly deps: NowHearingDeps) {
@@ -74,13 +83,13 @@ export class NowHearing {
 
   get track(): Track | null {
     if (this.mode === "clock") return this.deps.audible.track ?? this.deps.heard.track;
-    return this.deps.heard.track;
+    return this.overdue() ?? this.deps.heard.track;
   }
 
   /** Whether the position is known (a title heard / the clock settled). */
   get anchored(): boolean {
     const { heard, sync } = this.deps;
-    if (this.mode === "clock") return sync.settled;
+    if (this.mode === "clock" || this.overdue()) return sync.settled;
     return heard.anchored && (!heard.estimated || sync.settled);
   }
 
@@ -95,6 +104,8 @@ export class NowHearing {
   position(): TrackPosition | null {
     const { heard, audible } = this.deps;
     if (this.mode === "clock") return this.clockPosition(audible.track, 0);
+    const overdue = this.overdue();
+    if (overdue) return this.clockPosition(overdue, heard.tuneInBiasMs);
     if (!heard.estimated) return heard.position;
     return heard.anchored ? this.clockPosition(heard.track, heard.tuneInBiasMs) : null;
   }
@@ -108,6 +119,26 @@ export class NowHearing {
     if (elapsed < 0) return null;
     if (track.duration > 0 && elapsed > track.duration) return null;
     return elapsed;
+  }
+
+  /**
+   * The station's item, when the ICY title for it is overdue (see
+   * {@link ICY_OVERDUE_MS}): the heard track is over, and the station's has
+   * been audible a while and not ended. A heard title still waiting for the
+   * station (or shown as itself) is newer information: it keeps the display.
+   */
+  private overdue(): Track | null {
+    const { heard, sync } = this.deps;
+    if (this.mode !== "icy" || heard.awaitingStation || !heard.pastEnd()) return null;
+    if (!sync.settled) return null;
+    const station = heard.stationTrack;
+    const start = station?.startTime?.getTime();
+    if (!station || start == null || !Number.isFinite(start)) return null;
+    if (station.raw === heard.track?.raw) return null;
+    const audibleFor = sync.now() - start;
+    if (audibleFor < ICY_OVERDUE_MS) return null;
+    if (station.duration > 0 && audibleFor > station.duration) return null;
+    return station;
   }
 
   /** `track` on the locked audible clock, less a calibration (ms). */
@@ -135,7 +166,7 @@ export class NowHearing {
     this.deps.audible.adoptIfDue();
     const reported = this.checkMode();
     // A re-lock moved a clock-driven position: the lock screen follows.
-    const clockDriven = this.mode === "clock" || heard.estimated;
+    const clockDriven = this.mode === "clock" || heard.estimated || this.overdue() != null;
     const relocked = lockBefore != null && lockBefore.stationMs !== sync.anchor?.stationMs;
     if (!reported && clockDriven && relocked) this.onChange();
   }
@@ -154,7 +185,10 @@ export class NowHearing {
 
   /** The station announced something. */
   stationChanged(): void {
-    if (this.deps.audible.reconcile() && this.mode === "clock") this.onChange();
+    const clockChanged = this.deps.audible.reconcile() && this.mode === "clock";
+    // An overdue display follows the station's item (or hands back to ICY).
+    const reported = this.checkMode();
+    if (clockChanged && !reported) this.onChange();
   }
 
   /** The source (re)opened: both sources re-measure. */
@@ -177,12 +211,16 @@ export class NowHearing {
     this.playingSince = null;
     this.lastMode = "icy";
     this.lastAnchored = false;
+    this.lastOverdue = null;
     this.deps.heard.reset();
     this.deps.sync.reset();
     this.deps.audible.reset();
   }
 
-  /** Fires {@link onChange} when the source or its settling changed; returns whether it did. */
+  /**
+   * Fires {@link onChange} when the source, its settling or an overdue
+   * display changed; returns whether it did.
+   */
   private checkMode(): boolean {
     const { mode, anchored } = this;
     const modeChanged = mode !== this.lastMode;
@@ -190,11 +228,15 @@ export class NowHearing {
     // (A heard change reports itself, through HeardTrack.)
     const clockDriven = mode === "clock" || this.deps.heard.estimated;
     const settled = clockDriven && anchored !== this.lastAnchored;
+    const overdue = this.overdue()?.raw ?? null;
+    const overdueChanged = overdue !== this.lastOverdue;
     this.lastMode = mode;
     this.lastAnchored = anchored;
+    this.lastOverdue = overdue;
     if (modeChanged && mode === "clock") this.deps.audible.reconcile();
-    if (modeChanged || settled) this.onChange();
-    return modeChanged || settled;
+    const changed = modeChanged || settled || overdueChanged;
+    if (changed) this.onChange();
+    return changed;
   }
 }
 

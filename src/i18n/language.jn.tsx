@@ -227,7 +227,8 @@ const DICT: Dict = {
   STATS_UNIT_HOURS: "時間",
   STATS_UNIT_MINUTES: "分",
   STATS_HEATMAP_TITLE: "ヒートマップ",
-  STATS_HEATMAP_HINT: "過去6ヶ月 — 日をタップすると詳細を表示",
+  STATS_HEATMAP_HINT: "日をタップすると詳細を表示",
+  STATS_HEATMAP_RANGE: "過去{n}週間",
   STATS_LESS: "少ない",
   STATS_MORE: "多い",
   STATS_PROFILE_TITLE: "視聴プロファイル",
@@ -237,14 +238,29 @@ const DICT: Dict = {
   STATS_EMPTY_TITLE: "視聴データはまだありません",
   STATS_EMPTY:
     "ラジオを再生すると、視聴時間・セッション・聴いた曲がここに記録されていきます。すべて端末内でのみ記録されます。",
-  STATS_ON_DEVICE:
-    "この端末でのみ記録 — アップロードもアカウントとの連携もされません。",
+  STATS_NOTICE_SIGNED_IN:
+    "統計はこの端末にのみ保存されます。アカウントとは同期されないため、再インストールや機種変更でリセットされます。",
+  STATS_NOTICE_SIGNED_OUT:
+    "ログインしていません。視聴はこの端末に記録され続け、ログインするとすべてカードに反映されます。",
+  STATS_DAY_EMPTY: "この日の視聴はありません",
+  STATS_TODAY: "今日",
+  STATS_SINCE: "{date}から",
+  STATS_BEST_DAY: "最高の日 {value}",
+  STATS_PEAK: "ピーク {value}",
+  STATS_DATE: "{m}{d}日",
   STATS_RESET_ROW: "統計をリセット",
   STATS_RESET_CONFIRM_TITLE: "視聴統計をリセットしますか？",
   STATS_RESET_CONFIRM_MSG:
     "この端末に記録されたすべての視聴データが削除されます。",
   STATS_RESET_CONFIRM: "リセット",
-  STATS_CARD_REQUESTS: "リクエスト TOP",
+  STATS_TOP_REQUESTS: "よくリクエストした曲",
+  STATS_CARD_LISTENED: "視聴時間",
+  STATS_CARD_STREAK: "最長連続",
+  STATS_CARD_REQUESTS_SENT: "リクエスト",
+  STATS_TOP_REQUESTS_EMPTY: "リクエストするとお気に入りがここにランキングされます。",
+  STATS_REQUEST_EARLIER: "以前のリクエスト",
+  STATS_REQUESTS_N: "リクエスト{n}件",
+  STATS_REQUEST_ONE: "リクエスト1件",
   STATS_CARD_TITLE: "リスニングカード",
   STATS_CARD_SHARE: "シェア",
   STATS_CARD_DOWNLOAD: "保存",
@@ -254,6 +270,7 @@ const DICT: Dict = {
   STATS_CARD_LOCKED_DESC:
     "ログインすると視聴データをシェアできるカードが作られます。",
   STATS_DOW: ["日", "月", "火", "水", "木", "金", "土"],
+  STATS_DOW_LONG: ["日曜日", "月曜日", "火曜日", "水曜日", "木曜日", "金曜日", "土曜日"],
   STATS_MONTHS: [
     "1月",
     "2月",

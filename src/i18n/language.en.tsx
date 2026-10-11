@@ -224,7 +224,8 @@ const DICT = {
   STATS_UNIT_HOURS: "h",
   STATS_UNIT_MINUTES: "m",
   STATS_HEATMAP_TITLE: "Heatmap",
-  STATS_HEATMAP_HINT: "Last 6 months — tap a day for details",
+  STATS_HEATMAP_HINT: "Tap a day for details",
+  STATS_HEATMAP_RANGE: "Last {n} weeks",
   STATS_LESS: "Less",
   STATS_MORE: "More",
   STATS_PROFILE_TITLE: "Listening profile",
@@ -234,14 +235,29 @@ const DICT = {
   STATS_EMPTY_TITLE: "No listening recorded yet",
   STATS_EMPTY:
     "Play the radio and your listening time, sessions and songs heard will build up here. Everything is measured on this device only.",
-  STATS_ON_DEVICE:
-    "Measured on this device — nothing is uploaded or linked to your account.",
+  STATS_NOTICE_SIGNED_IN:
+    "Your stats are kept on this phone only — they aren't synced to your account, so reinstalling or switching phones starts them over.",
+  STATS_NOTICE_SIGNED_OUT:
+    "You're not signed in. Listening is still recorded on this phone, and it all shows up on your card once you sign in.",
+  STATS_DAY_EMPTY: "No listening on this day",
+  STATS_TODAY: "Today",
+  STATS_SINCE: "Since {date}",
+  STATS_BEST_DAY: "Best day {value}",
+  STATS_PEAK: "Peak {value}",
+  STATS_DATE: "{m} {d}",
   STATS_RESET_ROW: "Reset listen stats",
   STATS_RESET_CONFIRM_TITLE: "Reset listening stats?",
   STATS_RESET_CONFIRM_MSG:
     "All listening recorded on this device will be deleted.",
   STATS_RESET_CONFIRM: "Reset",
-  STATS_CARD_REQUESTS: "Top requests",
+  STATS_TOP_REQUESTS: "Top requests",
+  STATS_CARD_LISTENED: "Listened",
+  STATS_CARD_STREAK: "Best streak",
+  STATS_CARD_REQUESTS_SENT: "Requests",
+  STATS_TOP_REQUESTS_EMPTY: "Request songs and your favourites will rank here.",
+  STATS_REQUEST_EARLIER: "Earlier request",
+  STATS_REQUESTS_N: "{n} requests",
+  STATS_REQUEST_ONE: "1 request",
   STATS_CARD_TITLE: "Listening card",
   STATS_CARD_SHARE: "Share",
   STATS_CARD_DOWNLOAD: "Download",
@@ -251,6 +267,7 @@ const DICT = {
   STATS_CARD_LOCKED_DESC:
     "Sign in to turn your listening into a card you can share with friends.",
   STATS_DOW: ["S", "M", "T", "W", "T", "F", "S"],
+  STATS_DOW_LONG: ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"],
   STATS_MONTHS: [
     "Jan",
     "Feb",

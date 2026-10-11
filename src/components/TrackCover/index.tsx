@@ -21,5 +21,5 @@ export const TrackCover = React.memo(function TrackCover() {
     return null;
   }
 
-  return <Cover cover={cover} category="live" />;
+  return <Cover cover={cover} category="live" preserveAspectRatio />;
 });
