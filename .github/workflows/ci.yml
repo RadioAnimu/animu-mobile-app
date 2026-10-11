@@ -20,6 +20,8 @@ jobs:
     env:
       CI: true
       GH_TOKEN: ${{ github.token }}
+      YARN_GLOBAL_FOLDER: ${{ runner.temp }}/animu-yarn
+      XDG_CACHE_HOME: ${{ runner.temp }}/animu-tools
     steps:
       - uses: actions/checkout@v7
         with:
@@ -35,6 +37,14 @@ jobs:
         with:
           node-version: 22
           cache: pnpm
+
+      - name: Cache isolated library downloads and verified tools
+        uses: actions/cache@v5
+        with:
+          path: |
+            ${{ env.YARN_GLOBAL_FOLDER }}
+            ${{ env.XDG_CACHE_HOME }}/animu-gitleaks-*
+          key: ${{ runner.os }}-${{ runner.arch }}-library-downloads-${{ hashFiles('packages/react-native-anything-player/yarn.lock', 'scripts/check-secrets.mjs') }}
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
@@ -103,7 +113,7 @@ jobs:
       - name: Publish reusable results
         run: node scripts/ci-results.mjs publish RadioAnimu/animu-mobile-app
       - name: Upload reusable results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ci-results
           path: ci-results.json

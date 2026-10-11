@@ -40,3 +40,43 @@ test('only successful completed Jenkins builds and upstream main push workflows 
   assert.equal(successfulRun(run, repository, sha), true);
   for (const change of [{ event: 'pull_request' }, { status: 'in_progress' }, { head_branch: 'feature' }, { head_sha: 'b'.repeat(40) }, { head_repository: { full_name: 'fork/animu-api' } }]) assert.equal(successfulRun({ ...run, ...change }, repository, sha), false);
 });
+
+test('Jenkins restore falls back on failed builds, corruption, and dirty source', async () => {
+  const fs = await import('node:fs');
+  const os = await import('node:os');
+  const path = await import('node:path');
+  const http = await import('node:http');
+  const { execFileSync } = await import('node:child_process');
+  const { restore } = await import('../ci-results.mjs');
+  const cwd = fs.mkdtempSync(path.join(os.tmpdir(), 'ci-restore-test-'));
+  const env = { ...process.env };
+  const git = (...args) => execFileSync('git', args, { cwd, stdio: 'pipe' }).toString().trim();
+  git('init');
+  fs.writeFileSync(path.join(cwd, '.gitignore'), 'dist/\ncoverage/\n');
+  fs.writeFileSync(path.join(cwd, 'source.ts'), 'original');
+  git('add', '.'); git('-c', 'user.name=Test', '-c', 'user.email=test@example.com', 'commit', '-m', 'fixture');
+  const commit = git('rev-parse', 'HEAD');
+  let result = 'SUCCESS';
+  const data = { ...fixture(), sha: commit };
+  const server = http.createServer((req, res) => {
+    res.end(JSON.stringify(req.url.includes('api/json') ? { builds: [{ number: 1, result, building: false, actions: [{ lastBuiltRevision: { SHA1: commit } }] }] } : data));
+  });
+  await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
+  try {
+    process.env.JENKINS_URL = `http://127.0.0.1:${server.address().port}`;
+    process.env.JENKINS_USER = 'test'; process.env.JENKINS_API_TOKEN = 'test';
+    delete process.env.GH_TOKEN; delete process.env.GITHUB_TOKEN; delete process.env.CI_REUSE_RESULTS;
+    assert.equal(await restore(repository, cwd, 'build'), true);
+    assert.equal(fs.readFileSync(path.join(cwd, 'dist/esm/index.js'), 'utf8'), 'test');
+    result = 'FAILURE'; assert.equal(await restore(repository, cwd), false);
+    result = 'SUCCESS'; data.coverageSha256 = 'corrupt'; assert.equal(await restore(repository, cwd), false);
+    assert.ok(!fs.existsSync(path.join(cwd, 'coverage/lcov.info')));
+    data.coverageSha256 = digest(lcov); fs.writeFileSync(path.join(cwd, 'source.ts'), 'edited');
+    assert.equal(await restore(repository, cwd, 'build'), false);
+    assert.equal(fs.readFileSync(path.join(cwd, 'source.ts'), 'utf8'), 'edited');
+  } finally {
+    process.env = env;
+    await new Promise(resolve => server.close(resolve));
+    fs.rmSync(cwd, { recursive: true, force: true });
+  }
+});

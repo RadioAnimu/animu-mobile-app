@@ -56,6 +56,12 @@ pipeline {
 
   environment {
     CI = 'true'
+    CI_CACHE_DIR = '/home/rmotafreitas/.cache/animu-ci'
+    COREPACK_HOME = '/home/rmotafreitas/.cache/animu-ci/corepack'
+    npm_config_cache = '/home/rmotafreitas/.cache/animu-ci/npm'
+    npm_config_store_dir = '/home/rmotafreitas/.cache/animu-ci/pnpm'
+    YARN_GLOBAL_FOLDER = '/home/rmotafreitas/.cache/animu-ci/yarn'
+    XDG_CACHE_HOME = '/home/rmotafreitas/.cache/animu-ci/tools'
     EXPO_NO_TELEMETRY = '1'
     ARTIFACT_DIR = 'release-artifacts'
     // /tmp is a small tmpfs; point temp at the real disk.
@@ -177,13 +183,11 @@ pipeline {
             # deps are symlinks, so a submodule rev change needs no reinstall;
             # Both compiled library outputs are verified below.)
             STAMP="$WORKSPACE/.deps-stamp"
-            WANT="$(sha256sum pnpm-lock.yaml package.json pnpm-workspace.yaml .npmrc | sha256sum | cut -d' ' -f1)"
+            WANT="$(node scripts/build-input-key.mjs dependencies)"
             HAVE="$( [ -f "$STAMP" ] && cat "$STAMP" || echo none )"
             if [ "$WANT" != "$HAVE" ] || [ ! -d node_modules ]; then
               echo "Dependencies changed (or first run): installing"
-              # Start from pristine packages: a node_modules left by a previous build
-              # can be half-restored.
-              rm -rf node_modules
+              # Reconcile changed dependencies without discarding unchanged packages.
               pnpm install --frozen-lockfile
               printf "%s" "$WANT" > "$STAMP"
             else
@@ -325,8 +329,7 @@ pipeline {
           NATIVE_STAMP="$WORKSPACE/.native-stamp"
           # The player's config plugin runs at prebuild too (its native code is
           # compiled from the submodule by Gradle, so a bump needs no prebuild).
-          WANT=$(sha256sum app.json plugins/*.js pnpm-lock.yaml \
-            packages/react-native-anything-player/app.plugin.js 2>/dev/null | sha256sum | cut -d' ' -f1)
+          WANT="$(node scripts/build-input-key.mjs native)"
           HAVE=$( [ -f "$NATIVE_STAMP" ] && cat "$NATIVE_STAMP" || echo none )
           if [ ! -d android ] || [ "$WANT" != "$HAVE" ] || [ "${FORCE_PREBUILD:-0}" = "1" ]; then
             echo "Regenerating android/ (native config changed)"
@@ -339,12 +342,10 @@ pipeline {
           # Make sure node_modules match the generated project. Reuse the stamp
           # from the Install stage so we only install when something changed.
           STAMP="$WORKSPACE/.deps-stamp"
-          WANT="$(sha256sum pnpm-lock.yaml package.json pnpm-workspace.yaml .npmrc | sha256sum | cut -d' ' -f1)"
+          WANT="$(node scripts/build-input-key.mjs dependencies)"
           HAVE="$( [ -f "$STAMP" ] && cat "$STAMP" || echo none )"
           if [ "$WANT" != "$HAVE" ] || [ ! -d node_modules ]; then
-            # Start from pristine packages: a node_modules left by a previous build
-            # can be half-restored.
-            rm -rf node_modules
+            # Reconcile changed dependencies without discarding unchanged packages.
             pnpm install --frozen-lockfile
             printf "%s" "$WANT" > "$STAMP"
           else
@@ -379,12 +380,14 @@ pipeline {
           set -eux
 
           mkdir -p "$ARTIFACT_DIR" "$GRADLE_USER_HOME" "$TMPDIR" "$CCACHE_DIR"
+          ccache --show-stats || true
           # -I wires ccache into every native module (scripts/ccache.gradle).
           # Full lint and native player regressions are mandatory release gates.
           cd android
           ./gradlew :app:lintRelease :react-native-anything-player:testReleaseUnitTest :app:bundleRelease --no-daemon \
-            -I "$WORKSPACE/scripts/ccache.gradle"
+            --profile -I "$WORKSPACE/scripts/ccache.gradle"
           cd ..
+          ccache --show-stats || true
           cp android/app/build/outputs/bundle/release/app-release.aab \
              "$ARTIFACT_DIR/animu-${VERSION}-code${VERSION_CODE}.aab"
           ls -la "$ARTIFACT_DIR"
