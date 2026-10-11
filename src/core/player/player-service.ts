@@ -48,7 +48,7 @@ export interface PlayerServiceDependencies {
   stats?: typeof listenStatsService;
   /** Foreground 1 Hz ticker: progress store, data polls, listen-stats segments. */
   ticker: Ticker;
-  /** Called once teardown finished (releases the app-wide singleton). */
+  /** Called as teardown starts (frees the app-wide singleton for a replacement). */
   onDestroyed?: () => void;
   /**
    * The station announced a track: it is heard a stream lag later (seconds).
@@ -316,6 +316,10 @@ export class PlayerService {
   async destroy(): Promise<void> {
     if (this.disposed) return;
     this.disposed = true;
+    // Free the singleton before the native release: a remount meanwhile (back
+    // exit, then relaunch) must get a fresh service, not this disposed one —
+    // it would never initialize, leaving the app on the loading screen.
+    this.deps.onDestroyed?.();
     this.deps.ticker.stop();
     this.deps.stats?.onPlaybackStopped();
     this.unsubscribe.forEach((off) => off());
@@ -325,22 +329,28 @@ export class PlayerService {
     this.deps.artwork.reset();
     this.deps.hearing.reset();
     this.deps.streamPreferences.reset();
-    try {
-      await this.deps.player.release();
-    } catch (error) {
-      console.error("[PlayerService] release failed:", error);
-    }
     this.initialized = false;
     this.streamOptions = [];
+    // Reset the stores now, the last write: once a replacement exists they
+    // are its own (a late write here would hide its UI behind the loader).
     playerStore.setSnapshot({
       isPlaying: false,
       playbackState: "idle",
       isInitialized: false,
       syncing: false,
     });
-    this.emitStation();
-    this.emitProgress();
-    this.deps.onDestroyed?.();
+    stationStore.setSnapshot({});
+    progressStore.setSnapshot({
+      progressMs: null,
+      progressAt: 0,
+      progressRunning: false,
+      showProgress: false,
+    });
+    try {
+      await this.deps.player.release();
+    } catch (error) {
+      console.error("[PlayerService] release failed:", error);
+    }
   }
 
   // ── Commands ──
@@ -578,7 +588,7 @@ export class PlayerService {
   // ── Stores (single writer) ──
 
   private emitPlayer(): void {
-    if (!this.appActive) return;
+    if (this.disposed || !this.appActive) return;
     const next: PlayerSnapshot = {
       currentTrack: this.deps.artwork.apply(this.deps.hearing.track) ?? undefined,
       currentProgram: this.deps.repository.currentProgram ?? undefined,
@@ -595,7 +605,7 @@ export class PlayerService {
   }
 
   private emitStation(): void {
-    if (!this.appActive) return;
+    if (this.disposed || !this.appActive) return;
     const { repository } = this.deps;
     const next: StationSnapshot = {
       currentListeners: repository.listeners ?? undefined,
@@ -608,7 +618,7 @@ export class PlayerService {
   }
 
   private emitProgress(): void {
-    if (!this.appActive) return;
+    if (this.disposed || !this.appActive) return;
     // An anchor, not a sample: the snapshot only changes when the position
     // is re-placed, and the UI advances it in real time between.
     const position = this.deps.hearing.position();

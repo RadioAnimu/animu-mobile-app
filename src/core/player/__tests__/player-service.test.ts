@@ -775,6 +775,31 @@ describe("PlayerService on react-native-anything-player", () => {
     error.mockRestore();
   });
 
+  it("frees the singleton before the native release, then never writes the stores again", async () => {
+    const t = setup();
+    await t.service.setupPlayer();
+    // A play still opening the stream when teardown starts (back exit).
+    let finishLoad = () => {};
+    t.player.load.mockImplementationOnce(
+      () => new Promise((resolve) => (finishLoad = () => resolve(t.player.status))),
+    );
+    const playing = t.service.play();
+    await vi.waitFor(() => expect(t.player.load).toHaveBeenCalled());
+    let finishRelease = () => {};
+    t.player.release.mockImplementationOnce(() => new Promise<void>((resolve) => (finishRelease = resolve)));
+    const destroyed = t.service.destroy();
+    expect(t.onDestroyed).toHaveBeenCalled();
+    expect(playerStore.getSnapshot().isInitialized).toBe(false);
+    // A replacement service boots while the native release is still pending.
+    playerStore.setSnapshot({ ...playerStore.getSnapshot(), isInitialized: true });
+    finishLoad();
+    await playing;
+    t.player.setState("playing", true);
+    finishRelease();
+    await destroyed;
+    expect(playerStore.getSnapshot().isInitialized).toBe(true);
+  });
+
   it("destroy releases the native player and the singleton", async () => {
     const t = setup();
     await t.service.setupPlayer();

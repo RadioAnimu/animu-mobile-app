@@ -129,4 +129,18 @@ describe("player factory", () => {
     expect(playerService()).toBe(second);
     expect(players[0].release).toHaveBeenCalled();
   });
+
+  it("a remount during the native release gets a fresh service (not the disposed one)", async () => {
+    const { playerService } = await load();
+    const first = playerService();
+    let finishRelease = () => {};
+    players[0].release.mockImplementationOnce(() => new Promise<void>((resolve) => (finishRelease = resolve)));
+    const destroyed = first.destroy();
+    const second = playerService();
+    expect(second).not.toBe(first);
+    // The old teardown finishing late leaves its replacement in place.
+    finishRelease();
+    await destroyed;
+    expect(playerService()).toBe(second);
+  });
 });
