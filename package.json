@@ -31,7 +31,7 @@
   "dependencies": {
     "@react-native-async-storage/async-storage": "2.2.0",
     "@react-native-vector-icons/material-icons": "^13.1.4",
-    "@react-navigation/drawer": "^7.14.2",
+    "@react-navigation/drawer": "^7.14.3",
     "@react-navigation/native": "^7.4.1",
     "@react-navigation/native-stack": "^7.19.2",
     "animu-api": "link:packages/animu-api",
@@ -57,7 +57,7 @@
     "expo-splash-screen": "~57.0.9",
     "expo-system-ui": "~57.0.4",
     "expo-web-browser": "~57.0.3",
-    "fflate": "0.8.2",
+    "fflate": "0.8.3",
     "kuromoji": "0.1.2",
     "react": "19.2.3",
     "react-freeze": "^1.0.4",
@@ -126,7 +126,7 @@
       "react-native-worklets@0.10.1": "patches/react-native-worklets@0.10.1.patch",
       "react-native-reanimated@4.5.1": "patches/react-native-reanimated@4.5.1.patch",
       "react-native-gesture-handler@2.32.0": "patches/react-native-gesture-handler@2.32.0.patch",
-      "react-native-drawer-layout@4.2.10": "patches/react-native-drawer-layout@4.2.10.patch"
+      "react-native-drawer-layout@^4.2.11": "patches/react-native-drawer-layout@4.2.11.patch"
     }
   }
 }

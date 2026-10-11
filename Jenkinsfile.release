@@ -256,7 +256,7 @@ pipeline {
           pnpm run check:animu-api
           pnpm run check:player
           pnpm exec expo export:embed --platform android --entry-file index.js --bundle-output "$TMPDIR/index.android.bundle" --assets-dest "$TMPDIR/animu-assets" --dev false
-          node scripts/check-bundle-size.mjs "$TMPDIR/index.android.bundle" 3500000 "$TMPDIR/animu-assets" 2000000
+          node scripts/check-bundle-size.mjs "$TMPDIR/index.android.bundle" 3900000 "$TMPDIR/animu-assets" 2000000
           pnpm run doctor:gate
         '''
       }

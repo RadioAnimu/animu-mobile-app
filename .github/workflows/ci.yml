@@ -87,7 +87,7 @@ jobs:
         run: pnpm exec expo export:embed --platform android --entry-file index.js --bundle-output /tmp/index.android.bundle --assets-dest /tmp/animu-assets --dev false
 
       - name: Bundle size budget
-        run: node scripts/check-bundle-size.mjs /tmp/index.android.bundle 3500000 /tmp/animu-assets 2000000
+        run: node scripts/check-bundle-size.mjs /tmp/index.android.bundle 3900000 /tmp/animu-assets 2000000
 
       # Fails the build on any React Doctor finding.
       # Advisory PR feedback lives in react-doctor.yml; this is the hard gate.

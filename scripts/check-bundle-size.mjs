@@ -9,6 +9,11 @@
  * Budgets sit ~10% above the measured size at the time they were set
  * (bundle 3.21 MB, assets 1.81 MB); raise them deliberately, with the reason
  * in the commit, when a feature genuinely needs the room.
+ *
+ * Raised Oct 2026 to 3.9 MB JS (measured 3.37 MB): synced lyrics with the
+ * offline Japanese reader (kuromoji, wanakana, fflate), frame-synced keyboard
+ * handling (react-native-keyboard-controller, ~106 KB — Metro does not
+ * tree-shake its unused toolbar/chat views) and React Navigation 7.14.3.
  */
 import { readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
