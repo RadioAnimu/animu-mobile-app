@@ -105,6 +105,29 @@ depends on one source alone. It is fed by Anything Player's `progress` events: 1
 readings from a native timer while playing, which also pump its boundary
 timer on Android, where JS timers do not run in the background.
 
+**Once settled, the audible clock is locked.** The lag readings jitter with
+network delivery (the forward buffer saw-tooths as chunks land), but while
+audio plays without a stall the real lag cannot change. So the settled estimate
+becomes a fixed wall-clock offset, and every computed position (a tune-in, or
+the clock without ICY) advances in true seconds from it. Before the lock, the
+position followed every reading, so seconds stretched, shrank or repeated, and
+the bar jumped after "synchronizing". The lag only really changes when audio
+stops: a pause or stall holds the clock and adds that time to the lag, and a
+re-open measures again. The readings can only under-read the lag (the player
+cannot hold audio the station has not sent), so the lock moves only when they
+stay 2 s or more above it for 5 readings in a row. That happens when the lock
+was taken while the connect burst was still loading.
+
+**One position, extrapolated everywhere.** `NowHearing.position()` is the
+position as a fixed point: elapsed ms at a wall-clock instant, advancing while
+audio flows. A heard title anchors it at the change, and a computed one comes
+off the locked clock. It only changes at real events (a title, the lock, pause
+or resume, a re-open). The UI extrapolates it the same way the lock screen
+does natively. The header bar runs one linear native animation to the song's
+end, and the countdown re-renders exactly at each second boundary. Nothing is
+eased or polled, so the bar, the countdown, the lyrics and the lock screen
+all show the same position.
+
 The lock screen gets `updateNowPlaying({ …, duration, elapsed })`; Anything Player
 advances the song's progress natively, only while audio plays. No JS timer is
 involved, which matters on Android: React Native fires no JS timers while the
@@ -174,17 +197,17 @@ or tracks the finger while browsing (a gesture-handler pan with decay).
 Snapshot state reaches React through **three external stores split by change
 cadence** (all built on `useSyncExternalStore` with shallow-equality diffing),
 so components opt into the granularity they need — a listener-count poll never
-re-renders the now-playing UI, and a 1 Hz progress tick never re-renders
+re-renders the now-playing UI, and a progress re-anchor never re-renders
 anything but progress:
 
 | Store | Snapshot | Cadence | Consumed via |
 | --- | --- | --- | --- |
 | `playerStore` | current track/program/stream, stream options, `isPlaying`, `playbackState`, `isInitialized` | per song / per action | `usePlayer()` |
 | `stationStore` | current listeners, request/played histories | per API poll (see cadence below) | `useStation()` |
-| `progressStore` | track progress, `showProgress` | every 1s | `useTrackProgress()` |
+| `progressStore` | progress anchor (`progressMs` at `progressAt`, `progressRunning`), `showProgress` | per re-anchor | `useTrackProgress()` |
 
-The foreground ticker (1 Hz, only while the app is visible) writes progress
-and polls the API every **5 s** while audio is wanted and every **30 s**
+The foreground ticker (1 Hz, only while the app is visible) re-publishes
+progress (a no-op unless the anchor moved) and polls the API every **5 s** while audio is wanted and every **30 s**
 while paused. In the background nothing polls: the SSE stream and the audible
 ICY titles keep the lock screen current.
 

@@ -7,13 +7,4 @@
  * `core/domain/track` (thin re-export, no logic here).
  */
 export type { Track } from "animu-api";
-export { getTrackProgress, isRealTrack } from "animu-api";
-
-/**
- * Station rule: "passagem" entries are filler beat transitions between
- * tracks, not actual music — progress/countdown UI must hide for them.
- * Single source of truth shared by HeaderBar and TimeRemaining.
- */
-export function isFillerTransition(track: { anime?: string } | null | undefined): boolean {
-  return track?.anime?.toLocaleLowerCase().includes("passagem") ?? false;
-}
+export { DEFAULT_ANIME_FALLBACK, getTrackProgress, isRealTrack } from "animu-api";

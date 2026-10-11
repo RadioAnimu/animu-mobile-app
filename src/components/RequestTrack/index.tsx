@@ -14,12 +14,13 @@ interface Props {
 export const RequestTrack = React.memo(function RequestTrack({ track }: Props) {
   const { settings } = useUserSettings();
   const onTrackRequest = useContext(TrackRequestContext);
+  const label = track.artist ? `${track.artist} | ${track.raw}` : track.raw;
 
   return (
     <TouchableOpacity
       activeOpacity={THEME.OPACITY.PRESSED}
       accessibilityRole="button"
-      accessibilityLabel={`${track.artist} | ${track.raw}`}
+      accessibilityLabel={label}
       onPress={() => onTrackRequest(track)}
       style={[
         styles.container,
@@ -41,7 +42,7 @@ export const RequestTrack = React.memo(function RequestTrack({ track }: Props) {
         />
       )}
       {/* Wraps to as many lines as the title needs. */}
-      <Text style={styles.text}>{track.artist} | {track.raw}</Text>
+      <Text style={styles.text}>{label}</Text>
     </TouchableOpacity>
   );
 });

@@ -15,6 +15,7 @@ import { jsTimer } from "@/core/player/timer";
 import { playerStore, progressStore, stationStore } from "@/core/player/store";
 import type { Track } from "@/core/domain/track";
 import type { Stream } from "@/core/domain/stream";
+import { elapsedAt } from "@/utils/progress";
 
 // The service's module graph reaches native modules — stub them for node.
 vi.mock("react-native", () => ({ Platform: { OS: "ios" } }));
@@ -253,6 +254,9 @@ const setup = (extra: Partial<PlayerServiceDependencies> = {}) => {
   };
 };
 
+/** The UI's view of the progress anchor, extrapolated to now. */
+const heardProgress = () => elapsedAt(progressStore.getSnapshot(), undefined, Date.now());
+
 const lastNowPlaying = (player: FakePlayer) =>
   player.updateNowPlaying.mock.calls.at(-1)?.[0] as AirwaveNowPlaying | undefined;
 
@@ -353,7 +357,7 @@ describe("PlayerService on react-native-anything-player", () => {
     expect(nowPlaying.elapsed).toBeCloseTo(28, 1);
     // The UI's tick: 35 s on air.
     t.tick();
-    expect(progressStore.getSnapshot().currentTrackProgress).toBe(29_000);
+    expect(heardProgress()).toBe(29_000);
     vi.useRealTimers();
   });
 
@@ -369,7 +373,7 @@ describe("PlayerService on react-native-anything-player", () => {
     // B becomes audible.
     t.player.hear("Song B");
     expect(playerStore.getSnapshot().currentTrack?.raw).toBe("Song B");
-    const progress = progressStore.getSnapshot().currentTrackProgress!;
+    const progress = heardProgress()!;
     expect(progress).toBeGreaterThanOrEqual(ICY_AFTER_START_MS);
     expect(progress).toBeLessThan(ICY_AFTER_START_MS + 200);
     expect(lastNowPlaying(t.player)).toMatchObject({ title: "Song B (anime)", duration: 200 });
@@ -442,7 +446,7 @@ describe("PlayerService on react-native-anything-player", () => {
     expect(lastNowPlaying(t.player)?.duration).toBe(200);
     t.player.setState("reconnecting", true);
     expect(playerStore.getSnapshot().syncing).toBe(true);
-    expect(progressStore.getSnapshot().currentTrackProgress).toBeNull();
+    expect(heardProgress()).toBeNull();
     // The lock screen drops the stale position too.
     expect(lastNowPlaying(t.player)?.duration).toBeUndefined();
     t.player.setState("loading", true);
@@ -451,7 +455,7 @@ describe("PlayerService on react-native-anything-player", () => {
     t.settle(5, 8); // the new connection trails by 8 s
     t.tick();
     // 40 s on air, the new connection 8 s behind.
-    expect(progressStore.getSnapshot().currentTrackProgress).toBe(32_000);
+    expect(heardProgress()).toBe(32_000);
     vi.useRealTimers();
   });
 
@@ -466,6 +470,20 @@ describe("PlayerService on react-native-anything-player", () => {
     const nowPlaying = lastNowPlaying(t.player)!;
     expect(nowPlaying.duration).toBeUndefined();
     expect(nowPlaying.elapsed).toBeUndefined();
+    expect(nowPlaying.live).toBe(true);
+  });
+
+  it("no live badge on the lock screen for filler outside a live program", async () => {
+    const t = setup();
+    // A jingle: no progress, but the program is not live.
+    t.repository.showProgress = false;
+    await t.service.setupPlayer();
+    await t.service.play();
+    t.player.setState("playing", true);
+    t.player.hear("Song A");
+    const nowPlaying = lastNowPlaying(t.player)!;
+    expect(nowPlaying.duration).toBeUndefined();
+    expect(nowPlaying.live).toBe(false);
   });
 
   it("publishes the cached cover file once resolved", async () => {
@@ -597,7 +615,7 @@ describe("PlayerService on react-native-anything-player", () => {
     expect(lastNowPlaying(t.player)!.elapsed).toBeCloseTo(66, 0);
     // Now 75 s on air: the UI's tick shows 69 s.
     t.tick();
-    const progress = progressStore.getSnapshot().currentTrackProgress!;
+    const progress = heardProgress()!;
     expect(progress).toBeGreaterThan(68_500);
     expect(progress).toBeLessThan(69_500);
     expect(playerStore.getSnapshot().syncing).toBe(false);

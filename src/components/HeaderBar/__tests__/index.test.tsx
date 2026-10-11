@@ -16,6 +16,7 @@ vi.mock("react-native-safe-area-context", () => ({
 const mocks = vi.hoisted(() => ({
   navigation: { openDrawer: vi.fn(), navigate: vi.fn() },
   player: {} as Record<string, unknown>,
+  progress: {} as Record<string, unknown>,
   backgrounded: false,
   haptics: { tap: vi.fn() },
 }));
@@ -36,7 +37,7 @@ vi.mock("@/contexts/user/UserSettingsProvider", () => ({
 }));
 vi.mock("@/contexts/player/PlayerProvider", () => ({
   usePlayer: () => mocks.player,
-  useTrackProgress: () => ({ currentTrackProgress: 0 }),
+  useTrackProgress: () => mocks.progress,
 }));
 vi.mock("@/contexts/app-state/AppStateProvider", () => ({
   useIsBackgrounded: () => mocks.backgrounded,
@@ -48,9 +49,6 @@ vi.mock("@/hooks/useDict", () => ({
     A11Y_PAUSE: "Pause",
     A11Y_MAKE_REQUEST: "Make request",
   }),
-}));
-vi.mock("@/hooks/useSmoothedElapsed", () => ({
-  useSmoothedElapsed: () => 0,
 }));
 vi.mock("@/utils/haptics", () => ({ haptics: mocks.haptics }));
 vi.mock("@/components/LyricsButton", () => ({ LyricsButton: () => <i data-testid="lyrics-button" /> }));
@@ -78,6 +76,7 @@ describe("HeaderBar", () => {
 
   beforeEach(() => {
     mocks.backgrounded = false;
+    mocks.progress = { progressMs: 0, progressAt: 0, progressRunning: false, showProgress: true };
     setPlayer();
   });
   afterEach(cleanup);
@@ -116,6 +115,64 @@ describe("HeaderBar", () => {
       pressRequest();
       expect(mocks.navigation.navigate).not.toHaveBeenCalled();
       expect(screen.queryByTestId("badge-enabled")).toBeNull();
+    });
+  });
+
+  describe("progress bar", () => {
+    const NOW = new Date("2026-10-05T05:00:00Z").getTime();
+    const runs = () =>
+      vi.mocked(Animated.timing).mock.calls.filter(([, config]) => config.toValue === 1);
+
+    beforeEach(() => {
+      vi.useFakeTimers({ toFake: ["Date"] });
+      vi.setSystemTime(NOW);
+      setPlayer({ currentTrack: { duration: 200_000, raw: "Song A" } });
+    });
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it("runs one linear native animation from the heard position to the song's end", () => {
+      // Anchored 10 s ago at 50 s: the audio is at 60 s now.
+      mocks.progress = {
+        progressMs: 50_000,
+        progressAt: NOW - 10_000,
+        progressRunning: true,
+        showProgress: true,
+      };
+      render(<HeaderBar />);
+      expect(runs()).toHaveLength(1);
+      expect(runs()[0][1]).toEqual({
+        toValue: 1,
+        duration: 140_000,
+        easing: "linear",
+        useNativeDriver: true,
+      });
+      expect((runs()[0][0] as unknown as { value: number }).value).toBeCloseTo(0.3, 5);
+    });
+
+    it("holds still while the audio is stopped", () => {
+      mocks.progress = {
+        progressMs: 50_000,
+        progressAt: NOW - 10_000,
+        progressRunning: false,
+        showProgress: true,
+      };
+      render(<HeaderBar />);
+      expect(runs()).toHaveLength(0);
+    });
+
+    it("restarts only on a re-anchor, from where the audio is", () => {
+      mocks.progress = { progressMs: 50_000, progressAt: NOW, progressRunning: true, showProgress: true };
+      const { rerender } = render(<HeaderBar />);
+      rerender(<HeaderBar />);
+      expect(runs()).toHaveLength(1);
+      const first = vi.mocked(Animated.timing).mock.results[0].value;
+      mocks.progress = { progressMs: 1_200, progressAt: NOW, progressRunning: true, showProgress: true };
+      rerender(<HeaderBar />);
+      expect(first.stop).toHaveBeenCalledTimes(1);
+      expect(runs()).toHaveLength(2);
+      expect(runs()[1][1].duration).toBe(198_800);
     });
   });
 

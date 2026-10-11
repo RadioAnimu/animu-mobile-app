@@ -348,6 +348,89 @@ describe("StreamSyncEngine", () => {
     });
   });
 
+  describe("locked clock", () => {
+    /** One ≈1 Hz native reading `lagS` behind the live edge. */
+    const reading = (engine: StreamSyncEngine, lagS: number) => {
+      vi.setSystemTime(new Date(Date.now() + 1_000));
+      engine.updateFromStatus({ isLive: true, offsetFromLive: null, bufferedAheadSeconds: lagS });
+    };
+    /** Settles the engine on a steady 6 s lag. */
+    const settled = () => {
+      const engine = new StreamSyncEngine();
+      for (let i = 0; i < 4; i++) reading(engine, 6);
+      expect(engine.settled).toBe(true);
+      return engine;
+    };
+
+    it("has no anchor until the estimate settles", () => {
+      const engine = new StreamSyncEngine();
+      reading(engine, 6);
+      expect(engine.anchor).toBeNull();
+      reading(engine, 6);
+      reading(engine, 6);
+      reading(engine, 6);
+      expect(engine.anchor).toEqual({
+        stationMs: Date.now() - 6_000,
+        at: Date.now(),
+        running: true,
+      });
+    });
+
+    it("advances in exact real time through jittery lag readings", () => {
+      const engine = settled();
+      const anchor = engine.anchor;
+      const start = engine.now();
+      // The forward buffer saw-tooths as chunks land (and dips on a hiccup).
+      for (const lag of [4.2, 6.9, 3.1, 5.5, 7.4, 2.8, 6.1, 4.4]) {
+        reading(engine, lag);
+        expect(engine.anchor).toEqual(anchor);
+      }
+      expect(engine.now() - start).toBe(8_000);
+    });
+
+    it("holds while audio is stopped and adds that time to the lag", () => {
+      const engine = settled();
+      const before = engine.now();
+      engine.setRunning(false);
+      vi.setSystemTime(new Date(Date.now() + 5_000));
+      expect(engine.now()).toBe(before);
+      expect(engine.anchor?.running).toBe(false);
+      engine.setRunning(true);
+      vi.setSystemTime(new Date(Date.now() + 2_000));
+      // Resumed in place: 2 s further into the audio, now 11 s behind live.
+      expect(engine.now()).toBe(before + 2_000);
+      expect(Date.now() - engine.now()).toBe(11_000);
+    });
+
+    it("re-locks only when the estimate stays clearly above the lock", () => {
+      const engine = settled();
+      const anchor = engine.anchor;
+      // Under-reads (below the lock) never move it.
+      for (let i = 0; i < 10; i++) reading(engine, 2);
+      expect(engine.anchor).toEqual(anchor);
+      // The burst was still loading at the lock: the real lag is 9 s.
+      for (let i = 0; i < 6; i++) reading(engine, 9);
+      expect(engine.anchor).not.toEqual(anchor);
+      expect(Date.now() - engine.now()).toBe(9_000);
+    });
+
+    it("a short climb above the lock does not move it", () => {
+      const engine = settled();
+      const anchor = engine.anchor;
+      for (let i = 0; i < 4; i++) reading(engine, 9);
+      for (let i = 0; i < 3; i++) reading(engine, 6);
+      reading(engine, 9);
+      expect(engine.anchor).toEqual(anchor);
+    });
+
+    it("reset() drops the lock", () => {
+      const engine = settled();
+      engine.reset();
+      expect(engine.anchor).toBeNull();
+      expect(engine.now()).toBe(Date.now());
+    });
+  });
+
   describe("isStale", () => {
     it("reports the age of the retained estimate", () => {
       const engine = new StreamSyncEngine();

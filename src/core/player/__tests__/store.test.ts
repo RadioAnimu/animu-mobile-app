@@ -62,8 +62,13 @@ describe("player stores", () => {
     const u2 = stationStore.subscribe(stationSpy);
     const u3 = progressStore.subscribe(progressSpy);
 
-    // A 1 Hz progress tick must not touch the other stores
-    progressStore.setSnapshot({ currentTrackProgress: 1000, showProgress: true });
+    // A progress re-anchor must not touch the other stores
+    progressStore.setSnapshot({
+      progressMs: 1000,
+      progressAt: 0,
+      progressRunning: true,
+      showProgress: true,
+    });
     expect(progressSpy).toHaveBeenCalledTimes(1);
     expect(playerSpy).not.toHaveBeenCalled();
     expect(stationSpy).not.toHaveBeenCalled();

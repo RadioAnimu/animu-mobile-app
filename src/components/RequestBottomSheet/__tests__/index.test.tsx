@@ -10,6 +10,8 @@ import type { ReactNode } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { RequestBottomSheet } from "@/components/RequestBottomSheet";
+import { trackSource } from "@/components/RequestBottomSheet/track-source";
+import type { MusicRequest } from "@/core/domain/music-request";
 
 vi.mock("react-native", async () =>
   (await import("@/__tests__/react-native-mock")).createReactNativeMock(),
@@ -74,6 +76,8 @@ const track = {
   song: "Unravel",
   anime: "Tokyo Ghoul",
   artist: "TK",
+  album: "",
+  genre: "",
 } as never;
 const user = { username: "Haru", handle: "haru", avatarUrl: "" } as never;
 
@@ -101,6 +105,37 @@ afterEach(() => {
   toast.mockClear();
 });
 
+describe("trackSource", () => {
+  const request = (overrides: Partial<MusicRequest>): MusicRequest => ({
+    id: "1",
+    raw: "",
+    song: "Value",
+    anime: "",
+    artist: "Ado",
+    album: "",
+    genre: "",
+    artwork: "",
+    requestable: true,
+    ...overrides,
+  });
+
+  it("is the anime when there is one", () => {
+    expect(trackSource(request({ anime: "Tokyo Ghoul", album: "Unravel" }))).toBe("Tokyo Ghoul");
+  });
+
+  it("falls back to the album for a song from no anime", () => {
+    expect(trackSource(request({ song: "Hummingbird", album: "Ryuusei Record" }))).toBe("Ryuusei Record");
+  });
+
+  it("skips an album named after the song, taking the genre (Value by Ado)", () => {
+    expect(trackSource(request({ album: "Value", genre: "J-Pop" }))).toBe("J-Pop");
+  });
+
+  it("is empty when nothing is tagged, hiding the chip", () => {
+    expect(trackSource(request({}))).toBe("");
+  });
+});
+
 describe("RequestBottomSheet", () => {
   it("shows the track, the requester and the optional message field", () => {
     setup();
@@ -108,6 +143,23 @@ describe("RequestBottomSheet", () => {
     expect(screen.getByText("Unravel")).toBeTruthy();
     expect(screen.getByText("Haru (@haru)")).toBeTruthy();
     expect(screen.getByLabelText("Message")).toBeTruthy();
+  });
+
+  it("hides the chip and the artist line when the catalogue has neither", () => {
+    render(
+      <RequestBottomSheet
+        visible
+        track={{ id: "t2", song: "Adolescence", anime: "", artist: "", album: "", genre: "" } as never}
+        user={user}
+        onClose={vi.fn()}
+        onSubmit={vi.fn()}
+        onRequestSuccess={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText("Adolescence")).toBeTruthy();
+    expect(screen.queryByText("Unknown Anime")).toBeNull();
+    expect(screen.queryByText("Unknown Artist")).toBeNull();
   });
 
   it("shows just the name when the requester has no handle", () => {

@@ -6,30 +6,26 @@ import {
 import { useIsBackgrounded } from "@/contexts/app-state/AppStateProvider";
 import { useDict } from "@/hooks/useDict";
 import { useBlink } from "@/hooks/useBlink";
-import { useSmoothedElapsed } from "@/hooks/useSmoothedElapsed";
+import { useRemainingMs } from "@/hooks/useRemainingMs";
 import { CountdownTimerText } from "@/components/CountdownTimerText";
-import { isFillerTransition } from "@/core/domain/track";
 import { THEME } from "@/theme";
 
 export function TimeRemaining() {
   const player = usePlayer();
-  const { currentTrackProgress } = useTrackProgress();
+  const progress = useTrackProgress();
+  const { showProgress } = progress;
   const dict = useDict();
   const isBackgrounded = useIsBackgrounded();
   const syncing = player.syncing;
-  const smoothedElapsed = useSmoothedElapsed(
-    currentTrackProgress,
-    player.currentTrack?.raw,
+  const remainingMs = useRemainingMs(
+    progress,
+    player.currentTrack?.duration || 0,
+    !isBackgrounded,
   );
 
-  // Don't show if it's a live program or if it's a transition track
-  const shouldShow =
-    !player.currentProgram?.isLive &&
-    !isFillerTransition(player.currentTrack);
+  const blink = useBlink(syncing && showProgress && !isBackgrounded);
 
-  const blink = useBlink(syncing && shouldShow && !isBackgrounded);
-
-  if (!shouldShow || !player.currentTrack) {
+  if (!showProgress || !player.currentTrack) {
     return null;
   }
 
@@ -53,12 +49,7 @@ export function TimeRemaining() {
       style={styles.timeLeft}
     >
       {dict.TIME_REMAINING}:{" "}
-      <CountdownTimerText
-        startTime={Math.max(
-          0,
-          (player.currentTrack?.duration || 0) - (smoothedElapsed ?? 0),
-        )}
-      />
+      <CountdownTimerText startTime={remainingMs} />
     </Text>
   );
 }

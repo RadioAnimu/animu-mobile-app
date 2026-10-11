@@ -33,14 +33,21 @@ const median = (values: readonly number[]): number => {
   return sorted[sorted.length >> 1] ?? 0;
 };
 
-/** Where the display's position comes from. */
-interface Anchor {
+/**
+ * Where the heard track is: `elapsedMs` into it at wall clock `at`, advancing
+ * in real time from there while `running`.
+ */
+export interface TrackPosition {
   /** Elapsed ms into the track at `at`. */
-  elapsedMs: number;
+  readonly elapsedMs: number;
   /** `Date.now()` of the anchor. */
-  at: number;
+  readonly at: number;
   /** Advancing (audio flowing) since `at`. */
-  running: boolean;
+  readonly running: boolean;
+}
+
+/** Where the display's position comes from. */
+interface Anchor extends TrackPosition {
   /** Computed at a tune-in, not heard at a change. */
   estimated: boolean;
 }
@@ -114,6 +121,17 @@ export class HeardTrack {
   /** Whether the position is known (a title was heard since the last open). */
   get anchored(): boolean {
     return this.anchor != null;
+  }
+
+  /**
+   * The position as a fixed point — elapsed ms at wall `at`, advancing in
+   * real time while `running` — or `null` before a title was heard. The
+   * same object until the anchor moves (a title, a pause / resume).
+   */
+  get position(): TrackPosition | null {
+    const anchor = this.anchor;
+    if (!anchor || !this.displayed) return null;
+    return anchor;
   }
 
   /** How far this stream's computed (tune-in) position runs ahead of the audio (ms). */

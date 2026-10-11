@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Text, View } from "react-native";
 
 import { MusicRequest } from "@/core/domain/music-request";
+import { trackSource } from "@/components/RequestBottomSheet/track-source";
 import { User } from "@/core/domain/user";
 import { useAlert } from "@/contexts/alert/AlertProvider";
 import { useChip } from "@/hooks/useChip";
@@ -28,6 +29,7 @@ interface Props {
 }
 
 function TrackCard({ track }: Readonly<{ track: MusicRequest }>) {
+  const source = trackSource(track);
   return (
     <View style={styles.trackRow}>
       <Cover cover={track.artwork} style={styles.cover} category="search" />
@@ -35,14 +37,18 @@ function TrackCard({ track }: Readonly<{ track: MusicRequest }>) {
         <Text style={styles.songName} numberOfLines={2}>
           {track.song}
         </Text>
-        <View style={styles.animeChip}>
-          <Text style={styles.animeText} numberOfLines={1}>
-            {track.anime}
+        {source ? (
+          <View style={styles.animeChip}>
+            <Text style={styles.animeText} numberOfLines={1}>
+              {source}
+            </Text>
+          </View>
+        ) : null}
+        {track.artist ? (
+          <Text style={styles.artistText} numberOfLines={1}>
+            {track.artist}
           </Text>
-        </View>
-        <Text style={styles.artistText} numberOfLines={1}>
-          {track.artist}
-        </Text>
+        ) : null}
       </View>
     </View>
   );
