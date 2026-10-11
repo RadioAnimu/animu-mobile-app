@@ -36,6 +36,7 @@ vi.mock("expo-image", () => ({
 vi.mock("react-native", () => ({
   Dimensions: { get: () => ({ width: 390, height: 844 }) },
   StyleSheet: { create: (styles: object) => styles },
+  View: ({ children }: { children?: unknown }) => children,
 }));
 
 vi.mock("@/contexts/user/UserSettingsProvider", () => ({
@@ -97,21 +98,25 @@ describe("Cover bounded retry", () => {
     expect(JSON.stringify(lastProps?.style)).not.toContain("aspectRatio");
   });
 
-  it("follows the image's real proportions at the frame's width", () => {
+  it("fits the image inside the square slot", () => {
     const { rerender } = render(<Cover cover={COVER} preserveAspectRatio />);
-    expect(lastProps?.style).toContainEqual(
-      expect.objectContaining({ aspectRatio: 1 }),
-    );
+    const SIZE = (lastProps?.style as { width?: number }[]).at(-1)?.width ?? 0;
+    expect(lastProps?.style).toContainEqual({ width: SIZE, height: SIZE });
 
+    // Wide art keeps the full width and gets shorter.
+    act(() => lastProps?.onLoad?.(LOADED(400, 200)));
+    expect(lastProps?.style).toContainEqual({ width: SIZE, height: SIZE / 2 });
+
+    // Tall art keeps the full height and gets narrower.
     act(() => lastProps?.onLoad?.(LOADED(300, 600)));
-    expect(lastProps?.style).toContainEqual(
-      expect.objectContaining({ aspectRatio: 0.5, height: null }),
-    );
+    expect(lastProps?.style).toContainEqual({ width: SIZE * 0.6, height: SIZE });
+
+    // Extreme ratios are clamped, not turned into a strip.
+    act(() => lastProps?.onLoad?.(LOADED(1000, 100)));
+    expect(lastProps?.style).toContainEqual({ width: SIZE, height: SIZE / 2 });
 
     // A new cover never renders with the previous artwork's proportions.
     rerender(<Cover cover="https://cdn.test/other.jpg" preserveAspectRatio />);
-    expect(lastProps?.style).toContainEqual(
-      expect.objectContaining({ aspectRatio: 1 }),
-    );
+    expect(lastProps?.style).toContainEqual({ width: SIZE, height: SIZE });
   });
 });

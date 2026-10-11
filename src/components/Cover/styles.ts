@@ -6,6 +6,13 @@ export const SIZE = scale(240);
 const FRAME_BORDER = scale(5);
 
 export const styles = StyleSheet.create({
+  /** Fixed square the cover is centered in, so the screen never reflows. */
+  slot: {
+    width: SIZE,
+    height: SIZE,
+    alignItems: "center",
+    justifyContent: "center",
+  },
   image: {
     width: SIZE,
     height: SIZE,

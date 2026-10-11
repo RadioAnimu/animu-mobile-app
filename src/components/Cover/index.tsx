@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Image, type ImageStyle } from "expo-image";
-import type { StyleProp } from "react-native";
+import { View, type StyleProp } from "react-native";
 import DEFAULT_COVER from "@app/assets/default-cover.png";
 import { SIZE, styles } from "@/components/Cover/styles";
 import { THEME } from "@/theme";
@@ -12,6 +12,18 @@ import {
 } from "@/core/services/cover-cache-registry.service";
 
 const MAX_FAILURES = 2;
+// Artwork beyond these proportions is cropped to them rather than shown as
+// a thin strip.
+const MIN_RATIO = 0.6;
+const MAX_RATIO = 2;
+
+/** Largest frame of the given proportions that fits the square slot. */
+function fitInSlot(ratio: number) {
+  const clamped = Math.min(Math.max(ratio, MIN_RATIO), MAX_RATIO);
+  return clamped >= 1
+    ? { width: SIZE, height: SIZE / clamped }
+    : { width: SIZE * clamped, height: SIZE };
+}
 
 interface Props {
   cover: string;
@@ -33,8 +45,9 @@ interface Props {
   category?: CoverCacheCategory;
   /**
    * Shows the artwork in its real proportions instead of cropping it to the
-   * square: the width stays the frame's, the height follows the image. The
-   * frame is square until the image reports its size.
+   * square. It is centered in a fixed square slot: wide art keeps the full
+   * width and gets shorter, tall art keeps the full height and gets
+   * narrower. The frame is square until the image reports its size.
    */
   preserveAspectRatio?: boolean;
 }
@@ -101,13 +114,13 @@ export function Cover({
     return () => clearTimeout(timer);
   }, [failedUrl, cover]);
 
-  return (
+  const image = (
     <Image
       source={showFallback ? DEFAULT_COVER : { uri: cover }}
       style={[
         { backgroundColor: THEME.COLORS.APP_BG },
         style ?? styles.image,
-        preserveAspectRatio && { width: SIZE, height: null, aspectRatio: ratio },
+        preserveAspectRatio && fitInSlot(ratio),
       ]}
       placeholder={DEFAULT_COVER}
       placeholderContentFit="cover"
@@ -136,4 +149,6 @@ export function Cover({
       recyclingKey={recyclingKey ?? cover}
     />
   );
+
+  return preserveAspectRatio ? <View style={styles.slot}>{image}</View> : image;
 }
