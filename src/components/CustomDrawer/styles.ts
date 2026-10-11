@@ -4,12 +4,12 @@ import { ROW_STYLES } from "@/theme/screen";
 import { scale } from "@/theme/responsive";
 import { CONTINUOUS, avatarRadius, concentric } from "@/theme/shape";
 
-const AVATAR = scale(40);
-// Rows hug the 40px rounded-square avatar by its vertical padding.
+const AVATAR = THEME.LAYOUT.AVATAR.SM;
+// Rows hug the rounded-square avatar by its vertical padding.
 const ROW_RADIUS = concentric(avatarRadius(AVATAR), THEME.SPACE.SM);
 
 export const DRAWER_GRID = {
-  SCREEN_MARGIN: scale(12),
+  SCREEN_MARGIN: THEME.SPACE.MD,
 };
 
 export const styles = StyleSheet.create({
@@ -53,8 +53,8 @@ export const styles = StyleSheet.create({
     flex: 1,
   },
   gearButton: {
-    width: scale(40),
-    height: scale(40),
+    width: THEME.LAYOUT.ICON_BUTTON,
+    height: THEME.LAYOUT.ICON_BUTTON,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -66,8 +66,8 @@ export const styles = StyleSheet.create({
     backgroundColor: THEME.COLORS.APP_BG,
   },
   accountIconBox: {
-    width: scale(40),
-    height: scale(40),
+    width: AVATAR,
+    height: AVATAR,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -83,7 +83,7 @@ export const styles = StyleSheet.create({
     alignItems: "center",
     marginHorizontal: DRAWER_GRID.SCREEN_MARGIN,
     paddingHorizontal: THEME.SPACE.MD,
-    marginTop: scale(18),
+    marginTop: THEME.SPACE.LG,
     marginBottom: THEME.SPACE.SM,
     paddingBottom: THEME.SPACE.MD,
     borderBottomWidth: 1,

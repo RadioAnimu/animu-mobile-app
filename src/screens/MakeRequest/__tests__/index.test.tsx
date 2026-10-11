@@ -6,7 +6,7 @@ import {
   render,
   screen,
 } from "@testing-library/react";
-import { Keyboard } from "react-native";
+import { KeyboardController } from "react-native-keyboard-controller";
 import { useContext, type ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -15,6 +15,9 @@ import { MakeRequest } from "@/screens/MakeRequest";
 
 vi.mock("react-native", async () =>
   (await import("@/__tests__/react-native-mock")).createReactNativeMock(),
+);
+vi.mock("react-native-keyboard-controller", async () =>
+  (await import("@/__tests__/keyboard-controller-mock")).createKeyboardControllerMock(),
 );
 vi.mock("@react-native-vector-icons/material-icons/static", async () =>
   (await import("@/__tests__/react-native-mock")).createIconMock(),
@@ -373,7 +376,7 @@ describe("MakeRequest screen", () => {
       render(<MakeRequest />);
       fireEvent.focus(field());
       await act(async () => void fireEvent.click(screen.getByText("naruto")));
-      expect(Keyboard.dismiss).toHaveBeenCalledTimes(1);
+      expect(KeyboardController.dismiss).toHaveBeenCalledTimes(1);
       expect(mocks.service.searchTracksByTitle).toHaveBeenCalledWith("naruto");
       expect((field() as HTMLInputElement).value).toBe("naruto");
     });

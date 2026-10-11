@@ -1,5 +1,20 @@
 import { CONTENT_MAX_WIDTH, scale } from "@/theme/responsive";
 
+/** The spacing scale — every gap, inset and padding steps along it. */
+const SPACE = {
+  XXS: scale(2),
+  XS: scale(4),
+  SM: scale(8),
+  MD: scale(12),
+  LG: scale(16),
+  XL: scale(20),
+  XXL: scale(24),
+  XXXL: scale(32),
+};
+
+/** One control's height: buttons, fields, the player's play button. */
+const CONTROL_HEIGHT = scale(48);
+
 export const THEME = {
   COLORS: {
     APP_BG: "#471654",
@@ -16,6 +31,8 @@ export const THEME = {
 
     TEXT: "#FFFFFF",
     TEXT_ON_LIGHT: "#000000",
+    /** Placeholder and clear glyph on the white sticker fields. */
+    TEXT_ON_LIGHT_DIM: "rgba(0, 0, 0, 0.45)",
     TEXT_SOFT: "rgba(255, 255, 255, 0.7)",
     TEXT_DIM: "rgba(255, 255, 255, 0.5)",
     SWITCH_OFF: "rgba(255, 255, 255, 0.25)",
@@ -25,6 +42,8 @@ export const THEME = {
     SURFACE_SUBTLE: "rgba(255, 255, 255, 0.08)",
 
     SCRIM: "rgba(0, 0, 0, 0.6)",
+    /** Soft drop shadow of floating chrome (toasts). */
+    SHADOW: "rgba(0, 0, 0, 0.35)",
     /** Neutral inline spinner on surfaces (filled buttons tint their own). */
     SPINNER: "rgba(255, 255, 255, 0.7)",
 
@@ -52,6 +71,14 @@ export const THEME = {
     SOFT: 0.7,
     /** `activeOpacity` of every TouchableOpacity — one pressed state app-wide. */
     PRESSED: 0.7,
+    /** Supporting copy on a solid fill (danger button description). */
+    MUTED: 0.85,
+    /**
+     * A field that must stay focusable and readable by screen readers while
+     * painting nothing (the code input's hidden TextInput): `0` would drop it
+     * from the accessibility tree on both platforms.
+     */
+    INVISIBLE: 0.01,
   },
 
   FONT_FAMILY: {
@@ -87,6 +114,8 @@ export const THEME = {
   },
 
   LINE_HEIGHT: {
+    /** Caption copy that runs to several lines (legal notes, footers). */
+    CAPTION: scale(18),
     BODY: scale(16),
     /** Body copy with a little more air (profile info, sheet subtitles). */
     RELAXED: scale(19),
@@ -109,16 +138,7 @@ export const THEME = {
     XL: scale(40),
   },
 
-  SPACE: {
-    XXS: scale(2),
-    XS: scale(4),
-    SM: scale(8),
-    MD: scale(12),
-    LG: scale(16),
-    XL: scale(20),
-    XXL: scale(24),
-    XXXL: scale(32),
-  },
+  SPACE,
 
   /**
    * Invisible tap-area extension (pt) for compact icon controls, so a 22pt
@@ -127,6 +147,20 @@ export const THEME = {
   HIT_SLOP: {
     SM: 8,
     MD: 12,
+  },
+
+  /**
+   * Keyboard avoidance. When a field takes focus the scroll view moves just
+   * enough to keep the field — plus the control that follows it (send, next
+   * field, submit) — above the keyboard. Nothing else moves.
+   */
+  KEYBOARD: {
+    /**
+     * Room kept between the caret and the keyboard: the lower half of the
+     * field the caret sits in, the gap, one control, and a gap above the
+     * keyboard.
+     */
+    CLEARANCE: CONTROL_HEIGHT / 2 + SPACE.LG + CONTROL_HEIGHT + SPACE.LG,
   },
 
   /** Stacking order for in-tree overlays (native Modals sit above all). */
@@ -144,6 +178,8 @@ export const THEME = {
   },
 
   RADIUS: {
+    /** Hairline bars (heatmap cells, meters). */
+    XS: scale(2),
     SM: scale(6),
     MD: scale(8),
     LG: scale(10),
@@ -157,8 +193,38 @@ export const THEME = {
   LAYOUT: {
     /** Fixed leading-icon column shared by settings/profile rows. */
     ICON_BOX_WIDTH: scale(32),
-    /** Height of a single-line text field (search, email). */
-    FIELD_HEIGHT: scale(48),
+    /**
+     * Height of every single-line control — buttons, text fields (search,
+     * email, the request forms), the player's play button. 48 is Android's
+     * minimum touch target and comfortably above iOS's 44.
+     */
+    CONTROL_HEIGHT,
+    /** Height of a single-line text field (alias of the control height). */
+    FIELD_HEIGHT: CONTROL_HEIGHT,
+    /** Minimum hit box of a compact icon control (back arrow, row actions). */
+    TOUCH_TARGET: scale(44),
+    /**
+     * Square of a trailing icon action inside a row (unlink, remove email,
+     * the drawer's settings gear); its hitSlop takes the target past 44.
+     */
+    ICON_BUTTON: scale(40),
+    /** Room a bottom sheet leaves under its content, above the safe area. */
+    SHEET_END_GAP: SPACE.LG,
+    /** Height of the settings-style screen header bar (under the status bar). */
+    HEADER_HEIGHT: scale(72),
+    /** A compact centered column: the alert dialog card, the bitrate row. */
+    COMPACT_WIDTH: scale(311),
+    /** Rounded-square identity images and round icon badges. */
+    AVATAR: {
+      SM: scale(40),
+      MD: scale(56),
+      LG: scale(84),
+    },
+    /** Track artwork thumbnails: list rows, then sheet headers. */
+    THUMB: {
+      SM: scale(50),
+      MD: scale(76),
+    },
     /** Minimum height of a settings/profile row. */
     ROW_MIN_HEIGHT: scale(64),
     /** Brand logo height on the secondary screens (matches the player hero). */

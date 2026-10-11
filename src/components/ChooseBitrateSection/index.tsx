@@ -1,18 +1,22 @@
-import { useCallback } from "react";
-import { FlatList, type ListRenderItem } from "react-native";
-import type { Stream } from "@/core/domain/stream";
+import { View } from "react-native";
 import { ButtonKBPS } from "@/components/ButtonKBPS";
 import { styles } from "@/components/ChooseBitrateSection/styles";
 import { usePlayer } from "@/contexts/player/PlayerProvider";
 import { haptics } from "@/utils/haptics";
 
+/**
+ * The stream picker: a handful of pills in one centered row that wraps
+ * (rather than scrolls) when large text grows them, so no pill is ever cut
+ * off at the edge.
+ */
 export function ChooseBitrateSection() {
   const { changeStream, currentStream, streamOptions } = usePlayer();
 
-  const renderItem: ListRenderItem<Stream> =
-    useCallback(
-      ({ item }) => (
+  return (
+    <View style={styles.container}>
+      {(streamOptions ?? []).map((item) => (
         <ButtonKBPS
+          key={item.url}
           handleChangeStream={() => {
             // A selection tick only when the choice actually changes.
             if (item.url !== currentStream?.url) haptics.select();
@@ -22,19 +26,7 @@ export function ChooseBitrateSection() {
           category={item.category}
           kbps={item.bitrate}
         />
-      ),
-      [changeStream, currentStream?.url],
-    );
-
-  return (
-    <FlatList
-      style={styles.container}
-      contentContainerStyle={styles.contentContainer}
-      horizontal
-      showsHorizontalScrollIndicator={false}
-      data={streamOptions}
-      keyExtractor={(item) => item.url}
-      renderItem={renderItem}
-    />
+      ))}
+    </View>
   );
 }

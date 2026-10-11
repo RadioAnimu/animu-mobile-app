@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useRef, useState } from "react";
 import {
   Animated,
   Modal,
@@ -13,7 +13,7 @@ import { Image } from "expo-image";
 import DragIcon from "@/assets/icons/drag_down.webp";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useDict } from "@/hooks/useDict";
-import { useKeyboardPadding } from "@/hooks/useKeyboardPadding";
+import { usePresence } from "@/hooks/usePresence";
 import { useReducedMotion } from "@/hooks/useReducedMotion";
 import type { ChipState } from "@/hooks/useChip";
 import { Toast } from "@/components/Toast";
@@ -22,8 +22,9 @@ import { MOTION } from "@/theme/motion";
 import { scale } from "@/theme/responsive";
 import { CONTINUOUS } from "@/theme/shape";
 
-const CLOSE_AREA_HEIGHT = scale(35);
+/** The drag handle artwork's height; its width follows the asset's ratio. */
 const DRAG_ICON_HEIGHT = scale(14);
+const DRAG_ICON_RATIO = 156 / 92;
 /** A drag past this share of the sheet's height (or a flick) dismisses it. */
 const DISMISS_RATIO = 0.25;
 /** Release speed (pt/ms) that counts as a downward flick. */
@@ -36,8 +37,6 @@ interface Props extends ModalProps {
   onClose: () => void;
   /** Blocks backdrop tap, drag handle and Android back while false. */
   closable?: boolean;
-  /** Lifts the sheet above the software keyboard. */
-  withKeyboard?: boolean;
   /** Max height of the sheet, e.g. "75%". */
   maxHeight?: `${number}%`;
   /**
@@ -50,17 +49,21 @@ interface Props extends ModalProps {
 }
 
 /**
- * The app's one bottom sheet. The scrim fades while the sheet slides up from
- * the bottom edge (both on the native driver), it follows a drag on its
+ * The app's one bottom sheet. The scrim fades while the sheet slides up by
+ * its own height (both on the native driver, so the whole short duration is
+ * visible travel rather than mostly off-screen), it follows a drag on its
  * handle and dismisses past a quarter of its height or on a flick, and it
  * plays its exit before the modal unmounts. With Reduce Motion the sheet
  * fades in place instead of sliding.
+ *
+ * Forms inside a sheet use `KeyboardScrollView variant="sheet"`: the content
+ * grows by the keyboard's height, so the sheet rides up above the keyboard
+ * (and, once it reaches the top, scrolls the focused field into view).
  */
 export function Sheet({
   visible,
   onClose,
   closable = true,
-  withKeyboard = false,
   maxHeight,
   chip,
   onChipDone,
@@ -70,34 +73,26 @@ export function Sheet({
   // come back through `rest` and win over the sheet's invariants.
   ...rest
 }: Readonly<Props>) {
-  const keyboardPadding = useKeyboardPadding(withKeyboard && visible);
   const insets = useSafeAreaInsets();
   const dict = useDict();
   const reduceMotion = useReducedMotion();
   const { height: windowHeight } = useWindowDimensions();
 
   // The modal stays mounted until the exit animation has played.
-  const [mounted, setMounted] = useState(visible);
-  if (visible && !mounted) setMounted(true);
+  const { mounted, progress } = usePresence(visible);
 
-  const [progress] = useState(() => new Animated.Value(0));
   const [drag] = useState(() => new Animated.Value(0));
+  // Starts at the window height (the first frame is off-screen whatever the
+  // sheet measures), then the sheet's own height once laid out.
+  const [travel] = useState(() => new Animated.Value(windowHeight));
   const sheetHeight = useRef(windowHeight);
 
-  useEffect(() => {
-    if (!mounted) return undefined;
+  // A fresh presentation starts from rest, not from the last drag offset.
+  const [wasVisible, setWasVisible] = useState(visible);
+  if (wasVisible !== visible) {
+    setWasVisible(visible);
     if (visible) drag.setValue(0);
-    const animation = Animated.timing(progress, {
-      toValue: visible ? 1 : 0,
-      duration: visible ? MOTION.DURATION.NORMAL : MOTION.DURATION.FAST,
-      easing: visible ? MOTION.EASING.ENTER : MOTION.EASING.EXIT,
-      useNativeDriver: true,
-    });
-    animation.start(({ finished }) => {
-      if (finished && !visible) setMounted(false);
-    });
-    return () => animation.stop();
-  }, [visible, mounted, progress, drag]);
+  }
 
   // Handle drag, on the plain responder props so every value is read in its
   // event handler: the start point and the last sample give the travel and
@@ -107,8 +102,7 @@ export function Sheet({
   const settleDrag = () => {
     Animated.spring(drag, {
       toValue: 0,
-      speed: 24,
-      bounciness: 0,
+      ...MOTION.SETTLE_SPRING,
       useNativeDriver: true,
     }).start();
   };
@@ -154,10 +148,13 @@ export function Sheet({
     onResponderTerminate: settleDrag,
   };
 
-  const slide = progress.interpolate({
-    inputRange: [0, 1],
-    outputRange: [reduceMotion ? 0 : windowHeight, 0],
-  });
+  // (1 - progress) × travel: fully hidden below at 0, in place at 1.
+  const slide = reduceMotion
+    ? 0
+    : Animated.multiply(
+        progress.interpolate({ inputRange: [0, 1], outputRange: [1, 0] }),
+        travel,
+      );
 
   return (
     <Modal
@@ -185,19 +182,22 @@ export function Sheet({
           onPress={closable ? onClose : undefined}
         />
         {/* The bottom padding clears the home indicator / Android nav bar
-            (Modals are always edge-to-edge since RN 0.86) and, while typing,
-            the keyboard — the surface itself runs behind the keyboard so no
+            (Modals are always edge-to-edge since RN 0.86). While typing, the
+            sheet's keyboard-aware content supplies the room above the
+            keyboard; the surface itself runs on behind the keyboard so no
             scrim gap opens between them. */}
         <Animated.View
           accessibilityViewIsModal
           onLayout={(event) => {
-            sheetHeight.current = event.nativeEvent.layout.height;
+            const { height } = event.nativeEvent.layout;
+            sheetHeight.current = height;
+            travel.setValue(height);
           }}
           style={[
             styles.sheet,
             maxHeight != null && { maxHeight },
             {
-              paddingBottom: insets.bottom + THEME.SPACE.LG + keyboardPadding,
+              paddingBottom: insets.bottom + THEME.LAYOUT.SHEET_END_GAP,
               opacity: reduceMotion ? progress : 1,
               transform: [{ translateY: Animated.add(slide, drag) }],
             },
@@ -205,6 +205,7 @@ export function Sheet({
         >
           <View {...handleDragProps}>
             <TouchableOpacity
+              activeOpacity={THEME.OPACITY.PRESSED}
               accessibilityRole="button"
               accessibilityLabel={dict.A11Y_CLOSE}
               style={styles.closeArea}
@@ -267,12 +268,13 @@ const styles = StyleSheet.create({
     width: "100%",
     flexDirection: "row",
     justifyContent: "center",
-    height: CLOSE_AREA_HEIGHT,
+    // A full touch target for tap-to-close; the drag starts anywhere on it.
+    height: THEME.LAYOUT.TOUCH_TARGET,
     alignItems: "center",
   },
   dragIcon: {
     height: DRAG_ICON_HEIGHT,
     // expo-image needs an explicit width; it can't infer one from a height.
-    width: DRAG_ICON_HEIGHT * (156 / 92),
+    width: DRAG_ICON_HEIGHT * DRAG_ICON_RATIO,
   },
 });

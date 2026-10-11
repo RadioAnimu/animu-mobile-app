@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ScrollView, Text, View } from "react-native";
+import { Text, View } from "react-native";
 
 import { MusicRequest } from "@/core/domain/music-request";
 import { User } from "@/core/domain/user";
@@ -9,6 +9,7 @@ import { useDict } from "@/hooks/useDict";
 import { Cover } from "@/components/Cover";
 import { styles } from "@/components/RequestBottomSheet/styles";
 import { RequestSubmitButton } from "@/components/RequestSubmitButton";
+import { KeyboardScrollView } from "@/components/KeyboardScrollView";
 import { Sheet } from "@/components/Sheet";
 import { HarukaBubble } from "@/components/HarukaBubble";
 import { ReplyBubble } from "@/components/ReplyBubble";
@@ -126,14 +127,11 @@ export function RequestBottomSheet({
       visible={visible}
       onClose={onClose}
       closable={!isSubmitting}
-      withKeyboard
       chip={chip}
       onChipDone={clearChip}
     >
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
-        keyboardDismissMode="on-drag"
+      <KeyboardScrollView
+        variant="sheet"
         contentContainerStyle={styles.scrollContent}
       >
         {track && <TrackCard track={track} />}
@@ -153,7 +151,7 @@ export function RequestBottomSheet({
           failed={isError}
           onPress={handleSubmit}
         />
-      </ScrollView>
+      </KeyboardScrollView>
     </Sheet>
   );
 }

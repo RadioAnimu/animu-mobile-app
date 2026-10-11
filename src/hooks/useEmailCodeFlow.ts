@@ -3,6 +3,7 @@ import { AnimuApiError } from "animu-api";
 
 import type { Dict } from "@/i18n";
 import { useDict } from "@/hooks/useDict";
+import { haptics } from "@/utils/haptics";
 
 export type EmailCodeStep = "email" | "code";
 
@@ -92,6 +93,8 @@ export function useEmailCodeFlow(
       setStep("code");
       onCodeSent?.(address);
     } catch (err) {
+      // The same error haptic every other form uses for a failed submit.
+      haptics.error();
       setError(mapRequestError(err));
     } finally {
       setBusy(false);
@@ -123,6 +126,7 @@ export function useEmailCodeFlow(
       // retry is a plain retype. (Forms with a visible submit button get the
       // same clean slate, which is the standard OTP retry.)
       setCode("");
+      haptics.error();
       setError(mapVerifyError(err));
     } finally {
       setBusy(false);

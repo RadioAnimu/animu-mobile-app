@@ -8,6 +8,9 @@ import { CODE_LENGTH, CodeInput } from "@/components/CodeInput";
 vi.mock("react-native", async () =>
   (await import("@/__tests__/react-native-mock")).createReactNativeMock(),
 );
+vi.mock("react-native-keyboard-controller", async () =>
+  (await import("@/__tests__/keyboard-controller-mock")).createKeyboardControllerMock(),
+);
 
 /** Only the caret's style carries an animated (object) opacity. */
 const CARET = '[data-style*=\'"opacity":{\']';

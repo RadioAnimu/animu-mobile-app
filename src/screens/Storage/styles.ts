@@ -10,7 +10,7 @@ export const styles = StyleSheet.create({
   group: SCREEN_STYLES.group,
   deviceBarTrack: {
     height: scale(4),
-    borderRadius: 999,
+    borderRadius: THEME.RADIUS.CIRCLE,
     backgroundColor: THEME.COLORS.HAIRLINE,
     marginHorizontal: THEME.SPACE.LG,
     marginTop: THEME.SPACE.MD,
@@ -18,7 +18,7 @@ export const styles = StyleSheet.create({
   },
   deviceBarFill: {
     height: "100%",
-    borderRadius: 999,
+    borderRadius: THEME.RADIUS.CIRCLE,
     overflow: "hidden",
     flexDirection: "row",
   },

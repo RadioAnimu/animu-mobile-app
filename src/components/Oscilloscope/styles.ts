@@ -1,5 +1,6 @@
 import { StyleSheet } from "react-native";
-import { SCREEN_WIDTH, scale } from "@/theme/responsive";
+import { THEME } from "@/theme";
+import { SCREEN_WIDTH } from "@/theme/responsive";
 
 /**
  * Geometry preserved from the original WebView oscilloscope: a full-width
@@ -10,7 +11,7 @@ import { SCREEN_WIDTH, scale } from "@/theme/responsive";
 export const styles = StyleSheet.create({
   container: {
     width: SCREEN_WIDTH,
-    height: scale(127),
+    height: THEME.LAYOUT.LOGO_HEIGHT,
     position: "absolute",
     top: 0,
   },

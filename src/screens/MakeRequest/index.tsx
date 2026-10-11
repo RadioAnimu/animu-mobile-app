@@ -11,8 +11,6 @@ import {
 import {
   ActivityIndicator,
   FlatList,
-  Keyboard,
-  Platform,
   Text,
   TextInput,
   TouchableOpacity,
@@ -34,7 +32,6 @@ import { usePlayer } from "@/contexts/player/PlayerProvider";
 import { useUserSettings } from "@/contexts/user/UserSettingsProvider";
 import { useDict } from "@/hooks/useDict";
 import { useRecentSearches } from "@/hooks/useRecentSearches";
-import { useKeyboardPadding } from "@/hooks/useKeyboardPadding";
 import { useRouteReselect } from "@/hooks/useRouteReselect";
 import { useScrollEndPadding } from "@/hooks/useScrollEndPadding";
 import {
@@ -51,6 +48,7 @@ import type { Dict } from "@/i18n";
 import { THEME } from "@/theme";
 import { scale } from "@/theme/responsive";
 import { haptics } from "@/utils/haptics";
+import { dismissKeyboard } from "@/utils/keyboard";
 import { layoutEase } from "@/utils/layout-animation";
 import { styles } from "@/screens/MakeRequest/styles";
 import { RecentSearches } from "@/screens/MakeRequest/RecentSearches";
@@ -120,6 +118,7 @@ function SearchBar({
         />
         {hasQuery ? (
           <TouchableOpacity
+            activeOpacity={THEME.OPACITY.PRESSED}
             accessibilityRole="button"
             accessibilityLabel={dict.A11Y_CLEAR_SEARCH}
             hitSlop={THEME.HIT_SLOP.SM}
@@ -134,6 +133,7 @@ function SearchBar({
           </TouchableOpacity>
         ) : (
           <TouchableOpacity
+            activeOpacity={THEME.OPACITY.PRESSED}
             accessibilityRole="none"
             accessible={false}
             hitSlop={THEME.HIT_SLOP.SM}
@@ -164,6 +164,7 @@ function SearchErrorBanner({
     <View style={styles.errorBanner}>
       <Text style={styles.errorText}>{dict.REQUEST_SEARCH_ERROR}</Text>
       <TouchableOpacity
+        activeOpacity={THEME.OPACITY.PRESSED}
         accessibilityRole="button"
         accessibilityLabel={dict.ERROR_RETRY}
         hitSlop={THEME.HIT_SLOP.SM}
@@ -229,12 +230,9 @@ export function MakeRequest() {
 
   const { recent, addRecent, removeRecent, clearRecent } = useRecentSearches();
 
-  // The lists run under the home indicator / nav bar and pad past it; on
-  // Android (edge-to-edge) they also pad past the keyboard, iOS lists adjust
-  // their insets natively.
-  const bottomPadding =
-    useScrollEndPadding(THEME.SPACE.LG) +
-    useKeyboardPadding(Platform.OS === "android");
+  // The lists run under the home indicator / nav bar and pad past it; the
+  // keyboard-aware lists add the keyboard's room themselves.
+  const bottomPadding = useScrollEndPadding(THEME.SPACE.LG);
 
   // Re-tapping the drawer's active item jumps the results back to the top.
   useRouteReselect("MakeRequest", () =>
@@ -262,7 +260,7 @@ export function MakeRequest() {
   /** Tapping a recent search re-runs it (keyboard down, field filled). */
   const handlePickRecent = useCallback(
     (picked: string) => {
-      Keyboard.dismiss();
+      dismissKeyboard();
       haptics.select();
       setQuery(picked);
       void search(picked);

@@ -3,6 +3,7 @@ import { Animated, Text, TextInput, View } from "react-native";
 
 import { styles } from "@/components/CodeInput/styles";
 import { useFocusOnMount } from "@/hooks/useFocusOnMount";
+import { MOTION } from "@/theme/motion";
 
 /** Digits the Animu Connect email code is made of. */
 export const CODE_LENGTH = 4;
@@ -18,7 +19,10 @@ interface Props {
    * responder), so a retry would need an extra tap to bring it back.
    */
   busy?: boolean;
-  /** Focus the hidden field on mount (the code step just appeared). */
+  /**
+   * Focus the hidden field — keyboard up — once mounted (the code step just
+   * appeared). Deliberately not the native `autoFocus`; see useFocusOnMount.
+   */
   autoFocus?: boolean;
   accessibilityLabel?: string;
 }
@@ -59,12 +63,12 @@ export function CodeInput({
       Animated.sequence([
         Animated.timing(caret, {
           toValue: 0,
-          duration: 550,
+          duration: MOTION.BLINK,
           useNativeDriver: true,
         }),
         Animated.timing(caret, {
           toValue: 1,
-          duration: 550,
+          duration: MOTION.BLINK,
           useNativeDriver: true,
         }),
       ]),
@@ -109,10 +113,6 @@ export function CodeInput({
         }}
         keyboardType="number-pad"
         inputMode="numeric"
-        // Native focus in the mounting commit hands the keyboard straight
-        // over from the outgoing email field; the mount hook above is the
-        // fallback when that loses the race.
-        autoFocus={autoFocus}
         textContentType="oneTimeCode"
         autoComplete="one-time-code"
         maxLength={CODE_LENGTH}

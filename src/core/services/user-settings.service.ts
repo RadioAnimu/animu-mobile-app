@@ -19,6 +19,9 @@ class UserSettingsService {
         if (!(merged.selectedLanguage in LANGUAGE_LABELS)) {
           merged.selectedLanguage = DEFAULT_USER_SETTINGS.selectedLanguage;
         }
+        if (!["off", "romaji", "hiragana"].includes(merged.lyricsPronunciation)) {
+          merged.lyricsPronunciation = DEFAULT_USER_SETTINGS.lyricsPronunciation;
+        }
         this.settings = merged;
       }
       return this.settings;

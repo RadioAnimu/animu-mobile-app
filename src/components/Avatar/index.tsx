@@ -7,7 +7,6 @@ import { useAuth } from "@/contexts/auth/AuthProvider";
 import { useBoundedRetry } from "@/hooks/useBoundedRetry";
 import { resolveMediaSource } from "@/utils/authImage";
 import { THEME } from "@/theme";
-import { scale } from "@/theme/responsive";
 
 interface Props {
   uri?: string | null;
@@ -22,7 +21,7 @@ interface Props {
  * the URL with the session token and a cache-busting revision. Degrades to a
  * neutral person glyph with bounded retries instead of a blank frame.
  */
-export function Avatar({ uri, size = scale(40), style, iconSize }: Readonly<Props>) {
+export function Avatar({ uri, size = THEME.LAYOUT.AVATAR.SM, style, iconSize }: Readonly<Props>) {
   const { user, imageVersion, media } = useAuth();
   const { failed, retry, fail } = useBoundedRetry(uri ?? "");
 

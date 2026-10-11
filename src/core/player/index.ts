@@ -16,6 +16,7 @@
  */
 export { playerService } from "@/core/player/player-factory";
 export type { VisualizerWindow } from "@/core/player/visualizer/types";
+export type { HeardPosition } from "@/core/player/player-service";
 
 export {
   playerStore,

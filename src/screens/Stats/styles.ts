@@ -38,15 +38,18 @@ export const styles = StyleSheet.create({
   afterCardGap: {
     marginTop: THEME.SPACE.XXL,
   },
+  // A true two-column grid: every value starts on one of two shared
+  // x-positions instead of wherever the label before it happened to end.
   overview: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: THEME.SPACE.XL,
+    rowGap: THEME.SPACE.XL,
     padding: THEME.SPACE.LG,
   },
   statItem: {
     gap: THEME.SPACE.XXS,
-    minWidth: "28%",
+    width: "50%",
+    paddingRight: THEME.SPACE.SM,
   },
   statLabel: {
     color: THEME.COLORS.TEXT_DIM,
@@ -100,7 +103,7 @@ export const styles = StyleSheet.create({
   heatCell: {
     width: HEAT_CELL,
     height: HEAT_CELL,
-    borderRadius: 2,
+    borderRadius: THEME.RADIUS.XS,
   },
   heatCellSelected: {
     borderWidth: 1,
@@ -122,7 +125,7 @@ export const styles = StyleSheet.create({
   heatLegendCell: {
     width: HEAT_CELL,
     height: HEAT_CELL,
-    borderRadius: 2,
+    borderRadius: THEME.RADIUS.XS,
   },
   // ── Streak / detail rows ──
   row: {
@@ -178,7 +181,7 @@ export const styles = StyleSheet.create({
   },
   bar: {
     backgroundColor: "rgba(107, 219, 0, 0.35)",
-    borderRadius: 2,
+    borderRadius: THEME.RADIUS.XS,
     flex: 1,
     minHeight: 2,
   },
@@ -371,12 +374,12 @@ export const styles = StyleSheet.create({
   shareActionButton: {
     alignItems: "center",
     backgroundColor: THEME.COLORS.BRAND,
-    borderRadius: 999,
+    borderRadius: THEME.RADIUS.CIRCLE,
     flexDirection: "row",
     flex: 1,
     gap: THEME.SPACE.SM,
     justifyContent: "center",
-    minHeight: scale(44),
+    minHeight: THEME.LAYOUT.CONTROL_HEIGHT,
     paddingHorizontal: THEME.SPACE.LG,
   },
   shareActionLabel: {

@@ -10,7 +10,6 @@ import {
 
 import { useDict } from "@/hooks/useDict";
 import { THEME } from "@/theme";
-import { scale } from "@/theme/responsive";
 import { styles } from "@/components/FormField/styles";
 
 interface Props
@@ -49,7 +48,7 @@ interface Props
 const COUNTER_THRESHOLD = 0.8;
 
 /** Placeholder and clear icon on the white field. */
-const PLACEHOLDER_COLOR = "rgba(0, 0, 0, 0.45)";
+const PLACEHOLDER_COLOR = THEME.COLORS.TEXT_ON_LIGHT_DIM;
 
 interface HeaderProps {
   label: string;
@@ -112,7 +111,7 @@ function FieldError({ message }: Readonly<{ message: string }>) {
     >
       <Icon
         name="error-outline"
-        size={scale(16)}
+        size={THEME.ICON.SM}
         color={THEME.COLORS.ERROR}
       />
       <Text style={styles.errorText}>{message}</Text>

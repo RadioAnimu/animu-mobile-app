@@ -42,7 +42,16 @@ export function EmailCodeFields({
   const onCodeStep = flow.step === "code";
   const { code, busy, verify } = flow;
 
-  useFocusOnMount(emailRef, autoFocusEmail && !onCodeStep);
+  // Stepping back from the code ("use another email") means the user is
+  // about to retype the address, so the field takes focus then too.
+  const [prevStep, setPrevStep] = useState(flow.step);
+  const [backFromCode, setBackFromCode] = useState(false);
+  if (prevStep !== flow.step) {
+    setPrevStep(flow.step);
+    setBackFromCode(prevStep === "code");
+  }
+
+  useFocusOnMount(emailRef, (autoFocusEmail || backFromCode) && !onCodeStep);
 
   // A complete 4-digit code has no reason to wait for a second tap, so submit
   // as soon as the last box fills. The ref fires once per complete entry
@@ -82,6 +91,10 @@ export function EmailCodeFields({
             // below, and stays grayed out until something is typed.
             returnKeyType="send"
             enablesReturnKeyAutomatically
+            // Keep focus (and the keyboard) through the send, exactly like a
+            // tap on the button: the keyboard then hands straight over to the
+            // code boxes instead of dropping and popping back up.
+            submitBehavior="submit"
             accessibilityLabel={dict.LOGIN_EMAIL}
             accessibilityState={{ busy: flow.busy }}
             placeholder={dict.LOGIN_EMAIL_PLACEHOLDER}

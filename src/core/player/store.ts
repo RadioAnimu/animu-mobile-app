@@ -2,6 +2,7 @@ import { Track } from "@/core/domain/track";
 import { Stream } from "@/core/domain/stream";
 import { Listeners } from "@/core/domain/listeners";
 import { Program } from "@/core/domain/program";
+import { createStore } from "@/core/external-store";
 
 /**
  * The transport as the UI sees it. `isPlaying` alone can't express
@@ -59,49 +60,6 @@ export type ProgressSnapshot = {
   currentTrackProgress: number | null;
   showProgress: boolean;
 };
-
-// ─── Generic external store (compatible with useSyncExternalStore) ───
-
-type Listener = () => void;
-
-function shallowEqual<T extends Record<string, unknown>>(a: T, b: T): boolean {
-  const keysA = Object.keys(a);
-  const keysB = Object.keys(b);
-  if (keysA.length !== keysB.length) return false;
-  for (const key of keysA) {
-    if (a[key] !== b[key]) return false;
-  }
-  return true;
-}
-
-function createStore<T extends Record<string, unknown>>(initialSnapshot: T) {
-  let snapshot = initialSnapshot;
-  const listeners = new Set<Listener>();
-
-  const notify = () => {
-    listeners.forEach((l) => l());
-  };
-
-  return {
-    getSnapshot(): T {
-      return snapshot;
-    },
-
-    /** Only notifies listeners if the snapshot actually changed (shallow compare). */
-    setSnapshot(next: T): void {
-      if (shallowEqual(snapshot, next)) return;
-      snapshot = next;
-      notify();
-    },
-
-    subscribe(listener: Listener): () => void {
-      listeners.add(listener);
-      return () => {
-        listeners.delete(listener);
-      };
-    },
-  };
-}
 
 // ─── Singleton stores ───
 

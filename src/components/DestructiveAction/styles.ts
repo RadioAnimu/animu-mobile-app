@@ -2,7 +2,6 @@ import { StyleSheet } from "react-native";
 
 import { THEME } from "@/theme";
 import { ROW_STYLES } from "@/theme/screen";
-import { scale } from "@/theme/responsive";
 import { CONTINUOUS } from "@/theme/shape";
 
 const CONTENT_PADDING = THEME.SPACE.LG;
@@ -13,7 +12,7 @@ export const styles = StyleSheet.create({
   action: {
     flexDirection: "row",
     alignItems: "center",
-    minHeight: scale(64),
+    minHeight: THEME.LAYOUT.ROW_MIN_HEIGHT,
     paddingHorizontal: CONTENT_PADDING,
     paddingVertical: THEME.SPACE.MD,
     borderRadius: THEME.RADIUS.CARD,
@@ -39,6 +38,6 @@ export const styles = StyleSheet.create({
     fontSize: THEME.FONT_SIZE.BODY,
     lineHeight: THEME.LINE_HEIGHT.SUBHEAD,
     // Slightly dimmed for hierarchy; still ~4.7:1 on the danger fill.
-    opacity: 0.85,
+    opacity: THEME.OPACITY.MUTED,
   },
 });

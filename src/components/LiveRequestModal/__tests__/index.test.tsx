@@ -15,6 +15,12 @@ import { LiveRequestModal } from "@/components/LiveRequestModal";
 vi.mock("react-native", async () =>
   (await import("@/__tests__/react-native-mock")).createReactNativeMock(),
 );
+vi.mock("react-native-safe-area-context", () => ({
+  useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }),
+}));
+vi.mock("react-native-keyboard-controller", async () =>
+  (await import("@/__tests__/keyboard-controller-mock")).createKeyboardControllerMock(),
+);
 vi.mock("@react-native-vector-icons/material-icons/static", async () =>
   (await import("@/__tests__/react-native-mock")).createIconMock(),
 );

@@ -11,6 +11,7 @@ import { useUserSettings } from "@/contexts/user/UserSettingsProvider";
 import { useDict } from "@/hooks/useDict";
 import { SettingsRow } from "@/screens/Settings/rows";
 import { formatBytes } from "@/utils/format";
+import { DESTINATION_ICON } from "@/constants/destination-icons";
 
 const QUALITY_LABEL_KEY = {
   high: "SETTINGS_QUALITY_LIVE_LABEL_HIGH",
@@ -57,7 +58,7 @@ export function CoverDataSection() {
       />
       <RowDivider />
       <SettingsRow
-        icon="history"
+        icon={DESTINATION_ICON.LastRequested}
         label={dict.SETTINGS_COVER_LAST_REQUESTED_SWITCH}
         value={settings.lastRequestedCovers}
         onToggle={() =>
@@ -68,7 +69,7 @@ export function CoverDataSection() {
       />
       <RowDivider />
       <SettingsRow
-        icon="music-note"
+        icon={DESTINATION_ICON.LastPlayed}
         label={dict.SETTINGS_COVER_LAST_PLAYED_SWITCH}
         value={settings.lastPlayedCovers}
         onToggle={() =>
@@ -77,7 +78,7 @@ export function CoverDataSection() {
       />
       <RowDivider />
       <SettingsRow
-        icon="search"
+        icon={DESTINATION_ICON.MakeRequest}
         label={dict.SETTINGS_COVER_REQUESTED_SWITCH}
         value={settings.coversInRequestSearch}
         onToggle={() =>

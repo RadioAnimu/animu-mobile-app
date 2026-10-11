@@ -2,7 +2,6 @@ import { StyleSheet } from "react-native";
 
 import { THEME } from "@/theme";
 import { ROW_STYLES } from "@/theme/screen";
-import { scale } from "@/theme/responsive";
 
 const CONTENT_PADDING = THEME.SPACE.LG;
 
@@ -62,8 +61,8 @@ export const styles = StyleSheet.create({
     fontSize: THEME.FONT_SIZE.BODY,
   },
   removeButton: {
-    width: scale(40),
-    height: scale(40),
+    width: THEME.LAYOUT.ICON_BUTTON,
+    height: THEME.LAYOUT.ICON_BUTTON,
     alignItems: "center",
     justifyContent: "center",
     marginLeft: THEME.SPACE.XS,

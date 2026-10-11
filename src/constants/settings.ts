@@ -15,4 +15,5 @@ export const DEFAULT_USER_SETTINGS: UserSettings = {
   visualizerHz: 60,
   liveUpdatesInBackground: true,
   hapticsEnabled: true,
+  lyricsPronunciation: "romaji",
 };

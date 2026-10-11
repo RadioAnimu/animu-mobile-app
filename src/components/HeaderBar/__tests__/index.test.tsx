@@ -53,6 +53,7 @@ vi.mock("@/hooks/useSmoothedElapsed", () => ({
   useSmoothedElapsed: () => 0,
 }));
 vi.mock("@/utils/haptics", () => ({ haptics: mocks.haptics }));
+vi.mock("@/components/LyricsButton", () => ({ LyricsButton: () => <i data-testid="lyrics-button" /> }));
 
 const setPlayer = (overrides: Record<string, unknown> = {}) => {
   mocks.player = {
@@ -70,6 +71,11 @@ const pressRequest = () =>
   fireEvent.click(screen.getByRole("button", { name: "Make request" }));
 
 describe("HeaderBar", () => {
+  it("carries the lyrics microphone beside the request note", () => {
+    render(<HeaderBar openLiveRequestModal={() => {}} />);
+    expect(screen.getByTestId("lyrics-button")).toBeTruthy();
+  });
+
   beforeEach(() => {
     mocks.backgrounded = false;
     setPlayer();

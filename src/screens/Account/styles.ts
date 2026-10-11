@@ -8,7 +8,7 @@ import { CONTINUOUS, avatarRadius, concentric } from "@/theme/shape";
 // 2015-Twitter header: a wide cover with a rounded-square avatar hanging off
 // its bottom-left.
 const BANNER_HEIGHT = scale(104);
-const AVATAR = scale(84);
+const AVATAR = THEME.LAYOUT.AVATAR.LG;
 const AVATAR_RADIUS = avatarRadius(AVATAR);
 const AVATAR_BORDER = scale(4);
 const BADGE_SIZE = scale(20);
@@ -171,18 +171,18 @@ export const styles = StyleSheet.create({
     paddingHorizontal: CONTENT_PADDING,
     paddingTop: THEME.SPACE.SM,
   },
-  // Icon-only link/unlink affordance: a fixed 40px square keeps the tap
+  // Icon-only link/unlink affordance: a fixed ICON_BUTTON square keeps the tap
   // target generous while freeing the horizontal budget a text action used
   // to eat at small widths (the rowCaption's whole wrapping problem).
   rowIconAction: {
-    width: scale(40),
-    height: scale(40),
+    width: THEME.LAYOUT.ICON_BUTTON,
+    height: THEME.LAYOUT.ICON_BUTTON,
     alignItems: "center",
     justifyContent: "center",
     marginLeft: THEME.SPACE.XS,
   },
   rowActionBusy: {
-    width: scale(40),
+    width: THEME.LAYOUT.ICON_BUTTON,
     marginLeft: THEME.SPACE.XS,
   },
   rowActionDisabled: {

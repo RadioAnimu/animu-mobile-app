@@ -1,6 +1,8 @@
 import { useCallback, useRef } from "react";
 import type { TextInput } from "react-native";
 
+import { focusWithKeyboard } from "@/utils/keyboard";
+
 /**
  * Keyed registry of text inputs for "next field" focus chaining and focusing
  * the first invalid field. `register` is a ref callback; `focus` runs from
@@ -13,8 +15,10 @@ export function useInputRegistry<K extends string>() {
     inputs.current[key] = node;
   }, []);
 
+  // Through the shared helper so a field that is already focused (but lost
+  // its keyboard) still gets the keyboard back.
   const focus = useCallback((key: K) => {
-    inputs.current[key]?.focus();
+    focusWithKeyboard(inputs.current[key] ?? null);
   }, []);
 
   return { register, focus };

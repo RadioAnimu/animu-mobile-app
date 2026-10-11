@@ -5,9 +5,14 @@ import type { TextInput } from "react-native";
 
 import { useInputRegistry } from "@/hooks/useInputRegistry";
 
+vi.mock("react-native-keyboard-controller", () => ({
+  KeyboardController: { setFocusTo: vi.fn(), dismiss: vi.fn() },
+}));
+
 afterEach(cleanup);
 
-const fakeInput = () => ({ focus: vi.fn() }) as unknown as TextInput;
+const fakeInput = () =>
+  ({ focus: vi.fn(), isFocused: () => false }) as unknown as TextInput;
 
 describe("useInputRegistry", () => {
   it("focuses the input registered under a key", () => {

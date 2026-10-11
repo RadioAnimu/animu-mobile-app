@@ -274,7 +274,7 @@ export function CustomDrawerContent(props: Readonly<DrawerContentComponentProps>
         </View>
 
         <Separator
-          icon={<DrawerIcon name="queue-music" size={SECTION_ICON_SIZE} />}
+          icon={<DrawerIcon name="menu" size={SECTION_ICON_SIZE} />}
           sectionTitle={dict.MENU}
         />
         <NavItems {...props} />

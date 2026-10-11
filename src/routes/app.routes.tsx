@@ -13,13 +13,16 @@ import { CustomDrawerContent, DrawerIcon } from "@/components/CustomDrawer";
 import { MakeRequest } from "@/screens/MakeRequest";
 import { Home } from "@/screens/Home";
 import { History } from "@/screens/History";
+import { DESTINATION_ICON } from "@/constants/destination-icons";
 import { THEME } from "@/theme";
+import { MOTION } from "@/theme/motion";
 import { Settings } from "@/screens/Settings";
 import { Stats } from "@/screens/Stats";
 import { Storage } from "@/screens/Storage";
 import { Login } from "@/screens/Login";
 import { Account } from "@/screens/Account";
 import { About } from "@/screens/About";
+import { Lyrics } from "@/screens/Lyrics";
 import { useDict } from "@/hooks/useDict";
 import { useReducedMotion } from "@/hooks/useReducedMotion";
 import type { HistoryType } from "animu-api";
@@ -48,6 +51,7 @@ export type DetailParamList = {
   Login: undefined;
   Account: undefined;
   About: undefined;
+  Lyrics: undefined;
 };
 
 export type RootStackParamList = DetailParamList & {
@@ -69,16 +73,16 @@ const renderDrawerContent = (props: DrawerContentComponentProps) => (
 );
 
 const playerIcon = ({ color }: { color: string }) => (
-  <DrawerIcon name="play-circle" color={color} />
+  <DrawerIcon name={DESTINATION_ICON.Home} color={color} />
 );
 const lastRequestedIcon = ({ color }: { color: string }) => (
-  <DrawerIcon name="queue-music" color={color} />
+  <DrawerIcon name={DESTINATION_ICON.LastRequested} color={color} />
 );
 const lastPlayedIcon = ({ color }: { color: string }) => (
-  <DrawerIcon name="history" color={color} />
+  <DrawerIcon name={DESTINATION_ICON.LastPlayed} color={color} />
 );
 const makeRequestIcon = ({ color }: { color: string }) => (
-  <DrawerIcon name="music-note" color={color} />
+  <DrawerIcon name={DESTINATION_ICON.MakeRequest} color={color} />
 );
 
 function DrawerRoutes() {
@@ -93,6 +97,7 @@ function DrawerRoutes() {
       screenOptions={{
         headerShown: false,
         overlayColor: THEME.COLORS.SCRIM,
+        overlayAccessibilityLabel: dict.A11Y_CLOSE_MENU,
         drawerStyle: {
           backgroundColor: THEME.COLORS.SURFACE,
           width: width * DRAWER_WIDTH_RATIO,
@@ -152,6 +157,9 @@ export function AppRoutes() {
     // Platform push/pop by default; a plain cross-fade when the system asks
     // for reduced motion.
     animation: reduceMotion ? "fade" : "default",
+    // iOS plays fades and the bottom slide over 500ms by default — twice the
+    // app's tempo. (The platform push and Android's transitions are native.)
+    animationDuration: MOTION.DURATION.SCREEN,
   };
 
   return (
@@ -172,6 +180,17 @@ export function AppRoutes() {
       />
       <Stack.Screen name="Account" component={Account} />
       <Stack.Screen name="About" component={About} />
+      <Stack.Screen
+        name="Lyrics"
+        component={Lyrics}
+        // Rises over the player like Apple Music's lyrics; the screen paints
+        // its own backdrop (the cover's colors) over the app tone.
+        options={{
+          presentation: "fullScreenModal",
+          animation: reduceMotion ? "fade" : "slide_from_bottom",
+          contentStyle: DETAIL_CONTENT,
+        }}
+      />
     </Stack.Navigator>
   );
 }

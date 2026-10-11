@@ -1,7 +1,6 @@
 import { StyleSheet } from "react-native";
 
 import { THEME } from "@/theme";
-import { scale } from "@/theme/responsive";
 
 export const styles = StyleSheet.create({
   button: {
@@ -9,8 +8,11 @@ export const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     gap: THEME.SPACE.SM,
-    height: scale(48),
+    // A floor, not a fixed height: a label that wraps at large text grows
+    // the button instead of being clipped.
+    minHeight: THEME.LAYOUT.CONTROL_HEIGHT,
     paddingHorizontal: THEME.SPACE.XXL,
+    paddingVertical: THEME.SPACE.XS,
     borderRadius: THEME.RADIUS.CIRCLE,
     backgroundColor: THEME.COLORS.BRAND,
   },
@@ -22,6 +24,8 @@ export const styles = StyleSheet.create({
     color: THEME.COLORS.TEXT_DIM,
   },
   label: {
+    flexShrink: 1,
+    textAlign: "center",
     color: THEME.COLORS.TEXT_ON_LIGHT,
     fontFamily: THEME.FONT_FAMILY.BOLD,
     fontSize: THEME.FONT_SIZE.LIST,

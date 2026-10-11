@@ -1,0 +1,34 @@
+diff --git a/lib/module/views/Drawer.native.js b/lib/module/views/Drawer.native.js
+index 263fb160bc7f939f2f512a0bee2c819bbc097480..76a4d5ef612d7369fd460a9431b58e5bb9798a0b 100644
+--- a/lib/module/views/Drawer.native.js
++++ b/lib/module/views/Drawer.native.js
+@@ -137,8 +137,10 @@ export function Drawer({
+     touchX.value = 0;
+     translationX.value = withSpring(translateX, {
+       velocity,
+-      stiffness: 1000,
+-      damping: 500,
++      // Animu: twice the stock speed (stiffness x4, damping x2 at the same
++      // mass halves every time constant; same critically-clamped curve).
++      stiffness: 4000,
++      damping: 1000,
+       mass: 3,
+       overshootClamping: true,
+       reduceMotion: ReduceMotion.Never
+diff --git a/src/views/Drawer.native.tsx b/src/views/Drawer.native.tsx
+index e91f2a8aff28b9554c91b4a0bb9905e839176a4e..e85e66988b427b413db8744e2a7c522a398e5c6e 100644
+--- a/src/views/Drawer.native.tsx
++++ b/src/views/Drawer.native.tsx
+@@ -193,8 +193,10 @@ export function Drawer({
+         translateX,
+         {
+           velocity,
+-          stiffness: 1000,
+-          damping: 500,
++          // Animu: twice the stock speed (stiffness x4, damping x2 at the same
++          // mass halves every time constant; same critically-clamped curve).
++          stiffness: 4000,
++          damping: 1000,
+           mass: 3,
+           overshootClamping: true,
+           reduceMotion: ReduceMotion.Never,

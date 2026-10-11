@@ -3,9 +3,11 @@ import {
   FlatList,
   Text,
   type ListRenderItem,
+  type ScrollViewProps,
 } from "react-native";
 
 import { AppRefreshControl } from "@/components/AppRefreshControl";
+import { KeyboardScrollView } from "@/components/KeyboardScrollView";
 
 import type { MusicRequest } from "@/core/domain/music-request";
 import { THEME } from "@/theme";
@@ -23,9 +25,14 @@ interface Props {
   /** A next page is in flight — shows the footer spinner. */
   loadingMore: boolean;
   onEndReached: () => void;
-  /** Clears the home indicator / nav bar (and the keyboard on Android). */
+  /** Clears the home indicator / nav bar. */
   bottomPadding: number;
 }
+
+// Module-level so the list keeps one scroll component identity.
+const renderScrollComponent = (props: ScrollViewProps) => (
+  <KeyboardScrollView {...props} />
+);
 
 /**
  * The search results list: pull-to-refresh, endless scroll, keyboard-friendly
@@ -49,14 +56,11 @@ export function ResultsList({
       data={data}
       keyExtractor={(item) => item.id}
       contentContainerStyle={[styles.list, { paddingBottom: bottomPadding }]}
-      // iOS keeps the last rows reachable above the keyboard.
-      automaticallyAdjustKeyboardInsets
+      // Keeps the last rows reachable above the keyboard on both platforms;
+      // a tapped result acts immediately (the keyboard doesn't swallow the
+      // tap) and dragging the results dismisses the keyboard.
+      renderScrollComponent={renderScrollComponent}
       renderItem={renderItem}
-      // Tapping a result right after searching acts on the row immediately —
-      // the keyboard does not swallow the first tap.
-      keyboardShouldPersistTaps="handled"
-      // Scrolling results dismisses the keyboard to free the view.
-      keyboardDismissMode="on-drag"
       // Rows wrap to show the full title, so they vary in height and cannot
       // be described by `getItemLayout`. Render only what is on screen plus a
       // short lead in/out.
