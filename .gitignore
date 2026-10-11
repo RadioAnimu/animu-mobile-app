@@ -79,3 +79,6 @@ junit.xml
 
 # Python validation bytecode
 __pycache__/
+
+# Portable CI outputs
+ci-results.json

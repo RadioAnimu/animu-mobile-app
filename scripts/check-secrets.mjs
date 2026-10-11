@@ -16,7 +16,7 @@ const distributions = {
 const distribution = distributions[`${process.platform}-${process.arch}`];
 if (!distribution) throw new Error("Unsupported secret-scanner platform");
 const [platform, checksum] = distribution;
-const cache = path.join(os.tmpdir(), `animu-gitleaks-${version}-${platform}`);
+const cache = path.join(process.env.XDG_CACHE_HOME || os.tmpdir(), `animu-gitleaks-${version}-${platform}`);
 fs.mkdirSync(cache, { recursive: true, mode: 0o700 });
 const archive = path.join(cache, "tool.tar.gz");
 function verifiedArchive() {

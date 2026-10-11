@@ -7,6 +7,7 @@ on:
 
 permissions:
   contents: read
+  actions: read
 
 concurrency:
   group: ci-${{ github.event.pull_request.number || github.ref }}
@@ -16,6 +17,9 @@ jobs:
   check:
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    env:
+      CI: true
+      GH_TOKEN: ${{ github.token }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -31,6 +35,19 @@ jobs:
         with:
           node-version: 22
           cache: pnpm
+
+      - name: Configure download stores
+        run: |
+          echo "YARN_GLOBAL_FOLDER=$RUNNER_TEMP/animu-yarn" >> "$GITHUB_ENV"
+          echo "XDG_CACHE_HOME=$RUNNER_TEMP/animu-tools" >> "$GITHUB_ENV"
+
+      - name: Cache isolated library downloads and verified tools
+        uses: actions/cache@v5
+        with:
+          path: |
+            ${{ env.YARN_GLOBAL_FOLDER }}
+            ${{ env.XDG_CACHE_HOME }}/animu-gitleaks-*
+          key: ${{ runner.os }}-${{ runner.arch }}-library-downloads-${{ hashFiles('packages/react-native-anything-player/yarn.lock', 'scripts/check-secrets.mjs') }}
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
@@ -95,3 +112,13 @@ jobs:
       # an unpinned `@latest` download.
       - name: React Doctor gate
         run: pnpm run doctor:gate
+
+      - name: Publish reusable results
+        run: node scripts/ci-results.mjs publish RadioAnimu/animu-mobile-app
+      - name: Upload reusable results
+        uses: actions/upload-artifact@v7
+        with:
+          name: ci-results
+          path: ci-results.json
+          retention-days: 30
+          if-no-files-found: error

@@ -35,7 +35,7 @@ pipeline {
       agent {
         docker {
           image 'node:22-bookworm'
-          args '-u root'
+          args '-u root -v animu-node-cache:/opt/animu-cache -e CI_CACHE_DIR=/opt/animu-cache'
         }
       }
       steps {
@@ -46,12 +46,11 @@ pipeline {
           git config --global --add safe.directory "$WORKSPACE/packages/animu-api"
           git config --global --add safe.directory "$WORKSPACE/packages/react-native-anything-player"
           bash scripts/init-submodules.sh
+          . scripts/ci-cache.sh
           corepack enable
           echo "node $(node --version) / pnpm $(pnpm --version)"
 
-          # Start from pristine packages: a node_modules left by a previous build
-          # can be half-restored.
-          rm -rf node_modules
+          # Immutable installs reconcile dependencies while preserving reusable files.
           pnpm install --frozen-lockfile
 
           pnpm run test:tooling
@@ -84,8 +83,10 @@ pipeline {
 
           # React Doctor gate (any finding fails the build).
           pnpm run doctor:gate
+          node scripts/ci-results.mjs publish RadioAnimu/animu-mobile-app
           '''
         }
+        archiveArtifacts artifacts: 'ci-results.json', fingerprint: true
       }
       post {
         always {

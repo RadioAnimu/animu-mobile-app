@@ -7,11 +7,11 @@ import { fileURLToPath } from "node:url";
 export const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 export const libraries = {
   "animu-api": {
-    output: "dist", entry: "esm/index.js", types: "esm/index.d.ts",
+    repository: "RadioAnimu/animu-api", output: "dist", entry: "esm/index.js", types: "esm/index.d.ts",
     job: "Animu/animu-api", artifact: "animu-api-dist.tar.gz", prefix: "dist/",
   },
   "react-native-anything-player": {
-    output: "lib", entry: "module/index.js", types: "typescript/src/index.d.ts",
+    repository: "rmotafreitas/react-native-anything-player", output: "lib", entry: "module/index.js", types: "typescript/src/index.d.ts",
     job: "Animu/react-native-anything-player", artifact: "react-native-anything-player.tgz", prefix: "package/lib/",
   },
 };
