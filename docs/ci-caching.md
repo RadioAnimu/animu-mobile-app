@@ -13,7 +13,7 @@ still run on every app CI build, as do the app's integration tests and bundle ch
 | Host Node downloads | `~/.cache/animu-ci/{pnpm,yarn,npm,corepack}` | Shared by Sonar/release; installed dependencies stay workspace-local |
 | Gitleaks downloads | `$XDG_CACHE_HOME/animu-gitleaks-*` | Pinned version/platform and SHA-256 checked before every execution |
 | Sonar plugins, JRE and JS runtime | `~/.cache/animu-ci/sonar` mounted into scanner | Scanner manages compatibility; analysis and quality-gate wait always execute |
-| Native release | Existing Android SDK, workspace `.gradle-home`, ccache and `android/` | Gradle task inputs; compiler-content checks; prebuild key includes patches, assets, plugins, manifests, lockfile and Node runtime |
+| Native release | Existing Android SDK, workspace `.gradle-home`, ccache and `android/` (paths resolved after native agent allocation) | Gradle task inputs; compiler-content checks; prebuild key includes patches, assets, plugins, manifests, lockfile and Node runtime |
 | RNAP GitHub native builds | Gradle `setup-gradle`, Turbo, CocoaPods/Ruby downloads | Gradle owns task caching; Turbo includes root native sources, runner image and Xcode; per-commit archive keys allow caches to evolve |
 | RNAP installed dependencies | GitHub cache | OS, architecture, Node, Yarn config/version, lockfile and manifests; always reconciled by immutable install |
 
@@ -25,6 +25,13 @@ and parallel native builds have previously exhausted memory. The release uses tw
 Gradle workers and two Ninja compile slots per native project, retaining the
 tested 4 GB Gradle heap. A live build with the previous six-worker setting filled
 the host's 12 GB swap during this review.
+
+With Jenkins `agent none`, `WORKSPACE` is unavailable in the top-level environment.
+The release resolves Gradle home, ccache directory and ccache configuration from
+`pwd()` inside the native Toolchain stage. The previous `null/.gradle-home` value
+placed Gradle downloads under generated `android/`, where prebuild could delete
+them, and pointed ccache at an absent configuration. The stable cache now lives
+outside generated sources. Existing downloads were migrated instead of discarded.
 
 ## Portable results
 
