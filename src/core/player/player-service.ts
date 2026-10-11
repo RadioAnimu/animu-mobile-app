@@ -520,6 +520,9 @@ export class PlayerService {
         title: meta.title,
         artist: meta.artist,
         artwork: meta.artwork,
+        // The "live" badge follows the program, not the endless stream:
+        // jingles and the tune-in sync get plain metadata, no badge.
+        live: meta.isLiveStream ?? false,
         ...(meta.durationSec && elapsed != null
           ? { duration: meta.durationSec, elapsed: elapsed / 1000 }
           : {}),

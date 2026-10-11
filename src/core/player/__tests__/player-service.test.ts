@@ -466,6 +466,20 @@ describe("PlayerService on react-native-anything-player", () => {
     const nowPlaying = lastNowPlaying(t.player)!;
     expect(nowPlaying.duration).toBeUndefined();
     expect(nowPlaying.elapsed).toBeUndefined();
+    expect(nowPlaying.live).toBe(true);
+  });
+
+  it("no live badge on the lock screen for filler outside a live program", async () => {
+    const t = setup();
+    // A jingle: no progress, but the program is not live.
+    t.repository.showProgress = false;
+    await t.service.setupPlayer();
+    await t.service.play();
+    t.player.setState("playing", true);
+    t.player.hear("Song A");
+    const nowPlaying = lastNowPlaying(t.player)!;
+    expect(nowPlaying.duration).toBeUndefined();
+    expect(nowPlaying.live).toBe(false);
   });
 
   it("publishes the cached cover file once resolved", async () => {
