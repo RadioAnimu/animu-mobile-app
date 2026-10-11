@@ -36,9 +36,19 @@ allprojects { p ->
     def android = p.extensions.findByName("android")
     if (android == null) return
     try {
-      def args = android.defaultConfig.externalNativeBuild.cmake.arguments
+      def cmake = android.defaultConfig.externalNativeBuild.cmake
+      def args = cmake.arguments
       nativeArguments.each { a ->
         if (!args.contains(a)) args.add(a)
+      }
+      if (ccacheBinary != null) {
+        // Clang PCH embeds header timestamps unless disabled. Preserve the
+        // module's existing flags; pair this with ccache's PCH configuration.
+        [cmake.cFlags, cmake.cppFlags].each { flags ->
+          if (!flags.contains("-fno-pch-timestamp")) {
+            flags.addAll(["-Xclang", "-fno-pch-timestamp"])
+          }
+        }
       }
       println "[native-cache] ${p.path}: cache/compiler limits configured"
     } catch (Exception ignored) {
