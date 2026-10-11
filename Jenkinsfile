@@ -90,6 +90,12 @@ pipeline {
       }
       post {
         always {
+          // Git checkout runs as Jenkins outside the root build container.
+          // Restore ownership of metadata/source trees updated by submodule fetch.
+          sh '''
+            owner=$(stat -c '%u:%g' "$WORKSPACE")
+            chown -R "$owner" .git packages/animu-api packages/react-native-anything-player
+          '''
           junit allowEmptyResults: true, testResults: '**/junit*.xml'
         }
       }
