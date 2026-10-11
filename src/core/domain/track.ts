@@ -7,4 +7,4 @@
  * `core/domain/track` (thin re-export, no logic here).
  */
 export type { Track } from "animu-api";
-export { getTrackProgress, isRealTrack } from "animu-api";
+export { DEFAULT_ANIME_FALLBACK, getTrackProgress, isRealTrack } from "animu-api";

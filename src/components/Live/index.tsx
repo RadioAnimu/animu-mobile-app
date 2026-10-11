@@ -6,6 +6,7 @@ import { styles } from "@/components/Live/styles";
 import { useUserSettings } from "@/contexts/user/UserSettingsProvider";
 import { useCopyToClipboard } from "@/hooks/useCopyToClipboard";
 import { usePlayer } from "@/contexts/player/PlayerProvider";
+import { DEFAULT_ANIME_FALLBACK } from "@/core/domain/track";
 
 export const Live = React.memo(function Live() {
   const { settings } = useUserSettings();
@@ -17,6 +18,9 @@ export const Live = React.memo(function Live() {
 
   if (!track) return null;
 
+  // A song from no anime keeps the home screen's "Now Playing" label.
+  const anime = track.anime || DEFAULT_ANIME_FALLBACK;
+
   return (
     <View style={styles.track}>
       <LiveLabel />
@@ -24,8 +28,8 @@ export const Live = React.memo(function Live() {
         <MarqueeGroup>
           <Marquee
             style={styles.title}
-            text={track.anime}
-            onPress={() => copy(track.anime)}
+            text={anime}
+            onPress={() => copy(anime)}
           />
           <Marquee
             style={styles.artist}

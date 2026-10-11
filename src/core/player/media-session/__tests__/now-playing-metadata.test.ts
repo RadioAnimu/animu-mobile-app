@@ -34,7 +34,7 @@ describe("buildNowPlayingMetadata", () => {
     });
   });
 
-  it("falls back to defaults without a track", () => {
+  it("names the station without a track", () => {
     const metadata = buildNowPlayingMetadata({
       track: null,
       isLive: true,
@@ -43,11 +43,44 @@ describe("buildNowPlayingMetadata", () => {
     });
 
     expect(metadata).toEqual({
-      title: "N/A",
-      artist: "N/A",
+      title: "Rádio Animu",
+      artist: "",
       artwork: "cover.png",
       isLiveStream: true,
     });
+  });
+
+  it("promotes the song to the title for a song from no anime (Value by Ado)", () => {
+    const metadata = buildNowPlayingMetadata({
+      track: makeTrack({ raw: "Ado - Value", title: "Value", artist: "Ado", anime: "" }),
+      isLive: false,
+      showProgress: false,
+      defaultCover: "cover.png",
+    });
+
+    expect(metadata).toMatchObject({ title: "Value", artist: "Ado" });
+  });
+
+  it("shows the song as the second line when the artist is missing", () => {
+    const metadata = buildNowPlayingMetadata({
+      track: makeTrack({ raw: "Just A Title | Naruto", title: "Just A Title", artist: "" }),
+      isLive: false,
+      showProgress: false,
+      defaultCover: "cover.png",
+    });
+
+    expect(metadata).toMatchObject({ title: "Naruto", artist: "Just A Title" });
+  });
+
+  it("never shows a placeholder for a bare title", () => {
+    const metadata = buildNowPlayingMetadata({
+      track: makeTrack({ raw: "Passagem", title: "Passagem", artist: "", anime: "" }),
+      isLive: false,
+      showProgress: false,
+      defaultCover: "cover.png",
+    });
+
+    expect(metadata).toMatchObject({ title: "Passagem", artist: "" });
   });
 
   it("adds durationSec only when progress is shown and duration is valid", () => {
