@@ -9,12 +9,19 @@ export function inputKey(mode, cwd = process.cwd(), runtime = `${process.platfor
   const hash = createHash('sha256').update(`v1/${mode}/${runtime}`);
   function visit(relative) {
     const file = path.join(cwd, relative);
-    if (!fs.existsSync(file)) { hash.update(`missing:${relative}\0`); return; }
-    const stat = fs.lstatSync(file);
-    if (stat.isDirectory()) {
-      for (const name of fs.readdirSync(file).sort()) visit(path.join(relative, name));
-    } else if (stat.isFile()) hash.update(relative).update('\0').update(fs.readFileSync(file)).update('\0');
-    else throw new Error('Unexpected linked build input');
+    let fd;
+    try { fd = fs.openSync(file, fs.constants.O_RDONLY | fs.constants.O_NOFOLLOW); }
+    catch (error) {
+      if (error.code !== 'ENOENT') throw error;
+      hash.update(`missing:${relative}\0`); return;
+    }
+    try {
+      const stat = fs.fstatSync(fd);
+      if (stat.isDirectory()) {
+        for (const name of fs.readdirSync(file).sort()) visit(path.join(relative, name));
+      } else if (stat.isFile()) hash.update(relative).update('\0').update(fs.readFileSync(fd)).update('\0');
+      else throw new Error('Unexpected build input');
+    } finally { fs.closeSync(fd); }
   }
   for (const file of ['package.json', 'pnpm-lock.yaml', 'pnpm-workspace.yaml', '.npmrc', '.nvmrc', 'patches', 'packages/animu-api/package.json', 'packages/react-native-anything-player/package.json']) visit(file);
   if (mode === 'native') for (const file of ['app.json', 'app.config.js', 'app.config.ts', 'plugins', 'assets', 'packages/react-native-anything-player/app.plugin.js']) visit(file);

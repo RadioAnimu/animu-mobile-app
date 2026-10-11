@@ -1,7 +1,4 @@
 import { Buffer } from 'node:buffer';
-import fs from 'node:fs';
-import os from 'node:os';
-import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 
 const limit = 32 * 1024 * 1024;
@@ -60,13 +57,18 @@ async function github(repository, sha) {
   if (response.status !== 302) throw new Error('Missing artifact redirect');
   const location = new URL(response.headers.get('location'));
   if (location.protocol !== 'https:' || location.username || location.password) throw new Error('Invalid artifact redirect');
-  const temporary = fs.mkdtempSync(path.join(os.tmpdir(), 'ci-results-'));
-  try {
-    const zip = path.join(temporary, 'results.zip');
-    fs.writeFileSync(zip, await bytes(await request(location)));
-    // Read one file, never extract ZIP paths into the workspace.
-    return JSON.parse(execFileSync('unzip', ['-p', zip, 'ci-results.json'], { maxBuffer: limit, timeout: 15000 }));
-  } finally { fs.rmSync(temporary, { recursive: true, force: true }); }
+  // Decode a single bounded member in memory. Never write network bytes or ZIP
+  // paths into the filesystem. Python's standard library is present on CI agents.
+  const archive = await bytes(await request(location));
+  const script = `import io, sys, zipfile
+with zipfile.ZipFile(io.BytesIO(sys.stdin.buffer.read())) as archive:
+    with archive.open("ci-results.json") as entry:
+        data = entry.read(32 * 1024 * 1024 + 1)
+        if len(data) > 32 * 1024 * 1024:
+            raise ValueError("CI artifact too large")
+        sys.stdout.buffer.write(data)
+`;
+  return JSON.parse(execFileSync('python3', ['-c', script], { input: archive, maxBuffer: limit, timeout: 15000 }));
 }
 export async function downloadResults(repository, job, sha) {
   try { const data = await jenkins(job, sha); if (data) return data; }
