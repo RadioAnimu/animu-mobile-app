@@ -1,11 +1,12 @@
 import { StyleSheet } from "react-native";
-import { scale } from "@/theme/responsive";
+import { THEME } from "@/theme";
 
 export const styles = StyleSheet.create({
   container: {
-    maxWidth: scale(311),
-  },
-  contentContainer: {
-    gap: scale(19),
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "center",
+    columnGap: THEME.SPACE.LG,
+    maxWidth: THEME.LAYOUT.COMPACT_WIDTH,
   },
 });

@@ -5,7 +5,8 @@ import { SCREEN_STYLES } from "@/theme/screen";
 import { scale } from "@/theme/responsive";
 
 const CONTENT_PADDING = THEME.SPACE.LG;
-const BACK_BUTTON = scale(44);
+const BACK_BUTTON = THEME.LAYOUT.TOUCH_TARGET;
+/** The Animu Connect step's hero badge around its XL glyph. */
 const CONNECT_BADGE = scale(64);
 
 export const styles = StyleSheet.create({
@@ -71,8 +72,10 @@ export const styles = StyleSheet.create({
   method: {
     flexDirection: "row",
     alignItems: "center",
-    height: scale(48),
+    // A floor, so a label that wraps at large text grows the pill.
+    minHeight: THEME.LAYOUT.CONTROL_HEIGHT,
     paddingHorizontal: CONTENT_PADDING,
+    paddingVertical: THEME.SPACE.XS,
     borderRadius: THEME.RADIUS.CIRCLE,
     borderWidth: 1,
     borderColor: THEME.COLORS.SWITCH_OFF,
@@ -113,7 +116,7 @@ export const styles = StyleSheet.create({
     color: THEME.COLORS.TEXT_DIM,
     fontFamily: THEME.FONT_FAMILY.REGULAR,
     fontSize: THEME.FONT_SIZE.CAPTION,
-    lineHeight: scale(18),
+    lineHeight: THEME.LINE_HEIGHT.CAPTION,
     textAlign: "center",
     marginTop: "auto",
     paddingTop: THEME.SPACE.XXXL,

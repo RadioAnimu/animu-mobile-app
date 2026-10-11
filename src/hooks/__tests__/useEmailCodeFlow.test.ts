@@ -6,6 +6,9 @@ import { AnimuApiError } from "animu-api";
 import type { Dict } from "@/i18n";
 import { emailCodeError, useEmailCodeFlow } from "@/hooks/useEmailCodeFlow";
 
+const haptics = vi.hoisted(() => ({ error: vi.fn() }));
+vi.mock("@/utils/haptics", () => ({ haptics }));
+
 // The hook only reads a few message keys; mocking the context keeps the test
 // free of the React Native provider chain. (`vi.mock` is hoisted above imports.)
 vi.mock("@/hooks/useDict", () => ({
@@ -103,6 +106,7 @@ describe("useEmailCodeFlow", () => {
     });
 
     expect(options.mapRequestError).toHaveBeenCalled();
+    expect(haptics.error).toHaveBeenCalledTimes(1);
     expect(result.current.error).toBe("request-error");
     expect(result.current.step).toBe("email");
   });
@@ -122,6 +126,7 @@ describe("useEmailCodeFlow", () => {
 
     expect(options.verifyCode).toHaveBeenCalledWith("a@b.com", "1234");
     expect(options.onVerified).toHaveBeenCalledTimes(1);
+    expect(haptics.error).not.toHaveBeenCalled();
     expect(result.current.step).toBe("email");
     expect(result.current.email).toBe("");
     expect(result.current.code).toBe("");
@@ -142,6 +147,7 @@ describe("useEmailCodeFlow", () => {
     });
 
     expect(options.mapVerifyError).toHaveBeenCalled();
+    expect(haptics.error).toHaveBeenCalledTimes(1);
     expect(result.current.error).toBe("verify-error");
     expect(result.current.step).toBe("code");
     expect(options.onVerified).not.toHaveBeenCalled();

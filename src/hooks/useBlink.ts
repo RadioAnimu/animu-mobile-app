@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
 import { Animated, Easing } from "react-native";
 
+import { MOTION } from "@/theme/motion";
+
 /** How dim the "calculating" pulse dips. */
 const BLINK_MIN = 0.35;
-/** Length of each half of the pulse, in ms. */
-const BLINK_HALF_MS = 650;
 
 /**
  * "Calculating" pulse: fades an Animated.Value towards `min` and back while
@@ -24,13 +24,13 @@ export function useBlink(active: boolean) {
       Animated.sequence([
         Animated.timing(blink, {
           toValue: BLINK_MIN,
-          duration: BLINK_HALF_MS,
+          duration: MOTION.BLINK,
           easing: Easing.inOut(Easing.ease),
           useNativeDriver: true,
         }),
         Animated.timing(blink, {
           toValue: 1,
-          duration: BLINK_HALF_MS,
+          duration: MOTION.BLINK,
           easing: Easing.inOut(Easing.ease),
           useNativeDriver: true,
         }),

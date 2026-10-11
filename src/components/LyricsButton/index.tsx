@@ -2,7 +2,7 @@ import { useEffect } from "react";
 import { InteractionManager, TouchableOpacity, type StyleProp, type ViewStyle } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import { Icon } from "@/components/Icon";
+import { KaraokeMicIcon } from "@/components/KaraokeMicIcon";
 import { japaneseDictionary } from "@/core/japanese";
 import { useDict } from "@/hooks/useDict";
 import { useLyricsAvailability } from "@/hooks/useLyricsAvailability";
@@ -18,9 +18,10 @@ interface Props {
 }
 
 /**
- * The lyrics entry in the player's header: a microphone in the header's
- * green, greyed out and inactive while the heard song has no lyrics (or is
- * still being looked up). A failed lookup leaves it on: the lyrics retry.
+ * The lyrics entry in the player's header: a karaoke microphone in the
+ * header's green, greyed out and inactive while the heard song has no lyrics
+ * (or is still being looked up). A failed lookup leaves it on: the lyrics
+ * retry.
  */
 export function LyricsButton({ size, hitSlop, style }: Readonly<Props>) {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
@@ -53,7 +54,7 @@ export function LyricsButton({ size, hitSlop, style }: Readonly<Props>) {
       }}
       style={style}
     >
-      <Icon name="mic" size={size} color={enabled ? THEME.COLORS.BRAND : THEME.COLORS.TEXT_DIM} />
+      <KaraokeMicIcon size={size} color={enabled ? THEME.COLORS.BRAND : THEME.COLORS.TEXT_DIM} />
     </TouchableOpacity>
   );
 }

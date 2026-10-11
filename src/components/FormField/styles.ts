@@ -4,9 +4,10 @@ import { THEME } from "@/theme";
 import { scale } from "@/theme/responsive";
 import { hardShadow } from "@/theme/shape";
 
-const FIELD_HEIGHT = scale(44);
+const FIELD_HEIGHT = THEME.LAYOUT.FIELD_HEIGHT;
+/** A multi-line field opens at about three lines of body text. */
 const MULTILINE_HEIGHT = scale(80);
-const CLEAR_SIZE = scale(22);
+const CLEAR_SIZE = THEME.ICON.MD;
 const BORDER = THEME.BORDER_WIDTH.THICK;
 
 export const styles = StyleSheet.create({

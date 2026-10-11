@@ -193,6 +193,7 @@ export function createReactNativeMock() {
       loop: vi.fn(animation),
       delay: vi.fn(animation),
       add: (a: AnimatedValue) => a,
+      multiply: (a: AnimatedValue) => a,
     },
     Easing: {
       linear: "linear",

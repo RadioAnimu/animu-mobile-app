@@ -1,19 +1,14 @@
 import { useState } from "react";
 import { Icon } from "@/components/Icon";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
-import {
-  Alert,
-  Platform,
-  ScrollView,
-  Text,
-  View,
-} from "react-native";
+import { Alert, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { AnimuApiError } from "animu-api";
 import { AccountEmails } from "@/components/AccountEmails";
 import { AppRefreshControl } from "@/components/AppRefreshControl";
 import { DestructiveAction } from "@/components/DestructiveAction";
+import { KeyboardScrollView } from "@/components/KeyboardScrollView";
 import { ActionRow } from "@/components/ListRow";
 import { PrimaryButton } from "@/components/PrimaryButton";
 import { ScreenHeader } from "@/components/ScreenHeader";
@@ -22,7 +17,6 @@ import { useAlert } from "@/contexts/alert/AlertProvider";
 import { useAuth } from "@/contexts/auth/AuthProvider";
 import { useDict } from "@/hooks/useDict";
 import { useScrollEndPadding } from "@/hooks/useScrollEndPadding";
-import { useKeyboardPadding } from "@/hooks/useKeyboardPadding";
 import { AuthFlowCancelled } from "@/core/auth";
 import { haptics } from "@/utils/haptics";
 import { interpolate } from "@/utils/format";
@@ -51,11 +45,6 @@ export function Account({ navigation }: Readonly<Props>) {
   } = useAuth();
   const dict = useDict();
   const endPadding = useScrollEndPadding();
-
-  // Animu Connect's add-email form is inline in this scroll view, so the
-  // screen owns the keyboard inset (Android edge-to-edge; iOS handles it
-  // through `automaticallyAdjustKeyboardInsets` below).
-  const keyboardPadding = useKeyboardPadding(Platform.OS === "android");
 
   const [busy, setBusy] = useState<string | null>(null);
 
@@ -166,14 +155,10 @@ export function Account({ navigation }: Readonly<Props>) {
   return (
     <SafeAreaView style={styles.container} edges={["left", "right"]}>
       {renderHeader()}
-      <ScrollView
-        contentContainerStyle={[
-          styles.content,
-          { paddingBottom: endPadding + keyboardPadding },
-        ]}
-        automaticallyAdjustKeyboardInsets
-        keyboardShouldPersistTaps="handled"
-        keyboardDismissMode="on-drag"
+      {/* Animu Connect's add-email form is inline here: the keyboard-aware
+          view keeps its field and the button under it above the keyboard. */}
+      <KeyboardScrollView
+        contentContainerStyle={[styles.content, { paddingBottom: endPadding }]}
         refreshControl={
           <AppRefreshControl
             refreshing={busy === "refresh"}
@@ -243,7 +228,7 @@ export function Account({ navigation }: Readonly<Props>) {
           busy={busy === "delete"}
           onPress={confirmDelete}
         />
-      </ScrollView>
+      </KeyboardScrollView>
     </SafeAreaView>
   );
 }

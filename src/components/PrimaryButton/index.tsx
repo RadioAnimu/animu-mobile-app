@@ -54,7 +54,9 @@ export function PrimaryButton({
           <Icon
             name={icon}
             size={THEME.ICON.MD}
-            color={THEME.COLORS.TEXT_ON_LIGHT}
+            // The glyph dims with the label so a disabled button reads as
+            // one muted unit, not a dark icon beside grey text.
+            color={disabled ? THEME.COLORS.TEXT_DIM : THEME.COLORS.TEXT_ON_LIGHT}
           />
         )
       )}

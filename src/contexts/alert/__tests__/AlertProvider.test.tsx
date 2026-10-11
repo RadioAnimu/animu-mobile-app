@@ -29,12 +29,18 @@ vi.mock("react-native", () => {
     // Like the real Modal: nothing is mounted while not visible.
     Modal: ({ visible, children }: { visible: boolean; children: React.ReactNode }) =>
       visible ? React.createElement("div", { role: "dialog" }, children) : null,
-    KeyboardAvoidingView: passthrough("div"),
+    Animated: { View: passthrough("div") },
     View: passthrough("div"),
     Text: passthrough("span"),
     TouchableOpacity: passthrough("button"),
   };
 });
+
+vi.mock("react-native-keyboard-controller", () => ({
+  KeyboardStickyView: ({ children }: { children: React.ReactNode }) => (
+    <div>{children}</div>
+  ),
+}));
 
 vi.mock("expo-image", () => ({
   Image: ({ source }: { source: unknown }) =>
@@ -59,6 +65,16 @@ vi.mock("@/components/Toast", () => ({
     </p>
   ),
 }));
+// The overlay's enter/exit is timing-only; here it mounts with `visible`.
+vi.mock("@/hooks/usePresence", () => ({
+  usePresence: (visible: boolean) => ({
+    mounted: visible,
+    progress: { interpolate: () => 1 },
+  }),
+}));
+vi.mock("@/hooks/useReducedMotion", () => ({ useReducedMotion: () => false }));
+const haptics = vi.hoisted(() => ({ error: vi.fn() }));
+vi.mock("@/utils/haptics", () => ({ haptics }));
 vi.mock("@/hooks/useDict", () => ({
   useDict: () => ({ OK_BUTTON: "OK", A11Y_CLOSE: "Close" }),
 }));
@@ -130,7 +146,7 @@ describe("AlertProvider", () => {
     );
   });
 
-  it("auto-dismisses after 3 seconds", () => {
+  it("auto-dismisses a success after 3 seconds", () => {
     renderProvider();
     fireEvent.click(screen.getByText("success"));
 
@@ -144,7 +160,18 @@ describe("AlertProvider", () => {
     expect(screen.queryByRole("dialog")).toBeNull();
   });
 
-  it("a second alert replaces the first and is not cut short by the first's timer", () => {
+  it("keeps an error up until it is dismissed, with the error haptic", () => {
+    renderProvider();
+    fireEvent.click(screen.getByText("error"));
+    expect(haptics.error).toHaveBeenCalledTimes(1);
+
+    act(() => {
+      vi.advanceTimersByTime(60_000);
+    });
+    expect(screen.getByText("Boom")).toBeTruthy();
+  });
+
+  it("an error replacing a success is not cut short by the success's timer", () => {
     renderProvider();
     fireEvent.click(screen.getByText("success"));
     act(() => {
@@ -155,16 +182,11 @@ describe("AlertProvider", () => {
     expect(screen.queryByText("Saved!")).toBeNull();
     expect(screen.getByText("Boom")).toBeTruthy();
 
-    // The first timer would have fired at 3s (1s from now); the second must
-    // live a full 3s from ITS start.
+    // The success timer would have fired 1s from now.
     act(() => {
-      vi.advanceTimersByTime(2_999);
+      vi.advanceTimersByTime(5_000);
     });
     expect(screen.getByText("Boom")).toBeTruthy();
-    act(() => {
-      vi.advanceTimersByTime(1);
-    });
-    expect(screen.queryByRole("dialog")).toBeNull();
   });
 
   it("closes from the OK and close buttons", () => {

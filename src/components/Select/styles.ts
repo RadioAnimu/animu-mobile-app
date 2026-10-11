@@ -7,7 +7,7 @@ import { CONTINUOUS } from "@/theme/shape";
 
 // Big enough to actually judge a quality tier at a glance (the old 52 read
 // as a tiny swatch). The option row grows around it.
-const THUMB = scale(76);
+const THUMB = THEME.LAYOUT.THUMB.MD;
 
 /**
  * The control row shares the Settings group's row rhythm (64px, breathing

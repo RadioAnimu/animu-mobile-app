@@ -64,6 +64,7 @@
     "react-native": "0.86.3",
     "react-native-anything-player": "link:packages/react-native-anything-player",
     "react-native-gesture-handler": "~2.32.0",
+    "react-native-keyboard-controller": "1.21.9",
     "react-native-reanimated": "4.5.1",
     "react-native-safe-area-context": "~5.7.0",
     "react-native-screens": "~4.26.2",
@@ -123,7 +124,8 @@
     "patchedDependencies": {
       "react-native-worklets@0.10.1": "patches/react-native-worklets@0.10.1.patch",
       "react-native-reanimated@4.5.1": "patches/react-native-reanimated@4.5.1.patch",
-      "react-native-gesture-handler@2.32.0": "patches/react-native-gesture-handler@2.32.0.patch"
+      "react-native-gesture-handler@2.32.0": "patches/react-native-gesture-handler@2.32.0.patch",
+      "react-native-drawer-layout@4.2.10": "patches/react-native-drawer-layout@4.2.10.patch"
     }
   }
 }

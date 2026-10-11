@@ -25,9 +25,9 @@ export function ButtonKBPS({
       style={[
         styles.container,
         {
-          backgroundColor: !selected
-            ? THEME.COLORS.BRAND
-            : THEME.COLORS.FRAME,
+          // The stream you're on wears the brand fill, like the drawer's
+          // current destination — one "selected" look across the app.
+          backgroundColor: selected ? THEME.COLORS.BRAND : THEME.COLORS.FRAME,
         },
       ]}
     >
@@ -36,9 +36,10 @@ export function ButtonKBPS({
         style={[
           styles.category,
           {
-            color: selected ? THEME.COLORS.TEXT : THEME.COLORS.SURFACE,
+            color: selected ? THEME.COLORS.SURFACE : THEME.COLORS.TEXT,
           },
         ]}
+        numberOfLines={1}
       >
         {category}
       </Text>
@@ -47,9 +48,10 @@ export function ButtonKBPS({
         style={[
           styles.kbps,
           {
-            color: selected ? THEME.COLORS.TEXT : THEME.COLORS.SURFACE,
+            color: selected ? THEME.COLORS.SURFACE : THEME.COLORS.TEXT,
           },
         ]}
+        numberOfLines={1}
       >
         {kbps} kbps
       </Text>

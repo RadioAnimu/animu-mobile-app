@@ -3,7 +3,7 @@ import { THEME } from "@/theme";
 import { scale } from "@/theme/responsive";
 import { hardShadow } from "@/theme/shape";
 
-const COVER = scale(76);
+const COVER = THEME.LAYOUT.THUMB.MD;
 
 export const styles = StyleSheet.create({
   scrollContent: {

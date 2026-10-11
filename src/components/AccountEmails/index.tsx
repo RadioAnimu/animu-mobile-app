@@ -391,6 +391,7 @@ export function AccountEmails() {
               setRemoving(true);
               try {
                 await removeEmail(target.id);
+                haptics.success();
                 toast(dict.ACCOUNT_EMAIL_REMOVED);
               } catch (err) {
                 console.error("[AccountEmails] Remove email failed:", err);

@@ -3,8 +3,8 @@ import { THEME } from "@/theme";
 import { FLOW_STYLES } from "@/theme/screen";
 import { scale } from "@/theme/responsive";
 
-const HEADER_IMAGE_HEIGHT = scale(127);
-const ROW_COVER = scale(50);
+const HEADER_IMAGE_HEIGHT = THEME.LAYOUT.LOGO_HEIGHT;
+const ROW_COVER = THEME.LAYOUT.THUMB.SM;
 
 export const styles = StyleSheet.create({
   container: FLOW_STYLES.container,

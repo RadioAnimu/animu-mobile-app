@@ -8,6 +8,11 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const readJson = (file) => JSON.parse(fs.readFileSync(file, "utf8"));
 
 const ART_FILE = path.join(ROOT, "assets/splash_top.png");
+// The in-app Loading screen shows the same art as a (much smaller) WebP; it
+// is written from the same canvas so the two can never show different
+// versions.
+const WEBP_FILE = path.join(ROOT, "assets/splash_top.webp");
+const WEBP_QUALITY = 90;
 const FONT_FILE = path.join(ROOT, "src/assets/fonts/proximanova-bold.ttf");
 
 const FONT_SIZE = Number(process.env.SPLASH_FONT_SIZE ?? 60);
@@ -56,6 +61,8 @@ async function main() {
 
   fs.writeFileSync(ART_FILE, canvas.toBuffer("image/png"));
   console.log(`splash -> ${path.relative(ROOT, ART_FILE)} (${label})`);
+  fs.writeFileSync(WEBP_FILE, await canvas.encode("webp", WEBP_QUALITY));
+  console.log(`splash -> ${path.relative(ROOT, WEBP_FILE)} (${label})`);
 }
 
 main().catch((error) => {

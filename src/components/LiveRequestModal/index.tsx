@@ -1,8 +1,9 @@
 import { useState } from "react";
-import { ScrollView, TextInput } from "react-native";
+import type { TextInput } from "react-native";
 
 import { FormField } from "@/components/FormField";
 import { RequestSubmitButton } from "@/components/RequestSubmitButton";
+import { KeyboardScrollView } from "@/components/KeyboardScrollView";
 import { Sheet } from "@/components/Sheet";
 import { SheetBanner } from "@/components/SheetBanner";
 import { styles } from "@/components/LiveRequestModal/styles";
@@ -153,14 +154,11 @@ export function LiveRequestModal({ visible, handleClose }: Readonly<Props>) {
       // Mid-submit dismissal is blocked like the music-request sheet: a
       // close while the POST is in flight would orphan the outcome.
       closable={!isSubmitting}
-      withKeyboard
       chip={chip}
       onChipDone={clearChip}
     >
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
-        keyboardDismissMode="on-drag"
+      <KeyboardScrollView
+        variant="sheet"
         contentContainerStyle={styles.scrollContent}
       >
         <SheetBanner live sticker={LIVE_STICKER} title={t.LIVE_REQUEST_TITLE} />
@@ -203,7 +201,7 @@ export function LiveRequestModal({ visible, handleClose }: Readonly<Props>) {
           failed={isError}
           onPress={handleSubmit}
         />
-      </ScrollView>
+      </KeyboardScrollView>
     </Sheet>
   );
 }

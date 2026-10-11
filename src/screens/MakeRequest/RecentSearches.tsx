@@ -1,5 +1,7 @@
 import { Icon } from "@/components/Icon";
-import { ScrollView, Text, TouchableOpacity, View } from "react-native";
+import { Text, TouchableOpacity, View } from "react-native";
+
+import { KeyboardScrollView } from "@/components/KeyboardScrollView";
 
 import type { Dict } from "@/i18n";
 import { THEME } from "@/theme";
@@ -26,15 +28,11 @@ export function RecentSearches({
   bottomPadding: number;
 }>) {
   return (
-    <ScrollView
-      style={styles.recent}
-      automaticallyAdjustKeyboardInsets
-      keyboardShouldPersistTaps="handled"
-      keyboardDismissMode="on-drag"
-    >
+    <KeyboardScrollView style={styles.recent}>
       <View style={styles.recentHeader}>
         <Text style={styles.recentTitle}>{dict.REQUEST_SEARCH_RECENT}</Text>
         <TouchableOpacity
+          activeOpacity={THEME.OPACITY.PRESSED}
           accessibilityRole="button"
           accessibilityLabel={dict.REQUEST_SEARCH_RECENT_CLEAR}
           hitSlop={THEME.HIT_SLOP.SM}
@@ -68,6 +66,7 @@ export function RecentSearches({
                 </Text>
               </TouchableOpacity>
               <TouchableOpacity
+                activeOpacity={THEME.OPACITY.PRESSED}
                 accessibilityRole="button"
                 accessibilityLabel={`${dict.REQUEST_SEARCH_RECENT_REMOVE}: ${item}`}
                 hitSlop={THEME.HIT_SLOP.SM}
@@ -84,8 +83,8 @@ export function RecentSearches({
           </View>
         ))}
       </View>
-      {/* Clears the home indicator (and the Android keyboard). */}
+      {/* Clears the home indicator. */}
       <View style={{ height: bottomPadding }} />
-    </ScrollView>
+    </KeyboardScrollView>
   );
 }

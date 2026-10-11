@@ -203,6 +203,7 @@ export function HeaderBar({ openLiveRequestModal }: Readonly<Props>) {
       >
         <View style={styles.row}>
           <TouchableOpacity
+            activeOpacity={THEME.OPACITY.PRESSED}
             accessibilityRole="button"
             accessibilityLabel={dict.A11Y_OPEN_MENU}
             hitSlop={ICON_HIT_SLOP}
@@ -213,6 +214,7 @@ export function HeaderBar({ openLiveRequestModal }: Readonly<Props>) {
             <Image contentFit="contain" style={styles.menuBtn} source={menuIcon} />
           </TouchableOpacity>
           <TouchableOpacity
+            activeOpacity={THEME.OPACITY.PRESSED}
             accessibilityRole="button"
             accessibilityLabel={
               player.isPlaying ? dict.A11Y_PAUSE : dict.A11Y_PLAY
@@ -261,7 +263,8 @@ export function HeaderBar({ openLiveRequestModal }: Readonly<Props>) {
           <View style={styles.noteSlot}>
             <LyricsButton size={MIC_SIZE} hitSlop={ICON_HIT_SLOP / 2} style={styles.lyricsButton} />
             <TouchableOpacity
-                accessibilityRole="button"
+              activeOpacity={THEME.OPACITY.PRESSED}
+              accessibilityRole="button"
               accessibilityLabel={dict.A11Y_MAKE_REQUEST}
               hitSlop={ICON_HIT_SLOP}
               onPress={() => {

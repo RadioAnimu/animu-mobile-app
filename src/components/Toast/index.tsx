@@ -101,7 +101,9 @@ const styles = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: THEME.COLORS.HAIRLINE,
     maxWidth: "86%",
-    boxShadow: "0px 4px 8px rgba(0, 0, 0, 0.35)",
+    boxShadow: [
+      { offsetX: 0, offsetY: THEME.SPACE.XS, blurRadius: THEME.SPACE.SM, color: THEME.COLORS.SHADOW },
+    ],
   },
   toastError: {
     borderWidth: THEME.BORDER_WIDTH.THIN,

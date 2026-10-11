@@ -9,8 +9,7 @@ export const styles = StyleSheet.create({
     backgroundColor: THEME.COLORS.SURFACE,
     borderRadius: THEME.RADIUS.CARD,
     ...CONTINUOUS,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: THEME.COLORS.HAIRLINE,
+    // Borderless like every other surface card (SCREEN_STYLES.group).
     padding: THEME.SPACE.LG,
     gap: THEME.SPACE.MD,
   },

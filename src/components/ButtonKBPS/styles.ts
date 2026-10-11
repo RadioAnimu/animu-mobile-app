@@ -14,7 +14,10 @@ export const styles = StyleSheet.create({
     // clipping the format line.
     minHeight: BTN_HEIGHT,
     paddingVertical: THEME.SPACE.XXS,
-    width: BTN_WIDTH,
+    // Likewise a floor for the width: "320 kbps" at a large text size grows
+    // the pill (the row scrolls) instead of wrapping inside it.
+    minWidth: BTN_WIDTH,
+    paddingHorizontal: THEME.SPACE.SM,
     borderRadius: THEME.RADIUS.SM,
     marginBottom: THEME.SPACE.SM,
   },

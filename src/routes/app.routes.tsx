@@ -13,7 +13,9 @@ import { CustomDrawerContent, DrawerIcon } from "@/components/CustomDrawer";
 import { MakeRequest } from "@/screens/MakeRequest";
 import { Home } from "@/screens/Home";
 import { History } from "@/screens/History";
+import { DESTINATION_ICON } from "@/constants/destination-icons";
 import { THEME } from "@/theme";
+import { MOTION } from "@/theme/motion";
 import { Settings } from "@/screens/Settings";
 import { Stats } from "@/screens/Stats";
 import { Storage } from "@/screens/Storage";
@@ -71,16 +73,16 @@ const renderDrawerContent = (props: DrawerContentComponentProps) => (
 );
 
 const playerIcon = ({ color }: { color: string }) => (
-  <DrawerIcon name="play-circle" color={color} />
+  <DrawerIcon name={DESTINATION_ICON.Home} color={color} />
 );
 const lastRequestedIcon = ({ color }: { color: string }) => (
-  <DrawerIcon name="queue-music" color={color} />
+  <DrawerIcon name={DESTINATION_ICON.LastRequested} color={color} />
 );
 const lastPlayedIcon = ({ color }: { color: string }) => (
-  <DrawerIcon name="history" color={color} />
+  <DrawerIcon name={DESTINATION_ICON.LastPlayed} color={color} />
 );
 const makeRequestIcon = ({ color }: { color: string }) => (
-  <DrawerIcon name="music-note" color={color} />
+  <DrawerIcon name={DESTINATION_ICON.MakeRequest} color={color} />
 );
 
 function DrawerRoutes() {
@@ -95,6 +97,7 @@ function DrawerRoutes() {
       screenOptions={{
         headerShown: false,
         overlayColor: THEME.COLORS.SCRIM,
+        overlayAccessibilityLabel: dict.A11Y_CLOSE_MENU,
         drawerStyle: {
           backgroundColor: THEME.COLORS.SURFACE,
           width: width * DRAWER_WIDTH_RATIO,
@@ -154,6 +157,9 @@ export function AppRoutes() {
     // Platform push/pop by default; a plain cross-fade when the system asks
     // for reduced motion.
     animation: reduceMotion ? "fade" : "default",
+    // iOS plays fades and the bottom slide over 500ms by default — twice the
+    // app's tempo. (The platform push and Android's transitions are native.)
+    animationDuration: MOTION.DURATION.SCREEN,
   };
 
   return (

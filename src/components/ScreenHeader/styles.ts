@@ -1,10 +1,9 @@
 import { StyleSheet } from "react-native";
 
 import { THEME } from "@/theme";
-import { scale } from "@/theme/responsive";
 
-const HEADER_HEIGHT = scale(72);
-const HEADER_BUTTON = scale(44);
+const HEADER_HEIGHT = THEME.LAYOUT.HEADER_HEIGHT;
+const HEADER_BUTTON = THEME.LAYOUT.TOUCH_TARGET;
 
 export { HEADER_HEIGHT };
 

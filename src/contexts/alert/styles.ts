@@ -3,7 +3,7 @@ import { THEME } from "@/theme";
 import { scale } from "@/theme/responsive";
 import { CONTINUOUS } from "@/theme/shape";
 
-const CONTENT_WIDTH = scale(311);
+/** Haruka's artwork band at the top of the dialog. */
 const IMG_HEIGHT = scale(140);
 
 export const styles = StyleSheet.create({
@@ -11,10 +11,14 @@ export const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
+  },
+  scrim: {
+    ...StyleSheet.absoluteFill,
     backgroundColor: THEME.COLORS.SCRIM,
   },
   content: {
-    width: CONTENT_WIDTH,
+    width: THEME.LAYOUT.COMPACT_WIDTH,
+    maxWidth: "90%",
     backgroundColor: THEME.COLORS.SURFACE,
     alignItems: "center",
     borderRadius: THEME.RADIUS.CARD,

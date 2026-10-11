@@ -59,7 +59,7 @@ export const styles = StyleSheet.create({
     // imperceptible opacity instead. Kept just above zero — `opacity: 0`
     // drops the node from the accessibility tree on both platforms — and the
     // boxes carry every visual.
-    opacity: 0.01,
+    opacity: THEME.OPACITY.INVISIBLE,
     backgroundColor: "transparent",
     padding: 0,
   },

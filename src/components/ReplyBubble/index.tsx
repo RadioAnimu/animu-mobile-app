@@ -70,7 +70,7 @@ export function ReplyBubble({
             multiline
             maxLength={maxLength}
             placeholder={placeholder}
-            placeholderTextColor="rgba(0, 0, 0, 0.45)"
+            placeholderTextColor={THEME.COLORS.TEXT_ON_LIGHT_DIM}
             accessibilityLabel={label}
             accessibilityState={{ busy }}
             returnKeyType="send"

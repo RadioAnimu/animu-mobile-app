@@ -52,7 +52,9 @@ export const Home = () => {
       {/* Pinned above the scroll view: an overscroll pull must never drag
           the header down and expose the artwork behind the status bar. */}
       <HeaderBar openLiveRequestModal={() => handleLiveRequestModal(true)} />
-      <ScrollView ref={scrollRef}>
+      {/* Scrolls only when the player outgrows the screen (small phones,
+          large text) — no rubber-band drag when everything already fits. */}
+      <ScrollView ref={scrollRef} alwaysBounceVertical={false}>
         <View style={styles.containerApp}>
           <View style={styles.logoAndOscilloscope}>
             <Oscilloscope />

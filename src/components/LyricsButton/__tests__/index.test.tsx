@@ -11,8 +11,8 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock("react-native", async () => (await import("@/__tests__/react-native-mock")).createReactNativeMock());
 vi.mock("@react-navigation/native", () => ({ useNavigation: () => ({ navigate: mocks.navigate }) }));
-vi.mock("@/components/Icon", () => ({
-  Icon: ({ name, color }: { name: string; color: string }) => <i data-icon={name} data-color={color} />,
+vi.mock("@/components/KaraokeMicIcon", () => ({
+  KaraokeMicIcon: ({ color }: { color: string }) => <i data-icon="karaoke-mic" data-color={color} />,
 }));
 vi.mock("@/core/japanese", () => ({ japaneseDictionary: { restore: mocks.restore } }));
 vi.mock("@/hooks/useLyricsAvailability", () => ({ useLyricsAvailability: () => mocks.availability }));
@@ -30,7 +30,7 @@ describe("LyricsButton", () => {
   it("is a green microphone that opens the lyrics", () => {
     mocks.availability = "available";
     render(<LyricsButton size={27} hitSlop={7} />);
-    expect(icon().getAttribute("data-icon")).toBe("mic");
+    expect(icon().getAttribute("data-icon")).toBe("karaoke-mic");
     expect(icon().getAttribute("data-color")).toBe("#6BDB00");
     fireEvent.click(button());
     expect(mocks.navigate).toHaveBeenCalledWith("Lyrics");

@@ -26,9 +26,9 @@ export const styles = StyleSheet.create({
     paddingVertical: CONTENT_PADDING,
   },
   accountAvatar: {
-    width: scale(56),
-    height: scale(56),
-    borderRadius: avatarRadius(scale(56)),
+    width: THEME.LAYOUT.AVATAR.MD,
+    height: THEME.LAYOUT.AVATAR.MD,
+    borderRadius: avatarRadius(THEME.LAYOUT.AVATAR.MD),
     ...CONTINUOUS,
     backgroundColor: THEME.COLORS.APP_BG,
   },

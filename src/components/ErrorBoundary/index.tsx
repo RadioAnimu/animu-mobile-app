@@ -47,6 +47,7 @@ class ErrorBoundary extends React.Component<Props, State> {
         <Text style={styles.title}>{t.ERROR_TITLE}</Text>
         <Text style={styles.message}>{t.ERROR_MESSAGE}</Text>
         <TouchableOpacity
+          activeOpacity={THEME.OPACITY.PRESSED}
           accessibilityRole="button"
           onPress={this.reset}
           style={styles.button}
