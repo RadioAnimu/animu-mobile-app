@@ -6,8 +6,10 @@ import { scale } from "@/theme/responsive";
 const RHYTHM = {
   LISTENERS: scale(10),
   COVER: scale(11),
-  TIME_TOP: scale(10),
-  TIME_BOTTOM: scale(8),
+  // Together with COVER above, the time sits centered between the cover and
+  // the info block (14.5 each side; the 29 total is unchanged).
+  TIME_TOP: scale(3.5),
+  TIME_BOTTOM: scale(14.5),
   LIVE: scale(9),
   PROGRAM: scale(9),
 };
