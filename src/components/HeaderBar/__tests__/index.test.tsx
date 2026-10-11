@@ -36,7 +36,7 @@ vi.mock("@/contexts/user/UserSettingsProvider", () => ({
 }));
 vi.mock("@/contexts/player/PlayerProvider", () => ({
   usePlayer: () => mocks.player,
-  useTrackProgress: () => ({ currentTrackProgress: 0 }),
+  useTrackProgress: () => ({ currentTrackProgress: 0, showProgress: true }),
 }));
 vi.mock("@/contexts/app-state/AppStateProvider", () => ({
   useIsBackgrounded: () => mocks.backgrounded,

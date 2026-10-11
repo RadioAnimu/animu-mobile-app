@@ -32,7 +32,6 @@ import { useDict } from "@/hooks/useDict";
 import { useBlink } from "@/hooks/useBlink";
 import { useReducedMotion } from "@/hooks/useReducedMotion";
 import { useSmoothedElapsed } from "@/hooks/useSmoothedElapsed";
-import { isFillerTransition } from "@/core/domain/track";
 import {
   progressRatio,
   isBarCorrection,
@@ -64,7 +63,7 @@ export function HeaderBar({ openLiveRequestModal }: Readonly<Props>) {
   const reduceMotion = useReducedMotion();
   const { width: windowWidth } = useWindowDimensions();
   const { currentTrack, currentProgram } = player;
-  const { currentTrackProgress } = useTrackProgress();
+  const { currentTrackProgress, showProgress } = useTrackProgress();
   // The bar spawns AT the live ratio (cold start, screen switch, thaw after
   // a background freeze) — no first frame at 0 that then snaps forward.
   const [progressAnim] = useState(() =>
@@ -81,15 +80,13 @@ export function HeaderBar({ openLiveRequestModal }: Readonly<Props>) {
   );
   /** Still locking the audible clock — the bar is a guess until then. */
   const syncing = player.syncing;
-  const showProgressBar =
-    !currentProgram?.isLive && !isFillerTransition(currentTrack);
 
   const [animation] = useState(() => new Animated.Value(0));
 
   // Pulse the bar while the audible clock is still being measured, so a
   // wrong/empty position reads as "working on it" instead of broken. Stops
   // (and resets to full opacity) the moment sync lands or the app hides.
-  const syncBlink = useBlink(syncing && showProgressBar && !isBackgrounded);
+  const syncBlink = useBlink(syncing && showProgress && !isBackgrounded);
 
   // Last bar target, to tell a real jump (new track / sync completed) from the
   // small per-tick advance.
@@ -294,7 +291,7 @@ export function HeaderBar({ openLiveRequestModal }: Readonly<Props>) {
           </View>
         </View>
       </View>
-      {showProgressBar && (
+      {showProgress && (
         <Animated.View
           style={[
             styles.progressBarView,

@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 import type { Track } from "@/core/domain/track";
 import {
   getTrackProgress,
-  isFillerTransition,
   isRealTrack,
 } from "@/core/domain/track";
 
@@ -72,22 +71,5 @@ describe("isRealTrack", () => {
   it("rejects missing tracks", () => {
     expect(isRealTrack(null)).toBe(false);
     expect(isRealTrack(undefined)).toBe(false);
-  });
-});
-
-describe("isFillerTransition", () => {
-  it("flags 'passagem' beat transitions regardless of case", () => {
-    expect(isFillerTransition({ anime: "Passagem Musical" })).toBe(true);
-    expect(isFillerTransition({ anime: "passagem" })).toBe(true);
-  });
-
-  it("accepts real tracks", () => {
-    expect(isFillerTransition({ anime: "Naruto" })).toBe(false);
-  });
-
-  it("treats a missing anime as not a filler transition", () => {
-    expect(isFillerTransition(null)).toBe(false);
-    expect(isFillerTransition(undefined)).toBe(false);
-    expect(isFillerTransition({})).toBe(false);
   });
 });

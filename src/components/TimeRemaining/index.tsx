@@ -8,12 +8,11 @@ import { useDict } from "@/hooks/useDict";
 import { useBlink } from "@/hooks/useBlink";
 import { useSmoothedElapsed } from "@/hooks/useSmoothedElapsed";
 import { CountdownTimerText } from "@/components/CountdownTimerText";
-import { isFillerTransition } from "@/core/domain/track";
 import { THEME } from "@/theme";
 
 export function TimeRemaining() {
   const player = usePlayer();
-  const { currentTrackProgress } = useTrackProgress();
+  const { currentTrackProgress, showProgress } = useTrackProgress();
   const dict = useDict();
   const isBackgrounded = useIsBackgrounded();
   const syncing = player.syncing;
@@ -22,14 +21,9 @@ export function TimeRemaining() {
     player.currentTrack?.raw,
   );
 
-  // Don't show if it's a live program or if it's a transition track
-  const shouldShow =
-    !player.currentProgram?.isLive &&
-    !isFillerTransition(player.currentTrack);
+  const blink = useBlink(syncing && showProgress && !isBackgrounded);
 
-  const blink = useBlink(syncing && shouldShow && !isBackgrounded);
-
-  if (!shouldShow || !player.currentTrack) {
+  if (!showProgress || !player.currentTrack) {
     return null;
   }
 
