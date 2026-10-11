@@ -3,6 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { createHash } from "node:crypto";
 import { libraries, root, revision, clean, isolated } from "./submodules.mjs";
+import { restore } from "./ci-results.mjs";
 import { fetchArtifact } from "./jenkins-artifact.mjs";
 
 function digest(dir) {
@@ -33,7 +34,7 @@ for (const name of process.argv.length > 2 ? process.argv.slice(2) : Object.keys
     console.log(`[${name}] verified existing output for ${sha}`);
     continue;
   }
-  const downloaded = pristine && await fetchArtifact(lib, sha, output);
+  const downloaded = pristine && (await restore(lib.repository, dir, "build") || await fetchArtifact(lib, sha, output));
   if (!downloaded) {
     console.log(`[${name}] building pinned source${pristine ? "" : " with local edits"}`);
     isolated(name, (temp, run) => {

@@ -7,6 +7,7 @@ on:
 
 permissions:
   contents: read
+  actions: read
 
 concurrency:
   group: ci-${{ github.event.pull_request.number || github.ref }}
@@ -16,6 +17,9 @@ jobs:
   check:
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    env:
+      CI: true
+      GH_TOKEN: ${{ github.token }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -95,3 +99,13 @@ jobs:
       # an unpinned `@latest` download.
       - name: React Doctor gate
         run: pnpm run doctor:gate
+
+      - name: Publish reusable results
+        run: node scripts/ci-results.mjs publish RadioAnimu/animu-mobile-app
+      - name: Upload reusable results
+        uses: actions/upload-artifact@v4
+        with:
+          name: ci-results
+          path: ci-results.json
+          retention-days: 30
+          if-no-files-found: error
