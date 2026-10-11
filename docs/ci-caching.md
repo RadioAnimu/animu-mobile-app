@@ -33,6 +33,13 @@ placed Gradle downloads under generated `android/`, where prebuild could delete
 them, and pointed ccache at an absent configuration. The stable cache now lives
 outside generated sources. Existing downloads were migrated instead of discarded.
 
+React Native CMake builds use Clang precompiled headers. Ccache requires
+`pch_defines,time_macros` plus `-Xclang -fno-pch-timestamp` to cache these calls;
+without them the live build classified over 90% of calls as uncacheable. Existing
+compiler flags are preserved. Header and source changes still invalidate cached
+objects (covered by a real NDK/ccache regression); cached date/time macros may
+retain their original compile-time values. Release identity uses Git and app.json.
+
 ## Portable results
 
 Each CI pipeline publishes `ci-results.json` only after its quality command has
@@ -99,3 +106,5 @@ Caching does not suppress these findings or change the thresholds.
 - [Turbo task inputs](https://github.com/vercel/turborepo/blob/main/apps/docs/content/docs/reference/configuration.mdx) and [community discussion](https://github.com/vercel/turborepo/discussions/8877): explicitly hash native sources outside the example workspace.
 - [CocoaPods command reference](https://guides.cocoapods.org/terminal/commands.html): install pinned pods; update specs when needed.
 - [CMake Ninja job pools](https://cmake.org/cmake/help/latest/prop_gbl/JOB_POOLS.html): bound compiler concurrency independently of Gradle workers.
+
+- [Ccache precompiled headers](https://ccache.dev/manual/4.14.html#_precompiled_headers): required Clang flags and PCH settings, including time-macro behavior.
