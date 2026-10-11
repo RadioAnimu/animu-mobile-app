@@ -6,10 +6,13 @@ export const SIZE = scale(240);
 const FRAME_BORDER = scale(5);
 
 export const styles = StyleSheet.create({
-  /** Fixed square the cover is centered in, so the screen never reflows. */
+  /**
+   * At least the old square, with the cover centered in it: short art no
+   * longer pulls the screen up, tall art grows the slot.
+   */
   slot: {
     width: SIZE,
-    height: SIZE,
+    minHeight: SIZE,
     alignItems: "center",
     justifyContent: "center",
   },

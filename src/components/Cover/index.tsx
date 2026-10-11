@@ -12,17 +12,13 @@ import {
 } from "@/core/services/cover-cache-registry.service";
 
 const MAX_FAILURES = 2;
-// Artwork beyond these proportions is cropped to them rather than shown as
-// a thin strip.
-const MIN_RATIO = 0.6;
+// Wider artwork is cropped to this rather than shown as a thin strip. Tall
+// artwork has no cap: it just grows the frame.
 const MAX_RATIO = 2;
 
-/** Largest frame of the given proportions that fits the square slot. */
+/** Full slot width; the height follows the proportions. */
 function fitInSlot(ratio: number) {
-  const clamped = Math.min(Math.max(ratio, MIN_RATIO), MAX_RATIO);
-  return clamped >= 1
-    ? { width: SIZE, height: SIZE / clamped }
-    : { width: SIZE * clamped, height: SIZE };
+  return { width: SIZE, height: SIZE / Math.min(ratio, MAX_RATIO) };
 }
 
 interface Props {
@@ -45,9 +41,10 @@ interface Props {
   category?: CoverCacheCategory;
   /**
    * Shows the artwork in its real proportions instead of cropping it to the
-   * square. It is centered in a fixed square slot: wide art keeps the full
-   * width and gets shorter, tall art keeps the full height and gets
-   * narrower. The frame is square until the image reports its size.
+   * square. The width is always the frame's; the height follows the image.
+   * It is centered in a slot at least as tall as the square, so short art
+   * leaves the layout where it was and tall art grows it. The frame is
+   * square until the image reports its size.
    */
   preserveAspectRatio?: boolean;
 }

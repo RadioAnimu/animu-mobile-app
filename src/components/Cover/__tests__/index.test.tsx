@@ -98,20 +98,22 @@ describe("Cover bounded retry", () => {
     expect(JSON.stringify(lastProps?.style)).not.toContain("aspectRatio");
   });
 
-  it("fits the image inside the square slot", () => {
+  it("keeps the full width and follows the image height", () => {
     const { rerender } = render(<Cover cover={COVER} preserveAspectRatio />);
     const SIZE = (lastProps?.style as { width?: number }[]).at(-1)?.width ?? 0;
     expect(lastProps?.style).toContainEqual({ width: SIZE, height: SIZE });
 
-    // Wide art keeps the full width and gets shorter.
+    // Wide art gets shorter.
     act(() => lastProps?.onLoad?.(LOADED(400, 200)));
     expect(lastProps?.style).toContainEqual({ width: SIZE, height: SIZE / 2 });
 
-    // Tall art keeps the full height and gets narrower.
-    act(() => lastProps?.onLoad?.(LOADED(300, 600)));
-    expect(lastProps?.style).toContainEqual({ width: SIZE * 0.6, height: SIZE });
+    // Tall art gets taller, with no cap.
+    act(() => lastProps?.onLoad?.(LOADED(400, 500)));
+    expect(lastProps?.style).toContainEqual({ width: SIZE, height: SIZE * 1.25 });
+    act(() => lastProps?.onLoad?.(LOADED(250, 1000)));
+    expect(lastProps?.style).toContainEqual({ width: SIZE, height: SIZE * 4 });
 
-    // Extreme ratios are clamped, not turned into a strip.
+    // Extreme wide ratios are clamped, not turned into a strip.
     act(() => lastProps?.onLoad?.(LOADED(1000, 100)));
     expect(lastProps?.style).toContainEqual({ width: SIZE, height: SIZE / 2 });
 
