@@ -17,5 +17,9 @@ test('installation/native keys invalidate for patches and toolchains, and native
     const dependencies = key('dependencies'); const native = key('native');
     fs.mkdirSync(path.join(cwd, 'assets')); fs.writeFileSync(path.join(cwd, 'assets/icon.png'), 'changed');
     assert.equal(dependencies, key('dependencies')); assert.notEqual(native, key('native'));
+    const withAssets = key('native');
+    fs.mkdirSync(path.join(cwd, 'src/assets/fonts'), { recursive: true });
+    fs.writeFileSync(path.join(cwd, 'src/assets/fonts/proximanova-reg.ttf'), 'font-bytes');
+    assert.notEqual(withAssets, key('native')); assert.equal(dependencies, key('dependencies'));
   } finally { fs.rmSync(cwd, { recursive: true, force: true }); }
 });
