@@ -43,7 +43,7 @@ jobs:
       #
       # Pinned to the commit behind the v2 tag (v2.2.9) for supply-chain
       # safety — a floating major tag can move under us. Bump deliberately.
-      - uses: millionco/react-doctor@013f7373f91a3b9e68bd1dc7d4d354f4b041b117  # v2.2.9
+      - uses: millionco/react-doctor@673ce802a375eeb4c3c5cb9a96d21eaeb7eafd93  # v2.3.1
         with:
           # Pin the CLI the action downloads to the version this repo develops
           # against (package.json devDependency) instead of "latest".
