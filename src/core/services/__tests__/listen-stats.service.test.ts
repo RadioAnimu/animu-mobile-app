@@ -61,6 +61,14 @@ const makeTrack = (
   playlistName: "",
 });
 
+/** The request screen's song details for track `id`. */
+const song = (id: string, artwork = `img://${id}`) => ({
+  title: `Song ${id}`,
+  artist: `Artist ${id}`,
+  anime: `Anime ${id}`,
+  artwork,
+});
+
 const hearTrack = (
   service: ListenStatsService,
   id: string,
@@ -187,26 +195,46 @@ describe("listenStatsService", () => {
     expect(snap.totalShouts).toBe(1);
   });
 
-  it("ranks the top-5 most-requested tracks' artworks", async () => {
+  it("ranks the most-requested songs with their latest details", async () => {
     const service = await makeService();
 
-    // a×3, b×2, c×1, d×1 — plus 17 one-off tracks to hit the cap.
-    for (let i = 0; i < 3; i++) service.onRequestSubmitted(true, "a", "img://a");
-    for (let i = 0; i < 2; i++) service.onRequestSubmitted(true, "b", "img://b");
-    service.onRequestSubmitted(true, "c", "img://c");
-    service.onRequestSubmitted(true, "d"); // no artwork — excluded from strip
-    for (let i = 0; i < 17; i++) {
-      service.onRequestSubmitted(true, `x${i}`, `img://x${i}`);
+    // a×3, b×2, c×1, d×1 (d without details), then 9 one-offs.
+    for (let i = 0; i < 3; i++) service.onRequestSubmitted(true, "a", song("a"));
+    for (let i = 0; i < 2; i++) service.onRequestSubmitted(true, "b", song("b"));
+    service.onRequestSubmitted(true, "c", song("c"));
+    service.onRequestSubmitted(true, "d");
+    for (let i = 0; i < 9; i++) {
+      service.onRequestSubmitted(true, `x${i}`, song(`x${i}`));
     }
-    // Same track re-requested with a new artwork → artwork updates, count grows.
-    service.onRequestSubmitted(true, "a", "img://a2");
+    // Same song re-requested with a new cover → cover updates, count grows.
+    service.onRequestSubmitted(true, "a", song("a", "img://a2"));
 
-    const snap = service.getSnapshot();
-    expect(snap.topRequests).toEqual([
-      "img://a2", // 4 requests
-      "img://b", // 2 requests
-      "img://x0", "img://x1", "img://x2", // 1 each, insertion order
+    const top = service.getSnapshot().topRequests;
+    expect(top).toHaveLength(10);
+    expect(top[0]).toEqual({
+      title: "Song a",
+      artist: "Artist a",
+      anime: "Anime a",
+      art: "img://a2",
+      requests: 4,
+    });
+    expect(top.slice(1, 5).map((r) => [r.title, r.requests])).toEqual([
+      ["Song b", 2],
+      ["Song c", 1], // ties keep first-requested order
+      ["", 1], // d: counted, no details
+      ["Song x0", 1],
     ]);
+  });
+
+  it("keeps the request ranking bounded, newest one-offs surviving", async () => {
+    const service = await makeService();
+    for (let i = 0; i < 55; i++) service.onRequestSubmitted(true, `t${i}`, song(`t${i}`));
+    await service.flushForTesting();
+    const stored = JSON.parse(memory.get("listenStats") ?? "{}") as {
+      topRequests: Record<string, unknown>;
+    };
+    expect(Object.keys(stored.topRequests)).toHaveLength(50);
+    expect(stored.topRequests.t54).toBeDefined();
   });
 
   it("persists to storage and reloads in a fresh instance", async () => {
@@ -375,7 +403,11 @@ describe("listenStatsService stored-data sanitizing", () => {
 
     const snap = (await makeService()).getSnapshot();
 
-    expect(snap.topRequests).toEqual(["img://ok"]);
+    expect(snap.topRequests).toEqual([
+      // Pre-metadata entries load with empty details.
+      { title: "", artist: "", anime: "", art: "", requests: 9 },
+      { title: "", artist: "", anime: "", art: "img://ok", requests: 3 },
+    ]);
   });
 
   it("floors fractional request counts when ranking", async () => {
@@ -394,7 +426,7 @@ describe("listenStatsService stored-data sanitizing", () => {
 
     const service = await makeService();
     // a floors to 2 and ties b; first-seen wins the tie.
-    expect(service.getSnapshot().topRequests).toEqual([
+    expect(service.getSnapshot().topRequests.map((r) => r.art)).toEqual([
       "img://c",
       "img://a",
       "img://b",
@@ -600,7 +632,7 @@ describe("listenStatsService persistence scheduling", () => {
   it("reset wipes stats and storage, and survives a storage failure", async () => {
     const service = new ListenStatsService();
     await service.initialize();
-    service.onRequestSubmitted(true, "a", "img://a");
+    service.onRequestSubmitted(true, "a", song("a"));
     await service.flushForTesting();
     expect(memory.has("listenStats")).toBe(true);
 

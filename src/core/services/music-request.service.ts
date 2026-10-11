@@ -9,7 +9,10 @@ import { animuApi, createApiClient } from "@/api/client";
 import { interpolate } from "@/utils/format";
 import { userSettingsService } from "@/core/services/user-settings.service";
 import { RequestSubmitGuard } from "@/core/services/request-submit-guard";
-import { listenStatsService } from "@/core/services/listen-stats.service";
+import {
+  listenStatsService,
+  type RequestedSong,
+} from "@/core/services/listen-stats.service";
 
 class MusicRequestService {
   /** Shared double-submit latch (see `RequestSubmitGuard`). */
@@ -42,18 +45,18 @@ class MusicRequestService {
    */
   async submitRequest(
     submission: MusicRequestSubmission,
-    artworkUrl?: string,
+    song?: RequestedSong,
   ): Promise<RequestSubmitResult> {
     const result = await this.guard.run(() =>
       animuApi.submitMusicRequest(submission),
     );
     // The single choke point for "requests sent" stats — only
-    // server-confirmed submissions count (track id + artwork feed the
-    // share card's top-requests ranking).
+    // server-confirmed submissions count (track id + song details feed the
+    // top-requests ranking).
     listenStatsService.onRequestSubmitted(
       result.success,
       submission.trackId,
-      artworkUrl,
+      song,
     );
     return result;
   }

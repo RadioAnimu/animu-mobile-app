@@ -5,6 +5,7 @@ import { ScrollView, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { AppRefreshControl } from "@/components/AppRefreshControl";
+import { Icon } from "@/components/Icon";
 import { ScreenHeader } from "@/components/ScreenHeader";
 import {
   listenStatsService,
@@ -18,15 +19,16 @@ import type { RootStackParamList } from "@/routes/app.routes";
 import { ShareCardSection } from "@/screens/Stats/ShareCardSection";
 import { StatsContent } from "@/screens/Stats/StatsContent";
 import { styles } from "@/screens/Stats/styles";
+import { THEME } from "@/theme";
 import { haptics } from "@/utils/haptics";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Stats">;
 
 /**
- * On-device listening stats: the shareable listening card, overview,
- * six-month heatmap with day drill-down, streaks and an hour/weekday
- * listening profile. Everything shown is measured locally — nothing
- * leaves the phone.
+ * On-device listening stats: the shareable listening card (or its sign-in
+ * prompt), a notice on where the numbers live, the overview with streaks,
+ * the heatmap with day drill-down and an hour/weekday listening profile.
+ * Everything shown is measured locally — nothing leaves the phone.
  */
 export function Stats({ navigation }: Readonly<Props>) {
   const dict = useDict();
@@ -112,6 +114,19 @@ export function Stats({ navigation }: Readonly<Props>) {
           snap={snap ?? fallbackSnap!}
           onSignIn={() => navigation.navigate("Login")}
         />
+        {/* Where the numbers live differs by sign-in state: signed out,
+            listening still records but the card is locked; signed in, the
+            stats still never reach the account. */}
+        <View style={styles.notice}>
+          <Icon
+            name={user ? "smartphone" : "person-outline"}
+            size={THEME.ICON.SM}
+            color={THEME.COLORS.TEXT_SOFT}
+          />
+          <Text style={styles.noticeText}>
+            {user ? dict.STATS_NOTICE_SIGNED_IN : dict.STATS_NOTICE_SIGNED_OUT}
+          </Text>
+        </View>
         {hasData && snap ? (
           <StatsContent
             snap={snap}
@@ -121,7 +136,7 @@ export function Stats({ navigation }: Readonly<Props>) {
             onReset={handleReset}
           />
         ) : (
-          <View style={[styles.group, styles.emptyCard, styles.afterCardGap]}>
+          <View style={[styles.group, styles.emptyCard]}>
             <Text style={styles.emptyTitle}>{dict.STATS_EMPTY_TITLE}</Text>
             <Text style={styles.emptyText}>{dict.STATS_EMPTY}</Text>
           </View>

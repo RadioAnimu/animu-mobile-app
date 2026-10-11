@@ -1,4 +1,4 @@
-import React from "react";
+import React, { Fragment } from "react";
 import { Text, View } from "react-native";
 import { Image, type ImageSource } from "expo-image";
 
@@ -9,10 +9,15 @@ import { cardThemeFromAccent } from "@/screens/Stats/card-theme";
 import { styles } from "@/screens/Stats/styles";
 import { THEME } from "@/theme";
 import {
-  formatStreakLabel,
   formatListenDuration,
+  formatStreakLabel,
   listenDurationUnits,
 } from "@/utils/format";
+
+/** Covers in the top-requests deck. */
+const DECK_SIZE = 5;
+/** The station's address, printed under the logo. */
+const STATION_URL = "www.animu.moe";
 
 interface Props {
   /** Account display name (username) — the big line. */
@@ -33,11 +38,12 @@ interface Props {
 }
 
 /**
- * The shareable listening card: a hero with the profile banner dimmed
- * underneath, the listener identity up top, the headline stats and the
- * most-requested tracks' artworks. Rendered as a real view — it doubles as
- * the live preview the user can screenshot, and `react-native-view-shot`
- * rasterizes it for sharing.
+ * The shareable listening card: the profile banner full-bleed and stained
+ * underneath, the listener identity up top, the headline stats (listening,
+ * longest streak, requests sent) and the most-requested songs' covers as a
+ * stacked deck, with the station logo and address in the corner. Rendered
+ * as a real view — it doubles as the live preview the user can screenshot,
+ * and `react-native-view-shot` rasterizes it for sharing.
  */
 export function ShareCard({
   name,
@@ -51,33 +57,27 @@ export function ShareCard({
   dict,
 }: Readonly<Props>) {
   const theme = cardThemeFromAccent(accentColor);
-  const streakLabel = formatStreakLabel(snap.maxStreak, dict);
-  const covers = snap.topRequests.slice(0, 5);
-  // Alpha-shaped logo shadow: a dark, slightly blurred copy of the same
-  // transparent PNG sits just behind and below the artwork — the rectangle
-  // chip/boxShadow washed out or boxed the logo, this follows its shape.
-  const logo = (
-    <View style={styles.shareCardLogoWrap}>
-      <Image
-        source={logoSource}
-        style={styles.shareCardLogoShadow}
-        contentFit="contain"
-        tintColor="rgba(22, 1, 53, 0.7)"
-        blurRadius={3}
-      />
-      <Image
-        source={logoSource}
-        style={styles.shareCardLogo}
-        contentFit="contain"
-      />
-    </View>
-  );
+  // Every piece of text carries the theme's halo, so it holds up on busy
+  // or bright banner art, not just on the average stain.
+  const ink = (color: string) => [{ color }, theme.halo];
+  const covers = snap.topRequests
+    .map((r) => r.art)
+    .filter(Boolean)
+    .slice(0, DECK_SIZE);
   // The handle only adds information when it differs from the display name
   // ("Ness" + "@ness.js" reads well; "ness.js" + "@ness.js" is noise).
   const handleLine =
     handle && handle.toLowerCase() !== name.toLowerCase()
       ? `@${handle}`
       : null;
+  const stats: [string, string][] = [
+    [
+      dict.STATS_CARD_LISTENED,
+      formatListenDuration(snap.totalMs / 60_000, listenDurationUnits(dict)),
+    ],
+    [dict.STATS_CARD_STREAK, formatStreakLabel(snap.maxStreak, dict)],
+    [dict.STATS_CARD_REQUESTS_SENT, `${snap.totalSubmitted}`],
+  ];
 
   return (
     <View
@@ -89,7 +89,7 @@ export function ShareCard({
       {bannerSource ? (
         <Image
           source={bannerSource}
-          style={styles.shareCardBanner}
+          style={styles.shareCardFill}
           contentFit="cover"
           // Banners are low-res; a whisper of blur hides the pixelation
           // without reading as "blurred".
@@ -97,26 +97,24 @@ export function ShareCard({
           recyclingKey={String(bannerSource.uri ?? "")}
         />
       ) : null}
-      <View
-        style={[styles.shareCardScrim, { backgroundColor: theme.scrim }]}
-      />
+      <View style={[styles.shareCardFill, { backgroundColor: theme.scrim }]} />
 
       <View style={styles.shareCardContent}>
         <View
           style={[styles.shareCardIdentity, { paddingRight: actionsInset }]}
         >
-          <Avatar uri={avatarUrl} style={styles.shareCardAvatar} />
+          <Avatar
+            uri={avatarUrl}
+            style={[styles.shareCardAvatar, { borderColor: theme.ring }]}
+          />
           <View style={styles.shareCardNames}>
-            <Text
-              numberOfLines={1}
-              style={[styles.shareCardName, { color: theme.text }]}
-            >
+            <Text numberOfLines={1} style={[styles.shareCardName, ink(theme.text)]}>
               {name}
             </Text>
             {handleLine && (
               <Text
                 numberOfLines={1}
-                style={[styles.shareCardHandle, { color: theme.subtext }]}
+                style={[styles.shareCardHandle, ink(theme.subtext)]}
               >
                 {handleLine}
               </Text>
@@ -125,36 +123,41 @@ export function ShareCard({
         </View>
 
         <View style={styles.shareCardStats}>
-          <View style={styles.shareCardStat}>
-            <Text style={[styles.shareCardStatLabel, { color: theme.subtext }]}>
-              {dict.STATS_TOTAL}
-            </Text>
-            <Text style={[styles.shareCardStatValue, { color: theme.text }]}>
-              {formatListenDuration(
-                snap.totalMs / 60_000,
-                listenDurationUnits(dict),
+          {stats.map(([label, value], index) => (
+            <Fragment key={label}>
+              {index > 0 && (
+                <View
+                  style={[
+                    styles.shareCardStatDivider,
+                    { backgroundColor: theme.divider },
+                  ]}
+                />
               )}
-            </Text>
-          </View>
-          <View
-            style={[styles.shareCardStatDivider, { backgroundColor: theme.subtext }]}
-          />
-          <View style={styles.shareCardStat}>
-            <Text style={[styles.shareCardStatLabel, { color: theme.subtext }]}>
-              {dict.STATS_STREAK_LONGEST}
-            </Text>
-            <Text style={[styles.shareCardStatValue, { color: theme.text }]}>
-              {streakLabel}
-            </Text>
-          </View>
+              <View style={styles.shareCardStat}>
+                <Text
+                  numberOfLines={1}
+                  style={[styles.shareCardLabel, ink(theme.subtext)]}
+                >
+                  {label}
+                </Text>
+                <Text
+                  numberOfLines={1}
+                  adjustsFontSizeToFit
+                  style={[styles.shareCardStatValue, ink(theme.text)]}
+                >
+                  {value}
+                </Text>
+              </View>
+            </Fragment>
+          ))}
         </View>
 
-        {covers.length > 0 ? (
-          /* Strip left, logo bottom-right — one row, no dead band. */
-          <View style={[styles.shareCardFooter, { justifyContent: "space-between" }]}>
+        {/* Deck left, signature bottom-right — one row, no dead band. */}
+        <View style={styles.shareCardFooter}>
+          {covers.length > 0 && (
             <View style={styles.shareCardRequests}>
-              <Text style={[styles.shareCardStatLabel, { color: theme.subtext }]}>
-                {dict.STATS_CARD_REQUESTS}
+              <Text style={[styles.shareCardLabel, ink(theme.subtext)]}>
+                {dict.STATS_TOP_REQUESTS}
               </Text>
               <View style={styles.shareCardCoverRow}>
                 {covers.map((url, index) => (
@@ -174,13 +177,30 @@ export function ShareCard({
                 ))}
               </View>
             </View>
-            {logo}
+          )}
+          <View style={styles.shareCardSignature}>
+            {/* Alpha-shaped logo shadow: a dark, blurred copy of the same
+                transparent PNG behind the artwork — a soft halo, not a
+                box (a tight blur read as a doubled tagline). */}
+            <View style={styles.shareCardLogoWrap}>
+              <Image
+                source={logoSource}
+                style={styles.shareCardLogoShadow}
+                contentFit="contain"
+                tintColor="rgba(22, 1, 53, 0.6)"
+                blurRadius={8}
+              />
+              <Image
+                source={logoSource}
+                style={styles.shareCardLogo}
+                contentFit="contain"
+              />
+            </View>
+            <Text style={[styles.shareCardUrl, ink(theme.subtext)]}>
+              {STATION_URL}
+            </Text>
           </View>
-        ) : (
-          <View style={[styles.shareCardFooter, { justifyContent: "flex-end" }]}>
-            {logo}
-          </View>
-        )}
+        </View>
       </View>
     </View>
   );

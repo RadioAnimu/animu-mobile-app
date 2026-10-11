@@ -2,73 +2,73 @@ import { Text, View } from "react-native";
 
 import type { ListenDay } from "@/core/services/listen-stats.service";
 import type { Dict } from "@/i18n";
+import { dayKeyToDate, formatDayKey } from "@/screens/Stats/dates";
+import { ProfileBars } from "@/screens/Stats/ProfileBars";
+import { buildHourBars } from "@/screens/Stats/profile";
 import { styles } from "@/screens/Stats/styles";
 import { formatListenDuration, listenDurationUnits } from "@/utils/format";
 
 /**
- * Drill-down for one heatmap day: totals row plus the 24-hour mini
- * histogram (raw per-hour data exists for the recent window only).
+ * Drill-down for one heatmap day: its totals plus the 24-hour histogram
+ * (raw per-hour data exists for the recent window only, so older days show
+ * the totals alone). A day without listening says so instead of a grid of
+ * zeros.
  */
 export function DayDetail({
   dayKey,
   day,
+  isToday,
   dict,
 }: Readonly<{
   dayKey: string;
-  day: ListenDay;
+  day: ListenDay | undefined;
+  isToday: boolean;
   dict: Dict;
 }>) {
-  const [y, m, d] = dayKey.split("-").map(Number);
-  const date = new Date(y, m - 1, d);
-  const thisYear = new Date().getFullYear();
-  const title =
-    `${dict.STATS_MONTHS[m - 1]} ${d}` +
-    (y !== thisYear ? ` ${y}` : "");
+  const weekday = dict.STATS_DOW_LONG[dayKeyToDate(dayKey).getDay()];
 
-  const maxHour = Math.max(...day.hours, 0);
-  const weekdayLabel = dict.STATS_DOW[date.getDay()];
+  const stats: [string, string][] = [];
+  if (day && day.ms > 0) {
+    stats.push(
+      [dict.STATS_TOTAL, formatListenDuration(day.ms / 60_000, listenDurationUnits(dict))],
+      [dict.STATS_SESSIONS, `${day.sessions}`],
+      [dict.STATS_SONGS, `${day.tracks}`],
+    );
+  }
+  if (day && day.requests > 0) stats.push([dict.STATS_REQUESTED, `${day.requests}`]);
+  if (day && day.submitted > 0) stats.push([dict.STATS_REQUESTS_SENT, `${day.submitted}`]);
+  if (day && day.shouts > 0) stats.push([dict.STATS_SHOUTOUTS, `${day.shouts}`]);
 
-  const stats: [string, string][] = [
-    [dict.STATS_TOTAL, formatListenDuration(day.ms / 60_000, listenDurationUnits(dict))],
-    [dict.STATS_SESSIONS, `${day.sessions}`],
-    [dict.STATS_SONGS, `${day.tracks}`],
-  ];
-  if (day.requests > 0) {
-    stats.push([dict.STATS_REQUESTED, `${day.requests}`]);
-  }
-  if (day.submitted > 0 || day.shouts > 0) {
-    stats.push([
-      dict.STATS_REQUESTS_SENT,
-      `${day.submitted + day.shouts}`,
-    ]);
-  }
+  const hasHours = day?.hours.some((ms) => ms > 0) ?? false;
 
   return (
-    <View style={styles.cardPadding}>
-      <Text style={styles.dayTitle}>
-        {weekdayLabel} · {title}
-      </Text>
-      <View style={styles.dayGrid}>
-        {stats.map(([label, value]) => (
-          <View key={label} style={styles.statItem}>
-            <Text style={styles.statLabel}>{label}</Text>
-            <Text style={styles.statValue}>{value}</Text>
-          </View>
-        ))}
+    <View style={styles.dayDetail}>
+      <View style={styles.dayHeader}>
+        <Text style={styles.dayTitle}>
+          {weekday}, {formatDayKey(dayKey, dict)}
+        </Text>
+        {isToday && <Text style={styles.caption}>{dict.STATS_TODAY}</Text>}
       </View>
-      {maxHour > 0 && (
-        <View style={styles.barsRow}>
-          {day.hours.map((ms, h) => (
-            <View
-              key={h}
-              style={[
-                styles.bar,
-                { height: Math.max(2, Math.round((ms / maxHour) * 72)) },
-                ms > 0 && h === day.hours.indexOf(maxHour) && styles.barPeak,
-              ]}
-            />
+      {stats.length === 0 ? (
+        <Text style={styles.caption}>{dict.STATS_DAY_EMPTY}</Text>
+      ) : (
+        <View style={styles.dayGrid}>
+          {stats.map(([label, value]) => (
+            <View key={label} style={styles.dayStat}>
+              <Text style={styles.dayStatValue}>{value}</Text>
+              <Text numberOfLines={2} style={styles.caption}>
+                {label}
+              </Text>
+            </View>
           ))}
         </View>
+      )}
+      {day && hasHours && (
+        <ProfileBars
+          bars={buildHourBars([day])}
+          emptyLabel={dict.STATS_PROFILE_EMPTY}
+          axis="hours"
+        />
       )}
     </View>
   );

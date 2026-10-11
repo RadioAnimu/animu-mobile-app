@@ -284,10 +284,12 @@ export function MakeRequest() {
         sessionId: user.sessionToken,
       };
 
-      const result = await musicRequestService.submitRequest(
-        submission,
-        selectedTrack.artwork,
-      );
+      const result = await musicRequestService.submitRequest(submission, {
+        title: selectedTrack.song,
+        artist: selectedTrack.artist,
+        anime: selectedTrack.anime,
+        artwork: selectedTrack.artwork,
+      });
 
       if (!result.success) {
         return {

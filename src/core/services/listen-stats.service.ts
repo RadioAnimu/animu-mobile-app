@@ -67,22 +67,47 @@ const EMPTY_DAY = (): ListenDay => ({
   hours: emptyHours(),
 });
 
-/** Track entries kept for the share-card "top requests" ranking. */
-const MAX_TRACKED_REQUESTS = 20;
-/** How many top artworks the share card shows. */
-export const TOP_REQUESTS_SHOWN = 5;
+/** Track entries kept for the "top requests" ranking. */
+const MAX_TRACKED_REQUESTS = 50;
+/** How many requested songs a snapshot ranks. */
+export const TOP_REQUESTS_SHOWN = 10;
 
-/** A track's request count + latest artwork (for the share card ranking). */
+/**
+ * A requested song's count + latest metadata. On a radio the listener
+ * doesn't pick what plays — requests are the one place their taste shows,
+ * so they (not songs heard) are what gets ranked.
+ */
 interface TrackedRequest {
   n: number;
+  title: string;
+  artist: string;
+  anime: string;
   art: string;
 }
 
+/** What the request screen knows about the song being requested. */
+export interface RequestedSong {
+  title: string;
+  artist: string;
+  anime: string;
+  artwork: string;
+}
+
+/** One ranked request in a snapshot. */
+export interface RankedRequest {
+  /** `""` for requests recorded before titles were stored. */
+  title: string;
+  artist: string;
+  anime: string;
+  /** Artwork URL, `""` when none. */
+  art: string;
+  requests: number;
+}
 interface ListenStatsBlob {
   version: number;
   /** Day key ("YYYY-MM-DD") → that day's data, oldest first. */
   days: Record<string, ListenDay>;
-  /** Most-requested tracks, keyed by track id (share card "Top 5"). */
+  /** Most-requested tracks, keyed by track id. */
   topRequests?: Record<string, TrackedRequest>;
 }
 
@@ -151,8 +176,10 @@ export interface ListenStatsSnapshot {
   activeDays: number;
   /** Epoch ms of the first stored day (0 when empty). */
   firstDayAt: number;
-  /** Artwork URLs of the most-requested tracks, most-requested first. */
-  topRequests: string[];
+  /** Most-requested songs, most requests first (ties: first requested first). */
+  topRequests: RankedRequest[];
+  /** Local day key the snapshot was taken on — "today" for its readers. */
+  todayKey: string;
 }
 
 const parseDayKey = (key: string): number => {
@@ -209,31 +236,51 @@ const sanitizeDays = (value: unknown): Record<string, ListenDay> => {
   return days;
 };
 
-/** One stored top-request entry, or null when malformed. */
-const sanitizeTrackedRequest = (value: unknown): TrackedRequest | null => {
-  if (typeof value !== "object" || value === null) return null;
-  const { n, art } = value as { n?: unknown; art?: unknown };
-  if (typeof n !== "number" || !Number.isFinite(n) || n <= 0) return null;
-  return { n: Math.floor(n), art: typeof art === "string" ? art : "" };
+const str = (v: unknown): string => (typeof v === "string" ? v : "");
+
+/** A positive play/request count floored to an integer, or null. */
+const count = (v: unknown): number | null =>
+  typeof v === "number" && Number.isFinite(v) && v >= 1 ? Math.floor(v) : null;
+
+/** Keeps the well-formed entries of a stored ranking map. */
+const sanitizeMap = <T>(
+  value: unknown,
+  entry: (raw: Record<string, unknown>, n: number) => T,
+): Record<string, T> => {
+  const out: Record<string, T> = {};
+  if (typeof value !== "object" || value === null) return out;
+  for (const [key, val] of Object.entries(value as Record<string, unknown>)) {
+    if (typeof val !== "object" || val === null) continue;
+    const raw = val as Record<string, unknown>;
+    const n = count(raw.n);
+    if (n != null) out[key] = entry(raw, n);
+  }
+  return out;
 };
 
-const sanitizeTopRequests = (value: unknown): Record<string, TrackedRequest> => {
-  const topRequests: Record<string, TrackedRequest> = {};
-  if (typeof value !== "object" || value === null) return topRequests;
-  for (const [id, val] of Object.entries(value as Record<string, unknown>)) {
-    const entry = sanitizeTrackedRequest(val);
-    if (entry) topRequests[id] = entry;
-  }
-  return topRequests;
-};
+/** Stored requests (entries from before metadata was kept get `""` fields). */
+const sanitizeTopRequests = (value: unknown): Record<string, TrackedRequest> =>
+  sanitizeMap(value, (raw, n) => ({
+    n,
+    title: str(raw.title),
+    artist: str(raw.artist),
+    anime: str(raw.anime),
+    art: str(raw.art),
+  }));
+
+/** Entries of a ranking map, most plays first (stable: first-seen wins ties). */
+const ranked = <T extends { n: number }>(
+  map: Record<string, T> | undefined,
+): [string, T][] =>
+  Object.entries(map ?? {}).sort((a, b) => b[1].n - a[1].n);
 
 /**
- * Drops the weakest track once the map exceeds the cap (first-seen wins
+ * Drops the weakest entry once a ranking map exceeds `cap` (first-seen wins
  * ties, matching insertion order).
  */
-const dropWeakestRequest = (top: Record<string, TrackedRequest>): void => {
+const dropWeakest = (top: Record<string, { n: number }>, cap: number): void => {
   const ids = Object.keys(top);
-  if (ids.length <= MAX_TRACKED_REQUESTS) return;
+  if (ids.length <= cap) return;
   let weakest = ids[0];
   for (const id of ids) {
     if (top[id].n < top[weakest].n) weakest = id;
@@ -443,25 +490,37 @@ export class ListenStatsService {
   }
 
   /**
-   * A music request the user submitted was accepted by the server. Tracks
-   * accrue per id (count + latest artwork) so the share card can rank the
-   * listener's actual most-requested songs.
+   * A music request the user submitted was accepted by the server. Songs
+   * accrue per track id (count + latest metadata) so the card and the
+   * screen can rank the listener's actual most-requested songs.
    */
   onRequestSubmitted(
     success: boolean,
     trackId?: string,
-    artworkUrl?: string,
+    song?: RequestedSong,
   ): void {
     if (!this.loaded || !success) return;
     this.ensureDay(dayKeyOf(Date.now())).submitted += 1;
     if (trackId) {
       const top = this.blob.topRequests ?? {};
-      const entry = top[trackId] ?? { n: 0, art: "" };
+      const entry = top[trackId] ?? {
+        n: 0,
+        title: "",
+        artist: "",
+        anime: "",
+        art: "",
+      };
       entry.n += 1;
-      if (artworkUrl) entry.art = artworkUrl;
+      // Latest metadata wins — the catalogue fixes typos and swaps covers.
+      if (song) {
+        entry.title = song.title;
+        entry.artist = song.artist;
+        entry.anime = song.anime;
+        if (song.artwork) entry.art = song.artwork;
+      }
       top[trackId] = entry;
       // Bound the map: drop the least-requested track past the cap.
-      dropWeakestRequest(top);
+      dropWeakest(top, MAX_TRACKED_REQUESTS);
       this.blob.topRequests = top;
     }
     this.scheduleFlush();
@@ -505,11 +564,15 @@ export class ListenStatsService {
     }
     const { currentStreak, maxStreak } = this.streaks(keys);
     // Share-card ranking: most-requested tracks' artworks, best first.
-    const topRequests = Object.entries(this.blob.topRequests ?? {})
-      .filter(([, entry]) => entry.art)
-      .sort((a, b) => b[1].n - a[1].n)
+    const topRequests = ranked(this.blob.topRequests)
       .slice(0, TOP_REQUESTS_SHOWN)
-      .map(([, entry]) => entry.art);
+      .map(([, r]) => ({
+        title: r.title,
+        artist: r.artist,
+        anime: r.anime,
+        art: r.art,
+        requests: r.n,
+      }));
     return {
       days: this.blob.days,
       totalMs,
@@ -524,6 +587,7 @@ export class ListenStatsService {
       activeDays: keys.filter((k) => this.blob.days[k].ms > 0).length,
       firstDayAt,
       topRequests,
+      todayKey: dayKeyOf(Date.now()),
     };
   }
 
@@ -586,7 +650,11 @@ export class ListenStatsService {
 
   /** Clears all stats (destructive — used by a future reset action). */
   async reset(): Promise<void> {
-    this.blob = { version: SCHEMA_VERSION, days: {}, topRequests: {} };
+    this.blob = {
+      version: SCHEMA_VERSION,
+      days: {},
+      topRequests: {},
+    };
     this.segmentStart = null;
     this.currentSessionMs = 0;
     this.inSession = false;
