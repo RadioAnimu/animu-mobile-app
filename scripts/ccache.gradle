@@ -9,8 +9,7 @@
 //
 // Usage: ./gradlew ... -I /path/to/ccache.gradle
 //
-// If ccache is not found the argument list is left untouched, so the build
-// behaves exactly as before.
+// Compiler limits apply with or without ccache.
 
 def ccacheBinary = null
 def pathEnv = System.getenv("PATH") ?: ""
@@ -19,27 +18,31 @@ if (System.getenv("CCACHE_BIN")) candidates << System.getenv("CCACHE_BIN")
 pathEnv.split(File.pathSeparator).each { candidates << new File(it, "ccache").absolutePath }
 candidates.find { it != null && new File(it).canExecute() }?.with { ccacheBinary = it }
 
+// Ninja can launch many compilers independently of Gradle's worker count.
+// Bound each native build to two compiles on the shared 16 GB host.
+def nativeArguments = [
+  "-DCMAKE_JOB_POOLS=animu_compile=2",
+  "-DCMAKE_JOB_POOL_COMPILE=animu_compile",
+]
 if (ccacheBinary == null) {
-  println "[ccache] not found on PATH; native builds will not be cached"
+  println "[ccache] not found; native compiler concurrency is still bounded"
 } else {
   println "[ccache] using ${ccacheBinary}"
-  // Plain Strings: AGP's cmake arguments list rejects GString.
-  def cLauncher = "-DCMAKE_C_COMPILER_LAUNCHER=" + ccacheBinary
-  def cxxLauncher = "-DCMAKE_CXX_COMPILER_LAUNCHER=" + ccacheBinary
-
-  allprojects { p ->
-    p.afterEvaluate {
-      def android = p.extensions.findByName("android")
-      if (android == null) return
-      try {
-        def args = android.defaultConfig.externalNativeBuild.cmake.arguments
-        [cLauncher, cxxLauncher].each { a ->
-          if (!args.contains(a)) args.add(a)
-        }
-        println "[ccache] ${p.path}: compiler launcher added"
-      } catch (Exception ignored) {
-        // No externalNativeBuild.cmake block on this module.
+  nativeArguments.add("-DCMAKE_C_COMPILER_LAUNCHER=" + ccacheBinary)
+  nativeArguments.add("-DCMAKE_CXX_COMPILER_LAUNCHER=" + ccacheBinary)
+}
+allprojects { p ->
+  p.afterEvaluate {
+    def android = p.extensions.findByName("android")
+    if (android == null) return
+    try {
+      def args = android.defaultConfig.externalNativeBuild.cmake.arguments
+      nativeArguments.each { a ->
+        if (!args.contains(a)) args.add(a)
       }
+      println "[native-cache] ${p.path}: cache/compiler limits configured"
+    } catch (Exception ignored) {
+      // No externalNativeBuild.cmake block on this module.
     }
   }
 }
