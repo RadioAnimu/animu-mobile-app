@@ -60,13 +60,27 @@ Update their copies together when changing the artifact format or trust policy.
 
 ## Measurement
 
-Before this change, app Jenkins CI #62 took 200 seconds (the preceding #61 also
-waited for Sonar), API CI #24 took 37 seconds, and RNAP CI #5 took 102 seconds.
+Before this change, app Jenkins CI #71 took 150 seconds after the intervening UI/dependency updates (#62 previously took 200 seconds), API CI #24 took 37 seconds, and RNAP CI #5 took 102 seconds.
 Sonar took 112 seconds for the app, 43 for the API and 115 for RNAP. These are
 wall-clock observations, not performance guarantees. Compare same-revision warm
 runs and separate lock/queue time from execution. Release Gradle profiles and
 ccache statistics expose native-cache effectiveness without enabling a potentially
 incompatible configuration cache or skipping signing/native validation.
+
+With the new caches, RNAP GitHub CI runs 38107757361 (cold) and 38108562513
+(warm, unchanged native sources) measured Android build 5m12s → 51s, iOS build
+6m31s → 1m49s, and Android lint/conformance 4m21s → 2m28s. App GitHub run
+38108474216 passed in 2m23s and its logs confirm both libraries' compiled/gate
+results were reused while both dependency audits ran fresh. These comparisons
+include runner/setup overhead and are not a controlled native release benchmark.
+
+Warm Jenkins execution, measured from lock acquisition to release rather than
+queue time, took 18 seconds for API CI #26, 19 seconds for API Sonar #5
+(with exact-commit coverage reuse), and 32 seconds for RNAP CI #7.
+
+The pre-existing app Sonar #21 run on `370a010` failed its quality gate:
+77.3% new-code coverage versus the required 80%, plus 27 app-source findings.
+Caching does not suppress these findings or change the thresholds.
 
 ## References reviewed
 
@@ -77,5 +91,4 @@ incompatible configuration cache or skipping signing/native validation.
 - [Gradle forum: parallel CI cache use](https://discuss.gradle.org/t/using-gradle-build-cache-in-parallel-ci-cd-pipeline-runs/44614): shared writable dependency caches have locking constraints.
 - [Turbo task inputs](https://github.com/vercel/turborepo/blob/main/apps/docs/content/docs/reference/configuration.mdx) and [community discussion](https://github.com/vercel/turborepo/discussions/8877): explicitly hash native sources outside the example workspace.
 - [CocoaPods command reference](https://guides.cocoapods.org/terminal/commands.html): install pinned pods; update specs when needed.
-
 - [CMake Ninja job pools](https://cmake.org/cmake/help/latest/prop_gbl/JOB_POOLS.html): bound compiler concurrency independently of Gradle workers.
