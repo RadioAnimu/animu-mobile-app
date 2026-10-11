@@ -539,6 +539,14 @@ describe("PlayerService on react-native-anything-player", () => {
     expect(lastNowPlaying(t.player)).toMatchObject({ artist: "Artist X" });
   });
 
+  it("native progress readings drive the stuck-refresh watchdog (no JS timer)", async () => {
+    const t = setup();
+    await t.service.setupPlayer();
+    t.repository.expireStuckRefresh.mockClear();
+    t.player.emit("progress", { liveOffset: null, bufferedAhead: 6, position: 0 });
+    expect(t.repository.expireStuckRefresh).toHaveBeenCalledTimes(1);
+  });
+
   it("changing the stream re-tunes a loaded player, keeping the play intent", async () => {
     const t = setup();
     await t.service.setupPlayer();

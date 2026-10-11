@@ -121,8 +121,11 @@ export class PlayerService {
       player.on("metadata", (metadata) => this.handleStreamMetadata(metadata)),
       // Native-timer readings while playing: they keep the audible clock
       // measured, and run JS at song boundaries even where JS timers are
-      // frozen (Android in the background).
-      player.on("progress", (reading) => hearing.progress(reading)),
+      // frozen (Android in the background) — the stuck-refresh watchdog too.
+      player.on("progress", (reading) => {
+        hearing.progress(reading);
+        repository.expireStuckRefresh();
+      }),
       // Play from Control Center / the lock screen before anything is loaded
       // (iOS relaunched the app in the background for it). Airwave handles
       // every later command natively; this one only the app can answer.

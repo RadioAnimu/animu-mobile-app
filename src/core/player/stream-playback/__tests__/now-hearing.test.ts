@@ -2,7 +2,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Track } from "@/core/domain/track";
 import { AudibleTrackResolver } from "@/core/player/stream-playback/audible-track";
 import { HeardTrack, ICY_AFTER_START_MS } from "@/core/player/stream-playback/heard-track";
-import { ICY_MISSING_MS, NowHearing } from "@/core/player/stream-playback/now-hearing";
+import {
+  ICY_MISSING_MS,
+  ICY_OVERDUE_MS,
+  NowHearing,
+} from "@/core/player/stream-playback/now-hearing";
 import { StreamSyncEngine } from "@/core/player/stream-playback/stream-sync";
 import { jsTimer } from "@/core/player/timer";
 
@@ -184,6 +188,100 @@ describe("NowHearing", () => {
       t.play(5, 9); // the connect burst finished loading: 3 s more behind
       expect(t.changes).toHaveBeenCalledTimes(1);
       expect(t.hearing.elapsedMs()).toBe(67_000 + 5_000 - 3_000);
+    });
+  });
+
+  describe("a station item whose ICY title never arrives", () => {
+    const JINGLE = "Rádio Animu - Vinheta";
+    /** A 10 s jingle heard at its change (6 s behind), then Song B announced as it ends. */
+    const jingleThenSongB = () => {
+      const t = setup();
+      t.station.track = track(JINGLE, Date.now(), 10_000);
+      t.hearing.setPlaying(true);
+      t.play(6);
+      t.heard.heard(JINGLE, Date.now(), false, 4_800);
+      t.hearing.titleWasHeard();
+      t.play(4);
+      t.station.track = track("Song B", Date.now());
+      t.hearing.stationChanged();
+      return t;
+    };
+
+    it("shows the station's item once its title is overdue", () => {
+      const t = jingleThenSongB();
+      // Song B reaches the speaker 6 s after it was announced; its title
+      // never comes. Short of the overdue window, the jingle stays.
+      t.play(6 + ICY_OVERDUE_MS / 1000 - 3);
+      expect(t.hearing.track?.raw).toBe(JINGLE);
+      t.changes.mockClear();
+      t.play(4);
+      expect(t.hearing.track?.raw).toBe("Song B");
+      expect(t.hearing.mode).toBe("icy");
+      expect(t.hearing.anchored).toBe(true);
+      expect(t.changes).toHaveBeenCalledTimes(1);
+      // Placed on the audible clock: ~31 s into Song B.
+      expect(t.hearing.elapsedMs()).toBeGreaterThanOrEqual(ICY_OVERDUE_MS);
+      expect(t.hearing.elapsedMs()).toBeLessThanOrEqual(ICY_OVERDUE_MS + 2_000);
+    });
+
+    it("hands back to ICY at the next title", () => {
+      const t = jingleThenSongB();
+      t.play(6 + ICY_OVERDUE_MS / 1000 + 1);
+      expect(t.hearing.track?.raw).toBe("Song B");
+      t.station.track = track("Song C", Date.now());
+      t.heard.heard("Song C", Date.now(), false, 6_000);
+      t.hearing.titleWasHeard();
+      expect(t.hearing.track?.raw).toBe("Song C");
+      expect(t.hearing.elapsedMs()).toBe(ICY_AFTER_START_MS);
+    });
+
+    it("follows a newer station item while still overdue", () => {
+      const t = jingleThenSongB();
+      t.play(6 + ICY_OVERDUE_MS / 1000 + 1);
+      t.changes.mockClear();
+      // Song B was short; Song C is announced and also never titled.
+      t.station.track = track("Song C", Date.now());
+      t.hearing.stationChanged();
+      expect(t.hearing.track?.raw).toBe(JINGLE); // C not audible long enough yet
+      t.play(6 + ICY_OVERDUE_MS / 1000 + 1);
+      expect(t.hearing.track?.raw).toBe("Song C");
+      expect(t.changes).toHaveBeenCalled();
+    });
+
+    it("keeps a heard title the station has not named yet", () => {
+      const t = jingleThenSongB();
+      t.play(3);
+      // ICY names something else: the speaker is not on Song B.
+      t.heard.heard("Live Show", Date.now(), false, 6_000);
+      t.play(6 + ICY_OVERDUE_MS / 1000 + 5);
+      expect(t.hearing.track?.raw).toBe(JINGLE);
+      t.heard.unresolved("Live Show");
+      expect(t.hearing.track?.raw).toBe("Live Show");
+    });
+
+    it("never takes over before the clock settles", () => {
+      const t = setup();
+      t.station.track = track(JINGLE, Date.now() - 60_000, 10_000);
+      t.hearing.setPlaying(true);
+      t.heard.heard(JINGLE, Date.now() - 50_000, false, 0);
+      t.hearing.titleWasHeard();
+      t.station.track = track("Song B", Date.now() - 45_000);
+      t.hearing.stationChanged();
+      expect(t.sync.settled).toBe(false);
+      expect(t.hearing.track?.raw).toBe(JINGLE);
+    });
+
+    it("leaves a heard track that has not ended alone", () => {
+      const t = setup(); // Song A: 200 s long
+      t.hearing.setPlaying(true);
+      t.play(2);
+      t.heard.heard("Song A", Date.now(), false, 0);
+      t.hearing.titleWasHeard();
+      // The station already moved on (its data ahead of the audio).
+      t.station.track = track("Song B", Date.now() - 60_000);
+      t.hearing.stationChanged();
+      t.play(40);
+      expect(t.hearing.track?.raw).toBe("Song A");
     });
   });
 
