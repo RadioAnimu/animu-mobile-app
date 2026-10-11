@@ -247,7 +247,8 @@ pipeline {
       agent { label 'animu-android-native' }
       when { expression { return !(params.TRUST_CI && env.CI_VERIFIED == 'true') } }
       steps {
-        sh '''
+        withCredentials([string(credentialsId: 'jenkins-api-token', variable: 'JENKINS_API_TOKEN')]) {
+          sh '''
           set -eux
           pnpm run test:tooling
           pnpm run typecheck
@@ -262,7 +263,8 @@ pipeline {
           pnpm exec expo export:embed --platform android --entry-file index.js --bundle-output "$TMPDIR/index.android.bundle" --assets-dest "$TMPDIR/animu-assets" --dev false
           node scripts/check-bundle-size.mjs "$TMPDIR/index.android.bundle" 3900000 "$TMPDIR/animu-assets" 2000000
           pnpm run doctor:gate
-        '''
+          '''
+        }
       }
       post {
         always {
