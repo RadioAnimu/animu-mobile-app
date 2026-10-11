@@ -1,25 +1,32 @@
 import { useEffect } from "react";
-import { InteractionManager, StyleSheet, TouchableOpacity } from "react-native";
+import { InteractionManager, TouchableOpacity, type StyleProp, type ViewStyle } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { Icon } from "@/components/Icon";
-import { usePlayer } from "@/contexts/player/PlayerProvider";
 import { japaneseDictionary } from "@/core/japanese";
-import { LyricsService } from "@/core/lyrics";
 import { useDict } from "@/hooks/useDict";
+import { useLyricsAvailability } from "@/hooks/useLyricsAvailability";
 import type { RootStackParamList } from "@/routes/app.routes";
 import { THEME } from "@/theme";
-import { scale } from "@/theme/responsive";
 import { haptics } from "@/utils/haptics";
 
+interface Props {
+  /** The header's icon size. */
+  size: number;
+  hitSlop: number;
+  style?: StyleProp<ViewStyle>;
+}
+
 /**
- * The lyrics entry on the player: a round glass button in the cover's corner,
- * only while a song (not a jingle) is being heard.
+ * The lyrics entry in the player's header: a microphone in the header's
+ * green, greyed out and inactive while the heard song has no lyrics (or is
+ * still being looked up). A failed lookup leaves it on: the lyrics retry.
  */
-export function LyricsButton() {
+export function LyricsButton({ size, hitSlop, style }: Readonly<Props>) {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-  const { currentTrack } = usePlayer();
   const dict = useDict();
+  const availability = useLyricsAvailability();
+  const enabled = availability === "available" || availability === "unknown";
 
   // At launch, once the player has settled: adopt the Japanese dictionary,
   // or delete an install the app was killed in (no dead files until Settings
@@ -31,37 +38,22 @@ export function LyricsButton() {
     return () => task.cancel();
   }, []);
 
-  if (!LyricsService.isSong(currentTrack)) return null;
-
   return (
     <TouchableOpacity
       accessibilityRole="button"
       accessibilityLabel={dict.A11Y_OPEN_LYRICS}
+      accessibilityHint={availability === "missing" ? dict.LYRICS_MISSING : undefined}
+      accessibilityState={{ disabled: !enabled, busy: availability === "checking" }}
       activeOpacity={THEME.OPACITY.PRESSED}
-      hitSlop={THEME.HIT_SLOP.MD}
+      disabled={!enabled}
+      hitSlop={hitSlop}
       onPress={() => {
         haptics.tap();
         navigation.navigate("Lyrics");
       }}
-      style={styles.button}
+      style={style}
     >
-      <Icon name="lyrics" size={THEME.ICON.MD} color={THEME.COLORS.TEXT} />
+      <Icon name="mic" size={size} color={enabled ? THEME.COLORS.BRAND : THEME.COLORS.TEXT_DIM} />
     </TouchableOpacity>
   );
 }
-
-const styles = StyleSheet.create({
-  button: {
-    position: "absolute",
-    right: THEME.SPACE.SM,
-    bottom: THEME.SPACE.SM,
-    width: scale(40),
-    height: scale(40),
-    borderRadius: THEME.RADIUS.CIRCLE,
-    backgroundColor: "rgba(22, 1, 53, 0.72)",
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: THEME.COLORS.HAIRLINE,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-});

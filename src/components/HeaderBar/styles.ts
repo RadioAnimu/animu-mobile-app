@@ -16,7 +16,15 @@ const LIVE_BADGE_BOTTOM = scale(48);
  */
 const ICON_HIT_SLOP = scale(14);
 
-export { CONTAINER_HEIGHT, ICON_HIT_SLOP };
+/** Space between the lyrics microphone and the note it sits beside. */
+const MIC_GAP = scale(28);
+/**
+ * The microphone glyph fills less of its box than the note artwork does:
+ * drawn this much larger, the two read as the same size.
+ */
+const MIC_SIZE = Math.round(ICON_BTN * 1.25);
+
+export { CONTAINER_HEIGHT, ICON_HIT_SLOP, MIC_SIZE };
 
 export const styles = StyleSheet.create({
   view: {
@@ -70,6 +78,16 @@ export const styles = StyleSheet.create({
   },
   noteWrapper: {
     position: "relative",
+  },
+  /** The note's slot: the microphone hangs off its left, out of the row's flex. */
+  noteSlot: {
+    position: "relative",
+  },
+  lyricsButton: {
+    position: "absolute",
+    right: ICON_BTN + MIC_GAP,
+    // Centered on the note's line.
+    top: (ICON_BTN - MIC_SIZE) / 2,
   },
   liveRequestBadge: {
     position: "absolute",

@@ -20,7 +20,8 @@ import pauseAffordanceImage from "@/assets/play_square_btn.webp";
 import playAffordanceImage from "@/assets/play_triangle_btn.webp";
 import { IMGS } from "@/i18n";
 import { THEME } from "@/theme";
-import { CONTAINER_HEIGHT, ICON_HIT_SLOP, styles } from "@/components/HeaderBar/styles";
+import { CONTAINER_HEIGHT, ICON_HIT_SLOP, MIC_SIZE, styles } from "@/components/HeaderBar/styles";
+import { LyricsButton } from "@/components/LyricsButton";
 import { useUserSettings } from "@/contexts/user/UserSettingsProvider";
 import {
   usePlayer,
@@ -255,34 +256,39 @@ export function HeaderBar({ openLiveRequestModal }: Readonly<Props>) {
             />
           </TouchableOpacity>
 
-          <TouchableOpacity
-            accessibilityRole="button"
-            accessibilityLabel={dict.A11Y_MAKE_REQUEST}
-            hitSlop={ICON_HIT_SLOP}
-            onPress={() => {
-              if (currentProgram?.isLive) {
-                // Live: requests go through the modal, or nowhere while closed.
-                if (currentProgram.acceptingRequests && openLiveRequestModal) {
-                  openLiveRequestModal();
+          {/* The microphone sits left of the note without joining the row's
+              flex, so the play button stays centered. */}
+          <View style={styles.noteSlot}>
+            <LyricsButton size={MIC_SIZE} hitSlop={ICON_HIT_SLOP / 2} style={styles.lyricsButton} />
+            <TouchableOpacity
+                accessibilityRole="button"
+              accessibilityLabel={dict.A11Y_MAKE_REQUEST}
+              hitSlop={ICON_HIT_SLOP}
+              onPress={() => {
+                if (currentProgram?.isLive) {
+                  // Live: requests go through the modal, or nowhere while closed.
+                  if (currentProgram.acceptingRequests && openLiveRequestModal) {
+                    openLiveRequestModal();
+                  }
+                  return;
                 }
-                return;
-              }
-              navigation.navigate("MakeRequest");
-            }}
-            style={styles.noteWrapper}
-          >
-            {currentProgram?.isLive && openLiveRequestModal && (
-              <Animated.View
-                style={[
-                  styles.liveRequestBadge,
-                  { transform: [{ translateY }] },
-                ]}
-              >
-                <LiveRequestComponent />
-              </Animated.View>
-            )}
-            <Image contentFit="contain" style={styles.noteIcon} source={noteIcon} />
-          </TouchableOpacity>
+                navigation.navigate("MakeRequest");
+              }}
+              style={styles.noteWrapper}
+            >
+              {currentProgram?.isLive && openLiveRequestModal && (
+                <Animated.View
+                  style={[
+                    styles.liveRequestBadge,
+                    { transform: [{ translateY }] },
+                  ]}
+                >
+                  <LiveRequestComponent />
+                </Animated.View>
+              )}
+              <Image contentFit="contain" style={styles.noteIcon} source={noteIcon} />
+            </TouchableOpacity>
+          </View>
         </View>
       </View>
       {showProgressBar && (

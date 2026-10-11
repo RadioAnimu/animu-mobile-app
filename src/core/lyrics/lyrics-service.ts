@@ -105,6 +105,20 @@ export class LyricsService {
     this.lookup(key, track, false).catch(() => {});
   }
 
+  /**
+   * `track`'s lyrics without showing them (the header's lyrics button asks
+   * whether there are any): `null` when there are none. Shares the lookup,
+   * the memory and the disk cache with {@link show} — opening the lyrics
+   * afterwards is instant. Rejects when the lookup fails.
+   */
+  async lyricsFor(track: Track | null | undefined): Promise<Lyrics | null> {
+    if (!LyricsService.isSong(track)) return null;
+    const key = LyricsService.keyOf(track);
+    const remembered = this.memory.get(key);
+    if (remembered !== undefined) return remembered;
+    return this.lookup(key, track, false);
+  }
+
   /** Asks again after a failure or a miss (user action). */
   retry(): void {
     const current = this.current;
@@ -165,14 +179,21 @@ export class LyricsService {
       const ttl = cached?.result.kind === "match" ? MATCH_TTL_MS : MISS_TTL_MS;
       if (cached && this.now() - cached.savedAt < ttl) result = cached.result;
     }
+    let complete = true;
     if (!result) {
-      result = await this.resolve(track);
-      await this.deps.cache
-        .write(key, { savedAt: this.now(), result })
-        .catch((error) => console.warn("[LyricsService] cache write failed:", error));
+      const resolved = await this.resolve(track);
+      result = resolved.result;
+      complete = resolved.complete;
+      // A miss while the provider was failing is not remembered: the lyrics
+      // may well be there next time.
+      if (complete || result.kind === "match") {
+        await this.deps.cache
+          .write(key, { savedAt: this.now(), result })
+          .catch((error) => console.warn("[LyricsService] cache write failed:", error));
+      }
     }
     const lyrics = toLyrics(result);
-    this.remember(key, lyrics);
+    if (complete || lyrics) this.remember(key, lyrics);
     return lyrics;
   }
 
@@ -192,7 +213,7 @@ export class LyricsService {
    * a search has looked for their romaji twin); otherwise every step runs
    * once (the result is cached).
    */
-  private async resolve(track: Track): Promise<LookupResult> {
+  private async resolve(track: Track): Promise<{ result: LookupResult; complete: boolean }> {
     const { provider } = this.deps;
     const query: TrackQuery = {
       title: track.title,
@@ -217,20 +238,46 @@ export class LyricsService {
       () => provider.search({ trackName: title }),
     ];
 
-    let best: ScoredCandidate | null = null;
-    let romaji: LyricsCandidate | null = null;
-    for (const [index, step] of steps.entries()) {
-      collect(await step());
+    // Written by `settle` below; the assertion keeps TS from narrowing them
+    // to their initial null across that closure.
+    let best = null as ScoredCandidate | null;
+    let romaji = null as LyricsCandidate | null;
+    let failed = 0;
+    let lastError: unknown = null;
+    // One step failing (LRCLIB answers 503 "overloaded" under load, mostly on
+    // the exact lookup) does not fail the lookup: the others still run.
+    const attempt = async (step: (typeof steps)[number]) => {
+      try {
+        return await step();
+      } catch (error) {
+        failed += 1;
+        lastError = error;
+        return null;
+      }
+    };
+    /** Re-scores everything collected; true once the lookup can stop. */
+    const settle = (index: number): boolean => {
       const romanize = this.deps.romanizer();
       best = pickBest(query, [...rows.values()], romanize);
       // A romaji upload keeps the wider searches going: they find the original.
       const original = best && isTimedFor(best) && inJapaneseScript(best.candidate) ? best : null;
       romaji = original ? findRomajiSibling(query, original, [...rows.values()], romanize) : null;
-      // The original is found; one search past the exact lookup also looks for
-      // its romaji twin.
-      if (original && (romaji || index >= 1)) break;
+      // The original is found; one search past the exact lookup also looks
+      // for its romaji twin.
+      return original != null && (romaji != null || index >= 1);
+    };
+    for (const [index, step] of steps.entries()) {
+      const found = await attempt(step);
+      if (found) {
+        collect(found);
+        if (settle(index)) break;
+      }
     }
-    return best ? { kind: "match", candidate: best.candidate, timed: isTimedFor(best), romaji } : { kind: "none" };
+    if (failed === steps.length) throw lastError;
+    const result: LookupResult = best
+      ? { kind: "match", candidate: best.candidate, timed: isTimedFor(best), romaji }
+      : { kind: "none" };
+    return { result, complete: failed === 0 };
   }
 }
 

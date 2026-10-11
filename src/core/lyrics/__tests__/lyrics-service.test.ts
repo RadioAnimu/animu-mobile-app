@@ -216,13 +216,33 @@ describe("LyricsService", () => {
     expect(provider.get).toHaveBeenCalledWith(expect.objectContaining({ trackName: "Gurenge" }));
   });
 
-  it("reports a failure and retries on demand", async () => {
+  it("rides out a failing step: the other steps still find the lyrics", async () => {
+    provider.get.mockRejectedValueOnce(new Error("LRCLIB 503"));
+    provider.search.mockResolvedValueOnce([candidate()]);
+    service.show(track());
+    await flush();
+    expect(store.getSnapshot().status).toBe("ready");
+  });
+
+  it("does not remember a miss found while a step was failing", async () => {
+    provider.get.mockRejectedValueOnce(new Error("LRCLIB 503"));
+    service.show(track());
+    await flush();
+    expect(store.getSnapshot().status).toBe("missing");
+    expect(cache.write).not.toHaveBeenCalled();
+    provider.get.mockResolvedValueOnce(candidate());
+    expect((await service.lyricsFor(track()))?.kind).toBe("synced");
+  });
+
+  it("reports a failure when every step fails, and retries on demand", async () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     provider.get.mockRejectedValueOnce(new Error("offline"));
+    provider.search.mockRejectedValue(new Error("offline"));
     service.show(track());
     await flush();
     expect(store.getSnapshot().status).toBe("error");
     provider.get.mockResolvedValue(candidate());
+    provider.search.mockResolvedValue([]);
     service.retry();
     await flush();
     expect(store.getSnapshot().status).toBe("ready");
@@ -237,6 +257,16 @@ describe("LyricsService", () => {
     await flush();
     service.hide();
     expect(store.getSnapshot()).toEqual(LYRICS_IDLE);
+  });
+
+  it("answers whether a song has lyrics, without showing them, and shares the lookup", async () => {
+    provider.get.mockResolvedValue(candidate());
+    expect((await service.lyricsFor(track()))?.kind).toBe("synced");
+    expect(store.getSnapshot()).toEqual(LYRICS_IDLE);
+    service.show(track());
+    expect(store.getSnapshot().status).toBe("ready");
+    expect(provider.get).toHaveBeenCalledTimes(1);
+    expect(await service.lyricsFor(track({ raw: "Rádio Animu - jingle", artist: "Rádio Animu" }))).toBeNull();
   });
 
   it("forgets everything on clear", async () => {
