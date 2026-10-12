@@ -13,6 +13,7 @@ import {
   INSTALL_FREE_BYTES,
   JAPANESE_DICTIONARY_INITIAL,
   JapaneseDictionary,
+  READER_KEEP_MS,
   RETRY_DELAYS_MS,
   STALL_MS,
   type DictionaryStorage,
@@ -264,6 +265,39 @@ describe("JapaneseDictionary", () => {
       finish();
       await loading;
       expect(dictionary.currentReader).toBeNull();
+    });
+
+    it("keeps the reader a while after lyrics close: a quick reopen reuses it", async () => {
+      vi.useFakeTimers();
+      await dictionary.install();
+      await dictionary.loadReader();
+      dictionary.releaseReader();
+      vi.advanceTimersByTime(READER_KEEP_MS - 1);
+      await dictionary.loadReader();
+      expect(build).toHaveBeenCalledTimes(1);
+      expect(dictionary.currentReader).not.toBeNull();
+      // Reopened: the release was cancelled.
+      vi.advanceTimersByTime(READER_KEEP_MS);
+      expect(dictionary.currentReader).not.toBeNull();
+      // Closed for good: let go.
+      dictionary.releaseReader();
+      vi.advanceTimersByTime(READER_KEEP_MS);
+      expect(dictionary.currentReader).toBeNull();
+      expect(store.getSnapshot().reader).toBe("idle");
+    });
+
+    it("reopening during a build shares it instead of starting another", async () => {
+      vi.useFakeTimers();
+      await dictionary.install();
+      let finish!: () => void;
+      build.mockImplementationOnce(() => new Promise((resolve) => (finish = () => resolve(tokenizer))));
+      const first = dictionary.loadReader();
+      dictionary.releaseReader();
+      const second = dictionary.loadReader();
+      finish();
+      await Promise.all([first, second]);
+      expect(build).toHaveBeenCalledTimes(1);
+      expect(dictionary.currentReader).not.toBeNull();
     });
 
     it("reports a failed build", async () => {
