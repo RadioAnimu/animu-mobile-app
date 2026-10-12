@@ -22,6 +22,10 @@ export const ICY_OVERDUE_MS = 30_000;
 export interface LagReading {
   liveOffset: number | null;
   bufferedAhead: number;
+  /** The player's media position (s) — the audio's own clock. */
+  position?: number;
+  /** Epoch ms the reading was taken at. */
+  timestamp?: number;
 }
 
 export interface NowHearingDeps {
@@ -162,13 +166,20 @@ export class NowHearing {
       offsetFromLive: reading.liveOffset,
       bufferedAheadSeconds: reading.bufferedAhead,
     });
+    // Both positions follow the audio's own clock (see `alignToMedia`).
+    let heardMoved = false;
+    if (reading.position != null && reading.timestamp != null) {
+      sync.alignToMedia(reading.position, reading.timestamp);
+      heardMoved = heard.alignToMedia(reading.position, reading.timestamp);
+    }
     this.deps.pump?.();
     this.deps.audible.adoptIfDue();
     const reported = this.checkMode();
-    // A re-lock moved a clock-driven position: the lock screen follows.
+    // A re-lock or a media-clock correction moved the position: the lock
+    // screen follows.
     const clockDriven = this.mode === "clock" || heard.estimated || this.overdue() != null;
     const relocked = lockBefore != null && lockBefore.stationMs !== sync.anchor?.stationMs;
-    if (!reported && clockDriven && relocked) this.onChange();
+    if (!reported && (clockDriven ? relocked : heardMoved)) this.onChange();
   }
 
   /** An ICY title was heard (after {@link HeardTrack.heard}). */

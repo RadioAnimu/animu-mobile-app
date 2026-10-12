@@ -69,14 +69,26 @@ from two independent sources.
 
 **ICY titles (`HeardTrack`) are the truth at every song change.** The ICY
 title is exactly the API's `rawtitle` and changes about 1.2 s after its
-`timestart` (67 changes over 3 hours, 0.34–1.85 s). The transcoded mounts
-carry it at the same point of the audio. Recording 320, 192 and 64 at once and
-cross-correlating their decoded audio puts every 192 / 64 title within 0.7 s
-of 320's, with live edges 0.2–0.6 s behind it (2026-10-05). Anything Player reports
+`timestart` (67 changes over 3 hours, 0.34–1.85 s). Anything Player reports
 each title **when it plays** (iOS: AVPlayer's metadata output, measured on the
 64 kbps mount: 16.4–17.1 s after the title arrived, its buffer; Android:
-Media3's metadata renderer). So a title change means "this track started 1.2 s
-ago, here", on every stream.
+Media3's metadata renderer, within 0.04 s of where the title sits in the
+stream).
+
+Where a title sits in the *audio* depends on the mount. The station writes it
+at the item's first audio, but Icecast only sends metadata every
+`icy-metaint` = 16000 bytes, counted from each connection's own start. So a
+title is heard 0–1 block into its item, uniformly: a block is 0.4 s at
+320 kbps, 0.67 s at 192 and 2 s at 64. Recording the three mounts at once and
+cross-correlating their decoded audio (11 changes, 2026-10-11) puts the 192
+titles 0.14 s and the 64 titles 0.69 s after 320's on average (the half-block
+model predicts 0.13 / 0.80), and on 320 the jingles start 0–0.2 s before their
+titles. So a title change means "this track started half a block ago, here"
+(`icyTitleInItemMs`: 0.2 s on 320, 0.33 s on 192, 1 s on 64), give or take
+half a block. Every mount used to assume 1.2 s, the station's timeline
+rather than the audio's: lyrics ran 1 s early on 320, and on 64 the ±1 s
+spread sometimes put them late. The lyrics view lights the line on the other
+side of a near change too, which covers that spread.
 
 The one computed position is a **tune-in** (first title after opening,
 switching stream or a live-edge resume). The title says which song, but it is
@@ -91,7 +103,9 @@ buffered of the 17 s actually behind the edge, and iOS `loadedTimeRanges` read
 11.6 s (Anything Player now measures the iOS live offset from what its stream proxy
 handed the player). Each title change heard afterwards shows how far the
 tune-in computation was off on this stream. The median of the last 9 corrects
-the next tune-in.
+the next tune-in. Before the first change it starts from the station clock's
+lead over its audio (`STATION_AHEAD_OF_AUDIO_MS`, 1 s: the title changes
+1.2 s after `timestart` and is heard 0.2 s into the item on 320).
 
 Measured after the fix (2026-10-05, tune-in vs the next heard change, which
 carries the station's own ±1 s `timestart` jitter): 64 kbps 0.9 s on iOS and
@@ -127,6 +141,37 @@ does natively. The header bar runs one linear native animation to the song's
 end, and the countdown re-renders exactly at each second boundary. Nothing is
 eased or polled, so the bar, the countdown, the lyrics and the lock screen
 all show the same position.
+
+Measured on the Android emulator (2026-10-12, 64 kbps, the position compared
+with the player's media position every second): 36 lyrics open / close
+cycles and backgrounds of 15 s to 4 min left it within 0.01 s. Two things
+did move it, and both are handled now.
+
+**A connection replaced under the source.** When a connection drops, Android
+plays on into a fresh one and iOS's stream proxy splices a fresh upstream into
+the same response, both with no state change. A fresh Icecast connection
+starts with the server's burst of recent audio, so the audio jumps back by up
+to the burst (16 s on 64 kbps, 1.6 s on 320) less the outage. Anything Player
+reports it as a `discontinuity` event once the jump is audible (Android: the
+position discontinuity onto the new connection; iOS: the playhead reaching
+the splice). `PlayerService` then places the song again like after a
+re-open, from the audible clock, which re-measures the lag on the new
+connection. The same title is not reported again, so the track already shown
+is re-heard as a tune-in.
+
+**Timing that depends on the JS thread.** Play and stall transitions are
+handled in JS, so a busy JS thread used to shift the position by the delay.
+Every progress reading now carries the player's media position, which only
+advances with the audio: the heard position (`HeardTrack.alignToMedia`) and
+the locked clock (`StreamSyncEngine.alignToMedia`) take the first reading
+after they are placed as a reference and follow the media clock from there,
+moved onto it when more than 60 ms off (the readings agree to ±6 ms; a
+pause or resume handled a beat late used to leave ~0.1 s). The biggest source of JS stalls was
+the Japanese dictionary's reader, rebuilt on every lyrics open (12 s of JS on
+the emulator) with quick reopens stacking builds; it is now kept for a minute
+after the lyrics close (`READER_KEEP_MS`). Opening the lyrics still costs
+0.5–1 s of JS in a debug build on the emulator (rendering the rows), but that
+no longer moves the position.
 
 The lock screen gets `updateNowPlaying({ …, duration, elapsed })`; Anything Player
 advances the song's progress natively, only while audio plays. No JS timer is

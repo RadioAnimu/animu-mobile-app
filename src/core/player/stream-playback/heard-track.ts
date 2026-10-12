@@ -6,17 +6,49 @@ import type { Track } from "@/core/domain/track";
  * Measured against the live stream: 67 consecutive changes over 3 hours
  * (2026-10-04) — min 0.34 s, median 1.18 s, max 1.85 s (`timestart` has
  * one-second resolution). The ICY title also matched the API `rawtitle`
- * byte for byte every time. The transcoded 192 / 64 kbps mounts carry the
- * title at the same point of the audio, within 0.7 s (cross-correlating the
- * three mounts' decoded audio, 2026-10-05).
+ * byte for byte every time. This is the *station's* timeline, not the
+ * audio's: see {@link icyTitleInItemMs} for where the title sits in the item.
  */
 export const ICY_AFTER_START_MS = 1_200;
+/** `icy-metaint` of every station mount: audio bytes between metadata blocks. */
+export const ICY_METAINT_BYTES = 16_000;
+
+/**
+ * How far into an item (ms) its ICY title is heard, on average, on a mount
+ * of `bitrateKbps`.
+ *
+ * The station writes the title at the item's first audio, but Icecast can
+ * only send it at the next metadata block of each listener's connection —
+ * every {@link ICY_METAINT_BYTES} bytes, counted from that connection's own
+ * start. So the title is heard 0…1 block after the item began, uniformly:
+ * on average half a block, 0.2 s on the 320 kbps mount and 1 s on the
+ * 64 kbps one. Measured 2026-10-11 (all three mounts recorded at once,
+ * their decoded audio cross-correlated; 11 changes): titles 0.14 s later on
+ * 192 and 0.69 s later on 64 than on 320 (half-block model: 0.13 / 0.80);
+ * on 320, jingles start 0–0.2 s before their title. Android's player
+ * reports the title where it sits in the stream (within 0.04 s).
+ */
+export function icyTitleInItemMs(bitrateKbps: number): number {
+  const blockMs = (ICY_METAINT_BYTES * 8) / bitrateKbps;
+  return Math.round(blockMs / 2);
+}
+
+/** The station's main mount, assumed until a stream is chosen. */
+const DEFAULT_BITRATE_KBPS = 320;
+/**
+ * How far the station's clock runs ahead of its audio (ms): the title
+ * changes {@link ICY_AFTER_START_MS} after `timestart` and is heard half a
+ * 320 kbps block into the item, so the item reached the stream ~1 s after
+ * `timestart`. A tune-in's position (station time minus the lag) starts
+ * from this until the stream has calibrated its own.
+ */
+export const STATION_AHEAD_OF_AUDIO_MS = ICY_AFTER_START_MS - icyTitleInItemMs(DEFAULT_BITRATE_KBPS);
 /**
  * The tune-in position is computed, not heard: station time minus the
  * measured lag. Every title change heard afterwards shows how far that
- * computation is off on this stream (a platform that under-reads the lag
- * right after connecting); the median of recent ones corrects the next
- * tune-in.
+ * computation is off on this stream (the station clock leading its audio,
+ * a platform that under-reads the lag right after connecting); the median
+ * of recent ones corrects the next tune-in.
  */
 const CALIBRATION_WINDOW = 9;
 /** A sample this far off is the API's `timestart` being wrong (live shows, jingles). */
@@ -27,6 +59,13 @@ const CLOCK_SKEW_APPLY_MS = 1_500;
 const SKEW_WINDOW = 9;
 /** Skew samples with a longer round trip are too imprecise to use (ms). */
 const SKEW_MAX_RTT_MS = 2_500;
+/**
+ * A position this far (ms) off the player's media clock is moved onto it
+ * (see {@link HeardTrack.alignToMedia}). Readings agree to ±6 ms (measured
+ * on Android); a pause or resume handled a beat late leaves ~0.1 s, which
+ * this takes back.
+ */
+export const MEDIA_ALIGN_MS = 60;
 
 const median = (values: readonly number[]): number => {
   const sorted = [...values].sort((a, b) => a - b);
@@ -67,9 +106,8 @@ export interface HeardTrackOptions {
  * (react-native-anything-player: AVPlayer's metadata output / Media3's metadata
  * renderer). The station changes that title ~1.2 s after a track starts, so
  * an ICY change *is* "this track just started, here": the displayed track is
- * the API track whose `raw` equals the title, at the stream's ICY offset
- * ({@link ICY_AFTER_START_MS} until the stream has learned its own from the
- * changes it heard). No predictive track end.
+ * the API track whose `raw` equals the title, at where the title is heard on
+ * this mount ({@link icyTitleInItemMs}). No predictive track end.
  *
  * The one estimate left is the *first* title after tuning in (or re-opening
  * at the live edge): that track is already partway, so its position comes
@@ -97,6 +135,10 @@ export class HeardTrack {
   /** Per stream: how far the computed position was ahead of the heard one (ms). */
   private readonly calibration = new Map<string, number[]>();
   private stream = "";
+  /** Where this mount's titles are heard in their item (ms). */
+  private titleInItemMs = icyTitleInItemMs(DEFAULT_BITRATE_KBPS);
+  /** The anchor on the player's media clock: elapsed ms at a media position (ms). */
+  private media: { positionMs: number; elapsedMs: number } | null = null;
   private readonly now: () => number;
 
   constructor(private readonly options: HeardTrackOptions) {
@@ -137,7 +179,7 @@ export class HeardTrack {
   /** How far this stream's computed (tune-in) position runs ahead of the audio (ms). */
   get tuneInBiasMs(): number {
     const samples = this.calibration.get(this.stream);
-    return samples?.length ? median(samples) : 0;
+    return samples?.length ? median(samples) : STATION_AHEAD_OF_AUDIO_MS;
   }
 
   /** The station's current track (what it announced last). */
@@ -159,9 +201,13 @@ export class HeardTrack {
     return elapsed > track.duration;
   }
 
-  /** The stream being played: each one keeps its own calibration. */
-  useStream(key: string): void {
+  /**
+   * The stream being played: each one keeps its own calibration, and its
+   * bitrate sets where its titles are heard.
+   */
+  useStream(key: string, bitrateKbps: number = DEFAULT_BITRATE_KBPS): void {
     this.stream = key;
+    this.titleInItemMs = icyTitleInItemMs(bitrateKbps > 0 ? bitrateKbps : DEFAULT_BITRATE_KBPS);
   }
 
   /** Elapsed ms into {@link track}, or `null` when unknown / past its end. */
@@ -231,6 +277,33 @@ export class HeardTrack {
     if (track) this.adopt(track, pending.heardAt, pending.tuneIn, pending.lagMs);
   }
 
+  /**
+   * Keeps the position on the player's media clock. The anchor advances
+   * with the wall clock while audio flows, and a stall or pause stops it
+   * when it is *handled* — late when the JS thread is busy, by however long
+   * that took. The native media position (a progress reading, with the
+   * epoch ms it was taken at) only advances with the audio. The first
+   * reading after the position was placed is its reference; from there the
+   * position follows the media clock, moved onto it when it is more than
+   * {@link MEDIA_ALIGN_MS} off. Returns whether it moved.
+   */
+  alignToMedia(positionS: number, atMs: number): boolean {
+    const anchor = this.anchor;
+    if (!anchor || !this.displayed || !Number.isFinite(positionS) || !Number.isFinite(atMs)) return false;
+    const positionMs = positionS * 1000;
+    const elapsed = anchor.elapsedMs + (anchor.running ? Math.max(0, atMs - anchor.at) : 0);
+    const reference = this.media;
+    // No reference yet, or the media clock restarted (a new connection).
+    if (!reference || positionMs < reference.positionMs) {
+      this.media = { positionMs, elapsedMs: elapsed };
+      return false;
+    }
+    const expected = reference.elapsedMs + (positionMs - reference.positionMs);
+    if (Math.abs(expected - elapsed) <= MEDIA_ALIGN_MS) return false;
+    this.anchor = { elapsedMs: expected, at: atMs, running: anchor.running, estimated: anchor.estimated };
+    return true;
+  }
+
   /** Audio flowing or not: the position advances only while it flows. */
   setRunning(running: boolean, now: number = this.now()): void {
     const anchor = this.anchor;
@@ -249,6 +322,7 @@ export class HeardTrack {
    */
   reopened(): void {
     this.anchor = null;
+    this.media = null;
     this.pending = null;
   }
 
@@ -263,6 +337,7 @@ export class HeardTrack {
   reset(): void {
     this.displayed = null;
     this.anchor = null;
+    this.media = null;
     this.pending = null;
   }
 
@@ -295,12 +370,13 @@ export class HeardTrack {
       ? heardAt + this.skewMs - start - Math.max(0, lagMs)
       : null;
     if (!tuneIn && fromStation && stationElapsed != null) {
-      this.calibrate(stationElapsed - ICY_AFTER_START_MS);
+      this.calibrate(stationElapsed - this.titleInItemMs);
     }
-    let elapsed = ICY_AFTER_START_MS;
+    let elapsed = this.titleInItemMs;
     if (tuneIn && stationElapsed != null) elapsed = stationElapsed - this.tuneInBiasMs;
     if (track.duration > 0) elapsed = Math.min(elapsed, track.duration);
     const now = this.now();
+    this.media = null;
     this.anchor = {
       elapsedMs: Math.max(0, elapsed) + Math.max(0, now - heardAt),
       at: now,

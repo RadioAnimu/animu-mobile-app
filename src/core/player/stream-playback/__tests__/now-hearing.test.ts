@@ -1,7 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Track } from "@/core/domain/track";
 import { AudibleTrackResolver } from "@/core/player/stream-playback/audible-track";
-import { HeardTrack, ICY_AFTER_START_MS } from "@/core/player/stream-playback/heard-track";
+import {
+  HeardTrack,
+  STATION_AHEAD_OF_AUDIO_MS,
+  icyTitleInItemMs,
+} from "@/core/player/stream-playback/heard-track";
 import {
   ICY_MISSING_MS,
   ICY_OVERDUE_MS,
@@ -9,6 +13,9 @@ import {
 } from "@/core/player/stream-playback/now-hearing";
 import { StreamSyncEngine } from "@/core/player/stream-playback/stream-sync";
 import { jsTimer } from "@/core/player/timer";
+
+/** Where a title is heard in its item on the default (320 kbps) mount. */
+const AT_TITLE = icyTitleInItemMs(320);
 
 const track = (raw: string, startMs: number, duration = 200_000): Track =>
   ({
@@ -67,8 +74,31 @@ describe("NowHearing", () => {
     t.play(20);
     expect(t.hearing.mode).toBe("icy");
     expect(t.hearing.anchored).toBe(true);
-    expect(t.hearing.elapsedMs()).toBe(ICY_AFTER_START_MS + 20_000);
+    expect(t.hearing.elapsedMs()).toBe(AT_TITLE + 20_000);
     expect(t.pump).toHaveBeenCalledTimes(22);
+  });
+
+  it("follows the media clock of the readings: an unhandled stall is taken back", () => {
+    const t = setup();
+    t.hearing.setPlaying(true);
+    t.heard.heard("Song A", Date.now(), false, 0);
+    t.hearing.titleWasHeard();
+    let media = 100;
+    const reading = (advanceMs: number, audioMs: number) => {
+      vi.advanceTimersByTime(advanceMs);
+      media += audioMs / 1000;
+      t.hearing.progress({ liveOffset: null, bufferedAhead: 6, position: media, timestamp: Date.now() });
+    };
+    for (let i = 0; i < 5; i++) reading(1_000, 1_000);
+    expect(t.hearing.elapsedMs()).toBe(AT_TITLE + 5_000);
+    t.changes.mockClear();
+    // Two seconds of stalled audio that never reached the app as a state.
+    reading(1_000, 0);
+    reading(1_000, 0);
+    expect(t.hearing.elapsedMs()).toBe(AT_TITLE + 5_000);
+    expect(t.changes).toHaveBeenCalled(); // the lock screen is re-placed too
+    reading(1_000, 1_000);
+    expect(t.hearing.elapsedMs()).toBe(AT_TITLE + 6_000);
   });
 
   it("a tune-in takes its position from the settled clock, not the first reading", () => {
@@ -85,13 +115,13 @@ describe("NowHearing", () => {
     t.play(4, 17);
     expect(t.hearing.anchored).toBe(true);
     expect(t.changes).toHaveBeenCalled(); // the lock screen gets the position
-    // 64 s on air, 17 s behind.
-    expect(t.hearing.elapsedMs()).toBe(47_000);
+    // 64 s on air, 17 s behind, the station clock ahead of its audio.
+    expect(t.hearing.elapsedMs()).toBe(47_000 - STATION_AHEAD_OF_AUDIO_MS);
     // The next change is heard: exact again.
     t.station.track = track("Song B", Date.now());
     t.heard.heard("Song B", Date.now(), false, 17_000);
     expect(t.heard.estimated).toBe(false);
-    expect(t.hearing.elapsedMs()).toBe(ICY_AFTER_START_MS);
+    expect(t.hearing.elapsedMs()).toBe(AT_TITLE);
   });
 
   it("without titles, the audible clock takes over once it may", () => {
@@ -148,11 +178,11 @@ describe("NowHearing", () => {
       t.hearing.titleWasHeard();
       t.play(4, 17);
       const position = t.hearing.position();
-      expect(t.hearing.elapsedMs()).toBe(47_000);
+      expect(t.hearing.elapsedMs()).toBe(47_000 - STATION_AHEAD_OF_AUDIO_MS);
       t.changes.mockClear();
       for (const lag of jitter) t.play(1, lag);
       expect(t.hearing.position()).toEqual(position);
-      expect(t.hearing.elapsedMs()).toBe(47_000 + jitter.length * 1_000);
+      expect(t.hearing.elapsedMs()).toBe(47_000 - STATION_AHEAD_OF_AUDIO_MS + jitter.length * 1_000);
       expect(t.changes).not.toHaveBeenCalled(); // nothing to re-push to the lock screen
     });
 
@@ -232,7 +262,7 @@ describe("NowHearing", () => {
       t.heard.heard("Song C", Date.now(), false, 6_000);
       t.hearing.titleWasHeard();
       expect(t.hearing.track?.raw).toBe("Song C");
-      expect(t.hearing.elapsedMs()).toBe(ICY_AFTER_START_MS);
+      expect(t.hearing.elapsedMs()).toBe(AT_TITLE);
     });
 
     it("follows a newer station item while still overdue", () => {

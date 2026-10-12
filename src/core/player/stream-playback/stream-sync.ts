@@ -1,4 +1,5 @@
 import { getTrackProgress, type Track } from "@/core/domain/track";
+import { MEDIA_ALIGN_MS } from "@/core/player/stream-playback/heard-track";
 
 /**
  * Maximum plausible lag between the station's live point and the audible
@@ -227,6 +228,8 @@ export class StreamSyncEngine {
   private running = true;
   /** Consecutive readings the estimate sat clearly above the locked lag. */
   private behindFrames = 0;
+  /** The lock on the player's media clock: station ms at a media position (ms). */
+  private media: { positionMs: number; stationMs: number } | null = null;
 
   /**
    * Folds a native status reading into the delay estimate.
@@ -328,6 +331,7 @@ export class StreamSyncEngine {
   private refreshLock(now: number = Date.now()): void {
     if (this.settledLatch || !this.evaluateSettled(now)) return;
     this.settledLatch = true;
+    this.media = null;
     this.lock = {
       offsetMs: this.clockSkewMs - this.delayMs,
       at: now,
@@ -354,11 +358,43 @@ export class StreamSyncEngine {
     lock.offsetMs = this.clockSkewMs - measuredMs;
     lock.at = now;
     this.behindFrames = 0;
+    this.media = null;
   }
 
   private unlock(): void {
     this.lock = null;
     this.behindFrames = 0;
+    this.media = null;
+  }
+
+  /**
+   * Keeps the locked clock on the player's media clock, as
+   * `HeardTrack.alignToMedia` does for a heard position: audio stopping and
+   * starting is timed when it is handled ({@link setRunning}), possibly
+   * late; the media position (a progress reading and its epoch ms) only
+   * advances with the audio. The first reading after the lock was taken is
+   * its reference. Returns whether the lock moved.
+   */
+  alignToMedia(positionS: number, atMs: number): boolean {
+    const lock = this.lock;
+    if (!lock || !Number.isFinite(positionS) || !Number.isFinite(atMs)) return false;
+    const positionMs = positionS * 1000;
+    const stationMs = (lock.heldAt ?? atMs) + lock.offsetMs;
+    const reference = this.media;
+    // No reference yet, or the media clock restarted (a new connection).
+    if (!reference || positionMs < reference.positionMs) {
+      this.media = { positionMs, stationMs };
+      return false;
+    }
+    const expected = reference.stationMs + (positionMs - reference.positionMs);
+    if (Math.abs(expected - stationMs) <= MEDIA_ALIGN_MS) return false;
+    if (lock.heldAt == null) {
+      lock.offsetMs = expected - atMs;
+      lock.at = atMs;
+    } else {
+      lock.offsetMs = expected - lock.heldAt;
+    }
+    return true;
   }
 
   /**
