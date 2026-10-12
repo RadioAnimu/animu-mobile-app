@@ -10,7 +10,7 @@ import Animated, {
   type SharedValue,
 } from "react-native-reanimated";
 import { scheduleOnRN } from "react-native-worklets";
-import { entryIndexAt, entryKey } from "@/core/lyrics/lrc";
+import { SYNC_SLACK_MS, companionIndexAt, entryIndexAt, entryKey } from "@/core/lyrics/lrc";
 import type { LyricEntry } from "@/core/lyrics/types";
 import { labelText, type LineLabel } from "@/core/lyrics/pronunciation";
 import { useScreenReader } from "@/hooks/useScreenReader";
@@ -70,6 +70,7 @@ interface Props {
 export function SyncedLyrics({ entries, labels, position, known, reduceMotion, footer }: Readonly<Props>) {
   const screenReader = useScreenReader();
   const [active, setActive] = useState(UNKNOWN_INDEX);
+  const [companion, setCompanion] = useState(-1);
   const [browsingNow, setBrowsingNow] = useState(false);
 
   const follow = useSharedValue<FollowTarget>({ y: 0, active: 0, seq: 0, instant: true });
@@ -77,18 +78,22 @@ export function SyncedLyrics({ entries, labels, position, known, reduceMotion, f
   const manual = useSharedValue(0);
   const dragStart = useSharedValue(0);
   const activeIndex = useSharedValue(UNKNOWN_INDEX);
+  const companionIndex = useSharedValue(-1);
   const viewport = useSharedValue(0);
   const tops = useSharedValue<number[]>([]);
   const contentHeight = useSharedValue(0);
   const knownShared = useSharedValue(known);
 
   const motion = useMemo<ListMotion>(
-    () => ({ follow, browsing, manual, activeIndex, viewport, reduceMotion }),
-    [follow, browsing, manual, activeIndex, viewport, reduceMotion],
+    () => ({ follow, browsing, manual, activeIndex, companionIndex, viewport, reduceMotion }),
+    [follow, browsing, manual, activeIndex, companionIndex, viewport, reduceMotion],
   );
 
-  // Only what the worklets need: start/end per entry.
-  const spans = useMemo(() => entries.map(({ startMs, endMs }) => ({ startMs, endMs })), [entries]);
+  // Only what the worklets need: start/end per entry, and whether it is sung.
+  const spans = useMemo(
+    () => entries.map(({ kind, startMs, endMs }) => ({ startMs, endMs, sung: kind === "line" })),
+    [entries],
+  );
 
   useEffect(() => {
     knownShared.set(known);
@@ -112,6 +117,17 @@ export function SyncedLyrics({ entries, labels, position, known, reduceMotion, f
         });
       }
       scheduleOnRN(setActive, index);
+    },
+    [spans],
+  );
+
+  // ─── Slack: the line on the other side of a near change stays lit too ───
+  useAnimatedReaction(
+    () => companionIndexAt(spans, activeIndex.get(), position.get(), SYNC_SLACK_MS),
+    (index, previous) => {
+      if (index === previous) return;
+      companionIndex.set(index);
+      scheduleOnRN(setCompanion, index);
     },
     [spans],
   );
@@ -217,6 +233,7 @@ export function SyncedLyrics({ entries, labels, position, known, reduceMotion, f
               index={index}
               label={labels[index] ?? null}
               depth={depthOf(index, active)}
+              companion={index === companion}
               browsing={browsingNow}
               position={position}
               motion={motion}

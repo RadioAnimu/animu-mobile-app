@@ -37,26 +37,36 @@ export interface ListMotion {
   browsing: SharedValue<boolean>;
   manual: SharedValue<number>;
   activeIndex: SharedValue<number>;
+  /** The line lit alongside the active one near a change, `-1` for none. */
+  companionIndex: SharedValue<number>;
   /** Height of the lyrics viewport. */
   viewport: SharedValue<number>;
   reduceMotion: boolean;
 }
 
-/** Each row further from the active line starts later: Apple's cascade. */
-const STAGGER_MS = 42;
+/**
+ * Each row further from the active line starts later: Apple's cascade.
+ * Kept quick — the list has settled well before a short line is over, and
+ * the lit line reads at once.
+ */
+const STAGGER_MS = 26;
 const STAGGER_ROWS = 8;
-const SPRING = { damping: 26, stiffness: 160, mass: 1 };
-const FADE_MS = 280;
+/** Near-critically damped: settles in ~0.3 s without overshoot to speak of. */
+const SPRING = { damping: 30, stiffness: 260, mass: 1 };
+const FADE_MS = 160;
+/** The second lit line: clearly lit, a step under the active one. */
+const COMPANION_EMPHASIS = 0.82;
 
 /**
  * Opacity by distance from the lit line, Apple Music's depth: the next line
  * sharp but dim, lines further away fainter, sung lines fainter still. While
  * browsing every line reads; before the position is known none is lit.
  */
-function emphasisOf(index: number, active: number, browsing: boolean, interlude: boolean): number {
+function emphasisOf(index: number, active: number, companion: number, browsing: boolean, interlude: boolean): number {
   "worklet";
   if (interlude) return active === index ? 1 : 0;
   if (active === index) return 1;
+  if (companion === index) return COMPANION_EMPHASIS;
   if (browsing) return 0.62;
   if (active === UNKNOWN_INDEX) return 0.55;
   const distance = index - active;
@@ -120,6 +130,8 @@ interface RowProps {
    * clamped to ±{@link DEPTH_LIMIT}; `0` is the lit line.
    */
   depth: number;
+  /** Lit alongside the active line, near a change (React side: blur off, word fill). */
+  companion: boolean;
   /** The user is scrolling (React side: blur off). */
   browsing: boolean;
   position: SharedValue<number>;
@@ -138,24 +150,26 @@ export const LyricRow = memo(function LyricRow({
   index,
   label,
   depth,
+  companion,
   browsing: browsingNow,
   position,
   motion,
   onRowLayout,
 }: Readonly<RowProps>) {
-  const { activeIndex, browsing, viewport, reduceMotion } = motion;
+  const { activeIndex, companionIndex, browsing, viewport, reduceMotion } = motion;
   const isActive = depth === 0;
+  const lit = isActive || companion;
   // Android 12+ blurs natively; elsewhere (iOS keeps view filters behind an
   // experimental flag) the fade alone carries the depth.
   const interlude = entry.kind === "interlude";
-  const blur = interlude ? 0 : blurOf(depth, browsingNow);
+  const blur = interlude || lit ? 0 : blurOf(depth, browsingNow);
   const y = useRowOffset(motion, index);
   const top = useSharedValue(0);
   const height = useSharedValue(0);
   const emphasis = useSharedValue(0);
 
   useAnimatedReaction(
-    () => emphasisOf(index, activeIndex.get(), browsing.get(), interlude),
+    () => emphasisOf(index, activeIndex.get(), companionIndex.get(), browsing.get(), interlude),
     (next, previous) => {
       if (next === previous) return;
       emphasis.set(previous === null ? next : withTiming(next, { duration: FADE_MS }));
@@ -197,7 +211,7 @@ export const LyricRow = memo(function LyricRow({
         <Interlude startMs={entry.startMs} endMs={entry.endMs} position={position} />
       ) : (
         <View style={blur > 0 ? { filter: [{ blur }] } : undefined}>
-          <LineContent line={entry} label={label} sung={isActive} position={position} />
+          <LineContent line={entry} label={label} sung={lit} position={position} />
         </View>
       )}
     </Animated.View>

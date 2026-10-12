@@ -221,6 +221,46 @@ export function entryIndexAt(entries: readonly { startMs: number; endMs: number 
   return found;
 }
 
+/**
+ * How far the heard position may be off the audio (ms) — the slack the
+ * second lit line covers. On a stream the position comes from where the
+ * ICY title lands, and the station only writes it every `icy-metaint`
+ * bytes: up to 2 s late on the 64 kbps mount, ±1 s once the mean is
+ * corrected (see `HeardTrack`).
+ */
+export const SYNC_SLACK_MS = 1_200;
+
+/**
+ * The line lit alongside the one at `index` (from {@link entryIndexAt}), or
+ * `-1`: the next line when it starts within `slackMs`, else the previous
+ * line when it ended within `slackMs` — whichever boundary is nearer. The
+ * heard position can be a second off the audio either way; near a line
+ * change, lighting both keeps the line being sung lit. Only sung lines
+ * qualify, and only across a contiguous boundary (a line after an
+ * interlude has nothing still being sung before it).
+ */
+export function companionIndexAt(
+  entries: readonly { startMs: number; endMs: number; sung: boolean }[],
+  index: number,
+  positionMs: number,
+  slackMs: number,
+): number {
+  "worklet";
+  if (index < -1 || index > entries.length) return -1;
+  const next = index + 1;
+  const previous = index - 1;
+  const toNext = next < entries.length && entries[next].sung ? entries[next].startMs - positionMs : Infinity;
+  // The boundary the position last crossed: the active entry's start, or
+  // the last line's end once past it.
+  const boundary = index === entries.length ? entries[previous].endMs : entries[index]?.startMs;
+  const sincePrevious =
+    previous >= 0 && entries[previous].sung && entries[previous].endMs >= boundary
+      ? positionMs - boundary
+      : Infinity;
+  if (toNext <= slackMs && toNext <= sincePrevious) return next;
+  return sincePrevious <= slackMs ? previous : -1;
+}
+
 /** A stable key for an entry: rows are unique by start and text (see `parseLrc`). */
 export function entryKey(entry: LyricEntry): string {
   return entry.kind === "line" ? `line:${entry.startMs}:${entry.text}` : `break:${entry.startMs}`;
