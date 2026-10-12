@@ -423,6 +423,38 @@ describe("StreamSyncEngine", () => {
       expect(engine.anchor).toEqual(anchor);
     });
 
+    it("follows the media clock: a stall handled late is taken back", () => {
+      const engine = settled();
+      engine.alignToMedia(100, Date.now()); // the reference
+      const before = engine.now();
+      // 3 s of audio, on time: nothing to correct.
+      vi.setSystemTime(new Date(Date.now() + 3_000));
+      expect(engine.alignToMedia(103, Date.now())).toBe(false);
+      // The audio stalled for 2 s, but the stall was never handled (JS busy):
+      // the media clock did not move, the locked clock did.
+      vi.setSystemTime(new Date(Date.now() + 2_000));
+      expect(engine.alignToMedia(103, Date.now())).toBe(true);
+      expect(engine.now()).toBe(before + 3_000);
+      // Audio again: the clock runs on from there.
+      vi.setSystemTime(new Date(Date.now() + 1_000));
+      expect(engine.alignToMedia(104, Date.now())).toBe(false);
+      expect(engine.now()).toBe(before + 4_000);
+    });
+
+    it("leaves the media clock's small jitter alone, and re-references after a restart", () => {
+      const engine = settled();
+      const anchor = engine.anchor;
+      engine.alignToMedia(10, Date.now());
+      vi.setSystemTime(new Date(Date.now() + 1_000));
+      expect(engine.alignToMedia(11.04, Date.now())).toBe(false);
+      vi.setSystemTime(new Date(Date.now() + 1_000));
+      // A new connection: its media clock starts over.
+      expect(engine.alignToMedia(0.2, Date.now())).toBe(false);
+      vi.setSystemTime(new Date(Date.now() + 1_000));
+      expect(engine.alignToMedia(1.2, Date.now())).toBe(false);
+      expect(engine.anchor).toEqual(anchor);
+    });
+
     it("reset() drops the lock", () => {
       const engine = settled();
       engine.reset();

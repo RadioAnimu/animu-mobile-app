@@ -45,6 +45,13 @@ export const INSTALL_FREE_BYTES =
 export const STALL_MS = 20_000;
 /** Waits between rounds over the mirrors: rides out a network switch or a short outage (ms). */
 export const RETRY_DELAYS_MS = [2_000, 5_000, 10_000, 20_000] as const;
+/**
+ * The reader outlives the lyrics closing by this much (ms): reopening them
+ * reuses it. Building it takes seconds of JS work and tens of MB; letting it
+ * go on every close made each reopen build it again — with quick reopens,
+ * several builds at once, stalling the JS thread longer every time.
+ */
+export const READER_KEEP_MS = 60_000;
 
 /** The dictionary's files on the device (expo-file-system in the app). */
 export interface DictionaryStorage {
@@ -96,7 +103,7 @@ class NoSpace extends Error {
  * The opt-in Japanese dictionary: download (verified file by file against
  * the published package, riding out stalls and network switches), a
  * one-time unpack, removal, and the tokenizer behind kanji readings — built
- * only while lyrics need it, and dropped after.
+ * only while lyrics need it, and dropped a minute after they close.
  *
  * An install completes or leaves nothing behind: a failure, a cancel, or an
  * app killed half-way (found by {@link restore}) deletes every file.
@@ -110,6 +117,8 @@ export class JapaneseDictionary {
   private abort: AbortController | null = null;
   /** Bumped by unload/remove: a build that finishes later is dropped. */
   private generation = 0;
+  /** The pending {@link releaseReader}, if the lyrics are closed. */
+  private releaseTimer: ReturnType<typeof setTimeout> | null = null;
   private readonly unpack: typeof gunzipTrimmed;
   private readonly wait: (ms: number) => Promise<void>;
 
@@ -169,6 +178,7 @@ export class JapaneseDictionary {
 
   /** Builds the tokenizer once installed; concurrent calls share one build. */
   loadReader(): Promise<void> {
+    this.cancelRelease();
     if (this.reader || this.snapshot.install !== "installed") return Promise.resolve();
     this.loading ??= this.runLoad().finally(() => {
       this.loading = null;
@@ -176,12 +186,30 @@ export class JapaneseDictionary {
     return this.loading;
   }
 
-  /** Lets the reader's memory go (lyrics closed); the next load rebuilds it. */
+  /**
+   * The lyrics closed: the reader (or a build still running) is let go after
+   * {@link READER_KEEP_MS}, unless {@link loadReader} wants it again first.
+   */
+  releaseReader(): void {
+    this.cancelRelease();
+    this.releaseTimer = setTimeout(() => {
+      this.releaseTimer = null;
+      this.unloadReader();
+    }, READER_KEEP_MS);
+  }
+
+  /** Lets the reader's memory go now; the next load rebuilds it. */
   unloadReader(): void {
+    this.cancelRelease();
     this.generation += 1;
     this.reader = null;
     this.loading = null;
     if (this.snapshot.reader !== "idle") this.update({ reader: "idle" });
+  }
+
+  private cancelRelease(): void {
+    if (this.releaseTimer) clearTimeout(this.releaseTimer);
+    this.releaseTimer = null;
   }
 
   private update(patch: Partial<JapaneseDictionarySnapshot>): void {

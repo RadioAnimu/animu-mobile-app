@@ -4,6 +4,7 @@ import {
   INTRO_MIN_MS,
   UNMARKED_BREAK_MS,
   buildTimeline,
+  companionIndexAt,
   entryIndexAt,
   parseLrc,
   plainLines,
@@ -130,6 +131,50 @@ describe("entryIndexAt", () => {
     expect(entryIndexAt(spans, 11_999)).toBe(2);
     expect(entryIndexAt(spans, 12_000)).toBe(3);
     expect(entryIndexAt([], 1)).toBe(-1);
+  });
+});
+
+describe("companionIndexAt", () => {
+  // Intro dots, two contiguous lines, a break, a last line.
+  const spans = [
+    { startMs: 0, endMs: 5_000, sung: false },
+    { startMs: 5_000, endMs: 8_000, sung: true },
+    { startMs: 8_000, endMs: 12_000, sung: true },
+    { startMs: 12_000, endMs: 20_000, sung: false },
+    { startMs: 20_000, endMs: 24_000, sung: true },
+  ];
+  const at = (position: number) => companionIndexAt(spans, entryIndexAt(spans, position), position, 1_000);
+
+  it("lights the next line within the slack before it starts", () => {
+    expect(at(6_500)).toBe(-1);
+    expect(at(7_000)).toBe(2);
+    expect(at(4_200)).toBe(1); // the intro's end: the first line
+  });
+
+  it("keeps the previous line lit within the slack after a contiguous change", () => {
+    expect(at(8_400)).toBe(1);
+    expect(at(9_001)).toBe(-1);
+  });
+
+  it("prefers the nearer boundary on a short line", () => {
+    const short = [
+      { startMs: 0, endMs: 1_000, sung: true },
+      { startMs: 1_000, endMs: 2_000, sung: true },
+      { startMs: 2_000, endMs: 3_000, sung: true },
+    ];
+    expect(companionIndexAt(short, 1, 1_300, 1_000)).toBe(0);
+    expect(companionIndexAt(short, 1, 1_700, 1_000)).toBe(2);
+  });
+
+  it("keeps a line lit into the break after it, but never reaches across one", () => {
+    expect(at(12_500)).toBe(2);
+    expect(at(20_300)).toBe(-1);
+  });
+
+  it("keeps the last line lit just past its end, and nothing while unknown", () => {
+    expect(at(24_500)).toBe(4);
+    expect(at(25_500)).toBe(-1);
+    expect(companionIndexAt(spans, -2, 7_000, 1_000)).toBe(-1);
   });
 });
 

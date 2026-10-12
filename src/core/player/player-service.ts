@@ -119,6 +119,7 @@ export class PlayerService {
     this.unsubscribe.push(
       player.on("status", (status) => this.handleStatus(status)),
       player.on("metadata", (metadata) => this.handleStreamMetadata(metadata)),
+      player.on("discontinuity", () => this.handleDiscontinuity()),
       // Native-timer readings while playing: they keep the audible clock
       // measured, and run JS at song boundaries even where JS timers are
       // frozen (Android in the background) — the stuck-refresh watchdog too.
@@ -403,7 +404,7 @@ export class PlayerService {
   private async open(stream: Stream, autoplay: boolean): Promise<void> {
     this.loadedStreamId = stream.id;
     this.tuneIn = true;
-    this.deps.heard.useStream(stream.id);
+    this.deps.heard.useStream(stream.id, stream.bitrate);
     this.deps.heard.reopened();
     this.deps.hearing.reopened();
     try {
@@ -446,14 +447,7 @@ export class PlayerService {
     // A (re)open — reconnect, live-edge resume, stream change: the next title
     // reported is a tune-in.
     const reopening = status.state === "loading" || status.state === "reconnecting";
-    if (reopening && !this.tuneIn) {
-      this.tuneIn = true;
-      this.deps.heard.reopened();
-      this.deps.hearing.reopened();
-      // The lock screen drops the song's position too until the tune-in places
-      // it (natively it would keep advancing the one from before the re-open).
-      this.pushNowPlaying();
-    }
+    if (reopening && !this.tuneIn) this.markReopened();
     this.deps.heard.setRunning(playing);
     this.deps.hearing.setPlaying(playing);
     this.deps.sampler.setPlaying(playing);
@@ -463,10 +457,45 @@ export class PlayerService {
     this.emitProgress();
   }
 
+  /** The source re-opened: the position is re-placed from the next title, as a tune-in. */
+  private markReopened(): void {
+    this.tuneIn = true;
+    this.deps.heard.reopened();
+    this.deps.hearing.reopened();
+    // The lock screen drops the song's position too until the tune-in places
+    // it (natively it would keep advancing the one from before the re-open).
+    this.pushNowPlaying();
+  }
+
+  /**
+   * The audio jumped with no state change: the player moved onto a fresh
+   * connection of the live stream (a dropped one replaced without stopping),
+   * whose connect burst replays recent audio — back by up to the burst
+   * (16 s on the 64 kbps mount) less the outage. A position extrapolated
+   * from the last title would run on as if nothing happened: lyrics seconds
+   * off for the rest of the song. The song is placed again like after a
+   * re-open; its title is not reported again (same metadata), so the track
+   * already shown is re-heard as a tune-in.
+   */
+  private handleDiscontinuity(): void {
+    if (this.tuneIn) return; // Already being placed.
+    const raw = this.deps.hearing.track?.raw;
+    debugLog("[PlayerService] the stream's connection was replaced: re-placing");
+    this.markReopened();
+    this.deps.hearing.setPlaying(this.lastState === "playing");
+    if (raw) this.hearTitle(raw, Date.now());
+    this.emitPlayer();
+    this.emitProgress();
+  }
+
   /** An ICY title became audible (Airwave reports it when heard). */
   private handleStreamMetadata(metadata: MediaMetadata): void {
     const title = metadata.raw?.StreamTitle;
     if (!title) return;
+    this.hearTitle(title, metadata.timestamp);
+  }
+
+  private hearTitle(title: string, heardAt: number): void {
     const tuneIn = this.tuneIn;
     this.tuneIn = false;
     // How far the speaker trails the live edge right now (places a tune-in;
@@ -476,7 +505,7 @@ export class PlayerService {
     debugLog(
       `[PlayerService] heard "${title}" tuneIn=${tuneIn} lag=${Math.round(lagMs)}ms tuneInBias=${Math.round(this.deps.heard.tuneInBiasMs)}ms`,
     );
-    this.deps.heard.heard(title, metadata.timestamp, tuneIn, lagMs);
+    this.deps.heard.heard(title, heardAt, tuneIn, lagMs);
     this.deps.hearing.titleWasHeard();
   }
 

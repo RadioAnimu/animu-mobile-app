@@ -56,7 +56,10 @@ lyrics view of the song being **heard** (not the one the station announced):
   clock (ICY title changes, the measured stream lag), sampled 4× a second and
   advanced every frame on the UI thread. A line lights up 150 ms before its
   stamp; while the position is still being measured the header reads
-  "Syntonizing…" and no line is lit.
+  "Syntonizing…" and no line is lit. Near a line change both lines are lit
+  (the other one a step dimmer) for 1.2 s either side: a stream's position
+  can be up to a second off the audio (the 64 kbps mount most), and the line
+  being sung stays lit either way.
 - **The Apple Music read** — large bold lines, the active one lit and followed
   near the top, the line before it fading out under the header; each change
   ripples down the list (rows further below

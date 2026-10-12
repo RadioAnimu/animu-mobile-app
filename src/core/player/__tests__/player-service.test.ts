@@ -8,7 +8,11 @@ import type {
 } from "react-native-anything-player";
 import { PlayerService, type PlayerServiceDependencies } from "@/core/player/player-service";
 import { AudibleTrackResolver } from "@/core/player/stream-playback/audible-track";
-import { HeardTrack, ICY_AFTER_START_MS } from "@/core/player/stream-playback/heard-track";
+import {
+  HeardTrack,
+  STATION_AHEAD_OF_AUDIO_MS,
+  icyTitleInItemMs,
+} from "@/core/player/stream-playback/heard-track";
 import { NowHearing } from "@/core/player/stream-playback/now-hearing";
 import { StreamSyncEngine } from "@/core/player/stream-playback/stream-sync";
 import { jsTimer } from "@/core/player/timer";
@@ -350,14 +354,15 @@ describe("PlayerService on react-native-anything-player", () => {
     // 1 Hz native readings: the speaker trails the live edge by 6 s.
     t.settle(5, 6);
     expect(playerStore.getSnapshot().syncing).toBe(false);
-    // Settled at the 4th reading: 34 s on air, 6 s behind. The lock screen
-    // gets it then and advances it natively.
+    // Settled at the 4th reading: 34 s on air, 6 s behind, the station clock
+    // 1 s ahead of its audio. The lock screen gets it then and advances it
+    // natively.
     const nowPlaying = lastNowPlaying(t.player)!;
     expect(nowPlaying).toMatchObject({ title: "Song A (anime)", artist: "Artist", duration: 200 });
-    expect(nowPlaying.elapsed).toBeCloseTo(28, 1);
+    expect(nowPlaying.elapsed).toBeCloseTo(28 - STATION_AHEAD_OF_AUDIO_MS / 1000, 1);
     // The UI's tick: 35 s on air.
     t.tick();
-    expect(heardProgress()).toBe(29_000);
+    expect(heardProgress()).toBe(29_000 - STATION_AHEAD_OF_AUDIO_MS);
     vi.useRealTimers();
   });
 
@@ -374,8 +379,8 @@ describe("PlayerService on react-native-anything-player", () => {
     t.player.hear("Song B");
     expect(playerStore.getSnapshot().currentTrack?.raw).toBe("Song B");
     const progress = heardProgress()!;
-    expect(progress).toBeGreaterThanOrEqual(ICY_AFTER_START_MS);
-    expect(progress).toBeLessThan(ICY_AFTER_START_MS + 200);
+    expect(progress).toBeGreaterThanOrEqual(icyTitleInItemMs(320));
+    expect(progress).toBeLessThan(icyTitleInItemMs(320) + 200);
     expect(lastNowPlaying(t.player)).toMatchObject({ title: "Song B (anime)", duration: 200 });
     expect(t.stats.onTrackHeard).toHaveBeenCalledWith(
       expect.objectContaining({ raw: "Song B" }),
@@ -395,8 +400,8 @@ describe("PlayerService on react-native-anything-player", () => {
     const playing = t.service.heardPosition()!;
     expect(playing.raw).toBe("Song B");
     expect(playing.advancing).toBe(true);
-    expect(playing.elapsedMs).toBeGreaterThanOrEqual(ICY_AFTER_START_MS);
-    expect(playing.elapsedMs).toBeLessThan(ICY_AFTER_START_MS + 200);
+    expect(playing.elapsedMs).toBeGreaterThanOrEqual(icyTitleInItemMs(320));
+    expect(playing.elapsedMs).toBeLessThan(icyTitleInItemMs(320) + 200);
     t.player.setState("paused", false);
     expect(t.service.heardPosition()).toMatchObject({ raw: "Song B", advancing: false });
   });
@@ -455,7 +460,38 @@ describe("PlayerService on react-native-anything-player", () => {
     t.settle(5, 8); // the new connection trails by 8 s
     t.tick();
     // 40 s on air, the new connection 8 s behind.
-    expect(heardProgress()).toBe(32_000);
+    expect(heardProgress()).toBe(32_000 - STATION_AHEAD_OF_AUDIO_MS);
+    vi.useRealTimers();
+  });
+
+  it("a connection swapped under the playing source re-places the song", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-10-05T05:00:00Z"));
+    const t = setup(); // Song A: on air for 30 s
+    await t.service.setupPlayer();
+    await t.service.play();
+    t.player.setState("playing", true);
+    t.player.hear("Song A");
+    const read = (position: number, lagS: number) => {
+      vi.advanceTimersByTime(1_000);
+      t.player.emit("progress", { liveOffset: null, bufferedAhead: lagS, position });
+    };
+    for (let s = 1; s <= 5; s++) read(s, 6);
+    expect(heardProgress()).not.toBeNull();
+    // The connection dropped and the player played on into a fresh one: the
+    // state stays "playing", only the native discontinuity tells.
+    t.player.emit("discontinuity", { position: 0, timestamp: Date.now() });
+    read(0.1, 14);
+    expect(playerStore.getSnapshot().syncing).toBe(true);
+    expect(heardProgress()).toBeNull();
+    expect(lastNowPlaying(t.player)?.duration).toBeUndefined();
+    // Placed again from the audible clock once it settles, the same song.
+    for (let s = 1; s <= 5; s++) read(0.1 + s, 14);
+    t.tick();
+    expect(playerStore.getSnapshot().currentTrack?.raw).toBe("Song A");
+    // 41 s on air, the new connection 14 s behind.
+    expect(heardProgress()).toBe(27_000 - STATION_AHEAD_OF_AUDIO_MS);
+    expect(t.player.load).toHaveBeenCalledTimes(1); // nothing re-opened natively
     vi.useRealTimers();
   });
 

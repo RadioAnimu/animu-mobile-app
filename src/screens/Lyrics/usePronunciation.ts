@@ -101,8 +101,8 @@ export interface Pronunciation {
 /**
  * Romaji / hiragana under Japanese lines: the user's mode, the sources the
  * song has (a romaji sibling upload, the opt-in dictionary) and the
- * dictionary's reader, built once the screen has settled and released when
- * it closes.
+ * dictionary's reader, built once the screen has settled and released a
+ * minute after it closes.
  */
 export function usePronunciation(lyrics: Lyrics | null): Pronunciation {
   const { settings, updateSettings } = useUserSettings();
@@ -119,8 +119,9 @@ export function usePronunciation(lyrics: Lyrics | null): Pronunciation {
     return () => task.cancel();
   }, [installed]);
 
-  // The reader holds tens of MB: only while the lyrics are open.
-  useEffect(() => () => japaneseDictionary.unloadReader(), []);
+  // The reader holds tens of MB: let go a while after the lyrics close
+  // (reopening them soon reuses it).
+  useEffect(() => () => japaneseDictionary.releaseReader(), []);
 
   const reader = dictionary.reader === "ready" ? japaneseDictionary.currentReader : null;
   // Human romaji shows at once; the dictionary's labels land when read.
