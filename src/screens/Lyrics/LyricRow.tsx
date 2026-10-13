@@ -159,8 +159,9 @@ export const LyricRow = memo(function LyricRow({
   const { activeIndex, companionIndex, browsing, viewport, reduceMotion } = motion;
   const isActive = depth === 0;
   const lit = isActive || companion;
-  // Android 12+ blurs natively; elsewhere (iOS keeps view filters behind an
-  // experimental flag) the fade alone carries the depth.
+  // Android 12+ blurs natively, iOS through SwiftUI-backed view filters (a
+  // React Native feature flag, see plugins/withIOSViewFilters.js); below
+  // Android 12 the fade alone carries the depth.
   const interlude = entry.kind === "interlude";
   const blur = interlude || lit ? 0 : blurOf(depth, browsingNow);
   const y = useRowOffset(motion, index);

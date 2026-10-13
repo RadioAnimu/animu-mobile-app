@@ -96,6 +96,7 @@
       "@react-native-vector-icons/material-icons",
       "./plugins/withAndroidDeepLinkOnNewIntent",
       "./plugins/withIOSAppIntents",
+      "./plugins/withIOSViewFilters",
       "./plugins/withAndroidAppActions",
       "expo-localization",
       [
