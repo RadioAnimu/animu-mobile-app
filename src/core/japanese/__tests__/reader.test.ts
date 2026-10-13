@@ -66,7 +66,15 @@ describe("JapaneseReader (kuromoji + IPADIC)", () => {
       unpacked.set(name, bytes);
     }
     const yields = vi.fn(async () => {});
-    tokenizer = await buildTokenizer(async (name) => trim(unpacked.get(name)!), yields);
+    // Steps are time-boxed: a clock that ticks 1 ms per reading keeps the
+    // step count the same on a fast machine and a slow one.
+    let now = 0;
+    const clock = vi.spyOn(Date, "now").mockImplementation(() => (now += 1));
+    try {
+      tokenizer = await buildTokenizer(async (name) => trim(unpacked.get(name)!), yields);
+    } finally {
+      clock.mockRestore();
+    }
     expect(yields.mock.calls.length).toBeGreaterThan(10);
     reader = new JapaneseReader(tokenizer);
   }, 60_000);
