@@ -26,6 +26,9 @@ updates:
       - dependency-name: "expo"
       - dependency-name: "expo-*"
       - dependency-name: "babel-preset-expo"
+      # SDK 57 and its lint toolchain require the current TypeScript major.
+      - dependency-name: "typescript"
+        update-types: ["version-update:semver-major"]
       - dependency-name: "react"
       - dependency-name: "react-dom"
       - dependency-name: "react-native"
