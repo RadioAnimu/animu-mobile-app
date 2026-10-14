@@ -57,13 +57,20 @@ function fetchFromUrl(url) {
   const extracted = path.join(tmp, "extracted");
   try {
     fs.mkdirSync(extracted);
-    execFileSync("curl", ["-fsSL", url, "-o", archive], { stdio: "inherit" });
-    execFileSync("unzip", ["-o", archive, "-d", extracted], { stdio: "inherit" });
+    // A private/signed URL must never appear in process arguments or an
+    // execFileSync failure. Send the normalized URL through curl's stdin.
+    execFileSync("curl", ["-fsSL", "--config", "-", "--proto", "=https", "--proto-redir", "=https", "--max-time", "45", "-o", archive], {
+      input: `url = ${JSON.stringify(new URL(url).href)}\n`,
+      stdio: ["pipe", "ignore", "pipe"],
+    });
+    execFileSync("unzip", ["-o", archive, "-d", extracted], { stdio: ["ignore", "ignore", "pipe"] });
     for (const file of FONTS) {
       const source = findFile(extracted, file);
       if (!source) fail(`archive does not contain ${file}`);
       fs.copyFileSync(source, path.join(FONT_DIR, file));
     }
+  } catch {
+    throw new Error("Private build-font download or extraction failed");
   } finally {
     fs.rmSync(tmp, { recursive: true, force: true });
   }
