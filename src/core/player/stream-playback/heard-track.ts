@@ -67,6 +67,18 @@ const SKEW_MAX_RTT_MS = 2_500;
  */
 export const MEDIA_ALIGN_MS = 60;
 
+/**
+ * A title as compared on the second matching pass: Unicode form, case,
+ * runs of whitespace and backslash-escaped quotes are what encoders and
+ * databases disagree on without it being another item.
+ */
+const matchKey = (title: string): string =>
+  (typeof title.normalize === "function" ? title.normalize("NFC") : title)
+    .replace(/\\(['"])/g, "$1")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLowerCase();
+
 const median = (values: readonly number[]): number => {
   const sorted = [...values].sort((a, b) => a - b);
   return sorted[sorted.length >> 1] ?? 0;
@@ -130,6 +142,8 @@ export class HeardTrack {
   private anchor: Anchor | null = null;
   /** A heard title the API has not named yet (resolved by `stationChanged`). */
   private pending: { title: string; heardAt: number; tuneIn: boolean; lagMs: number } | null = null;
+  /** Wall ms the station last announced an item (0 = not since the reset). */
+  private stationChangedAt = 0;
   private skewSamples: number[] = [];
   private skewMs = 0;
   /** Per stream: how far the computed position was ahead of the heard one (ms). */
@@ -187,16 +201,26 @@ export class HeardTrack {
     return this.options.stationTrack();
   }
 
-  /** A heard title is still waiting for the station to name it (or shown as itself). */
+  /**
+   * A heard title is still waiting for the station to name it (or shown as
+   * itself) — and is still the newest thing known. Once the station has
+   * announced a later item, it no longer holds the display (see
+   * {@link supersededByStation}).
+   */
   get awaitingStation(): boolean {
-    return this.pending != null;
+    return this.pending != null && !this.supersededByStation();
   }
 
-  /** Whether the heard track has played past its own length. */
+  /**
+   * Whether the heard track has played past its own length. A title the
+   * station never named has no length: it counts as over once the station
+   * announced a later item.
+   */
   pastEnd(now: number = this.now()): boolean {
     const anchor = this.anchor;
     const track = this.displayed;
-    if (!anchor || !track || track.duration <= 0) return false;
+    if (!anchor || !track) return false;
+    if (track.duration <= 0) return this.supersededByStation();
     const elapsed = anchor.elapsedMs + (anchor.running ? Math.max(0, now - anchor.at) : 0);
     return elapsed > track.duration;
   }
@@ -269,6 +293,7 @@ export class HeardTrack {
 
   /** The station announced something: a pending heard title may now resolve. */
   stationChanged(): void {
+    this.stationChangedAt = this.now();
     if (this.displayed == null) this.onChange();
     const pending = this.pending;
     // A shown fallback title (see `unresolved`) still counts as pending.
@@ -339,6 +364,7 @@ export class HeardTrack {
     this.anchor = null;
     this.media = null;
     this.pending = null;
+    this.stationChangedAt = 0;
   }
 
   private calibrate(sample: number): void {
@@ -347,9 +373,30 @@ export class HeardTrack {
     this.calibration.set(this.stream, [...samples, sample].slice(-CALIBRATION_WINDOW));
   }
 
+  /**
+   * A heard title the station data does not name (shown as itself, or
+   * waiting) that the station has since moved past: it announced an item
+   * after the title was heard, and that item starts later on the station
+   * timeline than the audio the title was heard in. A late announcement of
+   * an earlier item does not count.
+   */
+  private supersededByStation(): boolean {
+    const pending = this.pending;
+    if (!pending || this.stationChangedAt <= pending.heardAt) return false;
+    const start = this.options.stationTrack()?.startTime?.getTime();
+    if (start == null || !Number.isFinite(start)) return false;
+    return start > pending.heardAt + this.skewMs - Math.max(0, pending.lagMs);
+  }
+
+  /** The candidate whose `raw` is `title`: exactly, else on {@link matchKey}. */
   private find(title: string): Track | null {
-    for (const track of this.options.candidates()) {
+    const candidates = this.options.candidates();
+    for (const track of candidates) {
       if (track?.raw.trim() === title) return track;
+    }
+    const key = matchKey(title);
+    for (const track of candidates) {
+      if (track && matchKey(track.raw) === key) return track;
     }
     return null;
   }

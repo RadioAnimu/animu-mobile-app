@@ -248,6 +248,22 @@ describe("HeardTrack", () => {
     expect(t.heard.elapsedMs()).toBe(35_000 - AHEAD);
   });
 
+  it("matches a title that differs only in Unicode form, case, spacing or escaped quotes", () => {
+    const station = "Haruka - Kimi no Na wa' | Anime [Música pedida por ness.js]";
+    const t = setup([track(station, 0)]);
+    // NFD "ú", lower case, doubled space, an encoder-escaped quote.
+    const heard = "haruka -  kimi no na wa\\' | anime [Mu\u0301sica pedida por ness.js]";
+    t.heard.heard(heard, t.now, false, 0);
+    expect(t.heard.track?.raw).toBe(station);
+    expect(t.heard.awaitingStation).toBe(false);
+  });
+
+  it("does not loosely match a different song", () => {
+    const t = setup([track("Artist - Song", 0)]);
+    t.heard.heard("Artist - Song 2", t.now, false, 0);
+    expect(t.heard.awaitingStation).toBe(true);
+  });
+
   it("matches the previous song from the history (the speaker is behind the station)", () => {
     const t = setup([track("Announced", 0), track("Still playing", 0)]);
     t.heard.heard("Still playing", t.now, false, 0);

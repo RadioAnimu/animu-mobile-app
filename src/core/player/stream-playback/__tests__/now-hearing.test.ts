@@ -30,9 +30,13 @@ const track = (raw: string, startMs: number, duration = 200_000): Track =>
   }) as unknown as Track;
 
 const setup = () => {
-  const station = { track: track("Song A", Date.now() - 60_000) as Track | null };
+  const station = {
+    track: track("Song A", Date.now() - 60_000) as Track | null,
+    /** Items the station announced before the current one, newest first. */
+    recent: [] as Track[],
+  };
   const heard = new HeardTrack({
-    candidates: () => [station.track],
+    candidates: () => [station.track, ...station.recent],
     stationTrack: () => station.track,
   });
   const sync = new StreamSyncEngine();
@@ -286,6 +290,66 @@ describe("NowHearing", () => {
       t.play(6 + ICY_OVERDUE_MS / 1000 + 5);
       expect(t.hearing.track?.raw).toBe(JINGLE);
       t.heard.unresolved("Live Show");
+      expect(t.hearing.track?.raw).toBe("Live Show");
+    });
+
+    it("recovers from a request jingle shorter than the lag", () => {
+      // Song A → a 4.5 s request jingle → Song B, 6 s behind: by the time
+      // the jingle's title is heard, the station already announced Song B.
+      const t = setup();
+      t.hearing.setPlaying(true);
+      t.heard.heard("Song A", Date.now(), false, 6_000);
+      t.hearing.titleWasHeard();
+      t.play(10);
+      const songA = t.station.track!;
+      const jingle = track(JINGLE, Date.now(), 4_500);
+      t.station.track = jingle;
+      t.station.recent = [songA];
+      t.hearing.stationChanged();
+      t.play(4);
+      t.station.track = track("Song B", Date.now() - 500);
+      t.station.recent = [jingle, songA];
+      t.hearing.stationChanged();
+      t.play(2);
+      t.heard.heard(JINGLE, Date.now(), false, 6_000);
+      t.hearing.titleWasHeard();
+      // The station data names the jingle: shown as itself, not waiting.
+      expect(t.hearing.track).toBe(jingle);
+      expect(t.heard.awaitingStation).toBe(false);
+      // Song B's title never reaches the player: once overdue, the station's
+      // item takes over instead of the jingle staying for the whole song.
+      t.play(6 + ICY_OVERDUE_MS / 1000 + 2);
+      expect(t.hearing.track?.raw).toBe("Song B");
+    });
+
+    it("moves past a title the station never names once it announces a later item", () => {
+      const t = jingleThenSongB();
+      t.play(8);
+      // The player hears a title no station data names (shown as itself)…
+      t.heard.heard("Live Show", Date.now(), false, 6_000);
+      t.heard.unresolved("Live Show");
+      t.play(6 + ICY_OVERDUE_MS / 1000 + 5);
+      expect(t.hearing.track?.raw).toBe("Live Show"); // nothing newer known
+      // …then the station announces Song C, whose title never arrives.
+      t.station.track = track("Song C", Date.now());
+      t.hearing.stationChanged();
+      t.heard.stationChanged();
+      t.play(6 + ICY_OVERDUE_MS / 1000 - 3);
+      expect(t.hearing.track?.raw).toBe("Live Show");
+      t.play(4);
+      expect(t.hearing.track?.raw).toBe("Song C");
+    });
+
+    it("a late announcement of an earlier item does not replace a newer title", () => {
+      const t = jingleThenSongB();
+      t.play(8);
+      t.heard.heard("Live Show", Date.now(), false, 6_000);
+      t.heard.unresolved("Live Show");
+      // The station names an item that started before the title was heard.
+      t.station.track = track("Song Late", Date.now() - 20_000);
+      t.hearing.stationChanged();
+      t.heard.stationChanged();
+      t.play(6 + ICY_OVERDUE_MS / 1000 + 5);
       expect(t.hearing.track?.raw).toBe("Live Show");
     });
 

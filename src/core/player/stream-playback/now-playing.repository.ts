@@ -26,6 +26,14 @@ const DAY_MS = 24 * 60 * 60 * 1000;
  */
 const MAX_HISTORY_TRACKS = 300;
 /**
+ * How many on-air items the repository remembers after the current one,
+ * filler included. An ICY title is heard a stream lag after the station
+ * announced it, so a jingle shorter than the lag (the 4–5 s request jingle)
+ * is already replaced by the next item when it is heard — and the played
+ * history drops filler. A few items cover any lag a relay can have.
+ */
+const MAX_RECENT_ON_AIR = 10;
+/**
  * Hard limit for a single refresh run (ms). Slightly above the HTTP abort
  * timeout so foreground timeouts always win. In the BACKGROUND, RN JS
  * timers freeze — the fetch's `setTimeout`-based abort never fires, a
@@ -149,6 +157,10 @@ export class NowPlayingRepository {
   private listenersValue: Listeners | null = null;
   private playedTracks: Track[] = [];
   private requestedTracks: Track[] = [];
+  /** Items that were on air before the current one, newest first (filler too). */
+  private recentOnAir: Track[] = [];
+  /** The run in flight, for a forced refresh to queue behind. */
+  private inFlight: Promise<boolean> | null = null;
   private showProgressValue = false;
   private refreshing = false;
   /** Bumped by every new run AND by the watchdog — late settlers compare. */
@@ -203,6 +215,15 @@ export class NowPlayingRepository {
     return this.requestedTracks;
   }
 
+  /**
+   * The items on air before the current one, newest first — jingles, idents
+   * and transitions included, with their station timing. What a heard ICY
+   * title is matched against once the station has moved past it.
+   */
+  get recentOnAirTracks(): Track[] {
+    return this.recentOnAir;
+  }
+
   /** Whether the audio session has a track to display. */
   get hasTrack(): boolean {
     return this.currentTrackValue != null;
@@ -232,6 +253,13 @@ export class NowPlayingRepository {
    * filler (jingles/idents/transitions) never does.
    */
   private applyTrack(track: Track): void {
+    const previous = this.currentTrackValue;
+    if (previous) {
+      this.recentOnAir = [
+        previous,
+        ...this.recentOnAir.filter((t) => t.raw !== previous.raw && t.raw !== track.raw),
+      ].slice(0, MAX_RECENT_ON_AIR);
+    }
     this.currentTrackValue = track;
     if (isRealTrack(track)) void this.refreshHistory("played");
   }
@@ -330,7 +358,9 @@ export class NowPlayingRepository {
   private ingestSong(song: LiveNowPlaying): void {
     if (this.disposed) return;
     this.lastLiveEventAt = Date.now();
-    this.liveTrackCurrent = true;
+    // Only a payload naming a track vouches for it: the offline placeholder
+    // (no track) leaves the old one in place, which the poll must re-check.
+    this.liveTrackCurrent = song.track != null;
 
     // Follow the station's on-air item exactly like the HTTP leg did: real
     // songs AND filler (jingles/idents/transitions) both become current, so
@@ -378,10 +408,31 @@ export class NowPlayingRepository {
     });
   }
 
-  /** ── HTTP poll, invalidated by live data past the staleness window ── */
-  async refresh(): Promise<boolean> {
+  /**
+   * ── HTTP poll, invalidated by live data past the staleness window ──
+   *
+   * `forceMetadata`: the player heard a title the station data does not
+   * name, so the live stream evidently missed an item (it sends each one
+   * once). The HTTP metadata leg runs even while the stream looks healthy,
+   * and its track wins unless a `song_change` lands meanwhile. A run already
+   * in flight may have skipped that leg, so a forced call runs after it.
+   */
+  async refresh(options: { forceMetadata?: boolean } = {}): Promise<boolean> {
     if (this.disposed) return false;
-    if (this.refreshing) return false;
+    if (options.forceMetadata) this.liveTrackCurrent = false;
+    if (this.refreshing) {
+      const inFlight = this.inFlight;
+      if (!options.forceMetadata || !inFlight) return false;
+      return inFlight.then(() => this.refresh(options));
+    }
+    const run = this.runRefresh();
+    this.inFlight = run;
+    return run.finally(() => {
+      if (this.inFlight === run) this.inFlight = null;
+    });
+  }
+
+  private async runRefresh(): Promise<boolean> {
     this.refreshing = true;
     this.refreshEpoch += 1;
     const epoch = this.refreshEpoch;
@@ -689,6 +740,7 @@ export class NowPlayingRepository {
     this.listenersValue = null;
     this.playedTracks = [];
     this.requestedTracks = [];
+    this.recentOnAir = [];
     this.showProgressValue = false;
   }
 

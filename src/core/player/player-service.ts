@@ -142,9 +142,10 @@ export class PlayerService {
     hearing.onChange = () => this.handleDisplayedTrackChange();
     heard.onUnknownTitle = (title) => {
       // Event-driven, no timer: a stuck refresh is expired by time, then one
-      // HTTP fetch names the track (the SSE may be down in the background).
+      // HTTP fetch names the track (the SSE may be down in the background, or
+      // have missed the item while it looks healthy).
       repository.expireStuckRefresh();
-      void this.refreshData()
+      void this.refreshData({ forceMetadata: true })
         .catch((error) => console.warn("[PlayerService] refresh for heard title:", error))
         .finally(() => heard.unresolved(title));
     };
@@ -425,9 +426,9 @@ export class PlayerService {
 
   // ── Data ──
 
-  async refreshData(): Promise<boolean> {
+  async refreshData(options?: { forceMetadata?: boolean }): Promise<boolean> {
     this.lastPollAt = Date.now();
-    return this.deps.repository.refresh();
+    return this.deps.repository.refresh(options);
   }
 
   async refreshHistory(type: HistoryType): Promise<void> {

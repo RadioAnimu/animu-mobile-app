@@ -58,9 +58,14 @@ export const createPlayerService = (onDestroyed?: () => void): PlayerService => 
     timer: jsTimer,
   });
   const heard = new HeardTrack({
-    // The heard title may still be the previous song (history) or the one the
-    // station just announced.
-    candidates: () => [repository.currentTrack, ...repository.lastPlayedTracks],
+    // The heard title may be the one the station just announced, or one it
+    // already moved past: a recent on-air item (a jingle shorter than the
+    // lag is replaced before it is heard) or an older song (history).
+    candidates: () => [
+      repository.currentTrack,
+      ...repository.recentOnAirTracks,
+      ...repository.lastPlayedTracks,
+    ],
     stationTrack: () => repository.currentTrack,
   });
   // The audible clock: the station's track on the measured lag (drives the

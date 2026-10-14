@@ -568,7 +568,8 @@ describe("PlayerService on react-native-anything-player", () => {
     t.repository.refresh.mockClear();
     t.player.hear("Artist X - Live Hour | Show");
     expect(t.repository.expireStuckRefresh).toHaveBeenCalled();
-    expect(t.repository.refresh).toHaveBeenCalledTimes(1);
+    // The live stream missed the item: the HTTP metadata is fetched anyway.
+    expect(t.repository.refresh).toHaveBeenCalledExactlyOnceWith({ forceMetadata: true });
     await vi.waitFor(() =>
       expect(playerStore.getSnapshot().currentTrack?.raw).toBe("Artist X - Live Hour | Show"),
     );

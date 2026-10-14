@@ -75,6 +75,20 @@ each title **when it plays** (iOS: AVPlayer's metadata output, measured on the
 Media3's metadata renderer, within 0.04 s of where the title sits in the
 stream).
 
+**Matching a heard title.** A title is heard a stream lag after the station
+announced its item, so by then the station is often past it: every jingle
+shorter than the lag (the 4–5 s request jingle on any mount, nearly all of
+them at 64 kbps's 17 s) is already replaced. `HeardTrack` matches against the
+current track, the repository's recent on-air items (filler included, with
+their timing) and the played history — exactly first, then ignoring Unicode
+form, case, spacing and escaped quotes. A title nothing names is shown as
+itself and forces the HTTP metadata leg: the live stream evidently missed the
+item (the daemon silently skips slow clients). When a title never arrives at
+all, the station's item takes over once it has been audible
+`ICY_OVERDUE_MS` (30 s) and the heard one is over — a title the station never
+named counts as over once it announced a later item — so the display can never
+stay behind for a whole song.
+
 Where a title sits in the *audio* depends on the mount. The station writes it
 at the item's first audio, but Icecast only sends metadata every
 `icy-metaint` = 16000 bytes, counted from each connection's own start. So a

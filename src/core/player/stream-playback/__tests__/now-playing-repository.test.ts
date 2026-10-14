@@ -804,6 +804,89 @@ describe("NowPlayingRepository — live SSE ingestion", () => {
     expect(fixture.repository.lastRequestedTracks).toHaveLength(1);
   });
 
+  it("remembers the items on air before the current one, filler included", () => {
+    const fixture = withLive();
+    const jingle = makeTrack({ raw: "Rádio Animu - Música pedida por ouvinte! | VHT" });
+
+    fixture.pushSong(makeTrack({ raw: "Song - A" }));
+    fixture.pushSong(jingle);
+    fixture.pushSong(makeTrack({ raw: "Song - B" }));
+
+    // The request jingle is never in the played history, but a heard title
+    // can still name it after the station moved on.
+    expect(fixture.repository.currentTrack?.raw).toBe("Song - B");
+    expect(fixture.repository.recentOnAirTracks.map((t) => t.raw)).toEqual([
+      jingle.raw,
+      "Song - A",
+    ]);
+
+    // A repeat moves to the front instead of appearing twice.
+    fixture.pushSong(makeTrack({ raw: "Song - A" }));
+    expect(fixture.repository.recentOnAirTracks.map((t) => t.raw)).toEqual([
+      "Song - B",
+      jingle.raw,
+    ]);
+
+    fixture.repository.clear();
+    expect(fixture.repository.recentOnAirTracks).toEqual([]);
+  });
+
+  it("keeps the HTTP metadata leg after an offline push (no track to vouch for)", async () => {
+    const fixture = withLive();
+    fixture.pushSong(makeTrack({ raw: "Live - Song" }), 12);
+    fixture.pushSong(null); // the station went offline: the old track stays
+
+    await fixture.repository.refresh();
+
+    expect(fixture.getStreamMetadataSpy).toHaveBeenCalledTimes(1);
+    expect(fixture.repository.currentTrack?.raw).toBe("Http - Fallback");
+  });
+
+  it("forces the HTTP metadata leg while the stream looks fresh", async () => {
+    const fixture = withLive();
+    fixture.pushSong(makeTrack({ raw: "Live - Jingle" }), 12);
+
+    // The player heard a title the stream never announced.
+    await fixture.repository.refresh({ forceMetadata: true });
+
+    expect(fixture.getStreamMetadataSpy).toHaveBeenCalledTimes(1);
+    expect(fixture.repository.currentTrack?.raw).toBe("Http - Fallback");
+  });
+
+  it("lets a song_change that lands during a forced run win", async () => {
+    const fixture = withLive();
+    fixture.pushSong(makeTrack({ raw: "Live - Jingle" }), 12);
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    fixture.getStreamMetadataSpy.mockImplementationOnce(async () => {
+      await gate;
+      return { track: makeTrack({ raw: "Http - Stale" }), listeners: { value: 1 } };
+    });
+
+    const run = fixture.repository.refresh({ forceMetadata: true });
+    fixture.pushSong(makeTrack({ raw: "Live - Song B" }), 12);
+    release();
+    await run;
+
+    expect(fixture.repository.currentTrack?.raw).toBe("Live - Song B");
+  });
+
+  it("runs a forced refresh after the poll already in flight", async () => {
+    const fixture = withLive();
+    fixture.pushSong(makeTrack({ raw: "Live - Jingle" }), 12);
+
+    // A regular poll skips the metadata leg (the stream is fresh)…
+    const poll = fixture.repository.refresh();
+    // …so the forced one must not be dropped as a duplicate.
+    const forced = fixture.repository.refresh({ forceMetadata: true });
+    await Promise.all([poll, forced]);
+
+    expect(fixture.getStreamMetadataSpy).toHaveBeenCalledTimes(1);
+    expect(fixture.repository.currentTrack?.raw).toBe("Http - Fallback");
+  });
+
   it("falls back to the HTTP metadata leg past the staleness window", async () => {
     vi.useFakeTimers({ toFake: ["Date"] });
     try {
