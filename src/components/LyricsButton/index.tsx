@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { InteractionManager, TouchableOpacity, type StyleProp, type ViewStyle } from "react-native";
+import { TouchableOpacity, type StyleProp, type ViewStyle } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { KaraokeMicIcon } from "@/components/KaraokeMicIcon";
@@ -33,10 +33,10 @@ export function LyricsButton({ size, hitSlop, style }: Readonly<Props>) {
   // or delete an install the app was killed in (no dead files until Settings
   // or the lyrics happen to open).
   useEffect(() => {
-    const task = InteractionManager.runAfterInteractions(() => {
+    const task = requestIdleCallback(() => {
       japaneseDictionary.restore().catch(() => {});
     });
-    return () => task.cancel();
+    return () => cancelIdleCallback(task);
   }, []);
 
   return (

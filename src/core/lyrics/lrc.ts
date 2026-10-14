@@ -28,7 +28,7 @@ const LAST_LINE_MS = 6_000;
 
 const TIME_TAG = /\[(\d{1,3}):(\d{1,2})(?:[.:](\d{1,3}))?\]/y;
 const WORD_TAG = /<(\d{1,3}):(\d{1,2})(?:[.:](\d{1,3}))?>/g;
-const OFFSET_TAG = /^\s*\[offset:\s*([+-]?\d+)\s*\]/im;
+const OFFSET_TAG = /^\[offset:\s*([+-]?\d+)\s*\]/i;
 
 interface RawRow {
   startMs: number;
@@ -97,12 +97,13 @@ function parseWords(
 
 /** Parses an LRC document into rows sorted by time (break markers included). */
 export function parseLrc(lrc: string): RawRow[] {
-  const offset = Number(OFFSET_TAG.exec(lrc)?.[1] ?? 0);
+  const lines = lrc.split(/\r?\n/);
+  const offset = Number(lines.map((line) => OFFSET_TAG.exec(line.trim())?.[1]).find((value) => value !== undefined) ?? 0);
   // `[offset:+500]` shows the lyrics 500 ms sooner.
   const shift = (ms: number) => Math.max(0, ms - offset);
 
   const rows: RawRow[] = [];
-  for (const rawLine of lrc.split(/\r?\n/)) {
+  for (const rawLine of lines) {
     const { stamps, body } = leadingStamps(rawLine.trim());
     for (const stamp of stamps) {
       const parsed = parseWords(body, stamp);
@@ -279,7 +280,7 @@ export function keyedLines(lines: readonly string[]): { key: string; text: strin
 /** Untimed lyrics as display lines; runs of blank lines collapse to one stanza gap. */
 export function plainLines(text: string): string[] {
   const lines: string[] = [];
-  for (const raw of text.replace(/\r\n/g, "\n").split("\n")) {
+  for (const raw of text.replaceAll("\r\n", "\n").split("\n")) {
     const line = raw.trim();
     if (line || (lines.length > 0 && lines.at(-1) !== "")) lines.push(line);
   }

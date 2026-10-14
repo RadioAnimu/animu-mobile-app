@@ -95,7 +95,7 @@ export class JapaneseReader {
       .map((word) => word.romaji)
       .filter(Boolean)
       .join(" ")
-      .replace(/\s+([,.!?、。！？])/g, "$1");
+      .replace(/\s+/g, (space, at, line: string) => /[,.!?、。！？]/.test(line[at + space.length] ?? "") ? "" : space);
   }
 
   /**

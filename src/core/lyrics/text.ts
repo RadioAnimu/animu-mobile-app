@@ -1,4 +1,5 @@
 import { toRomaji } from "wanakana";
+import { bracketGroups, withoutBracketGroups } from "@/core/lyrics/brackets";
 
 // ─── Text normalization & similarity ───
 //
@@ -16,7 +17,7 @@ export type Romanizer = (text: string) => string;
 
 export const kanaRomanizer: Romanizer = (text) => toRomaji(text);
 
-const BRACKETS = /[([{【「『≪〈《［（]([^)\]}】」』≫〉》］）]*)[)\]}】」』≫〉》］）]/g;
+const groupsOf = (text: string) => bracketGroups(text, "([{【「『≪〈《［（", ")]}】」』≫〉》］）");
 const TILDE_SUFFIX = /[~〜～]([^~〜～]*)[~〜～]?/g;
 const FEATURING = /\s(?:feat\.?|ft\.?|featuring|prod\.?)\s.*$/i;
 const PUNCTUATION = /[^\p{L}\p{N}\s]/gu;
@@ -50,9 +51,10 @@ export function compact(normalized: string): string {
  */
 export function titleVariants(title: string, romanize: Romanizer = kanaRomanizer): string[] {
   const raw = title.normalize("NFKC");
-  const core = raw.replace(BRACKETS, " ").replace(TILDE_SUFFIX, " ").replace(FEATURING, " ");
+  const groups = groupsOf(raw);
+  const core = withoutBracketGroups(raw, groups).replace(TILDE_SUFFIX, " ").replace(FEATURING, " ");
   const parts: string[] = [];
-  for (const match of raw.matchAll(BRACKETS)) parts.push(match[1]);
+  for (const group of groups) parts.push(group.text);
   for (const match of raw.matchAll(TILDE_SUFFIX)) parts.push(match[1]);
   for (const piece of [raw, core]) parts.push(...piece.split(/\s[-–—/|]\s/));
 
@@ -74,16 +76,21 @@ function splitCredits(credits: string): string[] {
   return credits.split(ARTIST_SEPARATOR).flatMap((part) => part.split(ARTIST_WORD_SEPARATOR));
 }
 /** `Hachiman Hikigaya (CV: Takuya Eguchi)` credits the voice actor too. */
-const CHARACTER_VOICE = /[(（]\s*(?:cv|vo)\s*[.:：]\s*([^)）]+)[)）]/gi;
+const VOICE_PREFIX = /^(?:cv|vo)\s*[.:：]/i;
 
 /** Every credited name, normalized, plus the whole credit. */
 export function artistNames(artist: string, romanize: Romanizer = kanaRomanizer): string[] {
   const raw = artist.normalize("NFKC");
-  const voices = [...raw.matchAll(CHARACTER_VOICE)].map((match) => match[1]);
-  const credits = raw.replace(CHARACTER_VOICE, " ");
+  const voiceGroups = bracketGroups(raw, "(（", ")）").flatMap((group) => {
+    const text = group.text.trimStart();
+    const match = VOICE_PREFIX.exec(text);
+    return match ? [{ ...group, voice: text.slice(match[0].length).trimStart() }] : [];
+  });
+  const voices = voiceGroups.map((group) => group.voice);
+  const credits = withoutBracketGroups(raw, voiceGroups);
   const names = new Set<string>();
   for (const part of [credits, ...splitCredits(credits), ...voices]) {
-    const normalized = normalize(part.replace(BRACKETS, " "), romanize);
+    const normalized = normalize(withoutBracketGroups(part, groupsOf(part)), romanize);
     if (normalized) names.add(normalized);
   }
   return [...names];
@@ -98,7 +105,7 @@ export function similarity(a: string, b: string): number {
   for (let i = 1; i <= a.length; i += 1) {
     current[0] = i;
     for (let j = 1; j <= b.length; j += 1) {
-      const substitution = previous[j - 1] + (a.charCodeAt(i - 1) === b.charCodeAt(j - 1) ? 0 : 1);
+      const substitution = previous[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1);
       current[j] = Math.min(previous[j] + 1, current[j - 1] + 1, substitution);
     }
     [previous, current] = [current, previous];
@@ -108,7 +115,7 @@ export function similarity(a: string, b: string): number {
 
 /** Same words in any order (`horie yui` / `yui horie`). */
 export function sameTokens(a: string, b: string): boolean {
-  const sort = (value: string) => value.split(" ").filter(Boolean).sort().join(" ");
+  const sort = (value: string) => value.split(" ").filter(Boolean).sort((a, b) => a.localeCompare(b)).join(" ");
   return Boolean(a) && sort(a) === sort(b);
 }
 

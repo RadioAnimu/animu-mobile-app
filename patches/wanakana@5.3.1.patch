@@ -1,0 +1,216 @@
+diff --git a/cjs/index.js b/cjs/index.js
+index 1f25048d7564c70b565426d31febcbe63cf75d32..ff0eb9bc315b9cc94cdc5b29637fc7a4d43b7995 100644
+--- a/cjs/index.js
++++ b/cjs/index.js
+@@ -371,42 +371,32 @@ function dequal(foo, bar) {
+ const mergeWithDefaultOptions = (opts = {}) => Object.assign({}, DEFAULT_OPTIONS, opts);
+ 
+ function applyMapping(string, mapping, convertEnding) {
+-    const root = mapping;
+-    function nextSubtree(tree, nextChar) {
+-        const subtree = tree[nextChar];
+-        if (subtree === undefined) {
+-            return undefined;
++    // Each chunk is committed once. Recursive concatenation used one stack
++    // frame per character and copied all subsequent chunks on every return.
++    const chunks = [];
++    let cursor = 0;
++    do {
++        const start = cursor;
++        const first = string.charAt(cursor++);
++        let tree = Object.assign({ '': first }, mapping[first]);
++        while (cursor < string.length && Object.keys(tree).length > 1) {
++            const next = string.charAt(cursor);
++            const subtree = tree[next];
++            if (subtree === undefined) break;
++            tree = Object.assign({ '': tree[''] + next }, subtree);
++            cursor += 1;
+         }
+-        // if the next child node does not have a node value, set its node value to the input
+-        return Object.assign({ '': tree[''] + nextChar }, tree[nextChar]);
+-    }
+-    function newChunk(remaining, currentCursor) {
+-        // start parsing a new chunk
+-        const firstChar = remaining.charAt(0);
+-        return parse(Object.assign({ '': firstChar }, root[firstChar]), remaining.slice(1), currentCursor, currentCursor + 1);
+-    }
+-    function parse(tree, remaining, lastCursor, currentCursor) {
+-        if (!remaining) {
++        if (cursor >= string.length) {
+             if (convertEnding || Object.keys(tree).length === 1) {
+-                // nothing more to consume, just commit the last chunk and return it
+-                // so as to not have an empty element at the end of the result
+-                return tree[''] ? [[lastCursor, currentCursor, tree['']]] : [];
++                if (tree['']) chunks.push([start, cursor, tree['']]);
++            } else {
++                chunks.push([start, cursor, null]);
+             }
+-            // if we don't want to convert the ending, because there are still possible continuations
+-            // return null as the final node value
+-            return [[lastCursor, currentCursor, null]];
+-        }
+-        if (Object.keys(tree).length === 1) {
+-            return [[lastCursor, currentCursor, tree['']]].concat(newChunk(remaining, currentCursor));
++            break;
+         }
+-        const subtree = nextSubtree(tree, remaining.charAt(0));
+-        if (subtree === undefined) {
+-            return [[lastCursor, currentCursor, tree['']]].concat(newChunk(remaining, currentCursor));
+-        }
+-        // continue current branch
+-        return parse(subtree, remaining.slice(1), lastCursor, currentCursor + 1);
+-    }
+-    return newChunk(string, 0);
++        chunks.push([start, cursor, tree['']]);
++    } while (cursor < string.length);
++    return chunks;
+ }
+ // transform the tree, so that for example hepburnTree['ゔ']['ぁ'][''] === 'va'
+ // or kanaTree['k']['y']['a'][''] === 'きゃ'
+@@ -1288,7 +1278,8 @@ function katakanaToHiragana(input = '', toRomaji, { isDestinationRomaji, convert
+         if (isCharSlashDot(char)
+             || isCharInitialLongDash(char, index)
+             || isKanaAsSymbol(char)) {
+-            return hira.concat(char);
++            hira.push(char);
++            return hira;
+         }
+         // Transform long vowels: 'オー' to 'おう'
+         if (convertLongVowelMark
+@@ -1300,20 +1291,24 @@ function katakanaToHiragana(input = '', toRomaji, { isDestinationRomaji, convert
+             if (isCharKatakana(input[index - 1])
+                 && romaji === 'o'
+                 && isDestinationRomaji) {
+-                return hira.concat('お');
++                hira.push('お');
++            return hira;
+             }
+-            return hira.concat(LONG_VOWELS[romaji]);
++            hira.push(LONG_VOWELS[romaji]);
++            return hira;
+             // Transform all other chars
+         }
+         if (!isCharLongDash(char) && isCharKatakana(char)) {
+             const code = char.charCodeAt(0) + (HIRAGANA_START - KATAKANA_START);
+             const hiraChar = String.fromCharCode(code);
+             previousKana = hiraChar;
+-            return hira.concat(hiraChar);
++            hira.push(hiraChar);
++            return hira;
+         }
+         // Pass non katakana chars through
+         previousKana = '';
+-        return hira.concat(char);
++        hira.push(char);
++            return hira;
+     }, [])
+         .join('');
+ }
+diff --git a/esm/index.js b/esm/index.js
+index 70581e8be0d49089fa6f423bc06311bed19c8115..00fa21f3470e63c5f45d53d6c43a053e7f970064 100644
+--- a/esm/index.js
++++ b/esm/index.js
+@@ -369,42 +369,32 @@ function dequal(foo, bar) {
+ const mergeWithDefaultOptions = (opts = {}) => Object.assign({}, DEFAULT_OPTIONS, opts);
+ 
+ function applyMapping(string, mapping, convertEnding) {
+-    const root = mapping;
+-    function nextSubtree(tree, nextChar) {
+-        const subtree = tree[nextChar];
+-        if (subtree === undefined) {
+-            return undefined;
++    // Each chunk is committed once. Recursive concatenation used one stack
++    // frame per character and copied all subsequent chunks on every return.
++    const chunks = [];
++    let cursor = 0;
++    do {
++        const start = cursor;
++        const first = string.charAt(cursor++);
++        let tree = Object.assign({ '': first }, mapping[first]);
++        while (cursor < string.length && Object.keys(tree).length > 1) {
++            const next = string.charAt(cursor);
++            const subtree = tree[next];
++            if (subtree === undefined) break;
++            tree = Object.assign({ '': tree[''] + next }, subtree);
++            cursor += 1;
+         }
+-        // if the next child node does not have a node value, set its node value to the input
+-        return Object.assign({ '': tree[''] + nextChar }, tree[nextChar]);
+-    }
+-    function newChunk(remaining, currentCursor) {
+-        // start parsing a new chunk
+-        const firstChar = remaining.charAt(0);
+-        return parse(Object.assign({ '': firstChar }, root[firstChar]), remaining.slice(1), currentCursor, currentCursor + 1);
+-    }
+-    function parse(tree, remaining, lastCursor, currentCursor) {
+-        if (!remaining) {
++        if (cursor >= string.length) {
+             if (convertEnding || Object.keys(tree).length === 1) {
+-                // nothing more to consume, just commit the last chunk and return it
+-                // so as to not have an empty element at the end of the result
+-                return tree[''] ? [[lastCursor, currentCursor, tree['']]] : [];
++                if (tree['']) chunks.push([start, cursor, tree['']]);
++            } else {
++                chunks.push([start, cursor, null]);
+             }
+-            // if we don't want to convert the ending, because there are still possible continuations
+-            // return null as the final node value
+-            return [[lastCursor, currentCursor, null]];
+-        }
+-        if (Object.keys(tree).length === 1) {
+-            return [[lastCursor, currentCursor, tree['']]].concat(newChunk(remaining, currentCursor));
++            break;
+         }
+-        const subtree = nextSubtree(tree, remaining.charAt(0));
+-        if (subtree === undefined) {
+-            return [[lastCursor, currentCursor, tree['']]].concat(newChunk(remaining, currentCursor));
+-        }
+-        // continue current branch
+-        return parse(subtree, remaining.slice(1), lastCursor, currentCursor + 1);
+-    }
+-    return newChunk(string, 0);
++        chunks.push([start, cursor, tree['']]);
++    } while (cursor < string.length);
++    return chunks;
+ }
+ // transform the tree, so that for example hepburnTree['ゔ']['ぁ'][''] === 'va'
+ // or kanaTree['k']['y']['a'][''] === 'きゃ'
+@@ -1286,7 +1276,8 @@ function katakanaToHiragana(input = '', toRomaji, { isDestinationRomaji, convert
+         if (isCharSlashDot(char)
+             || isCharInitialLongDash(char, index)
+             || isKanaAsSymbol(char)) {
+-            return hira.concat(char);
++            hira.push(char);
++            return hira;
+         }
+         // Transform long vowels: 'オー' to 'おう'
+         if (convertLongVowelMark
+@@ -1298,20 +1289,24 @@ function katakanaToHiragana(input = '', toRomaji, { isDestinationRomaji, convert
+             if (isCharKatakana(input[index - 1])
+                 && romaji === 'o'
+                 && isDestinationRomaji) {
+-                return hira.concat('お');
++                hira.push('お');
++            return hira;
+             }
+-            return hira.concat(LONG_VOWELS[romaji]);
++            hira.push(LONG_VOWELS[romaji]);
++            return hira;
+             // Transform all other chars
+         }
+         if (!isCharLongDash(char) && isCharKatakana(char)) {
+             const code = char.charCodeAt(0) + (HIRAGANA_START - KATAKANA_START);
+             const hiraChar = String.fromCharCode(code);
+             previousKana = hiraChar;
+-            return hira.concat(hiraChar);
++            hira.push(hiraChar);
++            return hira;
+         }
+         // Pass non katakana chars through
+         previousKana = '';
+-        return hira.concat(char);
++        hira.push(char);
++            return hira;
+     }, [])
+         .join('');
+ }

@@ -40,7 +40,7 @@ function foldKana(text: string): string {
   return folded;
 }
 
-const escapeRegExp = (char: string) => char.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+const escapeRegExp = (char: string) => char.replace(/[.*+?^${}()|[\]\\]/g, String.raw`\$&`);
 /** Punctuation that closes what came before (it stays on the previous piece). */
 const CLOSING = /[、。，．！？!?,.」』）)〜~…:;"'”’]/;
 
@@ -72,9 +72,17 @@ const MACRONS: Record<string, string> = { "ā": "aa", "ī": "ii", "ū": "uu", "�
 
 /** Words of a romaji line as written (shown), and as spelled for matching. */
 function romajiWords(line: string): { shown: string; spelled: string }[] {
+  const trimWord = (word: string) => {
+    const chars = Array.from(word);
+    let from = 0;
+    let to = chars.length;
+    while (from < to && !/[\p{L}\p{N}]/u.test(chars[from])) from += 1;
+    while (to > from && !/[\p{L}\p{N}']/u.test(chars[to - 1])) to -= 1;
+    return chars.slice(from, to).join("");
+  };
   return line
     .split(/\s+/)
-    .map((word) => word.replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}']+$/gu, ""))
+    .map(trimWord)
     .filter(Boolean)
     .map((shown) => ({
       shown,
@@ -158,7 +166,7 @@ export function timeSegments(segments: readonly LabelSegment[], words: readonly 
     const to = from + compact(segment.text).length;
     const covered = spans.filter((span) => span.from < to && span.to > from);
     if (covered.length === 0) return null;
-    timed.push({ ...segment, startMs: covered[0].word.startMs, endMs: covered[covered.length - 1].word.endMs });
+    timed.push({ ...segment, startMs: covered[0].word.startMs, endMs: covered.at(-1)!.word.endMs });
     from = to;
   }
   return from === at ? timed : null;

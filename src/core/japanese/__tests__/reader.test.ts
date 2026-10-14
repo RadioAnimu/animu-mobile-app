@@ -62,7 +62,7 @@ describe("JapaneseReader (kuromoji + IPADIC)", () => {
   beforeAll(async () => {
     for (const name of DICTIONARY_FILE_NAMES) {
       const bytes = new Uint8Array(gunzipSync(await readFile(path.join(dictDir, name))));
-      expect(bytes.length).toBe(DICTIONARY_FILES[name].unpacked);
+      expect(bytes).toHaveLength(DICTIONARY_FILES[name].unpacked);
       unpacked.set(name, bytes);
     }
     const yields = vi.fn(async () => {});
