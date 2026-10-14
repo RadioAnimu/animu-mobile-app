@@ -128,7 +128,7 @@ describe("Select", () => {
     fireEvent.click(toggleButton());
     fireEvent.click(optionButton("High"));
     await waitFor(() =>
-      expect(warn).toHaveBeenCalledWith("[Select] change failed:", expect.any(Error)),
+      expect(warn).toHaveBeenCalledWith("[Select] change failed:", { type: "Error" }),
     );
     expect(screen.getByText("Low")).toBeTruthy();
     expect(optionButton("Low").getAttribute("aria-disabled")).toBeNull();

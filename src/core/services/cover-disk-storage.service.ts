@@ -1,3 +1,4 @@
+import { safeErrorDetails } from "@/utils/error-details";
 import { Image } from "expo-image";
 import { File } from "expo-file-system";
 import { toFileUri } from "@/utils/file-uri";
@@ -70,7 +71,7 @@ async function cachedFileBytes(url: string): Promise<CachedStat> {
       ? { state: "found", bytes: file.size }
       : { state: "absent" };
   } catch (error) {
-    console.warn("[CoverDiskStorage] stat failed:", error);
+    console.warn("[CoverDiskStorage] stat failed:", safeErrorDetails(error));
     return { state: "unknown" };
   }
 }
@@ -91,7 +92,7 @@ async function deleteCachedFile(url: string): Promise<boolean> {
     file.delete();
     return true;
   } catch (error) {
-    console.warn("[CoverDiskStorage] evict failed:", error);
+    console.warn("[CoverDiskStorage] evict failed:", safeErrorDetails(error));
     return false;
   }
 }

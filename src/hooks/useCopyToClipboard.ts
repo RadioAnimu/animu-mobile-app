@@ -1,3 +1,4 @@
+import { safeErrorDetails } from "@/utils/error-details";
 import { useCallback } from "react";
 import * as Clipboard from "expo-clipboard";
 
@@ -14,7 +15,7 @@ export function useCopyToClipboard() {
     (text: string) => {
       haptics.select();
       void Clipboard.setStringAsync(text).catch((error) => {
-        console.warn("[Clipboard] copy failed:", error);
+        console.warn("[Clipboard] copy failed:", safeErrorDetails(error));
       });
       toast(dict.TEXT_COPIED);
     },

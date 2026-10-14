@@ -1,3 +1,4 @@
+import { safeErrorDetails } from "@/utils/error-details";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import type { Stream } from "@/core/domain/stream";
 import { CONFIG } from "@/utils/player.config";
@@ -84,7 +85,7 @@ export class StreamPreferences {
         JSON.stringify(this.currentStream),
       );
     } catch (error) {
-      console.warn("[StreamPreferences] Failed to persist stream:", error);
+      console.warn("[StreamPreferences] Failed to persist stream:", safeErrorDetails(error));
     }
   }
 }

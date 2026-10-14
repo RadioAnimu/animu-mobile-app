@@ -1,3 +1,4 @@
+import { safeErrorDetails } from "@/utils/error-details";
 import React, {
   createContext,
   useContext,
@@ -140,7 +141,7 @@ async function runAuthBootstrap(
     }
     await validateActiveSession(deps);
   } catch (error) {
-    console.error("[AuthProvider] Initialization failed:", error);
+    console.error("[AuthProvider] Initialization failed:", safeErrorDetails(error));
   }
 }
 
@@ -291,7 +292,7 @@ function useSessionCheck(
       // Network hiccups throw and are ignored below — they must not log
       // the listener out.
     } catch (error) {
-      console.error("[AuthProvider] Session check failed:", error);
+      console.error("[AuthProvider] Session check failed:", safeErrorDetails(error));
     }
   }, [clearSession, userRef]);
 
@@ -361,7 +362,7 @@ function useAuthProviderValue(): AuthContextType {
     try {
       setProfile(await authFacade.getProfile());
     } catch (error) {
-      console.error("[AuthProvider] Failed to load profile:", error);
+      console.error("[AuthProvider] Failed to load profile:", safeErrorDetails(error));
     }
   }, []);
 
@@ -369,7 +370,7 @@ function useAuthProviderValue(): AuthContextType {
     try {
       setEmails((await authFacade.getEmails()).emails);
     } catch (error) {
-      console.error("[AuthProvider] Failed to load emails:", error);
+      console.error("[AuthProvider] Failed to load emails:", safeErrorDetails(error));
     }
   }, []);
 
@@ -409,7 +410,7 @@ function useAuthProviderValue(): AuthContextType {
     try {
       await authFacade.logout();
     } catch (error) {
-      console.error("[AuthProvider] Logout failed:", error);
+      console.error("[AuthProvider] Logout failed:", safeErrorDetails(error));
     } finally {
       await clearSession();
     }

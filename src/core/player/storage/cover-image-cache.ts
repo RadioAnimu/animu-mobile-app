@@ -1,3 +1,4 @@
+import { safeErrorDetails } from "@/utils/error-details";
 import { Image } from "expo-image";
 import { artworkSizeRank, deriveArtworkVariants } from "animu-api";
 import { toFileUri } from "@/utils/file-uri";
@@ -101,7 +102,7 @@ export class CachedCoverLookup {
     return this.diskCache
       .getCachePath(cacheKey)
       .catch((error) => {
-        console.warn("[CoverImageCache] cache probe failed:", error);
+        console.warn("[CoverImageCache] cache probe failed:", safeErrorDetails(error));
         return null;
       });
   }
@@ -132,7 +133,7 @@ export class CoverCacheSeeder {
         ),
       );
     } catch (error) {
-      console.warn("[CoverImageCache] seed failed:", error);
+      console.warn("[CoverImageCache] seed failed:", safeErrorDetails(error));
     }
   }
 }

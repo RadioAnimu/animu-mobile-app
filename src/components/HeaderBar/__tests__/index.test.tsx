@@ -69,17 +69,17 @@ const pressRequest = () =>
   fireEvent.click(screen.getByRole("button", { name: "Make request" }));
 
 describe("HeaderBar", () => {
-  it("carries the lyrics microphone beside the request note", () => {
-    render(<HeaderBar openLiveRequestModal={() => {}} />);
-    expect(screen.getByTestId("lyrics-button")).toBeTruthy();
-  });
-
   beforeEach(() => {
     mocks.backgrounded = false;
     mocks.progress = { progressMs: 0, progressAt: 0, progressRunning: false, showProgress: true };
     setPlayer();
   });
   afterEach(cleanup);
+
+  it("carries the lyrics microphone beside the request note", () => {
+    render(<HeaderBar openLiveRequestModal={() => {}} />);
+    expect(screen.getByTestId("lyrics-button")).toBeTruthy();
+  });
 
   describe("make-request button", () => {
     it("opens the MakeRequest screen when the program is not live", () => {
@@ -237,7 +237,7 @@ describe("HeaderBar", () => {
       const button = () => screen.getByRole("button", { name: "Play" });
       fireEvent.click(button());
       await waitFor(() =>
-        expect(warn).toHaveBeenCalledWith("[HeaderBar] play/pause failed:", expect.any(Error)),
+        expect(warn).toHaveBeenCalledWith("[HeaderBar] play/pause failed:", { type: "Error" }),
       );
       fireEvent.click(button());
       await waitFor(() => expect(play).toHaveBeenCalledTimes(2));

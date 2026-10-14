@@ -1,3 +1,4 @@
+import { safeErrorDetails } from "@/utils/error-details";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { isRealTrack, type Track } from "@/core/domain/track";
 
@@ -400,7 +401,7 @@ export class ListenStatsService {
       this.dirty = false;
       const json = JSON.stringify(this.blob);
       AsyncStorage.setItem(STORAGE_KEY, json).catch((error) => {
-        console.warn("[ListenStats] save failed:", error);
+        console.warn("[ListenStats] save failed:", safeErrorDetails(error));
       });
     }, delayMs);
   }
@@ -663,7 +664,7 @@ export class ListenStatsService {
     try {
       await AsyncStorage.removeItem(STORAGE_KEY);
     } catch (error) {
-      console.warn("[ListenStats] reset failed:", error);
+      console.warn("[ListenStats] reset failed:", safeErrorDetails(error));
     }
   }
 }

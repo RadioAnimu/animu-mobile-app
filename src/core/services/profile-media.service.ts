@@ -1,3 +1,4 @@
+import { safeErrorDetails } from "@/utils/error-details";
 import { Directory, File, Paths } from "expo-file-system";
 import { ENDPOINTS } from "animu-api";
 
@@ -29,7 +30,7 @@ function safeDelete(file: File) {
   try {
     if (file.exists) file.delete();
   } catch (error) {
-    console.warn("[ProfileMedia] delete failed:", error);
+    console.warn("[ProfileMedia] delete failed:", safeErrorDetails(error));
   }
 }
 
@@ -41,7 +42,7 @@ export function getCachedProfileMedia(
   try {
     return filesFor(kind, userId)[0]?.uri ?? null;
   } catch (error) {
-    console.warn("[ProfileMedia] read failed:", error);
+    console.warn("[ProfileMedia] read failed:", safeErrorDetails(error));
     return null;
   }
 }
@@ -115,7 +116,7 @@ async function runSync(
     }
     return target.uri;
   } catch (error) {
-    console.warn(`[ProfileMedia] ${kind} sync failed:`, error);
+    console.warn(`[ProfileMedia] ${kind} sync failed:`, safeErrorDetails(error));
     safeDelete(pending);
     return getCachedProfileMedia(kind, userId);
   }
@@ -125,7 +126,7 @@ export function removeProfileMedia(kind: ProfileMediaKind, userId: number) {
   try {
     for (const file of filesFor(kind, userId)) safeDelete(file);
   } catch (error) {
-    console.warn("[ProfileMedia] remove failed:", error);
+    console.warn("[ProfileMedia] remove failed:", safeErrorDetails(error));
   }
 }
 
@@ -135,6 +136,6 @@ export function clearProfileMedia() {
     const dir = new Directory(Paths.cache, DIR_NAME);
     if (dir.exists) dir.delete();
   } catch (error) {
-    console.warn("[ProfileMedia] clear failed:", error);
+    console.warn("[ProfileMedia] clear failed:", safeErrorDetails(error));
   }
 }

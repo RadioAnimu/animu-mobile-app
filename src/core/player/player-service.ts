@@ -1,3 +1,4 @@
+import { safeErrorDetails } from "@/utils/error-details";
 import type { HistoryType } from "animu-api";
 import type { MediaMetadata, PlaybackState, PlayerStatus } from "react-native-anything-player";
 import type { Stream } from "@/core/domain/stream";
@@ -136,7 +137,7 @@ export class PlayerService {
         if (this.loadedStreamId != null) return;
         void this.setupPlayer()
           .then(() => this.play())
-          .catch((error) => console.warn("[PlayerService] remote play:", error));
+          .catch((error) => console.warn("[PlayerService] remote play:", safeErrorDetails(error)));
       }),
     );
     heard.onChange = () => this.handleDisplayedTrackChange();
@@ -147,7 +148,7 @@ export class PlayerService {
       // have missed the item while it looks healthy).
       repository.expireStuckRefresh();
       void this.refreshData({ forceMetadata: true })
-        .catch((error) => console.warn("[PlayerService] refresh for heard title:", error))
+        .catch((error) => console.warn("[PlayerService] refresh for heard title:", safeErrorDetails(error)))
         .finally(() => heard.unresolved(title));
     };
     repository.onChange = (change) => {
@@ -309,7 +310,7 @@ export class PlayerService {
     try {
       await this.refreshData();
     } catch (error) {
-      console.warn("[PlayerService] setupPlayer: initial data fetch failed:", error);
+      console.warn("[PlayerService] setupPlayer: initial data fetch failed:", safeErrorDetails(error));
     }
     if (this.disposed) return;
     this.initialized = true;
@@ -355,7 +356,7 @@ export class PlayerService {
     try {
       await this.deps.player.release();
     } catch (error) {
-      console.error("[PlayerService] release failed:", error);
+      console.error("[PlayerService] release failed:", safeErrorDetails(error));
     }
   }
 
@@ -375,9 +376,9 @@ export class PlayerService {
         // pause — either way the next title (if any) is reported by status.
         await this.deps.player.play();
       }
-      void this.refreshData().catch((error) => console.warn("[PlayerService] refresh:", error));
+      void this.refreshData().catch((error) => console.warn("[PlayerService] refresh:", safeErrorDetails(error)));
     } catch (error) {
-      console.error("[PlayerService] Playback error:", error);
+      console.error("[PlayerService] Playback error:", safeErrorDetails(error));
       throw error;
     } finally {
       this.pendingPlay = false;
@@ -421,7 +422,7 @@ export class PlayerService {
       );
     } catch (error) {
       // Recoverable failures keep reconnecting natively; the status tells the UI.
-      console.warn("[PlayerService] load:", error);
+      console.warn("[PlayerService] load:", safeErrorDetails(error));
     }
   }
 
@@ -572,7 +573,7 @@ export class PlayerService {
           ? { duration: meta.durationSec, elapsed: elapsed / 1000 }
           : {}),
       })
-      .catch((error) => console.warn("[PlayerService] now playing:", error));
+      .catch((error) => console.warn("[PlayerService] now playing:", safeErrorDetails(error)));
   }
 
   /**
@@ -607,7 +608,7 @@ export class PlayerService {
     const cadence = this.isPlayingIntent ? POLL_PLAYING_MS : POLL_PAUSED_MS;
     if (Date.now() - this.lastPollAt >= cadence) {
       void this.refreshData().catch((error) => {
-        if (CONFIG.DEBUG) console.warn("[PlayerService] poll:", error);
+        if (CONFIG.DEBUG) console.warn("[PlayerService] poll:", safeErrorDetails(error));
       });
     }
   }

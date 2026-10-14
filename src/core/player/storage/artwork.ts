@@ -1,3 +1,4 @@
+import { safeErrorDetails } from "@/utils/error-details";
 import { Asset } from "expo-asset";
 import { File, Paths } from "expo-file-system";
 import { artworkSizeRank, type Artworks } from "animu-api";
@@ -148,7 +149,7 @@ export class ArtworkResolver {
       .catch((error) => {
         console.warn(
           "[ArtworkResolver] bundled default cover unavailable, keeping remote fallback:",
-          error,
+          safeErrorDetails(error),
         );
       });
     return this.initPromise;
@@ -239,8 +240,8 @@ export class ArtworkResolver {
     const promise = this.pipeline(url, startedAt)
       .catch((error) => {
         console.warn(
-          `[ArtDebug] resolve FAILED after ${Date.now() - startedAt}ms (${url}):`,
-          error,
+          `[ArtDebug] resolve FAILED after ${Date.now() - startedAt}ms:`,
+          safeErrorDetails(error),
         );
         return url;
       })
@@ -314,8 +315,8 @@ export class ArtworkResolver {
       }
     } catch (error) {
       console.warn(
-        `[ArtDebug] resolver direct download failed (${url}):`,
-        error,
+        `[ArtDebug] resolver direct download failed:`,
+        safeErrorDetails(error),
       );
       // Fall through to the original expo-asset path as a backup. The
       // direct attempt is deadline-bounded above; without the same guard

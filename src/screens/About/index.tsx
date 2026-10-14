@@ -1,3 +1,4 @@
+import { safeErrorDetails } from "@/utils/error-details";
 import type { ComponentProps } from "react";
 import { useState } from "react";
 import { Icon } from "@/components/Icon";
@@ -34,7 +35,7 @@ const MAINTAINER = "Ricardo Freitas (Ness)";
 
 const open = (url: string) => {
   void Linking.openURL(url).catch((error) =>
-    console.warn("[About] openURL failed:", error),
+    console.warn("[About] openURL failed:", safeErrorDetails(error)),
   );
 };
 

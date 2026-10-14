@@ -1,3 +1,4 @@
+import { safeErrorDetails } from "@/utils/error-details";
 import React from "react";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { DICT, FALLBACK_LANGUAGE } from "@/i18n";
@@ -28,7 +29,7 @@ class ErrorBoundary extends React.Component<Props, State> {
   }
 
   componentDidCatch(error: Error, info: React.ErrorInfo) {
-    console.error("[ErrorBoundary]", error, info.componentStack);
+    console.error("[ErrorBoundary]", safeErrorDetails(error), info.componentStack);
   }
 
   reset = () => {

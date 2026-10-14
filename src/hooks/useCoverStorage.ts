@@ -1,3 +1,4 @@
+import { safeErrorDetails } from "@/utils/error-details";
 import { useFocusEffect } from "@react-navigation/native";
 import { useCallback, useEffect, useRef, useState } from "react";
 
@@ -68,7 +69,7 @@ export function useCoverStorageSnapshot(
       if (aliveRef.current) setSnapshot(next);
       return next;
     } catch (error) {
-      console.warn("[useCoverStorage] measure failed:", error);
+      console.warn("[useCoverStorage] measure failed:", safeErrorDetails(error));
       if (aliveRef.current) setSnapshot(null);
       return null;
     } finally {

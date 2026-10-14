@@ -1,3 +1,4 @@
+import { safeErrorDetails } from "@/utils/error-details";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Icon } from "@/components/Icon";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
@@ -96,7 +97,7 @@ function LegalLine({ dict }: Readonly<{ dict: Dict }>) {
         accessibilityRole="link"
         onPress={() => {
           void Linking.openURL(API.PRIVACY_URL).catch((error) =>
-            console.warn("[Login] failed to open the privacy policy:", error),
+            console.warn("[Login] failed to open the privacy policy:", safeErrorDetails(error)),
           );
         }}
         style={styles.legalLink}
@@ -355,7 +356,7 @@ export function Login({ navigation }: Readonly<Props>) {
       if (err instanceof AuthFlowCancelled) {
         // User dismissed the prompt — not worth an error.
       } else {
-        console.error(`[Login] ${provider} sign-in failed:`, err);
+        console.error(`[Login] ${provider} sign-in failed:`, safeErrorDetails(err));
         setProviderError(dict.LOGIN_FAILED);
       }
     } finally {

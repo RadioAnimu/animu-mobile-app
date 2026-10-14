@@ -1,3 +1,4 @@
+import { safeErrorDetails } from "@/utils/error-details";
 import { Icon } from "@/components/Icon";
 import { Alert, Text, TouchableOpacity, View } from "react-native";
 
@@ -151,7 +152,7 @@ function CleanButton({
       const freed = after ? before - after.totalBytes : 0;
       if (freed > 0) notifyFreed(freed);
     } catch (error) {
-      console.warn("[CoverStorageCard] clear failed:", error);
+      console.warn("[CoverStorageCard] clear failed:", safeErrorDetails(error));
     }
   };
 

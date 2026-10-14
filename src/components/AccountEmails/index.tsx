@@ -1,3 +1,4 @@
+import { safeErrorDetails } from "@/utils/error-details";
 import { Fragment, useEffect, useState } from "react";
 import { Icon } from "@/components/Icon";
 import type { AuthAccountEmail, LinkedProvider } from "animu-api";
@@ -394,7 +395,7 @@ export function AccountEmails() {
                 haptics.success();
                 toast(dict.ACCOUNT_EMAIL_REMOVED);
               } catch (err) {
-                console.error("[AccountEmails] Remove email failed:", err);
+                console.error("[AccountEmails] Remove email failed:", safeErrorDetails(err));
                 showError(dict.ACCOUNT_ACTION_FAILED);
               } finally {
                 setRemoving(false);

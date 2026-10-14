@@ -1,3 +1,4 @@
+import { safeErrorDetails } from "@/utils/error-details";
 import { useNavigation } from "@react-navigation/native";
 import type { DrawerNavigationProp } from "@react-navigation/drawer";
 import { useEffect, useRef, useState } from "react";
@@ -193,7 +194,7 @@ export function HeaderBar({ openLiveRequestModal }: Readonly<Props>) {
                 }
                 setStatus(wasPlaying ? "paused" : "playing");
               } catch (error) {
-                console.warn("[HeaderBar] play/pause failed:", error);
+                console.warn("[HeaderBar] play/pause failed:", safeErrorDetails(error));
                 setStatus(wasPlaying ? "playing" : "paused");
               } finally {
                 changingRef.current = false;

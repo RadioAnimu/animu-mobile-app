@@ -1,3 +1,4 @@
+import { safeErrorDetails } from "@/utils/error-details";
 import type { ExternalStore } from "@/core/external-store";
 import {
   DICTIONARY_BYTES,
@@ -147,7 +148,7 @@ export class JapaneseDictionary {
         if (installed && this.snapshot.install === "none") this.update({ install: "installed", progress: 1 });
         if (!installed && this.snapshot.install !== "downloading") await this.deps.storage.removeAll();
       } catch (error) {
-        console.warn("[JapaneseDictionary] restore:", error);
+        console.warn("[JapaneseDictionary] restore:", safeErrorDetails(error));
       }
     })();
     return this.restored;
@@ -251,7 +252,7 @@ export class JapaneseDictionary {
         this.update({ install: "none", progress: 0, failure: null });
         return;
       }
-      console.warn("[JapaneseDictionary] install failed:", error);
+      console.warn("[JapaneseDictionary] install failed:", safeErrorDetails(error));
       this.update({ install: "error", progress: 0, failure: error instanceof NoSpace ? "space" : "network" });
     }
   }
@@ -369,7 +370,7 @@ export class JapaneseDictionary {
       this.update({ reader: "ready" });
       debugLog(`[JapaneseDictionary] reader ready in ${Date.now() - started} ms`);
     } catch (error) {
-      console.warn("[JapaneseDictionary] tokenizer build failed:", error);
+      console.warn("[JapaneseDictionary] tokenizer build failed:", safeErrorDetails(error));
       if (generation === this.generation) this.update({ reader: "error" });
     }
   }

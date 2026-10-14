@@ -1,3 +1,4 @@
+import { safeErrorDetails } from "@/utils/error-details";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 /**
@@ -48,7 +49,7 @@ export class CoverCacheRegistry {
         }
       })
       .catch((error) => {
-        console.warn("[CoverCacheRegistry] load failed:", error);
+        console.warn("[CoverCacheRegistry] load failed:", safeErrorDetails(error));
       });
     return this.loaded;
   }
@@ -132,7 +133,7 @@ export class CoverCacheRegistry {
   private softPersist(): Promise<void> {
     this.persistChain = this.persistChain.then(() => this.persist()).catch(
       (error) => {
-        console.warn("[CoverCacheRegistry] persist chain failed:", error);
+        console.warn("[CoverCacheRegistry] persist chain failed:", safeErrorDetails(error));
       },
     );
     return this.persistChain;

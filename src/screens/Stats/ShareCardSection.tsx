@@ -1,3 +1,4 @@
+import { safeErrorDetails } from "@/utils/error-details";
 import React, { useCallback, useRef, useState } from "react";
 import { Icon } from "@/components/Icon";
 import * as MediaLibrary from "expo-media-library";
@@ -125,7 +126,7 @@ export function ShareCardSection({
         // accumulate tmp files until the OS housekeeping runs.
         discardTmpFile(uri);
       } catch (error) {
-        console.warn("[ShareCard] failed:", error);
+        console.warn("[ShareCard] failed:", safeErrorDetails(error));
         toast(dict.STATS_CARD_FAILED);
       } finally {
         setBusy(null);

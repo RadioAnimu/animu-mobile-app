@@ -1,5 +1,5 @@
+import { safeErrorDetails } from "@/utils/error-details";
 import { useEffect, useMemo, useState } from "react";
-import { InteractionManager } from "react-native";
 import { useUserSettings } from "@/contexts/user/UserSettingsProvider";
 import { japaneseDictionary, type JapaneseDictionarySnapshot, type JapaneseReader } from "@/core/japanese";
 import type { Lyrics } from "@/core/lyrics/types";
@@ -113,10 +113,10 @@ export function usePronunciation(lyrics: Lyrics | null): Pronunciation {
 
   useEffect(() => {
     if (!installed) return undefined;
-    const task = InteractionManager.runAfterInteractions(() => {
+    const task = requestIdleCallback(() => {
       japaneseDictionary.loadReader().catch(() => {});
     });
-    return () => task.cancel();
+    return () => cancelIdleCallback(task);
   }, [installed]);
 
   // The reader holds tens of MB: let go a while after the lyrics close
@@ -134,7 +134,7 @@ export function usePronunciation(lyrics: Lyrics | null): Pronunciation {
       .then((labels) => {
         if (!cancelled) setRead({ lyrics, mode, reader, labels });
       })
-      .catch((error) => console.warn("[Lyrics] pronunciation:", error));
+      .catch((error) => console.warn("[Lyrics] pronunciation:", safeErrorDetails(error)));
     return () => {
       cancelled = true;
     };

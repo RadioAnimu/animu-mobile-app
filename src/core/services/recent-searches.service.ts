@@ -1,3 +1,4 @@
+import { safeErrorDetails } from "@/utils/error-details";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const STORAGE_KEY = "recentSearches";
@@ -34,7 +35,7 @@ class RecentSearchesService {
     try {
       await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(next));
     } catch (error) {
-      console.warn("[RecentSearches] save failed:", error);
+      console.warn("[RecentSearches] save failed:", safeErrorDetails(error));
     }
     return next;
   }
@@ -45,7 +46,7 @@ class RecentSearchesService {
     try {
       await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(next));
     } catch (error) {
-      console.warn("[RecentSearches] save failed:", error);
+      console.warn("[RecentSearches] save failed:", safeErrorDetails(error));
     }
     return next;
   }
@@ -54,7 +55,7 @@ class RecentSearchesService {
     try {
       await AsyncStorage.removeItem(STORAGE_KEY);
     } catch (error) {
-      console.warn("[RecentSearches] clear failed:", error);
+      console.warn("[RecentSearches] clear failed:", safeErrorDetails(error));
     }
   }
 }

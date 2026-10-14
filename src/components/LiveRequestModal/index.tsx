@@ -1,3 +1,4 @@
+import { safeErrorDetails } from "@/utils/error-details";
 import { useState } from "react";
 import type { TextInput } from "react-native";
 
@@ -125,7 +126,7 @@ export function LiveRequestModal({ visible, handleClose }: Readonly<Props>) {
         fail(t.REQUEST_ERROR);
       }
     } catch (error) {
-      console.error("[LiveRequestModal] Submit failed:", error);
+      console.error("[LiveRequestModal] Submit failed:", safeErrorDetails(error));
       fail(t.REQUEST_ERROR);
     }
   };

@@ -782,8 +782,8 @@ describe("PlayerService on react-native-anything-player", () => {
     vi.advanceTimersByTime(6_000);
     t.tick();
     await vi.runAllTimersAsync();
-    expect(warn).toHaveBeenCalledWith("[PlayerService] load:", expect.any(Error));
-    expect(warn).toHaveBeenCalledWith("[PlayerService] now playing:", expect.any(Error));
+    expect(warn).toHaveBeenCalledWith("[PlayerService] load:", { type: "Error" });
+    expect(warn).toHaveBeenCalledWith("[PlayerService] now playing:", { type: "Error" });
     warn.mockRestore();
     vi.useRealTimers();
   });
@@ -846,7 +846,7 @@ describe("PlayerService on react-native-anything-player", () => {
     await t.service.destroy();
     await setupDone;
     expect(t.onDestroyed).toHaveBeenCalledTimes(1);
-    expect(error).toHaveBeenCalledWith("[PlayerService] release failed:", expect.any(Error));
+    expect(error).toHaveBeenCalledWith("[PlayerService] release failed:", { type: "Error" });
     expect(playerStore.getSnapshot().isInitialized).toBe(false);
     await t.service.pause();
     expect(t.player.pause).not.toHaveBeenCalled();

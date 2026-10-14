@@ -1,3 +1,4 @@
+import { safeErrorDetails } from "@/utils/error-details";
 import { useState } from "react";
 import { Text, View } from "react-native";
 
@@ -110,7 +111,7 @@ export function RequestBottomSheet({
         fail(result.message);
       }
     } catch (error) {
-      console.warn("[RequestBottomSheet] submit failed:", error);
+      console.warn("[RequestBottomSheet] submit failed:", safeErrorDetails(error));
       fail(dict.REQUEST_ERROR);
     }
   };

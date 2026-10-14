@@ -72,7 +72,7 @@ describe("ErrorBoundary", () => {
     expect(screen.queryByText("healthy child")).toBeNull();
     expect(errorSpy).toHaveBeenCalledWith(
       "[ErrorBoundary]",
-      expect.objectContaining({ message: "boom" }),
+      { type: "Error" },
       expect.any(String),
     );
   });

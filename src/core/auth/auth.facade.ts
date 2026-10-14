@@ -1,3 +1,4 @@
+import { safeErrorDetails } from "@/utils/error-details";
 import type {
   AuthEmailCodeParams,
   AuthEmailRequestResult,
@@ -60,7 +61,7 @@ export class AuthFacade {
     try {
       server = await this.api.getProviders();
     } catch (error) {
-      console.error("[AuthFacade] Failed to fetch providers:", error);
+      console.error("[AuthFacade] Failed to fetch providers:", safeErrorDetails(error));
     }
     // Always surface the known providers — even ones the server has not
     // enabled yet — so the login screen can advertise them as "coming soon".

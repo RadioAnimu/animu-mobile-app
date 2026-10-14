@@ -1,3 +1,4 @@
+import { safeErrorDetails } from "@/utils/error-details";
 import { ValidationError } from "animu-api";
 
 import type { RequestSubmitResult } from "@/core/domain/request-result";
@@ -38,7 +39,7 @@ export class RequestSubmitGuard {
       if (error instanceof ValidationError) {
         return { success: false, error: "VALIDATION", detail: error.message };
       }
-      console.error("[RequestSubmitGuard] Submit failed:", error);
+      console.error("[RequestSubmitGuard] Submit failed:", safeErrorDetails(error));
       return { success: false, error: "REQUEST_ERROR" };
     } finally {
       this.isSubmitting = false;

@@ -1,3 +1,4 @@
+import { safeErrorDetails } from "@/utils/error-details";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import type * as SecureStoreTypes from "expo-secure-store";
 import type { SessionStorePort, StoredSession } from "@/core/auth/ports";
@@ -67,7 +68,7 @@ export class SecureSessionStore implements SessionStorePort {
     } catch (error) {
       console.warn(
         "[SessionStore] SecureStore native module unavailable — cannot persist sessions:",
-        error,
+        safeErrorDetails(error),
       );
       this.secureStore = null;
     }
@@ -83,7 +84,7 @@ export class SecureSessionStore implements SessionStorePort {
     } catch (error) {
       console.warn(
         "[SessionStore] SecureStore unavailable; cannot persist sessions:",
-        error,
+        safeErrorDetails(error),
       );
       this.secureAvailable = false;
     }
@@ -120,7 +121,7 @@ export class SecureSessionStore implements SessionStorePort {
 
       return null;
     } catch (error) {
-      console.error("[SessionStore] Failed to read session:", error);
+      console.error("[SessionStore] Failed to read session:", safeErrorDetails(error));
       return null;
     }
   }
@@ -193,7 +194,7 @@ export class SecureSessionStore implements SessionStorePort {
     try {
       return await store.getItemAsync(TOKEN_KEY);
     } catch (error) {
-      console.error("[SessionStore] Failed to read token:", error);
+      console.error("[SessionStore] Failed to read token:", safeErrorDetails(error));
       return null;
     }
   }

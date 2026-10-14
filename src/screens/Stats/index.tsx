@@ -1,3 +1,4 @@
+import { safeErrorDetails } from "@/utils/error-details";
 import { useCallback, useMemo, useState } from "react";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { useFocusEffect } from "@react-navigation/native";
@@ -66,7 +67,7 @@ export function Stats({ navigation }: Readonly<Props>) {
       setSnap(listenStatsService.getSnapshot());
       toast(dict.ACCOUNT_REFRESHED);
     } catch (error) {
-      console.warn("[Stats] refresh failed:", error);
+      console.warn("[Stats] refresh failed:", safeErrorDetails(error));
       toast(dict.STATS_CARD_FAILED);
     } finally {
       setRefreshing(false);

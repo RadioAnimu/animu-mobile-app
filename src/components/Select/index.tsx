@@ -1,3 +1,4 @@
+import { safeErrorDetails } from "@/utils/error-details";
 import { Icon } from "@/components/Icon";
 import { useState, type ReactNode } from "react";
 import {
@@ -120,7 +121,7 @@ export function Select<T extends string>({
       layoutEase();
       setOpen(false);
     } catch (error) {
-      console.warn("[Select] change failed:", error);
+      console.warn("[Select] change failed:", safeErrorDetails(error));
     } finally {
       setApplyingKey(null);
     }

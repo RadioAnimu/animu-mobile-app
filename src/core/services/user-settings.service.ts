@@ -1,3 +1,4 @@
+import { safeErrorDetails } from "@/utils/error-details";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { UserSettings } from "@/@types/user-settings";
 import { DEFAULT_USER_SETTINGS } from "@/constants/settings";
@@ -44,7 +45,7 @@ class UserSettingsService {
       await AsyncStorage.setItem("userSettings", JSON.stringify(newSettings));
       this.settings = newSettings;
     } catch (error) {
-      console.error("Failed to save settings:", error);
+      console.error("Failed to save settings:", safeErrorDetails(error));
       throw error;
     }
   }

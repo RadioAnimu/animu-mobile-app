@@ -1,3 +1,4 @@
+import { safeErrorDetails } from "@/utils/error-details";
 type Task = {
   id: string;
   callback: () => Promise<void>;
@@ -77,7 +78,7 @@ class BackgroundService {
         try {
           await task.callback();
         } catch (error) {
-          console.error(`[BackgroundService] Task ${taskId} failed:`, error);
+          console.error(`[BackgroundService] Task ${taskId} failed:`, safeErrorDetails(error));
         } finally {
           this.running.delete(taskId);
           this.scheduleRun(taskId);

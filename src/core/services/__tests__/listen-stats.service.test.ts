@@ -609,7 +609,7 @@ describe("listenStatsService persistence scheduling", () => {
 
     expect(warn).toHaveBeenCalledWith(
       "[ListenStats] save failed:",
-      expect.any(Error),
+      { type: "Error" },
     );
     expect(service.getSnapshot().totalShouts).toBe(1);
   });
@@ -645,7 +645,7 @@ describe("listenStatsService persistence scheduling", () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     vi.mocked(AsyncStorage.removeItem).mockRejectedValueOnce(new Error("io"));
     await expect(service.reset()).resolves.toBeUndefined();
-    expect(warn).toHaveBeenCalledWith("[ListenStats] reset failed:", expect.any(Error));
+    expect(warn).toHaveBeenCalledWith("[ListenStats] reset failed:", { type: "Error" });
   });
 });
 

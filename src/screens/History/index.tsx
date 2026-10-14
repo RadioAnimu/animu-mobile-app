@@ -1,3 +1,4 @@
+import { safeErrorDetails } from "@/utils/error-details";
 import { useCallback, useMemo, useRef, useState } from "react";
 import {
   FlatList,
@@ -73,7 +74,7 @@ export function History({ route }: Readonly<Props>) {
         await player.refreshHistory("played");
       }
     } catch (error) {
-      console.warn("[History] refresh failed:", error);
+      console.warn("[History] refresh failed:", safeErrorDetails(error));
       toast(dict.REQUEST_ERROR);
     } finally {
       setRefreshing(false);

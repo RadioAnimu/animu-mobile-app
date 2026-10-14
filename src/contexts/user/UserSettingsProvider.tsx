@@ -1,3 +1,4 @@
+import { safeErrorDetails } from "@/utils/error-details";
 import React, {
   createContext,
   useCallback,
@@ -71,7 +72,7 @@ export const UserSettingsProvider: React.FC<{ children: React.ReactNode }> = ({
       applySettings(initialSettings);
     })();
     updateChainRef.current = run.catch((error) => {
-      console.error("Settings initialization failed:", error);
+      console.error("Settings initialization failed:", safeErrorDetails(error));
     });
   }, []);
 
@@ -97,7 +98,7 @@ export const UserSettingsProvider: React.FC<{ children: React.ReactNode }> = ({
         previous.cacheEnabled && !updatedSettings.cacheEnabled;
       if (cacheTurningOff) {
         await coverDiskStorage.clearAll().catch((error) => {
-          console.warn("[UserSettings] cache wipe on disable failed:", error);
+          console.warn("[UserSettings] cache wipe on disable failed:", safeErrorDetails(error));
         });
       }
 
@@ -119,7 +120,7 @@ export const UserSettingsProvider: React.FC<{ children: React.ReactNode }> = ({
             updatedSettings.coverCachePartitionBytes,
           )
           .catch((error) => {
-            console.warn("[UserSettings] cache trim on limit change failed:", error);
+            console.warn("[UserSettings] cache trim on limit change failed:", safeErrorDetails(error));
           });
       }
 
@@ -130,7 +131,7 @@ export const UserSettingsProvider: React.FC<{ children: React.ReactNode }> = ({
       // the new tier still applies and surfaces re-download what they miss.
       if (previous.liveQualityCover !== updatedSettings.liveQualityCover) {
         await coverDiskStorage.clearAll().catch((error) => {
-          console.warn("[UserSettings] cache wipe on quality change failed:", error);
+          console.warn("[UserSettings] cache wipe on quality change failed:", safeErrorDetails(error));
         });
       }
 
@@ -143,12 +144,12 @@ export const UserSettingsProvider: React.FC<{ children: React.ReactNode }> = ({
         // toggle that reverts on the next launch is the worse failure).
         console.error(
           "[UserSettings] update not applied — persist failed:",
-          error,
+          safeErrorDetails(error),
         );
       }
     });
     updateChainRef.current = run.catch((error) => {
-      console.error("Settings update chain failed:", error);
+      console.error("Settings update chain failed:", safeErrorDetails(error));
     });
     return run;
   }, []);
@@ -165,18 +166,18 @@ export const UserSettingsProvider: React.FC<{ children: React.ReactNode }> = ({
         DEFAULT_USER_SETTINGS.liveQualityCover
       ) {
         await coverDiskStorage.clearAll().catch((error) => {
-          console.warn("[UserSettings] cache wipe on reset failed:", error);
+          console.warn("[UserSettings] cache wipe on reset failed:", safeErrorDetails(error));
         });
       }
       try {
         await userSettingsService.updateSettings(DEFAULT_USER_SETTINGS);
         applySettings(DEFAULT_USER_SETTINGS);
       } catch (error) {
-        console.error("[UserSettings] reset not applied — persist failed:", error);
+        console.error("[UserSettings] reset not applied — persist failed:", safeErrorDetails(error));
       }
     });
     updateChainRef.current = run.catch((error) => {
-      console.error("Settings reset chain failed:", error);
+      console.error("Settings reset chain failed:", safeErrorDetails(error));
     });
     return run;
   }, []);

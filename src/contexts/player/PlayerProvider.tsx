@@ -1,3 +1,4 @@
+import { safeErrorDetails } from "@/utils/error-details";
 import React, {
   createContext,
   useContext,
@@ -147,7 +148,7 @@ export const PlayerProvider: React.FC<{
 
     const playFromAssistant = () => {
       playerServiceInstance.play().catch((error) => {
-        console.warn("[PlayerProvider] Assistant play failed:", error);
+        console.warn("[PlayerProvider] Assistant play failed:", safeErrorDetails(error));
       });
     };
 
@@ -178,7 +179,7 @@ export const PlayerProvider: React.FC<{
           playFromAssistant();
         }
       } catch (error) {
-        console.error("[PlayerProvider] Player initialization failed:", error);
+        console.error("[PlayerProvider] Player initialization failed:", safeErrorDetails(error));
         // The service never flipped its initialized flag, so the store
         // still reflects the uninitialized state — nothing to re-emit.
       }
@@ -191,7 +192,7 @@ export const PlayerProvider: React.FC<{
 
       unsubscribeAssistant?.();
 
-      playerServiceInstance.destroy().catch(console.error);
+      playerServiceInstance.destroy().catch((error) => console.error("[Async operation] failed:", safeErrorDetails(error)));
     };
   }, [playerServiceInstance]);
 
@@ -202,7 +203,7 @@ export const PlayerProvider: React.FC<{
   // foreground edge from the raw status it exposes.
   useEffect(() => {
     if (appState === "active" && playerServiceInstance.isReady) {
-      void playerServiceInstance.refreshData().catch(console.error);
+      void playerServiceInstance.refreshData().catch((error) => console.error("[Async operation] failed:", safeErrorDetails(error)));
     }
   }, [appState, playerServiceInstance]);
 
@@ -223,7 +224,7 @@ export const PlayerProvider: React.FC<{
     try {
       await playerServiceInstance.play();
     } catch (error) {
-      console.error("[PlayerProvider] Play error:", error);
+      console.error("[PlayerProvider] Play error:", safeErrorDetails(error));
     }
   }, [playerServiceInstance]);
 
@@ -231,7 +232,7 @@ export const PlayerProvider: React.FC<{
     try {
       await playerServiceInstance.pause();
     } catch (error) {
-      console.error("[PlayerProvider] Pause error:", error);
+      console.error("[PlayerProvider] Pause error:", safeErrorDetails(error));
     }
   }, [playerServiceInstance]);
 
@@ -240,7 +241,7 @@ export const PlayerProvider: React.FC<{
       try {
         await playerServiceInstance.changeStream(stream);
       } catch (error) {
-        console.error("[PlayerProvider] Stream change error:", error);
+        console.error("[PlayerProvider] Stream change error:", safeErrorDetails(error));
       }
     },
     [playerServiceInstance],
@@ -250,7 +251,7 @@ export const PlayerProvider: React.FC<{
     try {
       await playerServiceInstance.refreshData();
     } catch (error) {
-      console.error("[PlayerProvider] Error refreshing data:", error);
+      console.error("[PlayerProvider] Error refreshing data:", safeErrorDetails(error));
     }
   }, [playerServiceInstance]);
 
@@ -259,7 +260,7 @@ export const PlayerProvider: React.FC<{
       try {
         await playerServiceInstance.refreshHistory(type);
       } catch (error) {
-        console.error("[PlayerProvider] Error refreshing history:", error);
+        console.error("[PlayerProvider] Error refreshing history:", safeErrorDetails(error));
       }
     },
     [playerServiceInstance],

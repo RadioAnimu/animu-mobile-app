@@ -1,3 +1,4 @@
+import { safeErrorDetails } from "@/utils/error-details";
 import { useCallback, useState, type RefObject } from "react";
 import type { FlatList } from "react-native";
 
@@ -79,7 +80,7 @@ export function useTrackSearch({
         scrollToTop();
         onSearched(query);
       } catch (err) {
-        console.error("[MakeRequest] search failed:", err);
+        console.error("[MakeRequest] search failed:", safeErrorDetails(err));
         if (!isCurrent(requestId)) return;
         setSearchFailed(true);
         setState((prev) => ({ ...prev, status: "idle" }));
@@ -112,7 +113,7 @@ export function useTrackSearch({
         status: "idle",
       }));
     } catch (err) {
-      console.error("[MakeRequest] search failed:", err);
+      console.error("[MakeRequest] search failed:", safeErrorDetails(err));
       if (!isCurrent(requestId)) return;
       setState((prev) => ({ ...prev, status: "idle" }));
       toast(dict.REQUEST_SEARCH_ERROR, "error");
@@ -135,7 +136,7 @@ export function useTrackSearch({
       });
       scrollToTop();
     } catch (err) {
-      console.error("[MakeRequest] search failed:", err);
+      console.error("[MakeRequest] search failed:", safeErrorDetails(err));
       // Same staleness rules as `search`: a slow refresh landing after a
       // newer search must not toast over the newer state, and the error
       // banner rides the same failure flag so the UI stays consistent.

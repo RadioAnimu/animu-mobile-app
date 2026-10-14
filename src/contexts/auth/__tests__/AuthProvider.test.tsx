@@ -218,7 +218,7 @@ describe("AuthProvider", () => {
       await waitFor(() =>
         expect(consoleError).toHaveBeenCalledWith(
           "[AuthProvider] Initialization failed:",
-          failure,
+          { type: "Error" },
         ),
       );
 
@@ -283,7 +283,7 @@ describe("AuthProvider", () => {
       expect(mocks.facade.forget).not.toHaveBeenCalled();
       expect(consoleError).toHaveBeenCalledWith(
         "[AuthProvider] Session check failed:",
-        failure,
+        { type: "Error" },
       );
     });
 
@@ -418,7 +418,7 @@ describe("AuthProvider", () => {
       expect(result.current.profile).toBeNull();
       expect(consoleError).toHaveBeenCalledWith(
         "[AuthProvider] Logout failed:",
-        expect.any(Error),
+        { type: "Error" },
       );
     });
 

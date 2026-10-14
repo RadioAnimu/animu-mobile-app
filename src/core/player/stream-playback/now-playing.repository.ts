@@ -1,3 +1,4 @@
+import { safeErrorDetails } from "@/utils/error-details";
 import type {
   ArtworkQuality,
   HistoryType,
@@ -313,7 +314,7 @@ export class NowPlayingRepository {
         onError: (error) => {
           // The client reconnects with its own backoff; this only logs.
           // The stale marker below is what re-routes the poll to HTTP.
-          console.warn("[NowPlayingRepository] live stream error:", error);
+          console.warn("[NowPlayingRepository] live stream error:", safeErrorDetails(error));
           this.lastLiveEventAt = null;
           this.liveTrackCurrent = false;
         },
@@ -512,11 +513,11 @@ export class NowPlayingRepository {
       // noise, no retry re-arming over a newer run's head.
       if (epoch !== this.refreshEpoch || this.disposed) return false;
 
-      console.error("[NowPlayingRepository] Error refreshing data:", error);
+      console.error("[NowPlayingRepository] Error refreshing data:", safeErrorDetails(error));
 
       // ── Network / API error: exponential backoff retry ──
       this.retryScheduler.schedule(() => {
-        void this.refresh().catch(console.error);
+        void this.refresh().catch((error) => console.error("[Async operation] failed:", safeErrorDetails(error)));
       });
 
       return false;
@@ -702,7 +703,7 @@ export class NowPlayingRepository {
     } catch (error) {
       console.error(
         `[NowPlayingRepository] Error refreshing ${type} history:`,
-        error,
+        safeErrorDetails(error),
       );
     }
   }
@@ -733,7 +734,7 @@ export class NowPlayingRepository {
 
     this.trackEndTimerId = this.options.timer.set(() => {
       this.trackEndTimerId = null;
-      void this.refresh().catch(console.error);
+      void this.refresh().catch((error) => console.error("[Async operation] failed:", safeErrorDetails(error)));
     }, delay);
   }
 

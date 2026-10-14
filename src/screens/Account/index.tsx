@@ -1,3 +1,4 @@
+import { safeErrorDetails } from "@/utils/error-details";
 import { useState } from "react";
 import { Icon } from "@/components/Icon";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
@@ -62,7 +63,7 @@ export function Account({ navigation }: Readonly<Props>) {
       ) {
         showError(dict.ACCOUNT_LAST_PROVIDER);
       } else {
-        console.error(`[Account] ${key} action failed:`, error);
+        console.error(`[Account] ${key} action failed:`, safeErrorDetails(error));
         showError(dict.ACCOUNT_ACTION_FAILED);
       }
     } finally {

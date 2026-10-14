@@ -1,5 +1,7 @@
+import { safeErrorDetails } from "@/utils/error-details";
 import { isRealTrack, type Track } from "@/core/domain/track";
 import type { ExternalStore } from "@/core/external-store";
+import { bracketGroups, withoutBracketGroups } from "@/core/lyrics/brackets";
 import { detectLanguage } from "@/core/lyrics/language";
 import { buildTimeline, parseLrc, plainLines, syncedToPlain } from "@/core/lyrics/lrc";
 import { inJapaneseScript, isTimedFor, pickBest, type ScoredCandidate } from "@/core/lyrics/matcher";
@@ -17,7 +19,7 @@ export const MISS_TTL_MS = 12 * 60 * 60 * 1000;
 const MEMORY_ENTRIES = 40;
 
 /** Bracketed or tilde-wrapped qualifiers: `(Opening)`, `~Hajimari no~`. */
-const QUALIFIERS = /[([{【「『≪［（][^)\]}】」』≫］）]*[)\]}】」』≫］）]|[~〜～][^~〜～]*[~〜～]?/g;
+const TILDE_QUALIFIERS = /[~〜～][^~〜～]*[~〜～]?/g;
 /** A trailing `-English Ver.-`. */
 const DASHED_SUFFIX = /\s-[^-]+-\s*$/;
 const FEATURING = /\s(?:feat\.?|ft\.?|featuring)\s.*$/i;
@@ -29,8 +31,8 @@ const SECOND_CREDIT = /[(（,、/]|\s(?:feat|ft|featuring|with|vs)\b/i;
 
 /** Title without qualifiers (`Sanctuary (Opening)` → `Sanctuary`), for queries. */
 export function queryTitle(title: string): string {
-  const core = title
-    .replace(QUALIFIERS, " ")
+  const core = withoutBracketGroups(title, bracketGroups(title, "([{【「『≪［（", ")]}】」』≫］）"))
+    .replace(TILDE_QUALIFIERS, " ")
     .replace(DASHED_SUFFIX, " ")
     .replace(FEATURING, " ")
     .replace(/\s+/g, " ")
@@ -150,7 +152,7 @@ export class LyricsService {
       const lyrics = await this.lookup(key, track, force);
       if (this.current?.key === key) this.emit(key, lyrics);
     } catch (error) {
-      console.warn("[LyricsService] lookup failed:", error);
+      console.warn("[LyricsService] lookup failed:", safeErrorDetails(error));
       if (this.current?.key === key) {
         this.deps.store.setSnapshot({ status: "error", trackKey: key, lyrics: null });
       }
@@ -189,7 +191,7 @@ export class LyricsService {
       if (complete || result.kind === "match") {
         await this.deps.cache
           .write(key, { savedAt: this.now(), result })
-          .catch((error) => console.warn("[LyricsService] cache write failed:", error));
+          .catch((error) => console.warn("[LyricsService] cache write failed:", safeErrorDetails(error)));
       }
     }
     const lyrics = toLyrics(result);

@@ -1,3 +1,4 @@
+import { safeErrorDetails } from "@/utils/error-details";
 import { Linking as RNLinking } from "react-native";
 import * as ExpoLinking from "expo-linking";
 
@@ -65,7 +66,7 @@ export function subscribeAssistantActions(
       if (action) handler(action);
     })
     .catch((error) => {
-      console.warn("[Assistant] getInitialURL failed:", error);
+      console.warn("[Assistant] getInitialURL failed:", safeErrorDetails(error));
     });
 
   return () => {
