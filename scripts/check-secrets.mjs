@@ -19,18 +19,35 @@ const [platform, checksum] = distribution;
 const cache = path.join(process.env.XDG_CACHE_HOME || os.tmpdir(), `animu-gitleaks-${version}-${platform}`);
 fs.mkdirSync(cache, { recursive: true, mode: 0o700 });
 const archive = path.join(cache, "tool.tar.gz");
-function verifiedArchive() {
-  return fs.existsSync(archive) && createHash("sha256").update(fs.readFileSync(archive)).digest("hex") === checksum;
+function cachedArchive() {
+  let fd;
+  try {
+    fd = fs.openSync(archive, fs.constants.O_RDONLY | fs.constants.O_NOFOLLOW);
+    if (fs.fstatSync(fd).size > 64 * 1024 * 1024) throw new Error("Gitleaks cache exceeds size limit");
+    return fs.readFileSync(fd);
+  } catch (error) {
+    if (error.code !== "ENOENT") throw error;
+  } finally { if (fd !== undefined) fs.closeSync(fd); }
 }
-if (!verifiedArchive()) {
+const matches = bytes => bytes && createHash("sha256").update(bytes).digest("hex") === checksum;
+let bytes = cachedArchive();
+if (!matches(bytes)) {
   const response = await fetch(`https://github.com/gitleaks/gitleaks/releases/download/v${version}/gitleaks_${version}_${platform}.tar.gz`, { signal: AbortSignal.timeout(45000) });
   if (!response.ok) throw new Error(`Gitleaks download failed (${response.status})`);
-  fs.writeFileSync(archive, Buffer.from(await response.arrayBuffer()), { mode: 0o600 });
-  if (!verifiedArchive()) throw new Error("Gitleaks archive checksum mismatch");
+  bytes = Buffer.from(await response.arrayBuffer());
+  if (!matches(bytes)) throw new Error("Gitleaks archive checksum mismatch");
+  const fd = fs.openSync(archive, fs.constants.O_WRONLY | fs.constants.O_CREAT | fs.constants.O_NOFOLLOW, 0o600);
+  try { fs.ftruncateSync(fd, 0); fs.writeFileSync(fd, bytes); }
+  finally { fs.closeSync(fd); }
 }
-// Re-extract verified bytes; don't trust a previously cached executable.
-execFileSync("tar", ["-xzf", archive, "-C", cache, "gitleaks"]);
-const scanner = path.join(cache, "gitleaks");
+// Extract and execute the same verified bytes in a private directory. Shared
+// cache mutation cannot replace the executable between verification and use.
+const temporary = fs.mkdtempSync(path.join(os.tmpdir(), "animu-gitleaks-run-"));
+try {
+  const verified = path.join(temporary, "tool.tar.gz");
+  fs.writeFileSync(verified, bytes, { flag: "wx", mode: 0o600 });
+  execFileSync("tar", ["-xzf", verified, "-C", temporary, "gitleaks"]);
+  const scanner = path.join(temporary, "gitleaks");
 for (const dir of [root, ...Object.keys(libraries).map((name) => path.join(root, "packages", name))]) {
   const shallow = execFileSync("git", ["rev-parse", "--is-shallow-repository"], { cwd: dir, encoding: "utf8" }).trim();
   if (shallow !== "false") throw new Error(`Full Git history required for secret scanning: ${path.basename(dir)}`);
@@ -51,3 +68,5 @@ for (const dir of [root, ...Object.keys(libraries).map((name) => path.join(root,
     execFileSync(scanner, ["dir", snapshot, ...flags], { stdio: "inherit" });
   } finally { fs.rmSync(snapshot, { recursive: true, force: true }); }
 }
+
+} finally { fs.rmSync(temporary, { recursive: true, force: true }); }
