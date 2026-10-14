@@ -19,8 +19,8 @@ interface Props {
 }
 
 /**
- * Apple Music's sheet head: the grabber (tap or swipe down to close) and the
- * song (cover, title, artist).
+ * Apple Music's sheet head: the grabber and the song (cover, title, artist).
+ * Tapping either, or swiping down on the head, closes the lyrics.
  */
 export function LyricsHeader({ cover, title, subtitle, onClose }: Readonly<Props>) {
   const insets = useSafeAreaInsets();
@@ -45,7 +45,14 @@ export function LyricsHeader({ cover, title, subtitle, onClose }: Readonly<Props
         >
           <View style={styles.grabber} />
         </TouchableOpacity>
-        <View style={styles.header}>
+        <TouchableOpacity
+          accessibilityRole="button"
+          accessibilityLabel={subtitle ? `${title}, ${subtitle}` : title}
+          accessibilityHint={dict.A11Y_CLOSE_LYRICS}
+          activeOpacity={THEME.OPACITY.PRESSED}
+          onPress={onClose}
+          style={styles.header}
+        >
           {cover ? <Cover cover={cover} style={styles.thumbnail} category="live" /> : null}
           <View style={styles.headerText}>
             <Text style={styles.title} numberOfLines={1} maxFontSizeMultiplier={THEME.FONT_SCALE.CHROME}>
@@ -55,7 +62,7 @@ export function LyricsHeader({ cover, title, subtitle, onClose }: Readonly<Props
               {subtitle}
             </Text>
           </View>
-        </View>
+        </TouchableOpacity>
       </View>
     </GestureDetector>
   );
