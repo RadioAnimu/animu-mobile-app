@@ -1,5 +1,6 @@
 """Anonymous Release launch smoke check; does not claim authenticated E2E."""
 import json
+import os
 import pathlib
 import subprocess
 import sys
@@ -30,7 +31,8 @@ def main(app, output):
     run("openurl", udid, "animuapp://assistant/play")
     time.sleep(20)
     # Launching succeeded is insufficient: catch a process that dies afterwards.
-    run("spawn", udid, "kill", "-0", str(pid))
+    # CoreSimulator apps are host processes; iOS has no bundled `kill` executable.
+    os.kill(pid, 0)
     run("io", udid, "screenshot", str(output / "ios-launch.png"))
     result = {"device": device["name"], "releaseProcessRemainedAlive": True,
               "assistantPlayLinkDelivered": True, "authenticatedFlowsValidated": False,
