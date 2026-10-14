@@ -82,7 +82,7 @@
     "@types/react": "~19.2.18",
     "@types/react-dom": "~19.2.7",
     "@vitest/coverage-v8": "^5.0.2",
-    "babel-preset-expo": "~57.0.14",
+    "babel-preset-expo": "~58.0.12",
     "eslint": "^9.39.5",
     "eslint-config-expo": "~57.0.2",
     "eslint-plugin-sonarjs": "^4.2.1",
