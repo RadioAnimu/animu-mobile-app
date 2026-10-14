@@ -7,6 +7,11 @@ export function validateDoctorReport(report, directory) {
     if (project.complete !== true || project.analyzedFileCount < 1 || project.scannedFileCount < 1 || !Array.isArray(project.skippedChecks) || project.skippedChecks.length) throw new Error("Incomplete React Doctor scan");
   }
   const diagnostics = projects.flatMap(p => p.diagnostics ?? []);
+  if (diagnostics.some(d => typeof d.id !== "string" || !["error", "warning"].includes(d.severity)) ||
+      new Set(diagnostics.map(d => d.id)).size !== diagnostics.length) throw new Error("Invalid or duplicate diagnostic identity");
   if (!Number.isFinite(report.summary.totalDiagnosticCount) || report.summary.totalDiagnosticCount !== diagnostics.length) throw new Error("Inconsistent diagnostic count");
+  for (const severity of ["error", "warning"]) {
+    if (report.summary[`${severity}Count`] !== diagnostics.filter(d => d.severity === severity).length) throw new Error("Inconsistent diagnostic severity count");
+  }
   return diagnostics;
 }

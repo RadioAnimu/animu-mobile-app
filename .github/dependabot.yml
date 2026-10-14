@@ -25,6 +25,7 @@ updates:
       # them as expo.install.exclude, so Expo doesn't manage them.
       - dependency-name: "expo"
       - dependency-name: "expo-*"
+      - dependency-name: "babel-preset-expo"
       - dependency-name: "react"
       - dependency-name: "react-dom"
       - dependency-name: "react-native"

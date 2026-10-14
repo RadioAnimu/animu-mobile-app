@@ -18,6 +18,29 @@ minimumReleaseAge: 4320
 # ...which is what this exclusion is for: the Expo/RN packages we track
 # deliberately (and bump together with the SDK) skip the 3-day wait.
 minimumReleaseAgeExclude:
+  # Verified October 14 Expo release 0607af7a70d0ea3e58a6d55824aac5cfd3e78613.
+  - "expo@57.0.29"
+  - "expo-auth-session@57.0.16"
+  - "@expo/cli@57.0.30"
+  - "expo-asset@57.0.20"
+  - "expo-constants@57.0.22"
+  - "expo-modules-core@57.0.23"
+  - "expo-modules-autolinking@57.0.16"
+  - "expo-linking@57.0.13"
+  - "@expo/prebuild-config@57.0.19"
+  - oxlint-plugin-react-doctor@0.9.18
+  # Reviewed scanner patch: registry signature and tarball integrity verified.
+  - react-doctor@0.9.18
+  - babel-preset-expo@57.0.15
+  # Verified October 12 Expo release; exact versions only.
+  - "@expo/local-build-cache-provider@57.0.9"
+  - "expo-crypto@57.0.4"
+  - "@expo/inline-modules@0.1.8"
+  - "@expo/prebuild-config@57.0.18"
+  - "expo-modules-jsi@57.1.2"
+  # Same verified October 12 SDK patch as the direct Expo packages.
+  - "@expo/fingerprint@0.20.14"
+  - "@expo/cli@57.0.29"
   # Exact internal versions from the reviewed October 6 SDK 57 patch release.
   - "@expo/config-plugins@57.0.10"
   - babel-preset-expo@57.0.14
@@ -49,6 +72,37 @@ minimumReleaseAgeExclude:
 # releases carried provenance attestations that the resolved versions don't.
 trustPolicy: no-downgrade
 trustPolicyExclude:
+  # Verified October 14 Expo release 0607af7a70d0ea3e58a6d55824aac5cfd3e78613.
+  - "expo@57.0.29"
+  - "expo-auth-session@57.0.16"
+  - "@expo/cli@57.0.30"
+  - "expo-asset@57.0.20"
+  - "expo-constants@57.0.22"
+  - "expo-modules-core@57.0.23"
+  - "expo-modules-autolinking@57.0.16"
+  - "expo-linking@57.0.13"
+  - "@expo/prebuild-config@57.0.19"
+  - babel-preset-expo@57.0.15
+  # Verified October 12 Expo release; exact versions only.
+  - "@expo/local-build-cache-provider@57.0.9"
+  - "expo-crypto@57.0.4"
+  - "@expo/inline-modules@0.1.8"
+  - "@expo/prebuild-config@57.0.18"
+  - "expo-modules-jsi@57.1.2"
+  # October 12 SDK 57 patches: registry signatures and tarball SHA-512 verified;
+  # package versions match expo/expo commit 58da4edafcb043872c3ed9bf8f5957e6544d0a9c.
+  # This publisher still omits provenance; exceptions remain version-specific.
+  - expo@57.0.28
+  - expo-auth-session@57.0.15
+  - expo-dev-client@57.0.20
+  - expo-sharing@57.0.23
+  - expo-splash-screen@57.0.10
+  - "@expo/fingerprint@0.20.14"
+  - "@expo/cli@57.0.29"
+  - expo-modules-autolinking@57.0.15
+  - expo-modules-core@57.0.22
+  - expo-dev-launcher@57.0.21
+  - expo-dev-menu@57.0.20
   # SDK 57 patch release: npm registry signatures verified; published source
   # matches expo/expo commit 50ac74f1ab5682c8e32b24da6e5e97dd4dbbb80f.
   # These versions lack trusted-publisher evidence; keep exceptions exact.

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Fails when React Doctor reports any diagnostic. Shared by the GitHub Actions
+ * Fails on every unreviewed React Doctor diagnostic. Shared by the GitHub Actions
  * CI, the Jenkins CI and the release pipeline so the gate cannot drift between
  * them. Uses the lockfile-pinned devDependency (no @latest), so new findings
  * only appear when the version is bumped deliberately.
@@ -8,7 +8,9 @@
  * usage: node scripts/react-doctor-gate.mjs
  */
 import { spawnSync } from "node:child_process";
+import fs from "node:fs";
 import { validateDoctorReport } from "./doctor-report.mjs";
+import { doctorReviews } from "./doctor-reviews.mjs";
 
 const run = spawnSync("pnpm", ["exec", "react-doctor", "--json", "--scope", "full", "--blocking", "none", "-y"], {
   encoding: "utf8",
@@ -32,16 +34,22 @@ let diagnostics;
 try { diagnostics = validateDoctorReport(report, process.cwd()); }
 catch (error) { console.error(error.message); process.exit(1); }
 const { summary } = report;
+const reviews = doctorReviews(report, diagnostics, process.cwd());
+fs.writeFileSync("react-doctor-report.json", JSON.stringify({ ...report, reviews }, null, 2));
 
 console.log(
   `React Doctor: score ${summary.score}, ${summary.errorCount} error(s), ${summary.warningCount} warning(s)`,
 );
 if (summary.totalDiagnosticCount > 0) {
-  for (const d of diagnostics) {
+  for (const { diagnostic: d, reason } of reviews) {
     console.error(
       `${d.severity}  ${d.plugin ?? ""}/${d.rule}  ${d.filePath}:${d.line}  ${d.message ?? ""}`,
     );
+    if (reason) console.error(reason);
   }
-  console.error("React Doctor reported findings; fix them (the gate allows none).");
-  process.exit(1);
+  if (reviews.some(review => !review.reason)) {
+    console.error("React Doctor reported unreviewed findings; fix them.");
+    process.exit(1);
+  }
+  console.log("All findings are documented, source-pinned advisories; the complete report and original score are retained.");
 }

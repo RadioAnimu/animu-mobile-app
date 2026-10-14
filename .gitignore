@@ -85,3 +85,6 @@ __pycache__/
 
 # Portable CI outputs
 ci-results.json
+
+# Complete quality-tool output is archived by CI, not committed.
+react-doctor-report.json

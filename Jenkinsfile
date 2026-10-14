@@ -81,12 +81,12 @@ pipeline {
           node scripts/check-bundle-size.mjs /tmp/index.android.bundle 3900000 \
             /tmp/animu-assets 2000000
 
-          # React Doctor gate (any finding fails the build).
+          # React Doctor gate (unreviewed findings fail; reviewed reports stay visible).
           pnpm run doctor:gate
           node scripts/ci-results.mjs publish RadioAnimu/animu-mobile-app
           '''
         }
-        archiveArtifacts artifacts: 'ci-results.json', fingerprint: true
+        archiveArtifacts artifacts: 'ci-results.json,react-doctor-report.json', fingerprint: true
       }
       post {
         always {

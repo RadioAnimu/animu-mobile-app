@@ -20,7 +20,6 @@ const SONARJS_DISABLED = new Set([
   "sonarjs/no-require-or-define", // Metro resolves assets via require()
   "sonarjs/no-inverted-boolean-check", // intentional `!(a > b)` NaN guards
   "sonarjs/no-reference-error", // type-only React/NodeJS references
-  "sonarjs/super-linear-regex", // false positive on a linear regex
   // Metrics that duplicate cognitive-complexity (kept as an error) without
   // measuring readability: a flat validation/switch function is cheap to read
   // but scores high; union size is a style count on string-literal unions.

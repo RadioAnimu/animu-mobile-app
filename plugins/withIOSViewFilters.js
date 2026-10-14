@@ -126,8 +126,14 @@ function withBridgingHeader(config) {
       const projectRoot = config.modRequest.projectRoot;
       const projectName = XcodeUtils.getProjectName(projectRoot);
       const header = path.join(projectRoot, "ios", projectName, `${projectName}-Bridging-Header.h`);
-      const contents = fs.existsSync(header) ? fs.readFileSync(header, "utf8") : "";
-      fs.writeFileSync(header, addBridgingImport(contents));
+      const fd = fs.openSync(header, fs.constants.O_CREAT | fs.constants.O_RDWR | fs.constants.O_NOFOLLOW, 0o600);
+      try {
+        const contents = fs.readFileSync(fd, "utf8");
+        fs.ftruncateSync(fd, 0);
+        fs.writeSync(fd, addBridgingImport(contents), 0, "utf8");
+      } finally {
+        fs.closeSync(fd);
+      }
       return config;
     },
   ]);

@@ -30,16 +30,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       # fetch-depth: 0 gives React Doctor the full git history it needs to find the merge base with the target branch. Without it a shallow checkout has no merge base, so PR runs can't compare against the base and fall back to reporting every issue in the changed files (pre-existing ones included) instead of only the ones the PR introduced.
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           fetch-depth: 0
 
-      # Advisory by default: React Doctor reports findings on every PR — a
-      # sticky summary comment, inline review comments, and a commit status
-      # with the health score — but never fails the check, so it won't red-X
-      # a teammate's PR on day one. When the team trusts the signal, graduate
-      # the gate with `blocking: error` (new error-severity findings) or
-      # `blocking: warning` (any finding). Full reference: https://www.react.doctor/ci
+      # PR feedback is advisory. CI separately runs the complete pinned scan
+      # and fails every unreviewed finding, retaining source-specific reviews.
       #
       # Pinned to the commit behind the v2 tag (v2.2.9) for supply-chain
       # safety — a floating major tag can move under us. Bump deliberately.
@@ -47,4 +43,4 @@ jobs:
         with:
           # Pin the CLI the action downloads to the version this repo develops
           # against (package.json devDependency) instead of "latest".
-          version: "0.9.14"
+          version: "0.9.18"
