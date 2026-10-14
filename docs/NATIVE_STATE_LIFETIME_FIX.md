@@ -19,6 +19,13 @@ reaches the application. Patching npm sources while consuming the Maven AAR
 would leave the crash unchanged. This increases native build time. iOS keeps
 its existing precompiled framework configuration.
 
+Linux Android build hosts need ICU development headers/libraries and
+`pkg-config` (`apt-get install libicu-dev pkg-config` on Debian). The release
+toolchain stage checks ICU explicitly. The host Hermes compiler also obeys
+Gradle's configured worker limit; it must not start one compiler per host CPU
+outside that budget.
+Hermes CMake configuration warnings also remain visible in release logs.
+
 The release pipeline inspects the compiled Release class with `javap` and fails
 if any state-lifetime entry point lacks its monitor or source-built output is
 absent. Regression fixtures prove that unpatched bytecode and absent output
