@@ -116,8 +116,10 @@ connect burst is still loading: 1.6 s of audio on 320, 7 s on 192, 17 s on
 buffered of the 17 s actually behind the edge, and iOS `loadedTimeRanges` read
 11.6 s (Anything Player now measures the iOS live offset from what its stream proxy
 handed the player). Each title change heard afterwards shows how far the
-tune-in computation was off on this stream. The median of the last 9 corrects
-the next tune-in. Before the first change it starts from the station clock's
+tune-in computation was off on this stream — measured on the same locked
+clock the tune-in uses, never a raw reading, which falls while the buffer
+drains through a network outage. The median of the last 9 corrects the next
+tune-in. Before the first change it starts from the station clock's
 lead over its audio (`STATION_AHEAD_OF_AUDIO_MS`, 1 s: the title changes
 1.2 s after `timestart` and is heard 0.2 s into the item on 320).
 

@@ -225,6 +225,7 @@ const setup = (extra: Partial<PlayerServiceDependencies> = {}) => {
   return {
     service,
     player,
+    heard,
     hearing,
     repository,
     preferences,
@@ -386,6 +387,37 @@ describe("PlayerService on react-native-anything-player", () => {
       expect.objectContaining({ raw: "Song B" }),
       true,
     );
+  });
+
+  it("calibrates a title change on the locked clock, not a draining buffer", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-10-05T05:00:00Z"));
+    const t = setup();
+    await t.service.setupPlayer();
+    await t.service.play();
+    t.player.setState("playing", true);
+    t.player.hear("Song A");
+    // The clock locks on a 17 s lag (64 kbps)…
+    t.settle(15, 17);
+    expect(t.hearing.anchored).toBe(true);
+    // …then the network drops: audio plays on from the buffer, which drains,
+    // so the reading falls far below the real (unchanged) lag.
+    t.player.getProgress.mockReturnValue({
+      position: 0,
+      duration: null,
+      buffered: 0,
+      bufferedAhead: 4,
+      liveOffset: null,
+      timestamp: Date.now(),
+    });
+    // Song B started 17 s + 1 s (the station's lead) + its ICY offset ago.
+    const start = Date.now() - 17_000 - 1_000 - icyTitleInItemMs(320);
+    t.announce(track("Song B", { startTime: new Date(start) }));
+    t.player.hear("Song B");
+    // The sample is the station's 1 s lead — not 14 s of buffer drain, which
+    // would place the next tune-in 13 s off.
+    expect(Math.abs(t.heard.tuneInBiasMs - 1_000)).toBeLessThan(300);
+    vi.useRealTimers();
   });
 
   it("reads the heard position on demand (the lyrics clock)", async () => {

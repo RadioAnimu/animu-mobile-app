@@ -505,6 +505,20 @@ export class StreamSyncEngine {
   }
 
   /**
+   * How far the speaker trails the live edge on the locked clock (ms), time
+   * spent stopped included — `null` until it has settled. Unlike a single
+   * reading it does not fall while the forward buffer drains (a network
+   * outage the audio plays through): readings only under-read the lag.
+   */
+  get lockedLag(): number | null {
+    this.refreshLock();
+    const lock = this.lock;
+    if (!lock) return null;
+    const now = Date.now();
+    return now + this.clockSkewMs - ((lock.heldAt ?? now) + lock.offsetMs);
+  }
+
+  /**
    * Whether the lag estimate has settled enough for the UI to trust it.
    *
    * Distinct from {@link hasMeasurement}, which flips on the first finite

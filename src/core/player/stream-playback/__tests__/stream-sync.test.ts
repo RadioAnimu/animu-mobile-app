@@ -301,6 +301,45 @@ describe("StreamSyncEngine", () => {
     expect(engine.isAudible(Date.now() - 4_000)).toBe(true);
   });
 
+  describe("lockedLag", () => {
+    const locked = (lagS: number) => {
+      const engine = new StreamSyncEngine();
+      for (let i = 0; i < 4; i++) {
+        engine.updateFromStatus({ isLive: true, offsetFromLive: lagS });
+        vi.setSystemTime(new Date(Date.now() + 1_000));
+      }
+      expect(engine.settled).toBe(true);
+      return engine;
+    };
+
+    it("is null until the clock settles", () => {
+      const engine = new StreamSyncEngine();
+      expect(engine.lockedLag).toBeNull();
+      engine.updateFromStatus({ isLive: true, offsetFromLive: 17 });
+      expect(engine.lockedLag).toBeNull();
+    });
+
+    it("holds the locked lag while readings under-read (a draining buffer)", () => {
+      const engine = locked(17);
+      expect(engine.lockedLag).toBe(17_000);
+      for (let i = 0; i < 10; i++) {
+        vi.setSystemTime(new Date(Date.now() + 1_000));
+        engine.updateFromStatus({ isLive: true, offsetFromLive: 17 - i });
+      }
+      expect(engine.lockedLag).toBe(17_000);
+    });
+
+    it("adds the time audio was stopped", () => {
+      const engine = locked(6);
+      engine.setRunning(false);
+      vi.setSystemTime(new Date(Date.now() + 5_000));
+      expect(engine.lockedLag).toBe(11_000);
+      engine.setRunning(true);
+      vi.setSystemTime(new Date(Date.now() + 5_000));
+      expect(engine.lockedLag).toBe(11_000);
+    });
+  });
+
   describe("settled", () => {
     it("is false on the first reading and until the estimate stops moving", () => {
       const engine = new StreamSyncEngine();

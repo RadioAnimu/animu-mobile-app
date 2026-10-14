@@ -157,6 +157,17 @@ export class NowHearing {
     };
   }
 
+  /**
+   * How far the speaker trails the live edge right now (ms), for a heard
+   * title: the locked clock's lag once it has settled — what a tune-in's
+   * position is computed from, so a change heard calibrates exactly that —
+   * else `readingMs`, the player's own reading.
+   */
+  lagMs(readingMs: number): number {
+    const { sync } = this.deps;
+    return (sync.settled ? sync.lockedLag : null) ?? readingMs;
+  }
+
   /** A native progress reading (Airwave `progress` events, ~1 Hz while playing). */
   progress(reading: LagReading): void {
     const { sync, heard } = this.deps;
