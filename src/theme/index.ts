@@ -19,6 +19,13 @@ export const THEME = {
   COLORS: {
     APP_BG: "#471654",
     BG_DEEP: "#160135",
+    /**
+     * Glass (the stats card's actions, the lyrics menu): drawn over a heavily
+     * blurred copy of what's behind it, so its color is the backdrop's own —
+     * a faint sheen and a light rim are all it adds.
+     */
+    GLASS_SHEEN: "rgba(255, 255, 255, 0.1)",
+    GLASS_RIM: "rgba(255, 255, 255, 0.28)",
 
     SURFACE: "#270052",
     BRAND: "#6BDB00",

@@ -489,11 +489,12 @@ export const styles = StyleSheet.create({
     top: THEME.SPACE.MD,
   },
   // Frosted disc: the button draws a blurred slice of the card behind it
-  // (`cardActionFrost`) under a light violet tint and a hairline rim.
+  // (`cardActionFrost`) — so its color is the banner's own — under a faint
+  // sheen and a hairline rim.
   cardActionButton: {
     alignItems: "center",
-    backgroundColor: "rgba(22, 1, 53, 0.25)",
-    borderColor: "rgba(255, 255, 255, 0.28)",
+    backgroundColor: THEME.COLORS.GLASS_SHEEN,
+    borderColor: THEME.COLORS.GLASS_RIM,
     borderRadius: THEME.RADIUS.CIRCLE,
     borderWidth: StyleSheet.hairlineWidth,
     height: scale(40),
@@ -505,7 +506,7 @@ export const styles = StyleSheet.create({
     position: "absolute",
   },
   cardActionTint: {
-    backgroundColor: "rgba(22, 1, 53, 0.22)",
+    backgroundColor: THEME.COLORS.GLASS_SHEEN,
     bottom: 0,
     left: 0,
     position: "absolute",

@@ -288,7 +288,8 @@ interface ActionProps {
  * A floating frosted-glass icon action over the card's top-right corner.
  * There is no native blur here, so the button draws its own: the slice of
  * the card banner right behind it, heavily blurred and stained the same
- * way, under a light tint — the card shows through, softened.
+ * way, under a faint sheen — the card shows through, softened, in its own
+ * colors.
  */
 function CardActionButton({
   icon,
