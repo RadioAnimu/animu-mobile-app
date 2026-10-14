@@ -1,20 +1,43 @@
-import { useState } from "react";
-import { Pressable, StyleSheet, Text, TouchableOpacity, View } from "react-native";
-import Animated, { FadeIn, FadeOut, ZoomIn, ZoomOut } from "react-native-reanimated";
-import { Icon, type IconName } from "@/components/Icon";
+import { type ReactNode, useState } from "react";
+import { Pressable, type StyleProp, StyleSheet, Text, useWindowDimensions, View, type ViewStyle } from "react-native";
+import Animated, {
+  Extrapolation,
+  interpolate,
+  type SharedValue,
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
+  withTiming,
+} from "react-native-reanimated";
+import { scheduleOnRN } from "react-native-worklets";
+import { Icon } from "@/components/Icon";
 import type { JapaneseDictionarySnapshot } from "@/core/japanese";
 import type { PronunciationMode } from "@/core/lyrics/pronunciation";
 import { useDict } from "@/hooks/useDict";
 import type { Dict } from "@/i18n";
-import { PronunciationIcon } from "@/screens/Lyrics/PronunciationIcon";
+import { LyricsBackground } from "@/screens/Lyrics/LyricsBackground";
+import { type PronunciationGlyph, PronunciationIcon } from "@/screens/Lyrics/PronunciationIcon";
 import { dictionarySize } from "@/screens/Settings/sections/dictionary-size";
 import { THEME } from "@/theme";
+import { MOTION } from "@/theme/motion";
 import { scale } from "@/theme/responsive";
 import { haptics } from "@/utils/haptics";
 
-/** The button's glass, and the tone cut into its icon. */
-const GLASS = "rgba(255, 255, 255, 0.2)";
-const CUTOUT = "#3a3346";
+/**
+ * Opening: the menu slides out of the button on Apple's menu spring —
+ * quick, a breath of overshoot, no wobble.
+ */
+const OPEN_SPRING = { duration: 420, dampingRatio: 0.8 };
+/** Closing: critically damped and quicker — the menu tucks back into its button. */
+const CLOSE_SPRING = { duration: 300, dampingRatio: 1 };
+/** The glass button swelling under the finger, and settling back. */
+const PRESS_SPRING = { duration: 260, dampingRatio: 0.6 };
+/** How far the glass swells under the finger. */
+const PRESS_SWELL = 0.12;
+/** The button's glyph turns this far (deg, counter-clockwise) while its menu is out. */
+const OPEN_TURN = -33;
+/** Blur the glass adds over the backdrop it covers. */
+const FROST = 40;
 
 interface Props {
   mode: PronunciationMode;
@@ -26,12 +49,19 @@ interface Props {
   onCancelInstall: () => void;
   bottomInset: number;
   reduceMotion: boolean;
+  /** The backdrop the glass frosts: its cover and drift clock. */
+  cover: string | undefined;
+  turn: SharedValue<number>;
+  /** 0 closed → 1 open, driven here, read by the screen to blur what's behind. */
+  progress: SharedValue<number>;
 }
 
 /**
- * Apple Music's lyrics menu: a round glass button bottom-left that opens a
- * menu of the pronunciations — romaji, hiragana, off — with the Japanese
- * dictionary offered (and its download shown) where a mode needs it.
+ * Apple Music's lyrics menu: a round glass button bottom-left whose menu of
+ * pronunciations — romaji, hiragana, off — slides out of it, with the
+ * Japanese dictionary offered (and its download shown) where a mode needs
+ * it. Both are clear glass over a heavy blur, stained with the cover's own color; the
+ * button's glyph turns while the menu is out. Reduce Motion cross-fades.
  */
 export function PronunciationMenu({
   mode,
@@ -42,97 +72,185 @@ export function PronunciationMenu({
   onCancelInstall,
   bottomInset,
   reduceMotion,
+  cover,
+  turn,
+  progress,
 }: Readonly<Props>) {
   const dict = useDict();
   const [open, setOpen] = useState(false);
+  // Outlives `open` by the closing slide, so the menu tucks away before unmounting.
+  const [shown, setShown] = useState(false);
+  const press = useSharedValue(0);
   const bottom = bottomInset + THEME.SPACE.LG;
+  const menuBottom = bottom + BUTTON + THEME.SPACE.SM;
+
+  const toggle = (next: boolean) => {
+    setOpen(next);
+    if (next) setShown(true);
+    const target = Number(next);
+    const done = (finished = false) => {
+      "worklet";
+      if (finished && !next) scheduleOnRN(setShown, false);
+    };
+    const spring = next ? OPEN_SPRING : CLOSE_SPRING;
+    progress.set(
+      reduceMotion
+        ? withTiming(target, { duration: MOTION.DURATION.NORMAL }, done)
+        : withSpring(target, spring, done),
+    );
+  };
 
   const choose = (next: PronunciationMode) => {
     haptics.select();
     onSelect(next);
-    setOpen(false);
+    toggle(false);
   };
 
-  const items: { mode: PronunciationMode; label: string; icon: IconName | "kana" }[] = [
-    { mode: "romaji", label: dict.LYRICS_PRONUNCIATION_ROMAJI, icon: "abc" },
-    { mode: "hiragana", label: dict.LYRICS_PRONUNCIATION_HIRAGANA, icon: "kana" },
-    { mode: "off", label: dict.LYRICS_PRONUNCIATION_OFF, icon: "subtitles-off" },
+  const sliding = !reduceMotion;
+  const button = useAnimatedStyle(() => ({
+    transform: [{ scale: 1 + PRESS_SWELL * press.get() }],
+  }));
+  const glint = useAnimatedStyle(() => ({ opacity: press.get() }));
+  const glyph = useAnimatedStyle(() => ({
+    transform: [{ rotate: `${(sliding ? progress.get() : Math.round(progress.get())) * OPEN_TURN}deg` }],
+  }));
+  // Slides up out of the button's middle, growing from its corner there.
+  const menu = useAnimatedStyle(() => {
+    const p = progress.get();
+    if (!sliding) return { opacity: p };
+    return {
+      opacity: interpolate(p, [0, 0.25], [0, 1], Extrapolation.CLAMP),
+      transform: [
+        { translateX: (1 - p) * (BUTTON / 2) },
+        { translateY: (1 - p) * (BUTTON / 2 + THEME.SPACE.SM) },
+        { scale: interpolate(p, [0, 1], [0.15, 1]) },
+      ],
+    };
+  });
+  const items = useAnimatedStyle(() => {
+    const p = progress.get();
+    return {
+      opacity: sliding ? interpolate(p, [0.4, 0.9], [0, 1], Extrapolation.CLAMP) : 1,
+      transform: [{ translateY: sliding ? interpolate(p, [0, 1], [THEME.SPACE.SM, 0]) : 0 }],
+    };
+  });
+  const dim = useAnimatedStyle(() => ({
+    opacity: interpolate(progress.get(), [0, 1], [0, 1], Extrapolation.CLAMP),
+  }));
+
+  const choices: { mode: PronunciationMode; label: string; glyph: PronunciationGlyph }[] = [
+    { mode: "romaji", label: dict.LYRICS_PRONUNCIATION_ROMAJI, glyph: "romaji" },
+    { mode: "hiragana", label: dict.LYRICS_PRONUNCIATION_HIRAGANA, glyph: "hiragana" },
+    { mode: "off", label: dict.LYRICS_PRONUNCIATION_OFF, glyph: "off" },
   ];
 
   return (
     <>
-      {open ? (
+      {shown ? (
         <Pressable
           style={StyleSheet.absoluteFill}
-          onPress={() => setOpen(false)}
+          onPress={() => toggle(false)}
           accessibilityLabel={dict.A11Y_CLOSE}
           accessibilityRole="button"
-        />
+        >
+          <Animated.View style={[StyleSheet.absoluteFill, styles.dim, dim]} />
+        </Pressable>
       ) : null}
-      {open ? (
+      {shown ? (
         <Animated.View
-          entering={reduceMotion ? FadeIn.duration(150) : ZoomIn.springify().damping(18).stiffness(260)}
-          exiting={reduceMotion ? FadeOut.duration(120) : ZoomOut.duration(140)}
-          style={[styles.menu, { bottom: bottom + BUTTON + THEME.SPACE.SM }]}
+          style={[styles.menu, { bottom: menuBottom }, menu]}
+          pointerEvents={open ? "auto" : "none"}
           accessibilityRole="menu"
         >
-          {items.map((item, index) => {
-            const available = modes.includes(item.mode);
-            const selected = available && item.mode === mode;
-            return (
-              <View key={item.mode}>
-                {index > 0 ? <View style={styles.divider} /> : null}
-                <TouchableOpacity
-                  accessibilityRole="menuitem"
-                  accessibilityState={{ checked: selected, disabled: !available }}
-                  accessibilityHint={available ? undefined : dict.LYRICS_DICTIONARY_NEEDED}
-                  activeOpacity={THEME.OPACITY.PRESSED}
-                  disabled={!available}
-                  onPress={() => choose(item.mode)}
-                  style={[styles.item, !available && styles.itemDisabled]}
-                >
-                  <ItemIcon icon={item.icon} />
-                  <View style={styles.itemText}>
-                    <Text style={styles.itemLabel}>{item.label}</Text>
-                    {available ? null : <Text style={styles.itemHint}>{dict.LYRICS_DICTIONARY_NEEDED}</Text>}
+          <Glass cover={cover} turn={turn} left={MENU_LEFT} bottom={menuBottom} style={styles.menuGlass}>
+            <Animated.View style={items}>
+              {choices.map((item, index) => {
+                const available = modes.includes(item.mode);
+                const selected = available && item.mode === mode;
+                return (
+                  <View key={item.mode}>
+                    {index > 0 ? <View style={styles.divider} /> : null}
+                    <Pressable
+                      accessibilityRole="menuitem"
+                      accessibilityState={{ checked: selected, disabled: !available }}
+                      accessibilityHint={available ? undefined : dict.LYRICS_DICTIONARY_NEEDED}
+                      disabled={!available}
+                      onPress={() => choose(item.mode)}
+                      style={({ pressed }) => [styles.item, pressed && styles.itemPressed, !available && styles.itemDisabled]}
+                    >
+                      <PronunciationIcon glyph={item.glyph} size={THEME.ICON.LG} />
+                      <View style={styles.itemText}>
+                        <Text style={styles.itemLabel}>{item.label}</Text>
+                        {available ? null : <Text style={styles.itemHint}>{dict.LYRICS_DICTIONARY_NEEDED}</Text>}
+                      </View>
+                      {selected ? <Icon name="check" size={THEME.ICON.MD} color={THEME.COLORS.TEXT} /> : null}
+                    </Pressable>
                   </View>
-                  {selected ? <Icon name="check" size={THEME.ICON.MD} color={THEME.COLORS.TEXT} /> : null}
-                </TouchableOpacity>
-              </View>
-            );
-          })}
-          {dictionary.install === "installed" ? null : (
-            <DictionaryItem dictionary={dictionary} onInstall={onInstall} onCancel={onCancelInstall} />
-          )}
+                );
+              })}
+              {dictionary.install === "installed" ? null : (
+                <DictionaryItem dictionary={dictionary} onInstall={onInstall} onCancel={onCancelInstall} />
+              )}
+            </Animated.View>
+          </Glass>
         </Animated.View>
       ) : null}
-      <TouchableOpacity
-        accessibilityRole="button"
-        accessibilityLabel={dict.LYRICS_PRONUNCIATION}
-        accessibilityState={{ expanded: open }}
-        activeOpacity={THEME.OPACITY.PRESSED}
-        hitSlop={THEME.HIT_SLOP.SM}
-        onPress={() => {
-          haptics.tap();
-          setOpen((value) => !value);
-        }}
-        style={[styles.button, { bottom }]}
-      >
-        <PronunciationIcon size={scale(28)} cutout={CUTOUT} />
-      </TouchableOpacity>
+      <Animated.View style={[styles.button, { bottom }, button]}>
+        <Glass cover={cover} turn={turn} left={BUTTON_LEFT} bottom={bottom} style={styles.buttonGlass}>
+          <Animated.View style={[StyleSheet.absoluteFill, styles.glint, glint]} pointerEvents="none" />
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={dict.LYRICS_PRONUNCIATION}
+            accessibilityState={{ expanded: open }}
+            hitSlop={THEME.HIT_SLOP.SM}
+            onPressIn={() => press.set(withSpring(1, PRESS_SPRING))}
+            onPressOut={() => press.set(withSpring(0, PRESS_SPRING))}
+            onPress={() => {
+              haptics.tap();
+              toggle(!open);
+            }}
+            style={styles.buttonHit}
+          >
+            <Animated.View style={glyph}>
+              <PronunciationIcon glyph="menu" size={scale(28)} />
+            </Animated.View>
+          </Pressable>
+        </Glass>
+      </Animated.View>
     </>
   );
 }
 
-function ItemIcon({ icon }: Readonly<{ icon: IconName | "kana" }>) {
-  if (icon === "kana") {
-    return (
-      <Text style={styles.kana} accessibilityElementsHidden importantForAccessibility="no">
-        あ
-      </Text>
-    );
-  }
-  return <Icon name={icon} size={THEME.ICON.LG} color={THEME.COLORS.TEXT} />;
+interface GlassProps {
+  cover: string | undefined;
+  turn: SharedValue<number>;
+  /** Where the glass sits on screen, to line its backdrop up with the real one. */
+  left: number;
+  bottom: number;
+  style?: StyleProp<ViewStyle>;
+  children?: ReactNode;
+}
+
+/**
+ * The glass, drawn the stats card's share button's way: the backdrop right
+ * behind it — redrawn in step, blurred further — under a faint sheen and a
+ * light rim. Its color is the cover's own, wherever it sits.
+ */
+function Glass({ cover, turn, left, bottom, style, children }: Readonly<GlassProps>) {
+  const window = useWindowDimensions();
+  return (
+    <View style={[styles.glass, style]}>
+      <LyricsBackground
+        cover={cover}
+        turn={turn}
+        extraBlur={FROST}
+        fade={false}
+        style={{ position: "absolute", width: window.width, height: window.height, left: -left, bottom: -bottom }}
+      />
+      <View style={[StyleSheet.absoluteFill, styles.sheen]} pointerEvents="none" />
+      {children}
+    </View>
+  );
 }
 
 /** Its sizes, its progress, or why it failed. */
@@ -156,16 +274,15 @@ function DictionaryItem({
   return (
     <View>
       <View style={styles.sectionDivider} />
-      <TouchableOpacity
+      <Pressable
         accessibilityRole="menuitem"
         accessibilityLabel={`${downloading ? dict.SETTINGS_JP_DICTIONARY_STOP : dict.SETTINGS_JP_DICTIONARY_ROW}, ${hint}`}
-        activeOpacity={THEME.OPACITY.PRESSED}
         onPress={() => {
           haptics.tap();
           if (downloading) onCancel();
           else onInstall();
         }}
-        style={styles.item}
+        style={({ pressed }) => [styles.item, pressed && styles.itemPressed]}
       >
         <Icon name={downloading ? "close" : "download"} size={THEME.ICON.LG} color={THEME.COLORS.TEXT} />
         <View style={styles.itemText}>
@@ -174,7 +291,7 @@ function DictionaryItem({
           </Text>
           <Text style={styles.itemHint}>{hint}</Text>
         </View>
-      </TouchableOpacity>
+      </Pressable>
       {downloading ? (
         <View style={styles.progressTrack}>
           <View style={[styles.progressFill, { width: `${Math.max(2, Math.round(dictionary.progress * 100))}%` }]} />
@@ -185,37 +302,66 @@ function DictionaryItem({
 }
 
 const BUTTON = scale(52);
+const BUTTON_LEFT = THEME.SPACE.XXL;
+const MENU_LEFT = THEME.SPACE.XXL;
+const MENU_WIDTH = scale(290);
+const MENU_RADIUS = scale(28);
 
 const styles = StyleSheet.create({
+  dim: {
+    backgroundColor: "rgba(8, 0, 20, 0.12)",
+  },
+  glass: {
+    overflow: "hidden",
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: THEME.COLORS.GLASS_RIM,
+  },
+  sheen: {
+    backgroundColor: THEME.COLORS.GLASS_SHEEN,
+  },
   button: {
     position: "absolute",
-    left: THEME.SPACE.XXL,
+    zIndex: 2,
+    left: BUTTON_LEFT,
     width: BUTTON,
     height: BUTTON,
-    borderRadius: THEME.RADIUS.CIRCLE,
-    backgroundColor: GLASS,
+  },
+  buttonGlass: {
+    flex: 1,
+    borderRadius: BUTTON / 2,
+  },
+  buttonHit: {
+    flex: 1,
     alignItems: "center",
     justifyContent: "center",
   },
+  /** The light the glass catches under the finger. */
+  glint: {
+    backgroundColor: "rgba(255, 255, 255, 0.16)",
+  },
   menu: {
     position: "absolute",
-    left: THEME.SPACE.LG,
-    width: scale(290),
-    borderRadius: scale(28),
-    paddingVertical: THEME.SPACE.XS,
-    backgroundColor: "rgba(58, 52, 70, 0.94)",
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: "rgba(255, 255, 255, 0.18)",
-    overflow: "hidden",
+    zIndex: 2,
+    left: MENU_LEFT,
+    width: MENU_WIDTH,
     transformOrigin: "left bottom",
+  },
+  menuGlass: {
+    borderRadius: MENU_RADIUS,
+    paddingVertical: THEME.SPACE.XS,
   },
   item: {
     flexDirection: "row",
     alignItems: "center",
     gap: THEME.SPACE.LG,
     minHeight: scale(56),
-    paddingHorizontal: THEME.SPACE.XL,
+    marginHorizontal: THEME.SPACE.XS,
+    paddingHorizontal: THEME.SPACE.LG,
     paddingVertical: THEME.SPACE.SM,
+    borderRadius: MENU_RADIUS - THEME.SPACE.XS,
+  },
+  itemPressed: {
+    backgroundColor: "rgba(255, 255, 255, 0.14)",
   },
   itemDisabled: {
     opacity: 0.45,
@@ -234,21 +380,16 @@ const styles = StyleSheet.create({
     color: THEME.COLORS.TEXT_SOFT,
     marginTop: THEME.SPACE.XXS,
   },
-  kana: {
-    width: THEME.ICON.LG,
-    textAlign: "center",
-    fontFamily: THEME.FONT_FAMILY.BOLD,
-    fontSize: THEME.ICON.MD,
-    color: THEME.COLORS.TEXT,
-  },
   divider: {
     height: StyleSheet.hairlineWidth,
-    marginLeft: THEME.SPACE.XL + THEME.ICON.LG + THEME.SPACE.LG,
+    marginLeft: THEME.SPACE.XS + THEME.SPACE.LG + THEME.ICON.LG + THEME.SPACE.LG,
+    marginRight: THEME.SPACE.XS + THEME.SPACE.LG,
     backgroundColor: "rgba(255, 255, 255, 0.14)",
   },
   sectionDivider: {
     height: THEME.SPACE.XS,
-    backgroundColor: "rgba(0, 0, 0, 0.18)",
+    marginVertical: THEME.SPACE.XXS,
+    backgroundColor: "rgba(0, 0, 0, 0.16)",
   },
   progressTrack: {
     height: scale(3),

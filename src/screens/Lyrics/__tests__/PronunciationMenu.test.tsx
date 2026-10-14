@@ -1,16 +1,31 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import type { SharedValue } from "react-native-reanimated";
 import type { JapaneseDictionarySnapshot } from "@/core/japanese";
 import { PronunciationMenu } from "@/screens/Lyrics/PronunciationMenu";
 
 vi.mock("react-native", async () => (await import("@/__tests__/react-native-mock")).createReactNativeMock());
 vi.mock("react-native-reanimated", async () => {
   const { View } = (await import("@/__tests__/react-native-mock")).createReactNativeMock();
-  const transition = { duration: () => transition, springify: () => transition, damping: () => transition, stiffness: () => transition };
-  return { default: { View }, FadeIn: transition, FadeOut: transition, ZoomIn: transition, ZoomOut: transition };
+  // Animations land at once: their end callback runs as they start.
+  const settle = (to: number, _config: unknown, done?: (finished: boolean) => void) => {
+    done?.(true);
+    return to;
+  };
+  return {
+    default: { View },
+    Extrapolation: { CLAMP: "clamp" },
+    interpolate: () => 0,
+    useAnimatedStyle: () => ({}),
+    useSharedValue: () => ({ get: () => 0, set: () => {} }),
+    withSpring: settle,
+    withTiming: settle,
+  };
 });
+vi.mock("react-native-worklets", () => ({ scheduleOnRN: (fn: (...args: unknown[]) => void, ...args: unknown[]) => fn(...args) }));
 vi.mock("@/components/Icon", () => ({ Icon: ({ name }: { name: string }) => <i data-icon={name} /> }));
+vi.mock("@/screens/Lyrics/LyricsBackground", () => ({ LyricsBackground: () => null }));
 vi.mock("@/screens/Lyrics/PronunciationIcon", () => ({ PronunciationIcon: () => <i data-icon="bubbles" /> }));
 vi.mock("@/core/japanese", () => ({ DICTIONARY_BYTES: 17_791_956, DICTIONARY_STORED_BYTES: 64_554_959 }));
 vi.mock("@/utils/haptics", () => ({ haptics: { tap: vi.fn(), select: vi.fn() } }));
@@ -18,6 +33,7 @@ vi.mock("@/hooks/useDict", () => ({
   useDict: () => new Proxy({} as Record<string, string>, { get: (_target, key) => String(key) }),
 }));
 
+const shared = { get: () => 0, set: () => {} } as unknown as SharedValue<number>;
 const idle: JapaneseDictionarySnapshot = { install: "none", progress: 0, reader: "idle", failure: null };
 
 const menu = (props: Partial<Parameters<typeof PronunciationMenu>[0]> = {}) => {
@@ -29,6 +45,9 @@ const menu = (props: Partial<Parameters<typeof PronunciationMenu>[0]> = {}) => {
       dictionary={idle}
       bottomInset={0}
       reduceMotion={false}
+      cover={undefined}
+      turn={shared}
+      progress={shared}
       {...handlers}
       {...props}
     />,

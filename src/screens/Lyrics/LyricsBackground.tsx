@@ -1,9 +1,10 @@
 import { useEffect } from "react";
-import { StyleSheet, View } from "react-native";
+import { StyleSheet, View, type ViewStyle } from "react-native";
 import { Image } from "expo-image";
 import Animated, {
   cancelAnimation,
   Easing,
+  type SharedValue,
   useAnimatedStyle,
   useSharedValue,
   withRepeat,
@@ -18,19 +19,17 @@ const TURN_MS = 48_000;
  */
 const FRONT_SCALE = 2.7;
 const BACK_SCALE = 3.2;
-
-interface Props {
-  cover: string | undefined;
-  /** Drift while true (visible, motion allowed). */
-  animate: boolean;
-}
+/** Blur of the back and front layers (the front one sits at 70%). */
+const BACK_BLUR = 80;
+const FRONT_BLUR = 60;
+/** Cross-fade between covers (ms). */
+const COVER_FADE_MS = 800;
 
 /**
- * Apple Music's living backdrop: the cover, heavily blurred and enlarged,
- * twice — the layers turn in opposite directions so its colors slowly flow
- * into each other. A scrim keeps white lyrics legible on any cover.
+ * The color field's clock: turns while `animate` (visible, motion allowed).
+ * Shared so glass over the backdrop can redraw it in step.
  */
-export function LyricsBackground({ cover, animate }: Readonly<Props>) {
+export function useBackgroundTurn(animate: boolean): SharedValue<number> {
   const turn = useSharedValue(0);
 
   useEffect(() => {
@@ -42,6 +41,33 @@ export function LyricsBackground({ cover, animate }: Readonly<Props>) {
     return () => cancelAnimation(turn);
   }, [animate, turn]);
 
+  return turn;
+}
+
+interface Props {
+  cover: string | undefined;
+  turn: SharedValue<number>;
+  /** Blur on top of the backdrop's own — glass frosting what it covers. */
+  extraBlur?: number;
+  /** Where the field sits (default: filling its parent). */
+  style?: ViewStyle;
+  /** Cross-fade a new cover in (off for glass mounting over a cover already shown). */
+  fade?: boolean;
+}
+
+/**
+ * Apple Music's living backdrop: the cover, heavily blurred and enlarged,
+ * twice — the layers turn in opposite directions so its colors slowly flow
+ * into each other. A scrim keeps white lyrics legible on any cover.
+ */
+export function LyricsBackground({
+  cover,
+  turn,
+  extraBlur = 0,
+  style = StyleSheet.absoluteFill,
+  fade = true,
+}: Readonly<Props>) {
+  const transition = fade ? COVER_FADE_MS : 0;
   const front = useAnimatedStyle(() => ({
     transform: [{ rotate: `${turn.get() * 360}deg` }, { scale: FRONT_SCALE }],
   }));
@@ -50,14 +76,26 @@ export function LyricsBackground({ cover, animate }: Readonly<Props>) {
   }));
 
   return (
-    <View style={StyleSheet.absoluteFill} pointerEvents="none">
+    <View style={style} pointerEvents="none">
       {cover ? (
         <>
           <Animated.View style={[StyleSheet.absoluteFill, back]}>
-            <Image source={cover} style={StyleSheet.absoluteFill} blurRadius={80} contentFit="cover" transition={800} />
+            <Image
+              source={cover}
+              style={StyleSheet.absoluteFill}
+              blurRadius={BACK_BLUR + extraBlur}
+              contentFit="cover"
+              transition={transition}
+            />
           </Animated.View>
           <Animated.View style={[StyleSheet.absoluteFill, { opacity: 0.7 }, front]}>
-            <Image source={cover} style={StyleSheet.absoluteFill} blurRadius={60} contentFit="cover" transition={800} />
+            <Image
+              source={cover}
+              style={StyleSheet.absoluteFill}
+              blurRadius={FRONT_BLUR + extraBlur}
+              contentFit="cover"
+              transition={transition}
+            />
           </Animated.View>
         </>
       ) : null}

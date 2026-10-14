@@ -1,7 +1,8 @@
-import { Text, View } from "react-native";
+import { Text } from "react-native";
 import { useIsFocused } from "@react-navigation/native";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
+import Animated, { interpolate, useAnimatedStyle, useSharedValue } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useIsBackgrounded } from "@/contexts/app-state/AppStateProvider";
 import { usePlayer } from "@/contexts/player/PlayerProvider";
@@ -12,7 +13,7 @@ import { useReducedMotion } from "@/hooks/useReducedMotion";
 import { useResolvedArtwork } from "@/hooks/useResolvedArtwork";
 import { japaneseDictionary } from "@/core/japanese";
 import type { RootStackParamList } from "@/routes/app.routes";
-import { LyricsBackground } from "@/screens/Lyrics/LyricsBackground";
+import { LyricsBackground, useBackgroundTurn } from "@/screens/Lyrics/LyricsBackground";
 import { LyricsBody } from "@/screens/Lyrics/LyricsBody";
 import { LyricsHeader } from "@/screens/Lyrics/LyricsHeader";
 import { PronunciationMenu } from "@/screens/Lyrics/PronunciationMenu";
@@ -20,6 +21,9 @@ import { styles } from "@/screens/Lyrics/styles";
 import { usePronunciation } from "@/screens/Lyrics/usePronunciation";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Lyrics">;
+
+/** How far the lyrics blur back while the pronunciation menu is out. */
+const MENU_BLUR = 6;
 
 /**
  * Full-screen lyrics of the song being heard, Apple Music style: the cover's
@@ -43,10 +47,16 @@ export function Lyrics({ navigation }: Readonly<Props>) {
   const synced = lyrics?.kind === "synced";
   const clock = useHeardPosition(track?.raw, visible && synced);
   const syncing = synced && !clock.known && player.isPlaying;
+  const turn = useBackgroundTurn(visible && !reduceMotion);
+  const menu = useSharedValue(0);
+  // Always a blur (0 at rest): an emptied filter list leaves the last blur on iOS.
+  const recede = useAnimatedStyle(() => ({
+    filter: [{ blur: interpolate(menu.get(), [0, 1], [0, MENU_BLUR], "clamp") }],
+  }));
 
   return (
     <GestureHandlerRootView style={styles.container}>
-      <LyricsBackground cover={cover} animate={visible && !reduceMotion} />
+      <LyricsBackground cover={cover} turn={turn} />
       <LyricsHeader
         cover={cover}
         title={track?.title ?? ""}
@@ -54,7 +64,7 @@ export function Lyrics({ navigation }: Readonly<Props>) {
         onClose={() => navigation.goBack()}
       />
       <PronunciationNotice preparing={pronunciation.preparing} failed={pronunciation.failed} />
-      <View style={[styles.body, { marginBottom: insets.bottom }]}>
+      <Animated.View style={[styles.body, { marginBottom: insets.bottom }, recede]}>
         <LyricsBody
           status={status}
           lyrics={lyrics}
@@ -64,7 +74,7 @@ export function Lyrics({ navigation }: Readonly<Props>) {
           reduceMotion={reduceMotion}
           onRetry={retry}
         />
-      </View>
+      </Animated.View>
       {pronunciation.modes.length > 0 ? (
         <PronunciationMenu
           mode={pronunciation.mode}
@@ -79,6 +89,9 @@ export function Lyrics({ navigation }: Readonly<Props>) {
           }}
           bottomInset={insets.bottom}
           reduceMotion={reduceMotion}
+          cover={cover}
+          turn={turn}
+          progress={menu}
         />
       ) : null}
     </GestureHandlerRootView>
