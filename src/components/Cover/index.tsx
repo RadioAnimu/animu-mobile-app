@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Image, type ImageStyle } from "expo-image";
 import { View, type StyleProp } from "react-native";
-import DEFAULT_COVER from "@app/assets/default-cover.png";
+import DEFAULT_COVER from "@/assets/default-cover.png";
 import { SIZE, styles } from "@/components/Cover/styles";
 import { THEME } from "@/theme";
 import { useUserSettings } from "@/contexts/user/UserSettingsProvider";

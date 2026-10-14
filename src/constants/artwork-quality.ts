@@ -10,7 +10,7 @@ export interface CoverQualitySample {
 }
 
 /** Placeholder artwork shown for the "off" tier (nothing is downloaded). */
-export const DEFAULT_COVER_SOURCE = require("@app/assets/default-cover.png");
+export const DEFAULT_COVER_SOURCE = require("@/assets/default-cover.png");
 
 /** Ascending quality (and size) so the recommended tier sits mid-list. */
 export const COVER_QUALITY_SAMPLES: CoverQualitySample[] = [

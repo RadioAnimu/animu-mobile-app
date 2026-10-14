@@ -1,7 +1,7 @@
 import { Asset } from "expo-asset";
 import { File, Paths } from "expo-file-system";
 import { artworkSizeRank, type Artworks } from "animu-api";
-import DEFAULT_COVER from "@app/assets/default-cover.png";
+import DEFAULT_COVER from "@/assets/default-cover.png";
 import { CONFIG, debugLog } from "@/utils/player.config";
 import type { Track } from "@/core/domain/track";
 import type {
@@ -112,7 +112,7 @@ export function pickPreviewArtwork(
  * hands the media session a `file://` URI instead: no network race,
  * instant render, works offline.
  *
- * It also owns the bundled default cover (see `assets/default-cover.png`)
+ * It also owns the bundled default cover (see `src/assets/default-cover.png`)
  * so every fallback path — this resolver, the API package's
  * `selectArtwork`, the in-app `Cover` fallback — can use an image that is
  * guaranteed to exist.

@@ -47,9 +47,6 @@
         "android.permission.USE_FINGERPRINT"
       ]
     },
-    "web": {
-      "favicon": "./assets/favicon.png"
-    },
     "plugins": [
       [
         "expo-splash-screen",
