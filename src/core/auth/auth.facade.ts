@@ -29,16 +29,12 @@ import type {
 } from "@/core/auth/ports";
 
 function isMobileAuthCallback(url: string | null | undefined): url is string {
-  if (!url) return false;
-  try {
-    const callback = new URL(url);
-    const expected = new URL(AUTH_REDIRECT_URI);
-    if (callback.protocol !== expected.protocol || callback.host !== expected.host) return false;
-    if (callback.username || callback.password || callback.hash) return false;
-    return callback.pathname === expected.pathname || callback.pathname === `${expected.pathname}/`;
-  } catch {
-    return false;
-  }
+  if (!url || url.includes("#")) return false;
+  // RN's URL polyfill only parses HTTP authorities. Compare the complete
+  // allowed custom-scheme destination before the query instead.
+  const queryIndex = url.indexOf("?");
+  const destination = queryIndex < 0 ? url : url.slice(0, queryIndex);
+  return destination === AUTH_REDIRECT_URI || destination === `${AUTH_REDIRECT_URI}/`;
 }
 
 /**

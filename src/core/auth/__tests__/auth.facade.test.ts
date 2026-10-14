@@ -475,6 +475,25 @@ describe("AuthFacade.loginWithProvider", () => {
 });
 
 describe("AuthFacade.resumeServerAuth", () => {
+  it("validates native custom-scheme callbacks independently of the HTTP-only URL polyfill", async () => {
+    const original = globalThis.URL;
+    vi.stubGlobal("URL", class {
+      constructor() { throw new Error("Custom-scheme parsing unavailable"); }
+    });
+    try {
+      const { api, facade, store } = build({
+        api: makeApi({ completeMobileAuth: vi.fn(() => okRedirect("native-token")) }),
+      });
+      await store.markServerAuthPending();
+      await expect(facade.resumeServerAuth("animuapp://redirect.evil?token=untrusted")).resolves.toBeNull();
+      expect(api.completeMobileAuth).not.toHaveBeenCalled();
+      const user = await facade.resumeServerAuth("animuapp://redirect/?token=native-token");
+      expect(user?.sessionToken).toBe("native-token");
+    } finally {
+      vi.stubGlobal("URL", original);
+    }
+  });
+
   it.each([
     "animuapp://redirect.evil?token=untrusted",
     "animuapp://redirect/extra?token=untrusted",
