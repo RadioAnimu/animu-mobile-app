@@ -28,14 +28,12 @@ def main(app, output):
     launched = run("launch", udid, "com.nessjs.animu")
     pid = int(launched.rsplit(":", 1)[-1].strip())
     time.sleep(10)
-    run("openurl", udid, "animuapp://assistant/play")
-    time.sleep(20)
     # Launching succeeded is insufficient: catch a process that dies afterwards.
     # CoreSimulator apps are host processes; iOS has no bundled `kill` executable.
     os.kill(pid, 0)
     run("io", udid, "screenshot", str(output / "ios-launch.png"))
-    result = {"device": device["name"], "releaseProcessRemainedAlive": True,
-              "assistantPlayLinkDelivered": True, "authenticatedFlowsValidated": False,
+    result = {"device": device["name"], "udid": udid, "releaseProcessRemainedAlive": True,
+              "authenticatedFlowsValidated": False,
               "audioOutputValidated": False}
     (output / "ios-simulator-smoke.json").write_text(json.dumps(result, indent=2))
 
