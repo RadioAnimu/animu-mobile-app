@@ -55,6 +55,9 @@ jobs:
       - name: Tooling regression tests
         run: pnpm run test:tooling
 
+      - name: Native artifact and simulator helper regression tests
+        run: python3 -m unittest discover -s scripts/__tests__ -p '*_test.py'
+
       - name: Typecheck
         run: pnpm run typecheck
 

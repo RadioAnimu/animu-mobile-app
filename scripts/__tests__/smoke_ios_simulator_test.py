@@ -23,8 +23,7 @@ class SimulatorSmokeTests(unittest.TestCase):
         if args[0] == "launch":
             return "com.nessjs.animu: 12345\n"
         if args[0] == "spawn":
-            self_error = "Do not depend on executables installed inside iOS"
-            raise AssertionError(self_error)
+            raise AssertionError("Do not depend on executables installed inside iOS")
         return ""
 
     def test_release_process_is_checked_on_host(self):
