@@ -831,6 +831,19 @@ describe("NowPlayingRepository — live SSE ingestion", () => {
     expect(fixture.repository.recentOnAirTracks).toEqual([]);
   });
 
+  it("forwards the live heartbeat only while subscribed", () => {
+    const tickLive = vi.fn();
+    const fixture = makeRepository({ tickLive, subscribeLive: () => () => {} });
+    fixture.repository.tickLive();
+    expect(tickLive).not.toHaveBeenCalled();
+    fixture.repository.startLive();
+    fixture.repository.tickLive();
+    expect(tickLive).toHaveBeenCalledTimes(1);
+    fixture.repository.dispose();
+    fixture.repository.tickLive();
+    expect(tickLive).toHaveBeenCalledTimes(1);
+  });
+
   it("keeps the HTTP metadata leg after an offline push (no track to vouch for)", async () => {
     const fixture = withLive();
     fixture.pushSong(makeTrack({ raw: "Live - Song" }), 12);

@@ -126,6 +126,7 @@ export class PlayerService {
       player.on("progress", (reading) => {
         hearing.progress(reading);
         repository.expireStuckRefresh();
+        repository.tickLive();
       }),
       // Play from Control Center / the lock screen before anything is loaded
       // (iOS relaunched the app in the background for it). Airwave handles

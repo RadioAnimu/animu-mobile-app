@@ -143,6 +143,15 @@ class AnimuService {
       this.liveKey = "";
     };
   }
+
+  /**
+   * Fires the live client's overdue reconnect / idle timeout. They run on JS
+   * timers, frozen on Android in the background; the player's native
+   * progress events drive this so a dropped stream comes back there too.
+   */
+  tickLive(): void {
+    this.liveClient?.tick();
+  }
 }
 
 const findProgramIndex = (programName: string): number => {

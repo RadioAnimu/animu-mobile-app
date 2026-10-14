@@ -103,6 +103,16 @@ export const animuApi = new AnimuApi({
 });
 
 /**
+ * The SSE stream is reconnected after this long without a byte. The daemon
+ * writes only on a change (a song, a listener count) and sends no
+ * keep-alive, so a socket that died silently — a Wi-Fi/cellular handoff, a
+ * NAT timeout — would otherwise wait forever; the HTTP poll covers the
+ * metadata after 15 s, this brings the push back. Well above a normal quiet
+ * stretch, so a healthy stream is never cut.
+ */
+const LIVE_IDLE_TIMEOUT_MS = 90_000;
+
+/**
  * Builds a client whose per-call options (artwork quality, default cover) are
  * runtime user/resolver state rather than the shared client's module-load
  * defaults. Callers that need them — now-playing metadata, history rows, the
@@ -129,4 +139,5 @@ export const createApiClient = (
     defaultCover,
     artworkQuality,
     fetchImpl: options.playerScoped ? playerScopedFetch : clockAwareFetch,
+    liveIdleTimeout: LIVE_IDLE_TIMEOUT_MS,
   });

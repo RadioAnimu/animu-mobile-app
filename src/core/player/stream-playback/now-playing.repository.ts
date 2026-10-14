@@ -79,6 +79,11 @@ export interface NowPlayingFetchers {
     },
   ): () => void;
   /**
+   * Fires the live client's overdue reconnect / idle timeout (JS timers,
+   * frozen in the background on Android). Optional like `subscribeLive`.
+   */
+  tickLive?(): void;
+  /**
    * Aborts every in-flight HTTP request. Called by `expireStuckRefresh()`:
    * the native heartbeat drives the abort because the fetch's own
    * JS-timer timeout freezes in the background.
@@ -626,6 +631,18 @@ export class NowPlayingRepository {
     // timer and never fires in the background. The rejected run is
     // discarded by the epoch guard; the next poll opens fresh connections.
     this.options.fetchers.abortInFlightRequests();
+  }
+
+  /**
+   * Heartbeat for the live stream's timers, driven by the native 1 Hz
+   * readings like {@link expireStuckRefresh}: its reconnect backoff and
+   * dead-socket timeout are JS timers, which do not run in the background
+   * on Android — a stream dropped there would otherwise stay down until the
+   * app returned to the foreground.
+   */
+  tickLive(): void {
+    if (this.disposed || !this.liveSubscription) return;
+    this.options.fetchers.tickLive?.();
   }
 
   /**

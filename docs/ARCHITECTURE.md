@@ -335,8 +335,11 @@ keeps using relative requires.
 - **Realtime now-playing over SSE, with HTTP fallback.** `NowPlayingRepository`
   prefers the station's Server-Sent Events stream (`animu.live`) for track and
   listener updates and silently reverts to HTTP polling for the metadata when
-  the stream goes quiet (`LIVE_STALE_MS` = 15 s). History and program still come
-  from HTTP on the poll cadence.
+  the stream goes quiet (`LIVE_STALE_MS` = 15 s), after an offline payload (no
+  track to vouch for), or when the player hears a title the stream never
+  announced. A socket that died silently (no keep-alive from the daemon) is
+  reconnected after 90 s without a byte. History and program still come from
+  HTTP on the poll cadence.
 - **Playback lives natively.** Reconnects, stall and dead-stream detection,
   network handoffs, live-edge resumes, audio focus and interruptions (with
   their reasons), background keepalive and the single media session are
