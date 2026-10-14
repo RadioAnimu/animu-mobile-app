@@ -390,8 +390,11 @@ pipeline {
           # Full lint and native player regressions are mandatory release gates.
           cd android
           ./gradlew :app:lintRelease :react-native-anything-player:testReleaseUnitTest :app:bundleRelease --no-daemon \
-            --profile -I "$WORKSPACE/scripts/ccache.gradle"
+            --profile --warning-mode all -I "$WORKSPACE/scripts/ccache.gradle"
           cd ..
+          # The RN Java/Kotlin patch must reach compiled Release bytecode;
+          # patching npm sources while consuming the Maven AAR would do nothing.
+          python3 scripts/validate-react-native-state-locks.py node_modules/react-native/ReactAndroid/build
           ccache --show-stats || true
           cp android/app/build/outputs/bundle/release/app-release.aab \
              "$ARTIFACT_DIR/animu-${VERSION}-code${VERSION_CODE}.aab"

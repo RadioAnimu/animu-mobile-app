@@ -129,7 +129,8 @@
       "react-native-drawer-layout@^4.2.11": "patches/react-native-drawer-layout@4.2.11.patch",
       "wanakana@5.3.1": "patches/wanakana@5.3.1.patch",
       "braces@3.0.3": "patches/braces@3.0.3.patch",
-      "node-forge@1.4.0": "patches/node-forge@1.4.0.patch"
+      "node-forge@1.4.0": "patches/node-forge@1.4.0.patch",
+      "react-native@0.86.3": "patches/react-native@0.86.3.patch"
     }
   }
 }

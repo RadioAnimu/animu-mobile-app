@@ -52,6 +52,12 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Install JDK for compiled-artifact guard regressions
+        uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
+        with:
+          distribution: temurin
+          java-version: '17'
+
       - name: Tooling regression tests
         run: pnpm run test:tooling
 

@@ -53,6 +53,9 @@ pipeline {
           # Immutable installs reconcile dependencies while preserving reusable files.
           pnpm install --frozen-lockfile
 
+          # Compiled native-artifact guard regressions exercise javac/javap.
+          apt-get update
+          apt-get install -y --no-install-recommends openjdk-17-jdk-headless
           pnpm run test:tooling
           python3 -m unittest discover -s scripts/__tests__ -p '*_test.py'
           pnpm run typecheck

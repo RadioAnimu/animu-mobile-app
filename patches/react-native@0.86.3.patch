@@ -1,0 +1,53 @@
+diff --git a/ReactAndroid/src/main/java/com/facebook/react/fabric/StateWrapperImpl.kt b/ReactAndroid/src/main/java/com/facebook/react/fabric/StateWrapperImpl.kt
+index dbff42f1c4d5fa78d85c17cf0e9addbf851ac59b..3df8065d5b166ad8ca3c6c62eba397062fc871a1 100644
+--- a/ReactAndroid/src/main/java/com/facebook/react/fabric/StateWrapperImpl.kt
++++ b/ReactAndroid/src/main/java/com/facebook/react/fabric/StateWrapperImpl.kt
+@@ -35,6 +35,9 @@ internal class StateWrapperImpl private constructor() : HybridClassBase(), Refer
+ 
+   public external fun updateStateImpl(map: NativeMap)
+ 
++  // stopSurface may release the hybrid from a non-UI thread. Hold the same
++  // monitor across the validity check and JNI access as destroyState.
++  @get:Synchronized
+   public override val stateDataMapBuffer: ReadableMapBuffer?
+     get() {
+       if (!isValid) {
+@@ -44,6 +47,7 @@ internal class StateWrapperImpl private constructor() : HybridClassBase(), Refer
+       return getStateMapBufferDataImpl()
+     }
+ 
++  @get:Synchronized
+   public override val stateData: ReadableNativeMap?
+     get() {
+       if (!isValid) {
+@@ -53,6 +57,7 @@ internal class StateWrapperImpl private constructor() : HybridClassBase(), Refer
+       return getStateDataImpl()
+     }
+ 
++  @get:Synchronized
+   public override val stateDataReference: Any?
+     get() {
+       if (!isValid) {
+@@ -66,6 +71,7 @@ internal class StateWrapperImpl private constructor() : HybridClassBase(), Refer
+     initHybrid()
+   }
+ 
++  @Synchronized
+   override fun updateState(map: WritableMap) {
+     if (!isValid) {
+       FLog.e(TAG, "Race between StateWrapperImpl destruction and updateState")
+@@ -74,12 +80,14 @@ internal class StateWrapperImpl private constructor() : HybridClassBase(), Refer
+     updateStateImpl(map as NativeMap)
+   }
+ 
++  @Synchronized
+   override fun destroyState() {
+     if (isValid) {
+       resetNative()
+     }
+   }
+ 
++  @Synchronized
+   override fun toString(): String {
+     if (!isValid) {
+       return "<destroyed>"
