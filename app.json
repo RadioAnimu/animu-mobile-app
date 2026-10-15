@@ -14,7 +14,6 @@
       "bundleIdentifier": "com.nessjs.animu",
       "appleTeamId": "RWDZC8478Q",
       "infoPlist": {
-        "LSMinimumSystemVersion": "16.4",
         "UIBackgroundModes": [
           "audio"
         ],
