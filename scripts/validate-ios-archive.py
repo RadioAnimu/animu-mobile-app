@@ -1,4 +1,12 @@
-"""Validate an unsigned device archive; distribution signing remains separate."""
+"""Checks an unsigned iOS device archive against App Store upload requirements.
+
+usage: validate-ios-archive.py <archive.xcarchive> <app.json>
+
+SDK and deployment-target floors follow Apple's upcoming requirements
+(https://developer.apple.com/news/upcoming-requirements/): built with the
+iOS 26 SDK since April 28, 2026; targeting iOS 13 or later since
+September 9, 2026. Distribution signing and upload are not checked here.
+"""
 import json
 import pathlib
 import plistlib
@@ -55,7 +63,8 @@ def validate(archive, config):
             raise ValueError("Unexpected tracking declared by a native dependency")
         apis = manifest.get("NSPrivacyAccessedAPITypes", [])
         for api in apis:
-            if not api.get("NSPrivacyAccessedAPIType") or not api.get("NSPrivacyAccessedAPITypeReasons"):
+            reasons = api.get("NSPrivacyAccessedAPITypeReasons")
+            if not api.get("NSPrivacyAccessedAPIType") or not reasons:
                 raise ValueError("Native required-reason API lacks a declaration")
         manifests.append({"path": str(file.relative_to(app)), "accessedAPIs": apis})
     if not manifests:
