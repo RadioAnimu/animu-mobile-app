@@ -2,7 +2,6 @@ import { describe, expect, it, vi } from "vitest";
 import type { JapaneseReader } from "@/core/japanese";
 import type { Lyrics } from "@/core/lyrics/types";
 
-vi.mock("react-native", () => ({ InteractionManager: { runAfterInteractions: vi.fn() } }));
 vi.mock("@/contexts/user/UserSettingsProvider", () => ({ useUserSettings: vi.fn() }));
 vi.mock("@/core/japanese", () => ({ japaneseDictionary: {} }));
 vi.mock("@/hooks/useJapaneseDictionary", () => ({ useJapaneseDictionary: vi.fn() }));

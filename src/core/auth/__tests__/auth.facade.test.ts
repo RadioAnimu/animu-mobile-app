@@ -475,6 +475,57 @@ describe("AuthFacade.loginWithProvider", () => {
 });
 
 describe("AuthFacade.resumeServerAuth", () => {
+  it("adopts the callback with a trailing slash before its query", async () => {
+    const { facade, store } = build({
+      api: makeApi({ completeMobileAuth: vi.fn(() => okRedirect("tok")) }),
+    });
+    await store.markServerAuthPending();
+
+    const user = await facade.resumeServerAuth("animuapp://redirect/?token=tok");
+
+    expect(user?.sessionToken).toBe("tok");
+  });
+
+  it.each([
+    "animuapp://redirect.evil?token=untrusted",
+    "animuapp://redirect/extra?token=untrusted",
+    "animuapp://redirect@evil?token=untrusted",
+    "animuapp://untrusted@redirect?token=untrusted",
+    "animuapp://redirect:443?token=untrusted",
+    "https://redirect?token=untrusted",
+    "animuapp://redirect?token=untrusted#fragment",
+    "token=untrusted",
+  ])("leaves a pending flow alone for another destination: %s", async (url) => {
+    const { api, facade, store } = build();
+    await store.markServerAuthPending();
+
+    await expect(facade.resumeServerAuth(url)).resolves.toBeNull();
+
+    expect(store.takeServerAuthPending).not.toHaveBeenCalled();
+    expect(api.completeMobileAuth).not.toHaveBeenCalled();
+    expect(api.setSessionToken).not.toHaveBeenCalled();
+  });
+
+  it.each(["login", "link"] as const)(
+    "rejects a browser return to another destination (%s)",
+    async (operation) => {
+      const { api, facade } = build({
+        api: makeApi({ getSessionToken: vi.fn(() => "existing-session") }),
+        oauth: makeOAuth({
+          openSession: vi.fn(async () => "https://redirect?token=untrusted"),
+        }),
+      });
+      const flow =
+        operation === "login"
+          ? facade.loginWithProvider("discord")
+          : facade.linkProvider("discord");
+
+      await expect(flow).rejects.toThrow("Invalid authentication callback URL");
+      expect(api.completeMobileAuth).not.toHaveBeenCalled();
+      expect(api.setSessionToken).not.toHaveBeenCalled();
+    },
+  );
+
   it("ignores launch URLs that are not the auth redirect", async () => {
     const { api, facade, store } = build();
 

@@ -25,6 +25,10 @@ updates:
       # them as expo.install.exclude, so Expo doesn't manage them.
       - dependency-name: "expo"
       - dependency-name: "expo-*"
+      - dependency-name: "babel-preset-expo"
+      # SDK 57 and its lint toolchain support only the current TypeScript major.
+      - dependency-name: "typescript"
+        update-types: ["version-update:semver-major"]
       - dependency-name: "react"
       - dependency-name: "react-dom"
       - dependency-name: "react-native"

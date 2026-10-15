@@ -203,7 +203,13 @@ export function PronunciationMenu({
             accessibilityLabel={dict.LYRICS_PRONUNCIATION}
             accessibilityState={{ expanded: open }}
             hitSlop={THEME.HIT_SLOP.SM}
+            // Reanimated 4 runs the spring on the UI thread; only its start comes
+            // from JS, as with any Pressable. A GestureDetector tap instead trips
+            // rn-prefer-pressable-over-gesture-detector and drops Pressable's
+            // accessibility semantics.
+            // react-doctor-disable-next-line rn-pressable-shared-value-mutation -- spring runs on UI; see above
             onPressIn={() => press.set(withSpring(1, PRESS_SPRING))}
+            // react-doctor-disable-next-line rn-pressable-shared-value-mutation -- spring runs on UI; see above
             onPressOut={() => press.set(withSpring(0, PRESS_SPRING))}
             onPress={() => {
               haptics.tap();

@@ -42,7 +42,7 @@ try {
   const res = await fetch(url, { headers: { Authorization: `Basic ${auth}` }, redirect: "error", signal: AbortSignal.timeout(30000) });
   if (!res.ok) fail(`HTTP ${res.status}`);
   builds = (await res.json()).builds ?? [];
-} catch (e) {
+} catch {
   fail("Jenkins lookup failed");
 }
 

@@ -156,6 +156,16 @@ Android Jenkins pipeline does **not** need this.
 Production artifacts are submitted with `eas submit`, or uploaded manually, as
 `com.nessjs.animu`.
 
+### CI archive check
+
+`.github/workflows/ios-release.yml` archives an unsigned Release build for
+devices on a GitHub macOS runner (on `main`, by hand, and on pull requests that
+can change the native build) and checks it with
+`scripts/validate-ios-archive.py` against App Store upload requirements: the
+iOS 26 SDK, an iOS 13+ deployment target, identifiers and versions matching
+`app.json`, permissions, App Transport Security and privacy manifests. The
+archive is never distributed, so a free font stands in for the licensed ones.
+
 ## Voice assistants
 
 Siri (App Intents / App Shortcuts) and Google Assistant (App Actions) both open

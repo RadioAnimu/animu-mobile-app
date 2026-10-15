@@ -126,7 +126,7 @@ compiled JavaScript and pinned native source:
   `pnpm install`; Metro blocks the submodule's own installs and example apps.
 - iOS/Android autolinking compile its `ios/` and `android/` directly.
 - `tsc`, Vitest, ESLint and React Doctor skip the submodule's own project
-  (`react-doctor.config.json` selects the app). It has its own CI; run its
+  (`doctor.config.json` selects the app). It has its own CI; run its
   checks here with `pnpm run check:player`.
 
 To update the player, commit and push in the Anything Player repository, then move the

@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { LyricsButton } from "@/components/LyricsButton";
 
 const mocks = vi.hoisted(() => ({
@@ -25,7 +25,19 @@ const button = () => screen.getByRole("button", { name: "Show lyrics" });
 const icon = () => button().querySelector("i")!;
 
 describe("LyricsButton", () => {
-  afterEach(cleanup);
+  let idle: () => void;
+  const cancelIdle = vi.fn();
+  beforeEach(() => {
+    vi.stubGlobal("requestIdleCallback", vi.fn((callback: () => void) => {
+      idle = callback;
+      return 12;
+    }));
+    vi.stubGlobal("cancelIdleCallback", cancelIdle);
+  });
+  afterEach(() => {
+    cleanup();
+    vi.unstubAllGlobals();
+  });
 
   it("is a green microphone that opens the lyrics", () => {
     mocks.availability = "available";
@@ -54,6 +66,15 @@ describe("LyricsButton", () => {
 
   it("cleans up an interrupted dictionary install at launch", () => {
     render(<LyricsButton size={27} hitSlop={7} />);
+    expect(mocks.restore).not.toHaveBeenCalled();
+    idle();
     expect(mocks.restore).toHaveBeenCalled();
+  });
+
+  it("cancels dictionary work when unmounted before the idle slot", () => {
+    const { unmount } = render(<LyricsButton size={27} hitSlop={7} />);
+    unmount();
+    expect(cancelIdle).toHaveBeenCalledWith(12);
+    expect(mocks.restore).not.toHaveBeenCalled();
   });
 });

@@ -119,6 +119,15 @@ function withSourceFiles(config) {
   });
 }
 
+function readIfPresent(file) {
+  try {
+    return fs.readFileSync(file, "utf8");
+  } catch (error) {
+    if (error.code === "ENOENT") return "";
+    throw error;
+  }
+}
+
 function withBridgingHeader(config) {
   return withDangerousMod(config, [
     "ios",
@@ -126,8 +135,7 @@ function withBridgingHeader(config) {
       const projectRoot = config.modRequest.projectRoot;
       const projectName = XcodeUtils.getProjectName(projectRoot);
       const header = path.join(projectRoot, "ios", projectName, `${projectName}-Bridging-Header.h`);
-      const contents = fs.existsSync(header) ? fs.readFileSync(header, "utf8") : "";
-      fs.writeFileSync(header, addBridgingImport(contents));
+      fs.writeFileSync(header, addBridgingImport(readIfPresent(header)));
       return config;
     },
   ]);
