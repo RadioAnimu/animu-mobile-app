@@ -163,7 +163,7 @@ describe("LyricsService", () => {
     const fresh = new LyricsService({ provider: provider as unknown as LyricsProvider, cache, store, romanizer: () => kanaRomanizer, now: () => now });
     fresh.show(track());
     await flush();
-    expect(provider.search.mock.calls.length).toBe(calls);
+    expect(provider.search.mock.calls).toHaveLength(calls);
 
     now += MISS_TTL_MS + 1;
     const later = new LyricsService({ provider: provider as unknown as LyricsProvider, cache, store, romanizer: () => kanaRomanizer, now: () => now });

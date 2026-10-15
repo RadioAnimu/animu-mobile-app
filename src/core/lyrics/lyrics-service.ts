@@ -5,6 +5,7 @@ import { buildTimeline, parseLrc, plainLines, syncedToPlain } from "@/core/lyric
 import { inJapaneseScript, isTimedFor, pickBest, type ScoredCandidate } from "@/core/lyrics/matcher";
 import { findRomajiSibling, pairRomaji } from "@/core/lyrics/romaji-pair";
 import type { LookupResult, LyricsCache, LyricsProvider } from "@/core/lyrics/ports";
+import { bracketGroups, withoutGroups } from "@/core/lyrics/brackets";
 import { LYRICS_IDLE, type LyricsSnapshot } from "@/core/lyrics/store";
 import { normalize, type Romanizer } from "@/core/lyrics/text";
 import type { Lyrics, LyricsCandidate, LyricsSource, TrackQuery } from "@/core/lyrics/types";
@@ -17,7 +18,9 @@ export const MISS_TTL_MS = 12 * 60 * 60 * 1000;
 const MEMORY_ENTRIES = 40;
 
 /** Bracketed or tilde-wrapped qualifiers: `(Opening)`, `~Hajimari no~`. */
-const QUALIFIERS = /[([{【「『≪［（][^)\]}】」』≫］）]*[)\]}】」』≫］）]|[~〜～][^~〜～]*[~〜～]?/g;
+const QUALIFIER_OPENING = "([{【「『≪［（";
+const QUALIFIER_CLOSING = ")]}】」』≫］）";
+const TILDE_QUALIFIER = /[~〜～][^~〜～]*[~〜～]?/g;
 /** A trailing `-English Ver.-`. */
 const DASHED_SUFFIX = /\s-[^-]+-\s*$/;
 const FEATURING = /\s(?:feat\.?|ft\.?|featuring)\s.*$/i;
@@ -29,8 +32,8 @@ const SECOND_CREDIT = /[(（,、/]|\s(?:feat|ft|featuring|with|vs)\b/i;
 
 /** Title without qualifiers (`Sanctuary (Opening)` → `Sanctuary`), for queries. */
 export function queryTitle(title: string): string {
-  const core = title
-    .replace(QUALIFIERS, " ")
+  const core = withoutGroups(title, bracketGroups(title, QUALIFIER_OPENING, QUALIFIER_CLOSING))
+    .replace(TILDE_QUALIFIER, " ")
     .replace(DASHED_SUFFIX, " ")
     .replace(FEATURING, " ")
     .replace(/\s+/g, " ")

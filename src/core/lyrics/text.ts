@@ -1,4 +1,5 @@
 import { toRomaji } from "wanakana";
+import { bracketGroups, withoutGroups } from "@/core/lyrics/brackets";
 
 // ─── Text normalization & similarity ───
 //
@@ -16,7 +17,8 @@ export type Romanizer = (text: string) => string;
 
 export const kanaRomanizer: Romanizer = (text) => toRomaji(text);
 
-const BRACKETS = /[([{【「『≪〈《［（]([^)\]}】」』≫〉》］）]*)[)\]}】」』≫〉》］）]/g;
+const OPENING = "([{【「『≪〈《［（";
+const CLOSING = ")]}】」』≫〉》］）";
 const TILDE_SUFFIX = /[~〜～]([^~〜～]*)[~〜～]?/g;
 const FEATURING = /\s(?:feat\.?|ft\.?|featuring|prod\.?)\s.*$/i;
 const PUNCTUATION = /[^\p{L}\p{N}\s]/gu;
@@ -31,9 +33,15 @@ const QUALIFIER_WORDS = new Set(
 const isQualifierOnly = (normalized: string): boolean =>
   normalized.split(" ").every((word) => QUALIFIER_WORDS.has(word) || /^\d+$/.test(word));
 
+/**
+ * No title or credit comes near this; matching looks no further. Romanizing
+ * is quadratic in wanakana, so an absurd third-party value must not reach it.
+ */
+const MATCHED_LENGTH = 512;
+
 /** NFKC, lowercase, romanized; punctuation becomes spaces. */
 export function normalize(input: string, romanize: Romanizer = kanaRomanizer): string {
-  const folded = input.normalize("NFKC").toLowerCase();
+  const folded = input.slice(0, MATCHED_LENGTH).normalize("NFKC").toLowerCase();
   return romanize(folded).toLowerCase().replace(PUNCTUATION, " ").replace(/\s+/g, " ").trim();
 }
 
@@ -50,9 +58,9 @@ export function compact(normalized: string): string {
  */
 export function titleVariants(title: string, romanize: Romanizer = kanaRomanizer): string[] {
   const raw = title.normalize("NFKC");
-  const core = raw.replace(BRACKETS, " ").replace(TILDE_SUFFIX, " ").replace(FEATURING, " ");
-  const parts: string[] = [];
-  for (const match of raw.matchAll(BRACKETS)) parts.push(match[1]);
+  const groups = bracketGroups(raw, OPENING, CLOSING);
+  const core = withoutGroups(raw, groups).replace(TILDE_SUFFIX, " ").replace(FEATURING, " ");
+  const parts = groups.map((group) => group.inner);
   for (const match of raw.matchAll(TILDE_SUFFIX)) parts.push(match[1]);
   for (const piece of [raw, core]) parts.push(...piece.split(/\s[-–—/|]\s/));
 
@@ -74,16 +82,19 @@ function splitCredits(credits: string): string[] {
   return credits.split(ARTIST_SEPARATOR).flatMap((part) => part.split(ARTIST_WORD_SEPARATOR));
 }
 /** `Hachiman Hikigaya (CV: Takuya Eguchi)` credits the voice actor too. */
-const CHARACTER_VOICE = /[(（]\s*(?:cv|vo)\s*[.:：]\s*([^)）]+)[)）]/gi;
+const CHARACTER_VOICE = /^\s*(?:cv|vo)\s*[.:：]\s*/i;
 
 /** Every credited name, normalized, plus the whole credit. */
 export function artistNames(artist: string, romanize: Romanizer = kanaRomanizer): string[] {
   const raw = artist.normalize("NFKC");
-  const voices = [...raw.matchAll(CHARACTER_VOICE)].map((match) => match[1]);
-  const credits = raw.replace(CHARACTER_VOICE, " ");
+  const voiceGroups = bracketGroups(raw, "(（", ")）").filter(
+    (group) => CHARACTER_VOICE.test(group.inner) && group.inner.replace(CHARACTER_VOICE, ""),
+  );
+  const voices = voiceGroups.map((group) => group.inner.replace(CHARACTER_VOICE, ""));
+  const credits = withoutGroups(raw, voiceGroups);
   const names = new Set<string>();
   for (const part of [credits, ...splitCredits(credits), ...voices]) {
-    const normalized = normalize(part.replace(BRACKETS, " "), romanize);
+    const normalized = normalize(withoutGroups(part, bracketGroups(part, OPENING, CLOSING)), romanize);
     if (normalized) names.add(normalized);
   }
   return [...names];
@@ -98,7 +109,7 @@ export function similarity(a: string, b: string): number {
   for (let i = 1; i <= a.length; i += 1) {
     current[0] = i;
     for (let j = 1; j <= b.length; j += 1) {
-      const substitution = previous[j - 1] + (a.charCodeAt(i - 1) === b.charCodeAt(j - 1) ? 0 : 1);
+      const substitution = previous[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1);
       current[j] = Math.min(previous[j] + 1, current[j - 1] + 1, substitution);
     }
     [previous, current] = [current, previous];
@@ -108,7 +119,10 @@ export function similarity(a: string, b: string): number {
 
 /** Same words in any order (`horie yui` / `yui horie`). */
 export function sameTokens(a: string, b: string): boolean {
-  const sort = (value: string) => value.split(" ").filter(Boolean).sort().join(" ");
+  // Any fixed order works for the comparison; code-unit order never ties two
+  // different tokens, as a locale comparison could.
+  const byCodeUnit = (x: string, y: string) => (x < y ? -1 : Number(x > y));
+  const sort = (value: string) => value.split(" ").filter(Boolean).sort(byCodeUnit).join(" ");
   return Boolean(a) && sort(a) === sort(b);
 }
 
