@@ -57,7 +57,7 @@ export class LyricsFileCache implements LyricsCache {
     const files = this.dir.list().filter((item): item is File => item instanceof File);
     if (files.length <= MAX_FILES) return;
     files
-      .sort((a, b) => (a.modificationTime ?? 0) - (b.modificationTime ?? 0))
+      .sort((a, b) => (a.lastModified ?? 0) - (b.lastModified ?? 0))
       .slice(0, files.length - MAX_FILES)
       .forEach((file) => file.delete());
   }
