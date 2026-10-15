@@ -1,6 +1,7 @@
 const { defineConfig } = require("eslint/config");
 const expoConfig = require("eslint-config-expo/flat");
 const sonarjs = require("eslint-plugin-sonarjs");
+const globals = require("globals");
 
 const RELATIVE_IMPORT_MESSAGE =
   "Use the @/ (src) or @app/ (project root) alias instead of a relative import.";
@@ -92,5 +93,13 @@ module.exports = defineConfig([
         SONARJS_DISABLED.has(rule) ? "off" : "error",
       ]),
     ),
+  },
+  {
+    // Build-time code run by Node: config plugins, CI/tooling scripts and
+    // tool configs. Expo's env-var rule protects EXPO_PUBLIC_* inlining in
+    // the app bundle, which does not apply to scripts reading their own env.
+    files: ["plugins/**/*.{js,mjs}", "scripts/**/*.{js,mjs,cjs}", "*.config.{js,mjs,cjs}"],
+    languageOptions: { globals: globals.node },
+    rules: { "expo/no-env-var-destructuring": "off" },
   },
 ]);
