@@ -53,7 +53,9 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Tooling regression tests
-        run: pnpm run test:tooling
+        run: |
+          pnpm run test:tooling
+          python3 -m unittest discover -s scripts/__tests__ -p '*_test.py'
 
       - name: Typecheck
         run: pnpm run typecheck

@@ -54,6 +54,7 @@ pipeline {
           pnpm install --frozen-lockfile
 
           pnpm run test:tooling
+          python3 -m unittest discover -s scripts/__tests__ -p '*_test.py'
           pnpm run typecheck
           # Expo-managed packages must match the installed SDK (deliberate
           # exceptions live in expo.install.exclude).
