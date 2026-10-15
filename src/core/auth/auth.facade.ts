@@ -27,6 +27,26 @@ import type {
   SessionStorePort,
 } from "@/core/auth/ports";
 
+/** Where the auth server bounces a finished browser flow. */
+const MOBILE_AUTH_CALLBACK = "animuapp://redirect";
+
+/**
+ * Whether `url` is exactly the auth callback, with any query. A prefix test
+ * would also accept `animuapp://redirect.evil?token=…`. RN's URL polyfill only
+ * parses HTTP authorities, so the part before the query is compared verbatim.
+ */
+function isMobileAuthCallback(url: string | null | undefined): url is string {
+  if (!url || url.includes("#")) return false;
+  const queryIndex = url.indexOf("?");
+  const destination = queryIndex < 0 ? url : url.slice(0, queryIndex);
+  return (
+    destination === MOBILE_AUTH_CALLBACK ||
+    destination === `${MOBILE_AUTH_CALLBACK}/`
+  );
+}
+
+const INVALID_CALLBACK = "Invalid authentication callback URL";
+
 /**
  * Single entry point to authentication, composing three ports:
  *
@@ -160,7 +180,7 @@ export class AuthFacade {
    * overwrite the user's session with the attacker's.
    */
   async resumeServerAuth(url: string | null | undefined): Promise<User | null> {
-    if (!url?.startsWith("animuapp://redirect")) return null;
+    if (!isMobileAuthCallback(url)) return null;
     if (!(await this.store.takeServerAuthPending())) return null;
     return this.adoptMobileCallback(url);
   }
@@ -185,6 +205,7 @@ export class AuthFacade {
   }
 
   private async adoptMobileCallback(callbackUrl: string): Promise<User> {
+    if (!isMobileAuthCallback(callbackUrl)) throw new Error(INVALID_CALLBACK);
     const result = this.api.completeMobileAuth(callbackUrl);
     if (!result.ok) {
       throw new Error(
@@ -285,6 +306,7 @@ export class AuthFacade {
     );
     if (!callbackUrl) throw new AuthFlowCancelled();
 
+    if (!isMobileAuthCallback(callbackUrl)) throw new Error(INVALID_CALLBACK);
     const result = this.api.completeMobileAuth(callbackUrl);
     if (!result.ok) {
       throw new Error(
