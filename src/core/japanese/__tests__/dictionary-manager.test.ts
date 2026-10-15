@@ -248,7 +248,7 @@ describe("JapaneseDictionary", () => {
       expect(build).toHaveBeenCalledTimes(1);
       expect(store.getSnapshot().reader).toBe("ready");
       const load = build.mock.calls[0][0];
-      expect((await load("tid_pos.dat.gz")).length).toBe(DICTIONARY_FILES["tid_pos.dat.gz"].stored);
+      expect(await load("tid_pos.dat.gz")).toHaveLength(DICTIONARY_FILES["tid_pos.dat.gz"].stored);
     });
 
     it("lets the reader go when lyrics close, dropping a build still running", async () => {

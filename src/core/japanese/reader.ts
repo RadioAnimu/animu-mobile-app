@@ -13,6 +13,8 @@ const hasReading = (value: string | undefined): value is string => Boolean(value
  */
 const ATTACHED_POS = new Set(["助動詞", "記号"]);
 const ATTACHED_DETAIL = new Set(["接尾", "接続助詞"]);
+/** A romaji word that is punctuation, written without a space before it. */
+const PUNCTUATION = /^[,.!?、。！？]/;
 
 function attaches(token: KuromojiToken): boolean {
   return ATTACHED_POS.has(token.pos) || ATTACHED_DETAIL.has(token.pos_detail_1);
@@ -91,11 +93,13 @@ export class JapaneseReader {
 
   /** The line in romaji, word by word (`君の名は` → `kimi no na wa`). */
   romaji(text: string): string {
-    return this.words(text)
-      .map((word) => word.romaji)
-      .filter(Boolean)
-      .join(" ")
-      .replace(/\s+([,.!?、。！？])/g, "$1");
+    let line = "";
+    for (const { romaji } of this.words(text)) {
+      if (!romaji) continue;
+      // Punctuation sticks to the word before it (`kimi no na wa?`).
+      line += line && !PUNCTUATION.test(romaji) ? ` ${romaji}` : romaji;
+    }
+    return line;
   }
 
   /**

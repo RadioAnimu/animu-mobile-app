@@ -40,7 +40,7 @@ function foldKana(text: string): string {
   return folded;
 }
 
-const escapeRegExp = (char: string) => char.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+const escapeRegExp = (char: string) => char.replace(/[.*+?^${}()|[\]\\]/g, String.raw`\$&`);
 /** Punctuation that closes what came before (it stays on the previous piece). */
 const CLOSING = /[、。，．！？!?,.」』）)〜~…:;"'”’]/;
 
@@ -70,11 +70,23 @@ function reads(piece: string, word: string): boolean {
 /** Hepburn macrons as the kana spell them (mō → mou, ī → ii). */
 const MACRONS: Record<string, string> = { "ā": "aa", "ī": "ii", "ū": "uu", "ē": "ee", "ō": "ou" };
 
+const WORD_CHAR = /[\p{L}\p{N}]/u;
+
+/** A word without the punctuation around it; it may end in an apostrophe. */
+function trimWord(word: string): string {
+  const chars = [...word];
+  let from = 0;
+  let to = chars.length;
+  while (from < to && !WORD_CHAR.test(chars[from])) from += 1;
+  while (to > from && chars[to - 1] !== "'" && !WORD_CHAR.test(chars[to - 1])) to -= 1;
+  return chars.slice(from, to).join("");
+}
+
 /** Words of a romaji line as written (shown), and as spelled for matching. */
 function romajiWords(line: string): { shown: string; spelled: string }[] {
   return line
     .split(/\s+/)
-    .map((word) => word.replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}']+$/gu, ""))
+    .map(trimWord)
     .filter(Boolean)
     .map((shown) => ({
       shown,
@@ -157,8 +169,10 @@ export function timeSegments(segments: readonly LabelSegment[], words: readonly 
   for (const segment of segments) {
     const to = from + compact(segment.text).length;
     const covered = spans.filter((span) => span.from < to && span.to > from);
-    if (covered.length === 0) return null;
-    timed.push({ ...segment, startMs: covered[0].word.startMs, endMs: covered[covered.length - 1].word.endMs });
+    const first = covered.at(0);
+    const last = covered.at(-1);
+    if (!first || !last) return null;
+    timed.push({ ...segment, startMs: first.word.startMs, endMs: last.word.endMs });
     from = to;
   }
   return from === at ? timed : null;

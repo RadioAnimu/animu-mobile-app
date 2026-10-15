@@ -28,7 +28,7 @@ const LAST_LINE_MS = 6_000;
 
 const TIME_TAG = /\[(\d{1,3}):(\d{1,2})(?:[.:](\d{1,3}))?\]/y;
 const WORD_TAG = /<(\d{1,3}):(\d{1,2})(?:[.:](\d{1,3}))?>/g;
-const OFFSET_TAG = /^\s*\[offset:\s*([+-]?\d+)\s*\]/im;
+const OFFSET_TAG = /^[ \t]*\[offset:[ \t]*([+-]?\d+)[ \t]*\]/im;
 
 interface RawRow {
   startMs: number;
@@ -279,7 +279,7 @@ export function keyedLines(lines: readonly string[]): { key: string; text: strin
 /** Untimed lyrics as display lines; runs of blank lines collapse to one stanza gap. */
 export function plainLines(text: string): string[] {
   const lines: string[] = [];
-  for (const raw of text.replace(/\r\n/g, "\n").split("\n")) {
+  for (const raw of text.replaceAll("\r\n", "\n").split("\n")) {
     const line = raw.trim();
     if (line || (lines.length > 0 && lines.at(-1) !== "")) lines.push(line);
   }

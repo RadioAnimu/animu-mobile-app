@@ -69,17 +69,17 @@ const pressRequest = () =>
   fireEvent.click(screen.getByRole("button", { name: "Make request" }));
 
 describe("HeaderBar", () => {
-  it("carries the lyrics microphone beside the request note", () => {
-    render(<HeaderBar openLiveRequestModal={() => {}} />);
-    expect(screen.getByTestId("lyrics-button")).toBeTruthy();
-  });
-
   beforeEach(() => {
     mocks.backgrounded = false;
     mocks.progress = { progressMs: 0, progressAt: 0, progressRunning: false, showProgress: true };
     setPlayer();
   });
   afterEach(cleanup);
+
+  it("carries the lyrics microphone beside the request note", () => {
+    render(<HeaderBar openLiveRequestModal={() => {}} />);
+    expect(screen.getByTestId("lyrics-button")).toBeTruthy();
+  });
 
   describe("make-request button", () => {
     it("opens the MakeRequest screen when the program is not live", () => {

@@ -21,10 +21,10 @@ describe("gunzipTrimmed", () => {
         (done) => progress.push(done),
         yieldNow,
       );
-      expect(stored.length).toBe(file.stored);
+      expect(stored).toHaveLength(file.stored);
       expect(progress.at(-1)).toBe(file.bytes);
       expect(yieldNow).toHaveBeenCalled();
-      expect(padTo(stored, file.unpacked).length).toBe(file.unpacked);
+      expect(padTo(stored, file.unpacked)).toHaveLength(file.unpacked);
     },
   );
 

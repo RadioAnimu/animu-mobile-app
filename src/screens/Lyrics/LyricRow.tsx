@@ -104,7 +104,7 @@ export function useRowOffset(motion: ListMotion, index: number): SharedValue<num
   useAnimatedReaction(
     () => follow.get(),
     (target, previous) => {
-      if (browsing.get() || (previous && target.seq === previous.seq)) return;
+      if (browsing.get() || target.seq === previous?.seq) return;
       // A row that just mounted starts where the list is.
       if (!previous || target.instant || reduceMotion) {
         y.set(target.y);
