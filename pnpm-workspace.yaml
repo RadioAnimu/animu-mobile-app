@@ -19,20 +19,20 @@ minimumReleaseAge: 4320
 # deliberately (and bump together with the SDK) skip the 3-day wait.
 minimumReleaseAgeExclude:
   # Exact internal versions from the reviewed SDK 57 patch releases
-  # (October 6, 12 and 14).
+  # (October 6, 12, 14 and 15).
   - "@expo/config-plugins@57.0.10"
   - "@expo/config@57.0.10"
   - "@expo/metro-config@57.0.13"
   - "@expo/image-utils@0.11.6"
   - "@expo/metro-file-map@57.0.4"
   - "@expo/require-utils@57.0.6"
-  - "@expo/router-server@57.0.12"
-  - "@expo/cli@57.0.30"
+  - "@expo/router-server@57.0.13"
+  - "@expo/cli@57.0.31"
   - "@expo/prebuild-config@57.0.19"
   - "@expo/fingerprint@0.20.14"
   - "@expo/inline-modules@0.1.8"
   - "@expo/local-build-cache-provider@57.0.9"
-  - babel-preset-expo@57.0.15
+  - babel-preset-expo@57.0.16
   # Reviewed security fix for GHSA-68fv-2mgg-jv7q, published October 5.
   - source-map-js@1.2.2
   # Patched GHSA-pqg4-j6r4-53mv; registry signature and upstream release reviewed.
@@ -53,11 +53,12 @@ minimumReleaseAgeExclude:
 # releases carried provenance attestations that the resolved versions don't.
 trustPolicy: no-downgrade
 trustPolicyExclude:
-  # SDK 57 patch releases (October 6, 12 and 14): npm registry signatures
-  # verified, published by the same Expo maintainer, source at expo/expo
-  # commits 50ac74f1ab56, 58da4edafcb0 and 0607af7a70d0. These versions lack
-  # trusted-publisher evidence; keep exceptions exact.
-  - expo@57.0.29
+  # SDK 57 patch releases (October 6, 12, 14 and 15): npm registry
+  # signatures verified, published by the same Expo maintainer, source at
+  # expo/expo commits 50ac74f1ab56, 58da4edafcb0, 0607af7a70d0 and
+  # 396da4641605. These versions lack trusted-publisher evidence; keep
+  # exceptions exact (one entry per package: pnpm applies the first match).
+  - expo@57.0.30
   - expo-asset@57.0.20
   - expo-auth-session@57.0.16
   - expo-constants@57.0.22
@@ -71,8 +72,8 @@ trustPolicyExclude:
   - expo-modules-jsi@57.1.2
   - expo-sharing@57.0.23
   - expo-splash-screen@57.0.10
-  - babel-preset-expo@57.0.15
-  - "@expo/cli@57.0.30"
+  - babel-preset-expo@57.0.16
+  - "@expo/cli@57.0.31"
   - "@expo/fingerprint@0.20.14"
   - "@expo/inline-modules@0.1.8"
   - "@expo/local-build-cache-provider@57.0.9"
@@ -83,7 +84,7 @@ trustPolicyExclude:
   - "@expo/image-utils@0.11.6"
   - "@expo/metro-file-map@57.0.4"
   - "@expo/require-utils@57.0.6"
-  - "@expo/router-server@57.0.12"
+  - "@expo/router-server@57.0.13"
   - semver@6.3.1
   - semver@7.8.5
   - eslint-import-resolver-typescript@3.10.1
