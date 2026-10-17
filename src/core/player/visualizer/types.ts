@@ -8,11 +8,11 @@ import type { AudioSample } from "react-native-anything-player";
  */
 
 /**
- * One raw sampler window pair, published once per native PCM window. The
- * visualizer interpolates `previousWave` → `targetWave` across
- * `nativeIntervalMs` (measured real cadence between windows) at its own
- * display rate — the web player's analyser behaves the same way, its window
- * just advances continuously on the audio thread.
+ * One raw sampler window pair, published once per native PCM window.
+ * Consecutive windows are consecutive slices of the decoded stream; the
+ * visualizer joins them into one signal and reads it on its own clock at
+ * its display rate, like the web player's analyser advancing on the audio
+ * thread.
  */
 export interface VisualizerWindow {
   /** Ending window of the interpolation (equal to `targetWave` at first). */
@@ -21,6 +21,8 @@ export interface VisualizerWindow {
   targetWave: number[];
   /** Measured milliseconds between the last two native windows. */
   nativeIntervalMs: number;
+  /** Milliseconds of audio this window covers (its PCM duration). */
+  windowMs: number;
   /** Overall loudness, normalized 0..1. */
   level: number;
   /**

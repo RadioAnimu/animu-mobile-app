@@ -1,3 +1,4 @@
+import { CONFIG, debugLog } from "@/utils/player.config";
 import type { AudioSample } from "react-native-anything-player";
 import type {
   SamplingTransport,
@@ -7,14 +8,14 @@ import type {
 
 /**
  * Oscilloscope sampler — turns the player's decoded-audio windows into the
- * windows the WebView visualizer interpolates between.
+ * windows the WebView visualizer reads as one continuous signal.
  *
  * react-native-anything-player does the DSP natively (downmix, resample to
  * {@link WAVE_POINTS}, level) on both platforms — including live streams on
  * iOS, where AVPlayer's own audio tap never runs. What is left here is pacing
- * and presentation: the measured window cadence (median, so decode bursts do
- * not twitch the trace), the delay until the window is heard, and the draw
- * gain.
+ * and presentation: the window's PCM duration (the visualizer's read pace)
+ * and measured cadence (median; its stand-in when a platform reports no
+ * duration), the delay until the window is heard, and the draw gain.
  */
 
 /**
@@ -44,7 +45,14 @@ function median(values: number[]): number {
   return sorted.length % 2 === 1 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
 }
 
+// `performance` is guarded for environments that lack it (diagnostics only):
+// a ReferenceError inside the handler would kill the whole feed.
+const perfNow = (): number => (typeof performance !== "undefined" ? performance.now() : 0);
+
 export class AudioSampler implements VisualizerSampler {
+  private diagnostic = { start: 0, last: 0, nativeLast: 0, count: 0,
+    arrivalGapMaxMs: 0, nativeGapMaxMs: 0, eventAgeMaxMs: 0,
+    burstEvents: 0, handleMaxMs: 0 };
   private enabled = false;
   private foreground = true;
   private playing = false;
@@ -86,8 +94,10 @@ export class AudioSampler implements VisualizerSampler {
 
   subscribeWindows(listener: (window: VisualizerWindow) => void): () => void {
     this.listeners.add(listener);
+    debugLog("[ScopeDiag] listener-add", { at: Date.now(), listeners: this.listeners.size });
     return () => {
       this.listeners.delete(listener);
+      debugLog("[ScopeDiag] listener-remove", { at: Date.now(), listeners: this.listeners.size });
     };
   }
 
@@ -120,6 +130,8 @@ export class AudioSampler implements VisualizerSampler {
   /** Reconciles the native sampling gate with the flags (only acts on change). */
   private apply(): void {
     if (this.isActive === (this.subscription != null)) return;
+    debugLog("[ScopeDiag] sampling-gate", { at: Date.now(), active: this.isActive,
+      listeners: this.listeners.size });
     if (this.isActive) {
       this.subscription = this.transport.onSample((sample) => this.handle(sample));
       this.transport.setSamplingEnabled(true);
@@ -133,6 +145,10 @@ export class AudioSampler implements VisualizerSampler {
 
   private handle(sample: AudioSample): void {
     if (!this.isActive || sample.waveform.length === 0) return;
+    // `performance` is guarded for engines that lack it (diagnostics only):
+    // a ReferenceError inside the handler would kill the whole feed.
+    const diagnosticAt = CONFIG.DEBUG ? perfNow() : 0;
+    if (CONFIG.DEBUG) this.diagnosticArrival(sample, diagnosticAt);
     this.trackCadence(Date.now());
     this.trackLatency(sample.outputLatency);
     const target = sample.waveform;
@@ -141,11 +157,41 @@ export class AudioSampler implements VisualizerSampler {
       previousWave: this.previousWave ?? target,
       targetWave: target,
       nativeIntervalMs: this.intervalMs,
+      windowMs: sample.duration > 0 ? sample.duration * 1000 : this.intervalMs,
       level: sample.level,
       outputLatencyMs: this.appliedDelayMs(),
     };
     this.previousWave = target;
     this.listeners.forEach((listener) => listener(window));
+    if (CONFIG.DEBUG) this.diagnosticHandled(sample, diagnosticAt);
+  }
+
+  /** Logging helpers only; the sampler cadence and payload stay unchanged. */
+  private diagnosticArrival(sample: AudioSample, diagnosticAt: number): void {
+    const d = this.diagnostic;
+    if (!d.start) d.start = diagnosticAt;
+    const gap = d.last ? diagnosticAt - d.last : 0;
+    d.arrivalGapMaxMs = Math.max(d.arrivalGapMaxMs, gap);
+    d.nativeGapMaxMs = Math.max(d.nativeGapMaxMs, d.nativeLast ? sample.timestamp - d.nativeLast : 0);
+    d.eventAgeMaxMs = Math.max(d.eventAgeMaxMs, Date.now() - sample.timestamp);
+    if (gap > 0 && gap < 4) d.burstEvents++;
+    d.last = diagnosticAt;
+    d.nativeLast = sample.timestamp;
+    d.count++;
+  }
+
+  private diagnosticHandled(sample: AudioSample, diagnosticAt: number): void {
+    const d = this.diagnostic;
+    d.handleMaxMs = Math.max(d.handleMaxMs, perfNow() - diagnosticAt);
+    if (diagnosticAt - d.start >= 5000) {
+      debugLog("[ScopeDiag] sampler", { at: Date.now(), ...d,
+        elapsedMs: diagnosticAt - d.start, listeners: this.listeners.size,
+        intervalMs: this.intervalMs, pcmDurationMs: sample.duration * 1000, outputLatencyMs: this.outputLatencyMs,
+        syncTrimMs: this.syncTrimMs, appliedDelayMs: this.appliedDelayMs() });
+      this.diagnostic = { start: diagnosticAt, last: diagnosticAt, nativeLast: sample.timestamp,
+        count: 0, arrivalGapMaxMs: 0, nativeGapMaxMs: 0, eventAgeMaxMs: 0,
+        burstEvents: 0, handleMaxMs: 0 };
+    }
   }
 
   private trackCadence(now: number): void {
