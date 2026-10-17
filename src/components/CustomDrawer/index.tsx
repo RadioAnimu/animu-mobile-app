@@ -172,7 +172,7 @@ function AccountRow({ onOpenLogin, onOpenSettings }: Readonly<AccountRowProps>) 
           accessibilityLabel={
             user
               ? [profile?.user.username || user.username, caption].join(", ")
-              : dict.LOGIN_WORD
+              : dict.ACCOUNT_SIGN_IN
           }
           accessibilityHint={
             user ? dict.A11Y_OPENS_SETTINGS : dict.A11Y_OPENS_LOGIN
@@ -198,7 +198,7 @@ function AccountRow({ onOpenLogin, onOpenSettings }: Readonly<AccountRowProps>) 
               style={styles.accountName}
               numberOfLines={1}
             >
-              {user ? profile?.user.username || user.username : dict.LOGIN_WORD}
+              {user ? profile?.user.username || user.username : dict.ACCOUNT_SIGN_IN}
             </Text>
             <Text
               maxFontSizeMultiplier={THEME.FONT_SCALE.CONTENT}

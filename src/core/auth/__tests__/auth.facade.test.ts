@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi, type Mock } from "vitest";
+import { AnimuApiError } from "animu-api";
 import type {
   AuthProfile,
   AuthSession,
@@ -8,7 +9,11 @@ import type {
 } from "animu-api";
 
 import { AuthFacade } from "@/core/auth/auth.facade";
-import { AuthFlowCancelled } from "@/core/auth/errors";
+import {
+  AuthFlowCancelled,
+  ProviderEmailTaken,
+  ProviderLinkConflict,
+} from "@/core/auth/errors";
 import type {
   AuthApiPort,
   OAuthPort,
@@ -432,6 +437,145 @@ describe("AuthFacade.loginWithProvider", () => {
     );
   });
 
+  describe("provider email already on another account", () => {
+    const failedBounce = (error: string, message: string | null) =>
+      build({
+        oauth: makeOAuth({
+          openSession: vi.fn(
+            async () => "animuapp://redirect?error=oauth&msg=email%20already%20taken",
+          ),
+        }),
+        api: makeApi({
+          completeMobileAuth: vi.fn(
+            (): MobileAuthRedirect => ({ ok: false, error, message }),
+          ),
+        }),
+      });
+
+    it("names the provider when the server bounce refuses the email", async () => {
+      const { api, facade } = failedBounce("oauth", "email already taken");
+
+      const failure = await facade.loginWithProvider("discord").catch((e) => e);
+
+      expect(failure).toBeInstanceOf(ProviderEmailTaken);
+      expect((failure as ProviderEmailTaken).provider).toBe("discord");
+      expect(api.setSessionToken).not.toHaveBeenCalled();
+    });
+
+    it.each([" Email Already Taken ", "email already taken."])(
+      "matches the bounce message leniently: %j",
+      async (message) => {
+        const { facade } = failedBounce("oauth", message);
+
+        await expect(facade.loginWithProvider("discord")).rejects.toBeInstanceOf(
+          ProviderEmailTaken,
+        );
+      },
+    );
+
+    it("keeps any other oauth failure generic", async () => {
+      const { facade } = failedBounce("oauth", "provider said no");
+
+      const failure = await facade.loginWithProvider("discord").catch((e) => e);
+
+      expect(failure).not.toBeInstanceOf(ProviderEmailTaken);
+      expect((failure as Error).message).toBe("oauth: provider said no");
+    });
+
+    it("keeps an expired/used state generic, whatever its message", async () => {
+      const { facade } = failedBounce("state", "email already taken");
+
+      const failure = await facade.loginWithProvider("discord").catch((e) => e);
+
+      expect(failure).not.toBeInstanceOf(ProviderEmailTaken);
+      expect((failure as Error).message).toBe("state: email already taken");
+    });
+
+    it("maps the native Apple exchange refusal", async () => {
+      const { facade } = build({
+        oauth: makeOAuth({
+          authorizeAppleNative: vi.fn(async () => ({ identityToken: "id" })),
+        }),
+        api: makeApi({
+          exchangeToken: vi.fn(async () => {
+            throw new AnimuApiError(
+              "Email Already Taken",
+              401,
+              {},
+              "token_exchange_failed",
+            );
+          }),
+        }),
+      });
+
+      const failure = await facade.loginWithProvider("apple").catch((e) => e);
+
+      expect(failure).toBeInstanceOf(ProviderEmailTaken);
+      expect((failure as ProviderEmailTaken).provider).toBe("apple");
+    });
+
+    it("maps the app-driven exchange refusal too", async () => {
+      const { facade } = build({
+        oauth: makeOAuth({ authorize: vi.fn(async () => ({ code: "c" })) }),
+        api: makeApi({
+          exchangeToken: vi.fn(async () => {
+            throw new AnimuApiError(
+              "email already taken",
+              401,
+              {},
+              "token_exchange_failed",
+            );
+          }),
+        }),
+      });
+
+      await expect(facade.loginWithProvider("legacy")).rejects.toBeInstanceOf(
+        ProviderEmailTaken,
+      );
+    });
+
+    it.each([
+      new AnimuApiError("invalid identity token", 401, {}, "token_exchange_failed"),
+      new AnimuApiError("email already taken", 400, {}, "invalid_request"),
+      new Error("email already taken"),
+    ])("leaves other exchange failures untouched: %s", async (error) => {
+      const { facade } = build({
+        oauth: makeOAuth({
+          authorizeAppleNative: vi.fn(async () => ({ identityToken: "id" })),
+        }),
+        api: makeApi({
+          exchangeToken: vi.fn(async () => {
+            throw error;
+          }),
+        }),
+      });
+
+      await expect(facade.loginWithProvider("apple")).rejects.toBe(error);
+    });
+
+    it("raises it without a provider when a cold-start bounce carries it", async () => {
+      const { facade, store } = build({
+        api: makeApi({
+          completeMobileAuth: vi.fn(
+            (): MobileAuthRedirect => ({
+              ok: false,
+              error: "oauth",
+              message: "email already taken",
+            }),
+          ),
+        }),
+      });
+      store.markServerAuthPending();
+
+      const failure = await facade
+        .resumeServerAuth("animuapp://redirect?error=oauth&msg=email%20already%20taken")
+        .catch((e) => e);
+
+      expect(failure).toBeInstanceOf(ProviderEmailTaken);
+      expect((failure as ProviderEmailTaken).provider).toBeUndefined();
+    });
+  });
+
   it("runs the app-driven OAuth redirect for non-server providers", async () => {
     const oauthResult: OAuthResult = {
       code: "code-1",
@@ -484,6 +628,26 @@ describe("AuthFacade.resumeServerAuth", () => {
     const user = await facade.resumeServerAuth("animuapp://redirect/?token=tok");
 
     expect(user?.sessionToken).toBe("tok");
+  });
+
+  it("puts the previous token back when the profile can't be loaded", async () => {
+    const { api, facade, store } = build({
+      api: makeApi({
+        completeMobileAuth: vi.fn(() => okRedirect("new-token")),
+        getSessionToken: vi.fn(() => "cached-token"),
+        getProfile: vi.fn(async () => {
+          throw new Error("offline");
+        }),
+      }),
+    });
+    await store.markServerAuthPending();
+
+    await expect(
+      facade.resumeServerAuth("animuapp://redirect?token=new-token"),
+    ).rejects.toThrow("offline");
+
+    expect(api.setSessionToken).toHaveBeenLastCalledWith("cached-token");
+    expect(store.save).not.toHaveBeenCalled();
   });
 
   it.each([
@@ -665,9 +829,9 @@ describe("AuthFacade.linkProvider", () => {
     );
   });
 
-  it("surfaces a failed link bounce", async () => {
+  it("names a link_conflict bounce as ProviderLinkConflict", async () => {
     const api = makeApi();
-     api.getSessionToken.mockReturnValue("sid-1");
+    api.getSessionToken.mockReturnValue("sid-1");
     api.completeMobileAuth.mockReturnValue({
       ok: false,
       error: "link_conflict",
@@ -678,7 +842,43 @@ describe("AuthFacade.linkProvider", () => {
       oauth: makeOAuth({ openSession: vi.fn(async () => "animuapp://redirect") }),
     });
 
-    await expect(facade.linkProvider("discord")).rejects.toThrow("link_conflict");
+    const failure = await facade.linkProvider("discord").catch((e) => e);
+    expect(failure).toBeInstanceOf(ProviderLinkConflict);
+    expect((failure as ProviderLinkConflict).provider).toBe("discord");
+  });
+
+  it("names the JSON endpoint's link_conflict as ProviderLinkConflict", async () => {
+    const api = makeApi({
+      linkProvider: vi.fn(async () => {
+        throw new AnimuApiError("conflict", 409, {}, "link_conflict");
+      }),
+    });
+    const { facade } = build({
+      api,
+      oauth: makeOAuth({
+        authorizeAppleNative: vi.fn(async () => ({ identityToken: "id" })),
+      }),
+    });
+
+    const failure = await facade.linkProvider("apple").catch((e) => e);
+    expect(failure).toBeInstanceOf(ProviderLinkConflict);
+    expect((failure as ProviderLinkConflict).provider).toBe("apple");
+  });
+
+  it("surfaces a failed link bounce", async () => {
+    const api = makeApi();
+     api.getSessionToken.mockReturnValue("sid-1");
+    api.completeMobileAuth.mockReturnValue({
+      ok: false,
+      error: "access_denied",
+      message: null,
+    } satisfies MobileAuthRedirect);
+    const { facade } = build({
+      api,
+      oauth: makeOAuth({ openSession: vi.fn(async () => "animuapp://redirect") }),
+    });
+
+    await expect(facade.linkProvider("discord")).rejects.toThrow("access_denied");
   });
 });
 

@@ -97,6 +97,7 @@ vi.mock("@/screens/MakeRequest/ResultsList", () => ({
 
 const mocks = vi.hoisted(() => ({
   user: null as null | { sessionToken: string },
+  profile: null as null | { user: { verified: boolean } },
   settings: { selectedLanguage: "PT" },
   showError: vi.fn(),
   recent: {
@@ -129,7 +130,7 @@ vi.mock("@/contexts/alert/AlertProvider", () => ({
   useAlert: () => ({ toast: mocks.showError }),
 }));
 vi.mock("@/contexts/auth/AuthProvider", () => ({
-  useAuth: () => ({ user: mocks.user }),
+  useAuth: () => ({ user: mocks.user, profile: mocks.profile }),
 }));
 vi.mock("@/contexts/user/UserSettingsProvider", () => ({
   useUserSettings: () => ({ settings: mocks.settings }),
@@ -145,7 +146,10 @@ vi.mock("@/hooks/useDict", () => ({
     REQUEST_SEARCH_RECENT_CLEAR: "Clear recent",
     REQUEST_SEARCH_RECENT_REMOVE: "Remove",
     ERROR_RETRY: "Retry",
-    LOGIN_ERROR: "Log in first",
+    REQUEST_NEEDS_SIGN_IN: "Sign in to request songs.",
+    REQUEST_SIGN_IN_ACTION: "Sign in",
+    REQUEST_NEEDS_VERIFIED: "Needs Discord with 2FA.",
+    REQUEST_VERIFY_ACTION: "Set up",
     SELECT_ERROR: "Pick a track",
     REQUEST_SUCCESS: "Requested!",
     REQUEST_ERROR_ONAIR: "Requests are disabled while a DJ is live.",
@@ -182,6 +186,7 @@ async function search(query: string) {
 describe("MakeRequest screen", () => {
   beforeEach(() => {
     mocks.user = { sessionToken: "sess" };
+    mocks.profile = null;
     mocks.isLive = false;
     mocks.navigation.isFocused.mockReturnValue(true);
     mocks.navigation.navigate.mockClear();
@@ -219,6 +224,48 @@ describe("MakeRequest screen", () => {
       mocks.navigation.isFocused.mockReturnValue(false);
       render(<MakeRequest />);
       expect(mocks.navigation.navigate).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("request eligibility banner", () => {
+    it("asks a signed-out user to sign in, and the chip opens Login", () => {
+      mocks.user = null;
+      render(<MakeRequest />);
+      expect(screen.getByText("Sign in to request songs.")).toBeTruthy();
+      fireEvent.click(screen.getByRole("button", { name: "Sign in" }));
+      expect(mocks.navigation.navigate).toHaveBeenCalledExactlyOnceWith("Login");
+    });
+
+    it("sends an unverified account to Account to set up Discord + 2FA", () => {
+      mocks.profile = { user: { verified: false } };
+      render(<MakeRequest />);
+      expect(screen.getByText("Needs Discord with 2FA.")).toBeTruthy();
+      expect(screen.queryByText("Sign in to request songs.")).toBeNull();
+      fireEvent.click(screen.getByRole("button", { name: "Set up" }));
+      expect(mocks.navigation.navigate).toHaveBeenCalledExactlyOnceWith(
+        "Account",
+      );
+    });
+
+    it("stays visible while the search field is focused", () => {
+      mocks.user = null;
+      render(<MakeRequest />);
+      fireEvent.focus(field());
+      expect(screen.getByText("Sign in to request songs.")).toBeTruthy();
+    });
+
+    it("is absent for a verified account", () => {
+      mocks.profile = { user: { verified: true } };
+      render(<MakeRequest />);
+      expect(screen.queryByRole("button", { name: "Sign in" })).toBeNull();
+      expect(screen.queryByRole("button", { name: "Set up" })).toBeNull();
+    });
+
+    it("is absent while the profile is still loading (the server decides)", () => {
+      mocks.profile = null;
+      render(<MakeRequest />);
+      expect(screen.queryByRole("button", { name: "Sign in" })).toBeNull();
+      expect(screen.queryByRole("button", { name: "Set up" })).toBeNull();
     });
   });
 
@@ -437,7 +484,36 @@ describe("MakeRequest screen", () => {
       await search("guren");
       fireEvent.click(screen.getByText("Gurenge"));
       expect(sheet.props!.visible).toBe(false);
-      expect(mocks.showError).toHaveBeenCalledWith("Log in first", "error");
+      expect(mocks.showError).toHaveBeenCalledWith(
+        "Sign in to request songs.",
+        "error",
+      );
+      expect(mocks.haptics.error).toHaveBeenCalledTimes(1);
+    });
+
+    it("does not open the sheet for an unverified account, explains why", async () => {
+      mocks.profile = { user: { verified: false } };
+      cleanup();
+      render(<MakeRequest />);
+      await search("guren");
+      fireEvent.click(screen.getByText("Gurenge"));
+      expect(sheet.props!.visible).toBe(false);
+      expect(mocks.showError).toHaveBeenCalledWith(
+        "Needs Discord with 2FA.",
+        "error",
+      );
+      expect(mocks.haptics.error).toHaveBeenCalledTimes(1);
+    });
+
+    it("refuses to submit for an unverified account", async () => {
+      mocks.profile = { user: { verified: false } };
+      cleanup();
+      render(<MakeRequest />);
+      await expect(sheet.props!.onSubmit("hi")).resolves.toEqual({
+        success: false,
+        message: "Needs Discord with 2FA.",
+      });
+      expect(mocks.service.submitRequest).not.toHaveBeenCalled();
     });
 
     it("refuses to submit without a session", async () => {
@@ -446,7 +522,7 @@ describe("MakeRequest screen", () => {
       render(<MakeRequest />);
       await expect(sheet.props!.onSubmit("hi")).resolves.toEqual({
         success: false,
-        message: "Log in first",
+        message: "Sign in to request songs.",
       });
       expect(mocks.service.submitRequest).not.toHaveBeenCalled();
     });

@@ -24,13 +24,14 @@ import { EmailCodeFields } from "@/components/EmailCodeFields";
 import { FormError } from "@/components/FormError";
 import { KeyboardScrollView } from "@/components/KeyboardScrollView";
 import { Logo } from "@/components/Logo";
-import { PrimaryButton } from "@/components/PrimaryButton";
-import { ProviderIcon } from "@/components/ProviderIcon";
 import { useAlert } from "@/contexts/alert/AlertProvider";
 import { useAuth } from "@/contexts/auth/AuthProvider";
-import { AuthFlowCancelled } from "@/core/auth";
+import { AuthFlowCancelled, ProviderEmailTaken } from "@/core/auth";
 import { isProviderConfigured } from "@/constants/auth";
-import { RESEND_COOLDOWN_SECONDS } from "@/constants/email-code";
+import {
+  CODE_TTL_MINUTES,
+  RESEND_COOLDOWN_SECONDS,
+} from "@/constants/email-code";
 import type { Dict } from "@/i18n";
 import { useDict } from "@/hooks/useDict";
 import {
@@ -45,7 +46,9 @@ import { interpolate } from "@/utils/format";
 import type { RootStackParamList } from "@/routes/app.routes";
 import { THEME } from "@/theme";
 import { MOTION } from "@/theme/motion";
-import { styles } from "@/screens/Login/styles";
+import { AuthNotice } from "@/screens/Login/AuthNotice";
+import { ProviderButton } from "@/screens/Login/ProviderButton";
+import { HERO_LOGO_HEIGHT, styles } from "@/screens/Login/styles";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Login">;
 type Step = "method" | "connect";
@@ -118,10 +121,26 @@ interface MethodStepProps {
   onConnect: () => void;
 }
 
+/** The provider whose account song requests depend on. */
+const REQUESTS_PROVIDER = "discord";
+
+/** Discord first (song requests need it), the rest in their given order. */
+function orderProviders(providers: ProviderInfo[]): ProviderInfo[] {
+  const configured = providers.filter((provider) =>
+    isProviderConfigured(provider.name),
+  );
+  return [
+    ...configured.filter((provider) => provider.name === REQUESTS_PROVIDER),
+    ...configured.filter((provider) => provider.name !== REQUESTS_PROVIDER),
+  ];
+}
+
 /**
- * Hero + sign-in methods: Animu Connect — the passwordless house method — is
- * the one filled brand button, its tagline says what it does, and the OAuth
- * providers follow as quiet outlined pills. The terms line ends the screen.
+ * Hero + sign-in methods: the OAuth providers as equal outlined pills (Discord
+ * first, marked as the one song requests need), a notice that says why, then
+ * Animu Connect — the email-code method for existing accounts — below an "or".
+ * No filled button here: nothing on this step is the single right answer. The
+ * terms line ends the screen.
  */
 function MethodStep({
   dict,
@@ -133,84 +152,68 @@ function MethodStep({
   onConnect,
 }: Readonly<MethodStepProps>) {
   const heroStyle = useEntrance(0);
-  const connectStyle = useEntrance(1);
-  const providersStyle = useEntrance(2);
+  const providersStyle = useEntrance(1);
+  const connectStyle = useEntrance(2);
 
   return (
     <>
       <Animated.View style={[styles.hero, heroStyle]}>
-        <Logo size={THEME.LAYOUT.LOGO_HEIGHT} />
-        <Text style={styles.headline}>{dict.LOGIN_HEADLINE}</Text>
+        <Logo size={HERO_LOGO_HEIGHT} />
+        <Text style={styles.title}>{dict.LOGIN_HEADLINE}</Text>
         <Text style={styles.subtitle}>{dict.LOGIN_SUBTITLE}</Text>
       </Animated.View>
 
-      <View style={styles.actions}>
+      <Animated.View style={[styles.providers, providersStyle]}>
         {error && (
           <View style={styles.errorSlot}>
             <FormError message={error} center />
           </View>
         )}
 
-        <Animated.View style={connectStyle}>
-          <PrimaryButton
-            label={dict.LOGIN_WITH_ANIMU_CONNECT}
-            icon="alternate-email"
-            disabled={authenticating}
-            onPress={onConnect}
-          />
-          <Text style={styles.tagline}>{dict.LOGIN_ANIMU_CONNECT_TAGLINE}</Text>
-        </Animated.View>
-
-        <Animated.View style={providersStyle}>
-          <View style={styles.divider}>
-            <View style={styles.dividerLine} />
-            <Text style={styles.dividerText}>{dict.LOGIN_OR_CONTINUE}</Text>
-            <View style={styles.dividerLine} />
-          </View>
-
-          <View style={styles.methods}>
-            {providers
-              .filter((provider) => isProviderConfigured(provider.name))
-              .map((provider) => {
-                const busy = busyProvider === provider.name;
-                const label = interpolate(dict.LOGIN_CONTINUE_WITH, {
-                  provider: provider.label,
-                });
-                return (
-                  <TouchableOpacity
-                    key={provider.name}
-                    accessibilityRole="button"
-                    accessibilityLabel={label}
-                    accessibilityState={{ busy, disabled: authenticating }}
-                    activeOpacity={THEME.OPACITY.PRESSED}
-                    disabled={authenticating}
-                    onPress={() => onProvider(provider.name)}
-                    style={[
-                      styles.method,
-                      authenticating && styles.buttonDisabled,
-                    ]}
-                  >
-                    <View style={styles.methodIcon}>
-                      {busy ? (
-                        <ActivityIndicator color={THEME.COLORS.TEXT} />
-                      ) : (
-                        <ProviderIcon
-                          provider={provider.name}
-                          size={THEME.ICON.MD}
-                          color={THEME.COLORS.TEXT}
-                        />
-                      )}
-                    </View>
-                    <Text style={styles.methodLabel}>{label}</Text>
-                    <View style={styles.methodIcon} />
-                  </TouchableOpacity>
-                );
+        <View style={styles.methods}>
+          {orderProviders(providers).map((provider) => (
+            <ProviderButton
+              key={provider.name}
+              provider={provider.name}
+              label={interpolate(dict.LOGIN_CONTINUE_WITH, {
+                provider: provider.label,
               })}
-          </View>
-        </Animated.View>
-      </View>
+              perk={
+                provider.name === REQUESTS_PROVIDER
+                  ? dict.LOGIN_DISCORD_PERK
+                  : undefined
+              }
+              busy={busyProvider === provider.name}
+              disabled={authenticating}
+              onPress={() => onProvider(provider.name)}
+            />
+          ))}
+        </View>
 
-      <LegalLine dict={dict} />
+        <AuthNotice
+          icon="info-outline"
+          text={dict.LOGIN_REQUESTS_NOTICE}
+          style={styles.noticeSlot}
+        />
+      </Animated.View>
+
+      <Animated.View style={[styles.footerBlock, connectStyle]}>
+        <View style={styles.divider}>
+          <View style={styles.dividerLine} />
+          <Text style={styles.dividerText}>{dict.LOGIN_OR_CONTINUE}</Text>
+          <View style={styles.dividerLine} />
+        </View>
+
+        <ProviderButton
+          provider="animu"
+          label={dict.LOGIN_WITH_ANIMU_CONNECT}
+          disabled={authenticating}
+          onPress={onConnect}
+        />
+        <Text style={styles.caption}>{dict.LOGIN_ANIMU_CONNECT_TAGLINE}</Text>
+
+        <LegalLine dict={dict} />
+      </Animated.View>
     </>
   );
 }
@@ -221,27 +224,34 @@ interface ConnectStepProps {
   error: string | null;
   resendRemaining: number;
   onResend: () => Promise<void>;
+  onNewHere: () => void;
 }
 
-/** Animu Connect: the email form, then the 4-digit code form. */
+/**
+ * Animu Connect: the email form, then the 4-digit code form. Top-aligned and
+ * compact so the field, its notice and the keyboard share the screen; the
+ * eligibility notice sits above the field because the keyboard covers
+ * anything below it.
+ */
 function ConnectStep({
   dict,
   flow,
   error,
   resendRemaining,
   onResend,
+  onNewHere,
 }: Readonly<ConnectStepProps>) {
   const onCodeStep = flow.step === "code";
   const headerStyle = useEntrance(0);
   const formStyle = useEntrance(1);
 
   return (
-    <View style={styles.connectBody}>
+    <>
       <Animated.View style={[styles.connectHeader, headerStyle]}>
         <View style={styles.connectBadge}>
           <Icon
             name={onCodeStep ? "mark-email-unread" : "alternate-email"}
-            size={THEME.ICON.XL}
+            size={THEME.ICON.LG}
             color={THEME.COLORS.BRAND}
           />
         </View>
@@ -261,7 +271,23 @@ function ConnectStep({
       </Animated.View>
 
       <Animated.View style={[styles.form, formStyle]}>
+        {!onCodeStep && (
+          <AuthNotice
+            icon="info-outline"
+            text={dict.LOGIN_ANIMU_CONNECT_HINT}
+            style={styles.noticeAboveField}
+          />
+        )}
+
         <EmailCodeFields flow={flow} autoFocusEmail />
+
+        {onCodeStep && (
+          <Text style={styles.caption}>
+            {interpolate(dict.LOGIN_CODE_VALIDITY, {
+              minutes: CODE_TTL_MINUTES,
+            })}
+          </Text>
+        )}
 
         {error && (
           <View style={styles.errorSlot}>
@@ -276,7 +302,7 @@ function ConnectStep({
           </View>
         )}
 
-        {onCodeStep && (
+        {onCodeStep ? (
           <View style={styles.connectActions}>
             <ConnectActions
               busy={flow.busy}
@@ -285,21 +311,29 @@ function ConnectStep({
               onChangeEmail={flow.backToEmail}
             />
           </View>
+        ) : (
+          // Animu Connect can't create an account, so a new user needs a
+          // way out that doesn't read as a dead end.
+          <TouchableOpacity
+            accessibilityRole="button"
+            activeOpacity={THEME.OPACITY.PRESSED}
+            disabled={flow.busy}
+            onPress={onNewHere}
+            style={styles.link}
+          >
+            <Text style={styles.linkText}>{dict.LOGIN_CONNECT_NEW_HERE}</Text>
+          </TouchableOpacity>
         )}
       </Animated.View>
-
-      {!onCodeStep && (
-        <Text style={styles.hint}>{dict.LOGIN_ANIMU_CONNECT_HINT}</Text>
-      )}
-    </View>
+    </>
   );
 }
 
 /**
  * Sign-in screen: a branded hero over the app artwork (localized wordmark,
- * welcome headline) with the OAuth providers and Animu Connect as sign-in
- * options. The connect step swaps the hero for a centered form: email first,
- * then the 4-digit code.
+ * headline) with the OAuth providers and Animu Connect as sign-in options.
+ * The connect step swaps the hero for a compact top-aligned form: email
+ * first, then the 4-digit code.
  */
 export function Login({ navigation }: Readonly<Props>) {
   const { toast } = useAlert();
@@ -330,14 +364,17 @@ export function Login({ navigation }: Readonly<Props>) {
     verifyCode: loginWithEmailCode,
     onCodeSent: () => {
       resend.start();
-      toast(dict.LOGIN_CODE_SENT);
+      toast(dict.LOGIN_CONNECT_CODE_SENT);
     },
     onVerified: () => {
       haptics.success();
       toast(dict.LOGIN_SUCCESS);
       finish();
     },
-    mapRequestError: () => dict.LOGIN_FAILED,
+    mapRequestError: (error) =>
+      emailCodeError(dict, error, dict.LOGIN_FAILED, {
+        invalid: dict.LOGIN_EMAIL_INVALID,
+      }),
     mapVerifyError: (error) => emailCodeError(dict, error, dict.LOGIN_FAILED),
   });
 
@@ -354,13 +391,30 @@ export function Login({ navigation }: Readonly<Props>) {
     } catch (err) {
       if (err instanceof AuthFlowCancelled) {
         // User dismissed the prompt — not worth an error.
+      } else if (err instanceof ProviderEmailTaken) {
+        // Retrying can't help: the user must use their original sign-in.
+        haptics.error();
+        setProviderError(
+          interpolate(dict.LOGIN_PROVIDER_EMAIL_TAKEN, {
+            provider:
+              providers.find((item) => item.name === provider)?.label ??
+              provider,
+          }),
+        );
       } else {
         console.error(`[Login] ${provider} sign-in failed:`, err);
+        haptics.error();
         setProviderError(dict.LOGIN_FAILED);
       }
     } finally {
       setBusyProvider(null);
     }
+  };
+
+  const backToMethod = () => {
+    setStep("method");
+    setProviderError(null);
+    flow.setError(null);
   };
 
   const goBack = () => {
@@ -369,9 +423,7 @@ export function Login({ navigation }: Readonly<Props>) {
         flow.backToEmail();
         return;
       }
-      setStep("method");
-      setProviderError(null);
-      flow.setError(null);
+      backToMethod();
       return;
     }
     finish();
@@ -455,6 +507,7 @@ export function Login({ navigation }: Readonly<Props>) {
               error={error}
               resendRemaining={resend.remaining}
               onResend={flow.sendCode}
+              onNewHere={backToMethod}
             />
           )}
         </KeyboardScrollView>

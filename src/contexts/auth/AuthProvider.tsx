@@ -25,6 +25,8 @@ import {
 import { clearProfileMedia } from "@/core/services/profile-media.service";
 import { backgroundService } from "@/core/services/background.service";
 import { DEFAULT_PROVIDERS } from "@/constants/auth";
+import { useAlert } from "@/contexts/alert/AlertProvider";
+import { useDict } from "@/hooks/useDict";
 
 interface AuthContextType {
   user: User | null;
@@ -50,7 +52,8 @@ interface AuthContextType {
   loginWithEmailCode: (email: string, code: string) => Promise<void>;
   logout: () => Promise<void>;
   deleteAccount: () => Promise<void>;
-  refreshProfile: () => Promise<void>;
+  /** Resolves with the fresh profile (null while signed out). */
+  refreshProfile: () => Promise<AuthProfile | null>;
   linkProvider: (provider: string) => Promise<void>;
   unlinkProvider: (provider: string) => Promise<void>;
   /**
@@ -75,7 +78,8 @@ interface AuthBootstrapDeps {
   setUser: (user: User | null) => void;
   setProviders: (providers: ProviderInfo[]) => void;
   setImageVersion: React.Dispatch<React.SetStateAction<number>>;
-  clearSession: () => Promise<void>;
+  /** Signs out because the server rejected the token, and tells the user. */
+  expireSession: () => Promise<void>;
   loadProfile: () => Promise<void>;
   refreshEmails: () => Promise<void>;
   startSessionCheck: () => void;
@@ -88,13 +92,13 @@ interface AuthBootstrapDeps {
  * session — the next periodic check re-validates.
  */
 async function validateActiveSession({
-  clearSession,
+  expireSession,
   loadProfile,
   refreshEmails,
   startSessionCheck,
 }: Pick<
   AuthBootstrapDeps,
-  "clearSession" | "loadProfile" | "refreshEmails" | "startSessionCheck"
+  "expireSession" | "loadProfile" | "refreshEmails" | "startSessionCheck"
 >): Promise<void> {
   try {
     if (await authFacade.getSessionStatus()) {
@@ -102,11 +106,28 @@ async function validateActiveSession({
       void loadProfile();
       void refreshEmails();
     } else {
-      await clearSession();
+      await expireSession();
     }
   } catch {
     // Offline: keep the cached session, the next check re-validates.
     startSessionCheck();
+  }
+}
+
+/**
+ * A launch bounce that carries a failure (e.g. `error=oauth&msg=email already
+ * taken`) must not take the cached session down with it: the flow is simply
+ * over. The bounce doesn't name its provider and the user may have long left
+ * the screen that started it, so unlike the in-app login nothing is surfaced.
+ */
+async function resumeLaunchFlow(
+  launchUrl: string | null,
+): Promise<User | null> {
+  try {
+    return await authFacade.resumeServerAuth(launchUrl);
+  } catch (error) {
+    console.warn("[AuthProvider] Launch auth bounce failed:", error);
+    return null;
   }
 }
 
@@ -127,7 +148,7 @@ async function runAuthBootstrap(
     // SDK intents are ignored), and it still falls back to the cached
     // session otherwise.
     const launchUrl = await Linking.getInitialURL().catch(() => null);
-    const resumedUser = await authFacade.resumeServerAuth(launchUrl);
+    const resumedUser = await resumeLaunchFlow(launchUrl);
     const activeUser = resumedUser ?? storedUser;
 
     if (isCancelled() || !activeUser) return;
@@ -154,7 +175,7 @@ function useAuthBootstrap(deps: AuthBootstrapDeps): void {
     setUser,
     setProviders,
     setImageVersion,
-    clearSession,
+    expireSession,
     loadProfile,
     refreshEmails,
     startSessionCheck,
@@ -170,7 +191,7 @@ function useAuthBootstrap(deps: AuthBootstrapDeps): void {
         setUser,
         setProviders,
         setImageVersion,
-        clearSession,
+        expireSession,
         loadProfile,
         refreshEmails,
         startSessionCheck,
@@ -187,7 +208,7 @@ function useAuthBootstrap(deps: AuthBootstrapDeps): void {
     setUser,
     setProviders,
     setImageVersion,
-    clearSession,
+    expireSession,
     loadProfile,
     refreshEmails,
     startSessionCheck,
@@ -278,7 +299,7 @@ function useAccountActions({
  */
 function useSessionCheck(
   userRef: React.RefObject<User | null>,
-  clearSession: () => Promise<void>,
+  expireSession: () => Promise<void>,
 ): () => void {
   const pausedRef = useRef(false);
 
@@ -286,14 +307,14 @@ function useSessionCheck(
     if (!userRef.current?.sessionToken) return;
     try {
       if (!(await authFacade.getSessionStatus())) {
-        await clearSession();
+        await expireSession();
       }
       // Network hiccups throw and are ignored below — they must not log
       // the listener out.
     } catch (error) {
       console.error("[AuthProvider] Session check failed:", error);
     }
-  }, [clearSession, userRef]);
+  }, [expireSession, userRef]);
 
   const startSessionCheck = useCallback(() => {
     backgroundService.stopTask(SESSION_CHECK_TASK_ID);
@@ -357,6 +378,28 @@ function useAuthProviderValue(): AuthContextType {
     setEmails([]);
   }, []);
 
+  // Read through a ref (like `userRef`) so the stable `expireSession` below,
+  // captured by the poll's background task, never speaks a stale language.
+  const noticeRef = useRef<() => void>(() => {});
+  const { toast } = useAlert();
+  const dict = useDict();
+
+  useEffect(() => {
+    noticeRef.current = () => toast(dict.SESSION_EXPIRED, "error");
+  }, [toast, dict]);
+
+  // Only the two server-rejected paths come through here; logout, account
+  // deletion and offline errors keep their own silent handling. Skipping when
+  // nobody is signed in any more means a check that loses a race with a
+  // manual sign-out cannot toast, and claiming the ref before the first
+  // await keeps a second in-flight check to a single toast per expiry.
+  const expireSession = useCallback(async () => {
+    if (!userRef.current) return;
+    userRef.current = null;
+    await clearSession();
+    noticeRef.current();
+  }, [clearSession]);
+
   const loadProfile = useCallback(async () => {
     try {
       setProfile(await authFacade.getProfile());
@@ -373,7 +416,7 @@ function useAuthProviderValue(): AuthContextType {
     }
   }, []);
 
-  const startSessionCheck = useSessionCheck(userRef, clearSession);
+  const startSessionCheck = useSessionCheck(userRef, expireSession);
 
   const adoptUser = useCallback(
     async (nextUser: User) => {
@@ -392,7 +435,7 @@ function useAuthProviderValue(): AuthContextType {
 
   const refreshProfile = useCallback(async () => {
     const current = userRef.current;
-    if (!current) return;
+    if (!current) return null;
     const result = await authFacade.refreshProfile(current);
     userRef.current = result.user;
     setUser(result.user);
@@ -403,9 +446,13 @@ function useAuthProviderValue(): AuthContextType {
     setImageVersion((version) => version + 1);
     // The provider refresh can rename/verify the auto-registered emails.
     await refreshEmails();
+    return result.profile;
   }, [refreshEmails]);
 
   const logout = useCallback(async () => {
+    // Leaving on purpose: drop the ref before the network call so a session
+    // poll already in flight can't read this as an expiry and toast it.
+    userRef.current = null;
     try {
       await authFacade.logout();
     } catch (error) {
@@ -416,6 +463,8 @@ function useAuthProviderValue(): AuthContextType {
   }, [clearSession]);
 
   const deleteAccount = useCallback(async () => {
+    // Same as logout: an in-flight poll must not toast this as an expiry.
+    userRef.current = null;
     try {
       await authFacade.deleteAccount();
     } finally {
@@ -431,7 +480,7 @@ function useAuthProviderValue(): AuthContextType {
     setUser,
     setProviders,
     setImageVersion,
-    clearSession,
+    expireSession,
     loadProfile,
     refreshEmails,
     startSessionCheck,

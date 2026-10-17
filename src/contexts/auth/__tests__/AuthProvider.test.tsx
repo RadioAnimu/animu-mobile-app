@@ -30,6 +30,7 @@ const mocks = vi.hoisted(() => ({
   background: { startTask: vi.fn(), stopTask: vi.fn() },
   getInitialURL: vi.fn(),
   appStateListen: vi.fn(),
+  toast: vi.fn(),
 }));
 
 vi.mock("@/core/auth/auth.facade", () => ({ authFacade: mocks.facade }));
@@ -47,6 +48,12 @@ vi.mock("react-native", () => ({
     currentState: "active",
     addEventListener: mocks.appStateListen,
   },
+}));
+vi.mock("@/contexts/alert/AlertProvider", () => ({
+  useAlert: () => ({ toast: mocks.toast }),
+}));
+vi.mock("@/hooks/useDict", () => ({
+  useDict: () => ({ SESSION_EXPIRED: "Signed out" }),
 }));
 vi.mock("@/constants/auth", () => ({
   DEFAULT_PROVIDERS: [{ id: "default", name: "Default" }],
@@ -106,6 +113,7 @@ describe("AuthProvider", () => {
     // clearMocks keeps implementations, so reset the one-off rejections.
     for (const fn of Object.values(mocks.facade)) fn.mockReset();
     mocks.getInitialURL.mockReset();
+    mocks.toast.mockReset();
   });
 
   describe("cold-start bootstrap", () => {
@@ -168,6 +176,27 @@ describe("AuthProvider", () => {
       expect(mocks.facade.getSessionStatus).toHaveBeenCalled();
     });
 
+    it("keeps the cached session when the launch bounce carries a failure", async () => {
+      const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+      mocks.getInitialURL.mockResolvedValue(
+        "animuapp://redirect?error=oauth&msg=email%20already%20taken",
+      );
+      mocks.facade.restore.mockResolvedValue(CACHED);
+      mocks.facade.resumeServerAuth.mockRejectedValue(
+        new Error("oauth: email already taken"),
+      );
+
+      const { result } = mountAuth();
+      await waitFor(() => expect(result.current.isAuthenticated).toBe(true));
+
+      expect(result.current.user).toBe(CACHED);
+      expect(result.current.imageVersion).toBe(0);
+      expect(mocks.toast).not.toHaveBeenCalled();
+      expect(consoleError).not.toHaveBeenCalled();
+      expect(warn).toHaveBeenCalled();
+      warn.mockRestore();
+    });
+
     it("treats a failing Linking.getInitialURL as no launch URL", async () => {
       mocks.getInitialURL.mockRejectedValue(new Error("no activity"));
       mocks.facade.restore.mockResolvedValue(CACHED);
@@ -193,6 +222,7 @@ describe("AuthProvider", () => {
       expect(mocks.facade.getProfile).not.toHaveBeenCalled();
       expect(mocks.background.startTask).not.toHaveBeenCalled();
       expect(mocks.background.stopTask).toHaveBeenCalledWith("session-check");
+      expect(mocks.toast).toHaveBeenCalledExactlyOnceWith("Signed out", "error");
     });
 
     it("keeps the cached session and keeps checking when offline", async () => {
@@ -208,6 +238,17 @@ describe("AuthProvider", () => {
       expect(result.current.user).toBe(CACHED);
       expect(mocks.facade.forget).not.toHaveBeenCalled();
       expect(mocks.facade.getProfile).not.toHaveBeenCalled();
+      expect(mocks.toast).not.toHaveBeenCalled();
+    });
+
+    it("stays quiet at cold start when there was no stored session", async () => {
+      mocks.facade.getSessionStatus.mockResolvedValue(false);
+
+      mountAuth();
+      await settle();
+
+      expect(mocks.facade.getSessionStatus).not.toHaveBeenCalled();
+      expect(mocks.toast).not.toHaveBeenCalled();
     });
 
     it("logs an initialization failure instead of throwing", async () => {
@@ -268,6 +309,35 @@ describe("AuthProvider", () => {
       expect(mocks.facade.forget).toHaveBeenCalledTimes(1);
       expect(result.current.user).toBeNull();
       expect(result.current.emails).toEqual([]);
+      expect(mocks.toast).toHaveBeenCalledExactlyOnceWith("Signed out", "error");
+    });
+
+    it("tells the user once per expiry, not on every later poll", async () => {
+      await mountSignedIn();
+      mocks.facade.getSessionStatus.mockResolvedValue(false);
+      const { callback } = sessionTask();
+
+      await act(async () => {
+        await callback();
+      });
+      await act(async () => {
+        await callback();
+      });
+
+      expect(mocks.facade.forget).toHaveBeenCalledTimes(1);
+      expect(mocks.toast).toHaveBeenCalledTimes(1);
+    });
+
+    it("tells the user once when two checks overlap", async () => {
+      await mountSignedIn();
+      mocks.facade.getSessionStatus.mockResolvedValue(false);
+      const { callback } = sessionTask();
+
+      await act(async () => {
+        await Promise.all([callback(), callback()]);
+      });
+
+      expect(mocks.toast).toHaveBeenCalledTimes(1);
     });
 
     it("stays signed in and logs when the check hits a network error", async () => {
@@ -281,6 +351,7 @@ describe("AuthProvider", () => {
 
       expect(result.current.user).toBe(CACHED);
       expect(mocks.facade.forget).not.toHaveBeenCalled();
+      expect(mocks.toast).not.toHaveBeenCalled();
       expect(consoleError).toHaveBeenCalledWith(
         "[AuthProvider] Session check failed:",
         failure,
@@ -296,6 +367,7 @@ describe("AuthProvider", () => {
 
       expect(result.current.user).toBe(CACHED);
       expect(mocks.facade.forget).not.toHaveBeenCalled();
+      expect(mocks.toast).not.toHaveBeenCalled();
     });
   });
 
@@ -420,6 +492,60 @@ describe("AuthProvider", () => {
         "[AuthProvider] Logout failed:",
         expect.any(Error),
       );
+      // A deliberate sign-out is not an expiry.
+      expect(mocks.toast).not.toHaveBeenCalled();
+    });
+
+    it("does not announce an expiry when a manual sign-out beat the check", async () => {
+      mocks.facade.restore.mockResolvedValue(CACHED);
+      const { result } = mountAuth();
+      await waitFor(() => expect(result.current.profile).toEqual(PROFILE));
+      let resolveStatus: (alive: boolean) => void = () => {};
+      mocks.facade.getSessionStatus.mockReturnValue(
+        new Promise<boolean>((resolve) => {
+          resolveStatus = resolve;
+        }),
+      );
+      const check = sessionTask().callback();
+
+      await act(async () => {
+        await result.current.logout();
+      });
+      await act(async () => {
+        resolveStatus(false);
+        await check;
+      });
+
+      expect(mocks.facade.forget).toHaveBeenCalledTimes(1);
+      expect(mocks.toast).not.toHaveBeenCalled();
+    });
+
+    it("does not announce an expiry when the check lands mid sign-out", async () => {
+      mocks.facade.restore.mockResolvedValue(CACHED);
+      const { result } = mountAuth();
+      await waitFor(() => expect(result.current.profile).toEqual(PROFILE));
+      mocks.facade.getSessionStatus.mockResolvedValue(false);
+      let finishLogout: () => void = () => {};
+      mocks.facade.logout.mockReturnValue(
+        new Promise<void>((resolve) => {
+          finishLogout = resolve;
+        }),
+      );
+
+      let signingOut: Promise<void> = Promise.resolve();
+      act(() => {
+        signingOut = result.current.logout();
+      });
+      // The poll answers "invalid" while the logout call is still out.
+      await act(async () => {
+        await sessionTask().callback();
+      });
+      await act(async () => {
+        finishLogout();
+        await signingOut;
+      });
+
+      expect(mocks.toast).not.toHaveBeenCalled();
     });
 
     it("deleteAccount clears local state even when the API call fails", async () => {
@@ -434,6 +560,7 @@ describe("AuthProvider", () => {
 
       expect(result.current.user).toBeNull();
       expect(mocks.facade.forget).toHaveBeenCalledTimes(1);
+      expect(mocks.toast).not.toHaveBeenCalled();
     });
   });
 
@@ -532,10 +659,12 @@ describe("AuthProvider", () => {
         profile: refreshedProfile,
       });
 
+      let returned: unknown;
       await act(async () => {
-        await result.current.refreshProfile();
+        returned = await result.current.refreshProfile();
       });
 
+      expect(returned).toBe(refreshedProfile);
       expect(mocks.facade.refreshProfile).toHaveBeenCalledWith(CACHED);
       expect(result.current.user).toBe(FRESH);
       expect(result.current.profile).toEqual(refreshedProfile);
@@ -546,10 +675,12 @@ describe("AuthProvider", () => {
       const { result } = mountAuth();
       await settle();
 
+      let returned: unknown;
       await act(async () => {
-        await result.current.refreshProfile();
+        returned = await result.current.refreshProfile();
       });
 
+      expect(returned).toBeNull();
       expect(mocks.facade.refreshProfile).not.toHaveBeenCalled();
     });
 

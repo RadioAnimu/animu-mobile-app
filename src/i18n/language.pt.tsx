@@ -354,7 +354,6 @@ const DICT: Dict = {
   INFO_REQUEST: `Oii! Sou a Haruka, a DJ da mais moe do Brasil!${"\n"}Vi que já fez a sua escolha!${"\n"}Mas antes não quer deixar um recadinho para mim ou para nossa equipe? Este recado será entregue no chat principal do nosso servidor discord para todo mundo ver${"\n"}💜 Você não precisa deixar recado se não quiser.`,
   SEND_REQUEST_BUTTON_TEXT: "Enviar",
   SEND_REQUEST_PLACEHOLDER: "Deixe seu recado aqui",
-  LOGIN_ERROR: "Você precisa estar logado para fazer um pedido",
   SELECT_ERROR: "Erro ao selecionar a música",
   REQUEST_ERROR: "Não foi possível enviar. Tente de novo.",
   REQUEST_ERROR_PEDIBLOCK:
@@ -366,9 +365,17 @@ const DICT: Dict = {
   REQUEST_ERROR_ONAIR:
     "Os pedidos ficam desativados enquanto um DJ está ao vivo.",
   REQUEST_ERROR_BLOCOBLOCK: "Os pedidos estão desativados no momento.",
-  REQUEST_ERROR_NOLOGIN: "Sua sessão expirou. Entre novamente.",
+  REQUEST_ERROR_NOLOGIN:
+    "Os pedidos precisam de uma conta do Discord vinculada com 2FA. Confira na Conta, ou entre novamente.",
   REQUEST_ERROR_NO2FA:
-    "Você precisa ter a 2FA ativada no Discord para fazer pedidos.",
+    "Os pedidos precisam de uma conta do Discord vinculada com 2FA ativado.",
+  REQUEST_NEEDS_SIGN_IN: "Entre para pedir músicas.",
+  REQUEST_SIGN_IN_ACTION: "Entrar",
+  REQUEST_NEEDS_VERIFIED:
+    "Os pedidos precisam de uma conta do Discord vinculada com 2FA ativado.",
+  REQUEST_VERIFY_ACTION: "Configurar",
+  SESSION_EXPIRED:
+    "Sua sessão foi encerrada. Entre novamente para continuar pedindo músicas.",
   REQUEST_ERROR_PANEL:
     "O painel da rádio está temporariamente indisponível. Tente novamente em instantes.",
   REQUEST_SUCCESS: "Pedido feito com sucesso!",
@@ -381,7 +388,6 @@ const DICT: Dict = {
   REQUEST_SEARCH_ERROR:
     "Não foi possível pesquisar agora. Verifique sua conexão.",
   THEME_WORD: "Tema",
-  LOGIN_WORD: "Entrar com",
   HARU_CHAN_TEXT: "HARU-CHAN",
   FORM_LABEL_NICK: "Apelido",
   FORM_LABEL_CITY: "Cidade",
@@ -408,17 +414,28 @@ const DICT: Dict = {
   LOGIN_SUCCESS: "Login feito com sucesso!",
   LOGIN_FAILED: "Não foi possível entrar. Tente novamente.",
   LOGIN_MISSING_FIELDS: "Preencha todos os campos para continuar.",
-  LOGIN_HEADLINE: "Bem-vindo de volta",
-  LOGIN_SUBTITLE: "Entre para pedir músicas e desbloquear seu cartão de escuta",
+  LOGIN_EMAIL_INVALID: "Isso não parece um endereço de e-mail.",
+  LOGIN_PROVIDER_EMAIL_TAKEN:
+    "Seu e-mail do {provider} já está em outra conta Animu. Entre como você fez antes e vincule o {provider} na Conta.",
+  LOGIN_HEADLINE: "Entrar no Animu",
+  LOGIN_SUBTITLE:
+    "Ouvir é sempre grátis. Primeira vez aqui? Seu primeiro login com um provedor cria sua conta.",
+  LOGIN_DISCORD_PERK: "Necessário para pedir músicas",
+  LOGIN_REQUESTS_NOTICE:
+    "Para enviar pedidos, você precisa de uma conta do Discord vinculada com 2FA ativado. Entrou de outra forma? Você pode vincular o Discord depois na Conta.",
   LOGIN_OR_CONTINUE: "ou",
   LOGIN_CONTINUE_WITH: "Continuar com {provider}",
-  LOGIN_WITH_ANIMU_CONNECT: "Continuar com Animu Connect",
-  LOGIN_ANIMU_CONNECT_TAGLINE: "Sem senha · código de 4 dígitos por e-mail",
+  LOGIN_WITH_ANIMU_CONNECT: "Entrar com um código por e-mail",
+  LOGIN_ANIMU_CONNECT_TAGLINE: "Animu Connect · para contas existentes",
   LOGIN_LEGAL: "Ao continuar, você aceita a {link}.",
   LOGIN_ANIMU_CONNECT_HINT:
-    "Qualquer e-mail vinculado à sua conta Animu funciona. E-mails de provedores são automáticos; você pode adicionar um e-mail extra no perfil.",
-  LOGIN_CONNECT_TITLE: "Entrar com Animu Connect",
-  LOGIN_CONNECT_SUBTITLE: "Vamos enviar um código de 4 dígitos por e-mail",
+    "Funciona apenas para contas existentes: use o e-mail de um provedor com o qual você já entrou, ou o e-mail extra que você adicionou na Conta. Endereços de \"Ocultar Meu E-mail\" da Apple não podem receber códigos.",
+  LOGIN_CONNECT_TITLE: "Animu Connect",
+  LOGIN_CONNECT_SUBTITLE:
+    "Vamos enviar um código de 4 dígitos por e-mail. Sem senha.",
+  LOGIN_CONNECT_NEW_HERE: "Primeira vez aqui? Escolha uma forma de entrar",
+  LOGIN_CONNECT_CODE_SENT:
+    "Se esse e-mail estiver em uma conta Animu, um código já está a caminho.",
   LOGIN_EMAIL: "E-mail",
   LOGIN_EMAIL_PLACEHOLDER: "voce@exemplo.com",
   LOGIN_SEND_CODE: "Enviar código",
@@ -430,15 +447,16 @@ const DICT: Dict = {
   LOGIN_CODE_RESEND: "Reenviar código",
   LOGIN_CODE_RESEND_IN: "Reenviar em {seconds}s",
   LOGIN_CODE_CHANGE_EMAIL: "Usar outro e-mail",
-  LOGIN_CODE_INVALID: "Código inválido ou expirado. Tente de novo.",
+  LOGIN_CODE_INVALID:
+    "Esse código não funcionou ou expirou. Depois de {attempts} tentativas erradas, peça um novo.",
+  LOGIN_CODE_VALIDITY:
+    "De uso único · expira em {minutes} minutos. Não chegou? Verifique o spam — códigos só vão para e-mails vinculados a uma conta.",
   ACCOUNT_TITLE: "Conta",
-  ACCOUNT_SIGNED_OUT: "Você não está conectado.",
   ACCOUNT_SIGN_IN: "Entrar",
 
-  ACCOUNT_VERIFIED_INFO:
-    "Só ouvintes verificados podem pedir músicas. Para se verificar, vincule uma conta do Discord e ative o 2FA nela.",
+  ACCOUNT_VERIFIED_LABEL: "Verificado para pedir músicas",
   ACCOUNT_CONNECTED_VIA: "Conectado com",
-  ACCOUNT_LAST_LOGIN: "Último acesso",
+  ACCOUNT_LAST_ACTIVE: "Última atividade",
   ACCOUNT_SHOW: "Mostrar",
   ACCOUNT_HIDE: "Ocultar",
   ACCOUNT_REFRESHED: "Perfil atualizado",
@@ -448,34 +466,62 @@ const DICT: Dict = {
   ACCOUNT_UNLINK: "Desvincular",
   ACCOUNT_LINK: "Vincular",
   ACCOUNT_LAST_PROVIDER:
-    "Mantenha pelo menos uma conta vinculada. Para sair, exclua sua conta.",
+    "Mantenha pelo menos uma conta vinculada — e-mail do Animu Connect não conta. Vincule outra antes de desvincular esta.",
+  ACCOUNT_LINK_CONFLICT:
+    "Essa conta do {provider} já está vinculada a outra conta Animu.",
   ACCOUNT_LINK_SUCCESS: "Conta vinculada",
   ACCOUNT_UNLINK_SUCCESS: "Conta desvinculada",
   ACCOUNT_UNLINK_CONFIRM_MSG:
     "Você não poderá entrar com {provider} até vinculá-lo novamente.",
   ACCOUNT_UNLINK_CONFIRM_TITLE: "Desvincular {provider}?",
+  ACCOUNT_UNLINK_DISCORD_WARNING: "Os pedidos de músicas serão desativados.",
   ACCOUNT_ANIMU_CONNECT: "Animu Connect",
   ACCOUNT_ANIMU_CONNECT_DESC:
-    "Um método de login: entre com um código de 4 dígitos enviado para qualquer e-mail abaixo — sem senha.",
+    "Entre com um código de 4 dígitos enviado para um destes e-mails. Sem senha.",
   ACCOUNT_ANIMU_CONNECT_FORM_HINT:
-    "Os e-mails dos provedores funcionam automaticamente. Adicione um e-mail extra para também entrar com ele.",
+    "Adicione um e-mail extra para entrar. Enviaremos um código para confirmar que é seu.",
   ACCOUNT_DANGER: "Zona de perigo",
+  ACCOUNT_LOGOUT_DESC: "Encerra a sessão neste aparelho",
+  ACCOUNT_DELETE_DESC: "Exclui sua conta Animu permanentemente",
+  ACCOUNT_REQUESTS_TITLE: "Pedidos de músicas",
+  ACCOUNT_REQUESTS_READY: "Pedidos de músicas estão ativos",
+  ACCOUNT_REQUESTS_READY_DESC: "Sua conta do Discord com 2FA verifica você.",
+  ACCOUNT_REQUESTS_DISCORD: "Conta do Discord",
+  ACCOUNT_REQUESTS_2FA: "2FA no Discord",
+  ACCOUNT_REQUESTS_2FA_OFF: "Ainda não ativado",
+  ACCOUNT_REQUESTS_LINK_FIRST: "Vincule o Discord primeiro",
+  ACCOUNT_REQUESTS_LINK_DISCORD: "Vincular Discord",
+  ACCOUNT_REQUESTS_2FA_HELP: "Como ativar o 2FA",
+  ACCOUNT_REQUESTS_2FA_HELP_DESC: "Abre a página de ajuda do Discord",
+  ACCOUNT_REQUESTS_REFRESH: "Verificar de novo",
+  ACCOUNT_REQUESTS_REFRESH_DESC: "Ativou o 2FA? Atualize seu status.",
+  ACCOUNT_REQUESTS_STILL_OFF:
+    "Ainda não verificado. Confirme que o 2FA está ativado no Discord e verifique de novo.",
+  ACCOUNT_REQUESTS_NOW_ON: "Você está verificado! Pedidos de músicas estão ativos.",
   ACCOUNT_LOGOUT: "Sair",
   ACCOUNT_DELETE: "Excluir conta",
   ACCOUNT_DELETE_CONFIRM_TITLE: "Excluir conta?",
   ACCOUNT_DELETE_CONFIRM_MSG:
-    "Isso apaga permanentemente seu perfil, contas vinculadas e sessões. Não pode ser desfeito.",
+    "Isso apaga permanentemente seu perfil Animu, contas vinculadas, e-mails do Animu Connect e sessões. Suas contas do Discord e de outros provedores não são afetadas. Não pode ser desfeito.",
   ACCOUNT_CANCEL: "Cancelar",
   ACCOUNT_ACTION_FAILED: "A ação falhou. Tente novamente.",
-  ACCOUNT_SAVE: "Salvar",
-  ACCOUNT_EMAIL_ADD: "Adicionar e-mail",
+  ACCOUNT_EMAIL_ADD: "Adicionar e-mail extra",
+  ACCOUNT_EMAIL_ADD_DESC: "Mais um endereço para você entrar",
   ACCOUNT_EMAIL_SAVED: "E-mail salvo",
-  ACCOUNT_EMAIL_TAKEN: "Esse e-mail já está em uso.",
+  ACCOUNT_EMAIL_TAKEN:
+    "Esse e-mail já está em uma conta Animu. Tente outro.",
   ACCOUNT_EMAIL_REMOVE: "Remover",
   ACCOUNT_EMAIL_REMOVED: "E-mail removido",
   ACCOUNT_EMAIL_REMOVE_CONFIRM_TITLE: "Remover e-mail?",
   ACCOUNT_EMAIL_REMOVE_CONFIRM_MSG: "Você não poderá mais entrar com {email}.",
   ACCOUNT_EMAIL_EXTRA_DESC: "E-mail de acesso adicional",
+  ACCOUNT_EMAIL_EXTRA_LIMIT:
+    "Você pode ter um e-mail extra. Remova-o para adicionar outro.",
+  ACCOUNT_EMAIL_RELAY: "Ocultar Meu E-mail da Apple · não recebe códigos",
+  ACCOUNT_EMAIL_PROVIDER_HINT:
+    "E-mails de provedores são adicionados automaticamente. Para remover um, desvincule a conta dele acima.",
+  ACCOUNT_EMAIL_CODE_VALIDITY:
+    "De uso único · expira em {minutes} minutos. Não chegou? Verifique o spam.",
   ACCOUNT_EMAIL_EMPTY: "Nenhum e-mail vinculado ainda.",
   SETTINGS_ACCOUNT_SIGN_IN: "Entrar na sua conta",
   LYRICS: "Letra",

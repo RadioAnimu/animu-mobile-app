@@ -1,5 +1,4 @@
-import { useState } from "react";
-import { Icon } from "@/components/Icon";
+import { useEffect, useRef, useState } from "react";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { Alert, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -10,19 +9,18 @@ import { AppRefreshControl } from "@/components/AppRefreshControl";
 import { DestructiveAction } from "@/components/DestructiveAction";
 import { KeyboardScrollView } from "@/components/KeyboardScrollView";
 import { ActionRow } from "@/components/ListRow";
-import { PrimaryButton } from "@/components/PrimaryButton";
 import { ScreenHeader } from "@/components/ScreenHeader";
 import { SectionTitle } from "@/components/SectionTitle";
 import { useAlert } from "@/contexts/alert/AlertProvider";
 import { useAuth } from "@/contexts/auth/AuthProvider";
 import { useDict } from "@/hooks/useDict";
 import { useScrollEndPadding } from "@/hooks/useScrollEndPadding";
-import { AuthFlowCancelled } from "@/core/auth";
+import { AuthFlowCancelled, ProviderLinkConflict } from "@/core/auth";
 import { haptics } from "@/utils/haptics";
 import { interpolate } from "@/utils/format";
 import type { RootStackParamList } from "@/routes/app.routes";
-import { THEME } from "@/theme";
 import { styles } from "@/screens/Account/styles";
+import { RequestsStatus } from "@/screens/Account/RequestsStatus";
 import { LinkedAccounts } from "@/screens/Account/LinkedAccounts";
 import { ProfileCard } from "@/screens/Account/ProfileCard";
 
@@ -47,6 +45,12 @@ export function Account({ navigation }: Readonly<Props>) {
   const endPadding = useScrollEndPadding();
 
   const [busy, setBusy] = useState<string | null>(null);
+  // Set when log out / delete navigate away themselves, so the lost-session
+  // redirect below doesn't fire a second navigation behind them.
+  const leavingRef = useRef(false);
+
+  const labelOf = (name: string) =>
+    providers.find((entry) => entry.name === name)?.label ?? name;
 
   const handle = async (key: string, action: () => Promise<void>) => {
     if (busy) return;
@@ -56,6 +60,13 @@ export function Account({ navigation }: Readonly<Props>) {
     } catch (error) {
       if (error instanceof AuthFlowCancelled) {
         // User dismissed the OAuth prompt — not worth an error.
+      } else if (error instanceof ProviderLinkConflict) {
+        // That identity belongs to another Animu account; retrying can't help.
+        showError(
+          interpolate(dict.ACCOUNT_LINK_CONFLICT, {
+            provider: labelOf(error.provider),
+          }),
+        );
       } else if (
         error instanceof AnimuApiError &&
         error.code === "last_provider"
@@ -76,6 +87,26 @@ export function Account({ navigation }: Readonly<Props>) {
   // replace it) — the server refuses the last unlink with `last_provider`.
   const canUnlink = linkedProviders.length > 1;
 
+  const link = (provider: string) =>
+    handle(`link-${provider}`, async () => {
+      await linkProvider(provider);
+      haptics.success();
+      toast(dict.ACCOUNT_LINK_SUCCESS);
+    });
+
+  // The refresh row re-runs the server's verification check (e.g. after the
+  // user turned on Discord 2FA) and reports what it found.
+  const checkRequests = () =>
+    handle("requests-refresh", async () => {
+      const fresh = await refreshProfile();
+      if (fresh?.user.verified) {
+        haptics.success();
+        toast(dict.ACCOUNT_REQUESTS_NOW_ON);
+      } else {
+        toast(dict.ACCOUNT_REQUESTS_STILL_OFF, "info");
+      }
+    });
+
   const confirmDelete = () => {
     Alert.alert(
       dict.ACCOUNT_DELETE_CONFIRM_TITLE,
@@ -89,6 +120,7 @@ export function Account({ navigation }: Readonly<Props>) {
             haptics.warning();
             void handle("delete", async () => {
               await deleteAccount();
+              leavingRef.current = true;
               navigation.navigate("Main", { screen: "Home" });
             });
           },
@@ -98,11 +130,16 @@ export function Account({ navigation }: Readonly<Props>) {
   };
 
   const confirmUnlink = (name: string) => {
-    const provider =
-      providers.find((entry) => entry.name === name)?.label ?? name;
+    const provider = labelOf(name);
+    // Discord is what verifies the account, so unlinking it also ends song
+    // requests — say so before the user confirms.
+    const warning =
+      name === "discord" && profile?.user.verified
+        ? `\n\n${dict.ACCOUNT_UNLINK_DISCORD_WARNING}`
+        : "";
     Alert.alert(
       interpolate(dict.ACCOUNT_UNLINK_CONFIRM_TITLE, { provider }),
-      interpolate(dict.ACCOUNT_UNLINK_CONFIRM_MSG, { provider }),
+      interpolate(dict.ACCOUNT_UNLINK_CONFIRM_MSG, { provider }) + warning,
       [
         { text: dict.ACCOUNT_CANCEL, style: "cancel" },
         {
@@ -127,27 +164,23 @@ export function Account({ navigation }: Readonly<Props>) {
     />
   );
 
-  if (!isAuthenticated || !user) {
+  const signedOut = !isAuthenticated || !user;
+
+  // There is no signed-out Account page: losing the session here (it expired,
+  // or was revoked elsewhere) swaps the page for sign-in, so back still
+  // returns to Settings. Log out and delete navigate on their own: `busy`
+  // holds this off while they run, and `leavingRef` once they have left.
+  useEffect(() => {
+    if (signedOut && busy === null && !leavingRef.current) {
+      navigation.replace("Login");
+    }
+  }, [signedOut, busy, navigation]);
+
+  if (signedOut) {
+    // One frame before the replace lands: keep the header, skip the content.
     return (
-      <SafeAreaView
-        style={styles.container}
-        edges={["left", "right"]}
-      >
+      <SafeAreaView style={styles.container} edges={["left", "right"]}>
         {renderHeader()}
-        <View style={styles.signedOut}>
-          <Icon
-            name="account-circle"
-            size={THEME.ICON.XL * 2}
-            color={THEME.COLORS.TEXT_DIM}
-          />
-          <Text style={styles.signedOutText}>{dict.ACCOUNT_SIGNED_OUT}</Text>
-          <PrimaryButton
-            label={dict.ACCOUNT_SIGN_IN}
-            icon="login"
-            onPress={() => navigation.navigate("Login")}
-            style={styles.signedOutAction}
-          />
-        </View>
       </SafeAreaView>
     );
   }
@@ -178,18 +211,19 @@ export function Account({ navigation }: Readonly<Props>) {
           bannerUri={media.banner}
         />
 
+        <RequestsStatus
+          profile={profile}
+          busy={busy}
+          onLinkDiscord={() => void link("discord")}
+          onRefresh={() => void checkRequests()}
+        />
+
         <LinkedAccounts
           providers={providers}
           linkedProviders={linkedProviders}
           canUnlink={canUnlink}
           busy={busy}
-          onLink={(provider) =>
-            handle(`link-${provider}`, async () => {
-              await linkProvider(provider);
-              haptics.success();
-              toast(dict.ACCOUNT_LINK_SUCCESS);
-            })
-          }
+          onLink={link}
           onUnlink={confirmUnlink}
         />
 
@@ -209,12 +243,17 @@ export function Account({ navigation }: Readonly<Props>) {
           <ActionRow
             icon="logout"
             label={dict.ACCOUNT_LOGOUT}
+            description={dict.ACCOUNT_LOGOUT_DESC}
             busy={busy === "logout"}
+            // Account actions run one at a time: show the others as blocked
+            // instead of letting a tap silently do nothing.
+            disabled={busy !== null}
             onPress={() =>
               void handle("logout", async () => {
                 await logout();
                 // Swap the now-empty account page for sign-in, so back
                 // returns to Settings instead of a signed-out Account.
+                leavingRef.current = true;
                 navigation.replace("Login");
               })
             }
@@ -225,7 +264,9 @@ export function Account({ navigation }: Readonly<Props>) {
         <DestructiveAction
           icon="delete-forever"
           label={dict.ACCOUNT_DELETE}
+          description={dict.ACCOUNT_DELETE_DESC}
           busy={busy === "delete"}
+          disabled={busy !== null}
           onPress={confirmDelete}
         />
       </KeyboardScrollView>

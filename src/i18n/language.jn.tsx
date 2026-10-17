@@ -352,7 +352,6 @@ const DICT: Dict = {
   INFO_REQUEST: `こんにちは！私は春香、ブラジルで最も萌えのラジオのDJだよ！${"\n"}もう選曲はバッチリかな？${"\n"}その前に、私やチームのみんなにメッセージを残してみない？君からのメッセージは、みんなが見れるようにディスコードのメインチャットに流すね！${"\n"}💜 メッセージを残したくない場合は、無理しなくて大丈夫だよ。`,
   SEND_REQUEST_BUTTON_TEXT: "リクエストを送る",
   SEND_REQUEST_PLACEHOLDER: "ここにメッセージを書いてね",
-  LOGIN_ERROR: "リクエストするにはログインが必要だよ",
   SELECT_ERROR: "選曲に失敗しちゃった",
   REQUEST_ERROR: "リクエストを送れませんでした。もう一度お試しください。",
   REQUEST_ERROR_PEDIBLOCK:
@@ -362,9 +361,17 @@ const DICT: Dict = {
   REQUEST_ERROR_HARUBLOCK: "この曲はAutoDJでさっき流れたばかりだよ。",
   REQUEST_ERROR_ONAIR: "DJが放送中のときはリクエストできないよ。",
   REQUEST_ERROR_BLOCOBLOCK: "今はリクエストをお休みしているよ。",
-  REQUEST_ERROR_NOLOGIN: "セッションが切れちゃったよ。もう一度ログインしてね。",
+  REQUEST_ERROR_NOLOGIN:
+    "リクエストには2段階認証を有効にしたDiscordアカウントの連携が必要だよ。アカウントを確認するか、もう一度ログインしてね。",
   REQUEST_ERROR_NO2FA:
-    "リクエストにはDiscordで2段階認証を有効にする必要があるよ。",
+    "リクエストには2段階認証を有効にしたDiscordアカウントの連携が必要だよ。",
+  REQUEST_NEEDS_SIGN_IN: "リクエストするにはログインしてね。",
+  REQUEST_SIGN_IN_ACTION: "ログイン",
+  REQUEST_NEEDS_VERIFIED:
+    "リクエストには2段階認証を有効にしたDiscordアカウントの連携が必要だよ。",
+  REQUEST_VERIFY_ACTION: "設定",
+  SESSION_EXPIRED:
+    "ログアウトされちゃったよ。リクエストを続けるには、もう一度ログインしてね。",
   REQUEST_ERROR_PANEL:
     "ラジオのパネルが一時的に利用できないよ。少ししてからもう一度試してね。",
   REQUEST_SUCCESS: "リクエスト成功！",
@@ -377,7 +384,6 @@ const DICT: Dict = {
   REQUEST_SEARCH_ERROR: "検索できませんでした。接続を確認してね。",
   HARU_CHAN_TEXT: "はるちゃん",
   THEME_WORD: "テーマ",
-  LOGIN_WORD: "ログイン",
   FORM_LABEL_NICK: "ニックネーム",
   FORM_LABEL_CITY: "すんでいる場所",
   FORM_LABEL_ARTIST: "アーティスト",
@@ -403,17 +409,28 @@ const DICT: Dict = {
   LOGIN_SUCCESS: "ログインできたよ！",
   LOGIN_FAILED: "ログインできなかったよ。もう一度試してね。",
   LOGIN_MISSING_FIELDS: "全部の項目を入力してね。",
-  LOGIN_HEADLINE: "おかえりなさい",
-  LOGIN_SUBTITLE: "ログインしてリクエストとリスニングカードをアンロックしよう",
+  LOGIN_EMAIL_INVALID: "メールアドレスじゃないみたいだよ。",
+  LOGIN_PROVIDER_EMAIL_TAKEN:
+    "その{provider}のメールは、別の Animu アカウントに登録されているよ。前にログインした方法でログインして、あとからアカウントで{provider}を連携してね。",
+  LOGIN_HEADLINE: "Animu にログイン",
+  LOGIN_SUBTITLE:
+    "聴くのはいつでも無料。はじめてなら、最初にプロバイダーでログインするとアカウントが作れるよ。",
+  LOGIN_DISCORD_PERK: "リクエストに必要",
+  LOGIN_REQUESTS_NOTICE:
+    "リクエストするには、2段階認証が有効なDiscordアカウントの連携が必要だよ。別の方法でログインした人も、あとからアカウントでDiscordを連携できるよ。",
   LOGIN_OR_CONTINUE: "または",
   LOGIN_CONTINUE_WITH: "{provider} で続ける",
-  LOGIN_WITH_ANIMU_CONNECT: "Animu Connect で続ける",
-  LOGIN_ANIMU_CONNECT_TAGLINE: "パスワード不要・4桁のコードをメールでお届け",
+  LOGIN_WITH_ANIMU_CONNECT: "メールのコードでログイン",
+  LOGIN_ANIMU_CONNECT_TAGLINE: "Animu Connect・既存アカウント向け",
   LOGIN_LEGAL: "続けると{link}に同意したことになるよ。",
   LOGIN_ANIMU_CONNECT_HINT:
-    "Animu アカウントに登録したメールが使えるよ。プロバイダーのメールは自動だよ。追加のメールはプロフィールで登録できるよ。",
-  LOGIN_CONNECT_TITLE: "Animu Connect でログイン",
-  LOGIN_CONNECT_SUBTITLE: "4桁のコードをメールで送るよ",
+    "すでにあるアカウント専用だよ。ログインしたことがあるプロバイダーのメールか、アカウントで追加したメールを使ってね。Apple の「メールを非公開」のアドレスにはコードを送れないよ。",
+  LOGIN_CONNECT_TITLE: "Animu Connect",
+  LOGIN_CONNECT_SUBTITLE:
+    "4桁のコードをメールで送るよ。パスワードはいらないよ。",
+  LOGIN_CONNECT_NEW_HERE: "はじめて？ログイン方法を選んでね",
+  LOGIN_CONNECT_CODE_SENT:
+    "このメールが Animu アカウントに登録されていれば、もうすぐコードが届くよ。",
   LOGIN_EMAIL: "メール",
   LOGIN_EMAIL_PLACEHOLDER: "you@example.com",
   LOGIN_SEND_CODE: "コードを送る",
@@ -425,15 +442,16 @@ const DICT: Dict = {
   LOGIN_CODE_RESEND: "コードを再送",
   LOGIN_CODE_RESEND_IN: "{seconds}秒後に再送",
   LOGIN_CODE_CHANGE_EMAIL: "別のメールを使う",
-  LOGIN_CODE_INVALID: "コードが間違っているか期限切れだよ。もう一度試してね。",
+  LOGIN_CODE_INVALID:
+    "このコードは使えないか、期限切れだよ。{attempts}回間違えたら、新しいコードをリクエストしてね。",
+  LOGIN_CODE_VALIDITY:
+    "使い切り・{minutes}分で期限切れ。届かない？迷惑メールを確認してね — コードはアカウントに登録済みのメールにしか送れないよ。",
   ACCOUNT_TITLE: "アカウント",
-  ACCOUNT_SIGNED_OUT: "ログインしていないよ。",
   ACCOUNT_SIGN_IN: "ログイン",
 
-  ACCOUNT_VERIFIED_INFO:
-    "リクエストできるのは認証済みのリスナーだけだよ。認証するには、ディスコードを連携して2段階認証を有効にしてね。",
+  ACCOUNT_VERIFIED_LABEL: "曲のリクエストが認証済み",
   ACCOUNT_CONNECTED_VIA: "接続中:",
-  ACCOUNT_LAST_LOGIN: "最終ログイン",
+  ACCOUNT_LAST_ACTIVE: "最終アクティブ",
   ACCOUNT_SHOW: "表示",
   ACCOUNT_HIDE: "隠す",
   ACCOUNT_REFRESHED: "プロフィールを更新したよ",
@@ -443,34 +461,62 @@ const DICT: Dict = {
   ACCOUNT_UNLINK: "連携解除",
   ACCOUNT_LINK: "連携",
   ACCOUNT_LAST_PROVIDER:
-    "アカウントを1つ以上残してね。退会したい場合はアカウントを削除してね。",
+    "連携アカウントは1つ以上残してね。Animu Connect のメールは対象外だよ。解除する前に、別のアカウントを連携してね。",
+  ACCOUNT_LINK_CONFLICT:
+    "その {provider} アカウントは、別の Animu アカウントにすでに連携されているよ。",
   ACCOUNT_LINK_SUCCESS: "連携したよ",
   ACCOUNT_UNLINK_SUCCESS: "連携を解除したよ",
   ACCOUNT_UNLINK_CONFIRM_MSG:
     "再度連携するまで、{provider} ではログインできなくなります。",
   ACCOUNT_UNLINK_CONFIRM_TITLE: "{provider} の連携を解除しますか？",
+  ACCOUNT_UNLINK_DISCORD_WARNING: "曲のリクエストはオフになるよ。",
   ACCOUNT_ANIMU_CONNECT: "Animu Connect",
   ACCOUNT_ANIMU_CONNECT_DESC:
-    "ログイン方法のひとつ。下のどのメールにも届く4桁のコードでログインできるよ。パスワードは不要。",
+    "下のどれかのメールに届く4桁のコードでログインできるよ。パスワードは不要。",
   ACCOUNT_ANIMU_CONNECT_FORM_HINT:
-    "プロバイダーのメールは自動で使えるよ。ログインに使える追加メールを1つ登録できる。",
+    "ログインに使える追加メールを1つ登録してね。本人確認のコードを送るよ。",
   ACCOUNT_DANGER: "危険な操作",
+  ACCOUNT_LOGOUT_DESC: "この端末でのみログアウトするよ",
+  ACCOUNT_DELETE_DESC: "Animu アカウントを完全に削除するよ",
+  ACCOUNT_REQUESTS_TITLE: "曲のリクエスト",
+  ACCOUNT_REQUESTS_READY: "曲のリクエストはオンだよ",
+  ACCOUNT_REQUESTS_READY_DESC: "2段階認証済みのディスコードアカウントが認証してくれるよ。",
+  ACCOUNT_REQUESTS_DISCORD: "ディスコードアカウント",
+  ACCOUNT_REQUESTS_2FA: "ディスコードの2段階認証",
+  ACCOUNT_REQUESTS_2FA_OFF: "まだ有効になっていない",
+  ACCOUNT_REQUESTS_LINK_FIRST: "まずディスコードを連携してね",
+  ACCOUNT_REQUESTS_LINK_DISCORD: "ディスコードを連携",
+  ACCOUNT_REQUESTS_2FA_HELP: "2段階認証を有効にする方法",
+  ACCOUNT_REQUESTS_2FA_HELP_DESC: "ディスコードのヘルプページを開くよ",
+  ACCOUNT_REQUESTS_REFRESH: "もう一度確認",
+  ACCOUNT_REQUESTS_REFRESH_DESC: "2段階認証を有効にした？ステータスを更新してね。",
+  ACCOUNT_REQUESTS_STILL_OFF:
+    "まだ認証されていないよ。ディスコードで2段階認証が有効か確認して、もう一度確認してね。",
+  ACCOUNT_REQUESTS_NOW_ON: "認証完了！曲のリクエストがオンになったよ。",
   ACCOUNT_LOGOUT: "ログアウト",
   ACCOUNT_DELETE: "アカウントを削除",
   ACCOUNT_DELETE_CONFIRM_TITLE: "アカウントを削除する？",
   ACCOUNT_DELETE_CONFIRM_MSG:
-    "プロフィール・連携アカウント・セッションが完全に削除されるよ。元には戻せないよ。",
+    "Animu のプロフィール・連携アカウント・Animu Connect のメール・セッションが完全に削除されるよ。ディスコードなど他のプロバイダーのアカウントには影響ないよ。元には戻せないよ。",
   ACCOUNT_CANCEL: "キャンセル",
   ACCOUNT_ACTION_FAILED: "失敗しちゃった。もう一度試してね。",
-  ACCOUNT_SAVE: "保存",
-  ACCOUNT_EMAIL_ADD: "メールを追加",
+  ACCOUNT_EMAIL_ADD: "追加メールを登録",
+  ACCOUNT_EMAIL_ADD_DESC: "ログインに使えるメールをもう1つ登録できる",
   ACCOUNT_EMAIL_SAVED: "メールを保存したよ",
-  ACCOUNT_EMAIL_TAKEN: "そのメールはすでに使われているよ。",
+  ACCOUNT_EMAIL_TAKEN:
+    "そのメールはすでに別の Animu アカウントで使われているよ。別のメールにしてね。",
   ACCOUNT_EMAIL_REMOVE: "削除",
   ACCOUNT_EMAIL_REMOVED: "メールを削除したよ",
   ACCOUNT_EMAIL_REMOVE_CONFIRM_TITLE: "メールを削除する？",
   ACCOUNT_EMAIL_REMOVE_CONFIRM_MSG: "{email} でログインできなくなるよ。",
   ACCOUNT_EMAIL_EXTRA_DESC: "追加のログイン用メール",
+  ACCOUNT_EMAIL_EXTRA_LIMIT:
+    "追加メールは1つだけ登録できるよ。別のメールにしたい場合は、削除してから追加してね。",
+  ACCOUNT_EMAIL_RELAY: "Apple のメールを非公開 · コードを受信できない",
+  ACCOUNT_EMAIL_PROVIDER_HINT:
+    "プロバイダーのメールは自動で追加されるよ。削除したい場合は、上でそのアカウントの連携を解除してね。",
+  ACCOUNT_EMAIL_CODE_VALIDITY:
+    "使い切り・{minutes}分で期限切れ。届かない？迷惑メールを確認してね。",
   ACCOUNT_EMAIL_EMPTY: "まだメールが登録されていないよ。",
   SETTINGS_ACCOUNT_SIGN_IN: "アカウントにログイン",
   LYRICS: "歌詞",

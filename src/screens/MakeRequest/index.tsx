@@ -4,6 +4,7 @@ import { useNavigation } from "@react-navigation/native";
 import {
   useCallback,
   useEffect,
+  useMemo,
   useRef,
   useState,
   type ComponentProps,
@@ -43,7 +44,7 @@ import {
   musicRequestService,
 } from "@/core/services/music-request.service";
 import { IMGS } from "@/i18n";
-import type { DrawerParamList } from "@/routes/app.routes";
+import type { DetailParamList, DrawerParamList } from "@/routes/app.routes";
 import type { Dict } from "@/i18n";
 import { THEME } from "@/theme";
 import { scale } from "@/theme/responsive";
@@ -51,6 +52,7 @@ import { haptics } from "@/utils/haptics";
 import { dismissKeyboard } from "@/utils/keyboard";
 import { layoutEase } from "@/utils/layout-animation";
 import { styles } from "@/screens/MakeRequest/styles";
+import { NoticeBanner } from "@/screens/MakeRequest/NoticeBanner";
 import { RecentSearches } from "@/screens/MakeRequest/RecentSearches";
 import { ResultsList } from "@/screens/MakeRequest/ResultsList";
 import {
@@ -152,31 +154,6 @@ function SearchBar({
   );
 }
 
-/** Failed-search banner with the retry shortcut. */
-function SearchErrorBanner({
-  dict,
-  onRetry,
-}: Readonly<{
-  dict: Dict;
-  onRetry: () => void;
-}>) {
-  return (
-    <View style={styles.errorBanner}>
-      <Text style={styles.errorText}>{dict.REQUEST_SEARCH_ERROR}</Text>
-      <TouchableOpacity
-        activeOpacity={THEME.OPACITY.PRESSED}
-        accessibilityRole="button"
-        accessibilityLabel={dict.ERROR_RETRY}
-        hitSlop={THEME.HIT_SLOP.SM}
-        onPress={onRetry}
-        style={styles.retryButton}
-      >
-        <Text style={styles.retryText}>{dict.ERROR_RETRY}</Text>
-      </TouchableOpacity>
-    </View>
-  );
-}
-
 /** What fills the list area: recent searches, a spinner, or the results. */
 function SearchBody({
   showRecent,
@@ -201,12 +178,14 @@ function SearchBody({
 }
 
 export function MakeRequest() {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const { settings } = useUserSettings();
   const { toast } = useAlert();
   const dict = useDict();
+  // Login/Account are stack routes above the drawer; `navigate` bubbles up to
+  // the stack, so the drawer prop only needs to know their names.
   const navigation =
-    useNavigation<DrawerNavigationProp<DrawerParamList>>();
+    useNavigation<DrawerNavigationProp<DrawerParamList & DetailParamList>>();
   const isLive = Boolean(usePlayer().currentProgram?.isLive);
 
   // A live show starting while this screen is open: music requests close, so
@@ -257,6 +236,32 @@ export function MakeRequest() {
     markRequested,
   } = useTrackSearch({ listRef, onSearched: addRecent });
 
+  // Song requests need a verified account (Discord linked + 2FA), which Google,
+  // Apple and Animu Connect sign-ins never are. Say so up front instead of
+  // letting someone pick a song and write a message the server will refuse.
+  // `profile` is null while loading: unknown counts as allowed and the server
+  // decides.
+  const hasSession = Boolean(user?.sessionToken);
+  const unverified = hasSession && profile?.user.verified === false;
+  const notice = useMemo(() => {
+    if (!hasSession) {
+      return {
+        message: dict.REQUEST_NEEDS_SIGN_IN,
+        actionLabel: dict.REQUEST_SIGN_IN_ACTION,
+        route: "Login",
+      } as const;
+    }
+    if (unverified) {
+      return {
+        message: dict.REQUEST_NEEDS_VERIFIED,
+        actionLabel: dict.REQUEST_VERIFY_ACTION,
+        route: "Account",
+      } as const;
+    }
+    return null;
+  }, [hasSession, unverified, dict]);
+  const blockedMessage = notice?.message;
+
   /** Tapping a recent search re-runs it (keyboard down, field filled). */
   const handlePickRecent = useCallback(
     (picked: string) => {
@@ -270,8 +275,11 @@ export function MakeRequest() {
 
   const handleSubmitRequest = useCallback(
     async (message: string): Promise<{ success: boolean; message: string }> => {
-      if (!user?.sessionToken) {
-        return { success: false, message: dict.LOGIN_ERROR };
+      if (blockedMessage || !user?.sessionToken) {
+        return {
+          success: false,
+          message: blockedMessage ?? dict.REQUEST_NEEDS_SIGN_IN,
+        };
       }
 
       if (!selectedTrack) {
@@ -304,21 +312,21 @@ export function MakeRequest() {
 
       return { success: true, message: dict.REQUEST_SUCCESS };
     },
-    [selectedTrack, user, dict, settings.selectedLanguage],
+    [selectedTrack, user, dict, blockedMessage, settings.selectedLanguage],
   );
 
   /** Stable row-action handler, handed to rows via `TrackRequestContext`. */
   const handleRequestTrack = useCallback(
     (track: MusicRequest) => {
       if (!track.requestable) return;
-      if (!user?.sessionToken) {
+      if (blockedMessage) {
         haptics.error();
-        toast(dict.LOGIN_ERROR, "error");
+        toast(blockedMessage, "error");
         return;
       }
       setSelectedTrack(track);
     },
-    [user?.sessionToken, toast, dict.LOGIN_ERROR],
+    [blockedMessage, toast],
   );
 
   const renderRequestTrack = useCallback(
@@ -364,7 +372,24 @@ export function MakeRequest() {
           <Text style={styles.minHint}>{dict.REQUEST_SEARCH_MIN}</Text>
         )}
 
-        {searchFailed && <SearchErrorBanner dict={dict} onRetry={submit} />}
+        {/* Right under the field rather than in the Haruka banner's slot:
+            that banner collapses when the field focuses, and this must stay
+            visible (and above the fold) while the user types or scrolls. */}
+        {notice && (
+          <NoticeBanner
+            message={notice.message}
+            actionLabel={notice.actionLabel}
+            onAction={() => navigation.navigate(notice.route)}
+          />
+        )}
+
+        {searchFailed && (
+          <NoticeBanner
+            message={dict.REQUEST_SEARCH_ERROR}
+            actionLabel={dict.ERROR_RETRY}
+            onAction={submit}
+          />
+        )}
 
         <View style={styles.listWrapper}>
           <SearchBody

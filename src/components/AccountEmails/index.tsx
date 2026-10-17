@@ -18,7 +18,10 @@ import {
 } from "@/hooks/useEmailCodeFlow";
 import type { Dict } from "@/i18n";
 import { providerLabel } from "@/constants/auth";
-import { RESEND_COOLDOWN_SECONDS } from "@/constants/email-code";
+import {
+  CODE_TTL_MINUTES,
+  RESEND_COOLDOWN_SECONDS,
+} from "@/constants/email-code";
 import { THEME } from "@/theme";
 import { haptics } from "@/utils/haptics";
 import { interpolate } from "@/utils/format";
@@ -27,10 +30,11 @@ import { CodeSubtitle } from "@/components/CodeSubtitle";
 import { ConnectActions } from "@/components/ConnectActions";
 import { EmailCodeFields } from "@/components/EmailCodeFields";
 import { FormError } from "@/components/FormError";
-import { LeadingIcon } from "@/components/ListRow";
+import { ActionRow, LeadingIcon } from "@/components/ListRow";
 import { MaskedValue } from "@/components/MaskedValue";
 import { ProviderIcon } from "@/components/ProviderIcon";
 import { useResendCooldown } from "@/hooks/useResendCooldown";
+import { isAppleRelayEmail } from "@/components/AccountEmails/relay-email";
 import { styles } from "@/components/AccountEmails/styles";
 
 /** The extra Animu Connect address rides `source: "animu"` (the provider
@@ -46,7 +50,8 @@ interface EmailSource {
 }
 
 /** One address row: the masked address, the sources that registered it as
- * `mark + name` pairs, and — when the server allows it — the delete. */
+ * `mark + name` pairs, the relay warning when a code can't reach it, and —
+ * when the server allows it — the delete. */
 function EmailRow({
   email,
   sources,
@@ -92,6 +97,19 @@ function EmailRow({
                 </Text>
               </Fragment>
             ))}
+          </View>
+        )}
+        {isAppleRelayEmail(email) && (
+          // Apple's Hide My Email addresses register like any other address but
+          // can never receive a code: say so here, where the user would
+          // otherwise start waiting for one.
+          <View style={styles.relay}>
+            <Icon
+              name="info-outline"
+              size={THEME.ICON.SM}
+              color={THEME.COLORS.TEXT_DIM}
+            />
+            <Text style={styles.relayText}>{dict.ACCOUNT_EMAIL_RELAY}</Text>
           </View>
         )}
       </View>
@@ -244,10 +262,32 @@ function EmailList({
 }
 
 /**
- * The inline add form, shown inside the card only while the account has no
- * extra email: the explanation, the email field (swapping to the code field)
- * and the code step's resend / change-email links. No modal — the Account
- * scroll view keeps the focused field above the keyboard.
+ * The card's closing rules — why a provider address carries no delete, why
+ * only one extra address is allowed — or nothing when neither applies. In ROW
+ * inset so they stay on the card's own text column.
+ */
+function EmailFootnotes({ notes }: Readonly<{ notes: string[] }>) {
+  if (notes.length === 0) return null;
+
+  return (
+    <>
+      <View style={styles.divider} />
+      <View style={styles.footnote}>
+        {notes.map((note) => (
+          <Text key={note} style={styles.footnoteText}>
+            {note}
+          </Text>
+        ))}
+      </View>
+    </>
+  );
+}
+
+/**
+ * The inline add form, revealed by the add row while the account has no extra
+ * email: the explanation, the email field (swapping to the code field), the
+ * code step's resend / change-email links, and the way back out. No modal —
+ * the Account scroll view keeps the focused field above the keyboard.
  */
 function AddEmailForm({
   flow,
@@ -255,12 +295,15 @@ function AddEmailForm({
   resendRemaining,
   onResend,
   onChangeEmail,
+  onCancel,
 }: Readonly<{
   flow: EmailCodeFlow;
   dict: Dict;
   resendRemaining: number;
   onResend: () => void;
   onChangeEmail: () => void;
+  /** Drops the half-finished flow and collapses the form. */
+  onCancel: () => void;
 }>) {
   const onCodeStep = flow.step === "code";
 
@@ -277,7 +320,17 @@ function AddEmailForm({
         )}
       </Text>
 
-      <EmailCodeFields flow={flow} />
+      {/* The user tapped "Add extra email", so the field opens its keyboard
+          without a second tap. */}
+      <EmailCodeFields flow={flow} autoFocusEmail />
+
+      {onCodeStep && (
+        <Text style={styles.formValidity}>
+          {interpolate(dict.ACCOUNT_EMAIL_CODE_VALIDITY, {
+            minutes: CODE_TTL_MINUTES,
+          })}
+        </Text>
+      )}
 
       {flow.error && (
         <View style={styles.formError}>
@@ -302,17 +355,34 @@ function AddEmailForm({
           />
         </View>
       )}
+
+      {/* Locked while a send/verify runs, so the flow can't be dropped out
+          from under an in-flight request. */}
+      <TouchableOpacity
+        accessibilityRole="button"
+        accessibilityState={{ disabled: flow.busy }}
+        activeOpacity={THEME.OPACITY.PRESSED}
+        disabled={flow.busy}
+        onPress={onCancel}
+        style={styles.cancel}
+      >
+        <Text style={[styles.cancelText, flow.busy && styles.disabled]}>
+          {dict.ACCOUNT_CANCEL}
+        </Text>
+      </TouchableOpacity>
     </View>
   );
 }
 
 /**
  * Animu Connect management on the Account screen. Animu Connect is a sign-in
- * method (a code emailed to any listed address); the card lists every address with the brand mark it came from and the
- * providers that registered it (masked until revealed). While the account has
- * no extra email, the card closes on an inline add form; the server allows
- * only one extra address, so the form gives way to that row (with its delete)
- * once it exists.
+ * method (a code emailed to any listed address); the card lists every address
+ * with the brand mark it came from and the providers that registered it
+ * (masked until revealed), then the rules the rows can't state themselves:
+ * provider addresses have no delete, and only one extra address is allowed.
+ * While the account has no extra email, the card closes on an "add" row that
+ * opens the inline form on demand; the server allows only one extra address,
+ * so the row gives way to that address (with its delete) once it exists.
  */
 export function AccountEmails() {
   const {
@@ -329,11 +399,20 @@ export function AccountEmails() {
 
   const [loading, setLoading] = useState(true);
   const [removing, setRemoving] = useState(false);
+  // Closed until asked for: the form is a deliberate second step, and its
+  // field takes focus the moment it appears.
+  const [expanded, setExpanded] = useState(false);
   const resend = useResendCooldown(RESEND_COOLDOWN_SECONDS);
 
   const mapEmailError = (error: unknown) =>
     emailCodeError(dict, error, dict.ACCOUNT_ACTION_FAILED, {
       taken: dict.ACCOUNT_EMAIL_TAKEN,
+    });
+  // Only the code REQUEST reports a malformed address as `invalid_request`.
+  const mapRequestError = (error: unknown) =>
+    emailCodeError(dict, error, dict.ACCOUNT_ACTION_FAILED, {
+      taken: dict.ACCOUNT_EMAIL_TAKEN,
+      invalid: dict.LOGIN_EMAIL_INVALID,
     });
 
   const flow = useEmailCodeFlow({
@@ -346,8 +425,11 @@ export function AccountEmails() {
     onVerified: () => {
       haptics.success();
       toast(dict.ACCOUNT_EMAIL_SAVED);
+      // The extra address is on the account now: the form's job is done, so
+      // close it instead of leaving an empty field behind the new row.
+      setExpanded(false);
     },
-    mapRequestError: mapEmailError,
+    mapRequestError,
     mapVerifyError: mapEmailError,
   });
 
@@ -366,14 +448,36 @@ export function AccountEmails() {
   }, [refreshEmails]);
 
   // There is at most ONE extra `animu` email — while it exists the server
-  // rejects another, so the inline form hides and its row carries the delete.
+  // rejects another, so the add path hides and its row carries the delete.
   const extraEmail = emails.find(isExtraEmail) ?? null;
+
+  // Every provider-registered address is permanent: only unlinking that
+  // provider can take it away, so the card has to say where the delete is.
+  const hasProviderEmail = emails.some((item) => !item.removable);
+
+  const footnotes: string[] = [];
+  if (hasProviderEmail) footnotes.push(dict.ACCOUNT_EMAIL_PROVIDER_HINT);
+  if (extraEmail) footnotes.push(dict.ACCOUNT_EMAIL_EXTRA_LIMIT);
 
   const groups = groupEmails(
     emails,
     profile?.linkedProviders ?? [],
     providers.map((provider) => provider.name),
   );
+
+  const openAdd = () => {
+    // A removal in flight already locks the card's rows.
+    if (removing) return;
+    haptics.tap();
+    // A stale error from a previous attempt shouldn't greet the reopened form.
+    flow.setError(null);
+    setExpanded(true);
+  };
+
+  const cancelAdd = () => {
+    flow.reset();
+    setExpanded(false);
+  };
 
   const confirmRemove = (target: AuthAccountEmail) => {
     Alert.alert(
@@ -406,33 +510,45 @@ export function AccountEmails() {
     );
   };
 
+  // The empty list is the only case with nothing to show above the notice.
+  if (showLoading) {
+    return (
+      <View>
+        <ActivityIndicator color={THEME.COLORS.SPINNER} style={styles.loading} />
+      </View>
+    );
+  }
+
   return (
     <View>
-      {showLoading ? (
-        <ActivityIndicator
-          color={THEME.COLORS.SPINNER}
-          style={styles.loading}
-        />
-      ) : (
-        <>
-          <EmailList
-            groups={groups}
-            dict={dict}
-            busy={busy}
-            onRemove={confirmRemove}
-          />
+      <EmailList
+        groups={groups}
+        dict={dict}
+        busy={busy}
+        onRemove={confirmRemove}
+      />
 
-          {!extraEmail && (
-            <>
-              {groups.length > 0 && <View style={styles.divider} />}
-              <AddEmailForm
-                flow={flow}
-                dict={dict}
-                resendRemaining={resend.remaining}
-                onResend={() => void flow.sendCode()}
-                onChangeEmail={flow.backToEmail}
-              />
-            </>
+      <EmailFootnotes notes={footnotes} />
+
+      {!extraEmail && (
+        <>
+          {groups.length > 0 && <View style={styles.divider} />}
+          {expanded ? (
+            <AddEmailForm
+              flow={flow}
+              dict={dict}
+              resendRemaining={resend.remaining}
+              onResend={() => void flow.sendCode()}
+              onChangeEmail={flow.backToEmail}
+              onCancel={cancelAdd}
+            />
+          ) : (
+            <ActionRow
+              icon="add"
+              label={dict.ACCOUNT_EMAIL_ADD}
+              description={dict.ACCOUNT_EMAIL_ADD_DESC}
+              onPress={openAdd}
+            />
           )}
         </>
       )}

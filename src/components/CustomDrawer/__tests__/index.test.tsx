@@ -51,7 +51,7 @@ vi.mock("@/contexts/auth/AuthProvider", () => ({ useAuth: () => mocks.auth }));
 vi.mock("@/hooks/useDict", () => ({
   useDict: () => ({
     MENU: "Menu",
-    LOGIN_WORD: "Login",
+    ACCOUNT_SIGN_IN: "Sign in",
     SETTINGS_TITLE: "Settings",
     SETTINGS_ACCOUNT_SIGN_IN: "Sign in to sync",
     ACCOUNT_TITLE: "Account",
@@ -108,10 +108,10 @@ describe("CustomDrawerContent", () => {
     it("signed out: invites sign-in, opens Login, and offers a separate settings gear", () => {
       render(<CustomDrawerContent {...makeProps()} />);
       expect(screen.getByText("Sign in to sync")).toBeTruthy();
-      expect(screen.getByText("Login")).toBeTruthy();
+      expect(screen.getByText("Sign in")).toBeTruthy();
       expect(screen.queryByTestId("avatar")).toBeNull();
 
-      fireEvent.click(screen.getByText("Login"));
+      fireEvent.click(screen.getByText("Sign in"));
       expect(navigation.closeDrawer).toHaveBeenCalled();
       expect(navigation.navigate).toHaveBeenCalledWith("Login");
 

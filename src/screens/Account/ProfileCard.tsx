@@ -41,7 +41,7 @@ function MetaLine({ children }: Readonly<{ children: ReactNode }>) {
 /**
  * 2015-Twitter profile header: a wide cover, a rounded-square avatar hanging
  * off its bottom-left, then the display name (verified badge inline), the
- * @handle beside it, then icon meta lines (last login, sign-in method).
+ * @handle beside it, then icon meta lines (last active, sign-in method).
  */
 export function ProfileCard({ user, profile, imageVersion, bannerUri }: Readonly<Props>) {
   const dict = useDict();
@@ -51,7 +51,7 @@ export function ProfileCard({ user, profile, imageVersion, bannerUri }: Readonly
   const banner = profile?.banner;
   const loginProvider = profile?.session.loginProvider;
   const lastActivity = profile?.session.lastActivity;
-  const lastLogin = dateLabel(
+  const lastActive = dateLabel(
     lastActivity ? new Date(lastActivity * 1000) : null,
   );
   const bannerSource = resolveMediaSource(
@@ -84,7 +84,11 @@ export function ProfileCard({ user, profile, imageVersion, bannerUri }: Readonly
                 {name}
               </Text>
               {profileUser.verified && (
-                <View style={styles.badge}>
+                <View
+                  accessible
+                  accessibilityLabel={dict.ACCOUNT_VERIFIED_LABEL}
+                  style={styles.badge}
+                >
                   <Icon
                     name="verified"
                     size={BADGE_SIZE}
@@ -101,7 +105,7 @@ export function ProfileCard({ user, profile, imageVersion, bannerUri }: Readonly
           </View>
         </View>
 
-        {(profileUser.email || lastLogin || loginProvider) && (
+        {(profileUser.email || lastActive || loginProvider) && (
           <View style={styles.meta}>
             {profileUser.email && (
               <MetaLine>
@@ -122,7 +126,7 @@ export function ProfileCard({ user, profile, imageVersion, bannerUri }: Readonly
                 />
               </MetaLine>
             )}
-            {lastLogin && (
+            {lastActive && (
               <MetaLine>
                 <View style={styles.metaIcon}>
                   <Icon
@@ -132,9 +136,9 @@ export function ProfileCard({ user, profile, imageVersion, bannerUri }: Readonly
                   />
                 </View>
                 <Text style={styles.metaText}>
-                  {dict.ACCOUNT_LAST_LOGIN}
+                  {dict.ACCOUNT_LAST_ACTIVE}
                   {" · "}
-                  <Text style={styles.metaStrong}>{lastLogin}</Text>
+                  <Text style={styles.metaStrong}>{lastActive}</Text>
                 </Text>
               </MetaLine>
             )}
@@ -159,10 +163,6 @@ export function ProfileCard({ user, profile, imageVersion, bannerUri }: Readonly
           </View>
         )}
       </View>
-
-      {!profileUser.verified && (
-        <Text style={styles.verifiedInfo}>{dict.ACCOUNT_VERIFIED_INFO}</Text>
-      )}
     </View>
   );
 }

@@ -1,13 +1,14 @@
-import type {
-  AuthEmailCodeParams,
-  AuthEmailRequestResult,
-  AuthEmailsResult,
-  AuthLinkResult,
-  AuthProfile,
-  AuthRemoveEmailResult,
-  AuthSession,
-  AuthUnlinkResult,
-  ProviderInfo,
+import {
+  AnimuApiError,
+  type AuthEmailCodeParams,
+  type AuthEmailRequestResult,
+  type AuthEmailsResult,
+  type AuthLinkResult,
+  type AuthProfile,
+  type AuthRemoveEmailResult,
+  type AuthSession,
+  type AuthUnlinkResult,
+  type ProviderInfo,
 } from "animu-api";
 import {
   AUTH_REDIRECT_URI,
@@ -19,7 +20,11 @@ import type { User } from "@/core/domain/user";
 import { SecureSessionStore } from "@/core/auth/adapters/secure-session.adapter";
 import { AnimuAuthAdapter } from "@/core/auth/adapters/animu-auth.adapter";
 import { OAuthAdapter } from "@/core/auth/adapters/oauth.adapter";
-import { AuthFlowCancelled } from "@/core/auth/errors";
+import {
+  AuthFlowCancelled,
+  ProviderEmailTaken,
+  ProviderLinkConflict,
+} from "@/core/auth/errors";
 import type {
   AppleNativeCredential,
   AuthApiPort,
@@ -46,6 +51,27 @@ function isMobileAuthCallback(url: string | null | undefined): url is string {
 }
 
 const INVALID_CALLBACK = "Invalid authentication callback URL";
+
+/**
+ * The server's refusal of a first sign-in whose provider email already belongs
+ * to another account. It only travels as free text (the `msg` of an
+ * `error=oauth` bounce, or the message of a `token_exchange_failed` response),
+ * so it is matched leniently: case, padding and a trailing period don't count.
+ */
+function isEmailTakenMessage(message: string | null | undefined): boolean {
+  return (
+    message?.trim().replace(/\.$/, "").toLowerCase() === "email already taken"
+  );
+}
+
+/** Whether `error` is the native-exchange form of the email-taken refusal. */
+function isEmailTakenExchangeError(error: unknown): boolean {
+  return (
+    error instanceof AnimuApiError &&
+    error.code === "token_exchange_failed" &&
+    isEmailTakenMessage(error.message)
+  );
+}
 
 /**
  * Single entry point to authentication, composing three ports:
@@ -133,7 +159,11 @@ export class AuthFacade {
     if (config.native === "apple") {
       const credential = await this.oauth.authorizeAppleNative();
       if (credential) {
-        return this.adopt(await this.exchangeAppleIdentity(credential));
+        return this.adopt(
+          await this.exchangeOrEmailTaken(provider, () =>
+            this.exchangeAppleIdentity(credential),
+          ),
+        );
       }
       // No native Apple here (e.g. Android) — fall through to the server flow.
     }
@@ -142,15 +172,32 @@ export class AuthFacade {
     }
 
     const oauth = await this.oauth.authorize(provider);
-    const session = await this.api.exchangeToken({
-      provider,
-      code: oauth.code,
-      redirectUri: oauth.omitRedirectUri
-        ? undefined
-        : redirectUriForProvider(provider),
-      codeVerifier: oauth.codeVerifier,
-    });
+    const session = await this.exchangeOrEmailTaken(provider, () =>
+      this.api.exchangeToken({
+        provider,
+        code: oauth.code,
+        redirectUri: oauth.omitRedirectUri
+          ? undefined
+          : redirectUriForProvider(provider),
+        codeVerifier: oauth.codeVerifier,
+      }),
+    );
     return this.adopt(session);
+  }
+
+  /** Runs a sign-in token exchange, naming the email-taken refusal. */
+  private async exchangeOrEmailTaken(
+    provider: string,
+    exchange: () => Promise<AuthSession>,
+  ): Promise<AuthSession> {
+    try {
+      return await exchange();
+    } catch (error) {
+      if (isEmailTakenExchangeError(error)) {
+        throw new ProviderEmailTaken(provider);
+      }
+      throw error;
+    }
   }
 
   /**
@@ -164,7 +211,7 @@ export class AuthFacade {
       this.api.mobileStartUrl(provider),
     );
     if (!callbackUrl) throw new AuthFlowCancelled();
-    return this.adoptMobileCallback(callbackUrl);
+    return this.adoptMobileCallback(callbackUrl, provider);
   }
 
   /**
@@ -204,10 +251,23 @@ export class AuthFacade {
     }
   }
 
-  private async adoptMobileCallback(callbackUrl: string): Promise<User> {
+  /**
+   * `provider` is unknown on the cold-start path: the bounce URL doesn't carry
+   * it, and the marker only proves a flow was started.
+   */
+  private async adoptMobileCallback(
+    callbackUrl: string,
+    provider?: string,
+  ): Promise<User> {
     if (!isMobileAuthCallback(callbackUrl)) throw new Error(INVALID_CALLBACK);
+    // completeMobileAuth stores the bounce's token on the client before we
+    // know the login took; keep the old one to put back if it doesn't.
+    const previousToken = this.api.getSessionToken();
     const result = this.api.completeMobileAuth(callbackUrl);
     if (!result.ok) {
+      if (result.error === "oauth" && isEmailTakenMessage(result.message)) {
+        throw new ProviderEmailTaken(provider);
+      }
       throw new Error(
         result.message ? `${result.error}: ${result.message}` : result.error,
       );
@@ -216,7 +276,15 @@ export class AuthFacade {
     // completeMobileAuth already stored the token on the client; set it
     // explicitly too so the port doesn't depend on that side effect.
     this.api.setSessionToken(result.token);
-    const profile = await this.api.getProfile();
+    let profile: AuthProfile;
+    try {
+      profile = await this.api.getProfile();
+    } catch (error) {
+      // Nothing was adopted: the app still holds the previous user, so the
+      // client must not keep talking with the new account's token.
+      this.api.setSessionToken(previousToken);
+      throw error;
+    }
     return this.adopt({
       sessionToken: result.token,
       action: result.action,
@@ -259,6 +327,19 @@ export class AuthFacade {
    * current session token; the rest use the app-driven OAuth redirect.
    */
   async linkProvider(provider: string): Promise<AuthLinkResult | void> {
+    try {
+      return await this.runLink(provider);
+    } catch (error) {
+      // The JSON endpoint answers `link_conflict` as an API error; the browser
+      // flow's `?error=link_conflict` bounce is mapped in linkWithMobileProvider.
+      if (error instanceof AnimuApiError && error.code === "link_conflict") {
+        throw new ProviderLinkConflict(provider);
+      }
+      throw error;
+    }
+  }
+
+  private async runLink(provider: string): Promise<AuthLinkResult | void> {
     const config = getProviderConfig(provider);
     if (!config || config.linkable === false) {
       throw new Error(`Provider "${provider}" cannot be linked from the app`);
@@ -309,6 +390,9 @@ export class AuthFacade {
     if (!isMobileAuthCallback(callbackUrl)) throw new Error(INVALID_CALLBACK);
     const result = this.api.completeMobileAuth(callbackUrl);
     if (!result.ok) {
+      if (result.error === "link_conflict") {
+        throw new ProviderLinkConflict(provider);
+      }
       throw new Error(
         result.message ? `${result.error}: ${result.message}` : result.error,
       );

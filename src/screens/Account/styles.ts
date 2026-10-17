@@ -21,22 +21,6 @@ export { AVATAR, BADGE_SIZE };
 export const styles = StyleSheet.create({
   container: SCREEN_STYLES.container,
   content: SCREEN_STYLES.content,
-  signedOut: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    gap: THEME.SPACE.MD,
-    paddingHorizontal: THEME.SPACE.XL,
-  },
-  signedOutText: {
-    color: THEME.COLORS.TEXT_SOFT,
-    fontFamily: THEME.FONT_FAMILY.REGULAR,
-    fontSize: THEME.FONT_SIZE.LIST,
-    textAlign: "center",
-  },
-  signedOutAction: {
-    alignSelf: "stretch",
-  },
   card: {
     borderRadius: THEME.RADIUS.CARD,
     ...CONTINUOUS,
@@ -106,19 +90,6 @@ export const styles = StyleSheet.create({
     fontFamily: THEME.FONT_FAMILY.REGULAR,
     fontSize: THEME.FONT_SIZE.LIST,
   },
-  caption: {
-    color: THEME.COLORS.TEXT_DIM,
-    fontFamily: THEME.FONT_FAMILY.REGULAR,
-    fontSize: THEME.FONT_SIZE.BODY,
-  },
-  verifiedInfo: {
-    color: THEME.COLORS.TEXT_SOFT,
-    fontFamily: THEME.FONT_FAMILY.REGULAR,
-    fontSize: THEME.FONT_SIZE.BODY,
-    lineHeight: THEME.LINE_HEIGHT.RELAXED,
-    paddingHorizontal: CONTENT_PADDING,
-    paddingTop: THEME.SPACE.MD,
-  },
   // Twitter-style meta lines under the handle: one fixed icon column so the
   // text of every line starts on the same left edge.
   meta: {
@@ -184,6 +155,10 @@ export const styles = StyleSheet.create({
   rowActionBusy: {
     width: THEME.LAYOUT.ICON_BUTTON,
     marginLeft: THEME.SPACE.XS,
+  },
+  // A checklist step that waits on the one above it.
+  rowDimmed: {
+    opacity: THEME.OPACITY.DISABLED,
   },
   rowActionDisabled: {
     opacity: THEME.OPACITY.DISABLED,

@@ -348,7 +348,6 @@ const DICT = {
   INFO_REQUEST: `Hi! I'm Haruka, the DJ of the most moe in Brazil!${"\n"}I see you've made your choice!${"\n"}But before that, would you like to leave a message for me or for our team? This message will be delivered in the main chat of our Discord server for everyone to see${"\n"}💜 You don't have to leave a message if you don't want to.`,
   SEND_REQUEST_BUTTON_TEXT: "Send",
   SEND_REQUEST_PLACEHOLDER: "Leave your message here",
-  LOGIN_ERROR: "You need to be logged in to make a request",
   SELECT_ERROR: "Error selecting the song",
   REQUEST_ERROR: "Couldn't send your request. Try again.",
   REQUEST_ERROR_PEDIBLOCK:
@@ -359,8 +358,17 @@ const DICT = {
   REQUEST_ERROR_HARUBLOCK: "This track was played too recently by the AutoDJ.",
   REQUEST_ERROR_ONAIR: "Requests are disabled while a DJ is live.",
   REQUEST_ERROR_BLOCOBLOCK: "Requests are currently disabled.",
-  REQUEST_ERROR_NOLOGIN: "Your session expired. Please log in again.",
-  REQUEST_ERROR_NO2FA: "You need 2FA enabled on Discord to make requests.",
+  REQUEST_ERROR_NOLOGIN:
+    "Requests need a linked Discord account with 2FA. Check Account, or sign in again.",
+  REQUEST_ERROR_NO2FA:
+    "Requests need a linked Discord account with 2FA turned on.",
+  REQUEST_NEEDS_SIGN_IN: "Sign in to request songs.",
+  REQUEST_SIGN_IN_ACTION: "Sign in",
+  REQUEST_NEEDS_VERIFIED:
+    "Requests need a linked Discord account with 2FA turned on.",
+  REQUEST_VERIFY_ACTION: "Set up",
+  SESSION_EXPIRED:
+    "You were signed out. Sign in again to keep requesting songs.",
   REQUEST_ERROR_PANEL:
     "The radio panel is temporarily unavailable. Try again in a moment.",
   REQUEST_SUCCESS: "Request made successfully!",
@@ -373,7 +381,6 @@ const DICT = {
   REQUEST_SEARCH_ERROR: "Couldn't search right now. Check your connection.",
   HARU_CHAN_TEXT: "HARU-CHAN",
   THEME_WORD: "Theme",
-  LOGIN_WORD: "Login",
   FORM_LABEL_NICK: "Nickname",
   FORM_LABEL_CITY: "City",
   FORM_LABEL_ARTIST: "Artist",
@@ -399,17 +406,27 @@ const DICT = {
   LOGIN_SUCCESS: "Signed in successfully!",
   LOGIN_FAILED: "Could not sign in. Please try again.",
   LOGIN_MISSING_FIELDS: "Fill in all the fields to continue.",
-  LOGIN_HEADLINE: "Welcome back",
-  LOGIN_SUBTITLE: "Sign in to request songs and unlock your listening card",
+  LOGIN_EMAIL_INVALID: "That doesn't look like an email address.",
+  LOGIN_PROVIDER_EMAIL_TAKEN:
+    "Your {provider} email is already on another Animu account. Sign in the way you did before, then link {provider} in Account.",
+  LOGIN_HEADLINE: "Sign in to Animu",
+  LOGIN_SUBTITLE:
+    "Listening is always free. New here? Your first sign-in with a provider creates your account.",
+  LOGIN_DISCORD_PERK: "Needed for song requests",
+  LOGIN_REQUESTS_NOTICE:
+    "Song requests need a linked Discord account with 2FA turned on. Signed in another way? You can link Discord later in Account.",
   LOGIN_OR_CONTINUE: "or",
   LOGIN_CONTINUE_WITH: "Continue with {provider}",
-  LOGIN_WITH_ANIMU_CONNECT: "Continue with Animu Connect",
-  LOGIN_ANIMU_CONNECT_TAGLINE: "Passwordless · we email you a 4-digit code",
+  LOGIN_WITH_ANIMU_CONNECT: "Sign in with an email code",
+  LOGIN_ANIMU_CONNECT_TAGLINE: "Animu Connect · for existing accounts",
   LOGIN_LEGAL: "By continuing, you agree to our {link}.",
   LOGIN_ANIMU_CONNECT_HINT:
-    "Any email linked to your Animu account works. Provider emails are automatic; you can add one extra email in your profile.",
-  LOGIN_CONNECT_TITLE: "Sign in with Animu Connect",
-  LOGIN_CONNECT_SUBTITLE: "We'll email you a 4-digit sign-in code",
+    "Works only for existing accounts: use the email of a provider you've signed in with, or the extra email you added in Account. Apple \"Hide My Email\" addresses can't get codes.",
+  LOGIN_CONNECT_TITLE: "Animu Connect",
+  LOGIN_CONNECT_SUBTITLE: "We'll email you a 4-digit code. No password needed.",
+  LOGIN_CONNECT_NEW_HERE: "New here? Choose a sign-in method",
+  LOGIN_CONNECT_CODE_SENT:
+    "If this email is on an Animu account, a code is on its way.",
   LOGIN_EMAIL: "Email",
   LOGIN_EMAIL_PLACEHOLDER: "you@example.com",
   LOGIN_SEND_CODE: "Send code",
@@ -421,15 +438,16 @@ const DICT = {
   LOGIN_CODE_RESEND: "Resend code",
   LOGIN_CODE_RESEND_IN: "Resend in {seconds}s",
   LOGIN_CODE_CHANGE_EMAIL: "Use a different email",
-  LOGIN_CODE_INVALID: "That code is invalid or expired. Try again.",
+  LOGIN_CODE_INVALID:
+    "That code didn't work or has expired. After {attempts} wrong tries, request a new one.",
+  LOGIN_CODE_VALIDITY:
+    "Single use · expires in {minutes} minutes. Not there? Check spam — codes only go to emails linked to an account.",
   ACCOUNT_TITLE: "Account",
-  ACCOUNT_SIGNED_OUT: "You are not signed in.",
   ACCOUNT_SIGN_IN: "Sign in",
 
-  ACCOUNT_VERIFIED_INFO:
-    "Only verified listeners can request songs. To get verified, link a Discord account and enable 2FA on it.",
+  ACCOUNT_VERIFIED_LABEL: "Verified for song requests",
   ACCOUNT_CONNECTED_VIA: "Signed in with",
-  ACCOUNT_LAST_LOGIN: "Last login",
+  ACCOUNT_LAST_ACTIVE: "Last active",
   ACCOUNT_SHOW: "Show",
   ACCOUNT_HIDE: "Hide",
   ACCOUNT_REFRESHED: "Profile updated",
@@ -439,35 +457,63 @@ const DICT = {
   ACCOUNT_UNLINK: "Unlink",
   ACCOUNT_LINK: "Link",
   ACCOUNT_LAST_PROVIDER:
-    "Keep at least one linked account. To leave, delete your account.",
+    "Keep at least one linked account — Animu Connect email doesn't count. Link another one before unlinking this.",
+  ACCOUNT_LINK_CONFLICT:
+    "That {provider} account is already linked to another Animu account.",
   ACCOUNT_LINK_SUCCESS: "Account linked",
   ACCOUNT_UNLINK_SUCCESS: "Account unlinked",
   ACCOUNT_UNLINK_CONFIRM_MSG:
     "You won't be able to sign in with {provider} until you link it again.",
   ACCOUNT_UNLINK_CONFIRM_TITLE: "Unlink {provider}?",
+  ACCOUNT_UNLINK_DISCORD_WARNING: "Song requests will turn off.",
   ACCOUNT_ANIMU_CONNECT: "Animu Connect",
   ACCOUNT_ANIMU_CONNECT_DESC:
-    "A sign-in method: log in with a 4-digit code sent to any email below — no password needed.",
+    "Sign in with a 4-digit code sent to one of these emails. No password needed.",
   ACCOUNT_ANIMU_CONNECT_FORM_HINT:
-    "Provider emails work automatically. Add one extra email you can also sign in with.",
+    "Add one extra email to sign in with. We'll send a code to confirm it's yours.",
   ACCOUNT_DANGER: "Danger zone",
+  ACCOUNT_LOGOUT_DESC: "Signs out on this device only",
+  ACCOUNT_DELETE_DESC: "Permanently deletes your Animu account",
+  ACCOUNT_REQUESTS_TITLE: "Song requests",
+  ACCOUNT_REQUESTS_READY: "Song requests are on",
+  ACCOUNT_REQUESTS_READY_DESC: "Your Discord account with 2FA verifies you.",
+  ACCOUNT_REQUESTS_DISCORD: "Discord account",
+  ACCOUNT_REQUESTS_2FA: "2FA on Discord",
+  ACCOUNT_REQUESTS_2FA_OFF: "Not turned on yet",
+  ACCOUNT_REQUESTS_LINK_FIRST: "Link Discord first",
+  ACCOUNT_REQUESTS_LINK_DISCORD: "Link Discord",
+  ACCOUNT_REQUESTS_2FA_HELP: "How to turn on 2FA",
+  ACCOUNT_REQUESTS_2FA_HELP_DESC: "Opens Discord's help page",
+  ACCOUNT_REQUESTS_REFRESH: "Check again",
+  ACCOUNT_REQUESTS_REFRESH_DESC: "Turned on 2FA? Refresh your status.",
+  ACCOUNT_REQUESTS_STILL_OFF:
+    "Still not verified. Make sure 2FA is on in Discord, then check again.",
+  ACCOUNT_REQUESTS_NOW_ON: "You're verified! Song requests are on.",
   ACCOUNT_LOGOUT: "Log out",
   ACCOUNT_DELETE: "Delete account",
   ACCOUNT_DELETE_CONFIRM_TITLE: "Delete account?",
   ACCOUNT_DELETE_CONFIRM_MSG:
-    "This permanently deletes your profile, linked accounts and sessions. This cannot be undone.",
+    "This permanently deletes your Animu profile, linked accounts, Animu Connect emails and sessions. Your Discord and other provider accounts aren't affected. This can't be undone.",
   ACCOUNT_CANCEL: "Cancel",
   ACCOUNT_ACTION_FAILED: "Action failed. Try again.",
-  ACCOUNT_SAVE: "Save",
-  ACCOUNT_EMAIL_ADD: "Add email",
+  ACCOUNT_EMAIL_ADD: "Add extra email",
+  ACCOUNT_EMAIL_ADD_DESC: "One more address you can sign in with",
   ACCOUNT_EMAIL_SAVED: "Email saved",
-  ACCOUNT_EMAIL_TAKEN: "That email is already in use.",
+  ACCOUNT_EMAIL_TAKEN:
+    "That email is already on an Animu account. Try another one.",
   ACCOUNT_EMAIL_REMOVE: "Remove",
   ACCOUNT_EMAIL_REMOVED: "Email removed",
   ACCOUNT_EMAIL_REMOVE_CONFIRM_TITLE: "Remove email?",
   ACCOUNT_EMAIL_REMOVE_CONFIRM_MSG:
     "You will no longer be able to sign in with {email}.",
   ACCOUNT_EMAIL_EXTRA_DESC: "Extra sign-in address",
+  ACCOUNT_EMAIL_EXTRA_LIMIT:
+    "You can have one extra email. Remove it to add a different one.",
+  ACCOUNT_EMAIL_RELAY: "Apple Hide My Email · can't receive codes",
+  ACCOUNT_EMAIL_PROVIDER_HINT:
+    "Provider emails are added automatically. To remove one, unlink its account above.",
+  ACCOUNT_EMAIL_CODE_VALIDITY:
+    "Single use · expires in {minutes} minutes. Not there? Check spam.",
   ACCOUNT_EMAIL_EMPTY: "No emails linked yet.",
   SETTINGS_ACCOUNT_SIGN_IN: "Sign in to your account",
   LYRICS: "Lyrics",

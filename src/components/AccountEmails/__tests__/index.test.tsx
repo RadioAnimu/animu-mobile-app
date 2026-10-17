@@ -12,6 +12,7 @@ import type { AuthAccountEmail, LinkedProvider } from "animu-api";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { AccountEmails } from "@/components/AccountEmails";
+import { isAppleRelayEmail } from "@/components/AccountEmails/relay-email";
 
 vi.mock("react-native", async () =>
   (await import("@/__tests__/react-native-mock")).createReactNativeMock(),
@@ -29,7 +30,7 @@ const mocks = vi.hoisted(() => ({
   showError: vi.fn(),
   flow: {} as Record<string, unknown>,
   flowOptions: {} as Record<string, (...args: never[]) => unknown>,
-  haptics: { success: vi.fn() },
+  haptics: { success: vi.fn(), tap: vi.fn() },
   resendStart: vi.fn(),
   resendRemaining: 0,
 }));
@@ -47,6 +48,12 @@ vi.mock("@/hooks/useDict", () => ({
     ACCOUNT_EMAIL_EXTRA_DESC: "Animu Connect",
     ACCOUNT_ANIMU_CONNECT_DESC: "Connect pitch",
     ACCOUNT_ANIMU_CONNECT_FORM_HINT: "Add an address",
+    ACCOUNT_EMAIL_ADD: "Add extra email",
+    ACCOUNT_EMAIL_ADD_DESC: "One more address you can sign in with",
+    ACCOUNT_EMAIL_PROVIDER_HINT: "Provider emails are automatic",
+    ACCOUNT_EMAIL_EXTRA_LIMIT: "Only one extra email",
+    ACCOUNT_EMAIL_RELAY: "Apple Hide My Email",
+    ACCOUNT_EMAIL_CODE_VALIDITY: "Single use, expires in {minutes} minutes",
     ACCOUNT_EMAIL_REMOVE_CONFIRM_TITLE: "Remove email?",
     ACCOUNT_EMAIL_REMOVE_CONFIRM_MSG: "Remove {email} from your account",
     ACCOUNT_CANCEL: "Cancel",
@@ -54,6 +61,7 @@ vi.mock("@/hooks/useDict", () => ({
     ACCOUNT_EMAIL_SAVED: "Saved",
     ACCOUNT_EMAIL_TAKEN: "Taken",
     ACCOUNT_ACTION_FAILED: "Action failed",
+    LOGIN_EMAIL_INVALID: "Not an email",
     LOGIN_CODE_SENT: "Code sent",
     LOGIN_CODE_SUBTITLE: "Code sent to {email}.",
   }),
@@ -65,8 +73,12 @@ vi.mock("@/hooks/useEmailCodeFlow", () => ({
     mocks.flowOptions = options;
     return mocks.flow;
   },
-  emailCodeError: (_dict: unknown, _error: unknown, fallback: string) =>
-    fallback,
+  emailCodeError: (
+    _dict: unknown,
+    error: { code?: string },
+    fallback: string,
+    options?: { invalid?: string },
+  ) => (error.code === "invalid_request" && options?.invalid) || fallback,
 }));
 vi.mock("@/hooks/useResendCooldown", () => ({
   useResendCooldown: () => ({
@@ -97,7 +109,12 @@ vi.mock("@/components/ProviderIcon", () => ({
   ),
 }));
 vi.mock("@/components/EmailCodeFields", () => ({
-  EmailCodeFields: () => <div data-testid="code-fields" />,
+  EmailCodeFields: ({ autoFocusEmail }: { autoFocusEmail?: boolean }) => (
+    <div
+      data-testid="code-fields"
+      data-autofocus={String(!!autoFocusEmail)}
+    />
+  ),
 }));
 vi.mock("@/components/FormError", () => ({
   FormError: ({ message }: { message: string }) => (
@@ -175,6 +192,11 @@ async function renderLoaded() {
   await act(async () => undefined);
 }
 
+/** Opens the collapsed add-email form (the card's "Add extra email" row). */
+function expandAddForm() {
+  fireEvent.click(screen.getByRole("button", { name: /^Add extra email/ }));
+}
+
 describe("AccountEmails", () => {
   beforeEach(() => {
     mocks.flow = {
@@ -183,7 +205,10 @@ describe("AccountEmails", () => {
       error: null,
       busy: false,
       sendCode: vi.fn(),
+      verify: vi.fn(),
       backToEmail: vi.fn(),
+      reset: vi.fn(),
+      setError: vi.fn(),
     };
     mocks.resendRemaining = 0;
     setAuth([]);
@@ -316,28 +341,77 @@ describe("AccountEmails", () => {
       removable: true,
     });
 
-    it("captions it with Animu Connect and hides the add form", async () => {
+    it("captions it with Animu Connect and hides the add action", async () => {
       setAuth([extra]);
       await renderLoaded();
       expect(screen.getByText("Animu Connect")).toBeTruthy();
       expect(marksIn(rowOf("me@animu.test"))).toEqual([]);
-      expect(screen.queryByText("Add an address")).toBeNull();
+      expect(
+        screen.queryByRole("button", { name: /^Add extra email/ }),
+      ).toBeNull();
       expect(screen.queryByTestId("code-fields")).toBeNull();
     });
 
-    it("shows the add form (after a divider) while no extra address exists", async () => {
+    it("offers the add action while no extra address exists", async () => {
       setAuth([row({})]);
       await renderLoaded();
-      expect(screen.getByText("Add an address")).toBeTruthy();
-      expect(screen.getByTestId("code-fields")).toBeTruthy();
+      expect(
+        screen.getByRole("button", { name: /^Add extra email/ }),
+      ).toBeTruthy();
+      // Collapsed: the form itself is not in the card yet.
+      expect(screen.queryByTestId("code-fields")).toBeNull();
+    });
+
+    it("spells out the one-extra rule once an extra address exists", async () => {
+      setAuth([extra, row({})]);
+      await renderLoaded();
+      expect(screen.getByText("Only one extra email")).toBeTruthy();
+    });
+  });
+
+  describe("provider hint footnote", () => {
+    const extra = row({
+      id: 30,
+      email: "me@animu.test",
+      provider: undefined,
+      source: "animu",
+      removable: true,
+    });
+
+    it("explains why a provider address has no delete", async () => {
+      setAuth([row({})]);
+      await renderLoaded();
+      expect(screen.getByText("Provider emails are automatic")).toBeTruthy();
+    });
+
+    it("stays away when every address is the user's own extra one", async () => {
+      setAuth([extra]);
+      await renderLoaded();
+      expect(screen.queryByText("Provider emails are automatic")).toBeNull();
+    });
+  });
+
+  describe("Apple Hide My Email relay", () => {
+    it("warns that a relay address can't receive codes", async () => {
+      setAuth([row({ email: "abc123@privaterelay.appleid.com" })]);
+      await renderLoaded();
+      expect(screen.getByText("Apple Hide My Email")).toBeTruthy();
+    });
+
+    it("leaves a normal address without the warning", async () => {
+      setAuth([row({})]);
+      await renderLoaded();
+      expect(screen.queryByText("Apple Hide My Email")).toBeNull();
     });
   });
 
   describe("empty list", () => {
-    it("shows the empty notice together with the add form", async () => {
+    it("shows the empty notice together with the add action", async () => {
       await renderLoaded();
       expect(screen.getByText("No emails yet")).toBeTruthy();
-      expect(screen.getByText("Add an address")).toBeTruthy();
+      expect(
+        screen.getByRole("button", { name: /^Add extra email/ }),
+      ).toBeTruthy();
     });
   });
 
@@ -422,23 +496,84 @@ describe("AccountEmails", () => {
       expect(mocks.auth.refreshEmails).toHaveBeenCalledTimes(1);
     });
 
+    it("keeps the form behind the add row until the row is tapped", async () => {
+      setAuth([row({})]);
+      await renderLoaded();
+      const addRow = screen.getByRole("button", { name: /^Add extra email/ });
+      expect(addRow.getAttribute("aria-label")).toBe(
+        "Add extra email, One more address you can sign in with",
+      );
+      expect(screen.queryByText("Add an address")).toBeNull();
+      expect(screen.queryByTestId("code-fields")).toBeNull();
+    });
+
+    it("reveals the hint, the auto-focused field and Cancel on tap", async () => {
+      setAuth([row({})]);
+      await renderLoaded();
+      expandAddForm();
+      // Opening the form is a deliberate tap, so it gets the tap haptic.
+      expect(mocks.haptics.tap).toHaveBeenCalledTimes(1);
+      // The user asked to add an address, so the field may open its keyboard.
+      expect(
+        screen.getByTestId("code-fields").getAttribute("data-autofocus"),
+      ).toBe("true");
+      expect(screen.getByText("Add an address")).toBeTruthy();
+      expect(screen.getByRole("button", { name: "Cancel" })).toBeTruthy();
+      // The row gives way to the form it opened.
+      expect(
+        screen.queryByRole("button", { name: /^Add extra email/ }),
+      ).toBeNull();
+    });
+
+    it("collapses the form and resets the flow on Cancel", async () => {
+      setAuth([row({})]);
+      await renderLoaded();
+      expandAddForm();
+
+      fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+      expect(mocks.flow.reset).toHaveBeenCalledTimes(1);
+      expect(screen.queryByTestId("code-fields")).toBeNull();
+      expect(
+        screen.getByRole("button", { name: /^Add extra email/ }),
+      ).toBeTruthy();
+    });
+
+    it("collapses the form once the address is verified", async () => {
+      setAuth([row({})]);
+      await renderLoaded();
+      expandAddForm();
+      expect(screen.getByTestId("code-fields")).toBeTruthy();
+
+      act(() => void mocks.flowOptions.onVerified());
+      expect(screen.queryByTestId("code-fields")).toBeNull();
+      expect(
+        screen.getByRole("button", { name: /^Add extra email/ }),
+      ).toBeTruthy();
+    });
+
     it("shows the flow error without a spinner on the email step (the button owns it)", async () => {
+      setAuth([row({})]);
       mocks.flow = { ...mocks.flow, error: "Bad address", busy: true };
       await renderLoaded();
+      expandAddForm();
       expect(screen.getByRole("alert").textContent).toBe("Bad address");
       expect(screen.queryByRole("progressbar")).toBeNull();
     });
 
     it("shows a spinner on the code step while busy", async () => {
+      setAuth([row({})]);
       mocks.flow = { ...mocks.flow, step: "code", busy: true };
       await renderLoaded();
+      expandAddForm();
       expect(screen.getByRole("progressbar")).toBeTruthy();
     });
 
     it("on the code step, names the destination and wires resend / change email", async () => {
+      setAuth([row({})]);
       mocks.flow = { ...mocks.flow, step: "code", email: "  new@example.com " };
       mocks.resendRemaining = 12;
       await renderLoaded();
+      expandAddForm();
       expect(screen.getByText("new@example.com").tagName).toBe("SPAN");
       expect(screen.getByText(/Code sent to/).textContent).toBe(
         "Code sent to new@example.com.",
@@ -451,9 +586,22 @@ describe("AccountEmails", () => {
       expect(mocks.flow.backToEmail).toHaveBeenCalledTimes(1);
     });
 
-    it("does not render the code-step actions on the email step", async () => {
+    it("shows the code's validity window on the code step", async () => {
+      setAuth([row({})]);
+      mocks.flow = { ...mocks.flow, step: "code", email: "new@example.com" };
       await renderLoaded();
+      expandAddForm();
+      expect(screen.getByText("Single use, expires in 10 minutes")).toBeTruthy();
+    });
+
+    it("does not render the code-step actions on the email step", async () => {
+      setAuth([row({})]);
+      await renderLoaded();
+      expandAddForm();
       expect(screen.queryByTestId("connect-actions")).toBeNull();
+      expect(
+        screen.queryByText("Single use, expires in 10 minutes"),
+      ).toBeNull();
     });
 
     it("starts the resend cooldown and toasts when a code is sent", async () => {
@@ -470,6 +618,13 @@ describe("AccountEmails", () => {
       expect(mocks.toast).toHaveBeenCalledWith("Saved");
     });
 
+    it("says a malformed address is not an email, on the code request only", async () => {
+      await renderLoaded();
+      const invalid = { code: "invalid_request" } as never;
+      expect(mocks.flowOptions.mapRequestError(invalid)).toBe("Not an email");
+      expect(mocks.flowOptions.mapVerifyError(invalid)).toBe("Action failed");
+    });
+
     it("maps flow errors to the generic failure message", async () => {
       await renderLoaded();
       expect(mocks.flowOptions.mapRequestError(new Error("x") as never)).toBe(
@@ -478,6 +633,32 @@ describe("AccountEmails", () => {
       expect(mocks.flowOptions.mapVerifyError(new Error("x") as never)).toBe(
         "Action failed",
       );
+    });
+  });
+
+  describe("isAppleRelayEmail", () => {
+    it("matches Apple's Hide My Email relay domain", () => {
+      expect(isAppleRelayEmail("abc123@privaterelay.appleid.com")).toBe(true);
+    });
+
+    it("matches the domain case-insensitively and past the local part's @", () => {
+      expect(isAppleRelayEmail("A.B+tag@PRIVATERELAY.AppleID.com")).toBe(true);
+      // The last @ is the separator, so a relay address can't be spoofed by a
+      // local part that merely looks like the domain.
+      expect(isAppleRelayEmail("privaterelay.appleid.com@example.com")).toBe(
+        false,
+      );
+    });
+
+    it("rejects anything else", () => {
+      expect(isAppleRelayEmail("ana@example.com")).toBe(false);
+      expect(isAppleRelayEmail("ana@appleid.com")).toBe(false);
+      expect(isAppleRelayEmail("ana@notprivaterelay.appleid.com.evil.test")).toBe(
+        false,
+      );
+      // Not an address at all.
+      expect(isAppleRelayEmail("privaterelay.appleid.com")).toBe(false);
+      expect(isAppleRelayEmail("")).toBe(false);
     });
   });
 });

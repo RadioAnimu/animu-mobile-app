@@ -1,9 +1,11 @@
 import { useCallback, useState } from "react";
 import { AnimuApiError } from "animu-api";
 
+import { CODE_MAX_ATTEMPTS } from "@/constants/email-code";
 import type { Dict } from "@/i18n";
 import { useDict } from "@/hooks/useDict";
 import { haptics } from "@/utils/haptics";
+import { interpolate } from "@/utils/format";
 
 export type EmailCodeStep = "email" | "code";
 
@@ -161,18 +163,26 @@ export function useEmailCodeFlow(
 /**
  * Maps an Animu API error from an email-code step to an i18n message: an
  * invalid/expired code is always `LOGIN_CODE_INVALID`; a taken address
- * (add-email flow only) is the caller's `taken` message; anything else falls
- * back to the caller's message.
+ * (add-email flow only) is the caller's `taken` message; a malformed address
+ * (the server's `invalid_request` on the code request) is the caller's
+ * `invalid` message; anything else falls back to the caller's message.
  */
 export function emailCodeError(
   dict: Dict,
   error: unknown,
   fallback: string,
-  options?: { taken?: string },
+  options?: { taken?: string; invalid?: string },
 ): string {
   if (error instanceof AnimuApiError) {
-    if (error.code === "email_code_failed") return dict.LOGIN_CODE_INVALID;
+    if (error.code === "email_code_failed") {
+      return interpolate(dict.LOGIN_CODE_INVALID, {
+        attempts: CODE_MAX_ATTEMPTS,
+      });
+    }
     if (options?.taken && error.code === "email_taken") return options.taken;
+    if (options?.invalid && error.code === "invalid_request") {
+      return options.invalid;
+    }
   }
   return fallback;
 }

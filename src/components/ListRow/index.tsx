@@ -68,6 +68,8 @@ interface ActionRowProps {
   onPress: () => void;
   /** Blocks the row and shows a spinner while the action runs. */
   busy?: boolean;
+  /** Blocks and dims the row without a spinner (another action is running). */
+  disabled?: boolean;
 }
 
 /** A neutral tappable row for a one-shot action (log out…). */
@@ -77,16 +79,18 @@ export function ActionRow({
   description,
   onPress,
   busy,
+  disabled,
 }: Readonly<ActionRowProps>) {
+  const blocked = !!busy || !!disabled;
   return (
     <TouchableOpacity
       accessibilityRole="button"
       accessibilityLabel={description ? `${label}, ${description}` : label}
-      accessibilityState={{ busy: !!busy, disabled: !!busy }}
+      accessibilityState={{ busy: !!busy, disabled: blocked }}
       activeOpacity={THEME.OPACITY.PRESSED}
-      disabled={busy}
+      disabled={blocked}
       onPress={onPress}
-      style={[styles.row, busy && styles.rowDisabled]}
+      style={[styles.row, blocked && styles.rowDisabled]}
     >
       <LeadingIcon name={icon} />
       <RowBody label={label} description={description} />

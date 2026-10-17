@@ -61,7 +61,7 @@ export const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  errorBanner: {
+  notice: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
@@ -72,19 +72,19 @@ export const styles = StyleSheet.create({
     padding: THEME.SPACE.MD,
     marginBottom: THEME.SPACE.MD,
   },
-  errorText: {
+  noticeText: {
     flex: 1,
     color: THEME.COLORS.TEXT,
     fontFamily: THEME.FONT_FAMILY.REGULAR,
     fontSize: THEME.FONT_SIZE.BODY,
   },
-  retryButton: {
+  noticeAction: {
     backgroundColor: THEME.COLORS.BRAND,
     borderRadius: THEME.RADIUS.SM,
     paddingHorizontal: THEME.SPACE.MD,
     paddingVertical: THEME.SPACE.XS,
   },
-  retryText: {
+  noticeActionText: {
     color: THEME.COLORS.TEXT_ON_LIGHT,
     fontFamily: THEME.FONT_FAMILY.BOLD,
     fontSize: THEME.FONT_SIZE.BODY,

@@ -15,6 +15,8 @@ interface Props {
   busy?: boolean;
   /** Optional supporting line under the label. */
   description?: string;
+  /** Blocks and dims the action without a spinner (another one is running). */
+  disabled?: boolean;
 }
 
 /**
@@ -28,16 +30,18 @@ export function DestructiveAction({
   onPress,
   busy,
   description,
+  disabled,
 }: Readonly<Props>) {
+  const blocked = !!busy || !!disabled;
   return (
     <TouchableOpacity
       accessibilityRole="button"
       accessibilityLabel={description ? `${label}, ${description}` : label}
-      accessibilityState={{ disabled: !!busy }}
+      accessibilityState={{ busy: !!busy, disabled: blocked }}
       activeOpacity={THEME.OPACITY.PRESSED}
       onPress={onPress}
-      disabled={busy}
-      style={[styles.action, busy && styles.actionDisabled]}
+      disabled={blocked}
+      style={[styles.action, blocked && styles.actionDisabled]}
     >
       <View style={styles.iconBox}>
         <Icon

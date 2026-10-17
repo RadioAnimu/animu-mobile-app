@@ -47,6 +47,17 @@ describe("emailCodeError", () => {
     );
   });
 
+  it("maps a malformed address only when an invalid message is provided", () => {
+    expect(
+      emailCodeError(dict, apiError("invalid_request"), "fallback", {
+        invalid: "bad-email",
+      }),
+    ).toBe("bad-email");
+    expect(emailCodeError(dict, apiError("invalid_request"), "fallback")).toBe(
+      "fallback",
+    );
+  });
+
   it("falls back for unknown or non-API errors", () => {
     expect(emailCodeError(dict, apiError("something_else"), "fallback")).toBe(
       "fallback",
