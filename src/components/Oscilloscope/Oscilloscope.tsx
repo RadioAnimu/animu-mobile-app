@@ -53,10 +53,10 @@ function encodeWave(points: number[]): string {
  * stays the only audible path; this page receives the player's decoded PCM
  * windows over `postMessage` and draws them like `player.animu.moe` does.
  *
- * The site reads its `AnalyserNode` every animation frame, but the analyser
- * only takes in audio once per audio callback (1024 frames, 23 ms, on
- * desktop Chrome): the trace shows one block of the stream for a frame or
- * two, then the block right after it, in place. The page reproduces that
+ * The site reads its `AnalyserNode` every animation frame (so the trace can
+ * linger on the same block for a frame or two, then step to the block right
+ * after it, in place); the block itself is how much audio the analyser holds,
+ * not a proven audio-callback rate. The page reproduces that
  * from the bridged windows. They are consecutive slices of the decoded
  * stream, so the queue is one continuous signal, read at a position that
  * moves with a clock (the measured window period), held `delay` behind the
@@ -146,9 +146,13 @@ const PAGE_HTML = `<!DOCTYPE html>
       // audio it already showed.
       var RESYNC_WINDOWS = 2;
       var SLEW = 0.5;
-      // The site's analyser block: one 1024-frame audio callback at 44.1 kHz.
-      // Windows about this long (MP3's 26 ms) are shown one at a time; longer
-      // ones (AAC's 46 ms) in halves, so the trace changes as often as there.
+      // The bridge windows are 1024 samples long; BLOCK_MS (~23 ms) is the
+      // app's chosen presentation cadence approximation, one window long,
+      // matching one MP3 frame. The reference page reads the analyser's
+      // whole block each animation frame rather than establishing a callback
+      // rate. Windows about this long (MP3's 26 ms) are shown one at a time;
+      // longer ones (AAC's 46 ms) in halves, so the trace changes as often as
+      // there.
       var BLOCK_MS = 1024 / 44.1;
       // True while the queue does not reach back the full delay yet.
       // The delay is applied as requested (not rounded to whole windows), so

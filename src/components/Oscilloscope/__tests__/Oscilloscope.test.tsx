@@ -442,9 +442,10 @@ describe("Oscilloscope (Android)", () => {
         p.frame();
         return p.vertices().map(([, y]) => y);
       };
-      // Stride 2 keeps the "ff" vertices plus the pinned last one ("00"):
-      // the trace reaches both canvas rails, 75 and 0.
-      expect(new Set(strokeYs("ff00".repeat(256)))).toEqual(new Set([75, 0]));
+      // Stride 2 keeps half the vertices (every other byte, the "ff" ones),
+      // plus the pinned last one ("00"): the trace reaches both canvas
+      // rails, 75 and 0.
+      expect(new Set(strokeYs("ff00".repeat(512)))).toEqual(new Set([75, 0]));
       const half = Math.round(1.5 * 127.5); // 191 = "bf", the byte for +0.5
       expect(new Set(strokeYs(half.toString(16).padStart(2, "0").repeat(1024))))
         .toEqual(new Set([(0.5 + Math.fround(half / 127.5 - 1) / 2) * 75]));
