@@ -4,7 +4,7 @@ import { forwardRef, useEffect, useImperativeHandle, useState } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { Oscilloscope } from "@/components/Oscilloscope/Oscilloscope";
-import { loadPage, play } from "@/components/Oscilloscope/__tests__/page-harness";
+import { loadPage, play, serialAt } from "@/components/Oscilloscope/__tests__/page-harness";
 import { THEME } from "@/theme";
 
 vi.mock("react-native", async () =>
@@ -255,25 +255,67 @@ describe("Oscilloscope (Android)", () => {
       expect(p.canvas.getContext).toHaveBeenCalledTimes(1);
     });
 
-    it("strokes one window of points from the read position, decimated with the final vertex pinned", () => {
+    // 320 CSS px → stride round(1024 / 480) = 2: 512 sampled points + the pinned last one.
+    const sampled = [...Array.from({ length: 512 }, (_, k) => k * 2), 1023];
+    const level = (serial: number) => (0.5 + (Math.fround(((serial % 200) + 1) / 127.5 - 1)) / 2) * 75;
+
+    it("strokes the whole window under the read position, decimated with the final vertex pinned", () => {
       const p = page(320.8);
       play(p, steady(0, 1000), 100, 1010);
       p.commands.length = 0;
       p.frame(1019);
       const { cursor } = p.peek();
-      const base = Math.floor(cursor);
-      const offset = Math.floor((cursor - base) * 1024);
-      expect(offset).toBeGreaterThan(0);
-      // 320 CSS px → stride round(1024 / 480) = 2: 512 sampled points + the pinned last one.
-      const sampled = [...Array.from({ length: 512 }, (_, k) => k * 2), 1023];
-      const byteOf = (serial: number) => (serial % 200) + 1;
-      const level = (byte: number) => (0.5 + (Math.fround(byte / 127.5 - 1)) / 2) * 75;
+      expect(cursor % 1).toBeGreaterThan(0); // mid-window, yet drawn from its start
       expect(p.commands).toHaveLength(2 + sampled.length + 1);
-      expect(p.vertices()).toEqual(sampled.map((i) => [
-        i * (320 / 1000),
-        // The tail of window `base`, then the head of the next window.
-        level(byteOf(offset + i < 1024 ? base : base + 1)),
-      ]));
+      expect(p.vertices()).toEqual(sampled.map((i) => [i * (320 / 1000), level(Math.floor(cursor))]));
+    });
+
+    it("shows windows about twice the site's block (AAC, 46 ms) in halves", () => {
+      const p = page(320.8);
+      const aac = { interval: 46.4, duration: 46.4 };
+      play(p, steady(0, 2000, 46.4), 100, 2000, aac);
+      // Step on until a frame strokes the second half of a window.
+      let at = 2000;
+      do {
+        at += 1000 / 60;
+        p.commands.length = 0;
+        p.frame(at);
+      } while (p.peek().cursor % 1 < 0.5 || p.strokes() === 0);
+      const base = Math.floor(p.peek().cursor);
+      // Its second half, then the head of the next window.
+      expect(p.vertices()).toEqual(sampled.map((i) => [i * (320 / 1000), level(i < 512 ? base : base + 1)]));
+    });
+
+    it("keeps its block size when the measured period drifts across the halves threshold", () => {
+      const p = page();
+      // 34 ms windows (one block each) that actually arrive every 36 ms:
+      // the clock's period follows the arrivals past the ~35 ms threshold.
+      const strokes = play(p, steady(0, 12000, 36), 150, 12000, { interval: 34, duration: 34 })
+        .filter(({ at, stroke }) => at > 1000 && stroke);
+      expect(p.peek().periodMs).toBeGreaterThan(35);
+      for (let k = 1; k < strokes.length; k++) {
+        // Window bytes repeat every 200 serials.
+        expect((serialAt(strokes[k].stroke![1]) - serialAt(strokes[k - 1].stroke![1]) + 200) % 200).toBe(1);
+      }
+    });
+
+    it.each([60, 90])("shows each block once, in order and in place, for as long as its audio lasts, at %d Hz", (hz) => {
+      for (const [period, blocks] of [[25, 1], [46.4, 2]]) {
+        const p = page();
+        const extra = { interval: period, duration: period };
+        const strokes = play(p, steady(0, 4000, period), 150, 4000, extra, 1000 / hz)
+          .filter(({ at, stroke }) => at > 1000 && stroke);
+        // A stroke only when the shown block changes, and then always to
+        // the very next block of the stream: no repeat, skip or step back.
+        for (let k = 1; k < strokes.length; k++) {
+          const block = Math.floor(strokes[k].cursor * blocks);
+          expect(block - Math.floor(strokes[k - 1].cursor * blocks)).toBe(1);
+          expect(serialAt(strokes[k].stroke![1])).toBe(Math.floor(block / blocks));
+          // Each stays up for its audio's length, to the nearest frame,
+          // like the site's ~23 ms analyser blocks.
+          expect(Math.abs(strokes[k].at - strokes[k - 1].at - period / blocks)).toBeLessThan(1000 / hz);
+        }
+      }
     });
 
     it("follows the requested delay on its own clock and never stalls, skips or steps back on bursty delivery", () => {
@@ -389,6 +431,23 @@ describe("Oscilloscope (Android)", () => {
       expect(firstY("0g".repeat(1024))).toBe(0); // parseInt("0g", 16) === 0
       expect(firstY(`GG${"00".repeat(1023)}`)).toBeNaN();
       expect(firstY("80".repeat(1024))).toBe((0.5 + Math.fround(128 / 127.5 - 1) / 2) * 75);
+    });
+
+    it("draws full- and half-scale windows with no scaling of its own", () => {
+      const p = page();
+      const strokeYs = (hex: string) => {
+        p.send({ type: "stop" });
+        p.wave(hex);
+        p.commands.length = 0;
+        p.frame();
+        return p.vertices().map(([, y]) => y);
+      };
+      // Stride 2 keeps the "ff" vertices plus the pinned last one ("00"):
+      // the trace reaches both canvas rails, 75 and 0.
+      expect(new Set(strokeYs("ff00".repeat(256)))).toEqual(new Set([75, 0]));
+      const half = Math.round(1.5 * 127.5); // 191 = "bf", the byte for +0.5
+      expect(new Set(strokeYs(half.toString(16).padStart(2, "0").repeat(1024))))
+        .toEqual(new Set([(0.5 + Math.fround(half / 127.5 - 1) / 2) * 75]));
     });
 
     it("repaints after a stop or a lifecycle event and skips frames with nothing new", () => {

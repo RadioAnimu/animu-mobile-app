@@ -112,10 +112,14 @@ export type Page = ReturnType<typeof loadPage>;
 /** Window `serial` filled with one byte value, so the trace reveals which window it shows. */
 export const windowHex = (serial: number) => ((serial % 200) + 1).toString(16).padStart(2, "0").repeat(1024);
 
+/** The window serial a stroke vertex at `y` (75px canvas) was drawn from (serials below 200). */
+export const serialAt = (y: number) => Math.round((y / 75) * 255) - 1;
+
 /**
  * Plays wave arrivals (ms timestamps, one window each, serials from 1)
- * against a 60 Hz display until `until`, returning the read position after
- * every frame.
+ * against a display (60 Hz unless `frameMs` says otherwise) until `until`,
+ * returning the read position after every frame, and the first vertex of
+ * the stroke that frame drew (null when it drew none).
  */
 export function play(
   page: Page,
@@ -123,17 +127,20 @@ export function play(
   delay: number,
   until: number,
   extra: Record<string, unknown> = {},
+  frameMs = 1000 / 60,
 ) {
-  const frames: ({ at: number } & PageState)[] = [];
+  const frames: ({ at: number; stroke: [number, number] | null } & PageState)[] = [];
   let next = 0;
-  for (let at = page.clock.now; at <= until; at += 1000 / 60) {
+  for (let at = page.clock.now; at <= until; at += frameMs) {
     while (next < arrivals.length && arrivals[next] <= at) {
       page.clock.now = arrivals[next];
       page.wave(windowHex(next + 1), { delay, ...extra });
       next++;
     }
+    const before = page.commands.length;
     page.frame(at);
-    frames.push({ at, ...page.peek() });
+    const moveTo = page.commands.slice(before).find(([name]) => name === "moveTo");
+    frames.push({ at, stroke: moveTo ? [moveTo[1] as number, moveTo[2] as number] : null, ...page.peek() });
   }
   return frames;
 }
