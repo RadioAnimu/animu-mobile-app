@@ -13,11 +13,9 @@ import type {
  * react-native-anything-player does the DSP natively (downmix, resample to
  * {@link WAVE_POINTS}, level) on both platforms — including live streams on
  * iOS, where AVPlayer's own audio tap never runs. What is left here is pacing
- * and presentation: the window's PCM duration (the visualizer's read pace),
- * measured cadence (median; its stand-in when a platform reports no duration)
- * and the delay until the window is heard. The waveform itself is forwarded
- * unscaled — like the website's AnalyserNode — so the trace follows the music's
- * real loudness.
+ * and presentation: the window's PCM duration (the visualizer's read pace)
+ * and measured cadence (median; its stand-in when a platform reports no
+ * duration), the delay until the window is heard, and the draw gain.
  */
 
 /**
@@ -36,6 +34,10 @@ const OUTPUT_LATENCY_SMOOTH = 0.85;
 /** Bounds of the auto-calibrated residual delay correction. */
 const SYNC_TRIM_LIMIT_MS = 150;
 const SYNC_CALIBRATION_STEP = 0.08;
+/** Draw gain: quiet passages are lifted toward this RMS (soft-clipped). */
+const DRAW_TARGET_RMS = 0.42;
+const DRAW_MAX_GAIN = 3;
+const DRAW_GAIN_SMOOTH = 0.8;
 
 function median(values: number[]): number {
   const sorted = [...values].sort((a, b) => a - b);
@@ -57,6 +59,7 @@ export class AudioSampler implements VisualizerSampler {
   private subscription: (() => void) | null = null;
   private readonly listeners = new Set<(window: VisualizerWindow) => void>();
   private previousWave: number[] | null = null;
+  private drawGain = 1;
   private lastAt = -1;
   private intervalMs = DEFAULT_NATIVE_INTERVAL_MS;
   private readonly deltas: number[] = [];
@@ -149,6 +152,7 @@ export class AudioSampler implements VisualizerSampler {
     this.trackCadence(Date.now());
     this.trackLatency(sample.outputLatency);
     const target = sample.waveform;
+    if (sample.level > 0.02) this.applyDrawGain(target, sample.level);
     const window: VisualizerWindow = {
       previousWave: this.previousWave ?? target,
       targetWave: target,
@@ -216,5 +220,12 @@ export class AudioSampler implements VisualizerSampler {
 
   private appliedDelayMs(): number {
     return Math.max(0, Math.max(0, this.outputLatencyMs) + this.syncTrimMs + this.manualTrimMs);
+  }
+
+  /** Lifts quiet passages toward a readable trace (soft-clipped, in place). */
+  private applyDrawGain(wave: number[], level: number): void {
+    const wanted = Math.min(DRAW_MAX_GAIN, Math.max(1, DRAW_TARGET_RMS / level));
+    this.drawGain = this.drawGain * DRAW_GAIN_SMOOTH + wanted * (1 - DRAW_GAIN_SMOOTH);
+    for (let i = 0; i < wave.length; i++) wave[i] = Math.tanh(wave[i] * this.drawGain);
   }
 }

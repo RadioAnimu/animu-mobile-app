@@ -53,16 +53,14 @@ function encodeWave(points: number[]): string {
  * stays the only audible path; this page receives the player's decoded PCM
  * windows over `postMessage` and draws them like `player.animu.moe` does.
  *
- * The site reads its `AnalyserNode` every animation frame (so the trace can
- * linger on the same block for a frame or two, then step to the block right
- * after it, in place); the block itself is how much audio the analyser holds,
- * not a proven audio-callback rate. The page reproduces that
- * from the bridged windows. They are consecutive slices of the decoded
- * stream, so the queue is one continuous signal, read at a position that
- * moves with a clock (the measured window period), held `delay` behind the
- * newest window so the trace shows what is being heard; when and how bursty
- * the messages arrive no longer moves the trace. Each frame strokes the
- * window-long stretch at the start of the block that position is in.
+ * The site reads a fresh `AnalyserNode` window every animation frame: the
+ * newest stretch of audio, advancing continuously with the audio clock. The
+ * page reproduces that from the bridged windows. They are consecutive slices
+ * of the decoded stream, so the queue is one continuous signal, and every
+ * frame strokes the window-long stretch that starts at a read position on
+ * that signal. The position moves with a clock (the measured window period),
+ * held `delay` behind the newest window so the trace shows what is being
+ * heard; when and how bursty the messages arrive no longer moves the trace.
  */
 // Trace stroke color — single source of truth in the theme (the web player
 // hardcodes the same hex in `player.animu.moe`'s stylesheet).
@@ -146,14 +144,6 @@ const PAGE_HTML = `<!DOCTYPE html>
       // audio it already showed.
       var RESYNC_WINDOWS = 2;
       var SLEW = 0.5;
-      // The bridge windows are 1024 samples long; BLOCK_MS (~23 ms) is the
-      // app's chosen presentation cadence approximation, one window long,
-      // matching one MP3 frame. The reference page reads the analyser's
-      // whole block each animation frame rather than establishing a callback
-      // rate. Windows about this long (MP3's 26 ms) are shown one at a time;
-      // longer ones (AAC's 46 ms) in halves, so the trace changes as often as
-      // there.
-      var BLOCK_MS = 1024 / 44.1;
       // True while the queue does not reach back the full delay yet.
       // The delay is applied as requested (not rounded to whole windows), so
       // unlike the old crossfade nothing is reported back for calibration.
@@ -384,24 +374,17 @@ const PAGE_HTML = `<!DOCTYPE html>
           applyStrokeStyles();
         }
 
-        // The stroke covers one window's worth of points from the start of
-        // the block the read position is in: window floor(cursor) itself,
-        // or for windows split in halves, its second half followed by the
-        // head of the next one. Shown whole and in place, like the site's
-        // analyser blocks; a stroke sliding along with the clock instead
-        // reads as the trace scrolling sideways rather than rising.
+        // The stroke covers one window's worth of points starting at the
+        // read position: the tail of window floor(cursor) followed by the
+        // head of the next one.
         var first = FLAT_WAVE;
         var second = FLAT_WAVE;
         var offset = 0;
         if (hasWave) {
-          // From the stream's nominal period, which only changes with the
-          // format: the drifting estimate could flip the count near a half.
-          var blocks = Math.max(1, Math.round(nominalPeriodMs / BLOCK_MS));
-          var shown = Math.floor(cursor * blocks) / blocks;
-          var base = Math.floor(shown);
+          var base = Math.floor(cursor);
           var index = base - (newestSerial - waveQueue.length + 1);
           first = waveQueue[index];
-          offset = Math.floor((shown - base) * first.length);
+          offset = Math.floor((cursor - base) * first.length);
           // cursor <= newestSerial, so a partial offset always has a next window.
           second = offset > 0 ? waveQueue[Math.min(index + 1, waveQueue.length - 1)] : first;
         }
@@ -421,11 +404,9 @@ const PAGE_HTML = `<!DOCTYPE html>
         // Decimate the polyline toward ~1.5 vertices per CSS pixel (stride 2
         // on 273–455px-wide phones, none on wider screens). That halves the
         // path the WebView's GPU thread rasterises per stroke (measured
-        // 27→40 fps on a software-GPU emulator). On recorded stream audio
-        // stride 2 keeps 98.7% (AAC) to 99.5% (MP3) of a frame's peak height
-        // on average, but a lone one-sample spike on a skipped index is
-        // still not drawn, so dense passages read slightly smoother than
-        // with every point.
+        // 27→40 fps on a software-GPU emulator). Peaks stay within ~1.5px,
+        // but a lone one-sample spike on a skipped index is not drawn, so
+        // dense passages read slightly smoother than with every point.
         // The final vertex is pinned so the stroke still reaches the end of
         // the window; set stride to 1 to draw every point.
         var stride = canvasWidth > 0 ? Math.max(1, Math.round(length / (canvasWidth * 1.5))) : 1;
@@ -465,9 +446,9 @@ const PAGE_HTML = `<!DOCTYPE html>
  * No second audio stream and no RN-side per-frame work: the player's
  * existing native PCM tap (expo-audio patch) hands each decoded window to
  * this WebView as a tiny hex payload, and the embedded page runs the *web
- * player's own draw loop* — a window-long block of the decoded stream,
- * picked on an audio-paced clock and stroked through a GPU-backed canvas
- * whenever the block changes.
+ * player's own draw loop* — a window-long stretch of the decoded stream,
+ * read on an audio-paced clock and stroked once per display vsync through
+ * a GPU-backed canvas.
  * Same renderer class (`canvas` + `requestAnimationFrame`), same geometry,
  * same technique as `player.animu.moe`.
  *
