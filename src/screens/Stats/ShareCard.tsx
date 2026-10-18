@@ -3,10 +3,11 @@ import { Text, View } from "react-native";
 import { Image, type ImageSource } from "expo-image";
 
 import { Avatar } from "@/components/Avatar";
+import { Icon, type IconName } from "@/components/Icon";
 import type { ListenStatsSnapshot } from "@/core/services/listen-stats.service";
 import type { Dict } from "@/i18n";
 import { cardThemeFromAccent } from "@/screens/Stats/card-theme";
-import { styles } from "@/screens/Stats/styles";
+import { SHARE_LABEL_ICON, styles } from "@/screens/Stats/styles";
 import { THEME } from "@/theme";
 import {
   formatListenDuration,
@@ -35,6 +36,13 @@ interface Props {
   actionsInset: number;
   snap: ListenStatsSnapshot;
   dict: Dict;
+}
+
+/** A headline stat — icons echo the stats screen's overview tiles. */
+interface Stat {
+  icon: IconName;
+  label: string;
+  value: string;
 }
 
 /**
@@ -70,13 +78,25 @@ export function ShareCard({
     handle && handle.toLowerCase() !== name.toLowerCase()
       ? `@${handle}`
       : null;
-  const stats: [string, string][] = [
-    [
-      dict.STATS_CARD_LISTENED,
-      formatListenDuration(snap.totalMs / 60_000, listenDurationUnits(dict)),
-    ],
-    [dict.STATS_CARD_STREAK, formatStreakLabel(snap.maxStreak, dict)],
-    [dict.STATS_CARD_REQUESTS_SENT, `${snap.totalSubmitted}`],
+  const stats: Stat[] = [
+    {
+      icon: "headphones",
+      label: dict.STATS_CARD_LISTENED,
+      value: formatListenDuration(
+        snap.totalMs / 60_000,
+        listenDurationUnits(dict),
+      ),
+    },
+    {
+      icon: "emoji-events",
+      label: dict.STATS_CARD_STREAK,
+      value: formatStreakLabel(snap.maxStreak, dict),
+    },
+    {
+      icon: "send",
+      label: dict.STATS_CARD_REQUESTS_SENT,
+      value: `${snap.totalSubmitted}`,
+    },
   ];
 
   return (
@@ -123,8 +143,8 @@ export function ShareCard({
         </View>
 
         <View style={styles.shareCardStats}>
-          {stats.map(([label, value], index) => (
-            <Fragment key={label}>
+          {stats.map((stat, index) => (
+            <Fragment key={stat.label}>
               {index > 0 && (
                 <View
                   style={[
@@ -134,18 +154,26 @@ export function ShareCard({
                 />
               )}
               <View style={styles.shareCardStat}>
-                <Text
-                  numberOfLines={1}
-                  style={[styles.shareCardLabel, ink(theme.subtext)]}
-                >
-                  {label}
-                </Text>
+                <View style={styles.shareCardLabelRow}>
+                  <Icon
+                    name={stat.icon}
+                    size={SHARE_LABEL_ICON}
+                    color={theme.subtext}
+                    style={theme.halo}
+                  />
+                  <Text
+                    numberOfLines={1}
+                    style={[styles.shareCardLabel, ink(theme.subtext)]}
+                  >
+                    {stat.label}
+                  </Text>
+                </View>
                 <Text
                   numberOfLines={1}
                   adjustsFontSizeToFit
                   style={[styles.shareCardStatValue, ink(theme.text)]}
                 >
-                  {value}
+                  {stat.value}
                 </Text>
               </View>
             </Fragment>
@@ -156,9 +184,17 @@ export function ShareCard({
         <View style={styles.shareCardFooter}>
           {covers.length > 0 && (
             <View style={styles.shareCardRequests}>
-              <Text style={[styles.shareCardLabel, ink(theme.subtext)]}>
-                {dict.STATS_TOP_REQUESTS}
-              </Text>
+              <View style={styles.shareCardLabelRow}>
+                <Icon
+                  name="queue-music"
+                  size={SHARE_LABEL_ICON}
+                  color={theme.subtext}
+                  style={theme.halo}
+                />
+                <Text style={[styles.shareCardLabel, ink(theme.subtext)]}>
+                  {dict.STATS_TOP_REQUESTS}
+                </Text>
+              </View>
               <View style={styles.shareCardCoverRow}>
                 {covers.map((url, index) => (
                   <Image

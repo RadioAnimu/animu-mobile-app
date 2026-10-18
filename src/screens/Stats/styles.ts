@@ -40,6 +40,11 @@ const BARS_HEIGHT = scale(64);
 const SHARE_LOGO_H = scale(46);
 const SHARE_LOGO_W = SHARE_LOGO_H * (1200 / 630);
 
+/** Glyph left of the card's micro-labels: a step under `THEME.ICON.SM` —
+ *  16pt would tower over the 12pt caption it fronts and misread as a
+ *  section icon. */
+export const SHARE_LABEL_ICON = scale(14);
+
 const caption = {
   color: THEME.COLORS.TEXT_DIM,
   fontFamily: THEME.FONT_FAMILY.REGULAR,
@@ -400,7 +405,15 @@ export const styles = StyleSheet.create({
     flexShrink: 1,
     gap: THEME.SPACE.XXS,
   },
+  // Icon + label on one line; the label shrinks (truncates) before it can
+  // push the glyph out of a narrow stat tile.
+  shareCardLabelRow: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: THEME.SPACE.XXS,
+  },
   shareCardLabel: {
+    flexShrink: 1,
     fontFamily: THEME.FONT_FAMILY.REGULAR,
     fontSize: THEME.FONT_SIZE.CAPTION,
   },
