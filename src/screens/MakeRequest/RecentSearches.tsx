@@ -67,7 +67,9 @@ function RecentRow({
           <Text style={styles.recentText} numberOfLines={1}>
             <HighlightedQuery query={item.query} typed={typed} />
           </Text>
-          {count && (
+          {/* `count` is a string-or-null: a truthiness `&&` would render a
+              bare empty string outside <Text> and crash RN. */}
+          {count !== null && (
             <Text style={styles.recentCount} numberOfLines={1}>
               ({count})
             </Text>
