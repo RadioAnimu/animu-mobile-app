@@ -135,7 +135,7 @@ class RecentSearchesService {
         (item) => foldForSearch(item.query) === key,
       );
       const rest = current.filter((item) => item !== previous);
-      if (!(total > 0)) {
+      if (Number.isNaN(total) || total <= 0) {
         await this.save(rest);
         return rest;
       }

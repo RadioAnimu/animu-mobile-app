@@ -4,7 +4,7 @@ import React, {
   useEffect,
   useMemo,
   useCallback,
-  useState,
+  useReducer,
   useSyncExternalStore,
 } from "react";
 import { Stream } from "@/core/domain/stream";
@@ -108,7 +108,9 @@ export const PlayerProvider: React.FC<{
   const playerServiceInstance = playerService();
 
   /** Raises an async failure into render, where error boundaries catch it. */
-  const [, setRenderError] = useState<never>();
+  const [, raiseRenderError] = useReducer((_: null, error: unknown): null => {
+    throw error;
+  }, null);
 
   // ─── Subscribe to stores — the service is the single source of truth ───
   const playerSnapshot = useSyncExternalStore(
@@ -185,11 +187,7 @@ export const PlayerProvider: React.FC<{
         // A failed setup (local storage; the network has fallbacks) goes to
         // the root ErrorBoundary, whose retry remounts this provider with a
         // fresh service, instead of the loader spinning forever.
-        if (!cancelled) {
-          setRenderError(() => {
-            throw error;
-          });
-        }
+        if (!cancelled) raiseRenderError(error);
       }
     };
 

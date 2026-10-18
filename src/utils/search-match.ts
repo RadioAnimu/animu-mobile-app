@@ -54,10 +54,9 @@ function foldWithSpans(text: string): FoldedText {
       pendingSpace = null;
     }
     folded.text += piece;
-    for (let i = 0; i < piece.length; i += 1) {
-      folded.starts.push(start);
-      folded.ends.push(end);
-    }
+    // One entry per UTF-16 unit, the unit the folded text is indexed in.
+    folded.starts.push(...Array.from({ length: piece.length }, () => start));
+    folded.ends.push(...Array.from({ length: piece.length }, () => end));
   };
 
   for (const char of text) {
