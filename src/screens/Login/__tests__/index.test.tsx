@@ -5,6 +5,7 @@ import {
   fireEvent,
   render,
   screen,
+  waitFor,
 } from "@testing-library/react";
 import { BackHandler } from "react-native";
 import { useEffect, type ReactNode } from "react";
@@ -136,8 +137,14 @@ async function sendCodeTo(email: string) {
   fireEvent.change(screen.getByRole("textbox", { name: "Email" }), {
     target: { value: email },
   });
-  await act(async () => {
-    fireEvent.click(screen.getByRole("button", { name: "Send code" }));
+  fireEvent.click(screen.getByRole("button", { name: "Send code" }));
+  // fireEvent already wraps the tap in act; wait for the async request to
+  // settle the form either way — the code step on success, the error slot
+  // on failure — before the caller's assertions run.
+  await waitFor(() => {
+    expect(
+      screen.queryByText("Enter the code") ?? screen.getByRole("alert"),
+    ).toBeTruthy();
   });
 }
 
@@ -205,9 +212,8 @@ describe("Login screen", () => {
 
     it("signs in with the tapped provider, then toasts and goes back", async () => {
       render(<Login navigation={NAV} route={undefined as never} />);
-      await act(async () => {
-        fireEvent.click(screen.getByRole("button", { name: "Continue with Google" }));
-      });
+      fireEvent.click(screen.getByRole("button", { name: "Continue with Google" }));
+      await waitFor(() => expect(mocks.navigation.goBack).toHaveBeenCalled());
       expect(mocks.auth.loginWithProvider).toHaveBeenCalledExactlyOnceWith("google");
       expect(mocks.haptics.success).toHaveBeenCalled();
       expect(mocks.toast).toHaveBeenCalledWith("Signed in");
@@ -217,9 +223,8 @@ describe("Login screen", () => {
     it("opens Home when there is nothing to go back to", async () => {
       mocks.navigation.canGoBack.mockReturnValue(false);
       render(<Login navigation={NAV} route={undefined as never} />);
-      await act(async () => {
-        fireEvent.click(screen.getByRole("button", { name: "Continue with Google" }));
-      });
+      fireEvent.click(screen.getByRole("button", { name: "Continue with Google" }));
+      await waitFor(() => expect(mocks.navigation.navigate).toHaveBeenCalled());
       expect(mocks.navigation.navigate).toHaveBeenCalledWith("Main", {
         screen: "Home",
       });
@@ -229,9 +234,15 @@ describe("Login screen", () => {
       const { AuthFlowCancelled } = await import("@/core/auth");
       mocks.auth.loginWithProvider.mockRejectedValue(new AuthFlowCancelled());
       render(<Login navigation={NAV} route={undefined as never} />);
-      await act(async () => {
-        fireEvent.click(screen.getByRole("button", { name: "Continue with Google" }));
+      const googlePill = screen.getByRole("button", {
+        name: "Continue with Google",
       });
+      fireEvent.click(googlePill);
+      // The dismissal path settles silently: the pill's spinner goes away
+      // (and nothing else appears) once the rejected flow unwinds.
+      await waitFor(() =>
+        expect(googlePill.getAttribute("aria-busy")).toBe("false"),
+      );
       expect(screen.queryByRole("alert")).toBeNull();
       expect(mocks.toast).not.toHaveBeenCalled();
       expect(mocks.navigation.goBack).not.toHaveBeenCalled();
@@ -240,9 +251,8 @@ describe("Login screen", () => {
     it("shows the generic failure for any other provider error", async () => {
       mocks.auth.loginWithProvider.mockRejectedValue(new Error("boom"));
       render(<Login navigation={NAV} route={undefined as never} />);
-      await act(async () => {
-        fireEvent.click(screen.getByRole("button", { name: "Continue with Google" }));
-      });
+      fireEvent.click(screen.getByRole("button", { name: "Continue with Google" }));
+      await waitFor(() => expect(screen.getByRole("alert")).toBeTruthy());
       expect(screen.getByRole("alert").textContent).toContain("Could not sign in");
       expect(mocks.navigation.goBack).not.toHaveBeenCalled();
     });
@@ -251,9 +261,8 @@ describe("Login screen", () => {
       const { ProviderEmailTaken } = await import("@/core/auth");
       mocks.auth.loginWithProvider.mockRejectedValue(new ProviderEmailTaken());
       render(<Login navigation={NAV} route={undefined as never} />);
-      await act(async () => {
-        fireEvent.click(screen.getByRole("button", { name: "Continue with Google" }));
-      });
+      fireEvent.click(screen.getByRole("button", { name: "Continue with Google" }));
+      await waitFor(() => expect(screen.getByRole("alert")).toBeTruthy());
       expect(screen.getByRole("alert").textContent).toContain(
         "Google email taken; link Google later",
       );

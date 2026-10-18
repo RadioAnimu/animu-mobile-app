@@ -1089,7 +1089,7 @@ describe("NowPlayingRepository — live SSE ingestion", () => {
           throw new Error("offline");
         });
         await fixture.repository.refresh();
-        expect(fixture.timer.scheduled.length).toBe(2);
+        expect(fixture.timer.scheduled).toHaveLength(2);
 
         allowed = false;
         fixture.pushListeners(50);

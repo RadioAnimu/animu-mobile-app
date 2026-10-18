@@ -5,6 +5,7 @@ import {
   fireEvent,
   render,
   screen,
+  waitFor,
 } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { Alert } from "react-native";
@@ -184,9 +185,12 @@ describe("Account", () => {
     });
     const { rerender } = renderAccount();
 
-    await act(async () => {
-      fireEvent.click(screen.getByRole("button", { name: /^Log out/ }));
-    });
+    // fireEvent runs inside act; waitFor absorbs the async logout promise
+    // (which navigates itself) so the rerender below sees the settled state.
+    fireEvent.click(screen.getByRole("button", { name: /^Log out/ }));
+    await waitFor(() =>
+      expect(mocks.navigation.replace).toHaveBeenCalledWith("Login"),
+    );
     rerender(<Account navigation={NAV} route={{} as never} />);
 
     expect(mocks.navigation.replace).toHaveBeenCalledExactlyOnceWith("Login");
@@ -238,9 +242,10 @@ describe("Account", () => {
       const [requestsRow] = screen.getAllByRole("button", {
         name: "Link Discord",
       });
-      await act(async () => {
-        fireEvent.click(requestsRow);
-      });
+      fireEvent.click(requestsRow);
+      await waitFor(() =>
+        expect(mocks.toast).toHaveBeenCalledWith("Account linked"),
+      );
       expect(mocks.auth.linkProvider).toHaveBeenCalledExactlyOnceWith(
         "discord",
       );
@@ -253,9 +258,10 @@ describe("Account", () => {
       });
       renderAccount();
 
-      await act(async () => {
-        fireEvent.click(screen.getByRole("button", { name: /^Check again/ }));
-      });
+      fireEvent.click(screen.getByRole("button", { name: /^Check again/ }));
+      await waitFor(() =>
+        expect(mocks.toast).toHaveBeenCalledWith("You're verified!"),
+      );
       expect(mocks.auth.refreshProfile).toHaveBeenCalledTimes(1);
       expect(mocks.haptics.success).toHaveBeenCalled();
       expect(mocks.toast).toHaveBeenCalledWith("You're verified!");
@@ -273,9 +279,9 @@ describe("Account", () => {
       });
       renderAccount();
 
-      act(() => {
-        fireEvent.click(screen.getByRole("button", { name: /^Check again/ }));
-      });
+      // fireEvent already runs the event inside act, so `busy` is flushed
+      // synchronously; the pending promise is deliberately left unsettled.
+      fireEvent.click(screen.getByRole("button", { name: /^Check again/ }));
       for (const name of [/^Log out/, /^Delete account/]) {
         expect(
           screen.getByRole("button", { name }).getAttribute("aria-disabled"),
@@ -296,10 +302,10 @@ describe("Account", () => {
       signIn(false, ["discord"]);
       renderAccount();
 
-      await act(async () => {
-        fireEvent.click(screen.getByRole("button", { name: /^Check again/ }));
-      });
-      expect(mocks.toast).toHaveBeenCalledWith("Still off.", "info");
+      fireEvent.click(screen.getByRole("button", { name: /^Check again/ }));
+      await waitFor(() =>
+        expect(mocks.toast).toHaveBeenCalledWith("Still off.", "info"),
+      );
       expect(mocks.haptics.success).not.toHaveBeenCalled();
     });
 
@@ -314,9 +320,8 @@ describe("Account", () => {
       const [, accountRow] = screen.getAllByRole("button", {
         name: "Link Discord",
       });
-      await act(async () => {
-        fireEvent.click(accountRow);
-      });
+      fireEvent.click(accountRow);
+      await waitFor(() => expect(mocks.showError).toHaveBeenCalled());
       expect(mocks.showError).toHaveBeenCalledExactlyOnceWith(
         "Discord is already linked elsewhere.",
       );

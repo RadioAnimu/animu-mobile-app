@@ -182,7 +182,9 @@ export const Marquee = React.memo(function Marquee({
   // null until the first layout pass: an unmeasured line must not tell its
   // group "fits", or the group would start before every line is known.
   const [containerWidth, setContainerWidth] = useState<number | null>(null);
-  const [measuredTextWidth, setTextWidth] = useState<number | null>(null);
+  const [measuredTextWidth, setMeasuredTextWidth] = useState<number | null>(
+    null,
+  );
   const textWidth = measuredTextWidth ?? 0;
   const measured = containerWidth !== null && measuredTextWidth !== null;
 
@@ -270,7 +272,7 @@ export const Marquee = React.memo(function Marquee({
             maxFontSizeMultiplier={THEME.FONT_SCALE.CHROME}
             numberOfLines={1}
             style={[style, !overflows && styles.ghost]}
-            onLayout={(e) => setTextWidth(e.nativeEvent.layout.width)}
+            onLayout={(e) => setMeasuredTextWidth(e.nativeEvent.layout.width)}
           >
             {text}
           </Text>
