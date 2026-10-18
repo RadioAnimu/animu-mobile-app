@@ -3,7 +3,8 @@ import { StyleSheet } from "react-native";
 import { THEME } from "@/theme";
 
 const HEADER_HEIGHT = THEME.LAYOUT.HEADER_HEIGHT;
-const HEADER_BUTTON = THEME.LAYOUT.TOUCH_TARGET;
+// Never under 44pt, however small scale() shrinks the reference size.
+const HEADER_BUTTON = Math.max(44, THEME.LAYOUT.TOUCH_TARGET);
 
 export { HEADER_HEIGHT };
 

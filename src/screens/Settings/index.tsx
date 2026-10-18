@@ -10,12 +10,12 @@ import { useDict } from "@/hooks/useDict";
 import { useScrollEndPadding } from "@/hooks/useScrollEndPadding";
 import type { RootStackParamList } from "@/routes/app.routes";
 import { styles } from "@/screens/Settings/styles";
-import { AboutSection } from "@/screens/Settings/sections/AboutSection";
 import { AccountSection } from "@/screens/Settings/sections/AccountSection";
-import { BehaviorSection } from "@/screens/Settings/sections/BehaviorSection";
 import { CoverDataSection } from "@/screens/Settings/sections/CoverDataSection";
+import { ExperimentalSection } from "@/screens/Settings/sections/ExperimentalSection";
+import { HelpSection } from "@/screens/Settings/sections/HelpSection";
 import { ListenStatsSection } from "@/screens/Settings/sections/ListenStatsSection";
-import { LyricsSection } from "@/screens/Settings/sections/LyricsSection";
+import { PreferencesSection } from "@/screens/Settings/sections/PreferencesSection";
 import { ResetSection } from "@/screens/Settings/sections/ResetSection";
 import { StorageSection } from "@/screens/Settings/sections/StorageSection";
 
@@ -50,9 +50,7 @@ export function Settings({ navigation }: Readonly<Props>) {
           <ListenStatsSection onPress={() => navigation.navigate("Stats")} />
         </View>
 
-        <BehaviorSection />
-
-        <LyricsSection />
+        <PreferencesSection />
 
         {/* Covers and their on-disk cache are one topic: one card. */}
         <SectionTitle title={dict.SETTINGS_SAVE_DATA_TITLE} icon="image" />
@@ -64,11 +62,10 @@ export function Settings({ navigation }: Readonly<Props>) {
           />
         </View>
 
-        <View style={styles.groupSpaced}>
-          <AboutSection onPress={() => navigation.navigate("About")} />
-        </View>
+        <ExperimentalSection />
 
-        {/* Resetting the settings closes the page. */}
+        <HelpSection onOpenAbout={() => navigation.navigate("About")} />
+
         <ResetSection />
       </ScrollView>
     </SafeAreaView>

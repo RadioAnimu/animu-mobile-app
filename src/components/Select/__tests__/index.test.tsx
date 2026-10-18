@@ -41,7 +41,7 @@ function setup(
 const toggleButton = () => screen.getAllByRole("button")[0];
 const optionButton = (label: string) =>
   // The selected label also shows in the header; the option row comes last.
-  screen.getAllByText(label).at(-1)!.closest("[role=button]") as HTMLElement;
+  screen.getAllByText(label).at(-1)!.closest("[role=radio]") as HTMLElement;
 
 describe("Select", () => {
   afterEach(cleanup);
@@ -73,8 +73,8 @@ describe("Select", () => {
     fireEvent.click(toggleButton());
     expect(screen.getByText("Smallest")).toBeTruthy();
     expect(screen.getByText("Eco")).toBeTruthy();
-    expect(optionButton("Medium").getAttribute("aria-selected")).toBe("true");
-    expect(optionButton("Low").getAttribute("aria-selected")).toBe("false");
+    expect(optionButton("Medium").getAttribute("aria-checked")).toBe("true");
+    expect(optionButton("Low").getAttribute("aria-checked")).toBe("false");
     expect(optionButton("Medium").querySelector('[data-icon="check"]')).toBeTruthy();
     expect(optionButton("Low").querySelector('[data-icon="check"]')).toBeNull();
   });

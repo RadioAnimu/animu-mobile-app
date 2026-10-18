@@ -6,17 +6,23 @@ const KB = 1024;
 export const MB = KB * 1024;
 const GB = MB * 1024;
 
-/** Human-friendly size: B / KB / MB / GB, one decimal under 10 units. */
-export function formatBytes(bytes: number): string {
+/**
+ * Human-friendly size: B / KB / MB / GB, one decimal under 10 units. Pass
+ * the dictionary's `NUMBER_DECIMAL_SEPARATOR` ("," for Portuguese and
+ * Spanish) to match the reader's language.
+ */
+export function formatBytes(bytes: number, decimal = "."): string {
   if (!Number.isFinite(bytes) || bytes <= 0) return "0 MB";
   if (bytes < KB) return `${Math.round(bytes)} B`;
   if (bytes < MB) return `${Math.round(bytes / KB)} KB`;
-  if (bytes < GB) return `${trimUnit(bytes / MB)} MB`;
-  return `${trimUnit(bytes / GB)} GB`;
+  if (bytes < GB) return `${trimUnit(bytes / MB, decimal)} MB`;
+  return `${trimUnit(bytes / GB, decimal)} GB`;
 }
 
-function trimUnit(value: number): string {
-  return value < 10 ? value.toFixed(1) : String(Math.round(value));
+function trimUnit(value: number, decimal: string): string {
+  return value < 10
+    ? value.toFixed(1).replace(".", decimal)
+    : String(Math.round(value));
 }
 
 /** Whole-percent share of `part` in `whole`, clamped to 0–100. */

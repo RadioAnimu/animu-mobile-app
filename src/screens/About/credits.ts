@@ -5,6 +5,20 @@ export interface Donor {
   note?: string;
 }
 
+/** Founder and designer credited in the Credits section. */
+export const FOUNDER = "Lucas Lopes (LL!)";
+
+/** The app's developers, credited in the Credits section. */
+export const DEVELOPERS: string[] = [
+  "Afonso Oliveira (FZero)",
+  "José Silva (Tossa)",
+  "João Vitor (Mr.Zapp)",
+  "Ricardo Freitas (Ness)",
+];
+
+/** Who drew the Chihaya Radio Station artwork on the Request screen. */
+export const ILLUSTRATOR = "NPCpepper";
+
 /**
  * The people who funded the app's original Android (and later iOS) launch
  * with donations between 15 and 18 February 2024. Names kept as given.

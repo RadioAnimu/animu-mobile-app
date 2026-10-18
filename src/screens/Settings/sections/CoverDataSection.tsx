@@ -9,6 +9,7 @@ import {
 } from "@/constants/artwork-quality";
 import { useUserSettings } from "@/contexts/user/UserSettingsProvider";
 import { useDict } from "@/hooks/useDict";
+import { useSaveSettings } from "@/hooks/useSaveSettings";
 import { SettingsRow } from "@/screens/Settings/rows";
 import { formatBytes } from "@/utils/format";
 import { DESTINATION_ICON } from "@/constants/destination-icons";
@@ -21,15 +22,19 @@ const QUALITY_LABEL_KEY = {
 
 /** Rows for cover quality plus the three per-surface cover toggles. */
 export function CoverDataSection() {
-  const { settings, updateSettings } = useUserSettings();
+  const { settings } = useUserSettings();
+  const save = useSaveSettings();
   const dict = useDict();
+  // The per-surface toggles have nothing to act on without a quality; they
+  // stay on screen, dimmed, with the choice the user made kept.
+  const coversOff = settings.liveQualityCover === "off";
 
   const qualityOptions = useMemo<SelectOption<CoverQualityKey | "off">[]>(
     () => [
       ...COVER_QUALITY_SAMPLES.map((sample) => ({
         key: sample.key,
         label: dict[QUALITY_LABEL_KEY[sample.key as CoverQualityKey]],
-        meta: `~${formatBytes(sample.sizeBytes)}`,
+        meta: `~${formatBytes(sample.sizeBytes, dict.NUMBER_DECIMAL_SEPARATOR)}`,
         badge:
           sample.key === "medium"
             ? dict.SETTINGS_QUALITY_RECOMMENDED
@@ -51,20 +56,23 @@ export function CoverDataSection() {
       <Select
         label={dict.SETTINGS_QUALITY_ROW}
         icon="high-quality"
-        description={dict.SETTINGS_QUALITY_ROW_DESC}
+        description={
+          coversOff
+            ? dict.SETTINGS_COVERS_OFF_HINT
+            : dict.SETTINGS_QUALITY_ROW_DESC
+        }
         options={qualityOptions}
         value={settings.liveQualityCover}
-        onChange={(key) => updateSettings({ liveQualityCover: key })}
+        onChange={(key) => save({ liveQualityCover: key })}
       />
       <RowDivider />
       <SettingsRow
         icon={DESTINATION_ICON.LastRequested}
         label={dict.SETTINGS_COVER_LAST_REQUESTED_SWITCH}
         value={settings.lastRequestedCovers}
+        disabled={coversOff}
         onToggle={() =>
-          updateSettings({
-            lastRequestedCovers: !settings.lastRequestedCovers,
-          })
+          void save({ lastRequestedCovers: !settings.lastRequestedCovers })
         }
       />
       <RowDivider />
@@ -72,8 +80,9 @@ export function CoverDataSection() {
         icon={DESTINATION_ICON.LastPlayed}
         label={dict.SETTINGS_COVER_LAST_PLAYED_SWITCH}
         value={settings.lastPlayedCovers}
+        disabled={coversOff}
         onToggle={() =>
-          updateSettings({ lastPlayedCovers: !settings.lastPlayedCovers })
+          void save({ lastPlayedCovers: !settings.lastPlayedCovers })
         }
       />
       <RowDivider />
@@ -81,10 +90,9 @@ export function CoverDataSection() {
         icon={DESTINATION_ICON.MakeRequest}
         label={dict.SETTINGS_COVER_REQUESTED_SWITCH}
         value={settings.coversInRequestSearch}
+        disabled={coversOff}
         onToggle={() =>
-          updateSettings({
-            coversInRequestSearch: !settings.coversInRequestSearch,
-          })
+          void save({ coversInRequestSearch: !settings.coversInRequestSearch })
         }
       />
     </>

@@ -34,6 +34,8 @@ function a11yProps(props: AnyProps): AnyProps {
     "aria-label": props.accessibilityLabel,
     "aria-expanded": state.expanded,
     "aria-selected": state.selected,
+    "aria-checked": state.checked,
+    "aria-valuetext": (props.accessibilityValue as AnyProps | undefined)?.text,
     "aria-busy": state.busy,
     "aria-disabled": props.disabled || state.disabled || undefined,
     "data-testid": props.testID,

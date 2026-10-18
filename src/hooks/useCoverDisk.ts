@@ -27,7 +27,7 @@ export function useFreedCoverToast(): (freedBytes: number) => void {
   const dict = useDict();
   return useCallback(
     (freedBytes: number) => {
-      toast(interpolate(dict.STORAGE_FREED, { freed: formatBytes(freedBytes) }));
+      toast(interpolate(dict.STORAGE_FREED, { freed: formatBytes(freedBytes, dict.NUMBER_DECIMAL_SEPARATOR) }));
     },
     [toast, dict],
   );

@@ -13,6 +13,7 @@ import { useDeviceStorage } from "@/hooks/useDeviceStorage";
 import { useCoverStorageSnapshot } from "@/hooks/useCoverStorage";
 import { useCoverDiskClearing, useFreedCoverToast } from "@/hooks/useCoverDisk";
 import { useDict } from "@/hooks/useDict";
+import { useSaveSettings } from "@/hooks/useSaveSettings";
 import { useScrollEndPadding } from "@/hooks/useScrollEndPadding";
 import { maxSelectableLimitBytes } from "@/core/services/device-storage.service";
 import type { CoverCacheCategory } from "@/core/services/cover-cache-registry.service";
@@ -52,7 +53,8 @@ const PARTITION_ICONS: Record<CoverCacheCategory, IconName> = {
  * the split the trim engine already enforces, now visible and editable.
  */
 export function Storage({ navigation }: Readonly<Props>) {
-  const { settings, updateSettings } = useUserSettings();
+  const { settings } = useUserSettings();
+  const save = useSaveSettings();
   const { capacity, refresh } = useDeviceStorage();
   const dict = useDict();
   const endPadding = useScrollEndPadding();
@@ -129,10 +131,11 @@ export function Storage({ navigation }: Readonly<Props>) {
       label:
         bytes === 0
           ? dict.SETTINGS_STORAGE_LIMIT_UNLIMITED
-          : formatBytes(bytes),
+          : formatBytes(bytes, dict.NUMBER_DECIMAL_SEPARATOR),
     }));
   }, [
     capacity.availableBytes,
+    dict.NUMBER_DECIMAL_SEPARATOR,
     dict.SETTINGS_STORAGE_LIMIT_UNLIMITED,
     settings.coverCacheLimitBytes,
   ]);
@@ -144,10 +147,10 @@ export function Storage({ navigation }: Readonly<Props>) {
         const options = [
           { key: "auto", label: dict.STORAGE_PARTITION_AUTO },
           ...PARTITION_TIERS.filter((bytes) => bytes <= limitBytes).map(
-            (bytes) => ({ key: String(bytes), label: formatBytes(bytes) }),
+            (bytes) => ({ key: String(bytes), label: formatBytes(bytes, dict.NUMBER_DECIMAL_SEPARATOR) }),
           ),
           ...(customBytes != null && !PARTITION_TIERS.includes(customBytes)
-            ? [{ key: String(customBytes), label: formatBytes(customBytes) }]
+            ? [{ key: String(customBytes), label: formatBytes(customBytes, dict.NUMBER_DECIMAL_SEPARATOR) }]
             : []),
         ];
         return {
@@ -164,7 +167,7 @@ export function Storage({ navigation }: Readonly<Props>) {
     if (value === "auto") delete next[key];
     else next[key] = Number(value);
     // Nothing customized anymore = the weighted split — drop the overrides.
-    updateSettings({
+    void save({
       coverCachePartitionBytes: Object.keys(next).length > 0 ? next : null,
     });
   };
@@ -200,7 +203,7 @@ export function Storage({ navigation }: Readonly<Props>) {
             value={String(settings.coverCacheLimitBytes)}
             disabled={!settings.cacheEnabled}
             onChange={(key) =>
-              updateSettings({ coverCacheLimitBytes: Number(key) })
+              save({ coverCacheLimitBytes: Number(key) })
             }
           />
         </View>
@@ -214,7 +217,7 @@ export function Storage({ navigation }: Readonly<Props>) {
             value={customOn}
             disabled={advancedDisabled}
             onToggle={() =>
-              updateSettings({
+              void save({
                 coverCachePartitionBytes: customOn
                   ? null
                   : defaultPartitions(limitBytes),
@@ -231,7 +234,7 @@ export function Storage({ navigation }: Readonly<Props>) {
                   description={
                     caps
                       ? interpolate(dict.STORAGE_PARTITION_CAP_DESC, {
-                          cap: formatBytes(caps[key]),
+                          cap: formatBytes(caps[key], dict.NUMBER_DECIMAL_SEPARATOR),
                         })
                       : undefined
                   }
@@ -287,8 +290,8 @@ export function Storage({ navigation }: Readonly<Props>) {
         )}
         <Text style={styles.deviceCaption}>
           {interpolate(dict.STORAGE_DEVICE_FREE, {
-            free: formatBytes(capacity.availableBytes),
-            total: formatBytes(capacity.totalBytes),
+            free: formatBytes(capacity.availableBytes, dict.NUMBER_DECIMAL_SEPARATOR),
+            total: formatBytes(capacity.totalBytes, dict.NUMBER_DECIMAL_SEPARATOR),
           })}
         </Text>
         {capacity.totalBytes > 0 && (
@@ -296,7 +299,7 @@ export function Storage({ navigation }: Readonly<Props>) {
             {measuring && !snapshot
               ? "· · ·"
               : interpolate(dict.STORAGE_DEVICE_CACHED, {
-                  cached: formatBytes(cachedBytes),
+                  cached: formatBytes(cachedBytes, dict.NUMBER_DECIMAL_SEPARATOR),
                   pct: cachedPct,
                 })}
           </Text>

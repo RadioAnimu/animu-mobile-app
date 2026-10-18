@@ -10,7 +10,6 @@ export type ReleaseChannel =
   | "simulator"
   | "enterprise"
   | "play"
-  | "apk"
   | "unknown";
 
 export interface AppInfo {
@@ -18,7 +17,9 @@ export interface AppInfo {
   appVersion: string | null;
   /** Native build number / version code. */
   buildVersion: string | null;
-  release: ReleaseChannel;
+  /** Distribution channel. Null until resolved, so rows only show the
+      honest result and never flash "Unknown" over the real value. */
+  release: ReleaseChannel | null;
   applicationId: string | null;
 }
 
@@ -46,15 +47,16 @@ async function resolveRelease(): Promise<ReleaseChannel> {
   }
 
   // Android: the install referrer is populated by the Play Install Referrer
-  // library, so a resolved, non-empty value means a Play distribution;
-  // otherwise assume a sideloaded APK. Not 100% reliable (Play installs
-  // without a campaign can be empty), but the best available without native
-  // code.
+  // library, so a resolved, non-empty value means a Play distribution. An
+  // empty result proves nothing (Play installs without a campaign are empty
+  // too), and expo-application exposes no installer-package API — without a
+  // reliable source the honest label is "Unknown" rather than claiming a
+  // sideloaded APK.
   try {
     const referrer = await Application.getInstallReferrerAsync();
-    return referrer ? "play" : "apk";
+    return referrer ? "play" : "unknown";
   } catch {
-    return "apk";
+    return "unknown";
   }
 }
 
@@ -63,7 +65,7 @@ async function resolveRelease(): Promise<ReleaseChannel> {
  * distribution channel. Everything is read once on mount.
  */
 export function useAppInfo(): AppInfo {
-  const [release, setRelease] = useState<ReleaseChannel>("unknown");
+  const [release, setRelease] = useState<ReleaseChannel | null>(null);
 
   useEffect(() => {
     let cancelled = false;

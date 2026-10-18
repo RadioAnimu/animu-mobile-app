@@ -5,6 +5,7 @@ import type { Lyrics } from "@/core/lyrics/types";
 vi.mock("@/contexts/user/UserSettingsProvider", () => ({ useUserSettings: vi.fn() }));
 vi.mock("@/core/japanese", () => ({ japaneseDictionary: {} }));
 vi.mock("@/hooks/useJapaneseDictionary", () => ({ useJapaneseDictionary: vi.fn() }));
+vi.mock("@/hooks/useSaveSettings", () => ({ useSaveSettings: () => vi.fn().mockResolvedValue(true) }));
 
 const { effectiveMode, labelsInSteps, labelsOf, modesFor } = await import("@/screens/Lyrics/usePronunciation");
 

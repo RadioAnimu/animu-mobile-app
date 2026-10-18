@@ -57,6 +57,7 @@ vi.mock("@/hooks/useDict", () => ({
     ACCOUNT_TITLE: "Account",
     A11Y_OPENS_SETTINGS: "opens settings",
     A11Y_OPENS_LOGIN: "opens login",
+    A11Y_OPENS_ACCOUNT: "opens account",
     REQUEST_ERROR_ONAIR: "Requests are disabled while a DJ is live.",
   }),
 }));
@@ -120,7 +121,7 @@ describe("CustomDrawerContent", () => {
       expect(navigation.navigate).toHaveBeenCalledWith("Settings");
     });
 
-    it("signed in: shows name and @handle, opens Settings, no gear", () => {
+    it("signed in: shows name and @handle; the chip opens Account, the gear Settings", () => {
       mocks.auth = { user, profile: null };
       render(<CustomDrawerContent {...makeProps()} />);
       expect(screen.getByText("ana_u")).toBeTruthy();
@@ -128,9 +129,13 @@ describe("CustomDrawerContent", () => {
       expect(screen.getByTestId("avatar").getAttribute("data-uri")).toBe(
         user.avatarUrl,
       );
-      expect(screen.queryByRole("button", { name: "Settings" })).toBeNull();
 
       fireEvent.click(screen.getByText("ana_u"));
+      expect(navigation.closeDrawer).toHaveBeenCalled();
+      expect(navigation.navigate).toHaveBeenCalledWith("Account");
+
+      vi.clearAllMocks();
+      fireEvent.click(screen.getByRole("button", { name: "Settings" }));
       expect(navigation.closeDrawer).toHaveBeenCalled();
       expect(navigation.navigate).toHaveBeenCalledWith("Settings");
     });

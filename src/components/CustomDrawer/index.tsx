@@ -143,6 +143,7 @@ function NavItems({
 
 interface AccountRowProps {
   onOpenLogin: () => void;
+  onOpenAccount: () => void;
   onOpenSettings: () => void;
 }
 
@@ -150,10 +151,11 @@ interface AccountRowProps {
  * Bottom identity block.
  *
  * - Signed in: avatar + name + @handle + chevron (same shape as the Settings
- *   profile row); the whole chip opens Settings.
- * - Signed out: the chip opens Login and a separate gear opens Settings.
+ *   profile row); the whole chip opens Account, like that row does.
+ * - Signed out: the chip opens Login.
+ * - Both: a separate gear opens Settings, so it is always one visible tap away.
  */
-function AccountRow({ onOpenLogin, onOpenSettings }: Readonly<AccountRowProps>) {
+function AccountRow({ onOpenLogin, onOpenAccount, onOpenSettings }: Readonly<AccountRowProps>) {
   const { user, profile } = useAuth();
   const dict = useDict();
 
@@ -175,10 +177,10 @@ function AccountRow({ onOpenLogin, onOpenSettings }: Readonly<AccountRowProps>) 
               : dict.ACCOUNT_SIGN_IN
           }
           accessibilityHint={
-            user ? dict.A11Y_OPENS_SETTINGS : dict.A11Y_OPENS_LOGIN
+            user ? dict.A11Y_OPENS_ACCOUNT : dict.A11Y_OPENS_LOGIN
           }
           activeOpacity={THEME.OPACITY.PRESSED}
-          onPress={user ? onOpenSettings : onOpenLogin}
+          onPress={user ? onOpenAccount : onOpenLogin}
           style={[styles.accountIdentity, styles.accountIdentityGrow]}
         >
           {user ? (
@@ -217,24 +219,22 @@ function AccountRow({ onOpenLogin, onOpenSettings }: Readonly<AccountRowProps>) 
           )}
         </TouchableOpacity>
 
-        {/* Signed in, the identity chip itself opens Settings, so a separate
-            gear would be redundant — it only earns its place when signed out. */}
-        {!user && (
-          <TouchableOpacity
-            accessibilityRole="button"
-            accessibilityHint={dict.A11Y_OPENS_SETTINGS}
-            accessibilityLabel={dict.SETTINGS_TITLE}
-            activeOpacity={THEME.OPACITY.PRESSED}
-            onPress={onOpenSettings}
-            style={styles.gearButton}
-          >
-            <Icon
-              name="settings"
-              size={THEME.ICON.MD}
-              color={THEME.COLORS.TEXT}
-            />
-          </TouchableOpacity>
-        )}
+        {/* Always visible: the chip is identity (Account or Login), so the
+            gear is the one way into Settings. */}
+        <TouchableOpacity
+          accessibilityRole="button"
+          accessibilityHint={dict.A11Y_OPENS_SETTINGS}
+          accessibilityLabel={dict.SETTINGS_TITLE}
+          activeOpacity={THEME.OPACITY.PRESSED}
+          onPress={onOpenSettings}
+          style={styles.gearButton}
+        >
+          <Icon
+            name="settings"
+            size={THEME.ICON.MD}
+            color={THEME.COLORS.TEXT}
+          />
+        </TouchableOpacity>
       </View>
     </View>
   );
@@ -254,6 +254,11 @@ export function CustomDrawerContent(props: Readonly<DrawerContentComponentProps>
   const goToLogin = () => {
     navigation.closeDrawer();
     navigation.navigate("Login");
+  };
+
+  const goToAccount = () => {
+    navigation.closeDrawer();
+    navigation.navigate("Account");
   };
 
   return (
@@ -280,7 +285,11 @@ export function CustomDrawerContent(props: Readonly<DrawerContentComponentProps>
         <NavItems {...props} />
       </View>
 
-      <AccountRow onOpenLogin={goToLogin} onOpenSettings={goToSettings} />
+      <AccountRow
+        onOpenLogin={goToLogin}
+        onOpenAccount={goToAccount}
+        onOpenSettings={goToSettings}
+      />
     </DrawerContentScrollView>
   );
 }

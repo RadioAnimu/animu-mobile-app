@@ -83,10 +83,12 @@ describe("UserSettingsProvider", () => {
     const { result } = renderHook(() => useUserSettings(), { wrapper });
     await waitFor(() => expect(result.current.settings.hapticsEnabled).toBe(false));
 
+    let saved: boolean | undefined;
     await act(async () => {
-      await result.current.updateSettings({ visualizerHz: 0 });
+      saved = await result.current.updateSettings({ visualizerHz: 0 });
     });
 
+    expect(saved).toBe(true);
     expect(mocks.updateSettings).toHaveBeenCalledWith({
       ...DEFAULT_USER_SETTINGS,
       hapticsEnabled: false,
@@ -96,16 +98,18 @@ describe("UserSettingsProvider", () => {
     expect(mocks.setVisualizerEnabled).toHaveBeenLastCalledWith(false);
   });
 
-  it("keeps the previous settings when persisting fails", async () => {
+  it("reports a failed persist to the caller and keeps the previous settings", async () => {
     const error = vi.spyOn(console, "error").mockImplementation(() => {});
     const { result } = renderHook(() => useUserSettings(), { wrapper });
     await waitFor(() => expect(result.current.settings.hapticsEnabled).toBe(false));
     mocks.updateSettings.mockRejectedValueOnce(new Error("disk"));
 
+    let saved: boolean | undefined;
     await act(async () => {
-      await result.current.updateSettings({ visualizerHz: 0 });
+      saved = await result.current.updateSettings({ visualizerHz: 0 });
     });
 
+    expect(saved).toBe(false);
     expect(result.current.settings.visualizerHz).toBe(DEFAULT_USER_SETTINGS.visualizerHz);
     expect(error).toHaveBeenCalled();
     error.mockRestore();
@@ -123,15 +127,72 @@ describe("UserSettingsProvider", () => {
     expect(result.current.settings.cacheEnabled).toBe(false);
   });
 
+  it("leaves the cover cache alone when the change that would wipe it fails to save", async () => {
+    const error = vi.spyOn(console, "error").mockImplementation(() => {});
+    const { result } = renderHook(() => useUserSettings(), { wrapper });
+    await waitFor(() => expect(result.current.settings.hapticsEnabled).toBe(false));
+    mocks.updateSettings.mockRejectedValueOnce(new Error("disk"));
+    mocks.updateSettings.mockRejectedValueOnce(new Error("disk"));
+
+    await act(async () => {
+      await result.current.updateSettings({ cacheEnabled: false });
+      await result.current.updateSettings({ liveQualityCover: "high" });
+    });
+
+    expect(mocks.clearAll).not.toHaveBeenCalled();
+    expect(result.current.settings.cacheEnabled).toBe(true);
+    expect(result.current.settings.liveQualityCover).toBe(DEFAULT_USER_SETTINGS.liveQualityCover);
+    error.mockRestore();
+  });
+
   it("reset restores the defaults", async () => {
     const { result } = renderHook(() => useUserSettings(), { wrapper });
     await waitFor(() => expect(result.current.settings.hapticsEnabled).toBe(false));
+
+    let saved: boolean | undefined;
+    await act(async () => {
+      saved = await result.current.resetSettings();
+    });
+
+    expect(saved).toBe(true);
+    expect(mocks.updateSettings).toHaveBeenCalledWith(DEFAULT_USER_SETTINGS);
+    expect(result.current.settings).toEqual(DEFAULT_USER_SETTINGS);
+  });
+
+  it("reset keeps the language the user picked", async () => {
+    mocks.initialize.mockResolvedValue({
+      ...DEFAULT_USER_SETTINGS,
+      hapticsEnabled: false,
+      selectedLanguage: "EN",
+    });
+    const { result } = renderHook(() => useUserSettings(), { wrapper });
+    await waitFor(() => expect(result.current.settings.selectedLanguage).toBe("EN"));
 
     await act(async () => {
       await result.current.resetSettings();
     });
 
-    expect(mocks.updateSettings).toHaveBeenCalledWith(DEFAULT_USER_SETTINGS);
-    expect(result.current.settings).toEqual(DEFAULT_USER_SETTINGS);
+    expect(mocks.updateSettings).toHaveBeenCalledWith({
+      ...DEFAULT_USER_SETTINGS,
+      selectedLanguage: "EN",
+    });
+    expect(result.current.settings.selectedLanguage).toBe("EN");
+    expect(result.current.settings.hapticsEnabled).toBe(DEFAULT_USER_SETTINGS.hapticsEnabled);
+  });
+
+  it("reports a failed reset to the caller and keeps the previous settings", async () => {
+    const error = vi.spyOn(console, "error").mockImplementation(() => {});
+    const { result } = renderHook(() => useUserSettings(), { wrapper });
+    await waitFor(() => expect(result.current.settings.hapticsEnabled).toBe(false));
+    mocks.updateSettings.mockRejectedValueOnce(new Error("disk"));
+
+    let saved: boolean | undefined;
+    await act(async () => {
+      saved = await result.current.resetSettings();
+    });
+
+    expect(saved).toBe(false);
+    expect(result.current.settings.hapticsEnabled).toBe(false);
+    error.mockRestore();
   });
 });

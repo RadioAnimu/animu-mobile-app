@@ -20,6 +20,8 @@ const BLUESKY_URL = "https://bsky.app/profile/animu.moe";
 const GITHUB_URL = "https://github.com/RadioAnimu/animu-mobile-app";
 /** Composer of the Chihaya Radio Station artwork (credited, not a station social). */
 const PIXIV_URL = "https://www.pixiv.net/en/users/3272093";
+/** Personal site of the app's maintainer, linked from the About credits. */
+const MAINTAINER_URL = "https://www.rmotafreitas.dev";
 
 export const API = {
   WEB_URL,
@@ -31,6 +33,7 @@ export const API = {
   BLUESKY_URL,
   GITHUB_URL,
   PIXIV_URL,
+  MAINTAINER_URL,
 };
 
 /** Program dictionary entry used by the i18n PROGRAMS tables. */

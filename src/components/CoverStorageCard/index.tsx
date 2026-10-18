@@ -42,7 +42,7 @@ function LegendRow({
       </Text>
       <Text style={styles.legendValue}>
         {slice.bytes > 0
-          ? `${formatBytes(slice.bytes)} · ${percentOf(slice.bytes, totalBytes)}%`
+          ? `${formatBytes(slice.bytes, dict.NUMBER_DECIMAL_SEPARATOR)} · ${percentOf(slice.bytes, totalBytes)}%`
           : formatBytes(0)}
       </Text>
     </View>
@@ -76,7 +76,9 @@ export function CoverStorageCard({
       <View style={styles.summary}>
         <View style={styles.summaryText}>
           <Text style={styles.totalValue}>
-            {measuring ? "· · ·" : formatBytes(totalBytes)}
+            {measuring
+              ? "· · ·"
+              : formatBytes(totalBytes, dict.NUMBER_DECIMAL_SEPARATOR)}
           </Text>
           <Text style={styles.totalLabel}>{dict.SETTINGS_STORAGE_TOTAL}</Text>
         </View>

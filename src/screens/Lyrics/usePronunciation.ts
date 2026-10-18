@@ -4,6 +4,7 @@ import { japaneseDictionary, type JapaneseDictionarySnapshot, type JapaneseReade
 import type { Lyrics } from "@/core/lyrics/types";
 import { lineLabel, type LineLabel, type PronunciationMode } from "@/core/lyrics/pronunciation";
 import { useJapaneseDictionary } from "@/hooks/useJapaneseDictionary";
+import { useSaveSettings } from "@/hooks/useSaveSettings";
 
 const isJapanese = (lyrics: Lyrics | null): boolean =>
   lyrics != null && lyrics.kind !== "instrumental" && lyrics.language === "ja";
@@ -104,7 +105,10 @@ export interface Pronunciation {
  * minute after it closes.
  */
 export function usePronunciation(lyrics: Lyrics | null): Pronunciation {
-  const { settings, updateSettings } = useUserSettings();
+  const { settings } = useUserSettings();
+  // A choice that could not be saved says so (toast) instead of silently
+  // snapping back.
+  const save = useSaveSettings();
   const dictionary = useJapaneseDictionary();
   const installed = dictionary.install === "installed";
   const modes = modesFor(lyrics, installed);
@@ -148,7 +152,7 @@ export function usePronunciation(lyrics: Lyrics | null): Pronunciation {
     mode,
     modes,
     select: (next) => {
-      updateSettings({ lyricsPronunciation: next }).catch(() => {});
+      void save({ lyricsPronunciation: next });
     },
     preparing: needsReader && dictionary.reader === "loading",
     failed: needsReader && dictionary.reader === "error",

@@ -42,7 +42,7 @@ export const THEME = {
     TEXT_ON_LIGHT_DIM: "rgba(0, 0, 0, 0.45)",
     TEXT_SOFT: "rgba(255, 255, 255, 0.7)",
     TEXT_DIM: "rgba(255, 255, 255, 0.5)",
-    SWITCH_OFF: "rgba(255, 255, 255, 0.25)",
+    SWITCH_OFF: "rgba(255, 255, 255, 0.38)",
     HAIRLINE: "rgba(255, 255, 255, 0.15)",
     /** Fainter hairline for switch tracks and outlines. */
     HAIRLINE_SOFT: "rgba(255, 255, 255, 0.1)",

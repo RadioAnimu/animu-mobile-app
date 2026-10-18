@@ -15,8 +15,11 @@ import { DEFAULT_USER_SETTINGS } from "@/constants/settings";
 
 type UserSettingsContextType = {
   settings: UserSettings;
-  updateSettings: (settings: Partial<UserSettings>) => Promise<void>;
-  resetSettings: () => Promise<void>;
+  /** Resolves `true` once the change is persisted and applied, `false` when
+      persisting failed (the previous settings stay in effect). */
+  updateSettings: (settings: Partial<UserSettings>) => Promise<boolean>;
+  /** Same contract as `updateSettings`; keeps the chosen language. */
+  resetSettings: () => Promise<boolean>;
 };
 
 const UserSettingsContext = createContext<UserSettingsContextType>({
@@ -50,7 +53,7 @@ export const UserSettingsProvider: React.FC<{ children: React.ReactNode }> = ({
       ON) must persist and apply strictly in call order, or a stale write
       clobbers the newer one and storage/UI disagree. Lazily initialized
       (allocation happens once, not eagerly at every ref decl). */
-  const updateChainRef = useRef<Promise<void> | null>(null);
+  const updateChainRef = useRef<Promise<unknown> | null>(null);
 
   // Seeding the chain with initialization is what makes the serialization
   // real: a toggle landing before `initialize()` resolves queues BEHIND the
@@ -71,7 +74,7 @@ export const UserSettingsProvider: React.FC<{ children: React.ReactNode }> = ({
     // Serialize: interleaved updates (a slow OFF wipe vs a fast ON) must
     // persist and apply strictly in call order, or a stale write clobbers
     // the newer one and storage/UI disagree.
-    const run = (updateChainRef.current ?? Promise.resolve()).then(async () => {
+    const run = (updateChainRef.current ?? Promise.resolve()).then(async (): Promise<boolean> => {
       // Merge base read at CHAIN time, not call time — everything queued
       // before us already applied, so `settingsRef.current` is the newest
       // agreed state. Capturing before the chain would re-apply stale
@@ -79,10 +82,25 @@ export const UserSettingsProvider: React.FC<{ children: React.ReactNode }> = ({
       const previous = settingsRef.current;
       const updatedSettings = { ...previous, ...newSettings };
 
+      // Persist FIRST: the disk work below is irreversible, so it only runs
+      // for a change that is actually saved. A failed write leaves the
+      // previous in-memory value (the UI never diverges from what is on
+      // disk) and the cache untouched; the caller learns of it through the
+      // `false` result.
+      try {
+        await userSettingsService.updateSettings(updatedSettings);
+      } catch (error) {
+        console.error(
+          "[UserSettings] update not applied — persist failed:",
+          error,
+        );
+        return false;
+      }
+
       // Turning the cache OFF must wipe it, not only stop writing — the
       // user's intent is "nothing kept from now on". The wipe runs BEFORE
-      // the handoff: no surface can cache mid-wipe, and covers re-render
-      // with policy "none" right after. Non-fatal: a failed wipe must not
+      // the in-memory handoff: no surface can cache mid-wipe, and covers
+      // re-render with policy "none" right after. Non-fatal: a failed wipe must not
       // leave the toggle dead — the "none" policy still stops new writes
       // and the wipe stays retryable via the storage card's clean button.
       const cacheTurningOff =
@@ -126,23 +144,13 @@ export const UserSettingsProvider: React.FC<{ children: React.ReactNode }> = ({
         });
       }
 
-      try {
-        await userSettingsService.updateSettings(updatedSettings);
-        applySettings(updatedSettings);
-      } catch (error) {
-        // Persist failed: keep the previous in-memory value so the UI can
-        // never diverge from what is actually on disk (a silently-applied
-        // toggle that reverts on the next launch is the worse failure).
-        console.error(
-          "[UserSettings] update not applied — persist failed:",
-          error,
-        );
-      }
+      applySettings(updatedSettings);
+      return true;
     });
     updateChainRef.current = run.catch((error) => {
       console.error("Settings update chain failed:", error);
     });
-    return run;
+    return run.catch(() => false);
   }, []);
 
   const resetSettings = useCallback(async () => {
@@ -151,7 +159,20 @@ export const UserSettingsProvider: React.FC<{ children: React.ReactNode }> = ({
     // URL, so a reset from a non-default quality leaves old-tier files mixed
     // with the new ones — same wipe `updateSettings` runs for that transition.
     // Chained like updateSettings so it can't interleave a queued toggle.
-    const run = (updateChainRef.current ?? Promise.resolve()).then(async () => {
+    const run = (updateChainRef.current ?? Promise.resolve()).then(async (): Promise<boolean> => {
+      // The language is the one setting a reset must not touch: falling back
+      // to the default would switch a non-Portuguese user's UI under them.
+      const restored = {
+        ...DEFAULT_USER_SETTINGS,
+        selectedLanguage: settingsRef.current.selectedLanguage,
+      };
+      // Persist before the (irreversible) wipe, as in updateSettings.
+      try {
+        await userSettingsService.updateSettings(restored);
+      } catch (error) {
+        console.error("[UserSettings] reset not applied — persist failed:", error);
+        return false;
+      }
       if (
         settingsRef.current.liveQualityCover !==
         DEFAULT_USER_SETTINGS.liveQualityCover
@@ -160,17 +181,13 @@ export const UserSettingsProvider: React.FC<{ children: React.ReactNode }> = ({
           console.warn("[UserSettings] cache wipe on reset failed:", error);
         });
       }
-      try {
-        await userSettingsService.updateSettings(DEFAULT_USER_SETTINGS);
-        applySettings(DEFAULT_USER_SETTINGS);
-      } catch (error) {
-        console.error("[UserSettings] reset not applied — persist failed:", error);
-      }
+      applySettings(restored);
+      return true;
     });
     updateChainRef.current = run.catch((error) => {
       console.error("Settings reset chain failed:", error);
     });
-    return run;
+    return run.catch(() => false);
   }, []);
 
   // Stable identity per settings change — rebuilding the object on every

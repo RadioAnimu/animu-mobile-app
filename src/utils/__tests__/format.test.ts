@@ -19,6 +19,13 @@ describe("formatBytes", () => {
     expect(formatBytes(1.5 * 1024 * 1024 * 1024)).toBe("1.5 GB");
     expect(formatBytes(20 * 1024 * 1024 * 1024)).toBe("20 GB");
   });
+
+  it("uses the given decimal separator for fractional sizes only", () => {
+    expect(formatBytes(5 * 1024 * 1024, ",")).toBe("5,0 MB");
+    expect(formatBytes(1.5 * 1024 * 1024 * 1024, ",")).toBe("1,5 GB");
+    expect(formatBytes(12 * 1024 * 1024, ",")).toBe("12 MB");
+    expect(formatBytes(2048, ",")).toBe("2 KB");
+  });
 });
 
 describe("percentOf", () => {

@@ -55,8 +55,9 @@ interface Props<T extends string> {
    * Applies the choice. When it returns a promise the list stays open,
    * blocking, until it resolves — the same "no settings leave the UI before
    * the storage work behind them is done" contract the old sheets had.
+   * Resolving `false` reports a refused change and keeps the list open.
    */
-  onChange: (key: T) => void | Promise<void>;
+  onChange: (key: T) => void | Promise<unknown>;
   disabled?: boolean;
 }
 
@@ -116,7 +117,8 @@ export function Select<T extends string>({
     }
     setApplyingKey(key);
     try {
-      await onChange(key);
+      // `false` = the change was refused: stay open so it can be retried.
+      if ((await onChange(key)) === false) return;
       layoutEase();
       setOpen(false);
     } catch (error) {
@@ -171,7 +173,7 @@ export function Select<T extends string>({
       </TouchableOpacity>
 
       {expanded && (
-        <View style={styles.optionsContainer}>
+        <View style={styles.optionsContainer} accessibilityRole="radiogroup">
           {options.map((option, index) => {
             const isSelected = option.key === value;
             const isApplying = option.key === applyingKey;
@@ -180,12 +182,12 @@ export function Select<T extends string>({
               <View key={option.key}>
                 {index > 0 && <View style={styles.separator} />}
                 <TouchableOpacity
-                  accessibilityRole="button"
+                  accessibilityRole="radio"
                   accessibilityLabel={[option.label, option.badge, option.meta]
                     .filter(Boolean)
                     .join(", ")}
                   accessibilityState={{
-                    selected: isSelected,
+                    checked: isSelected,
                     disabled: !!applying,
                   }}
                   activeOpacity={THEME.OPACITY.PRESSED}

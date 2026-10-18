@@ -21,20 +21,27 @@ export const styles = StyleSheet.create({
   },
   headerVersion: ROW_STYLES.caption,
   group: SCREEN_STYLES.group,
-  // Read-only key/value row (no chevron, no press).
-  row: ROW_STYLES.row,
-  rowIcon: ROW_STYLES.iconBox,
-  rowLabel: {
-    ...ROW_STYLES.label,
-    flex: 1,
+  groupSpaced: {
+    ...SCREEN_STYLES.group,
+    marginTop: THEME.SPACE.XXL,
   },
+  // Non-interactive discloser / social link rows (shared row body otherwise).
+  row: ROW_STYLES.row,
+  // Trailing value of a read-only row; wraps instead of truncating.
   rowValue: {
     flexShrink: 1,
     marginLeft: THEME.SPACE.MD,
     color: THEME.COLORS.TEXT_SOFT,
     fontFamily: THEME.FONT_FAMILY.REGULAR,
     fontSize: THEME.FONT_SIZE.BODY,
+    lineHeight: THEME.LINE_HEIGHT.BODY,
     textAlign: "right",
+  },
+  rowValueStacked: {
+    color: THEME.COLORS.TEXT_SOFT,
+    fontFamily: THEME.FONT_FAMILY.REGULAR,
+    fontSize: THEME.FONT_SIZE.BODY,
+    lineHeight: THEME.LINE_HEIGHT.BODY,
   },
   // Intro / explanatory paragraph.
   paragraph: {
@@ -50,6 +57,7 @@ export const styles = StyleSheet.create({
   donor: {
     flexDirection: "row",
     alignItems: "baseline",
+    flexWrap: "wrap",
     gap: THEME.SPACE.SM,
     paddingHorizontal: CONTENT_PADDING,
     paddingVertical: THEME.SPACE.SM,
@@ -61,7 +69,7 @@ export const styles = StyleSheet.create({
   },
   donorNote: {
     ...ROW_STYLES.caption,
-    flexShrink: 1,
+    paddingRight: CONTENT_PADDING,
   },
   // Footer block of the page (copyright etc.).
   footer: {
@@ -76,13 +84,8 @@ export const styles = StyleSheet.create({
     color: THEME.COLORS.TEXT_DIM,
     fontFamily: THEME.FONT_FAMILY.REGULAR,
     fontSize: THEME.FONT_SIZE.CAPTION,
-    lineHeight: THEME.LINE_HEIGHT.BODY,
+    lineHeight: THEME.LINE_HEIGHT.CAPTION,
     textAlign: "center",
-  },
-  footerLink: {
-    color: THEME.COLORS.BRAND,
-    fontFamily: THEME.FONT_FAMILY.BOLD,
-    textDecorationLine: "underline",
   },
   badge: {
     width: scale(88),

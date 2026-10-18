@@ -10,6 +10,7 @@ import {
 } from "@/components/ListRow";
 import { THEME } from "@/theme";
 import type { Dict } from "@/i18n";
+import { useDict } from "@/hooks/useDict";
 import type { AuthProfile, User } from "@/core/domain/user";
 import { styles, SWITCH } from "@/screens/Settings/styles";
 import { haptics } from "@/utils/haptics";
@@ -24,8 +25,14 @@ interface AccountRowProps {
 
 export function AccountRow({ user, profile, dict, onPress }: Readonly<AccountRowProps>) {
   const handle = profile?.user.handle || user?.handle;
+  // The visible row is a name and a handle; the spoken label says where it
+  // leads, so it isn't mistaken for a plain profile card.
   const label = user
-    ? [profile?.user.username || user.username, handle && `@${handle}`]
+    ? [
+        profile?.user.username || user.username,
+        handle && `@${handle}`,
+        dict.ACCOUNT_TITLE,
+      ]
         .filter(Boolean)
         .join(", ")
     : dict.SETTINGS_ACCOUNT_SIGN_IN;
@@ -34,6 +41,7 @@ export function AccountRow({ user, profile, dict, onPress }: Readonly<AccountRow
     <TouchableOpacity
       accessibilityRole="button"
       accessibilityLabel={label}
+      accessibilityHint={user ? dict.A11Y_OPENS_ACCOUNT : dict.A11Y_OPENS_LOGIN}
       activeOpacity={THEME.OPACITY.PRESSED}
       onPress={onPress}
       style={[styles.row, styles.accountRow]}
@@ -176,7 +184,15 @@ interface ValueRowProps {
   label: string;
   icon: MaterialIconName;
   value: string;
+  /** What a screen reader says instead of `value` when the visible text is
+      a placeholder ("—", "…") that means nothing out loud. */
+  spokenValue?: string;
   description?: string;
+  /** Live state of the row (e.g. a download's progress) for screen readers. */
+  accessibilityValue?: { text: string };
+  /** Trailing chevron marks a row that navigates; rows whose value is the
+      action itself (Download, Remove…) turn it off. */
+  chevron?: boolean;
   onPress: () => void;
 }
 
@@ -184,7 +200,10 @@ export function ValueRow({
   label,
   icon,
   value,
+  spokenValue,
   description,
+  accessibilityValue,
+  chevron = true,
   onPress,
 }: Readonly<ValueRowProps>) {
   const stacked = useStackedRows();
@@ -201,7 +220,10 @@ export function ValueRow({
   return (
     <TouchableOpacity
       accessibilityRole="button"
-      accessibilityLabel={[label, description, value].filter(Boolean).join(", ")}
+      accessibilityLabel={[label, description, spokenValue ?? value]
+        .filter(Boolean)
+        .join(", ")}
+      accessibilityValue={accessibilityValue}
       activeOpacity={THEME.OPACITY.PRESSED}
       onPress={onPress}
       style={styles.row}
@@ -214,11 +236,13 @@ export function ValueRow({
       </RowBody>
       <View style={styles.rowValue}>
         {!stacked && valueText}
-        <Icon
-          name="chevron-right"
-          size={THEME.ICON.MD}
-          color={THEME.COLORS.TEXT_DIM}
-        />
+        {chevron && (
+          <Icon
+            name="chevron-right"
+            size={THEME.ICON.MD}
+            color={THEME.COLORS.TEXT_DIM}
+          />
+        )}
       </View>
     </TouchableOpacity>
   );
@@ -249,10 +273,12 @@ interface LinkRowProps {
 
 /** Opens an external URL — privacy policy, license, store-required links. */
 export function LinkRow({ label, icon, description, onPress }: Readonly<LinkRowProps>) {
+  const dict = useDict();
   return (
     <TouchableOpacity
       accessibilityRole="link"
       accessibilityLabel={description ? `${label}, ${description}` : label}
+      accessibilityHint={dict.ABOUT_OPENS_BROWSER}
       activeOpacity={THEME.OPACITY.PRESSED}
       onPress={onPress}
       style={styles.row}

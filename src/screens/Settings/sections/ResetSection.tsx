@@ -1,16 +1,17 @@
 import { useState } from "react";
 import { Alert, View } from "react-native";
 
-import { ActionRow } from "@/components/ListRow";
-import { SectionTitle } from "@/components/SectionTitle";
+import { DestructiveAction } from "@/components/DestructiveAction";
+import { useAlert } from "@/contexts/alert/AlertProvider";
 import { useUserSettings } from "@/contexts/user/UserSettingsProvider";
 import { useDict } from "@/hooks/useDict";
-import { SCREEN_STYLES } from "@/theme/screen";
+import { styles } from "@/screens/Settings/styles";
 import { haptics } from "@/utils/haptics";
 
-/** Advanced section holding the "reset settings" action. */
+/** The "reset settings" action, styled as the destructive step it is. */
 export function ResetSection() {
   const { resetSettings } = useUserSettings();
+  const { toast } = useAlert();
   const dict = useDict();
   const [resetting, setResetting] = useState(false);
 
@@ -28,7 +29,12 @@ export function ResetSection() {
             void (async () => {
               setResetting(true);
               try {
-                await resetSettings();
+                if (await resetSettings()) {
+                  toast(dict.SETTINGS_RESET_TOAST);
+                } else {
+                  haptics.error();
+                  toast(dict.SETTINGS_SAVE_FAILED, "error");
+                }
               } finally {
                 setResetting(false);
               }
@@ -41,9 +47,9 @@ export function ResetSection() {
 
   return (
     <>
-      <SectionTitle title={dict.SETTINGS_ADVANCED_TITLE} icon="settings" />
-      <View style={SCREEN_STYLES.group}>
-        <ActionRow
+      {/* No heading: the red button already says "Reset settings". */}
+      <View style={styles.groupSpaced}>
+        <DestructiveAction
           icon="restart-alt"
           label={dict.SETTINGS_RESET_ROW}
           description={dict.SETTINGS_RESET_DESC}

@@ -31,11 +31,15 @@ export function useCoverStorageSnapshot(
 ): {
   snapshot: CoverStorageSnapshot | null;
   measuring: boolean;
+  /** The last measurement threw — `snapshot` is null because of that, not
+      because the cache is empty. */
+  failed: boolean;
   measure: () => Promise<CoverStorageSnapshot | null>;
 } {
   const { settings } = useUserSettings();
   const [snapshot, setSnapshot] = useState<CoverStorageSnapshot | null>(null);
   const [measuring, setMeasuring] = useState(true);
+  const [failed, setFailed] = useState(false);
   /** Unmount guard — the async measure must not touch a dead component. */
   const aliveRef = useRef(true);
   /** Last settled total — the "before" side of freed-space feedback. */
@@ -65,11 +69,17 @@ export function useCoverStorageSnapshot(
       // has just paid to get rid of.
       const next = await coverDiskStorage.computeSnapshot(maxBytes, partitions);
       lastTotalRef.current = next.totalBytes;
-      if (aliveRef.current) setSnapshot(next);
+      if (aliveRef.current) {
+        setSnapshot(next);
+        setFailed(false);
+      }
       return next;
     } catch (error) {
       console.warn("[useCoverStorage] measure failed:", error);
-      if (aliveRef.current) setSnapshot(null);
+      if (aliveRef.current) {
+        setSnapshot(null);
+        setFailed(true);
+      }
       return null;
     } finally {
       if (aliveRef.current) setMeasuring(false);
@@ -125,5 +135,5 @@ export function useCoverStorageSnapshot(
     });
   }, [maxBytes, partitions, settings.cacheEnabled, measure]);
 
-  return { snapshot, measuring, measure };
+  return { snapshot, measuring, failed, measure };
 }
