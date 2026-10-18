@@ -62,7 +62,7 @@ export interface OauthProviderConfig {
  * (`/mobile/<provider>-start.php`), so no client ids or platform registration
  * are needed on the app side.
  */
-export const OAUTH_PROVIDERS: Record<string, OauthProviderConfig> = {
+const OAUTH_PROVIDERS: Record<string, OauthProviderConfig> = {
   discord: {
     name: "discord",
     label: "Discord",
@@ -116,13 +116,13 @@ export const OAUTH_PROVIDERS: Record<string, OauthProviderConfig> = {
 };
 
 /** Animu Connect (passwordless email codes) is not an OAuth provider. */
-export const ANIMU_CONNECT = {
+const ANIMU_CONNECT = {
   name: "animu",
   label: "Animu Connect",
 } as const;
 
 /** Rendered when `getProviders()` is unreachable, so the UI still works. */
-export const FALLBACK_PROVIDERS = ["discord", "google", "fluxer", "apple"] as const;
+const FALLBACK_PROVIDERS = ["discord", "google", "fluxer", "apple"] as const;
 
 /** Initial button list, replaced by `getProviders()` once it resolves. */
 export const DEFAULT_PROVIDERS = FALLBACK_PROVIDERS.map((name) => ({

@@ -10,7 +10,7 @@ import { isRealTrack, type Track } from "@/core/domain/track";
 // lives on the device forever.
 
 /** Hours the per-hour breakdown is kept for each day (0–23). */
-export const HOUR_SLOTS = 24;
+const HOUR_SLOTS = 24;
 /** Per-hour raw data is compacted after this many days (daily totals kept). */
 const HOUR_DETAIL_DAYS = 120;
 /** Hard cap on stored days — older days are dropped entirely. */
@@ -70,7 +70,7 @@ const EMPTY_DAY = (): ListenDay => ({
 /** Track entries kept for the "top requests" ranking. */
 const MAX_TRACKED_REQUESTS = 50;
 /** How many requested songs a snapshot ranks. */
-export const TOP_REQUESTS_SHOWN = 10;
+const TOP_REQUESTS_SHOWN = 10;
 
 /**
  * A requested song's count + latest metadata. On a radio the listener

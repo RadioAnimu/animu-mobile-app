@@ -9,9 +9,9 @@ import type { Track } from "@/core/domain/track";
  * byte for byte every time. This is the *station's* timeline, not the
  * audio's: see {@link icyTitleInItemMs} for where the title sits in the item.
  */
-export const ICY_AFTER_START_MS = 1_200;
+const ICY_AFTER_START_MS = 1_200;
 /** `icy-metaint` of every station mount: audio bytes between metadata blocks. */
-export const ICY_METAINT_BYTES = 16_000;
+const ICY_METAINT_BYTES = 16_000;
 
 /**
  * How far into an item (ms) its ICY title is heard, on average, on a mount

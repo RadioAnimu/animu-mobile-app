@@ -7,14 +7,14 @@ import { Dimensions } from "react-native";
  * then maps it to the actual device, so the layout keeps the same
  * proportions on every phone instead of looking sparse on large screens.
  */
-export const DESIGN_WIDTH = 393;
+const DESIGN_WIDTH = 393;
 
 /**
  * Tablets are far wider than a phone. Scaling 1:1 would turn the phone
  * layout into a billboard, so the factor is clamped here and the content
  * column is centered instead.
  */
-export const MAX_SCALE = 1.3;
+const MAX_SCALE = 1.3;
 
 const { width } = Dimensions.get("window");
 
@@ -35,7 +35,7 @@ export const SCREEN_WIDTH = width;
  * Mirrors `THEME.LAYOUT.CONTENT_WIDTH` ("88%") — one column spec, used by
  * both the full-screen pages and the header's icon row.
  */
-export const CONTENT_WIDTH_RATIO = 0.88;
+const CONTENT_WIDTH_RATIO = 0.88;
 
 /** Tablet cap on the content column. Single source for `THEME.LAYOUT.CONTENT_MAX_WIDTH`. */
 export const CONTENT_MAX_WIDTH = scale(560);

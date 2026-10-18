@@ -68,11 +68,11 @@ export function useLiveRequestForm(initialData?: Partial<LiveRequest>) {
   };
 }
 
-export const isFormDataValid = (formData: LiveRequest): boolean =>
+const isFormDataValid = (formData: LiveRequest): boolean =>
   validateLiveRequest(formData).success;
 
 /** Required live-form fields, in on-screen order (first invalid gets focus). */
-export const LIVE_REQUIRED_FIELDS = [
+const LIVE_REQUIRED_FIELDS = [
   "name",
   "city",
   "music",

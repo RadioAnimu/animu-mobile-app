@@ -121,7 +121,7 @@ async function runSync(
   }
 }
 
-export function removeProfileMedia(kind: ProfileMediaKind, userId: number) {
+function removeProfileMedia(kind: ProfileMediaKind, userId: number) {
   try {
     for (const file of filesFor(kind, userId)) safeDelete(file);
   } catch (error) {

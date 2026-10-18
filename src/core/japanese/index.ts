@@ -17,7 +17,7 @@ import type { Romanizer } from "@/core/lyrics/text";
 
 export const japaneseDictionaryStore = createStore<JapaneseDictionarySnapshot>(JAPANESE_DICTIONARY_INITIAL);
 
-export const dictionaryStorage = new DictionaryFileStorage();
+const dictionaryStorage = new DictionaryFileStorage();
 
 /**
  * App-wide dictionary (composition root). kuromoji and the inflater load on

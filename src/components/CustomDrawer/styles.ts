@@ -8,7 +8,7 @@ const AVATAR = THEME.LAYOUT.AVATAR.SM;
 // Rows hug the rounded-square avatar by its vertical padding.
 const ROW_RADIUS = concentric(avatarRadius(AVATAR), THEME.SPACE.SM);
 
-export const DRAWER_GRID = {
+const DRAWER_GRID = {
   SCREEN_MARGIN: THEME.SPACE.MD,
 };
 

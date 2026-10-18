@@ -101,7 +101,7 @@ export function artistNames(artist: string, romanize: Romanizer = kanaRomanizer)
 }
 
 /** Levenshtein ratio in [0, 1] — 1 means identical. */
-export function similarity(a: string, b: string): number {
+function similarity(a: string, b: string): number {
   if (a === b) return 1;
   if (!a || !b) return 0;
   let previous = Array.from({ length: b.length + 1 }, (_, j) => j);
@@ -118,7 +118,7 @@ export function similarity(a: string, b: string): number {
 }
 
 /** Same words in any order (`horie yui` / `yui horie`). */
-export function sameTokens(a: string, b: string): boolean {
+function sameTokens(a: string, b: string): boolean {
   // Any fixed order works for the comparison; code-unit order never ties two
   // different tokens, as a locale comparison could.
   const byCodeUnit = (x: string, y: string) => (x < y ? -1 : Number(x > y));
@@ -136,9 +136,4 @@ export function bestSimilarity(left: readonly string[], right: readonly string[]
     }
   }
   return best;
-}
-
-/** Whether the text contains kanji (needs a reader to romanize). */
-export function hasKanji(text: string): boolean {
-  return /[㐀-䶿一-鿿豈-﫿]/.test(text);
 }

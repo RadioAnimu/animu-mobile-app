@@ -1,7 +1,7 @@
 import type { Timer } from "@/core/player/timer";
 
 /** Exponential backoff delay for a (0-based) attempt: base → 2× → 4× … capped */
-export const backoffDelay = (
+const backoffDelay = (
   attempt: number,
   base: number,
   max: number,

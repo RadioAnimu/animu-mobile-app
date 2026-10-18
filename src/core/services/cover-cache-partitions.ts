@@ -31,7 +31,7 @@ export type CoverCachePartitions = Partial<Record<CoverCacheCategory, number>>;
  * Partitions EVICT INDEPENDENTLY: a search flood can never push out a
  * live cover, and vice versa. Each partition keeps its own newest entry.
  */
-export const PARTITION_WEIGHTS: Record<CoverCacheCategory, number> = {
+const PARTITION_WEIGHTS: Record<CoverCacheCategory, number> = {
   live: 0.3,
   requested: 0.15,
   played: 0.25,
