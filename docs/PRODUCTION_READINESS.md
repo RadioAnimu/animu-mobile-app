@@ -1,4 +1,58 @@
-# Production readiness audit — 6 October 2026
+# Production readiness audit
+
+## Re-audit — 18 October 2026
+
+Re-ran every gate on the application and both libraries from fresh checkouts.
+The 6 October findings and their dispositions below still hold; the external
+submission items at the end of this document are still open and still block
+submission.
+
+Found and fixed this round:
+
+- **High — `main` was red on two gates.** React Doctor flagged the request
+  screen (a string `&&` render that can crash React Native, plus the
+  component's size and complexity), and SonarQube's gate failed on 14 new
+  issues (redundant `act()` wrappers, a generic length assertion, a state
+  setter naming). Both are fixed without suppressions: the screen is split
+  into hooks and components, and the tests now wait on observable outcomes.
+- **High — the player library's `main` CI was red,** along with both of its
+  Dependabot PRs: its Expo example pinned `expo ~57.0.29` while the SDK now
+  expects `~57.0.30`. Fixed in the library (#29); all five open Dependabot
+  PRs across the two libraries were reviewed and merged on green CI, and the
+  app now pins both libraries' new `main`.
+- **Medium — a failed player setup left the loader up forever.** Network
+  failures already had fallbacks, but a local storage failure was only logged.
+  It now reaches the root ErrorBoundary, whose Try again remounts the
+  provider with a fresh service; the boundary also hides the native splash,
+  which would otherwise cover an early crash. A regression test covers it.
+- **Low — dead code:** six unused translation keys, an unused helper, an
+  unused barrel re-export, and exports used only inside their own module.
+- **Low — config plugins** imported `@expo/config-plugins`, which the app does
+  not declare; they now use Expo's `expo/config-plugins` re-export.
+- **Low — CodeQL `js/bad-tag-filter`** in a test harness: the regex is
+  replaced by exact index slicing.
+- **Gate tightened:** the coverage floor is raised to just under the measured
+  totals (79 / 74 / 71 / 80%, up from 67 / 62 / 57 / 68%).
+
+Reviewed with no change needed: no logged error object carries a session
+token (auth requests send it in a header, and the two endpoints that put it
+in the URL swallow their errors). Sonar's 6% overall duplication is the four
+translation dictionaries sharing a key layout, not repeated logic.
+
+Additional open item: OAuth provider linking passes the session token as a URL
+query parameter, and login returns it in the custom-scheme callback. That
+needs single-use codes from the auth server, which is outside this repository.
+
+Final evidence (`ce69065`): 116 files / 1245 tests, coverage 79.9 / 75.0 /
+71.7 / 80.7%; React Doctor 100; SonarQube gate passed for all three projects;
+JS bundle 3.43 MB of 3.72 MB, assets 1.70 MB of 1.91 MB; GitHub CI, CodeQL
+and React Doctor green; Jenkins CI #123, Sonar #64 and signed release #27
+(`TRUST_CI=false`: full pre-release checks, `:app:lintRelease` 0 errors with
+the same 26 warnings explained below, 48 native libraries pass 16 KB ELF
+validation, bundletool validation, non-debug signatures) passed. There are no
+open PRs or Dependabot/code-scanning alerts in the three repositories.
+
+## Audit — 6 October 2026
 
 The engineering fixes are committed on the application’s `main` and the two
 library default branches. Feature branches are preserved. Apple distribution
