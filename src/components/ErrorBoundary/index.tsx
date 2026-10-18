@@ -1,6 +1,7 @@
 import React from "react";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { DICT, FALLBACK_LANGUAGE } from "@/i18n";
+import { hideSplashOnce } from "@/screens/Loading/splash";
 import { THEME } from "@/theme";
 
 interface Props {
@@ -29,6 +30,8 @@ class ErrorBoundary extends React.Component<Props, State> {
 
   componentDidCatch(error: Error, info: React.ErrorInfo) {
     console.error("[ErrorBoundary]", error, info.componentStack);
+    // A crash before the first screen would otherwise stay behind the splash.
+    hideSplashOnce();
   }
 
   reset = () => {
