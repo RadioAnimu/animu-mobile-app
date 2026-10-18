@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import ErrorBoundary from "@/components/ErrorBoundary";
@@ -84,7 +84,9 @@ describe("PlayerProvider initialization failure", () => {
     expect(await screen.findByText("Something broke")).toBeTruthy();
     expect(screen.queryByText("loading")).toBeNull();
     expect(hideSplashOnce).toHaveBeenCalled();
-    expect(services[0].destroy).toHaveBeenCalled();
+    // The failed provider's teardown runs in a passive effect cleanup, which
+    // React may flush after the error screen has committed.
+    await waitFor(() => expect(services[0].destroy).toHaveBeenCalled());
 
     // Retry mounts a fresh provider, which sets up a new service.
     const pendingSetup = vi.fn(() => new Promise<void>(() => {}));
