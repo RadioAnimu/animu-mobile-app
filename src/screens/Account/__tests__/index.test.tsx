@@ -16,9 +16,11 @@ import { AnimuApiError } from "animu-api";
 import { ProviderLinkConflict } from "@/core/auth/errors";
 import { Account } from "@/screens/Account";
 
-vi.mock("react-native", async () => ({
-  ...(await import("@/__tests__/react-native-mock")).createReactNativeMock(),
-  Linking: { openURL: vi.fn(() => Promise.resolve()) },
+vi.mock("react-native", async () =>
+  (await import("@/__tests__/react-native-mock")).createReactNativeMock(),
+);
+vi.mock("@/utils/browser", () => ({
+  openInAppBrowser: vi.fn(async () => undefined),
 }));
 vi.mock("@react-native-vector-icons/material-icons/static", async () =>
   (await import("@/__tests__/react-native-mock")).createIconMock(),

@@ -1,15 +1,13 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
-import { Linking } from "react-native";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { AuthProfile } from "@/core/domain/user";
 import { RequestsStatus } from "@/screens/Account/RequestsStatus";
 
-vi.mock("react-native", async () => ({
-  ...(await import("@/__tests__/react-native-mock")).createReactNativeMock(),
-  Linking: { openURL: vi.fn(() => Promise.resolve()) },
-}));
+vi.mock("react-native", async () =>
+  (await import("@/__tests__/react-native-mock")).createReactNativeMock(),
+);
 vi.mock("@react-native-vector-icons/material-icons/static", async () =>
   (await import("@/__tests__/react-native-mock")).createIconMock(),
 );
@@ -35,7 +33,13 @@ vi.mock("@/components/SectionTitle", () => ({
   SectionTitle: ({ title }: { title: string }) => <h2>{title}</h2>,
 }));
 
-const mocks = vi.hoisted(() => ({ discordLinkable: true }));
+const mocks = vi.hoisted(() => ({
+  discordLinkable: true,
+  openInAppBrowser: vi.fn(async () => undefined),
+}));
+vi.mock("@/utils/browser", () => ({
+  openInAppBrowser: mocks.openInAppBrowser,
+}));
 vi.mock("@/constants/auth", () => ({
   isProviderLinkable: () => mocks.discordLinkable,
 }));
@@ -119,7 +123,7 @@ describe("RequestsStatus", () => {
         name: "How to turn on 2FA, Opens Discord's help page",
       }),
     );
-    expect(Linking.openURL).toHaveBeenCalledWith(
+    expect(mocks.openInAppBrowser).toHaveBeenCalledWith(
       "https://support.discord.com/hc/en-us/articles/219576828",
     );
 
@@ -139,7 +143,7 @@ describe("RequestsStatus", () => {
 
   it("survives the help page failing to open", async () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
-    vi.mocked(Linking.openURL).mockRejectedValueOnce(new Error("nope"));
+    vi.mocked(mocks.openInAppBrowser).mockRejectedValueOnce(new Error("nope"));
     setup(profile(false, ["discord"]));
 
     fireEvent.click(screen.getByRole("button", { name: /^How to turn on 2FA/ }));

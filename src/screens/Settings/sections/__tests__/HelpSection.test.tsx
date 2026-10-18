@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { HelpSection } from "@/screens/Settings/sections/HelpSection";
 
 const mocks = vi.hoisted(() => ({
-  openURL: vi.fn(async () => true),
+  openInAppBrowser: vi.fn(async () => undefined),
   onOpenAbout: vi.fn(),
 }));
 
@@ -19,7 +19,9 @@ vi.mock("@/hooks/useDict", () => ({
     new Proxy({} as Record<string, string>, { get: (_target, key) => String(key) }),
 }));
 vi.mock("expo-application", () => ({ nativeApplicationVersion: "9.8.7" }));
-vi.mock("expo-linking", () => ({ openURL: mocks.openURL }));
+vi.mock("@/utils/browser", () => ({
+  openInAppBrowser: mocks.openInAppBrowser,
+}));
 vi.mock("@/api", () => ({ API: { PRIVACY_URL: "https://privacy.test" } }));
 
 describe("HelpSection", () => {
@@ -38,6 +40,6 @@ describe("HelpSection", () => {
     expect(mocks.onOpenAbout).toHaveBeenCalled();
 
     fireEvent.click(screen.getByRole("link", { name: /SETTINGS_PRIVACY_POLICY/ }));
-    expect(mocks.openURL).toHaveBeenCalledWith("https://privacy.test");
+    expect(mocks.openInAppBrowser).toHaveBeenCalledWith("https://privacy.test");
   });
 });

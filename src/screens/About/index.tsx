@@ -1,7 +1,6 @@
 import type { ComponentProps, ReactNode } from "react";
 import { useCallback, useState } from "react";
 import { Icon } from "@/components/Icon";
-import * as Linking from "expo-linking";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { Image } from "expo-image";
 import * as Clipboard from "expo-clipboard";
@@ -22,6 +21,7 @@ import { useStackedRows } from "@/hooks/useStackedRows";
 import { useScrollEndPadding } from "@/hooks/useScrollEndPadding";
 import type { RootStackParamList } from "@/routes/app.routes";
 import { haptics } from "@/utils/haptics";
+import { openExternal, openInAppBrowser } from "@/utils/browser";
 import { THEME } from "@/theme";
 import { layoutEase } from "@/utils/layout-animation";
 import ccLicense from "@/assets/cc-by-nc-sa.webp";
@@ -260,10 +260,11 @@ export function About({ navigation }: Readonly<Props>) {
   const info = useAppInfo();
   const { toast } = useAlert();
 
-  /** Same as the module helper but user-visible: a toast on failure. */
+  /** Same as the module helpers but user-visible: a toast on failure,
+      whichever route the link takes — in-app or the system browser. */
   const openLink = useCallback(
-    (url: string) => {
-      void Linking.openURL(url).catch((error) => {
+    (opener: (url: string) => Promise<void>, url: string) => {
+      void opener(url).catch((error) => {
         console.warn("[About] openURL failed:", error);
         toast(dict.ABOUT_OPEN_ERROR, "error");
       });
@@ -336,20 +337,20 @@ export function About({ navigation }: Readonly<Props>) {
             label={dict.ABOUT_DISCORD_HELP}
             description={dict.ABOUT_DISCORD_DESC}
             hint={dict.ABOUT_OPENS_BROWSER}
-            onPress={() => openLink(API.DISCORD_URL)}
+            onPress={() => openLink(openExternal, API.DISCORD_URL)}
           />
           <RowDivider />
           <LinkRow
             icon="public"
             label={dict.LINKS_WEBSITE}
-            onPress={() => openLink(API.WEB_URL)}
+            onPress={() => openLink(openInAppBrowser, API.WEB_URL)}
           />
           <RowDivider />
           <SocialRow
             brand="github"
             label={dict.SETTINGS_FOOTER_SOURCE}
             hint={dict.ABOUT_OPENS_BROWSER}
-            onPress={() => openLink(API.GITHUB_URL)}
+            onPress={() => openLink(openExternal, API.GITHUB_URL)}
           />
         </View>
 
@@ -360,7 +361,7 @@ export function About({ navigation }: Readonly<Props>) {
             icon="code"
             label={dict.ABOUT_ROLE_MAINTAINER}
             description={MAINTAINER}
-            onPress={() => openLink(API.MAINTAINER_URL)}
+            onPress={() => openLink(openInAppBrowser, API.MAINTAINER_URL)}
           />
           <RowDivider />
           <InfoRow
@@ -377,21 +378,23 @@ export function About({ navigation }: Readonly<Props>) {
           <LinkRow
             icon="privacy-tip"
             label={dict.SETTINGS_PRIVACY_POLICY}
-            onPress={() => openLink(API.PRIVACY_URL)}
+            onPress={() => openLink(openInAppBrowser, API.PRIVACY_URL)}
           />
           <RowDivider />
           <LinkRow
             icon="copyright"
             label={dict.SETTINGS_CONTENT_LICENSE}
             description={dict.SETTINGS_CONTENT_LICENSE_DESC}
-            onPress={() => openLink(API.CONTENT_LICENSE_URL)}
+            onPress={() =>
+              openLink(openInAppBrowser, API.CONTENT_LICENSE_URL)
+            }
           />
           <RowDivider />
           <LinkRow
             icon="policy"
             label={dict.ABOUT_SOURCE_LICENSE}
             description={SOURCE_LICENSE}
-            onPress={() => openLink(SOURCE_LICENSE_URL)}
+            onPress={() => openLink(openInAppBrowser, SOURCE_LICENSE_URL)}
           />
         </View>
 
@@ -401,21 +404,21 @@ export function About({ navigation }: Readonly<Props>) {
             brand="facebook"
             label={dict.LINKS_FACEBOOK}
             hint={dict.ABOUT_OPENS_BROWSER}
-            onPress={() => openLink(API.FACEBOOK_URL)}
+            onPress={() => openLink(openExternal, API.FACEBOOK_URL)}
           />
           <RowDivider />
           <SocialRow
             brand="x"
             label={dict.LINKS_X}
             hint={dict.ABOUT_OPENS_BROWSER}
-            onPress={() => openLink(API.X_URL)}
+            onPress={() => openLink(openExternal, API.X_URL)}
           />
           <RowDivider />
           <SocialRow
             brand="bluesky"
             label={dict.LINKS_BLUESKY}
             hint={dict.ABOUT_OPENS_BROWSER}
-            onPress={() => openLink(API.BLUESKY_URL)}
+            onPress={() => openLink(openExternal, API.BLUESKY_URL)}
           />
         </View>
 
@@ -440,10 +443,10 @@ export function About({ navigation }: Readonly<Props>) {
           <TouchableOpacity
             accessibilityRole="link"
             accessibilityLabel={`${dict.ABOUT_ROLE_CHIHAYA}: ${ILLUSTRATOR}`}
-            accessibilityHint={dict.ABOUT_OPENS_BROWSER}
+            accessibilityHint={dict.ABOUT_OPENS_IN_APP}
             hitSlop={THEME.HIT_SLOP.MD}
             activeOpacity={THEME.OPACITY.PRESSED}
-            onPress={() => openLink(API.PIXIV_URL)}
+            onPress={() => openLink(openInAppBrowser, API.PIXIV_URL)}
           >
             <Text style={styles.footerLine}>
               {dict.ABOUT_ROLE_CHIHAYA}:{" "}
@@ -461,10 +464,12 @@ export function About({ navigation }: Readonly<Props>) {
           <TouchableOpacity
             accessibilityRole="link"
             accessibilityLabel={dict.SETTINGS_FOOTER_LICENSE}
-            accessibilityHint={dict.ABOUT_OPENS_BROWSER}
+            accessibilityHint={dict.ABOUT_OPENS_IN_APP}
             hitSlop={THEME.HIT_SLOP.MD}
             activeOpacity={THEME.OPACITY.PRESSED}
-            onPress={() => openLink(API.CONTENT_LICENSE_URL)}
+            onPress={() =>
+              openLink(openInAppBrowser, API.CONTENT_LICENSE_URL)
+            }
           >
             <Image
               source={ccLicense}

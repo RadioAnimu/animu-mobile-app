@@ -1,5 +1,4 @@
 import * as Application from "expo-application";
-import * as Linking from "expo-linking";
 import { Platform, View } from "react-native";
 
 import { version } from "@app/package.json";
@@ -9,6 +8,7 @@ import { SectionTitle } from "@/components/SectionTitle";
 import { useDict } from "@/hooks/useDict";
 import { InfoRow, LinkRow, ValueRow } from "@/screens/Settings/rows";
 import { styles } from "@/screens/Settings/styles";
+import { openInAppBrowser } from "@/utils/browser";
 
 interface Props {
   onOpenAbout: () => void;
@@ -51,7 +51,7 @@ export function HelpSection({ onOpenAbout }: Readonly<Props>) {
           icon="privacy-tip"
           label={dict.SETTINGS_PRIVACY_POLICY}
           onPress={() => {
-            Linking.openURL(API.PRIVACY_URL).catch((error) =>
+            openInAppBrowser(API.PRIVACY_URL).catch((error) =>
               console.warn("[Settings] privacy policy link failed:", error),
             );
           }}

@@ -18,7 +18,9 @@ import { Login } from "@/screens/Login";
 vi.mock("react-native", async () => ({
   ...(await import("@/__tests__/react-native-mock")).createReactNativeMock(),
   BackHandler: { addEventListener: vi.fn() },
-  Linking: { openURL: vi.fn(() => Promise.resolve()) },
+}));
+vi.mock("@/utils/browser", () => ({
+  openInAppBrowser: vi.fn(async () => undefined),
 }));
 vi.mock("react-native-keyboard-controller", async () =>
   (await import("@/__tests__/keyboard-controller-mock")).createKeyboardControllerMock(),

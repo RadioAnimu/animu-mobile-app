@@ -1,4 +1,4 @@
-import { Linking, View } from "react-native";
+import { View } from "react-native";
 
 import { Icon, type IconName } from "@/components/Icon";
 import {
@@ -12,6 +12,7 @@ import { isProviderLinkable } from "@/constants/auth";
 import type { AuthProfile } from "@/core/domain/user";
 import { useDict } from "@/hooks/useDict";
 import { THEME } from "@/theme";
+import { openInAppBrowser } from "@/utils/browser";
 import { styles } from "@/screens/Account/styles";
 
 /** Discord's own walkthrough for turning on two-factor authentication. */
@@ -108,7 +109,7 @@ function Checklist({
             label={dict.ACCOUNT_REQUESTS_2FA_HELP}
             description={dict.ACCOUNT_REQUESTS_2FA_HELP_DESC}
             onPress={() => {
-              void Linking.openURL(DISCORD_2FA_HELP_URL).catch((error) =>
+              void openInAppBrowser(DISCORD_2FA_HELP_URL).catch((error) =>
                 console.warn(
                   "[Account] failed to open Discord's 2FA help:",
                   error,

@@ -337,6 +337,7 @@ const DICT: Dict = {
   ABOUT_COPY_FAILED: "No se pudo copiar.",
   ABOUT_OPEN_ERROR: "No se pudo abrir el enlace.",
   ABOUT_OPENS_BROWSER: "Abre en el navegador",
+  ABOUT_OPENS_IN_APP: "Abre en la app",
 
   SETTINGS_LEGAL_TITLE: "Privacidad y licencias",
   SETTINGS_PRIVACY_POLICY: "Política de privacidad",

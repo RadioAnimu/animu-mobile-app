@@ -271,14 +271,14 @@ interface LinkRowProps {
   onPress: () => void;
 }
 
-/** Opens an external URL — privacy policy, license, store-required links. */
+/** Opens a URL in the in-app browser — privacy policy, license, store-required links. */
 export function LinkRow({ label, icon, description, onPress }: Readonly<LinkRowProps>) {
   const dict = useDict();
   return (
     <TouchableOpacity
       accessibilityRole="link"
       accessibilityLabel={description ? `${label}, ${description}` : label}
-      accessibilityHint={dict.ABOUT_OPENS_BROWSER}
+      accessibilityHint={dict.ABOUT_OPENS_IN_APP}
       activeOpacity={THEME.OPACITY.PRESSED}
       onPress={onPress}
       style={styles.row}

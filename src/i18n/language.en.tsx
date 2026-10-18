@@ -334,6 +334,7 @@ const DICT = {
   ABOUT_COPY_FAILED: "Couldn't copy.",
   ABOUT_OPEN_ERROR: "Couldn't open the link.",
   ABOUT_OPENS_BROWSER: "Opens in browser",
+  ABOUT_OPENS_IN_APP: "Opens in the app",
 
   SETTINGS_LEGAL_TITLE: "Privacy & licenses",
   SETTINGS_PRIVACY_POLICY: "Privacy policy",

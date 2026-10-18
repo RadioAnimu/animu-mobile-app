@@ -6,7 +6,6 @@ import {
   ActivityIndicator,
   Animated,
   BackHandler,
-  Linking,
   Text,
   TouchableOpacity,
   View,
@@ -42,6 +41,7 @@ import {
 import { useReducedMotion } from "@/hooks/useReducedMotion";
 import { useResendCooldown } from "@/hooks/useResendCooldown";
 import { haptics } from "@/utils/haptics";
+import { openInAppBrowser } from "@/utils/browser";
 import { interpolate } from "@/utils/format";
 import type { RootStackParamList } from "@/routes/app.routes";
 import { THEME } from "@/theme";
@@ -98,7 +98,7 @@ function LegalLine({ dict }: Readonly<{ dict: Dict }>) {
       <Text
         accessibilityRole="link"
         onPress={() => {
-          void Linking.openURL(API.PRIVACY_URL).catch((error) =>
+          void openInAppBrowser(API.PRIVACY_URL).catch((error) =>
             console.warn("[Login] failed to open the privacy policy:", error),
           );
         }}

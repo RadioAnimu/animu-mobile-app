@@ -336,6 +336,7 @@ const DICT: Dict = {
   ABOUT_COPY_FAILED: "コピーできませんでした",
   ABOUT_OPEN_ERROR: "リンクを開けませんでした。",
   ABOUT_OPENS_BROWSER: "ブラウザで開きます",
+  ABOUT_OPENS_IN_APP: "アプリ内で開きます",
 
   SETTINGS_LEGAL_TITLE: "プライバシーとライセンス",
   SETTINGS_PRIVACY_POLICY: "プライバシーポリシー",
