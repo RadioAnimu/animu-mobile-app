@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import { formatBytes, interpolate, percentOf } from "@/utils/format";
+import {
+  formatBytes,
+  formatResultCount,
+  interpolate,
+  percentOf,
+} from "@/utils/format";
 
 describe("formatBytes", () => {
   it("returns 0 MB for zero and non-finite input", () => {
@@ -52,5 +57,28 @@ describe("interpolate", () => {
 
   it("leaves unknown tokens untouched", () => {
     expect(interpolate("{a} {b}", { a: "x" })).toBe("x {b}");
+  });
+});
+
+describe("formatResultCount", () => {
+  const en = {
+    REQUEST_SEARCH_COUNT_ONE: "1 result",
+    REQUEST_SEARCH_COUNT_N: "{n} results",
+    NUMBER_DECIMAL_SEPARATOR: ".",
+  };
+  const pt = {
+    REQUEST_SEARCH_COUNT_ONE: "1 resultado",
+    REQUEST_SEARCH_COUNT_N: "{n} resultados",
+    NUMBER_DECIMAL_SEPARATOR: ",",
+  };
+
+  it("uses the singular for exactly one", () => {
+    expect(formatResultCount(1, en)).toBe("1 result");
+  });
+
+  it("groups thousands with the language's mark", () => {
+    expect(formatResultCount(169, en)).toBe("169 results");
+    expect(formatResultCount(3177, en)).toBe("3,177 results");
+    expect(formatResultCount(1234567, pt)).toBe("1.234.567 resultados");
   });
 });

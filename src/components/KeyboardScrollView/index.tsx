@@ -17,8 +17,13 @@ interface Props extends ScrollViewProps {
    *   height joins the content, so a short sheet rides up above the keyboard
    *   and a tall one (capped by the sheet's max height) scrolls the field
    *   into sight instead.
+   * - `"list"`: a list under a field that lives outside it (the request
+   *   screen's recent searches). Like `"sheet"`, a keyboard-high spacer joins
+   *   the content: on Android the native insets of `"screen"` give a list
+   *   shorter than its frame no scroll range, stranding the rows behind the
+   *   keyboard.
    */
-  variant?: "screen" | "sheet";
+  variant?: "screen" | "sheet" | "list";
 }
 
 /**
@@ -50,7 +55,7 @@ export const KeyboardScrollView = forwardRef<KeyboardAwareScrollViewRef, Props>(
         ref={ref}
         bottomOffset={THEME.KEYBOARD.CLEARANCE}
         extraKeyboardSpace={-covered}
-        mode={variant === "sheet" ? "layout" : "insets"}
+        mode={variant === "screen" ? "insets" : "layout"}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"
         // Pages keep the platform scroll indicator like every other page;

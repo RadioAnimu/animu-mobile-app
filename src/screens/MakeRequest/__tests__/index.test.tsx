@@ -17,7 +17,9 @@ vi.mock("react-native", async () =>
   (await import("@/__tests__/react-native-mock")).createReactNativeMock(),
 );
 vi.mock("react-native-keyboard-controller", async () =>
-  (await import("@/__tests__/keyboard-controller-mock")).createKeyboardControllerMock(),
+  (
+    await import("@/__tests__/keyboard-controller-mock")
+  ).createKeyboardControllerMock(),
 );
 vi.mock("@react-native-vector-icons/material-icons/static", async () =>
   (await import("@/__tests__/react-native-mock")).createIconMock(),
@@ -72,6 +74,7 @@ vi.mock("@/screens/MakeRequest/ResultsList", () => ({
     renderItem,
     showEmpty,
     emptyLabel,
+    countLabel,
     onRefresh,
     onEndReached,
     loadingMore,
@@ -80,11 +83,13 @@ vi.mock("@/screens/MakeRequest/ResultsList", () => ({
     renderItem: (args: { item: Track }) => ReactNode;
     showEmpty: boolean;
     emptyLabel: string;
+    countLabel?: string;
     onRefresh: () => void;
     onEndReached: () => void;
     loadingMore: boolean;
   }) => (
     <div data-testid="results" data-loading-more={String(loadingMore)}>
+      {countLabel && <h2>{countLabel}</h2>}
       {data.map((item) => (
         <div key={item.id}>{renderItem({ item })}</div>
       ))}
@@ -101,10 +106,16 @@ const mocks = vi.hoisted(() => ({
   settings: { selectedLanguage: "PT" },
   showError: vi.fn(),
   recent: {
-    recent: [] as string[],
+    recent: [] as {
+      query: string;
+      total: number | null;
+      searchedAt: number;
+      uses: number;
+    }[],
     addRecent: vi.fn(),
     removeRecent: vi.fn(),
     clearRecent: vi.fn(),
+    restoreRecent: vi.fn(),
   },
   haptics: { select: vi.fn(), error: vi.fn() },
   service: {
@@ -145,6 +156,18 @@ vi.mock("@/hooks/useDict", () => ({
     REQUEST_SEARCH_RECENT: "Recent",
     REQUEST_SEARCH_RECENT_CLEAR: "Clear recent",
     REQUEST_SEARCH_RECENT_REMOVE: "Remove",
+    REQUEST_SEARCH_RECENT_MATCHES: "Matching recent",
+    REQUEST_SEARCH_RECENT_EDIT: "Edit",
+    REQUEST_SEARCH_COUNT_ONE: "1 result",
+    REQUEST_SEARCH_COUNT_N: "{n} results",
+    REQUEST_SEARCH_COUNT_FOR: "{count} for {query}",
+    NUMBER_DECIMAL_SEPARATOR: ".",
+    REQUEST_SEARCH_RUN: "Search {query}",
+    REQUEST_SEARCH_RECENT_SHOW_ALL: "Show all ({n})",
+    REQUEST_SEARCH_RECENT_SHOW_LESS: "Show less",
+    REQUEST_SEARCH_RECENT_REMOVED: "Removed",
+    REQUEST_SEARCH_RECENT_CLEARED: "Cleared",
+    UNDO: "Undo",
     ERROR_RETRY: "Retry",
     REQUEST_NEEDS_SIGN_IN: "Sign in to request songs.",
     REQUEST_SIGN_IN_ACTION: "Sign in",
@@ -168,10 +191,22 @@ vi.mock("@/core/services/music-request.service", () => ({
   getSubmissionErrorMessage: mocks.submissionError,
 }));
 
-const page = (titles: string[], nextPageParams?: object) => ({
+const page = (
+  titles: string[],
+  nextPageParams?: object,
+  totalResults = titles.length,
+) => ({
   results: titles.map((title) => ({ id: title, title, requestable: true })),
   nextPageParams,
+  totalResults,
 });
+
+const entry = (
+  query: string,
+  total: number | null = 10,
+  searchedAt = 0,
+  uses = 1,
+) => ({ query, total, searchedAt, uses });
 
 const field = () => screen.getByRole("textbox", { name: "Search a title" });
 const type = (value: string) =>
@@ -233,7 +268,9 @@ describe("MakeRequest screen", () => {
       render(<MakeRequest />);
       expect(screen.getByText("Sign in to request songs.")).toBeTruthy();
       fireEvent.click(screen.getByRole("button", { name: "Sign in" }));
-      expect(mocks.navigation.navigate).toHaveBeenCalledExactlyOnceWith("Login");
+      expect(mocks.navigation.navigate).toHaveBeenCalledExactlyOnceWith(
+        "Login",
+      );
     });
 
     it("sends an unverified account to Account to set up Discord + 2FA", () => {
@@ -288,7 +325,40 @@ describe("MakeRequest screen", () => {
       );
       expect(screen.getByText("Gurenge")).toBeTruthy();
       expect(screen.getByText("Gurenge 2")).toBeTruthy();
-      expect(mocks.recent.addRecent).toHaveBeenCalledWith("guren");
+      expect(mocks.recent.addRecent).toHaveBeenCalledWith("guren", 2);
+    });
+
+    it("heads the results with the exact total for the searched query", async () => {
+      mocks.service.searchTracksByTitle.mockResolvedValue(
+        page(["A"], { page: 2 }, 3177),
+      );
+      await search("guren");
+      expect(screen.getByText("3,177 results for guren")).toBeTruthy();
+    });
+
+    it("keeps text typed while a search is in flight", async () => {
+      let resolve: (value: unknown) => void = () => undefined;
+      mocks.service.searchTracksByTitle.mockReturnValue(
+        new Promise((res) => (resolve = res)),
+      );
+      type("guren");
+      act(() => void submit());
+      type("gurenge");
+      await act(async () => resolve(page(["Gurenge"])));
+      expect((field() as HTMLInputElement).value).toBe("gurenge");
+    });
+
+    it("drops a search that lands after the field was cleared", async () => {
+      let resolve: (value: unknown) => void = () => undefined;
+      mocks.service.searchTracksByTitle.mockReturnValue(
+        new Promise((res) => (resolve = res)),
+      );
+      type("guren");
+      act(() => void submit());
+      fireEvent.click(screen.getByRole("button", { name: "Clear search" }));
+      await act(async () => resolve(page(["Gurenge"])));
+      expect(screen.queryByText("Gurenge")).toBeNull();
+      expect(mocks.recent.addRecent).not.toHaveBeenCalled();
     });
 
     it("shows a spinner instead of the list while the search is in flight", async () => {
@@ -310,6 +380,9 @@ describe("MakeRequest screen", () => {
       expect(screen.queryByText("No results")).toBeNull();
       await search("zzzz");
       expect(screen.getByText("No results")).toBeTruthy();
+      // A different, not yet searched query doesn't inherit the verdict.
+      type("yyyy");
+      expect(screen.queryByText("No results")).toBeNull();
     });
 
     it("reports a failed search, shows the retry banner, and retry recovers", async () => {
@@ -390,56 +463,197 @@ describe("MakeRequest screen", () => {
       expect(mocks.showError).toHaveBeenCalledWith("Search failed", "error");
       expect(screen.getByText("Retry")).toBeTruthy();
     });
-
-    it("refresh does nothing for a too-short query", async () => {
-      type("ab");
-      await act(async () => void fireEvent.click(screen.getByText("refresh")));
-      expect(mocks.service.searchTracksByTitle).not.toHaveBeenCalled();
-    });
   });
 
   describe("recent searches", () => {
     beforeEach(() => {
-      mocks.recent.recent = ["naruto", "bleach"];
+      mocks.recent.recent = [entry("naruto", 169), entry("bleach", 1)];
     });
+
+    /** A row's pick button, found by its accessible label. */
+    const row = (label: string) =>
+      screen.queryByRole("button", { name: label });
 
     it("appear while the field is empty, focused or not, instead of the results", () => {
       render(<MakeRequest />);
-      expect(screen.getByText("naruto")).toBeTruthy();
+      expect(row("naruto, 169 results")).toBeTruthy();
       fireEvent.focus(field());
-      expect(screen.getByText("naruto")).toBeTruthy();
-      expect(screen.getByText("bleach")).toBeTruthy();
+      expect(row("naruto, 169 results")).toBeTruthy();
+      expect(row("bleach, 1 result")).toBeTruthy();
       expect(screen.queryByTestId("results")).toBeNull();
     });
 
-    it("disappear once there is text", () => {
+    it("show each search's result count", () => {
+      render(<MakeRequest />);
+      expect(screen.getByText("(169 results)")).toBeTruthy();
+      expect(screen.getByText("(1 result)")).toBeTruthy();
+      expect(row("naruto, 169 results")).toBeTruthy();
+    });
+
+    it("omit the count for entries saved before counts were kept", () => {
+      mocks.recent.recent = [entry("naruto", null)];
+      render(<MakeRequest />);
+      expect(row("naruto")).toBeTruthy();
+      expect(screen.queryByText(/results?\)/)).toBeNull();
+    });
+
+    it("narrow to the matches while typing, without the Clear action", () => {
       render(<MakeRequest />);
       fireEvent.focus(field());
-      type("n");
-      expect(screen.queryByText("naruto")).toBeNull();
+      type("NAR");
+      expect(screen.getByText("Matching recent")).toBeTruthy();
+      expect(row("naruto, 169 results")).toBeTruthy();
+      expect(row("bleach, 1 result")).toBeNull();
+      expect(screen.queryByRole("button", { name: "Clear recent" })).toBeNull();
+      // The typed part is emphasized.
+      expect(screen.getByText("nar")).toBeTruthy();
+    });
+
+    it("offer to run the typed text when nothing matches it", async () => {
+      render(<MakeRequest />);
+      type("xyz");
+      expect(row("naruto, 169 results")).toBeNull();
+      expect(screen.queryByText("Matching recent")).toBeNull();
+      await act(
+        async () =>
+          void fireEvent.click(
+            screen.getByRole("button", { name: "Search xyz" }),
+          ),
+      );
+      expect(mocks.service.searchTracksByTitle).toHaveBeenCalledWith("xyz");
+      expect(KeyboardController.dismiss).toHaveBeenCalledTimes(1);
+    });
+
+    it("hide results for another query while a short edit matches nothing", async () => {
+      render(<MakeRequest />);
+      await search("guren");
+      type("zz");
+      expect(screen.queryByTestId("results")).toBeNull();
+      expect(screen.getByText("Type at least 3 letters")).toBeTruthy();
+    });
+
+    it("collapse Show all again after a trip through the type-ahead", () => {
+      mocks.recent.recent = Array.from({ length: 12 }, (_, index) =>
+        entry(`q${index}`, 2),
+      );
+      render(<MakeRequest />);
+      fireEvent.click(screen.getByRole("button", { name: "Show all (12)" }));
+      type("q1");
+      type("");
+      expect(row("q11, 2 results")).toBeNull();
+      expect(
+        screen.getByRole("button", { name: "Show all (12)" }),
+      ).toBeTruthy();
+    });
+
+    it("undo restores every variant the removal dropped", () => {
+      mocks.recent.recent = [entry("Naruto", 3), entry("naruto", 2)];
+      render(<MakeRequest />);
+      fireEvent.click(screen.getByRole("button", { name: "Remove: Naruto" }));
+      toastAction()?.onPress();
+      expect(mocks.recent.restoreRecent).toHaveBeenCalledWith([
+        entry("Naruto", 3),
+        entry("naruto", 2),
+      ]);
+    });
+
+    it("head the matches with the run row once the text is long enough", () => {
+      render(<MakeRequest />);
+      type("na");
+      expect(row("naruto, 169 results")).toBeTruthy();
+      expect(screen.queryByRole("button", { name: /^Search / })).toBeNull();
+      type("nar");
+      expect(screen.getByRole("button", { name: "Search nar" })).toBeTruthy();
+    });
+
+    it("rank matches from the whole history, strongest first, ten at most", () => {
+      mocks.recent.recent = [
+        ...Array.from({ length: 12 }, (_, index) =>
+          entry(`my love song ${index}`, 1, 100 - index),
+        ),
+        // The oldest, but the only one that starts with the text.
+        entry("lovely", 1, 1),
+      ];
+      render(<MakeRequest />);
+      type("love");
+      const rows = screen
+        .getAllByRole("button")
+        .map((button) => button.getAttribute("aria-label") ?? "")
+        .filter((label) => label.endsWith(", 1 result"));
+      expect(rows).toHaveLength(10);
+      expect(rows[0]).toBe("lovely, 1 result");
+      expect(rows[1]).toBe("my love song 0, 1 result");
+      expect(rows).not.toContain("my love song 9, 1 result");
+    });
+
+    it("show ten with an empty field, the rest behind Show all", () => {
+      mocks.recent.recent = Array.from({ length: 12 }, (_, index) =>
+        entry(`q${index}`, 2),
+      );
+      render(<MakeRequest />);
+      expect(row("q9, 2 results")).toBeTruthy();
+      expect(row("q10, 2 results")).toBeNull();
+      fireEvent.click(screen.getByRole("button", { name: "Show all (12)" }));
+      expect(row("q11, 2 results")).toBeTruthy();
+      fireEvent.click(screen.getByRole("button", { name: "Show less" }));
+      expect(row("q11, 2 results")).toBeNull();
+    });
+
+    it("come back over stale results while a new query is typed", async () => {
+      render(<MakeRequest />);
+      await search("guren");
+      expect(row("naruto, 169 results")).toBeNull();
+      type("naru");
+      expect(row("naruto, 169 results")).toBeTruthy();
+      expect(screen.queryByTestId("results")).toBeNull();
+    });
+
+    it("edit copies one into the field without searching", () => {
+      render(<MakeRequest />);
+      fireEvent.click(screen.getByRole("button", { name: "Edit: naruto" }));
+      expect((field() as HTMLInputElement).value).toBe("naruto");
+      expect(mocks.service.searchTracksByTitle).not.toHaveBeenCalled();
+      expect(KeyboardController.dismiss).not.toHaveBeenCalled();
     });
 
     it("picking one fills the field, hides the keyboard and searches", async () => {
       render(<MakeRequest />);
       fireEvent.focus(field());
-      await act(async () => void fireEvent.click(screen.getByText("naruto")));
+      await act(async () => void fireEvent.click(row("naruto, 169 results")!));
       expect(KeyboardController.dismiss).toHaveBeenCalledTimes(1);
       expect(mocks.service.searchTracksByTitle).toHaveBeenCalledWith("naruto");
       expect((field() as HTMLInputElement).value).toBe("naruto");
     });
 
-    it("removing one leaves the rest alone", () => {
+    /** The action handed to the last toast. */
+    const toastAction = () =>
+      mocks.showError.mock.lastCall?.[2]?.action as
+        { label: string; onPress: () => void } | undefined;
+
+    it("removing one leaves the rest alone, with an Undo", () => {
       render(<MakeRequest />);
       fireEvent.click(screen.getByRole("button", { name: "Remove: naruto" }));
       expect(mocks.recent.removeRecent).toHaveBeenCalledWith("naruto");
       expect(mocks.recent.clearRecent).not.toHaveBeenCalled();
+      expect(mocks.showError.mock.lastCall?.[0]).toBe("Removed");
+      expect(toastAction()?.label).toBe("Undo");
+      toastAction()?.onPress();
+      expect(mocks.recent.restoreRecent).toHaveBeenCalledWith([
+        entry("naruto", 169),
+      ]);
     });
 
-    it("clear wipes the history", () => {
+    it("clear wipes the history, with an Undo that brings it all back", () => {
       render(<MakeRequest />);
       fireEvent.focus(field());
       fireEvent.click(screen.getByRole("button", { name: "Clear recent" }));
       expect(mocks.recent.clearRecent).toHaveBeenCalledTimes(1);
+      expect(mocks.showError.mock.lastCall?.[0]).toBe("Cleared");
+      toastAction()?.onPress();
+      expect(mocks.recent.restoreRecent).toHaveBeenCalledWith([
+        entry("naruto", 169),
+        entry("bleach", 1),
+      ]);
     });
 
     it("are not offered when there is no history", () => {

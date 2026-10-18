@@ -86,9 +86,7 @@ export function formatListenDuration(
   }
   const days = Math.floor(hours / 24);
   const restH = hours % 24;
-  return restH > 0
-    ? `${days}${u.days} ${restH}${u.hours}`
-    : `${days}${u.days}`;
+  return restH > 0 ? `${days}${u.days} ${restH}${u.hours}` : `${days}${u.days}`;
 }
 
 /** Localized "N days / 1 day" streak label, shared by the stats surfaces. */
@@ -99,4 +97,27 @@ export function formatStreakLabel(
   return days === 1
     ? dict.STATS_STREAK_DAY
     : interpolate(dict.STATS_STREAK_DAYS, { n: days });
+}
+
+/**
+ * Localized "1 result / 3,177 results" label for request searches. Thousands
+ * are grouped with whichever mark the language doesn't use for decimals
+ * ("3.177" in Portuguese/Spanish).
+ */
+export function formatResultCount(
+  total: number,
+  dict: Pick<
+    Dict,
+    | "REQUEST_SEARCH_COUNT_ONE"
+    | "REQUEST_SEARCH_COUNT_N"
+    | "NUMBER_DECIMAL_SEPARATOR"
+  >,
+): string {
+  if (total === 1) return dict.REQUEST_SEARCH_COUNT_ONE;
+  const group = dict.NUMBER_DECIMAL_SEPARATOR === "," ? "." : ",";
+  let n = String(Math.max(0, Math.round(total)));
+  for (let at = n.length - 3; at > 0; at -= 3) {
+    n = `${n.slice(0, at)}${group}${n.slice(at)}`;
+  }
+  return interpolate(dict.REQUEST_SEARCH_COUNT_N, { n });
 }

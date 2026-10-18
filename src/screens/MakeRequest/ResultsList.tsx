@@ -20,6 +20,8 @@ interface Props {
   /** Whether the "nothing matched" label should show. */
   showEmpty: boolean;
   emptyLabel: string;
+  /** "169 results" over the rows; omitted while there are none. */
+  countLabel?: string;
   refreshing: boolean;
   onRefresh: () => void;
   /** A next page is in flight — shows the footer spinner. */
@@ -44,6 +46,7 @@ export function ResultsList({
   renderItem,
   showEmpty,
   emptyLabel,
+  countLabel,
   refreshing,
   onRefresh,
   loadingMore,
@@ -67,6 +70,13 @@ export function ResultsList({
       initialNumToRender={10}
       maxToRenderPerBatch={10}
       windowSize={7}
+      ListHeaderComponent={
+        countLabel && data.length > 0 ? (
+          <Text style={styles.resultsCount} accessibilityRole="header">
+            {countLabel}
+          </Text>
+        ) : null
+      }
       ListEmptyComponent={
         showEmpty ? <Text style={styles.emptyText}>{emptyLabel}</Text> : null
       }

@@ -1,9 +1,10 @@
-import React, { useEffect, useMemo } from "react";
-import { Animated, StyleSheet, Text } from "react-native";
+import React, { useCallback, useEffect, useMemo, useRef } from "react";
+import { Animated, StyleSheet, Text, TouchableOpacity } from "react-native";
 import { Icon } from "@/components/Icon";
 import { useReducedMotion } from "@/hooks/useReducedMotion";
 import { THEME } from "@/theme";
 import { MOTION } from "@/theme/motion";
+import { haptics } from "@/utils/haptics";
 
 export type ToastVariant = "success" | "error" | "info";
 
@@ -13,6 +14,9 @@ const TOAST_HOLD_MS: Record<ToastVariant, number> = {
   info: 2400,
   error: 4000,
 };
+
+/** Actions take longer to be noticed and decided on — Material snackbar timing. */
+const TOAST_ACTION_HOLD_MS = 5000;
 
 const VARIANT_STYLE = {
   success: { icon: "check-circle", color: THEME.COLORS.BRAND },
@@ -24,19 +28,39 @@ const VARIANT_STYLE = {
  * Minimalist flash card: fades in at the bottom of the screen, holds for a
  * moment and fades itself out. Purely informational — pointerEvents="none"
  * so it never intercepts touches, and no dismiss button.
+ *
+ * With an `action` it becomes an undo-style snackbar instead: the chip
+ * surface and the action lettering take touches (`"auto"` — the wrapper
+ * above it is `"box-none"`, so screen touches still pass through), holds
+ * on longer, and the press runs the action once before the chip dismisses.
  */
 export const Toast = React.memo(function Toast({
   message,
   variant = "success",
+  action,
   onDone,
 }: {
   message: string;
   variant?: ToastVariant;
+  /** Text button at the end of the chip ("Undo"); its press dismisses. */
+  action?: { label: string; onPress: () => void };
   onDone?: () => void;
 }) {
-  const holdMs = TOAST_HOLD_MS[variant];
+  // Material snackbar guidance: an actionable chip needs its own, longer hold.
+  const holdMs = action ? TOAST_ACTION_HOLD_MS : TOAST_HOLD_MS[variant];
   const progress = useMemo(() => new Animated.Value(0), []);
   const reduceMotion = useReducedMotion();
+  // Set on the first press — a double tap must not re-run the action.
+  const firedRef = useRef(false);
+
+  /** One press, one outcome: fire helpfully once, then dismiss the chip. */
+  const handleActionPress = useCallback(() => {
+    if (firedRef.current) return;
+    firedRef.current = true;
+    haptics.select();
+    action?.onPress();
+    onDone?.();
+  }, [action, onDone]);
 
   useEffect(() => {
     const animation = Animated.sequence([
@@ -68,7 +92,7 @@ export const Toast = React.memo(function Toast({
 
   return (
     <Animated.View
-      pointerEvents="none"
+      pointerEvents={action ? "auto" : "none"}
       accessibilityRole={variant === "error" ? "alert" : undefined}
       accessibilityLiveRegion="polite"
       style={[
@@ -85,6 +109,17 @@ export const Toast = React.memo(function Toast({
       <Text style={styles.text} numberOfLines={2}>
         {message}
       </Text>
+      {action && (
+        <TouchableOpacity
+          accessibilityRole="button"
+          accessibilityLabel={action.label}
+          activeOpacity={THEME.OPACITY.PRESSED}
+          hitSlop={THEME.HIT_SLOP.SM}
+          onPress={handleActionPress}
+        >
+          <Text style={styles.actionText}>{action.label}</Text>
+        </TouchableOpacity>
+      )}
     </Animated.View>
   );
 });
@@ -114,5 +149,10 @@ const styles = StyleSheet.create({
     fontSize: THEME.FONT_SIZE.LABEL,
     fontFamily: THEME.FONT_FAMILY.REGULAR,
     flexShrink: 1,
+  },
+  actionText: {
+    color: THEME.COLORS.BRAND,
+    fontSize: THEME.FONT_SIZE.LABEL,
+    fontFamily: THEME.FONT_FAMILY.BOLD,
   },
 });

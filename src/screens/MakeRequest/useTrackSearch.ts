@@ -16,6 +16,8 @@ export const MIN_SEARCH_LENGTH = 3;
 
 interface SearchState {
   query: string;
+  /** The query `results` belong to — `query` drifts from it while typing. */
+  searched?: string;
   results: MusicRequest[];
   pagination?: MusicRequestPagination;
   status: "idle" | "loading" | "loadingMore";
@@ -33,16 +35,14 @@ export function useTrackSearch({
   onSearched,
 }: {
   listRef: RefObject<FlatList<MusicRequest> | null>;
-  /** Called with the trimmed query after a search lands successfully. */
-  onSearched: (query: string) => void;
+  /** Called with the trimmed query and its total match count after a search lands. */
+  onSearched: (query: string, total: number) => void;
 }) {
   const { toast } = useAlert();
   const dict = useDict();
   const { begin, isCurrent } = useLatestRequest();
 
   const [state, setState] = useState<SearchState>(INITIAL_STATE);
-  /** Whether a search has ever run, so "no results" only shows afterwards. */
-  const [hasSearched, setHasSearched] = useState(false);
   /** Last search failed — suppress the empty state so it can't contradict the toast. */
   const [searchFailed, setSearchFailed] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -63,21 +63,22 @@ export function useTrackSearch({
       // Searching on one or two letters returns a useless wall of matches.
       if (query.length < MIN_SEARCH_LENGTH) return;
       const requestId = begin();
-      setHasSearched(true);
       setSearchFailed(false);
       setState((prev) => ({ ...prev, query, status: "loading" }));
       try {
         const response = await musicRequestService.searchTracksByTitle(query);
         if (!isCurrent(requestId)) return;
-        setState({
-          query,
+        setState((prev) => ({
+          // Text typed while the search was in flight stays in the field.
+          query: prev.query,
+          searched: query,
           results: response.results,
           pagination: response,
           status: "idle",
-        });
+        }));
         // A fresh search starts reading from the top.
         scrollToTop();
-        onSearched(query);
+        onSearched(query, response.totalResults);
       } catch (err) {
         console.error("[MakeRequest] search failed:", err);
         if (!isCurrent(requestId)) return;
@@ -120,19 +121,22 @@ export function useTrackSearch({
   }, [begin, isCurrent, state.pagination, state.status, toast, dict]);
 
   const refresh = useCallback(async () => {
-    const query = state.query.trim();
+    // Pull-to-refresh re-runs what the list shows, not a half-typed edit.
+    const query = (state.searched ?? state.query).trim();
     if (query.length < MIN_SEARCH_LENGTH) return;
     const requestId = begin();
     setRefreshing(true);
     try {
       const response = await musicRequestService.searchTracksByTitle(query);
       if (!isCurrent(requestId)) return;
-      setState({
-        query,
+      setState((prev) => ({
+        // Keeps whatever was typed meanwhile.
+        query: prev.query,
+        searched: query,
         results: response.results,
         pagination: response,
         status: "idle",
-      });
+      }));
       scrollToTop();
     } catch (err) {
       console.error("[MakeRequest] search failed:", err);
@@ -146,15 +150,16 @@ export function useTrackSearch({
     } finally {
       setRefreshing(false);
     }
-  }, [begin, isCurrent, scrollToTop, state.query, toast, dict]);
+  }, [begin, isCurrent, scrollToTop, state.searched, state.query, toast, dict]);
 
   /** One tap empties the field, the old results and every error state. */
   const clear = useCallback(() => {
     haptics.select();
+    // A search still in flight must not land on the emptied field.
+    begin();
     setState(INITIAL_STATE);
-    setHasSearched(false);
     setSearchFailed(false);
-  }, []);
+  }, [begin]);
 
   const markRequested = useCallback((trackId: string) => {
     setState((prev) => ({
@@ -170,11 +175,12 @@ export function useTrackSearch({
 
   return {
     query: state.query,
+    searchedQuery: state.searched,
+    totalResults: state.pagination?.totalResults,
     results: state.results,
     loading: state.status === "loading",
     loadingMore: state.status === "loadingMore",
     idle: state.status === "idle",
-    hasSearched,
     searchFailed,
     refreshing,
     setQuery,

@@ -144,17 +144,49 @@ export const styles = StyleSheet.create({
     // Same edges as the "Recent / Clear" header above the rows.
     paddingLeft: THEME.SPACE.XS,
   },
-  recentRemove: {
+  recentAction: {
     alignSelf: "stretch",
     justifyContent: "center",
     paddingLeft: THEME.SPACE.LG,
+  },
+  recentActionLast: {
     paddingRight: THEME.SPACE.XS,
   },
-  recentText: {
+  // Query + count on one line: the query truncates, the count never does.
+  recentLabel: {
     flex: 1,
+    flexDirection: "row",
+    alignItems: "baseline",
+    gap: THEME.SPACE.SM,
+  },
+  recentText: {
+    flexShrink: 1,
     color: THEME.COLORS.TEXT,
     fontFamily: THEME.FONT_FAMILY.REGULAR,
     fontSize: THEME.FONT_SIZE.LIST,
+  },
+  recentMatch: {
+    fontFamily: THEME.FONT_FAMILY.BOLD,
+  },
+  recentCount: {
+    flexShrink: 0,
+    color: THEME.COLORS.TEXT_DIM,
+    fontFamily: THEME.FONT_FAMILY.REGULAR,
+    fontSize: THEME.FONT_SIZE.LABEL,
+  },
+  // The "Search “…”" row over the type-ahead matches.
+  recentRun: {
+    marginBottom: THEME.SPACE.SM,
+  },
+  recentMore: {
+    alignSelf: "center",
+    paddingVertical: THEME.SPACE.MD,
+  },
+  resultsCount: {
+    color: THEME.COLORS.TEXT_DIM,
+    fontFamily: THEME.FONT_FAMILY.REGULAR,
+    fontSize: THEME.FONT_SIZE.LABEL,
+    paddingHorizontal: THEME.SPACE.XS,
   },
   loadMoreSpinner: {
     margin: THEME.SPACE.MD,

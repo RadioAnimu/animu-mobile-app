@@ -41,18 +41,30 @@ const DIALOG_ENTER_SCALE = 0.94;
 interface ToastState {
   message: string;
   variant: ToastVariant;
+  /** Optional trailing chip action ("Undo"); dropped when the chip is replaced. */
+  action?: ToastAction;
   /** Bumped on every call so re-triggering remounts (fresh fade animation). */
   seed: number;
+}
+
+export interface ToastAction {
+  label: string;
+  onPress: () => void;
 }
 
 interface AlertContextProps {
   success: (message: string) => void;
   error: (message: string) => void;
   /**
-   * Minimalist flash chip at the bottom — auto-dismisses, no interaction.
-   * Errors stay on screen longer than successes.
+   * Minimalist flash chip at the bottom — auto-dismisses. Errors stay on
+   * screen longer than successes, and an optional `options.action` turns
+   * the chip into an interactive undo-style snackbar that holds longer.
    */
-  toast: (message: string, variant?: ToastVariant) => void;
+  toast: (
+    message: string,
+    variant?: ToastVariant,
+    options?: { action?: ToastAction },
+  ) => void;
 }
 
 const AlertContext = createContext<AlertContextProps>({
@@ -112,10 +124,16 @@ export const AlertProvider: React.FC<{ children: ReactNode }> = ({
   );
 
   const toast = useCallback(
-    (message: string, variant: ToastVariant = "success") => {
+    (
+      message: string,
+      variant: ToastVariant = "success",
+      options?: { action?: ToastAction },
+    ) => {
       setToastState((prev) => ({
         message,
         variant,
+        // The undo window closes with the chip — a replacement drops the old action.
+        action: options?.action,
         seed: (prev?.seed ?? 0) + 1,
       }));
     },
@@ -154,10 +172,12 @@ export const AlertProvider: React.FC<{ children: ReactNode }> = ({
             while typing — "code sent", a failed send — is never hidden
             behind it. The keyboard covers the bottom inset, which is handed
             back once open so the gap above the keyboard matches the gap
-            above the home indicator. */}
+            above the home indicator. The band spans the screen, so when the
+            chip is interactive it must hand touches back ("box-none") —
+            only the chip itself answers them. */}
         {toastState && (
           <KeyboardStickyView
-            pointerEvents="none"
+            pointerEvents={toastState.action ? "box-none" : "none"}
             offset={{ opened: insets.bottom }}
             style={[
               styles.toastWrap,
@@ -168,6 +188,7 @@ export const AlertProvider: React.FC<{ children: ReactNode }> = ({
               key={toastState.seed}
               message={toastState.message}
               variant={toastState.variant}
+              action={toastState.action}
               onDone={clearToast}
             />
           </KeyboardStickyView>

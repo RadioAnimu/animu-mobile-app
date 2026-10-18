@@ -1,0 +1,137 @@
+// @vitest-environment jsdom
+import React from "react";
+import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
+
+import { Toast } from "@/components/Toast";
+
+/** `Animated.sequence` steps are recorded so holds can be asserted from them. */
+const animated = vi.hoisted(() => {
+  const timing = vi.fn(() => ({ stop: vi.fn() }));
+  const delay = vi.fn(() => ({ stop: vi.fn() }));
+  const sequence = vi.fn(() => ({ start: vi.fn(), stop: vi.fn() }));
+  class Value {
+    value = 0;
+    setValue(next: number) {
+      this.value = next;
+    }
+    interpolate() {
+      return {};
+    }
+  }
+  return { timing, delay, sequence, Value };
+});
+
+vi.mock("react-native", () => {
+  const passthrough = (tag: string) => {
+    const Component = ({
+      children,
+      onPress,
+      accessibilityLabel,
+      pointerEvents,
+    }: Record<string, unknown>) =>
+      React.createElement(
+        tag,
+        {
+          "aria-label": accessibilityLabel as string | undefined,
+          "data-pointer-events": pointerEvents as string | undefined,
+          onClick: onPress as (() => void) | undefined,
+        },
+        children as React.ReactNode,
+      );
+    Component.displayName = `Mock(${tag})`;
+    return Component;
+  };
+  return {
+    Dimensions: { get: () => ({ width: 390, height: 844 }) },
+    Easing: {
+      out: (fn: unknown) => fn,
+      in: (fn: unknown) => fn,
+      inOut: (fn: unknown) => fn,
+    },
+    StyleSheet: { create: (styles: object) => styles },
+    Animated: {
+      View: passthrough("div"),
+      Value: animated.Value,
+      timing: animated.timing,
+      delay: animated.delay,
+      sequence: animated.sequence,
+    },
+    Text: passthrough("span"),
+    TouchableOpacity: passthrough("button"),
+  };
+});
+
+vi.mock("@/components/Icon", () => ({
+  Icon: ({ name }: { name: string }) => <i data-icon={name} />,
+}));
+vi.mock("@/hooks/useReducedMotion", () => ({ useReducedMotion: () => false }));
+const haptics = vi.hoisted(() => ({ select: vi.fn() }));
+vi.mock("@/utils/haptics", () => ({ haptics }));
+
+afterEach(cleanup);
+
+describe("Toast", () => {
+  it("renders an action-less chip as a non-interactive surface", () => {
+    const { container } = render(<Toast message="Copied" />);
+
+    const chip = container.firstChild as HTMLElement;
+    expect(chip.getAttribute("data-pointer-events")).toBe("none");
+    expect(screen.queryByRole("button")).toBeNull();
+    // Variant holds stay untouched.
+    expect(animated.delay).toHaveBeenLastCalledWith(1800);
+  });
+
+  it("renders an action toast as an interactive chip with a trailing button", () => {
+    const { container } = render(
+      <Toast message="History cleared" action={{ label: "Undo", onPress: vi.fn() }} />,
+    );
+
+    const chip = container.firstChild as HTMLElement;
+    expect(chip.getAttribute("data-pointer-events")).toBe("auto");
+    expect(screen.getByText("History cleared")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Undo" })).toBeTruthy();
+  });
+
+  it("holds an action toast for 5s, regardless of the variant", () => {
+    render(
+      <Toast
+        message="History cleared"
+        variant="error"
+        action={{ label: "Undo", onPress: vi.fn() }}
+      />,
+    );
+
+    // The error variant alone holds 4000ms; the action's 5s wins.
+    expect(animated.delay).toHaveBeenCalledWith(5000);
+  });
+
+  it("fires the action exactly once — even on a double tap — and dismisses", () => {
+    const onPress = vi.fn();
+    const onDone = vi.fn();
+    render(
+      <Toast message="History cleared" action={{ label: "Undo", onPress }} onDone={onDone} />,
+    );
+
+    const button = screen.getByRole("button", { name: "Undo" });
+    fireEvent.click(button);
+    fireEvent.click(button);
+
+    expect(onPress).toHaveBeenCalledTimes(1);
+    expect(haptics.select).toHaveBeenCalledTimes(1);
+    expect(onDone).toHaveBeenCalledTimes(1);
+  });
+
+  it("still dismisses on its own when the fade completes", () => {
+    const onDone = vi.fn();
+    render(
+      <Toast message="Copied" action={{ label: "Undo", onPress: vi.fn() }} onDone={onDone} />,
+    );
+
+    // The mocked sequence holds the start callback; finishing it must dismiss.
+    const start = animated.sequence.mock.results.at(-1)?.value.start;
+    act(() => start?.mock.calls[0]?.[0]?.({ finished: true }));
+
+    expect(onDone).toHaveBeenCalledTimes(1);
+  });
+});

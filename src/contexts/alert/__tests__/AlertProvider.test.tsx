@@ -37,9 +37,13 @@ vi.mock("react-native", () => {
 });
 
 vi.mock("react-native-keyboard-controller", () => ({
-  KeyboardStickyView: ({ children }: { children: React.ReactNode }) => (
-    <div>{children}</div>
-  ),
+  KeyboardStickyView: ({
+    children,
+    pointerEvents,
+  }: {
+    children: React.ReactNode;
+    pointerEvents?: string;
+  }) => <div data-pointer-events={pointerEvents}>{children}</div>,
 }));
 
 vi.mock("expo-image", () => ({
@@ -59,10 +63,35 @@ vi.mock("@/contexts/Portal", () => ({
   Portal: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 }));
 vi.mock("@/components/Toast", () => ({
-  Toast: ({ message, variant }: { message: string; variant?: string }) => (
-    <p data-testid="toast" data-variant={variant}>
-      {message}
-    </p>
+  // Stands in for the real chip contract: an action press fires the action
+  // once and then dismisses via `onDone`.
+  Toast: ({
+    message,
+    variant,
+    action,
+    onDone,
+  }: {
+    message: string;
+    variant?: string;
+    action?: { label: string; onPress: () => void };
+    onDone?: () => void;
+  }) => (
+    <>
+      <p data-testid="toast" data-variant={variant}>
+        {message}
+      </p>
+      {action && (
+        <button
+          data-testid="toast-action"
+          onClick={() => {
+            action.onPress();
+            onDone?.();
+          }}
+        >
+          {action.label}
+        </button>
+      )}
+    </>
   ),
 }));
 // The overlay's enter/exit is timing-only; here it mounts with `visible`.
@@ -79,22 +108,32 @@ vi.mock("@/hooks/useDict", () => ({
   useDict: () => ({ OK_BUTTON: "OK", A11Y_CLOSE: "Close" }),
 }));
 
-const Trigger = () => {
+const Trigger = ({ onUndo }: { onUndo?: () => void }) => {
   const alert = useAlert();
+  const undo: () => void = onUndo ?? (() => {});
   return (
     <>
       <button onClick={() => alert.success("Saved!")}>success</button>
       <button onClick={() => alert.error("Boom")}>error</button>
       <button onClick={() => alert.toast("Copied")}>toast</button>
       <button onClick={() => alert.toast("Nope", "error")}>toast-error</button>
+      <button
+        onClick={() =>
+          alert.toast("History cleared", "success", {
+            action: { label: "Undo", onPress: undo },
+          })
+        }
+      >
+        toast-undo
+      </button>
     </>
   );
 };
 
-const renderProvider = () =>
+const renderProvider = (onUndo?: () => void) =>
   render(
     <AlertProvider>
-      <Trigger />
+      <Trigger onUndo={onUndo} />
     </AlertProvider>,
   );
 
@@ -219,5 +258,58 @@ describe("AlertProvider", () => {
       "error",
     );
     expect(screen.queryByRole("dialog")).toBeNull();
+  });
+
+  it("renders an action toast with the action wired through", () => {
+    const onUndo = vi.fn();
+    renderProvider(onUndo);
+    fireEvent.click(screen.getByText("toast-undo"));
+
+    expect(screen.getByTestId("toast").textContent).toBe("History cleared");
+    expect(screen.getByText("Undo")).toBeTruthy();
+    expect(screen.queryByRole("dialog")).toBeNull();
+  });
+
+  it("fires an action toast's action once and dismisses the chip", () => {
+    const onUndo = vi.fn();
+    renderProvider(onUndo);
+    fireEvent.click(screen.getByText("toast-undo"));
+    fireEvent.click(screen.getByText("Undo"));
+
+    expect(onUndo).toHaveBeenCalledTimes(1);
+    expect(screen.queryByTestId("toast")).toBeNull();
+    expect(screen.queryByText("Undo")).toBeNull();
+  });
+
+  it("lets an action toast supersede a plain one", () => {
+    renderProvider();
+    fireEvent.click(screen.getByText("toast"));
+    fireEvent.click(screen.getByText("toast-undo"));
+
+    expect(screen.queryByText("Copied")).toBeNull();
+    expect(screen.getByText("History cleared")).toBeTruthy();
+  });
+
+  it("drops a replaced action toast's pending action without firing it", () => {
+    const onUndo = vi.fn();
+    renderProvider(onUndo);
+    fireEvent.click(screen.getByText("toast-undo"));
+    fireEvent.click(screen.getByText("toast-error"));
+
+    // The undo window closed with the chip it belonged to.
+    expect(onUndo).not.toHaveBeenCalled();
+    expect(screen.getByText("Nope")).toBeTruthy();
+    expect(screen.queryByText("Undo")).toBeNull();
+  });
+
+  it("opens the interactive band only for action toasts", () => {
+    renderProvider();
+    fireEvent.click(screen.getByText("toast"));
+
+    const band = document.querySelector("[data-pointer-events]");
+    expect(band?.getAttribute("data-pointer-events")).toBe("none");
+
+    fireEvent.click(screen.getByText("toast-undo"));
+    expect(band?.getAttribute("data-pointer-events")).toBe("box-none");
   });
 });
