@@ -201,6 +201,10 @@ const DICT: Dict = {
     "「Hey Siri、Rádio Animuを再生」と話しかけてください",
   SETTINGS_ASSISTANT_HINT_ANDROID:
     "「Ok Google、Rádio Animuを再生」と話しかけてください",
+  SETTINGS_RATE_APP: "アプリを評価",
+  SETTINGS_RATE_APP_DESC: "{store}で5つ星のレビューを書いてください",
+  SETTINGS_RATE_SOON: "{store}で近日公開予定",
+  SETTINGS_RATE_OPEN_ERROR: "ストアを開けませんでした。",
   SETTINGS_ADVANCED_TITLE: "詳細",
   SETTINGS_RESET_ROW: "設定をリセット",
   SETTINGS_RESET_DESC: "アプリの設定（歌詞とストレージを含む）を元に戻します。アカウントと視聴統計は変わりません。",
@@ -324,8 +328,6 @@ const DICT: Dict = {
   ABOUT_ROLE_FOUNDER: "創設・デザイン",
   ABOUT_ROLE_DEV: "開発",
   ABOUT_ROLE_CHIHAYA: "千早のイラスト",
-
-  ABOUT_SOURCE_LICENSE: "ソースコードのライセンス",
 
   ABOUT_DONORS_TITLE: "支援者",
   ABOUT_DONORS_INTRO:

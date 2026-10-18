@@ -5,10 +5,13 @@
  * only URLs the UI links to directly remain here.
  */
 
-const WEB_URL = "https://www.animu.com.br/";
+/** The station's site, on its current animu.moe domain. */
+const WEB_URL = "https://www.animu.moe/";
 const DISCORD_URL = "https://discord.animu.com.br";
 /** Same policy URL declared on the Google Play production listing. */
 const PRIVACY_URL = "https://www.animu.com.br/privacypolicy";
+/** Which store pages have the app (drives the Settings "Rate the app" row). */
+const STORE_LINKS_URL = "https://www.animu.moe/teste/app-stores.php";
 /** Station content license, mirrored from the animu.moe footer: CC BY-NC-SA 4.0. */
 const CONTENT_LICENSE_URL =
   "https://creativecommons.org/licenses/by-nc-sa/4.0/";
@@ -27,6 +30,7 @@ export const API = {
   WEB_URL,
   DISCORD_URL,
   PRIVACY_URL,
+  STORE_LINKS_URL,
   CONTENT_LICENSE_URL,
   FACEBOOK_URL,
   X_URL,

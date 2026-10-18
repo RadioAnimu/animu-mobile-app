@@ -200,6 +200,10 @@ const DICT: Dict = {
   SETTINGS_ASSISTANT_TITLE: "Reprodução por voz",
   SETTINGS_ASSISTANT_HINT_IOS: 'Peça "Ei Siri, tocar Rádio Animu"',
   SETTINGS_ASSISTANT_HINT_ANDROID: 'Peça "Ok Google, tocar Rádio Animu"',
+  SETTINGS_RATE_APP: "Avalie o app",
+  SETTINGS_RATE_APP_DESC: "Deixe uma avaliação de 5 estrelas na loja {store}",
+  SETTINGS_RATE_SOON: "Em breve na loja {store}",
+  SETTINGS_RATE_OPEN_ERROR: "Não foi possível abrir a loja.",
   SETTINGS_ADVANCED_TITLE: "Avançado",
   SETTINGS_RESET_ROW: "Redefinir configurações",
   SETTINGS_RESET_DESC:
@@ -323,8 +327,6 @@ const DICT: Dict = {
   ABOUT_ROLE_FOUNDER: "Fundação e design",
   ABOUT_ROLE_DEV: "Desenvolvimento",
   ABOUT_ROLE_CHIHAYA: "Ilustração da Chihaya",
-
-  ABOUT_SOURCE_LICENSE: "Licença do código-fonte",
 
   ABOUT_DONORS_TITLE: "Doadores",
   ABOUT_DONORS_INTRO:

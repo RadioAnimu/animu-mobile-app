@@ -40,9 +40,6 @@ type IconName = ComponentProps<typeof Icon>["name"];
 
 const APP_NAME = "Rádio Animu";
 const MAINTAINER = "Ricardo Freitas (Ness)";
-/** Source-code license: MIT, per the root LICENSE/NOTICE. */
-const SOURCE_LICENSE = "MIT";
-const SOURCE_LICENSE_URL = `${API.GITHUB_URL}/blob/main/LICENSE`;
 
 interface DetailRowProps {
   icon: IconName;
@@ -343,6 +340,7 @@ export function About({ navigation }: Readonly<Props>) {
           <LinkRow
             icon="public"
             label={dict.LINKS_WEBSITE}
+            description="www.animu.moe"
             onPress={() => openLink(openInAppBrowser, API.WEB_URL)}
           />
           <RowDivider />
@@ -389,13 +387,6 @@ export function About({ navigation }: Readonly<Props>) {
               openLink(openInAppBrowser, API.CONTENT_LICENSE_URL)
             }
           />
-          <RowDivider />
-          <LinkRow
-            icon="policy"
-            label={dict.ABOUT_SOURCE_LICENSE}
-            description={SOURCE_LICENSE}
-            onPress={() => openLink(openInAppBrowser, SOURCE_LICENSE_URL)}
-          />
         </View>
 
         <SectionTitle title={dict.SETTINGS_FOOTER_SOCIAL} icon="share" />
@@ -435,6 +426,9 @@ export function About({ navigation }: Readonly<Props>) {
 
         <View style={styles.footer}>
           <Text style={styles.footerLine}>{dict.SETTINGS_FOOTER_TEAM}</Text>
+          <Text style={styles.footerLine}>
+            {dict.ABOUT_ROLE_FOUNDER}: {FOUNDER}
+          </Text>
           <Text style={styles.footerLine}>
             {dict.ABOUT_ROLE_DEV}: {DEVELOPERS.join(", ")}
           </Text>

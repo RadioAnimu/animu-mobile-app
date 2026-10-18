@@ -268,20 +268,32 @@ interface LinkRowProps {
   label: string;
   icon: MaterialIconName;
   description?: string;
+  /** Screen-reader hint override — rows that leave the app don't open in it. */
+  hint?: string;
+  /** Pressable but greyed down: the destination isn't there yet, tapping
+      explains why (a store that hasn't listed the app). */
+  dimmed?: boolean;
   onPress: () => void;
 }
 
 /** Opens a URL in the in-app browser — privacy policy, license, store-required links. */
-export function LinkRow({ label, icon, description, onPress }: Readonly<LinkRowProps>) {
+export function LinkRow({
+  label,
+  icon,
+  description,
+  hint,
+  dimmed,
+  onPress,
+}: Readonly<LinkRowProps>) {
   const dict = useDict();
   return (
     <TouchableOpacity
       accessibilityRole="link"
       accessibilityLabel={description ? `${label}, ${description}` : label}
-      accessibilityHint={dict.ABOUT_OPENS_IN_APP}
+      accessibilityHint={hint ?? dict.ABOUT_OPENS_IN_APP}
       activeOpacity={THEME.OPACITY.PRESSED}
       onPress={onPress}
-      style={styles.row}
+      style={[styles.row, dimmed && styles.rowDisabled]}
     >
       <LeadingIcon name={icon} />
       <RowBody label={label} description={description} />
