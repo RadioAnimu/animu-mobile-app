@@ -9,6 +9,7 @@ import { CONFIG, debugLog } from "@/utils/player.config";
 import type { AudioPlayer, NowPlayingMetadata } from "@/core/player/ports";
 import { buildNowPlayingMetadata } from "@/core/player/media-session/now-playing.metadata";
 import { pickPreviewArtwork, type ArtworkResolver } from "@/core/player/storage/artwork";
+import { BackgroundIdle } from "@/core/player/stream-playback/background-idle";
 import type { HeardTrack } from "@/core/player/stream-playback/heard-track";
 import { positionAt, type NowHearing } from "@/core/player/stream-playback/now-hearing";
 import type { NowPlayingRepository } from "@/core/player/stream-playback/now-playing.repository";
@@ -63,7 +64,11 @@ export interface HeardPosition {
   raw: string;
   /** Elapsed ms into the track at the moment of the call. */
   elapsedMs: number;
-  /** Audio is flowing: the position advances with the wall clock. */
+  /**
+   * The position advances with the wall clock: audio is flowing, or the
+   * display follows the station's live point (nothing is audible then, but
+   * the music on air moves on). Stops at the track's end.
+   */
   advancing: boolean;
 }
 
@@ -112,6 +117,12 @@ export class PlayerService {
   private tuneIn = true;
   private lastPollAt = 0;
   private lastState: PlaybackState = "idle";
+  /** Hidden with no audio wanted — the clock behind the realtime-connection deadline. */
+  private readonly backgroundIdle = new BackgroundIdle();
+  /** The previous evaluation saw the app idle: leaving it is a "return" (catch up). */
+  private wasIdle = false;
+  /** A track change skipped the lyrics prefetch while idle; the return does it. */
+  private lyricsSkipped = false;
   private readonly unsubscribe: (() => void)[] = [];
 
   constructor(private readonly deps: PlayerServiceDependencies) {
@@ -150,14 +161,25 @@ export class PlayerService {
         .catch((error) => console.warn("[PlayerService] refresh for heard title:", error))
         .finally(() => heard.unresolved(title));
     };
+    // The deadline is enforced where JS runs in the background: the SSE events.
+    repository.shouldStayLive = () => this.updateLiveStreamLifecycle();
+    repository.isQuiet = () => this.isQuiet;
     repository.onChange = (change) => {
       if (change.trackChanged) {
-        // Announced a stream-lag ahead of the speaker: warm its cover now.
-        prefetchArtwork(
-          { artwork: deps.artwork, isOnline: () => player.status.network !== "offline" },
-          repository.currentTrack,
-        );
-        deps.onTrackAnnounced?.(repository.currentTrack);
+        if (this.isQuiet) {
+          // Hidden and nothing playing: only the lock screen is looking, and
+          // its path (a station-mode display change → `updateNowPlaying`)
+          // downloads the cover itself. The in-app cover and the lyrics wait
+          // for the return (`catchUp`).
+          this.lyricsSkipped = true;
+        } else {
+          // Announced a stream-lag ahead of the speaker: warm its cover now.
+          prefetchArtwork(
+            { artwork: deps.artwork, isOnline: () => player.status.network !== "offline" },
+            repository.currentTrack,
+          );
+          deps.onTrackAnnounced?.(repository.currentTrack);
+        }
         heard.stationChanged();
         hearing.stationChanged();
       }
@@ -172,6 +194,15 @@ export class PlayerService {
 
   get isPlayingIntent(): boolean {
     return this.pendingPlay || this.deps.player.status.playWhenReady;
+  }
+
+  /**
+   * Hidden with no audio wanted, read straight from the truth (no clock
+   * involved): the state in which nothing but the lock screen looks at the
+   * station, so its extras (history, lyrics, in-app cover) are deferred.
+   */
+  private get isQuiet(): boolean {
+    return !this.appActive && !this.isPlayingIntent;
   }
 
   /** A track is known (the UI can render the player). */
@@ -190,7 +221,7 @@ export class PlayerService {
     const meta = buildNowPlayingMetadata({
       track: artwork.apply(this.deps.hearing.track),
       isLive: this.deps.repository.currentProgram?.isLive ?? false,
-      showProgress: this.deps.repository.showProgress && this.deps.hearing.anchored,
+      showProgress: this.deps.repository.showProgress && this.deps.hearing.positionKnown,
       defaultCover: artwork.defaultCover,
     });
     if (!meta.artwork || artwork.isRemote(meta.artwork)) meta.artwork = artwork.defaultCover;
@@ -198,22 +229,25 @@ export class PlayerService {
   }
 
   /**
-   * Where the listener is in the heard song, right now — `null` while that is
+   * Where the listener is in the shown song, right now — `null` while that is
    * not known (no title heard / the clock not settled since the source
-   * opened); held at the song's end once past it. Cheap: arithmetic on the
+   * opened, or no usable start time); held at the song's end once past it.
+   * Without audio it is the station's live point. Cheap: arithmetic on the
    * current anchor.
    */
   heardPosition(): HeardPosition | null {
     const { hearing } = this.deps;
     const track = hearing.track;
-    if (!track || !hearing.anchored) return null;
-    const elapsedMs = hearing.elapsedMs();
-    // Known but past the song's end (the next title is not heard yet): the
+    const position = hearing.positionKnown ? hearing.position() : null;
+    if (!track || !position) return null;
+    // Not started yet (a start time ahead of the clock) reads as its start.
+    const elapsed = Math.max(0, positionAt(position, Date.now()));
+    // Past the song's end (the next one is not heard / announced yet): the
     // song is over, not lost — hold at its end.
-    if (elapsedMs == null) {
-      return track.duration > 0 ? { raw: track.raw, elapsedMs: track.duration, advancing: false } : null;
+    if (track.duration > 0 && elapsed > track.duration) {
+      return { raw: track.raw, elapsedMs: track.duration, advancing: false };
     }
-    return { raw: track.raw, elapsedMs, advancing: this.lastState === "playing" };
+    return { raw: track.raw, elapsedMs: elapsed, advancing: position.running };
   }
 
   peekArtwork(url: string): string | undefined {
@@ -258,12 +292,54 @@ export class PlayerService {
   // ── Lifecycle ──
 
   /**
-   * Realtime (SSE) battery policy: keep it while the app is visible, while
-   * audio is wanted, or when the user opted to always keep live updates.
+   * Realtime (SSE) policy: a radio client is always kept up to date — except
+   * once the user has not cared for `BACKGROUND_IDLE_CUTOFF_MS` (10 min): the app
+   * hidden AND no audio wanted (see `BackgroundIdle`). Then the connection and
+   * the automatic station work are suspended to save data and battery, and
+   * come back with the foreground or a play intent (the lock screen's
+   * included), catching up.
+   *
+   * Re-evaluated at every visibility and intent change, and by the repository
+   * before each SSE event (the only code running when JS timers are frozen).
+   * Returns whether the live work is allowed.
    */
-  updateLiveStreamLifecycle(): void {
-    const always = userSettingsService.getCurrentSettings().liveUpdatesInBackground;
-    this.deps.repository.setLiveStreamActive(always || this.appActive || this.isPlayingIntent);
+  updateLiveStreamLifecycle(): boolean {
+    const { repository } = this.deps;
+    const wasIdle = this.wasIdle;
+    this.backgroundIdle.update(this.appActive, this.isPlayingIntent);
+    this.wasIdle = this.backgroundIdle.idle;
+    const allowed = this.backgroundIdle.liveAllowed();
+    const resuming = allowed && repository.isSuspended;
+    repository.setLiveStreamActive(allowed);
+    if (resuming || (wasIdle && !this.wasIdle)) this.catchUp(resuming);
+    return allowed;
+  }
+
+  /**
+   * The user is back (foreground, or audio wanted again) after an idle spell.
+   * Resuming from a suspension: the stream is re-attached (the daemon seeds
+   * the current state), a stuck refresh is released first so the fetch is not
+   * swallowed by its latch, the data is fetched and the played history is
+   * re-read — it only refreshes on a track change otherwise, and the changes
+   * of the suspended span were never seen. A return inside the grace only
+   * makes up what was deferred: a skipped history fetch and the lyrics.
+   */
+  private catchUp(fromSuspension: boolean): void {
+    if (!this.initialized) return;
+    const { repository } = this.deps;
+    repository.expireStuckRefresh();
+    if (fromSuspension) {
+      void this.refreshData().catch((error) => {
+        if (CONFIG.DEBUG) console.warn("[PlayerService] resume refresh:", error);
+      });
+    }
+    // Inside the grace the stream never dropped, so the data is current: only
+    // the history fetch a track change skipped is owed.
+    if (fromSuspension || repository.historyStale) void this.refreshHistory("played");
+    if (this.lyricsSkipped) {
+      this.lyricsSkipped = false;
+      this.deps.onTrackAnnounced?.(repository.currentTrack);
+    }
   }
 
   /**
@@ -277,9 +353,18 @@ export class PlayerService {
     this.updateLiveStreamLifecycle();
     this.updateTicker();
     if (active) {
+      // Back after a long pause: the grace may have run out with no tick to say.
+      this.deps.hearing.recheck();
       this.emitPlayer();
       this.emitStation();
       this.emitProgress();
+      // The data kept still while hidden (a 30 s poll at best): catch up now,
+      // not on the next tick.
+      if (this.initialized && Date.now() - this.lastPollAt > POLL_PAUSED_MS) {
+        void this.refreshData().catch((error) => {
+          if (CONFIG.DEBUG) console.warn("[PlayerService] resume refresh:", error);
+        });
+      }
     }
   }
 
@@ -363,12 +448,31 @@ export class PlayerService {
 
   async play(): Promise<void> {
     if (this.disposed) return;
+    // Read before the intent is set: `syncIntent` takes the display out of
+    // station mode, and the resume below depends on where it was.
+    const wasStation = this.deps.hearing.mode === "station";
     this.pendingPlay = true;
+    this.syncIntent();
+    // Audio wanted: the realtime stream is back at once, even if the idle
+    // deadline had passed while the app stayed hidden (lock-screen play).
+    this.updateLiveStreamLifecycle();
     this.emitPlayer();
     try {
       if (this.streamOptions.length) await this.deps.streamPreferences.restore(this.streamOptions);
       const stream = this.deps.streamPreferences.current;
       if (this.loadedStreamId !== stream.id) {
+        await this.open(stream, true);
+      } else if (wasStation) {
+        // The display had already given up the heard position — a pause past
+        // the station grace (`STATION_AFTER_PAUSE_MS`), or a torn-down player.
+        // Airwave re-opens at the live edge only past *its* drift threshold
+        // (`liveMaxDriftMs`), and it counts the drift of earlier pauses too,
+        // while the app flips on its own JS clock: near the boundary a plain
+        // resume continues in place, reporting no loading status and no fresh
+        // ICY title, so the position would stay unknown ("syncing") until the
+        // next song's title, minutes away. Re-open unconditionally instead —
+        // the resume is always a tune-in at the live edge, which is what
+        // Airwave does past the threshold anyway.
         await this.open(stream, true);
       } else {
         // Airwave resumes in place, or re-opens at the live edge after a long
@@ -381,6 +485,10 @@ export class PlayerService {
       throw error;
     } finally {
       this.pendingPlay = false;
+      // A play that failed leaves no intent: the display follows the station,
+      // and the idle clock may start.
+      this.syncIntent();
+      this.updateLiveStreamLifecycle();
       this.updateTicker();
       this.emitPlayer();
     }
@@ -390,6 +498,8 @@ export class PlayerService {
     this.pendingPlay = false;
     if (this.disposed) return;
     await this.deps.player.pause();
+    this.syncIntent();
+    this.updateLiveStreamLifecycle();
     this.updateTicker();
     this.emitPlayer();
   }
@@ -451,12 +561,24 @@ export class PlayerService {
     const reopening = status.state === "loading" || status.state === "reconnecting";
     if (reopening && !this.tuneIn) this.markReopened();
     this.deps.heard.setRunning(playing);
+    this.syncIntent();
     this.deps.hearing.setPlaying(playing);
     this.deps.sampler.setPlaying(playing);
     this.updateLiveStreamLifecycle();
     this.updateTicker();
     this.emitPlayer();
     this.emitProgress();
+  }
+
+  /**
+   * Tells the display whether audio is wanted, and whether the player holds
+   * its place (paused, or still pausing) — what decides between following
+   * the audio and following the station. Every command and status event that
+   * can change either calls it.
+   */
+  private syncIntent(): void {
+    const state = this.lastState;
+    this.deps.hearing.setIntent(this.isPlayingIntent, state === "paused" || state === "playing");
   }
 
   /** The source re-opened: the position is re-placed from the next title, as a tune-in. */
@@ -513,8 +635,8 @@ export class PlayerService {
   }
 
   /**
-   * The displayed track changed (heard, or the station's before anything was
-   * heard): UI, progress, lock screen and stats move together.
+   * The displayed track changed (heard, or the station's when nothing is
+   * heard or wanted): UI, progress, lock screen and stats move together.
    */
   private handleDisplayedTrackChange(): void {
     if (this.deps.hearing.anchored) {
@@ -601,6 +723,8 @@ export class PlayerService {
 
   private tick(): void {
     if (this.disposed) return;
+    // A pause outlasting its grace flips the display to the station.
+    this.deps.hearing.recheck();
     this.tickStats();
     this.emitProgress();
     this.deps.repository.expireStuckRefresh();

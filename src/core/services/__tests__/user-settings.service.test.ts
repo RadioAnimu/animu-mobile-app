@@ -58,6 +58,16 @@ describe("userSettingsService.initialize", () => {
     expect(settings.visualizerHz).toBe(DEFAULT_USER_SETTINGS.visualizerHz);
   });
 
+  it("strips the removed legacy liveUpdatesInBackground key from storage", async () => {
+    // Users upgrading from a build that still stored the removed toggle must
+    // not carry the key around (or re-persist it on the next settings write).
+    memory.set("userSettings", JSON.stringify({ liveUpdatesInBackground: false }));
+
+    const settings = await userSettingsService.initialize();
+
+    expect(settings).toEqual(DEFAULT_USER_SETTINGS);
+  });
+
   it("falls back to defaults on corrupt JSON", async () => {
     memory.set("userSettings", "{not json");
 

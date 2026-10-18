@@ -157,7 +157,6 @@ const DICT: Dict = {
 
   SETTINGS_LANGUAGE_ROW: "Idioma de la app",
 
-  SETTINGS_LIVE_UPDATES_SWITCH: "Información en vivo",
   SETTINGS_GENERAL_TITLE: "General",
   SETTINGS_PLAYBACK_TITLE: "Reproducción",
 
@@ -179,8 +178,6 @@ const DICT: Dict = {
   SETTINGS_QUALITY_ROW_DESC: "Portadas más nítidas usan más datos",
   SETTINGS_QUALITY_RECOMMENDED: "Recomendado",
   SETTINGS_VISUALIZER_DESC: "Onda de sonido mientras suena una canción",
-  SETTINGS_LIVE_UPDATES_DESC:
-    "Novedades de canciones con la app en segundo plano",
 
   SETTINGS_HAPTICS_SWITCH: "Respuesta háptica",
   A11Y_BACK: "Atrás",

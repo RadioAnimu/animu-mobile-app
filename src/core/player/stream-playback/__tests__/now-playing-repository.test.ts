@@ -1038,6 +1038,193 @@ describe("NowPlayingRepository — live SSE ingestion", () => {
     expect(repository.currentTrack?.raw).toBe("Live - Song");
     expect(repository.listeners?.value).toBe(12);
   });
+
+  // ── Background-idle suspension ──
+
+  const historyCalls = (fixture: Fixture, type: string) =>
+    (
+      fixture.repository["options"].fetchers.getTrackHistory as ReturnType<typeof vi.fn>
+    ).mock.calls.filter(([t]) => t === type);
+
+  describe("when the orchestrator withdraws permission", () => {
+    it.each([
+      ["song_change", (f: LiveFixture) => f.pushSong(makeTrack({ raw: "Late - Song" }), 12)],
+      ["listeners", (f: LiveFixture) => f.pushListeners(99)],
+      ["open", (f: LiveFixture) => f.pushOpen()],
+    ])("drops a %s event untouched and closes the stream", async (_name, push) => {
+      const fixture = withLive();
+      let allowed = true;
+      fixture.repository.shouldStayLive = () => allowed;
+      const onLiveTrackChange = vi.fn();
+      fixture.repository.onLiveTrackChange = onLiveTrackChange;
+
+      fixture.pushSong(makeTrack({ raw: "Live - Song" }), 12);
+      fixture.changes.length = 0;
+      const playedBefore = historyCalls(fixture, "played").length;
+
+      allowed = false;
+      push(fixture);
+      await tick();
+
+      expect(fixture.unsubscribe).toHaveBeenCalledTimes(1);
+      expect(fixture.repository.isSuspended).toBe(true);
+      // No state write, no onChange, no history fetch, no track hook.
+      expect(fixture.repository.currentTrack?.raw).toBe("Live - Song");
+      expect(fixture.repository.listeners?.value).toBe(12);
+      expect(fixture.changes).toEqual([]);
+      expect(onLiveTrackChange).toHaveBeenCalledTimes(1);
+      expect(historyCalls(fixture, "played")).toHaveLength(playedBefore);
+    });
+
+    it("cancels the track-end refresh and the retry backoff, and nothing re-arms them", async () => {
+      const error = vi.spyOn(console, "error").mockImplementation(() => {});
+      try {
+        const fixture = withLive();
+        let allowed = true;
+        fixture.repository.shouldStayLive = () => allowed;
+        fixture.pushSong(makeTrack({ raw: "Live - Song", startTime: new Date() }), 12);
+        // A failing poll arms the retry backoff next to the track-end timer.
+        const fetchers = fixture.repository["options"].fetchers;
+        fetchers.getCurrentProgram = vi.fn(async () => {
+          throw new Error("offline");
+        });
+        await fixture.repository.refresh();
+        expect(fixture.timer.scheduled.length).toBe(2);
+
+        allowed = false;
+        fixture.pushListeners(50);
+
+        expect(fixture.timer.scheduled).toEqual([]);
+        // Nothing comes back by itself, not even for a very late tick.
+        fixture.timer.advance(60 * 60_000);
+        expect(fixture.timer.scheduled).toEqual([]);
+        expect(fetchers.getCurrentProgram).toHaveBeenCalledTimes(1);
+      } finally {
+        error.mockRestore();
+      }
+    });
+
+    it("a run in flight at suspension neither writes state nor re-arms a timer when it settles", async () => {
+      const fixture = withLive();
+      const { repository } = fixture;
+      const fetchers = repository["options"].fetchers;
+      let release!: (program: Program) => void;
+      fetchers.getCurrentProgram = vi.fn(
+        () => new Promise<Program>((resolve) => (release = resolve)),
+      );
+      const run = repository.refresh();
+      await tick();
+
+      repository.setLiveStreamActive(false);
+      fixture.changes.length = 0;
+      release(makeProgram({ name: "Late show" }));
+
+      expect(await run).toBe(false);
+      expect(repository.currentProgram).toBeNull();
+      expect(fixture.changes).toEqual([]);
+      expect(fixture.timer.scheduled).toEqual([]);
+    });
+
+    it("a run in flight at suspension is invalidated: a resume refreshes afresh and the late payload is dropped", async () => {
+      const fixture = withLive();
+      const { repository } = fixture;
+      const fetchers = repository["options"].fetchers;
+      const releases: ((program: Program) => void)[] = [];
+      fetchers.getCurrentProgram = vi.fn(
+        () => new Promise<Program>((resolve) => releases.push(resolve)),
+      );
+      const stale = repository.refresh();
+      await tick();
+
+      repository.setLiveStreamActive(false);
+      expect(fetchers.abortInFlightRequests).toHaveBeenCalledTimes(1);
+      repository.setLiveStreamActive(true);
+
+      // The resume's own refresh is not swallowed by the old run's latch.
+      const fresh = repository.refresh();
+      await tick();
+      expect(fetchers.getCurrentProgram).toHaveBeenCalledTimes(2);
+
+      releases[1](makeProgram({ name: "Fresh show" }));
+      await fresh;
+      releases[0](makeProgram({ name: "Stale show" }));
+      expect(await stale).toBe(false);
+      expect(repository.currentProgram?.name).toBe("Fresh show");
+    });
+
+    it("a failure in flight at suspension does not schedule a retry", async () => {
+      const error = vi.spyOn(console, "error").mockImplementation(() => {});
+      try {
+        const fixture = withLive();
+        const { repository } = fixture;
+        const fetchers = repository["options"].fetchers;
+        let fail!: (reason: Error) => void;
+        fetchers.getCurrentProgram = vi.fn(
+          () => new Promise<Program>((_resolve, reject) => (fail = reject)),
+        );
+        const run = repository.refresh();
+        await tick();
+
+        repository.setLiveStreamActive(false);
+        fail(new Error("socket closed"));
+
+        expect(await run).toBe(false);
+        expect(fixture.timer.scheduled).toEqual([]);
+      } finally {
+        error.mockRestore();
+      }
+    });
+
+    it("refresh() and the history fetch are no-ops until the stream is switched back on", async () => {
+      const subscribe = vi.fn((..._args: unknown[]) => () => {});
+      const fixture = makeRepository({ subscribeLive: subscribe as never });
+      const { repository } = fixture;
+      repository.startLive();
+      repository.setLiveStreamActive(false);
+      expect(repository.isSuspended).toBe(true);
+      repository.startLive(); // a stray start does not slip past the suspension
+      expect(subscribe).toHaveBeenCalledTimes(1);
+
+      expect(await repository.refresh()).toBe(false);
+      await repository.refreshHistory("played");
+      expect(fixture.repository["options"].fetchers.getCurrentProgram).not.toHaveBeenCalled();
+      expect(historyCalls(fixture, "played")).toEqual([]);
+
+      repository.setLiveStreamActive(true);
+      expect(repository.isSuspended).toBe(false);
+      expect(subscribe).toHaveBeenCalledTimes(2); // re-attached: the daemon seeds it
+      expect(await repository.refresh()).toBe(true);
+    });
+  });
+
+  describe("while quiet (hidden, nothing playing)", () => {
+    it("skips the played-history fetch on a track change and remembers it", async () => {
+      const fixture = withLive();
+      let quiet = true;
+      fixture.repository.isQuiet = () => quiet;
+
+      fixture.pushSong(makeTrack({ raw: "Live - Quiet" }), 12);
+      await tick();
+
+      expect(fixture.repository.currentTrack?.raw).toBe("Live - Quiet");
+      expect(historyCalls(fixture, "played")).toEqual([]);
+      expect(fixture.repository.historyStale).toBe(true);
+
+      // The catch-up fetch clears the mark.
+      quiet = false;
+      await fixture.repository.refreshHistory("played");
+      expect(fixture.repository.historyStale).toBe(false);
+      expect(historyCalls(fixture, "played")).toHaveLength(1);
+    });
+
+    it("fetches the history as usual when not quiet", async () => {
+      const fixture = withLive();
+      fixture.pushSong(makeTrack({ raw: "Live - Loud" }), 12);
+      await tick();
+      expect(historyCalls(fixture, "played")).toHaveLength(1);
+      expect(fixture.repository.historyStale).toBe(false);
+    });
+  });
 });
 
 /** Drains the microtask queue without advancing fake timers. */

@@ -14,7 +14,6 @@ const mocks = vi.hoisted(() => ({
   updateSettings: vi.fn(),
   clearAll: vi.fn(),
   trim: vi.fn(),
-  updateLiveStreamLifecycle: vi.fn(),
   setVisualizerEnabled: vi.fn(),
 }));
 
@@ -29,7 +28,6 @@ vi.mock("@/core/services/cover-disk-storage.service", () => ({
 }));
 vi.mock("@/core/player", () => ({
   playerService: () => ({
-    updateLiveStreamLifecycle: mocks.updateLiveStreamLifecycle,
     setVisualizerEnabled: mocks.setVisualizerEnabled,
   }),
 }));
@@ -79,7 +77,6 @@ describe("UserSettingsProvider", () => {
 
     await waitFor(() => expect(result.current.settings.hapticsEnabled).toBe(false));
     expect(mocks.setVisualizerEnabled).toHaveBeenCalledWith(true);
-    expect(mocks.updateLiveStreamLifecycle).toHaveBeenCalled();
   });
 
   it("merges a partial update, persists it, and applies it", async () => {

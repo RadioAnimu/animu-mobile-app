@@ -157,7 +157,6 @@ const DICT: Dict = {
 
   SETTINGS_LANGUAGE_ROW: "アプリの言語",
 
-  SETTINGS_LIVE_UPDATES_SWITCH: "リアルタイム情報",
   SETTINGS_GENERAL_TITLE: "一般",
   SETTINGS_PLAYBACK_TITLE: "再生",
 
@@ -179,7 +178,6 @@ const DICT: Dict = {
   SETTINGS_QUALITY_ROW_DESC: "きれいな画像は通信量が増えます",
   SETTINGS_QUALITY_RECOMMENDED: "おすすめ",
   SETTINGS_VISUALIZER_DESC: "再生中に波形を表示します",
-  SETTINGS_LIVE_UPDATES_DESC: "バックグラウンドでも曲情報を更新します",
 
   SETTINGS_HAPTICS_SWITCH: "触覚フィードバック",
   A11Y_BACK: "戻る",

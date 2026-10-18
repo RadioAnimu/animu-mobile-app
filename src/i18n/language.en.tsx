@@ -156,7 +156,6 @@ const DICT = {
 
   SETTINGS_LANGUAGE_ROW: "App language",
 
-  SETTINGS_LIVE_UPDATES_SWITCH: "Live song info",
   SETTINGS_GENERAL_TITLE: "General",
   SETTINGS_PLAYBACK_TITLE: "Playback",
 
@@ -178,7 +177,6 @@ const DICT = {
   SETTINGS_QUALITY_ROW_DESC: "Sharper covers use more data",
   SETTINGS_QUALITY_RECOMMENDED: "Recommended",
   SETTINGS_VISUALIZER_DESC: "Sound wave while a song is playing",
-  SETTINGS_LIVE_UPDATES_DESC: "Song updates while the app is in the background",
 
   SETTINGS_HAPTICS_SWITCH: "Haptic feedback",
   A11Y_BACK: "Back",

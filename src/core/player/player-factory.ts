@@ -55,6 +55,9 @@ export const createPlayerService = (onDestroyed?: () => void): PlayerService => 
     fetchers: animuService,
     getCoverQuality: () => userSettingsService.getCurrentSettings().liveQualityCover,
     getDefaultCover: () => artwork.defaultCover,
+    // The track-end refresh is about the station's data: the live point (the
+    // server's clock), not the audible one.
+    getNow: () => Date.now() + sync.clockSkew,
     timer: jsTimer,
   });
   const heard = new HeardTrack({

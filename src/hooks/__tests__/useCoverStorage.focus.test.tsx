@@ -94,7 +94,6 @@ vi.mock("@react-native-async-storage/async-storage", () => {
 
 vi.mock("@/core/player", () => ({
   playerService: () => ({
-    updateLiveStreamLifecycle: vi.fn(),
     setVisualizerEnabled: vi.fn(),
   }),
 }));

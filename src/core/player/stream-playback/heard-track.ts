@@ -351,6 +351,22 @@ export class HeardTrack {
     this.pending = null;
   }
 
+  /**
+   * The listening position is given up for good: the display goes back to
+   * the station's current track, with nothing heard and no position. Unlike
+   * {@link reopened} — a mid-play re-open, where the track on screen stays
+   * until the next title places it — the retained track and position here
+   * belong to a listening session that is over (a long pause), so keeping
+   * them would only show a song the station left long ago. The stream, the
+   * calibration and the clock skew belong to the device and survive.
+   */
+  abandon(): void {
+    this.displayed = null;
+    this.anchor = null;
+    this.media = null;
+    this.pending = null;
+  }
+
   /** HTTP `date` header skew sample (server = device + skew), from the API client. */
   setClockSkew(skewMs: number, rttMs: number): void {
     if (!Number.isFinite(skewMs) || rttMs > SKEW_MAX_RTT_MS) return;

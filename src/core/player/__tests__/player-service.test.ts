@@ -1,10 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type {
-  MediaMetadata,
   NowPlayingMetadata as AirwaveNowPlaying,
   PlaybackState,
-  PlayerEventMap,
-  PlayerStatus,
 } from "react-native-anything-player";
 import { PlayerService, type PlayerServiceDependencies } from "@/core/player/player-service";
 import { AudibleTrackResolver } from "@/core/player/stream-playback/audible-track";
@@ -13,13 +10,14 @@ import {
   STATION_AHEAD_OF_AUDIO_MS,
   icyTitleInItemMs,
 } from "@/core/player/stream-playback/heard-track";
-import { NowHearing } from "@/core/player/stream-playback/now-hearing";
+import { NowHearing, STATION_AFTER_PAUSE_MS } from "@/core/player/stream-playback/now-hearing";
 import { StreamSyncEngine } from "@/core/player/stream-playback/stream-sync";
 import { jsTimer } from "@/core/player/timer";
 import { playerStore, progressStore, stationStore } from "@/core/player/store";
 import type { Track } from "@/core/domain/track";
 import type { Stream } from "@/core/domain/stream";
 import { elapsedAt } from "@/utils/progress";
+import { FakePlayer } from "@/core/player/__tests__/fake-player";
 
 // The service's module graph reaches native modules — stub them for node.
 vi.mock("react-native", () => ({ Platform: { OS: "ios" } }));
@@ -69,71 +67,6 @@ const STREAMS: Stream[] = [
   { id: "low", url: "https://stream.example/64", label: "64" } as unknown as Stream,
 ];
 
-/** The slice of an Airwave player the service drives, with event emitters. */
-class FakePlayer {
-  status: PlayerStatus = {
-    state: "idle",
-    playWhenReady: false,
-    loadId: 0,
-    isLive: false,
-    duration: null,
-    seekable: false,
-    interruption: null,
-    error: null,
-    reconnect: null,
-    network: "online",
-    volume: 1,
-    muted: false,
-    rate: 1,
-  };
-  private listeners = new Map<string, Set<(...args: unknown[]) => void>>();
-  load = vi.fn(async (_source: unknown, options?: { autoplay?: boolean }) => {
-    this.setState("loading", options?.autoplay ?? false);
-    return this.status;
-  });
-  play = vi.fn(async () => {
-    this.setState(this.status.state === "paused" ? "playing" : this.status.state, true);
-    return this.status;
-  });
-  pause = vi.fn(async () => {
-    this.setState("paused", false);
-    return this.status;
-  });
-  updateNowPlaying = vi.fn(async (_m: AirwaveNowPlaying) => {});
-  setAudioSampling = vi.fn(() => true);
-  release = vi.fn(async () => {});
-  getProgress = vi.fn(() => ({
-    position: 0,
-    duration: null,
-    buffered: 0,
-    bufferedAhead: 6,
-    liveOffset: null,
-    timestamp: Date.now(),
-  }));
-
-  on<E extends keyof PlayerEventMap>(event: E, listener: PlayerEventMap[E]): () => void {
-    const set = this.listeners.get(event) ?? new Set();
-    set.add(listener as (...args: unknown[]) => void);
-    this.listeners.set(event, set);
-    return () => set.delete(listener as (...args: unknown[]) => void);
-  }
-
-  setState(state: PlaybackState, playWhenReady = this.status.playWhenReady): void {
-    this.status = { ...this.status, state, playWhenReady };
-    this.emit("status", this.status);
-  }
-
-  /** An ICY title becomes audible. */
-  hear(title: string, at = Date.now()): void {
-    const metadata: MediaMetadata = { title, raw: { StreamTitle: title }, timestamp: at };
-    this.emit("metadata", metadata);
-  }
-
-  emit(event: string, ...args: unknown[]): void {
-    this.listeners.get(event)?.forEach((l) => l(...args));
-  }
-}
-
 const setup = (extra: Partial<PlayerServiceDependencies> = {}) => {
   const player = new FakePlayer();
   const repository = {
@@ -152,6 +85,8 @@ const setup = (extra: Partial<PlayerServiceDependencies> = {}) => {
     dispose: vi.fn(),
     clear: vi.fn(),
     setLiveStreamActive: vi.fn(),
+    isSuspended: false,
+    historyStale: false,
   };
   const preferences = {
     current: STREAMS[0],
@@ -299,6 +234,9 @@ describe("PlayerService on react-native-anything-player", () => {
     });
     expect(options).toEqual({ autoplay: true });
     t.player.setState("playing", true);
+    // A heard title: the display is not the station's, so a resume continues
+    // in place (see the station-mode re-open in `play`).
+    t.player.hear("Song A");
     await t.service.pause();
     expect(t.player.pause).toHaveBeenCalled();
     await t.service.play();
@@ -892,5 +830,266 @@ describe("PlayerService on react-native-anything-player", () => {
     t.player.setState("playing", true);
     await t.service.play();
     expect(t.player.load).not.toHaveBeenCalled();
+  });
+
+  describe("with no audio, the display follows the station", () => {
+    const start = () => {
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date("2026-10-05T05:00:00Z"));
+    };
+    /** Plays Song A (30 s on air at the start), hears it, settles, then pauses. */
+    const playedAndPaused = async () => {
+      const t = setup();
+      await t.service.setupPlayer();
+      await t.service.play();
+      t.player.setState("playing", true);
+      t.player.hear("Song A");
+      t.settle(5, 6);
+      await t.service.pause();
+      return t;
+    };
+
+    it("a cold start shows the station's song and moves with it, without a play", async () => {
+      start();
+      const t = setup(); // Song A: on air for 30 s
+      await t.service.setupPlayer();
+      expect(t.hearing.mode).toBe("station");
+      expect(playerStore.getSnapshot().currentTrack?.raw).toBe("Song A");
+      expect(playerStore.getSnapshot().syncing).toBe(false);
+      expect(progressStore.getSnapshot()).toMatchObject({ progressMs: 30_000, progressRunning: true });
+      const anchor = progressStore.getSnapshot();
+      vi.advanceTimersByTime(5_000);
+      t.tick();
+      // The same anchor: the UI advances it itself, the store does not churn.
+      expect(progressStore.getSnapshot()).toBe(anchor);
+      expect(heardProgress()).toBe(35_000);
+      expect(t.service.heardPosition()).toEqual({ raw: "Song A", elapsedMs: 35_000, advancing: true });
+      // Nothing is heard: nothing is credited, and no lock screen exists yet.
+      expect(t.stats.onTrackHeard).not.toHaveBeenCalled();
+      expect(t.player.updateNowPlaying).not.toHaveBeenCalled();
+      vi.useRealTimers();
+    });
+
+    it("a cold start moves on to the next song as the station announces it", async () => {
+      start();
+      const t = setup();
+      await t.service.setupPlayer();
+      t.announce(track("Song B", { startTime: new Date(Date.now() - 2_000) }));
+      expect(playerStore.getSnapshot().currentTrack?.raw).toBe("Song B");
+      expect(heardProgress()).toBe(2_000);
+      expect(t.service.heardPosition()).toMatchObject({ raw: "Song B", elapsedMs: 2_000 });
+      expect(t.stats.onTrackHeard).not.toHaveBeenCalled();
+      vi.useRealTimers();
+    });
+
+    it("the lyrics clock's position: held at the end, 0 before the start, unknown without one", async () => {
+      start();
+      const t = setup();
+      await t.service.setupPlayer();
+      t.announce(track("Short", { duration: 20_000 })); // started 30 s ago
+      expect(t.service.heardPosition()).toEqual({ raw: "Short", elapsedMs: 20_000, advancing: false });
+      t.announce(track("Later", { startTime: new Date(Date.now() + 8_000) }));
+      expect(t.service.heardPosition()).toEqual({ raw: "Later", elapsedMs: 0, advancing: true });
+      vi.advanceTimersByTime(10_000);
+      expect(t.service.heardPosition()).toEqual({ raw: "Later", elapsedMs: 2_000, advancing: true });
+      t.announce(track("Live", { startTime: undefined }));
+      expect(t.service.heardPosition()).toBeNull();
+      expect(progressStore.getSnapshot().progressMs).toBeNull();
+      vi.useRealTimers();
+    });
+
+    it("a station jingle shows too", async () => {
+      start();
+      const t = setup();
+      t.repository.showProgress = false;
+      await t.service.setupPlayer();
+      t.announce(track("Rádio Animu - Vinheta", { duration: 10_000, startTime: new Date(Date.now() - 1_000) }));
+      expect(playerStore.getSnapshot().currentTrack?.raw).toBe("Rádio Animu - Vinheta");
+      expect(heardProgress()).toBe(1_000);
+      vi.useRealTimers();
+    });
+
+    it("a brief pause keeps the heard song; the tick alone moves on once it has run out", async () => {
+      start();
+      const t = await playedAndPaused();
+      t.announce(track("Song B", { startTime: new Date(Date.now() - 1_000) }));
+      expect(playerStore.getSnapshot().currentTrack?.raw).toBe("Song A");
+      const frozen = heardProgress();
+      vi.advanceTimersByTime(STATION_AFTER_PAUSE_MS - 1_000);
+      t.tick();
+      expect(playerStore.getSnapshot().currentTrack?.raw).toBe("Song A");
+      expect(heardProgress()).toBe(frozen);
+      expect(t.service.heardPosition()).toMatchObject({ raw: "Song A", advancing: false });
+      // No other event: the next tick flips the display.
+      vi.advanceTimersByTime(1_000);
+      t.tick();
+      expect(t.hearing.mode).toBe("station");
+      expect(playerStore.getSnapshot().currentTrack?.raw).toBe("Song B");
+      expect(heardProgress()).toBe(1_000 + STATION_AFTER_PAUSE_MS);
+      expect(progressStore.getSnapshot().progressRunning).toBe(true);
+      expect(playerStore.getSnapshot().syncing).toBe(false);
+      // The lock screen follows (the stream was loaded), without a re-open.
+      expect(lastNowPlaying(t.player)).toMatchObject({ title: "Song B (anime)", duration: 200 });
+      expect(t.player.load).toHaveBeenCalledTimes(1);
+      vi.useRealTimers();
+    });
+
+    it("a stopped player follows the station at once", async () => {
+      start();
+      const t = await playedAndPaused();
+      t.announce(track("Song B", { startTime: new Date(Date.now() - 1_000) }));
+      t.player.setState("stopped", false);
+      expect(t.hearing.mode).toBe("station");
+      expect(playerStore.getSnapshot().currentTrack?.raw).toBe("Song B");
+      expect(heardProgress()).toBe(1_000);
+      vi.useRealTimers();
+    });
+
+    it("a station song announced while paused for long reaches the lock screen", async () => {
+      start();
+      const t = await playedAndPaused();
+      vi.advanceTimersByTime(STATION_AFTER_PAUSE_MS);
+      t.tick();
+      t.player.updateNowPlaying.mockClear();
+      t.announce(track("Song C", { startTime: new Date(Date.now() - 500) }));
+      expect(playerStore.getSnapshot().currentTrack?.raw).toBe("Song C");
+      expect(lastNowPlaying(t.player)).toMatchObject({ title: "Song C (anime)", duration: 200 });
+      vi.useRealTimers();
+    });
+
+    it("play from the station's display: syncing, not heard, until the tune-in anchors", async () => {
+      start();
+      const t = await playedAndPaused();
+      t.announce(track("Song B", { startTime: new Date(Date.now() - 12_000) }));
+      t.player.setState("stopped", false); // a long pause: the stream was torn down
+      expect(t.hearing.mode).toBe("station");
+      const credited = t.stats.onTrackHeard.mock.calls.length;
+      await t.service.play();
+      // The station's song stays as the placeholder, no longer a known position.
+      expect(playerStore.getSnapshot().currentTrack?.raw).toBe("Song B");
+      expect(playerStore.getSnapshot().syncing).toBe(true);
+      expect(progressStore.getSnapshot().progressMs).toBeNull();
+      expect(t.service.heardPosition()).toBeNull();
+      t.player.setState("loading", true);
+      t.player.setState("playing", true);
+      t.player.hear("Song B");
+      expect(playerStore.getSnapshot().syncing).toBe(true);
+      expect(t.stats.onTrackHeard.mock.calls).toHaveLength(credited);
+      t.settle(5, 6);
+      expect(playerStore.getSnapshot().syncing).toBe(false);
+      expect(t.stats.onTrackHeard.mock.calls.length).toBeGreaterThan(credited);
+      expect(t.service.heardPosition()?.raw).toBe("Song B");
+      vi.useRealTimers();
+    });
+
+    it("a play that fails, or is paused while connecting, goes back to the station", async () => {
+      start();
+      const error = vi.spyOn(console, "error").mockImplementation(() => {});
+      const t = setup();
+      await t.service.setupPlayer();
+      t.preferences.restore.mockRejectedValueOnce(new Error("storage"));
+      await expect(t.service.play()).rejects.toThrow("storage");
+      expect(t.hearing.mode).toBe("station");
+      expect(playerStore.getSnapshot().syncing).toBe(false);
+      expect(heardProgress()).toBe(30_000);
+      error.mockRestore();
+      await t.service.play();
+      expect(t.hearing.mode).toBe("icy");
+      expect(playerStore.getSnapshot().syncing).toBe(true);
+      await t.service.pause(); // while still connecting
+      expect(t.hearing.mode).toBe("station");
+      expect(playerStore.getSnapshot().syncing).toBe(false);
+      expect(heardProgress()).toBe(30_000);
+      vi.useRealTimers();
+    });
+
+    it("returning to the app after a long pause shows the station, and fetches fresh data", async () => {
+      start();
+      const t = await playedAndPaused();
+      t.service.setAppActive(false);
+      t.announce(track("Song B", { startTime: new Date(Date.now() + 30_000) }));
+      vi.advanceTimersByTime(60_000);
+      t.repository.refresh.mockClear();
+      t.service.setAppActive(true);
+      expect(t.hearing.mode).toBe("station");
+      expect(playerStore.getSnapshot().currentTrack?.raw).toBe("Song B");
+      expect(t.repository.refresh).toHaveBeenCalledTimes(1);
+      // Fresh data is not re-fetched at the next flip back and forth.
+      t.service.setAppActive(false);
+      t.service.setAppActive(true);
+      expect(t.repository.refresh).toHaveBeenCalledTimes(1);
+      vi.useRealTimers();
+    });
+
+    it("a station track change in station mode reaches the lock screen once", async () => {
+      start();
+      const t = await playedAndPaused();
+      vi.advanceTimersByTime(STATION_AFTER_PAUSE_MS);
+      t.tick();
+      expect(t.hearing.mode).toBe("station");
+      // A cached cover: each report pushes synchronously, exactly once.
+      t.artwork.peek.mockReturnValue("file://cache/song-c.jpg");
+      t.player.updateNowPlaying.mockClear();
+      t.announce(track("Song C", { startTime: new Date(Date.now() - 500) }));
+      expect(playerStore.getSnapshot().currentTrack?.raw).toBe("Song C");
+      // HeardTrack reports it (its display is empty in station mode, see
+      // HeardTrack.abandon); NowHearing stays quiet — one change, one push.
+      expect(t.player.updateNowPlaying).toHaveBeenCalledTimes(1);
+      vi.useRealTimers();
+    });
+
+    it("play from station mode after a native pause re-opens at the live edge", async () => {
+      start();
+      const t = await playedAndPaused();
+      expect(t.player.status.state).toBe("paused"); // the native paused resume path
+      t.announce(track("Song B", { startTime: new Date(Date.now() - 12_000) }));
+      // The grace runs out with no state event: the tick alone flips it.
+      vi.advanceTimersByTime(STATION_AFTER_PAUSE_MS);
+      t.tick();
+      expect(t.hearing.mode).toBe("station");
+      t.player.load.mockClear();
+      t.player.play.mockClear();
+      const credited = t.stats.onTrackHeard.mock.calls.length;
+      await t.service.play();
+      // An in-place resume reports no loading status and no fresh ICY title,
+      // so the position would stay unknown: the stream is re-opened instead.
+      expect(t.player.load).toHaveBeenCalledTimes(1);
+      expect(t.player.play).not.toHaveBeenCalled();
+      // The station's song stays as the placeholder, not audibly anchored.
+      expect(playerStore.getSnapshot().currentTrack?.raw).toBe("Song B");
+      expect(progressStore.getSnapshot().progressMs).toBeNull();
+      expect(playerStore.getSnapshot().syncing).toBe(true);
+      expect(t.hearing.anchored).toBe(false);
+      expect(t.service.heardPosition()).toBeNull();
+      expect(t.stats.onTrackHeard).toHaveBeenCalledTimes(credited);
+      // The tune-in title places the song once the clock settles.
+      t.player.setState("playing", true);
+      t.player.hear("Song B");
+      t.settle(5, 6);
+      expect(playerStore.getSnapshot().syncing).toBe(false);
+      expect(t.hearing.anchored).toBe(true);
+      expect(t.service.heardPosition()).toMatchObject({ raw: "Song B", advancing: true });
+      expect(t.stats.onTrackHeard.mock.calls.length).toBeGreaterThan(credited);
+      vi.useRealTimers();
+    });
+
+    it("a brief pause resumes in place, keeping the heard position", async () => {
+      start();
+      const t = await playedAndPaused();
+      const before = t.service.heardPosition();
+      expect(before).toMatchObject({ raw: "Song A", advancing: false });
+      vi.advanceTimersByTime(STATION_AFTER_PAUSE_MS - 1_000);
+      t.tick();
+      expect(t.hearing.mode).toBe("icy"); // within the grace: still the audio
+      t.player.load.mockClear();
+      t.player.play.mockClear();
+      await t.service.play();
+      // Nothing was abandoned: Airwave resumes in place, and the heard
+      // position comes back exactly where the pause froze it.
+      expect(t.player.play).toHaveBeenCalledTimes(1);
+      expect(t.player.load).not.toHaveBeenCalled();
+      expect(t.service.heardPosition()).toEqual({ ...before, advancing: true });
+      vi.useRealTimers();
+    });
   });
 });

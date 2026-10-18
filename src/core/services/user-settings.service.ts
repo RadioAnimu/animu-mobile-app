@@ -12,7 +12,13 @@ class UserSettingsService {
       if (stored) {
         // Merge over defaults so settings added in later releases are present
         // for users upgrading from an older build (stored JSON lacks them).
-        const merged = { ...DEFAULT_USER_SETTINGS, ...JSON.parse(stored) };
+        // `liveUpdatesInBackground` was a removed release's toggle: strip it
+        // first so the legacy blob doesn't resurrect the key in memory or get
+        // re-persisted by the next updateSettings() write.
+        const parsed = JSON.parse(stored) as Partial<UserSettings> &
+          Record<string, unknown>;
+        delete parsed.liveUpdatesInBackground;
+        const merged = { ...DEFAULT_USER_SETTINGS, ...parsed };
         // A removed/renamed language key (or corrupt storage) must never reach
         // `DICT[...]`/`IMGS[...]` — an invalid key there crashes every screen,
         // and the ErrorBoundary can't clear storage. Fall back to the default.

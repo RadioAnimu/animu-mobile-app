@@ -17,6 +17,19 @@ export const ICY_MISSING_MS = 12_000;
  * coming — the display shows the station's item until the next title.
  */
 export const ICY_OVERDUE_MS = 30_000;
+/**
+ * A paused listener keeps the frozen song on screen this long (ms) before the
+ * display follows the station again. UX hysteresis, not a prediction: it
+ * mirrors Airwave's `liveMaxDriftMs` (5 s), the pause after which a resume
+ * re-opens at the live edge instead of in place — the paused position would
+ * not be resumed past it. Airwave adds the drift it has accumulated over
+ * earlier pauses to the pause itself, so it can re-open sooner than this; the
+ * app only needs the display not to flicker through a brief pause.
+ */
+export const STATION_AFTER_PAUSE_MS = 5_000;
+
+/** Which source drives the display (see {@link NowHearing}). */
+export type HearingMode = "icy" | "clock" | "station";
 
 /** A native progress reading (seconds), as Airwave reports it. */
 export interface LagReading {
@@ -60,6 +73,18 @@ export interface NowHearingDeps {
  *   the pre-ICY model: station time minus the measured lag. It drives the
  *   display when a stream carries no titles, so the app never depends on one
  *   source alone.
+ * - **The station's live point** (`station` mode) when there is no audio to
+ *   follow and none wanted: a cold start, a long pause, a stopped or failed
+ *   player. The display shows what the station is playing, on its own clock
+ *   corrected by the server skew — not what is audible (nothing is), so it is
+ *   never counted as heard (see {@link anchored}), but the bar, countdown and
+ *   lyrics clock keep moving with the music on air.
+ *
+ * Play intent decides between them. While audio flows, or is wanted (the
+ * player is acquiring it), the audio sources above drive. Without either,
+ * the display is the station's — at once when nothing was heard or the
+ * player was torn down, after {@link STATION_AFTER_PAUSE_MS} when merely
+ * paused with a position to resume.
  */
 export class NowHearing {
   /** The displayed track, its position or the source changed. */
@@ -67,7 +92,17 @@ export class NowHearing {
 
   private titleHeard = false;
   private playingSince: number | null = null;
-  private lastMode: "icy" | "clock" = "icy";
+  /** Audio is flowing (the player is `playing`). */
+  private flowing = false;
+  /** Audio is wanted: a play was asked for, or the player will play when ready. */
+  private wanted = false;
+  /** The player holds its place (paused, or pausing): a resume continues the song. */
+  private resumable = false;
+  /** When the play intent last dropped (starts {@link STATION_AFTER_PAUSE_MS}). */
+  private idleSince = 0;
+  /** The station's position for one (track, skew): the same object until either changes. */
+  private stationAnchor: { key: string; position: TrackPosition } | null = null;
+  private lastMode: HearingMode = "station";
   private lastAnchored = false;
   private lastOverdue: string | null = null;
   private readonly now: () => number;
@@ -80,21 +115,58 @@ export class NowHearing {
   }
 
   /** Which source drives the display. */
-  get mode(): "icy" | "clock" {
+  get mode(): HearingMode {
+    return this.isStation() ? "station" : this.driver();
+  }
+
+  /** The audio source in use while the display follows the audio. */
+  private driver(): "icy" | "clock" {
     if (this.titleHeard || this.playingSince == null) return "icy";
     return this.now() - this.playingSince >= ICY_MISSING_MS ? "clock" : "icy";
   }
 
+  /**
+   * Whether the display follows the station rather than the audio: no audio
+   * flows or is wanted, and either nothing can be resumed or the pause has
+   * outlasted {@link STATION_AFTER_PAUSE_MS}. Not `playingSince == null`: a
+   * re-open clears that during a legitimate acquisition.
+   */
+  private isStation(): boolean {
+    if (this.flowing || this.wanted) return false;
+    if (!this.resumable || !this.holdsPosition()) return true;
+    return this.now() - this.idleSince >= STATION_AFTER_PAUSE_MS;
+  }
+
+  /** A paused position worth keeping on screen: one was heard or computed. */
+  private holdsPosition(): boolean {
+    const { heard, sync } = this.deps;
+    return heard.anchored || (this.driver() === "clock" && sync.settled);
+  }
+
   get track(): Track | null {
-    if (this.mode === "clock") return this.deps.audible.track ?? this.deps.heard.track;
+    const mode = this.mode;
+    if (mode === "station") return this.deps.heard.stationTrack;
+    if (mode === "clock") return this.deps.audible.track ?? this.deps.heard.track;
     return this.overdue() ?? this.deps.heard.track;
   }
 
-  /** Whether the position is known (a title heard / the clock settled). */
+  /**
+   * Whether the position is known *and audible* (a title heard / the clock
+   * settled). Never true in `station` mode, whose position is the station's
+   * live point, not what reaches the speaker: listen stats and the "syncing"
+   * state are keyed on this. See {@link positionKnown} for the display's.
+   */
   get anchored(): boolean {
     const { heard, sync } = this.deps;
-    if (this.mode === "clock" || this.overdue()) return sync.settled;
+    const mode = this.mode;
+    if (mode === "station") return false;
+    if (mode === "clock" || this.overdue()) return sync.settled;
     return heard.anchored && (!heard.estimated || sync.settled);
+  }
+
+  /** Whether {@link position} is known — audible or, in `station` mode, the station's. */
+  get positionKnown(): boolean {
+    return this.mode === "station" ? this.position() != null : this.anchored;
   }
 
   /**
@@ -107,7 +179,9 @@ export class NowHearing {
    */
   position(): TrackPosition | null {
     const { heard, audible } = this.deps;
-    if (this.mode === "clock") return this.clockPosition(audible.track, 0);
+    const mode = this.mode;
+    if (mode === "station") return this.stationPosition();
+    if (mode === "clock") return this.clockPosition(audible.track, 0);
     const overdue = this.overdue();
     if (overdue) return this.clockPosition(overdue, heard.tuneInBiasMs);
     if (!heard.estimated) return heard.position;
@@ -143,6 +217,36 @@ export class NowHearing {
     if (audibleFor < ICY_OVERDUE_MS) return null;
     if (station.duration > 0 && audibleFor > station.duration) return null;
     return station;
+  }
+
+  /**
+   * The station's current item at its live point: server time (the device
+   * clock plus the applied skew) minus its `startTime`. A fixed point per
+   * (track, skew) — recomputed only when either changes, so the stores see
+   * the same anchor tick after tick and the UI advances it itself. An item
+   * not started yet (the device clock behind the server's by less than the
+   * skew threshold, or an announcement ahead of air) holds at 0 until it
+   * does; one past its length is held at its end by the consumers until the
+   * station announces the next. `null` without a usable `startTime`.
+   */
+  private stationPosition(): TrackPosition | null {
+    const track = this.deps.heard.stationTrack;
+    const start = track?.startTime?.getTime();
+    if (!track || start == null || !Number.isFinite(start)) return null;
+    const skew = this.deps.sync.clockSkew;
+    const key = `${track.raw}\n${start}\n${skew}`;
+    if (this.stationAnchor?.key !== key) {
+      const now = this.now();
+      const elapsedMs = now + skew - start;
+      this.stationAnchor = {
+        key,
+        position:
+          elapsedMs >= 0
+            ? { elapsedMs, at: now, running: true }
+            : { elapsedMs: 0, at: start - skew, running: true },
+      };
+    }
+    return this.stationAnchor.position;
   }
 
   /** `track` on the locked audible clock, less a calibration (ms). */
@@ -199,15 +303,50 @@ export class NowHearing {
     this.checkMode();
   }
 
+  /** Audio started or stopped flowing. Flowing audio is wanted audio. */
   setPlaying(playing: boolean): void {
-    if (playing) this.playingSince ??= this.now();
+    this.flowing = playing;
+    if (playing) {
+      this.playingSince ??= this.now();
+      this.wanted = true;
+    }
     this.deps.sync.setRunning(playing, this.now());
     this.checkMode();
   }
 
-  /** The station announced something. */
+  /**
+   * Whether audio is wanted (a play asked for, or the player will play when
+   * ready) and whether the player holds its place (`resumable`: paused or
+   * pausing, so a resume continues the song). Dropping the intent starts the
+   * pause's {@link STATION_AFTER_PAUSE_MS}; repeating it does not restart it.
+   */
+  setIntent(wanted: boolean, resumable = false): void {
+    if (this.wanted && !wanted) this.idleSince = this.now();
+    this.wanted = wanted;
+    this.resumable = resumable;
+    this.checkMode();
+  }
+
+  /**
+   * Re-evaluates the mode against the clock: a pause outlasting
+   * {@link STATION_AFTER_PAUSE_MS} flips it with no other event. For the
+   * foreground tick and a return to the foreground.
+   */
+  recheck(): void {
+    this.checkMode();
+  }
+
+  /**
+   * The station announced something. In station mode the display is the
+   * station's own track, and the change is reported by its owner:
+   * {@link HeardTrack} holds no display then (see {@link HeardTrack.abandon}),
+   * so its `stationChanged` fires the one `onChange` — reporting here as well
+   * would push the lock screen twice for a single change.
+   */
   stationChanged(): void {
-    const clockChanged = this.deps.audible.reconcile() && this.mode === "clock";
+    const station = this.mode === "station";
+    // The audible resolver is for the audio's clock: not fed in station mode.
+    const clockChanged = !station && this.deps.audible.reconcile() && this.mode === "clock";
     // An overdue display follows the station's item (or hands back to ICY).
     const reported = this.checkMode();
     if (clockChanged && !reported) this.onChange();
@@ -224,18 +363,40 @@ export class NowHearing {
 
   /** HTTP `date` skew sample, for both sources. */
   setClockSkew(skewMs: number, rttMs: number): void {
+    const before = this.deps.sync.clockSkew;
     this.deps.heard.setClockSkew(skewMs, rttMs);
     this.deps.sync.setClockSkew(skewMs, rttMs);
+    // The station's live point moves with the applied skew.
+    if (this.mode === "station" && this.deps.sync.clockSkew !== before) this.onChange();
   }
 
   reset(): void {
     this.titleHeard = false;
     this.playingSince = null;
-    this.lastMode = "icy";
+    this.flowing = false;
+    this.wanted = false;
+    this.resumable = false;
+    this.idleSince = 0;
+    this.stationAnchor = null;
+    this.lastMode = "station";
     this.lastAnchored = false;
     this.lastOverdue = null;
     this.deps.heard.reset();
     this.deps.sync.reset();
+    this.deps.audible.reset();
+  }
+
+  /**
+   * The display moves on to the station: whatever the last listening session
+   * left is dropped, so nothing of it can come back when audio is wanted
+   * again — the station's track stays as the placeholder until the open
+   * places the song (see {@link HeardTrack.abandon}; the resolver's retained
+   * track would otherwise be held through the re-acquisition).
+   */
+  private abandon(): void {
+    this.titleHeard = false;
+    this.playingSince = null;
+    this.deps.heard.abandon();
     this.deps.audible.reset();
   }
 
@@ -246,6 +407,7 @@ export class NowHearing {
   private checkMode(): boolean {
     const { mode, anchored } = this;
     const modeChanged = mode !== this.lastMode;
+    if (modeChanged && mode === "station") this.abandon();
     // The clock settling gives the position: the lock screen needs it too.
     // (A heard change reports itself, through HeardTrack.)
     const clockDriven = mode === "clock" || this.deps.heard.estimated;

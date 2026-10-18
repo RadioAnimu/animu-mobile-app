@@ -11,9 +11,9 @@ import { InfoRow, SettingsRow } from "@/screens/Settings/rows";
 import { styles } from "@/screens/Settings/styles";
 
 /**
- * Playback behavior (visualizer + live song info) and the app-wide
- * preferences (language, haptics, voice assistant), combined so a single
- * card covers each domain instead of one card per toggle.
+ * Playback behavior (visualizer) and the app-wide preferences (language,
+ * haptics, voice assistant), combined so a single card covers each domain
+ * instead of one card per toggle.
  */
 export function BehaviorSection() {
   const { settings, updateSettings } = useUserSettings();
@@ -22,6 +22,9 @@ export function BehaviorSection() {
   // iOS cannot tap a live AVPlayer stream, so the visualizer is Android-only.
   // The row is omitted entirely on iOS rather than shipped as a disabled
   // "coming soon" placeholder (App Review flags placeholder features, 2.1(a)).
+  // The live-song-info toggle was removed: a radio client is always kept up
+  // to date now (the realtime connection is managed automatically), so with
+  // the visualizer gone too, the whole Playback group is Android-only.
   const isIOS = Platform.OS === "ios";
 
   const languageOptions = useMemo<
@@ -38,10 +41,13 @@ export function BehaviorSection() {
 
   return (
     <>
-      <SectionTitle title={dict.SETTINGS_PLAYBACK_TITLE} icon="graphic-eq" />
-      <View style={styles.group}>
-        {!isIOS && (
-          <>
+      {!isIOS && (
+        <>
+          <SectionTitle
+            title={dict.SETTINGS_PLAYBACK_TITLE}
+            icon="graphic-eq"
+          />
+          <View style={styles.group}>
             <SettingsRow
               icon="graphic-eq"
               label={dict.SETTINGS_VISUALIZER_SWITCH}
@@ -53,21 +59,9 @@ export function BehaviorSection() {
                 })
               }
             />
-            <RowDivider />
-          </>
-        )}
-        <SettingsRow
-          icon="wifi"
-          label={dict.SETTINGS_LIVE_UPDATES_SWITCH}
-          description={dict.SETTINGS_LIVE_UPDATES_DESC}
-          value={settings.liveUpdatesInBackground}
-          onToggle={() =>
-            updateSettings({
-              liveUpdatesInBackground: !settings.liveUpdatesInBackground,
-            })
-          }
-        />
-      </View>
+          </View>
+        </>
+      )}
 
       <SectionTitle title={dict.SETTINGS_GENERAL_TITLE} icon="tune" />
       <View style={styles.group}>

@@ -248,6 +248,29 @@ describe("HeardTrack", () => {
     expect(t.heard.elapsedMs()).toBe(35_000 - AHEAD);
   });
 
+  it("abandons the listening session, keeping what belongs to the device", () => {
+    const t = setup([track("Song B", 0), track("Song A", 0)]);
+    t.heard.useStream("low", 64);
+    t.heard.setClockSkew(30_000, 100);
+    t.heard.heard("Song A", t.now, false, 0);
+    expect(t.heard.track?.raw).toBe("Song A");
+    t.heard.heard("Song C", t.now, false, 0); // pending: the station has not named it
+    t.changes.mockClear();
+    t.heard.abandon();
+    // Back on the station's current track, nothing heard, no position.
+    expect(t.heard.track?.raw).toBe("Song B");
+    expect(t.heard.anchored).toBe(false);
+    expect(t.heard.position).toBeNull();
+    expect(t.heard.awaitingStation).toBe(false);
+    // The pending title is gone: naming it later adopts nothing.
+    t.station.tracks = [track("Song C", 0), ...t.station.tracks];
+    t.heard.stationChanged();
+    expect(t.heard.track?.raw).toBe("Song C");
+    expect(t.heard.anchored).toBe(false);
+    // Unlike a re-open it reports nothing itself; the owner does.
+    expect(t.changes).toHaveBeenCalledTimes(1); // only `stationChanged`, the display having none
+  });
+
   it("matches a title that differs only in Unicode form, case, spacing or escaped quotes", () => {
     const station = "Haruka - Kimi no Na wa' | Anime [Música pedida por ness.js]";
     const t = setup([track(station, 0)]);

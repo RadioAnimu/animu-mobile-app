@@ -13,7 +13,6 @@ export const DEFAULT_USER_SETTINGS: UserSettings = {
   coverCacheLimitBytes: 0,
   coverCachePartitionBytes: null,
   visualizerHz: 60,
-  liveUpdatesInBackground: true,
   hapticsEnabled: true,
   lyricsPronunciation: "romaji",
 };

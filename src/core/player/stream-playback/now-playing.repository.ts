@@ -100,9 +100,12 @@ export interface NowPlayingRepositoryOptions {
   timer: Timer;
   /**
    * The station-timeline "now" (epoch ms) used to schedule the predictive
-   * track-end refresh. Defaults to `Date.now`; the player injects the sync
-   * engine so the refresh fires when the listener *hears* the track end, not
-   * when the station crosses it. Tests leave it unset for a real clock.
+   * track-end refresh. Defaults to `Date.now`; the player injects the live
+   * point on the server's clock (the device clock plus the applied skew), so
+   * the refresh fires when the *station* crosses the track's end — it is
+   * about the station's data, and there may be no audio at all (not the
+   * audible clock, which trails the live edge by the stream lag and exists
+   * only while playing). Tests leave it unset for a real clock.
    */
   getNow?: () => number;
 }
@@ -156,6 +159,22 @@ export class NowPlayingRepository {
    * track until the new one reaches the speaker.
    */
   onLiveTrackChange: (track: Track, receivedAt: Date) => void = () => {};
+  /**
+   * Wired by the orchestrator: may the realtime stream keep running? Asked
+   * before every SSE event is ingested (song, listeners, open). Answering
+   * `false` drops the event untouched and suspends the repository (see
+   * {@link setLiveStreamActive}) — the event is the only code that runs in
+   * the background once JS timers are frozen, so it is where a deadline can
+   * be enforced.
+   */
+  shouldStayLive: () => boolean = () => true;
+  /**
+   * Wired by the orchestrator: nothing visible needs the station extras right
+   * now (the app is hidden and no audio is wanted). A track change then skips
+   * the played-history fetch, and {@link historyStale} remembers it so the
+   * return can catch up.
+   */
+  isQuiet: () => boolean = () => false;
 
   private currentTrackValue: Track | null = null;
   private currentProgramValue: Program | null = null;
@@ -173,6 +192,16 @@ export class NowPlayingRepository {
   private refreshStartedAt = 0;
   private trackEndTimerId: number | null = null;
   private disposed = false;
+  /**
+   * Automatic station work is switched off ({@link setLiveStreamActive}
+   * `false`): no SSE, no predictive track-end refresh, no retry backoff, and
+   * `refresh()` is a no-op. A run already in flight is dropped when it
+   * settles — its late completion can neither write state nor re-arm a
+   * timer. Cleared by `setLiveStreamActive(true)`.
+   */
+  private suspended = false;
+  /** A track change skipped the played-history fetch (see {@link isQuiet}). */
+  private playedStale = false;
   private readonly retryScheduler: BackoffScheduler;
   /** Live SSE unsubscribe handle; null = HTTP-only mode. */
   private liveSubscription: (() => void) | null = null;
@@ -218,6 +247,19 @@ export class NowPlayingRepository {
 
   get lastRequestedTracks(): Track[] {
     return this.requestedTracks;
+  }
+
+  /** The automatic station work is switched off (see {@link setLiveStreamActive}). */
+  get isSuspended(): boolean {
+    return this.suspended;
+  }
+
+  /**
+   * The played history missed at least one track change while quiet
+   * ({@link isQuiet}); `refreshHistory("played")` clears it.
+   */
+  get historyStale(): boolean {
+    return this.playedStale;
   }
 
   /**
@@ -266,7 +308,14 @@ export class NowPlayingRepository {
       ].slice(0, MAX_RECENT_ON_AIR);
     }
     this.currentTrackValue = track;
-    if (isRealTrack(track)) void this.refreshHistory("played");
+    if (!isRealTrack(track)) return;
+    // Nobody is looking at the history (hidden, nothing playing): skip the
+    // request, the return catches up.
+    if (this.isQuiet()) {
+      this.playedStale = true;
+      return;
+    }
+    void this.refreshHistory("played");
   }
 
   /** Progress shows only for a real track on a non-live program. */
@@ -294,6 +343,7 @@ export class NowPlayingRepository {
     if (
       !this.options.fetchers.subscribeLive ||
       this.disposed ||
+      this.suspended ||
       this.liveSubscription
     ) {
       return;
@@ -306,6 +356,7 @@ export class NowPlayingRepository {
         onSongChange: (song) => this.ingestSong(song),
         onListeners: (listeners) => this.ingestListeners(listeners),
         onOpen: () => {
+          if (!this.admitLive()) return;
           // Fresh connection (or reconnect) — drop the stale marker so the
           // next poll trusts the live source again.
           this.lastLiveEventAt = Date.now();
@@ -334,16 +385,52 @@ export class NowPlayingRepository {
   }
 
   /**
-   * Battery-policy toggle for the realtime surface (see the settings
-   * screen's "live station updates" row). Safe on any lifecycle stage and
-   * idempotent in both directions.
+   * Switches the station's automatic work on or off (the background-idle
+   * policy; see `BackgroundIdle`). Safe on any lifecycle stage and idempotent
+   * in both directions.
+   *
+   * Off = **suspended**: the SSE closes, the predictive track-end refresh and
+   * the retry backoff are cancelled, and nothing re-arms them until it is
+   * back on. On = the stream is re-attached (the daemon seeds the current
+   * state); the caller owns the catch-up fetches (`isSuspended` tells it a
+   * resume is happening, read before the call).
    */
   setLiveStreamActive(active: boolean): void {
     if (active) {
+      this.suspended = false;
       this.startLive();
       return;
     }
+    this.suspend();
+  }
+
+  private suspend(): void {
+    this.suspended = true;
     this.stopLive();
+    this.cancelTrackEndTimer();
+    this.retryScheduler.reset();
+    // A run in flight belongs to the session being put to sleep. Left alone,
+    // a resume before it settles would let its stale payload through the
+    // guard (over the fresh stream's state) and its latch would turn the
+    // resume's own refresh into a no-op — with no foreground tick to retry
+    // when the resume is a lock-screen play. Invalidate it like the watchdog.
+    if (this.refreshing) {
+      this.refreshEpoch++;
+      this.refreshing = false;
+      this.options.fetchers.abortInFlightRequests();
+    }
+  }
+
+  /**
+   * Gate for every SSE event: ask the orchestrator whether the stream may
+   * keep running. A refusal closes it on the spot — the event that carried
+   * the news is dropped with no state write and no side effect.
+   */
+  private admitLive(): boolean {
+    if (this.disposed || this.suspended) return false;
+    if (this.shouldStayLive()) return true;
+    this.suspend();
+    return false;
   }
 
   private stopLive(): void {
@@ -361,7 +448,7 @@ export class NowPlayingRepository {
    * source is a push, not a fetch).
    */
   private ingestSong(song: LiveNowPlaying): void {
-    if (this.disposed) return;
+    if (!this.admitLive()) return;
     this.lastLiveEventAt = Date.now();
     // Only a payload naming a track vouches for it: the offline placeholder
     // (no track) leaves the old one in place, which the poll must re-check.
@@ -401,7 +488,7 @@ export class NowPlayingRepository {
 
   /** Realtime ingestion of a deduped `listeners` push. */
   private ingestListeners(listeners: Listeners): void {
-    if (this.disposed) return;
+    if (!this.admitLive()) return;
     this.lastLiveEventAt = Date.now();
     if (!this.mergeListeners(listeners)) return;
     this.onChange({
@@ -423,7 +510,7 @@ export class NowPlayingRepository {
    * in flight may have skipped that leg, so a forced call runs after it.
    */
   async refresh(options: { forceMetadata?: boolean } = {}): Promise<boolean> {
-    if (this.disposed) return false;
+    if (this.disposed || this.suspended) return false;
     if (options.forceMetadata) this.liveTrackCurrent = false;
     if (this.refreshing) {
       const inFlight = this.inFlight;
@@ -475,7 +562,9 @@ export class NowPlayingRepository {
       // Invalidated while in flight (watchdog expiry or dispose): the
       // stuck run's late settler must not write state or re-arm timers —
       // a newer run already owns the repository.
-      if (epoch !== this.refreshEpoch || this.disposed) return false;
+      // Suspended while in flight: the run belongs to a station nobody follows
+      // any more — no writes, and no re-armed timer below.
+      if (epoch !== this.refreshEpoch || this.disposed || this.suspended) return false;
 
       // Same protection against the LIVE source: this HTTP run started on
       // a stale stream, but a song_change push may have landed while it
@@ -510,7 +599,7 @@ export class NowPlayingRepository {
     } catch (error) {
       // Invalidated run: its failure belongs to the past — no logging
       // noise, no retry re-arming over a newer run's head.
-      if (epoch !== this.refreshEpoch || this.disposed) return false;
+      if (epoch !== this.refreshEpoch || this.disposed || this.suspended) return false;
 
       console.error("[NowPlayingRepository] Error refreshing data:", error);
 
@@ -656,13 +745,14 @@ export class NowPlayingRepository {
    * newest occurrence wins for repeats within one payload).
    */
   async refreshHistory(type: HistoryType): Promise<void> {
-    if (this.disposed) return;
+    if (this.disposed || this.suspended) return;
     try {
       const tracks = await this.options.fetchers.getTrackHistory(
         type,
         this.options.getCoverQuality(),
         this.options.getDefaultCover(),
       );
+      if (type === "played") this.playedStale = false;
       if (!tracks || tracks.length === 0) return;
 
       const target =
@@ -711,12 +801,13 @@ export class NowPlayingRepository {
    * Predictive refresh: schedules a fetch right after the current real,
    * non-live track is expected to end (`startTime + duration + buffer`),
    * keeping the UI ahead of the station instead of polling blindly. The
-   * delay is measured against the injected `getNow` — the sync engine's
-   * audible clock — so the refresh lands when the listener *hears* the
-   * track end rather than when the station crosses it.
+   * delay is measured against the injected `getNow` — the station's live
+   * point on the server's clock — so the refresh lands just after the
+   * station crosses the track's end, with or without audio playing.
    */
   scheduleTrackEndRefresh(): void {
     this.cancelTrackEndTimer();
+    if (this.suspended) return;
 
     const track = this.currentTrackValue;
     if (!track || track.duration <= 0) return;
@@ -759,6 +850,7 @@ export class NowPlayingRepository {
     this.requestedTracks = [];
     this.recentOnAir = [];
     this.showProgressValue = false;
+    this.playedStale = false;
   }
 
   private cancelTrackEndTimer(): void {

@@ -10,6 +10,7 @@ import {
   ICY_MISSING_MS,
   ICY_OVERDUE_MS,
   NowHearing,
+  STATION_AFTER_PAUSE_MS,
 } from "@/core/player/stream-playback/now-hearing";
 import { StreamSyncEngine } from "@/core/player/stream-playback/stream-sync";
 import { jsTimer } from "@/core/player/timer";
@@ -201,16 +202,20 @@ describe("NowHearing", () => {
       expect(t.hearing.elapsedMs()).toBe(67_000 + jitter.length * 1_000);
     });
 
-    it("holds through a pause and resumes where the audio was", () => {
+    it("holds through a brief pause and resumes where the audio was", () => {
       const t = setup();
       t.hearing.setPlaying(true);
       t.play(13, 6);
       t.hearing.setPlaying(false);
-      vi.advanceTimersByTime(30_000);
+      t.hearing.setIntent(false, true);
+      vi.advanceTimersByTime(STATION_AFTER_PAUSE_MS - 1_000);
+      t.hearing.recheck();
+      expect(t.hearing.mode).toBe("clock");
       expect(t.hearing.position()?.running).toBe(false);
       expect(t.hearing.elapsedMs()).toBe(67_000);
+      t.hearing.setIntent(true);
       t.hearing.setPlaying(true);
-      t.play(2, 36); // the buffer now trails by the 30 s paused as well
+      t.play(2, 10); // the buffer now trails by the 4 s paused as well
       expect(t.hearing.elapsedMs()).toBe(69_000);
     });
 
@@ -379,8 +384,9 @@ describe("NowHearing", () => {
     });
   });
 
-  it("does not count paused time before audio ever played", () => {
+  it("does not count time before audio ever played", () => {
     const t = setup();
+    t.hearing.setIntent(true); // wanted, still connecting
     t.play(30);
     expect(t.hearing.mode).toBe("icy");
   });
@@ -395,7 +401,203 @@ describe("NowHearing", () => {
     t.hearing.setPlaying(true);
     t.play(13);
     t.hearing.reset();
-    expect(t.hearing.mode).toBe("icy");
+    expect(t.hearing.mode).toBe("station"); // nothing wanted, nothing heard
     expect(t.audible.track).toBeNull();
+  });
+
+  describe("without audio: the station's live point", () => {
+    /** Plays Song A (a title heard, the clock settled), then pauses. */
+    const pausedAfterPlaying = () => {
+      const t = setup(); // Song A: on air for 60 s
+      t.hearing.setPlaying(true);
+      t.heard.heard("Song A", Date.now(), false, 0);
+      t.hearing.titleWasHeard();
+      t.play(20);
+      t.heard.setRunning(false);
+      t.hearing.setPlaying(false);
+      t.hearing.setIntent(false, true);
+      return t;
+    };
+
+    it("a cold start shows the station's track, running from its start time", () => {
+      const t = setup(); // never played
+      expect(t.hearing.mode).toBe("station");
+      expect(t.hearing.track?.raw).toBe("Song A");
+      expect(t.hearing.positionKnown).toBe(true);
+      expect(t.hearing.elapsedMs()).toBe(60_000);
+      const position = t.hearing.position();
+      expect(position).toMatchObject({ elapsedMs: 60_000, running: true });
+      vi.advanceTimersByTime(10_000);
+      expect(t.hearing.elapsedMs()).toBe(70_000);
+      // The same anchor, tick after tick: the stores see nothing change.
+      expect(t.hearing.position()).toBe(position);
+    });
+
+    it("is not audible: never anchored, the pause's listening state is gone", () => {
+      const t = setup();
+      expect(t.hearing.anchored).toBe(false);
+      expect(t.heard.anchored).toBe(false);
+    });
+
+    it("places the live point on the server's clock", () => {
+      const t = setup();
+      const position = t.hearing.position();
+      t.changes.mockClear();
+      t.hearing.setClockSkew(30_000, 100); // the device clock is 30 s behind
+      expect(t.changes).toHaveBeenCalledTimes(1);
+      expect(t.hearing.elapsedMs()).toBe(90_000);
+      expect(t.hearing.position()).not.toBe(position);
+      t.changes.mockClear();
+      t.hearing.setClockSkew(30_000, 100); // the same skew again: nothing moves
+      expect(t.changes).not.toHaveBeenCalled();
+    });
+
+    it("follows the station's next item as it is announced", () => {
+      const t = setup();
+      // The real wiring: HeardTrack's display is empty in station mode, so it
+      // reports the change (see HeardTrack.abandon) and NowHearing stays quiet
+      // — one change, one report.
+      const heardChanges = vi.fn();
+      t.heard.onChange = heardChanges;
+      t.changes.mockClear();
+      t.station.track = track("Song B", Date.now() - 2_000);
+      t.heard.stationChanged();
+      t.hearing.stationChanged();
+      expect(heardChanges).toHaveBeenCalledTimes(1);
+      expect(t.changes).not.toHaveBeenCalled();
+      expect(t.hearing.track?.raw).toBe("Song B");
+      expect(t.hearing.elapsedMs()).toBe(2_000);
+      expect(t.hearing.anchored).toBe(false);
+    });
+
+    it("shows a jingle as well", () => {
+      const t = setup();
+      t.station.track = track("Rádio Animu - Vinheta", Date.now() - 3_000, 10_000);
+      t.hearing.stationChanged();
+      expect(t.hearing.track?.raw).toBe("Rádio Animu - Vinheta");
+      expect(t.hearing.elapsedMs()).toBe(3_000);
+    });
+
+    it("has no position without a usable start time", () => {
+      const t = setup();
+      t.station.track = { ...track("Live", 0), startTime: undefined } as unknown as Track;
+      expect(t.hearing.track?.raw).toBe("Live");
+      expect(t.hearing.position()).toBeNull();
+      expect(t.hearing.positionKnown).toBe(false);
+      t.station.track = track("Bad", Number.NaN);
+      expect(t.hearing.position()).toBeNull();
+      expect(t.hearing.elapsedMs()).toBeNull();
+    });
+
+    it("holds at the start for an item not started yet", () => {
+      const t = setup();
+      t.station.track = track("Song B", Date.now() + 10_000);
+      expect(t.hearing.elapsedMs()).toBe(0);
+      vi.advanceTimersByTime(9_000);
+      expect(t.hearing.elapsedMs()).toBe(0);
+      vi.advanceTimersByTime(6_000);
+      expect(t.hearing.elapsedMs()).toBe(5_000);
+    });
+
+    it("keeps the item past its length until the station announces the next", () => {
+      const t = setup();
+      t.station.track = track("Short", Date.now() - 60_000, 30_000);
+      expect(t.hearing.track?.raw).toBe("Short");
+      expect(t.hearing.position()).toMatchObject({ elapsedMs: 60_000, running: true }); // the UI clamps
+      expect(t.hearing.elapsedMs()).toBeNull();
+    });
+
+    it("keeps a brief pause's frozen song, then follows the station — on the tick alone", () => {
+      const t = pausedAfterPlaying();
+      expect(t.hearing.mode).toBe("icy");
+      const frozen = t.hearing.elapsedMs();
+      vi.advanceTimersByTime(STATION_AFTER_PAUSE_MS - 1);
+      t.hearing.recheck();
+      expect(t.hearing.mode).toBe("icy");
+      expect(t.hearing.elapsedMs()).toBe(frozen);
+      t.changes.mockClear();
+      vi.advanceTimersByTime(1);
+      t.hearing.recheck(); // no other event: the foreground tick
+      expect(t.hearing.mode).toBe("station");
+      expect(t.changes).toHaveBeenCalledTimes(1);
+      expect(t.hearing.anchored).toBe(false);
+      expect(t.hearing.position()?.running).toBe(true);
+      expect(t.hearing.elapsedMs()).toBe(60_000 + 20_000 + STATION_AFTER_PAUSE_MS);
+      expect(t.heard.anchored).toBe(false); // the paused listening position is given up
+    });
+
+    it("a pause repeated by status events does not restart the grace", () => {
+      const t = pausedAfterPlaying();
+      vi.advanceTimersByTime(3_000);
+      t.hearing.setIntent(false, true);
+      vi.advanceTimersByTime(2_000);
+      t.hearing.recheck();
+      expect(t.hearing.mode).toBe("station");
+    });
+
+    it("follows the station at once when the player stopped or failed", () => {
+      const t = pausedAfterPlaying();
+      t.changes.mockClear();
+      t.hearing.setIntent(false, false); // stopped / error / ended
+      expect(t.hearing.mode).toBe("station");
+      expect(t.changes).toHaveBeenCalled();
+      expect(t.hearing.track?.raw).toBe("Song A");
+    });
+
+    it("a pause (or failed play) while connecting leaves nothing to resume", () => {
+      const t = setup();
+      t.hearing.setIntent(true);
+      expect(t.hearing.mode).toBe("icy");
+      t.hearing.setIntent(false, true);
+      expect(t.hearing.mode).toBe("station");
+    });
+
+    it("wanting audio again cancels the grace", () => {
+      const t = pausedAfterPlaying();
+      vi.advanceTimersByTime(STATION_AFTER_PAUSE_MS + 3_000);
+      // Play pressed before the tick noticed: the song resumes, nothing flipped.
+      t.hearing.setIntent(true);
+      expect(t.hearing.mode).toBe("icy");
+      expect(t.heard.anchored).toBe(true);
+    });
+
+    it("play from station mode: syncing until the tune-in title anchors, nothing credited", () => {
+      const t = pausedAfterPlaying();
+      vi.advanceTimersByTime(STATION_AFTER_PAUSE_MS);
+      t.hearing.recheck();
+      expect(t.hearing.mode).toBe("station");
+      t.station.track = track("Song B", Date.now() - 12_000);
+      t.hearing.stationChanged();
+      t.changes.mockClear();
+      // Play: the station's track stays as the placeholder, no longer audible.
+      t.hearing.setIntent(true);
+      expect(t.hearing.mode).toBe("icy");
+      expect(t.changes).toHaveBeenCalled();
+      expect(t.hearing.track?.raw).toBe("Song B");
+      expect(t.hearing.anchored).toBe(false);
+      expect(t.hearing.positionKnown).toBe(false);
+      expect(t.hearing.position()).toBeNull();
+      // The open, then the first title and the clock settling.
+      t.hearing.reopened();
+      t.hearing.setPlaying(true);
+      t.heard.heard("Song B", Date.now(), true, 4_800);
+      t.hearing.titleWasHeard();
+      expect(t.hearing.anchored).toBe(false);
+      expect(t.audible.track).toBeNull(); // the old song cannot come back
+      t.play(4, 10);
+      expect(t.hearing.anchored).toBe(true);
+      expect(t.hearing.positionKnown).toBe(true);
+      expect(t.hearing.track?.raw).toBe("Song B");
+      // 16 s on air (12 + 4), 10 s behind, the station clock ahead of its audio.
+      expect(t.hearing.elapsedMs()).toBe(6_000 - STATION_AHEAD_OF_AUDIO_MS);
+    });
+
+    it("play from a cold start: the placeholder is not audible either", () => {
+      const t = setup();
+      t.hearing.setIntent(true);
+      expect(t.hearing.track?.raw).toBe("Song A");
+      expect(t.hearing.anchored).toBe(false);
+      expect(t.hearing.position()).toBeNull();
+    });
   });
 });
