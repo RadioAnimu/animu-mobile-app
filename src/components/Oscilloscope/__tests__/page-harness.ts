@@ -58,8 +58,11 @@ export function loadPage(html: string, width = 320.8) {
     addEventListener: (name: string, callback: Listener) => { listeners[name] = callback; },
     visibilityState: "visible",
   };
-  const script = html.match(/<script>([\s\S]*?)<\/script>/)?.[1];
-  if (!script) throw new Error("page script not found");
+  // The page has exactly one inline script, written by us in lower case.
+  const open = html.indexOf("<script>");
+  const close = html.indexOf("</script>", open);
+  if (open < 0 || close < 0) throw new Error("page script not found");
+  const script = html.slice(open + "<script>".length, close);
   // Read-only accessor for the page's pacing state, appended to the script.
   const peek = new Function(
     "window", "document", "performance", "requestAnimationFrame", "Date",
@@ -110,7 +113,7 @@ export function loadPage(html: string, width = 320.8) {
 export type Page = ReturnType<typeof loadPage>;
 
 /** Window `serial` filled with one byte value, so the trace reveals which window it shows. */
-export const windowHex = (serial: number) => ((serial % 200) + 1).toString(16).padStart(2, "0").repeat(1024);
+const windowHex = (serial: number) => ((serial % 200) + 1).toString(16).padStart(2, "0").repeat(1024);
 
 /**
  * Plays wave arrivals (ms timestamps, one window each, serials from 1)
