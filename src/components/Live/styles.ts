@@ -24,6 +24,10 @@ export const styles = StyleSheet.create({
     paddingBottom: INFO_PADDING_BOTTOM,
     gap: INFO_GAP,
   },
+  /** Placeholder lines: a real glyph so they measure like text, unseen. */
+  blank: {
+    opacity: 0,
+  },
   title: {
     color: THEME.COLORS.BRAND,
     fontSize: THEME.FONT_SIZE.TITLE,

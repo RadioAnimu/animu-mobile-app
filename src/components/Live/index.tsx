@@ -1,5 +1,6 @@
 import React from "react";
-import { View } from "react-native";
+import { Text, View } from "react-native";
+import { THEME } from "@/theme";
 import { Marquee, MarqueeGroup } from "@/components/Marquee";
 import { IMGS } from "@/i18n";
 import { styles } from "@/components/Live/styles";
@@ -16,7 +17,31 @@ export const Live = React.memo(function Live() {
 
   const track = player.currentTrack;
 
-  if (!track) return null;
+  // Before the first track lands the bar is already there, its lines blank,
+  // so the program block below doesn't jump when the names arrive.
+  if (!track) {
+    return (
+      <View style={styles.track}>
+        <LiveLabel />
+        <View
+          style={styles.info}
+          accessibilityElementsHidden
+          importantForAccessibility="no-hide-descendants"
+        >
+          {(["title", "artist", "song"] as const).map((line) => (
+            <Text
+              key={line}
+              maxFontSizeMultiplier={THEME.FONT_SCALE.CHROME}
+              numberOfLines={1}
+              style={[styles[line], styles.blank]}
+            >
+              –
+            </Text>
+          ))}
+        </View>
+      </View>
+    );
+  }
 
   // A song from no anime keeps the home screen's "Now Playing" label.
   const anime = track.anime || DEFAULT_ANIME_FALLBACK;

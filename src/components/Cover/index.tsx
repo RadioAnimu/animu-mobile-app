@@ -149,3 +149,20 @@ export function Cover({
 
   return preserveAspectRatio ? <View style={styles.slot}>{image}</View> : image;
 }
+
+/**
+ * The now-playing frame before there is anything to show (cold start): the
+ * bundled cover in the same square slot, so the player doesn't open with a
+ * gap that the first artwork then shoves everything down to fill.
+ */
+export function CoverPlaceholder() {
+  return (
+    <View style={styles.slot}>
+      <Image
+        source={DEFAULT_COVER}
+        style={[{ backgroundColor: THEME.COLORS.APP_BG }, styles.image]}
+        contentFit="cover"
+      />
+    </View>
+  );
+}

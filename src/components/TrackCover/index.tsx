@@ -1,6 +1,6 @@
 import React from "react";
 import { usePlayer } from "@/contexts/player/PlayerProvider";
-import { Cover } from "@/components/Cover";
+import { Cover, CoverPlaceholder } from "@/components/Cover";
 import { useResolvedArtwork } from "@/hooks/useResolvedArtwork";
 
 export const TrackCover = React.memo(function TrackCover() {
@@ -18,7 +18,7 @@ export const TrackCover = React.memo(function TrackCover() {
   // heard before the station names it has none): the default cover holds
   // the square instead of the layout collapsing.
   if (!track || !cover) {
-    return null;
+    return <CoverPlaceholder />;
   }
 
   return <Cover cover={cover} category="live" preserveAspectRatio />;

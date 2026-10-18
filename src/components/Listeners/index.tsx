@@ -43,25 +43,40 @@ export const Listeners = React.memo(function Listeners() {
   const track = currentTrack;
   const program = currentProgram;
 
-  if (!currentListeners || !track) return null;
-
-  const isLive = !!program?.isLive;
-  const highlighted = track.isRequest || isLive;
-  const palette = listenersPalette(track.isRequest, isLive);
-  const label = listenersLabel(track.isRequest, isLive, program?.dj, dict);
+  // Until the count and the track are known the same chip renders invisible
+  // (default label, a11y-hidden), holding the row so the cover below doesn't
+  // drop when the data lands.
+  const ready = !!currentListeners && !!track;
+  const isRequest = ready && track.isRequest;
+  const isLive = ready && !!program?.isLive;
+  const highlighted = isRequest || isLive;
+  const palette = listenersPalette(isRequest, isLive);
+  const label = listenersLabel(isRequest, isLive, program?.dj, dict);
+  const count = currentListeners?.value ?? 0;
 
   return (
     <View
-      accessible
-      accessibilityLiveRegion="polite"
-      accessibilityLabel={`${currentListeners.value} ${label}`}
-      style={[styles.container, { backgroundColor: palette.background }]}
+      {...(ready
+        ? {
+            accessible: true,
+            accessibilityLiveRegion: "polite" as const,
+            accessibilityLabel: `${count} ${label}`,
+          }
+        : {
+            accessibilityElementsHidden: true,
+            importantForAccessibility: "no-hide-descendants" as const,
+          })}
+      style={[
+        styles.container,
+        { backgroundColor: palette.background },
+        !ready && styles.placeholder,
+      ]}
     >
       <Text
         maxFontSizeMultiplier={THEME.FONT_SCALE.CHROME}
         style={[styles.text, { color: palette.text }]}
       >
-        {currentListeners.value}
+        {count}
       </Text>
       <Image
         contentFit="contain"

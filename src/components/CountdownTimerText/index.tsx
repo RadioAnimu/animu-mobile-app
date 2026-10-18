@@ -26,6 +26,9 @@ export function CountdownTimerText({ startTime }: Readonly<Props>) {
           {
             fontSize: THEME.FONT_SIZE.BODY,
             fontFamily: THEME.FONT_FAMILY.REGULAR,
+            // Proxima Nova's digits are proportional ("1" is half a "0"):
+            // tabular figures stop the centered line wobbling every second.
+            fontVariant: ["tabular-nums"],
           },
           settings.selectedLanguage === "JN" && {
             lineHeight: THEME.LINE_HEIGHT.BODY,

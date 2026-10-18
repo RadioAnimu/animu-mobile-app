@@ -1,4 +1,4 @@
-import { Animated, StyleSheet, Text } from "react-native";
+import { Animated, StyleSheet, Text, View } from "react-native";
 import {
   usePlayer,
   useTrackProgress,
@@ -25,36 +25,62 @@ export function TimeRemaining() {
 
   const blink = useBlink(syncing && showProgress && !isBackgrounded);
 
-  if (!showProgress || !player.currentTrack) {
-    return null;
-  }
+  const visible = showProgress && !!player.currentTrack;
 
   // The audible clock is still being measured — the elapsed time (and thus
   // the countdown) falls back to the wall clock and is known to be ahead of
   // the speaker, so show a muted "calculating" instead of a wrong number.
-  if (syncing) {
-    return (
-      <Animated.Text
-        maxFontSizeMultiplier={THEME.FONT_SCALE.CHROME}
-        style={[styles.timeLeft, styles.calculating, { opacity: blink }]}
-      >
-        {dict.SYNCHRONIZING}…
-      </Animated.Text>
-    );
-  }
-
-  return (
+  const message = syncing ? (
+    <Animated.Text
+      maxFontSizeMultiplier={THEME.FONT_SCALE.CHROME}
+      numberOfLines={1}
+      style={[styles.timeLeft, styles.calculating, { opacity: blink }]}
+    >
+      {dict.SYNCHRONIZING}…
+    </Animated.Text>
+  ) : (
     <Text
       maxFontSizeMultiplier={THEME.FONT_SCALE.CHROME}
+      numberOfLines={1}
       style={styles.timeLeft}
     >
       {dict.TIME_REMAINING}:{" "}
       <CountdownTimerText startTime={remainingMs} />
     </Text>
   );
+
+  // The row keeps one height whatever it says, or says nothing (live shows,
+  // jingles): an invisible countdown line sizes it and the message sits on
+  // top (one line, so it can never outgrow the slot), so the info block
+  // below never moves.
+  return (
+    <View style={styles.slot}>
+      <Text
+        maxFontSizeMultiplier={THEME.FONT_SCALE.CHROME}
+        style={[styles.timeLeft, styles.sizer]}
+        accessibilityElementsHidden
+        importantForAccessibility="no-hide-descendants"
+      >
+        {dict.TIME_REMAINING}: <CountdownTimerText startTime={0} />
+      </Text>
+      {visible && <View style={styles.message}>{message}</View>}
+    </View>
+  );
 }
 
 const styles = StyleSheet.create({
+  // Full width so a message wider than the sizer still fits on one line.
+  slot: {
+    alignSelf: "stretch",
+    justifyContent: "center",
+  },
+  sizer: {
+    opacity: 0,
+  },
+  message: {
+    ...StyleSheet.absoluteFill,
+    justifyContent: "center",
+  },
   timeLeft: {
     fontSize: THEME.FONT_SIZE.BODY,
     fontFamily: THEME.FONT_FAMILY.REGULAR,

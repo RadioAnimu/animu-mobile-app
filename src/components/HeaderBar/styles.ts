@@ -62,11 +62,14 @@ export const styles = StyleSheet.create({
     width: ICON_BTN,
     height: ICON_BTN,
   },
-  progressBarView: {
+  /** Holds the bar's height whether or not the bar is shown. */
+  progressSlot: {
     width: "100%",
     height: PROGRESS_HEIGHT,
-    margin: 0,
-    padding: 0,
+  },
+  progressBarView: {
+    width: "100%",
+    height: "100%",
     backgroundColor: THEME.COLORS.BRAND,
     // scaleX is driven natively; anchor at the left edge so the bar grows
     // from 0 → full width instead of scaling about its center.

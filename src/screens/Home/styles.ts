@@ -30,7 +30,10 @@ export const styles = StyleSheet.create({
   coverWrapper: {
     marginBottom: RHYTHM.COVER,
   },
+  // Full width: the row's messages overlay a fixed-height slot and must not
+  // be clipped to the narrower countdown that sizes it.
   timeRemainingWrapper: {
+    alignSelf: "stretch",
     marginTop: RHYTHM.TIME_TOP,
     marginBottom: RHYTHM.TIME_BOTTOM,
   },

@@ -14,6 +14,9 @@ export const styles = StyleSheet.create({
     paddingVertical: THEME.SPACE.XXS,
     gap: THEME.SPACE.XS,
   },
+  placeholder: {
+    opacity: 0,
+  },
   text: {
     fontSize: THEME.FONT_SIZE.HEADING,
     fontFamily: THEME.FONT_FAMILY.BOLD,

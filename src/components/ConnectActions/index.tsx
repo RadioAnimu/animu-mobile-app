@@ -79,6 +79,9 @@ const styles = StyleSheet.create({
     color: THEME.COLORS.TEXT_SOFT,
     fontFamily: THEME.FONT_FAMILY.BOLD,
     fontSize: THEME.FONT_SIZE.BODY,
+    // The resend countdown ticks inside a centered row: tabular figures keep
+    // the "•" and "Change email" from sliding sideways every second.
+    fontVariant: ["tabular-nums"],
   },
   disabled: {
     opacity: THEME.OPACITY.DISABLED,

@@ -248,20 +248,28 @@ export function HeaderBar({ openLiveRequestModal }: Readonly<Props>) {
           </View>
         </View>
       </View>
-      {showProgress && (
-        <Animated.View
-          style={[
-            styles.progressBarView,
-            syncing && styles.progressBarSyncing,
-            {
-              opacity: syncing ? syncBlink : 1,
-              // Unknown position while syncing → show the full muted bar
-              // pulsing rather than a stale/0 progress.
-              transform: [{ scaleX: syncing ? 1 : progressAnim }],
-            },
-          ]}
-        />
-      )}
+      {/* The slot is always there: live shows and jingles have no bar, and
+          dropping its height used to nudge the whole player up and down. */}
+      <View
+        style={styles.progressSlot}
+        accessibilityElementsHidden
+        importantForAccessibility="no-hide-descendants"
+      >
+        {showProgress && (
+          <Animated.View
+            style={[
+              styles.progressBarView,
+              syncing && styles.progressBarSyncing,
+              {
+                opacity: syncing ? syncBlink : 1,
+                // Unknown position while syncing → show the full muted bar
+                // pulsing rather than a stale/0 progress.
+                transform: [{ scaleX: syncing ? 1 : progressAnim }],
+              },
+            ]}
+          />
+        )}
+      </View>
     </View>
   );
 }

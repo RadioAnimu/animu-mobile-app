@@ -7,6 +7,9 @@ export const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
+  placeholder: {
+    opacity: 0,
+  },
   title: {
     fontSize: THEME.FONT_SIZE.SUBHEAD,
     fontFamily: THEME.FONT_FAMILY.BOLD,

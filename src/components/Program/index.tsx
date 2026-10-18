@@ -1,5 +1,5 @@
 import React from "react";
-import { Text, TouchableOpacity } from "react-native";
+import { Text, TouchableOpacity, View } from "react-native";
 import { THEME } from "@/theme";
 import { styles } from "@/components/Program/styles";
 import { useUserSettings } from "@/contexts/user/UserSettingsProvider";
@@ -17,7 +17,33 @@ export const Program = React.memo(function Program({ handleClick }: Props) {
 
   const program = player.currentProgram;
 
-  if (!program) return null;
+  // Two invisible lines (a real glyph, so they measure like text) hold the
+  // block until the schedule lands, so the stream picker below doesn't jump
+  // up and back.
+  if (!program) {
+    return (
+      <View
+        style={[styles.container, styles.placeholder]}
+        accessibilityElementsHidden
+        importantForAccessibility="no-hide-descendants"
+      >
+        <Text maxFontSizeMultiplier={THEME.FONT_SCALE.CHROME} style={styles.title}>
+          –
+        </Text>
+        <Text
+          maxFontSizeMultiplier={THEME.FONT_SCALE.CHROME}
+          style={[
+            styles.label,
+            settings.selectedLanguage === "JN" && {
+              lineHeight: THEME.LINE_HEIGHT.SUBHEAD,
+            },
+          ]}
+        >
+          –
+        </Text>
+      </View>
+    );
+  }
 
   return (
     <TouchableOpacity
