@@ -5,7 +5,7 @@ import path from "node:path";
 import { it, expect } from "vitest";
 const require = createRequire(import.meta.url);
 const { fixReleaseResources } = require("../withAndroidReleaseResources.js");
-const { XML } = require("@expo/config-plugins");
+const { XML } = require("expo/config-plugins");
 
 it("keeps complete splash styling on both SDK ranges and corrects only PNG icons, repeatedly", async () => {
   const root = await mkdtemp(path.join(os.tmpdir(), "animu-resources-"));

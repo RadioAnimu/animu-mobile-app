@@ -6,7 +6,7 @@ const {
   withAppDelegate,
   withDangerousMod,
   withXcodeProject,
-} = require("@expo/config-plugins");
+} = require("expo/config-plugins");
 
 const { XcodeUtils } = IOSConfig;
 

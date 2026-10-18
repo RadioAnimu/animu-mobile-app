@@ -5,7 +5,7 @@ const {
   AndroidConfig,
   withAndroidManifest,
   withDangerousMod,
-} = require("@expo/config-plugins");
+} = require("expo/config-plugins");
 
 const SHORTCUTS_FILE = "shortcuts.xml";
 

@@ -4,7 +4,7 @@ const path = require("path");
 const {
   IOSConfig,
   withXcodeProject,
-} = require("@expo/config-plugins");
+} = require("expo/config-plugins");
 
 const { XcodeUtils } = IOSConfig;
 

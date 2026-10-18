@@ -1,4 +1,4 @@
-const { withMainActivity } = require("@expo/config-plugins");
+const { withMainActivity } = require("expo/config-plugins");
 
 const IMPORT_LINE = "import android.content.Intent";
 const IMPORTS_ANCHOR = "import android.os.Bundle";

@@ -1,6 +1,6 @@
 const fs = require("node:fs/promises");
 const path = require("node:path");
-const { AndroidConfig, XML, withFinalizedMod } = require("@expo/config-plugins");
+const { AndroidConfig, XML, withFinalizedMod } = require("expo/config-plugins");
 
 const SPLASH_THEME = "Theme.App.SplashScreen";
 const SPLASH_BEHAVIOR = "android:windowSplashScreenBehavior";
