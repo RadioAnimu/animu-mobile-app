@@ -45,25 +45,60 @@ type GroupApi = {
   unregister: (id: number) => void;
   report: (id: number, durationMs: number) => void;
   delay: number;
-  /**
-   * Length of one full cycle (longest member pass + delay). null until every
-   * member has measured its text — members hold still until it is known, so
-   * the very first pass of every line starts in the same frame.
-   */
-  cycle: number | null;
+  /** Shared clock (ms into the current cycle) every member scrolls from. */
+  clock: Animated.Value;
 };
 
 const GroupContext = createContext<GroupApi | null>(null);
 
-/** The group's shared cycle when inside one, else this line's own. */
-function pickCycle(group: GroupApi | null, own: number | null): number | null {
-  return group ? group.cycle : own;
+/**
+ * One clock that counts 0 -> cycle (in ms) at real-time speed, then wraps to
+ * 0 and repeats. Every line derives its offset from the same clock, so lines
+ * sharing it can never drift apart — not after timer jitter, not after the
+ * app comes back from the background. Pausing (null cycle or not running)
+ * parks the clock at 0, i.e. every line at rest; resuming restarts the whole
+ * cycle from the top.
+ */
+function useCycleClock(cycle: number | null, running: boolean) {
+  const clock = useMemo(() => new Animated.Value(0), []);
+
+  useEffect(() => {
+    if (cycle === null || !running) return undefined;
+
+    // Manual chaining (like react-native-text-ticker's animateScroll):
+    // Animated.loop with a native-driven animation runs once and never
+    // re-arms, leaving the marquee stuck off-position.
+    let cancelled = false;
+    let current: Animated.CompositeAnimation | null = null;
+    const run = () => {
+      clock.setValue(0);
+      current = Animated.timing(clock, {
+        toValue: cycle,
+        duration: cycle,
+        easing: Easing.linear,
+        useNativeDriver: true,
+      });
+      current.start(({ finished }) => {
+        if (!cancelled && finished) run();
+      });
+    };
+    run();
+
+    return () => {
+      cancelled = true;
+      current?.stop();
+      clock.setValue(0);
+    };
+  }, [clock, cycle, running]);
+
+  return clock;
 }
 
 /**
  * Synchronizes sibling Marquees: lines of different lengths scroll at the
- * same speed and can finish at different times, but every pass starts at the
- * same moment and every cycle has the same length, so they repeat in sync.
+ * same speed and can finish at different times, but all of them run off one
+ * shared clock, so every pass starts at the same moment and every cycle has
+ * the same length.
  */
 export function MarqueeGroup({
   children,
@@ -72,6 +107,7 @@ export function MarqueeGroup({
   children: ReactNode;
   delay?: number;
 }>) {
+  const isBackgrounded = useIsBackgrounded();
   const nextId = useRef(0);
   // id -> pass duration; null while that member is still measuring.
   const [records, setRecords] = useState<Map<number, number | null>>(
@@ -102,15 +138,21 @@ export function MarqueeGroup({
     [],
   );
 
+  // Cycle = longest member pass + delay. Unknown until every member has
+  // measured (so the first pass of every line starts together), and absent
+  // when nothing overflows (nothing to scroll).
   const measured = [...records.values()];
   const allMeasured = records.size > 0 && measured.every((d) => d !== null);
-  const cycle = allMeasured
-    ? Math.max(0, ...(measured as number[])) + delay
-    : null;
+  const longest = allMeasured ? Math.max(0, ...(measured as number[])) : 0;
+  const cycle = longest > 0 ? longest + delay : null;
+
+  // Hidden app: stop the clock entirely (every line back to rest). Native
+  // animations keep running in the background on Android, burning CPU.
+  const clock = useCycleClock(cycle, !isBackgrounded);
 
   const value = useMemo<GroupApi>(
-    () => ({ ...api, delay, cycle }),
-    [api, delay, cycle],
+    () => ({ ...api, delay, clock }),
+    [api, delay, clock],
   );
 
   return (
@@ -124,9 +166,9 @@ export function MarqueeGroup({
  * Like react-native-text-ticker, the scrolling layer holds TWO copies of the
  * text separated by `spacer`, inside a horizontal ScrollView whose content
  * axis is unbounded (so the text can never wrap). Each pass scrolls by
- * exactly one copy width + spacer and then snaps back to 0 — at that offset
- * the second copy sits exactly where the first was, so the reset is
- * pixel-identical and can never be seen, whatever the timing.
+ * exactly one copy width + spacer and then rests there until the cycle wraps
+ * back to 0 — at that offset the second copy sits exactly where the first
+ * was, so the reset is pixel-identical and can never be seen.
  */
 export const Marquee = React.memo(function Marquee({
   text,
@@ -137,13 +179,17 @@ export const Marquee = React.memo(function Marquee({
 }: MarqueeProps) {
   const group = useContext(GroupContext);
   const isBackgrounded = useIsBackgrounded();
-  const [containerWidth, setContainerWidth] = useState(0);
-  const [textWidth, setTextWidth] = useState(0);
-  const translateX = useMemo(() => new Animated.Value(0), []);
+  // null until the first layout pass: an unmeasured line must not tell its
+  // group "fits", or the group would start before every line is known.
+  const [containerWidth, setContainerWidth] = useState<number | null>(null);
+  const [measuredTextWidth, setTextWidth] = useState<number | null>(null);
+  const textWidth = measuredTextWidth ?? 0;
+  const measured = containerWidth !== null && measuredTextWidth !== null;
 
   const holdDelay = group ? group.delay : STANDALONE_DELAY;
 
   const overflows =
+    containerWidth !== null &&
     containerWidth > 0 &&
     textWidth > 0 &&
     textWidth - containerWidth > OVERFLOW_THRESHOLD;
@@ -166,65 +212,31 @@ export const Marquee = React.memo(function Marquee({
   // Share the pass duration with the group (0 when the text fits — excluded
   // from the cycle but still counted as "measured").
   useEffect(() => {
-    if (!report || idRef.current === null) return;
+    if (!report || idRef.current === null || !measured) return;
     report(idRef.current, overflows ? passDuration : 0);
-  }, [report, overflows, passDuration]);
+  }, [report, measured, overflows, passDuration]);
 
-  // Length of one full cycle: shared with the group when inside one.
-  const cycle = pickCycle(group, overflows ? passDuration + holdDelay : null);
+  // Standalone lines run their own clock; group members use the shared one.
+  const ownClock = useCycleClock(
+    !group && overflows ? passDuration + holdDelay : null,
+    !isBackgrounded,
+  );
+  const clock = group ? group.clock : ownClock;
 
-  useEffect(() => {
-    // Hidden app: stop scrolling entirely. Native-driven animations keep
-    // running in the background (Android especially), burning CPU on a
-    // marquee nobody can see.
-    if (!overflows || cycle === null || isBackgrounded) return undefined;
-
-    // Manual chaining (like react-native-text-ticker's animateScroll):
-    // Animated.loop with a native-driven sequence(delay, timing) runs the
-    // timing once and never re-arms, leaving the marquee stuck off-position.
-    // Passes are scheduled on absolute deadlines so timer jitter never
-    // accumulates and sibling marquees stay aligned.
-    let cancelled = false;
-    let timeoutId: ReturnType<typeof setTimeout> | null = null;
-    let current: Animated.CompositeAnimation | null = null;
-    let nextStartAt = Date.now() + holdDelay;
-
-    const scroll = () => {
-      if (cancelled) return;
-      current = Animated.timing(translateX, {
-        toValue: -(textWidth + spacer),
-        duration: passDuration,
-        easing: Easing.linear,
-        useNativeDriver: true,
-      });
-      current.start(({ finished }) => {
-        if (cancelled || !finished) return;
-        // Copy B now sits exactly where copy A was — snapping back to 0
-        // swaps them without any visible change.
-        translateX.setValue(0);
-        nextStartAt += cycle;
-        timeoutId = setTimeout(scroll, Math.max(0, nextStartAt - Date.now()));
-      });
-    };
-
-    timeoutId = setTimeout(scroll, holdDelay);
-
-    return () => {
-      cancelled = true;
-      if (timeoutId) clearTimeout(timeoutId);
-      current?.stop();
-      translateX.setValue(0);
-    };
-  }, [
-    overflows,
-    cycle,
-    passDuration,
-    textWidth,
-    spacer,
-    holdDelay,
-    translateX,
-    isBackgrounded,
-  ]);
+  // Rest during the hold, scroll one copy + spacer at constant speed, then
+  // rest (looking exactly like offset 0) until the cycle wraps.
+  const translateX = useMemo(() => {
+    const end = overflows ? -(textWidth + spacer) : 0;
+    // A zero hold would repeat input 0, which native interpolation may reject.
+    const hold = holdDelay > 0;
+    return clock.interpolate({
+      inputRange: hold
+        ? [0, holdDelay, holdDelay + passDuration]
+        : [0, passDuration],
+      outputRange: hold ? [0, 0, end] : [0, end],
+      extrapolate: "clamp",
+    });
+  }, [clock, holdDelay, passDuration, overflows, textWidth, spacer]);
 
   const content = (
     <>
@@ -249,9 +261,8 @@ export const Marquee = React.memo(function Marquee({
         <Animated.View
           style={[
             styles.track,
-            // Transform is always attached (like the original lib) so the
-            // native node never re-attaches mid-flight; it stays 0 when the
-            // text fits.
+            // Transform is always attached (like the original lib); it
+            // interpolates to 0 when the text fits.
             { transform: [{ translateX }] },
           ]}
         >
