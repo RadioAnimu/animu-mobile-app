@@ -8,7 +8,7 @@ export interface Donor {
 /** Founder and designer credited in the Credits section. */
 export const FOUNDER = "Lucas Lopes (LL!)";
 
-/** The app's developers, credited in the Credits section. */
+/** The app's developers, credited in the About footer. */
 export const DEVELOPERS: string[] = [
   "Afonso Oliveira (FZero)",
   "José Silva (Tossa)",

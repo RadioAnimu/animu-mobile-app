@@ -353,7 +353,7 @@ export function About({ navigation }: Readonly<Props>) {
           />
         </View>
 
-        {/* Every person behind the app, consolidated in one place. */}
+        {/* The app's maintainer and founder; the wider team signs the footer. */}
         <SectionTitle title={dict.ABOUT_CREDITS_TITLE} icon="groups" />
         <View style={styles.group}>
           <LinkRow
@@ -367,19 +367,6 @@ export function About({ navigation }: Readonly<Props>) {
             icon="palette"
             label={dict.ABOUT_ROLE_FOUNDER}
             description={FOUNDER}
-          />
-          <RowDivider />
-          <InfoRow
-            icon="terminal"
-            label={dict.ABOUT_ROLE_DEV}
-            description={DEVELOPERS.join(", ")}
-          />
-          <RowDivider />
-          <LinkRow
-            icon="brush"
-            label={dict.ABOUT_ROLE_CHIHAYA}
-            description={ILLUSTRATOR}
-            onPress={() => openLink(API.PIXIV_URL)}
           />
           <RowDivider />
           <DonorDisclosure dict={dict} />
@@ -445,6 +432,24 @@ export function About({ navigation }: Readonly<Props>) {
 
         <View style={styles.footer}>
           <Text style={styles.footerLine}>{dict.SETTINGS_FOOTER_TEAM}</Text>
+          <Text style={styles.footerLine}>
+            {dict.ABOUT_ROLE_DEV}: {DEVELOPERS.join(", ")}
+          </Text>
+          {/* Its own touchable (not a nested Text link) so screen readers
+              reach it, with slop for a full-size tap target. */}
+          <TouchableOpacity
+            accessibilityRole="link"
+            accessibilityLabel={`${dict.ABOUT_ROLE_CHIHAYA}: ${ILLUSTRATOR}`}
+            accessibilityHint={dict.ABOUT_OPENS_BROWSER}
+            hitSlop={THEME.HIT_SLOP.MD}
+            activeOpacity={THEME.OPACITY.PRESSED}
+            onPress={() => openLink(API.PIXIV_URL)}
+          >
+            <Text style={styles.footerLine}>
+              {dict.ABOUT_ROLE_CHIHAYA}:{" "}
+              <Text style={styles.footerLink}>{ILLUSTRATOR}</Text>
+            </Text>
+          </TouchableOpacity>
           <Text style={styles.footerLine}>
             {dict.SETTINGS_COPYRIGHT_NOTICE} · {dict.SETTINGS_FOOTER_LOCATION}
           </Text>

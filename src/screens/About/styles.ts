@@ -87,6 +87,11 @@ export const styles = StyleSheet.create({
     lineHeight: THEME.LINE_HEIGHT.CAPTION,
     textAlign: "center",
   },
+  footerLink: {
+    color: THEME.COLORS.BRAND,
+    fontFamily: THEME.FONT_FAMILY.BOLD,
+    textDecorationLine: "underline",
+  },
   badge: {
     width: scale(88),
     height: scale(31),
