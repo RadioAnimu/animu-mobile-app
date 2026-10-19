@@ -21,6 +21,7 @@
 //   CREATE_GITHUB_RELEASE When true, create the GitHub release and upload assets
 //   DRAFT                 Create the GitHub release as a draft
 //   PRERELEASE            Mark the GitHub release as a pre-release
+//   SKIP_CHECKS           Build for QA without CI, lint, tests or compliance gates
 
 pipeline {
   // Lock BEFORE any executor is allocated: with a top-level agent, the lock
@@ -38,8 +39,8 @@ pipeline {
     booleanParam(name: 'CREATE_GITHUB_RELEASE', defaultValue: false, description: 'Create the GitHub release for TAG and upload the .aab/.apk + checksums. Off = only build and archive the artifacts, no release.')
     booleanParam(name: 'DRAFT', defaultValue: true, description: 'Create the GitHub release as a draft (not public until you publish it). Only used when CREATE_GITHUB_RELEASE is on.')
     booleanParam(name: 'PRERELEASE', defaultValue: false, description: 'Mark the GitHub release as a pre-release. Only used when CREATE_GITHUB_RELEASE is on.')
+    booleanParam(name: 'SKIP_CHECKS', defaultValue: false, description: 'QA build: bypass CI lookup, typecheck, lint, tests, audits, React Doctor and artifact compliance checks. Build the production AAB and signed universal APK, named *-qa-unchecked; signing verification still runs. Refused together with CREATE_GITHUB_RELEASE or COMMIT_BUMP.')
     booleanParam(name: 'TRUST_CI', defaultValue: true, description: 'If the CI job has a green build for this exact commit, skip the pre-release checks. Off = always re-run typecheck/lint/tests.')
-    string(name: 'CI_JOB_NAME', defaultValue: 'Animu/animu-mobile-app', description: 'Which CI job TRUST_CI trusts, as folder/job. Must be a job that runs on pushes to main.')
   }
 
   options {
@@ -80,6 +81,10 @@ pipeline {
     JAVA_HOME = '/home/rmotafreitas/.sdkman/candidates/java/17.0.20-tem'
     // Jenkins user for the CI-status lookup (token supplied per-stage).
     JENKINS_USER = 'rmotafreitas'
+    // The only job TRUST_CI may trust: it runs the full checks on pushes to
+    // main. Not a parameter, so a release cannot point it at a job that
+    // skips them (a QA release, a Sonar scan).
+    CI_JOB_NAME = 'Animu/animu-mobile-app'
   }
 
   stages {
@@ -96,7 +101,15 @@ pipeline {
             none|versionCode|patch|minor|major) ;;
             *) echo "invalid BUMP: $BUMP"; exit 1 ;;
           esac
-          echo "BUMP=${BUMP:-none} COMMIT_BUMP=${COMMIT_BUMP:-false} TRUST_CI=${TRUST_CI:-true}"
+          echo "BUMP=${BUMP:-none} COMMIT_BUMP=${COMMIT_BUMP:-false} TRUST_CI=${TRUST_CI:-true} SKIP_CHECKS=${SKIP_CHECKS:-false}"
+          if [ "${SKIP_CHECKS:-false}" = "true" ]; then
+            # An unchecked build must never reach a release or main.
+            if [ "${CREATE_GITHUB_RELEASE:-false}" = "true" ] || [ "${COMMIT_BUMP:-false}" = "true" ]; then
+              echo "SKIP_CHECKS builds are QA-only: turn off CREATE_GITHUB_RELEASE and COMMIT_BUMP"
+              exit 1
+            fi
+            echo "QA build: quality checks are bypassed; production signing is enabled."
+          fi
         '''
       }
     }
@@ -228,7 +241,7 @@ pipeline {
     // a SUCCESS build for HEAD, skip the checks below. Otherwise they run.
     stage('Check CI status for this commit') {
       agent { label 'animu-android-native' }
-      when { expression { return params.TRUST_CI && params.BUMP == 'none' && !params.VERSION && !params.VERSION_CODE } }
+      when { expression { return !params.SKIP_CHECKS && params.TRUST_CI && params.BUMP == 'none' && !params.VERSION && !params.VERSION_CODE } }
       steps {
         withCredentials([string(credentialsId: 'jenkins-api-token', variable: 'JENKINS_API_TOKEN')]) {
           script {
@@ -243,11 +256,11 @@ pipeline {
       }
     }
 
-    // Hard gate: never ship a release that fails the same checks as CI — unless
-    // a passing CI build for this commit was verified above.
+    // Normal releases require the CI checks (or a verified passing CI build).
+    // SKIP_CHECKS explicitly bypasses them for a QA artifact.
     stage('Pre-release checks') {
       agent { label 'animu-android-native' }
-      when { expression { return !(params.TRUST_CI && env.CI_VERIFIED == 'true') } }
+      when { expression { return !params.SKIP_CHECKS && !(params.TRUST_CI && env.CI_VERIFIED == 'true') } }
       steps {
         withCredentials([string(credentialsId: 'jenkins-api-token', variable: 'JENKINS_API_TOKEN')]) {
           sh '''
@@ -271,6 +284,33 @@ pipeline {
       post {
         always {
           junit allowEmptyResults: true, testResults: '**/junit*.xml'
+        }
+      }
+    }
+
+    // A trusted CI build can be days old; advisories published since then
+    // must still stop the release.
+    stage('Fresh dependency audit') {
+      agent { label 'animu-android-native' }
+      when { expression { return !params.SKIP_CHECKS && params.TRUST_CI && env.CI_VERIFIED == 'true' } }
+      steps {
+        sh 'pnpm run check:audit'
+      }
+    }
+
+    // Coverage, duplication and new-issue limits live in the SonarQube gate,
+    // which runs as its own job after CI: a release needs it green for the
+    // exact commit too.
+    stage('Require SonarQube gate for this commit') {
+      agent { label 'animu-android-native' }
+      when { expression { return !params.SKIP_CHECKS } }
+      steps {
+        withCredentials([string(credentialsId: 'jenkins-api-token', variable: 'JENKINS_API_TOKEN')]) {
+          sh '''
+            set -eu
+            [ "$(node scripts/check-ci-build.mjs Animu/animu-sonar "$(git rev-parse HEAD)")" = true ] || {
+              echo "Animu/animu-sonar has no passing build for this commit; run it (or wait for it) first."; exit 1; }
+          '''
         }
       }
     }
@@ -387,10 +427,15 @@ pipeline {
           mkdir -p "$ARTIFACT_DIR" "$GRADLE_USER_HOME" "$TMPDIR" "$CCACHE_DIR"
           ccache --show-stats || true
           # -I wires ccache into every native module (scripts/ccache.gradle).
-          # Full lint and native player regressions are mandatory release gates.
           cd android
-          ./gradlew :app:lintRelease :react-native-anything-player:testReleaseUnitTest :app:bundleRelease --no-daemon \
-            --profile -I "$WORKSPACE/scripts/ccache.gradle"
+          if [ "${SKIP_CHECKS:-false}" = "true" ]; then
+            # bundleRelease may also schedule Android's vital lint implicitly.
+            ./gradlew :app:bundleRelease -x lint -x lintRelease -x lintVitalRelease --no-daemon \
+              --profile -I "$WORKSPACE/scripts/ccache.gradle"
+          else
+            ./gradlew :app:lintRelease :react-native-anything-player:testReleaseUnitTest :app:bundleRelease --no-daemon \
+              --profile -I "$WORKSPACE/scripts/ccache.gradle"
+          fi
           cd ..
           ccache --show-stats || true
           cp android/app/build/outputs/bundle/release/app-release.aab \
@@ -423,12 +468,14 @@ pipeline {
           fi
 
           echo "$BUNDLETOOL_SHA256  $BUNDLETOOL_JAR" | sha256sum -c -
-          java -jar "$BUNDLETOOL_JAR" validate --bundle="$AAB"
-          java -jar "$BUNDLETOOL_JAR" dump config --bundle="$AAB" > "$TMPDIR/bundle-config.txt"
-          grep -q PAGE_ALIGNMENT_16K "$TMPDIR/bundle-config.txt"
-          java -jar "$BUNDLETOOL_JAR" dump manifest --bundle="$AAB" > "$TMPDIR/release-manifest.xml"
-          python3 -m unittest discover -s scripts/__tests__ -p '*_test.py'
-          python3 scripts/validate-android-artifact.py "$AAB" "$TMPDIR/release-manifest.xml" app.json
+          if [ "${SKIP_CHECKS:-false}" != "true" ]; then
+            java -jar "$BUNDLETOOL_JAR" validate --bundle="$AAB"
+            java -jar "$BUNDLETOOL_JAR" dump config --bundle="$AAB" > "$TMPDIR/bundle-config.txt"
+            grep -q PAGE_ALIGNMENT_16K "$TMPDIR/bundle-config.txt"
+            java -jar "$BUNDLETOOL_JAR" dump manifest --bundle="$AAB" > "$TMPDIR/release-manifest.xml"
+            python3 -m unittest discover -s scripts/__tests__ -p '*_test.py'
+            python3 scripts/validate-android-artifact.py "$AAB" "$TMPDIR/release-manifest.xml" app.json
+          fi
 
           APKS="$TMPDIR/universal.apks"
           rm -f "$APKS"
@@ -445,7 +492,9 @@ pipeline {
           rm -rf "$TMPDIR/universal-extract"
           unzip -o -q "$APKS" -d "$TMPDIR/universal-extract"
           cp "$TMPDIR/universal-extract/universal.apk" "$APK"
-          "$ANDROID_SDK_ROOT/build-tools/$(node -p "require('./app.json').expo.plugins.find(p => Array.isArray(p) && p[0] === 'expo-build-properties')[1].android.buildToolsVersion")/zipalign" -c -P 16 4 "$APK"
+          if [ "${SKIP_CHECKS:-false}" != "true" ]; then
+            "$ANDROID_SDK_ROOT/build-tools/$(node -p "require('./app.json').expo.plugins.find(p => Array.isArray(p) && p[0] === 'expo-build-properties')[1].android.buildToolsVersion")/zipalign" -c -P 16 4 "$APK"
+          fi
           ls -la "$APK"
         '''
       }
@@ -470,6 +519,13 @@ pipeline {
           [ -n "$AAB_CERT" ] || { echo "ERROR: could not read AAB signature"; exit 1; }
           if echo "$AAB_CERT" | grep -q "CN=Android Debug"; then
             echo "ERROR: AAB is signed with the Android debug keystore"; exit 1
+          fi
+          # A certificate in META-INF does not prove it signs these bytes:
+          # jarsigner checks every entry's digest. It exits 0 on an unsigned
+          # jar, hence the explicit verdict line.
+          if ! "$JAVA_HOME/bin/jarsigner" -verify "$AAB" > "$TMPDIR/aab-verify.txt" 2>&1 \
+            || ! grep -qx "jar verified." "$TMPDIR/aab-verify.txt"; then
+            cat "$TMPDIR/aab-verify.txt"; echo "ERROR: AAB signature does not verify"; exit 1
           fi
 
           APKSIGNER=$(find "$ANDROID_SDK_ROOT/build-tools" -name apksigner | sort | tail -1)
@@ -503,6 +559,13 @@ pipeline {
           cd "$ARTIFACT_DIR"
           AAB="animu-${VERSION}-code${VERSION_CODE}.aab"
           APK="animu-${VERSION}-code${VERSION_CODE}.apk"
+          # QA artifacts are named so they cannot pass for a checked release.
+          if [ "${SKIP_CHECKS:-false}" = "true" ]; then
+            mv "$AAB" "${AAB%.aab}-qa-unchecked.aab"
+            mv "$APK" "${APK%.apk}-qa-unchecked.apk"
+            AAB="${AAB%.aab}-qa-unchecked.aab"
+            APK="${APK%.apk}-qa-unchecked.apk"
+          fi
 
           sha256sum "$AAB" > "$AAB.sha256"
           sha256sum "$APK" > "$APK.sha256"
@@ -574,6 +637,9 @@ pipeline {
             echo "## Android release ${TAG} (versionCode ${VERSION_CODE})"
             echo ""
             echo "Built on Jenkins, signed with the Play upload key."
+            if [ "${SKIP_CHECKS:-false}" = "true" ]; then
+              echo "QA build: quality and artifact compliance checks were bypassed (SKIP_CHECKS=true)."
+            fi
             echo "App target SDK: ${TARGET_SDK}."
             echo ""
             echo "### Artifacts"
@@ -651,8 +717,9 @@ pipeline {
     }
     success {
       node('animu-android-native') {
-        // Only fully validated releases expose downloadable artifacts.
-        archiveArtifacts artifacts: 'release-artifacts/*', allowEmptyArchive: false, fingerprint: true
+        // Archive successful builds. A QA build keeps only its APK: its AAB is
+        // an unchecked Play upload and must not be downloadable as one.
+        archiveArtifacts artifacts: params.SKIP_CHECKS ? 'release-artifacts/*.apk,release-artifacts/*.apk.sha256,release-artifacts/RELEASE_NOTES.md' : 'release-artifacts/*', allowEmptyArchive: false, fingerprint: true
         archiveArtifacts artifacts: 'android/build/reports/profile/**', allowEmptyArchive: true
       }
       echo 'Release pipeline succeeded.'

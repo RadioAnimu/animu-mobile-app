@@ -45,8 +45,8 @@ CI runs in the Node container; release builds run on the
 | `TAG` | Git/release tag, e.g. `v3.0.1`. |
 | `CREATE_GITHUB_RELEASE` | When true, create the GitHub release and upload the artifacts. |
 | `DRAFT` / `PRERELEASE` | Flags for the created GitHub release. |
-| `TRUST_CI` | Skip the pre-release checks when the CI job has a passing build for the exact commit. |
-| `CI_JOB_NAME` | CI job consulted by `TRUST_CI` (default `animu-mobile-app`). |
+| `TRUST_CI` | Skip the pre-release checks when the `Animu/animu-mobile-app` CI job has a passing build for the exact commit. The dependency audit still runs fresh. |
+| `SKIP_CHECKS` | Default `false`. Set `true` for a QA build to bypass CI lookup, pre-release checks, Android lint/native tests, and artifact compliance checks. Production signing and signer verification still run. The artifacts are named `*-qa-unchecked`, and the build refuses to run with `CREATE_GITHUB_RELEASE` or `COMMIT_BUMP`. |
 
 ### Pipeline steps
 
@@ -54,7 +54,9 @@ CI runs in the Node container; release builds run on the
 2. Checkout both public submodules at their pinned revisions.
 3. Install dependencies with pnpm — when dependency configuration changes (stamped); verify both library outputs every run.
 4. `TRUST_CI`: if the CI job has a SUCCESS build for `HEAD`, the pre-release
-   checks are skipped; otherwise they run (typecheck, lint, tests, React Doctor).
+   checks are skipped (the dependency audit still runs); otherwise they run
+   (typecheck, lint, tests, React Doctor). Either way the `Animu/animu-sonar`
+   job must have a SUCCESS build for `HEAD`.
 5. `expo prebuild --platform android` — only when `app.json` / `plugins` /
    lockfile / Anything Player's config plugin changed (stamped). Otherwise the existing `android/` is reused so
    Gradle stays incremental.
@@ -62,8 +64,9 @@ CI runs in the Node container; release builds run on the
    `./gradlew :app:lintRelease :react-native-anything-player:testReleaseUnitTest :app:bundleRelease`.
 7. Validate the bundle, merged release manifest, and every shipped 64-bit ELF library for 16 KB compatibility. Derive the universal APK from the AAB with **bundletool**
    (`--mode=universal`) instead of a second Gradle build.
-8. Check the APK with `zipalign -c -P 16 4`; verify both artifacts are **not** signed with the Android debug key and that
-   the APK signer matches the AAB signer.
+8. Check the APK with `zipalign -c -P 16 4`; verify the AAB's JAR signature
+   (`jarsigner -verify`), that neither artifact is signed with the Android debug
+   key, and that the APK signer matches the AAB signer.
 9. Write SHA-256 checksums, per-device Play download sizes (bundletool), and
    `RELEASE_NOTES.md`.
 10. Optionally create the GitHub release and upload the artifacts.
@@ -72,6 +75,14 @@ The universal APK uses the upload key. Google Play App Signing may use a
 different app-signing key, so matching APK/AAB upload signatures do not prove
 that the APK can update a Play-installed app. Verify the channel's certificate
 in Play Console before promising cross-channel updates.
+
+For a production APK for QA, enable `SKIP_CHECKS`, leave `BUMP=none` and
+`COMMIT_BUMP=false`, and leave `CREATE_GITHUB_RELEASE=false` (the pipeline
+fails otherwise). Download
+`release-artifacts/animu-<version>-code<versionCode>-qa-unchecked.apk` from the successful
+Jenkins build's artifacts. The AAB is still built as the source of the universal
+APK but is not archived. Release notes record that checks were bypassed. Sonar runs in a separate
+job and is not invoked by this release pipeline.
 
 ### Signing (Play uploads)
 
