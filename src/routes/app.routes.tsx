@@ -96,6 +96,9 @@ function DrawerRoutes() {
       backBehavior="history"
       screenOptions={{
         headerShown: false,
+        // Screens left behind stay mounted (state, scroll) but stop
+        // re-rendering on player/station updates until they are shown again.
+        freezeOnBlur: true,
         overlayColor: THEME.COLORS.SCRIM,
         overlayAccessibilityLabel: dict.A11Y_CLOSE_MENU,
         drawerStyle: {
@@ -160,6 +163,8 @@ export function AppRoutes() {
     // iOS plays fades and the bottom slide over 500ms by default — twice the
     // app's tempo. (The platform push and Android's transitions are native.)
     animationDuration: MOTION.DURATION.SCREEN,
+    // The player under a pushed page stops re-rendering until it is back.
+    freezeOnBlur: true,
   };
 
   return (

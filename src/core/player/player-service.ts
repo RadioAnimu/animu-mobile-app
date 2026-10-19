@@ -729,7 +729,13 @@ export class PlayerService {
     this.emitProgress();
     this.deps.repository.expireStuckRefresh();
     const cadence = this.isPlayingIntent ? POLL_PLAYING_MS : POLL_PAUSED_MS;
-    if (Date.now() - this.lastPollAt >= cadence) {
+    // A failed refresh is already waiting on its backoff timer, which runs the
+    // refresh itself: polling over it would defeat the 2 s → 30 s backoff
+    // during an outage. Explicit refreshes (play, foreground, pull) bypass this.
+    if (
+      Date.now() - this.lastPollAt >= cadence &&
+      !this.deps.repository.retryPending
+    ) {
       void this.refreshData().catch((error) => {
         if (CONFIG.DEBUG) console.warn("[PlayerService] poll:", error);
       });

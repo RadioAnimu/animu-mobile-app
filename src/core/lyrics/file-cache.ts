@@ -3,6 +3,13 @@ import type { CachedLookup, LyricsCache } from "@/core/lyrics/ports";
 
 /** Lookups kept on disk; the oldest go first. */
 const MAX_FILES = 400;
+/**
+ * Trim slack: in steady state the directory already holds MAX_FILES, so
+ * trimming on every write would re-list and re-sort it each time (~2
+ * synchronous native calls per file). Trim only once the count reaches
+ * MAX_FILES + TRIM_SLACK, and then back down to MAX_FILES.
+ */
+const TRIM_SLACK = 50;
 const FORMAT = 1;
 
 /** FNV-1a, 32 bit: a file name for a song key (the key is stored inside). */
@@ -55,8 +62,16 @@ export class LyricsFileCache implements LyricsCache {
 
   private trim(): void {
     const files = this.dir.list().filter((item): item is File => item instanceof File);
-    if (files.length <= MAX_FILES) return;
-    files.sort((a, b) => (a.lastModified ?? 0) - (b.lastModified ?? 0));
-    for (const file of files.slice(0, files.length - MAX_FILES)) file.delete();
+    if (files.length < MAX_FILES + TRIM_SLACK) return;
+    // Read `lastModified` once per file: it is a synchronous native call, and
+    // a comparator would re-read it O(n log n) times.
+    const stamped = files.map((file) => ({
+      file,
+      modified: file.lastModified ?? 0,
+    }));
+    stamped.sort((a, b) => a.modified - b.modified);
+    for (const { file } of stamped.slice(0, files.length - MAX_FILES)) {
+      file.delete();
+    }
   }
 }

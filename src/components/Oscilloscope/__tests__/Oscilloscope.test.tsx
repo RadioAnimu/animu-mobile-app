@@ -46,6 +46,7 @@ const mocks = vi.hoisted(() => ({
   player: {} as Record<string, unknown>,
   hz: 30,
   backgrounded: false,
+  focused: true,
   listener: null as null | ((window: object) => void),
   unsubscribe: vi.fn(),
   /** Re-renders the (memoized, prop-less) component after a mock change. */
@@ -64,6 +65,9 @@ vi.mock("@/contexts/player/PlayerProvider", () => ({
 }));
 vi.mock("@/contexts/user/UserSettingsProvider", () => ({
   useUserSettings: () => ({ settings: { visualizerHz: mocks.hz } }),
+}));
+vi.mock("@react-navigation/native", () => ({
+  useIsFocused: () => mocks.focused,
 }));
 
 const reportVisualizerDelay = vi.fn();
@@ -89,6 +93,7 @@ describe("Oscilloscope (Android)", () => {
   beforeEach(() => {
     mocks.hz = 30;
     mocks.backgrounded = false;
+    mocks.focused = true;
     mocks.listener = null;
     setPlayer();
   });
@@ -112,6 +117,20 @@ describe("Oscilloscope (Android)", () => {
       const { container } = render(<Oscilloscope />);
       expect(container.firstChild).toBeNull();
       expect(mocks.listener).toBeNull();
+    });
+
+    it("renders nothing and never subscribes while another screen is focused", () => {
+      // Home is a drawer screen that stays mounted behind every other
+      // screen: only a focused Home may keep the WebView and its
+      // subscription alive.
+      mocks.focused = false;
+      const { container } = render(<Oscilloscope />);
+      expect(container.firstChild).toBeNull();
+      expect(mocks.listener).toBeNull();
+      // Focusing again (without re-render props) turns the scope back on.
+      mocks.focused = true;
+      act(() => mocks.forceRender());
+      expect(mocks.listener).not.toBeNull();
     });
   });
 

@@ -5,6 +5,7 @@ import type { VisualizerWindow } from "@/core/player";
 import { useIsBackgrounded } from "@/contexts/app-state/AppStateProvider";
 import { usePlayer } from "@/contexts/player/PlayerProvider";
 import { useUserSettings } from "@/contexts/user/UserSettingsProvider";
+import { useIsFocused } from "@react-navigation/native";
 import { THEME } from "@/theme";
 import { CONFIG, debugLog } from "@/utils/player.config";
 import { scale } from "@/theme/responsive";
@@ -457,6 +458,9 @@ const PAGE_HTML = `<!DOCTYPE html>
  * side) and pointer-transparent — it renders, nothing else. `react-freeze`
  * pauses it while backgrounded.
  */
+/** One source object for the page's lifetime (a new one per render is prop churn). */
+const PAGE_SOURCE = { html: PAGE_HTML };
+
 export const Oscilloscope = React.memo(function Oscilloscope() {
   const {
     subscribeVisualizerWindows,
@@ -465,6 +469,10 @@ export const Oscilloscope = React.memo(function Oscilloscope() {
   } = usePlayer();
   const { settings } = useUserSettings();
   const isBackgrounded = useIsBackgrounded();
+  // The scope only lives on Home (a drawer screen that stays mounted while
+  // other screens are in front of it): sampling must stop when it is not
+  // the screen the user is actually looking at.
+  const isFocused = useIsFocused();
   const { width } = useWindowDimensions();
 
   const diagnosticRef = useRef({ start: 0, last: 0, waves: 0, gapMaxMs: 0, encodePostMaxMs: 0 });
@@ -475,11 +483,9 @@ export const Oscilloscope = React.memo(function Oscilloscope() {
   const bridgeSeqRef = useRef(0);
   /** Bumped to remount the WebView after its renderer process died. */
   const [pageKey, setPageKey] = useState(0);
-  const wantsOn =
-    isPlaying &&
-    visualizerSupported &&
-    settings.visualizerHz > 0 &&
-    !isBackgrounded;
+  const samplingWanted =
+    isPlaying && visualizerSupported && settings.visualizerHz > 0;
+  const wantsOn = isFocused && samplingWanted && !isBackgrounded;
 
 
   // Commit logs expose context-driven renders without adding React state.
@@ -595,7 +601,7 @@ export const Oscilloscope = React.memo(function Oscilloscope() {
       <WebView
         key={pageKey}
         ref={webviewRef}
-        source={{ html: PAGE_HTML }}
+        source={PAGE_SOURCE}
         onMessage={onMessage}
         onRenderProcessGone={onRenderProcessGone}
         javaScriptEnabled

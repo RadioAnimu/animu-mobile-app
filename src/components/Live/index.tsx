@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useCallback } from "react";
 import { Text, View } from "react-native";
 import { THEME } from "@/theme";
 import { Marquee, MarqueeGroup } from "@/components/Marquee";
@@ -16,6 +16,15 @@ export const Live = React.memo(function Live() {
   const LiveLabel = IMGS[settings.selectedLanguage].LIVE_LABEL;
 
   const track = player.currentTrack;
+  // A song from no anime keeps the home screen's "Now Playing" label.
+  const anime = track?.anime || DEFAULT_ANIME_FALLBACK;
+  const artist = track?.artist ?? "";
+  const title = track?.title ?? "";
+  // Stable handlers keep the memoized marquees from re-rendering on every
+  // player update (play/pause, syncing) that leaves the text unchanged.
+  const copyAnime = useCallback(() => copy(anime), [copy, anime]);
+  const copyArtist = useCallback(() => copy(artist), [copy, artist]);
+  const copyTitle = useCallback(() => copy(title), [copy, title]);
 
   // Before the first track lands the bar is already there, its lines blank,
   // so the program block below doesn't jump when the names arrive.
@@ -43,9 +52,6 @@ export const Live = React.memo(function Live() {
     );
   }
 
-  // A song from no anime keeps the home screen's "Now Playing" label.
-  const anime = track.anime || DEFAULT_ANIME_FALLBACK;
-
   return (
     <View style={styles.track}>
       <LiveLabel />
@@ -54,17 +60,17 @@ export const Live = React.memo(function Live() {
           <Marquee
             style={styles.title}
             text={anime}
-            onPress={() => copy(anime)}
+            onPress={copyAnime}
           />
           <Marquee
             style={styles.artist}
-            text={track.artist}
-            onPress={() => copy(track.artist)}
+            text={artist}
+            onPress={copyArtist}
           />
           <Marquee
             style={styles.song}
-            text={track.title}
-            onPress={() => copy(track.title)}
+            text={title}
+            onPress={copyTitle}
           />
         </MarqueeGroup>
       </View>

@@ -83,16 +83,20 @@ describe("player factory", () => {
     skew.listener?.(30_000, 100);
   });
 
-  it("samples decoded audio through Airwave while the visualizer is on and audio plays", async () => {
+  it("samples decoded audio through Airwave only once a visualizer listener reads windows", async () => {
     const { createPlayerService } = await load();
     const { WAVE_POINTS } = await import("@/core/player/visualizer/audio-sampler");
     const service = createPlayerService();
     const player = players[0];
     service.setVisualizerEnabled(true);
     player.listeners.get("status")?.({ state: "playing", playWhenReady: true, network: "online" });
+    // Nothing is subscribed: nobody would see the windows, so no sampling.
+    expect(player.setAudioSampling).not.toHaveBeenCalled();
+    const unsubscribe = service.subscribeVisualizerWindows(() => {});
     expect(player.setAudioSampling).toHaveBeenLastCalledWith({ enabled: true, points: WAVE_POINTS });
     expect(player.listeners.has("audioSample")).toBe(true);
-    service.setVisualizerEnabled(false);
+    // The listener leaving turns sampling back off.
+    unsubscribe();
     expect(player.setAudioSampling).toHaveBeenLastCalledWith({ enabled: false, points: WAVE_POINTS });
     expect(player.listeners.has("audioSample")).toBe(false);
   });

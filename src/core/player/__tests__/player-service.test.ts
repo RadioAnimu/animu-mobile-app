@@ -86,6 +86,7 @@ const setup = (extra: Partial<PlayerServiceDependencies> = {}) => {
     clear: vi.fn(),
     setLiveStreamActive: vi.fn(),
     isSuspended: false,
+    retryPending: false,
     historyStale: false,
   };
   const preferences = {
@@ -606,6 +607,30 @@ describe("PlayerService on react-native-anything-player", () => {
     vi.advanceTimersByTime(21_000);
     t.tick();
     expect(t.repository.refresh).toHaveBeenCalledTimes(1);
+    vi.useRealTimers();
+  });
+
+  it("skips the foreground poll while a retry backoff is pending, then resumes", async () => {
+    vi.useFakeTimers();
+    const t = setup();
+    await t.service.setupPlayer();
+    t.repository.refresh.mockClear();
+
+    // The repository's own retry will run the refresh: the poll stays out of its way.
+    t.repository.retryPending = true;
+    vi.advanceTimersByTime(40_000);
+    t.tick();
+    expect(t.repository.refresh).not.toHaveBeenCalled();
+
+    // Recovered: the overdue poll fires on the very next tick.
+    t.repository.retryPending = false;
+    t.tick();
+    expect(t.repository.refresh).toHaveBeenCalledTimes(1);
+
+    // An explicit refresh is never blocked by a pending retry.
+    t.repository.retryPending = true;
+    await t.service.refreshData({ forceMetadata: true });
+    expect(t.repository.refresh).toHaveBeenCalledTimes(2);
     vi.useRealTimers();
   });
 

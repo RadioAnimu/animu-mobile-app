@@ -3,6 +3,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const storage = vi.hoisted(() => ({
   exists: false,
   clock: 0,
+  /** Counts `lastModified` reads — each one is a native call in production. */
+  mtimeReads: 0,
   files: new Map<string, { text: string; modified: number }>(),
 }));
 vi.mock("expo-file-system", () => {
@@ -15,6 +17,7 @@ vi.mock("expo-file-system", () => {
       return storage.files.has(this.name);
     }
     get lastModified() {
+      storage.mtimeReads += 1;
       return storage.files.get(this.name)?.modified ?? null;
     }
     async text() {
@@ -57,6 +60,7 @@ const { fileNameOf, LyricsFileCache } =
 beforeEach(() => {
   storage.exists = false;
   storage.clock = 0;
+  storage.mtimeReads = 0;
   storage.files.clear();
 });
 
@@ -106,11 +110,31 @@ describe("lyrics persistence", () => {
     const cache = new LyricsFileCache();
     const entry = { savedAt: 123, result: { kind: "none" as const } };
     for (let i = 0; i < 400; i += 1) await cache.write(`song${i}`, entry);
-    await cache.write("song0", entry);
-    await cache.write("new song", entry);
+    await cache.write("song0", entry); // rewritten → freshest, must survive
+    // 400 → 450 files crosses the margin (MAX_FILES + TRIM_SLACK).
+    for (let i = 0; i < 50; i += 1) await cache.write(`extra${i}`, entry);
     expect(storage.files.size).toBe(400);
     expect(await cache.read("song1")).toBeNull();
     expect(await cache.read("song0")).toEqual(entry);
-    expect(await cache.read("new song")).toEqual(entry);
+    expect(await cache.read("extra49")).toEqual(entry);
+  });
+
+  it("only trims past the margin, reading each mtime once", async () => {
+    const cache = new LyricsFileCache();
+    const entry = { savedAt: 123, result: { kind: "none" as const } };
+    for (let i = 0; i < 400; i += 1) await cache.write(`song${i}`, entry);
+
+    // Writes that stay inside the margin never list-and-sort the directory.
+    storage.mtimeReads = 0;
+    for (let i = 0; i < 49; i += 1) await cache.write(`extra${i}`, entry);
+    expect(storage.files.size).toBe(449);
+    expect(storage.mtimeReads).toBe(0);
+
+    // Crossing the margin trims back to MAX_FILES with one mtime read per file.
+    await cache.write("extra49", entry);
+    expect(storage.files.size).toBe(400);
+    expect(storage.mtimeReads).toBe(450);
+    expect(await cache.read("song49")).toBeNull();
+    expect(await cache.read("song50")).toEqual(entry);
   });
 });

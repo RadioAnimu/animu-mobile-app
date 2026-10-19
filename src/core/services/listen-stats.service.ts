@@ -434,8 +434,8 @@ export class ListenStatsService {
   private addAudibleMs(startMs: number, endMs: number): void {
     if (!this.loaded) return;
     if (endMs <= startMs || !Number.isFinite(endMs) || !Number.isFinite(startMs)) return;
-    // Cap pathological gaps (clock jumps, suspended JS): a segment longer
-    // than an hour of wall time is clipped — real 1 Hz segments are ~1s.
+    // Pathological gaps (clock jumps, suspended JS) are dropped: a segment
+    // longer than an hour of wall time is not real listening.
     if (endMs - startMs > 3_600_000) return;
     this.currentSessionMs += endMs - startMs;
     for (const { day, hour, ms } of splitByHour(startMs, endMs)) {
@@ -452,7 +452,13 @@ export class ListenStatsService {
   /** The transport left `playing` (pause, loss, teardown). Closes the session. */
   onPlaybackStopped(): void {
     if (!this.loaded) return;
+    // Close the open segment before dropping the anchor: in the background
+    // audible ticks only fire on track changes, so a pause would otherwise
+    // lose everything heard since the last one (addAudibleMs drops clock-jump
+    // outliers and end<=start ranges).
+    const start = this.segmentStart;
     this.segmentStart = null;
+    if (start != null) this.addAudibleMs(start, Date.now());
     if (this.inSession) {
       this.inSession = false;
       if (this.currentSessionMs >= MIN_SESSION_MS) {

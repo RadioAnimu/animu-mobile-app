@@ -17,7 +17,7 @@ const setup = () => {
   };
   const sampler = new AudioSampler(transport);
   const windows: VisualizerWindow[] = [];
-  sampler.subscribeWindows((w) => windows.push(w));
+  const unsubscribe = sampler.subscribeWindows((w) => windows.push(w));
   const sample = (over: Partial<AudioSample> = {}) =>
     handler?.({
       waveform: [0.1, -0.1, 0.2, -0.2],
@@ -27,7 +27,7 @@ const setup = () => {
       timestamp: Date.now(),
       ...over,
     });
-  return { sampler, transport, windows, sample, active: () => handler != null };
+  return { sampler, transport, windows, sample, active: () => handler != null, unsubscribe };
 };
 
 describe("AudioSampler (react-native-anything-player windows)", () => {
@@ -47,6 +47,27 @@ describe("AudioSampler (react-native-anything-player windows)", () => {
     // Repeated flags do not re-subscribe.
     t.sampler.setEnabled(false);
     expect(t.transport.onSample).toHaveBeenCalledTimes(2);
+  });
+
+  it("samples only when a listener is subscribed, stopping at the last unsubscribe", () => {
+    const t = setup();
+    // Every gate flag is satisfied, but the first listener's absence keeps
+    // the transport off.
+    t.sampler.setEnabled(true);
+    t.sampler.setPlaying(true);
+    t.unsubscribe();
+    expect(t.active()).toBe(false);
+    expect(t.transport.setSamplingEnabled).toHaveBeenLastCalledWith(false);
+    // The first subscribe back turns it on again.
+    const unsubscribe = t.sampler.subscribeWindows(() => {});
+    expect(t.active()).toBe(true);
+    expect(t.transport.onSample).toHaveBeenCalledTimes(2);
+    expect(t.transport.setSamplingEnabled).toHaveBeenLastCalledWith(true);
+    unsubscribe();
+    expect(t.active()).toBe(false);
+    expect(t.windows).toHaveLength(0);
+    t.sample();
+    expect(t.windows).toHaveLength(0);
   });
 
   it("publishes interpolation pairs with the delay until heard", () => {

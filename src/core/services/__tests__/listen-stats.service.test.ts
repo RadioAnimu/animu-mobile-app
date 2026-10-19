@@ -108,6 +108,23 @@ describe("listenStatsService", () => {
     expect(today.lastAt).toBe(noon + 20_000);
   });
 
+  it("counts the time between the last tick and the stop", async () => {
+    const service = await makeService();
+
+    // In the background audible ticks only fire on track changes, so a long
+    // stretch without a tick still ends when playback stops.
+    const t0 = Date.now();
+    service.onPlaybackStarted();
+    at(t0 + 30_000);
+    service.onAudibleTick(t0 + 30_000); // 30s heard
+    at(t0 + 90_000);
+    service.onPlaybackStopped(); // 60 more seconds, no tick in between
+
+    const today = service.getSnapshot().days[dayKeyOf(t0)];
+    expect(today.ms).toBe(90_000);
+    expect(today.lastAt).toBe(t0 + 90_000);
+  });
+
   it("counts one session only after the 30s minimum", async () => {
     const service = await makeService();
 

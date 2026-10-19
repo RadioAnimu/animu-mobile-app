@@ -515,6 +515,33 @@ describe("NowPlayingRepository", () => {
     }
   });
 
+  it("exposes the pending retry backoff, cleared on recovery", async () => {
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const infoSpy = vi.spyOn(console, "info").mockImplementation(() => {});
+    try {
+      const { timer, repository } = makeRepository();
+      let failing = true;
+      repository["options"].fetchers.getStreamMetadata = async () => {
+        if (failing) throw new Error("network down");
+        return { track: makeTrack(), listeners: { value: 1 } };
+      };
+
+      expect(repository.retryPending).toBe(false);
+      await repository.refresh();
+      expect(repository.retryPending).toBe(true);
+
+      failing = false;
+      timer.advance(BASE_RETRY_MS);
+      await tick();
+      expect(repository.retryPending).toBe(false);
+    } finally {
+      errorSpy.mockRestore();
+      warnSpy.mockRestore();
+      infoSpy.mockRestore();
+    }
+  });
+
   it("schedules a predictive track-end refresh for real, non-live tracks", async () => {
     const { timer, repository } = makeRepository();
     await repository.refresh();
@@ -558,6 +585,40 @@ describe("NowPlayingRepository", () => {
 
     expect(timer.scheduled).toHaveLength(1);
     expect(timer.scheduled[0].ms).toBe(1000);
+  });
+
+  it("backs off while the same track stays overdue, and resets on a new track", async () => {
+    const overdue = makeTrack({ startTime: new Date(Date.now() - 999_999) });
+    const { timer, repository, setStreamMetadata } = makeRepository();
+    setStreamMetadata({ track: overdue, listeners: { value: 10 } });
+
+    await repository.refresh();
+    // First sighting: the immediate 1 s re-check stays.
+    expect(timer.scheduled).toHaveLength(1);
+    const delays: number[] = [timer.scheduled[0].ms - timer.now];
+
+    // The station keeps returning the same overdue track: 1 s → 2 s → 4 s …
+    for (let i = 0; i < 7; i++) {
+      timer.advance(delays[delays.length - 1]);
+      await tick();
+      expect(timer.scheduled).toHaveLength(1);
+      delays.push(timer.scheduled[0].ms - timer.now);
+    }
+    expect(delays).toEqual([1000, 2000, 4000, 8000, 16_000, 30_000, 30_000, 30_000]);
+
+    // A different track starts: the next overdue sighting is immediate again.
+    setStreamMetadata({
+      track: makeTrack({
+        raw: "Other - Song",
+        artwork: "cover-2.jpg",
+        startTime: new Date(Date.now() - 999_999),
+      }),
+      listeners: { value: 10 },
+    });
+    timer.advance(30_000);
+    await tick();
+    expect(timer.scheduled).toHaveLength(1);
+    expect(timer.scheduled[0].ms - timer.now).toBe(1000);
   });
 
   it("does not schedule a track-end refresh for live programs", async () => {

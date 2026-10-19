@@ -11,6 +11,11 @@ export type CoverCacheCategory = "live" | "requested" | "played" | "search";
 const REGISTRY_KEY = "coverCacheRegistry";
 /** AsyncStorage stays small even for heavy browsing sessions. */
 const MAX_ENTRIES = 500;
+/**
+ * Trailing debounce for display tags: opening History tags dozens of covers
+ * at once, and every write serializes the whole registry (~500 entries).
+ */
+const PERSIST_DEBOUNCE_MS = 1_000;
 
 interface RegistryEntry {
   category: CoverCacheCategory;
@@ -32,6 +37,8 @@ export class CoverCacheRegistry {
   private loaded: Promise<void> | null = null;
   /** Serialization chain — rapid tags never interleave AsyncStorage writes. */
   private persistChain: Promise<void> = Promise.resolve();
+  /** Pending debounced write, if any. */
+  private persistTimer: ReturnType<typeof setTimeout> | null = null;
   /** Set while the user is wiping the registry — display tags are silenced. */
   private clearing = false;
 
@@ -58,10 +65,10 @@ export class CoverCacheRegistry {
    * category of its most recent display, which mirrors how the user
    * experienced the cached file.
    *
-   * Persistence is chained (each write queues behind the previous one)
-   * so a burst of rapid tags can never write a stale snapshot over a
-   * newer one — each queued persist serializes the exact map state at
-   * its write time.
+   * Persistence is debounced, then chained (each write queues behind the
+   * previous one) so a burst of rapid tags writes once and can never leave
+   * a stale snapshot behind: each queued persist serializes the exact map
+   * state at its write time.
    *
    * Re-tagging an identical (url, category) pair is a persist no-op:
    * list recycling remounts the same rows while scrolling, and a write
@@ -84,7 +91,7 @@ export class CoverCacheRegistry {
       const oldest = this.entries.keys().next().value;
       if (oldest != null) this.entries.delete(oldest);
     }
-    if (!identical) void this.softPersist();
+    if (!identical) this.schedulePersist();
   }
 
   /** When the URL was last tagged (recency timestamp), for the measure's seed-grace check. */
@@ -110,6 +117,9 @@ export class CoverCacheRegistry {
   async clear(): Promise<void> {
     this.clearing = true;
     try {
+      // A pending debounced write would resurrect the entries — cancel it
+      // before it can fire (tags are silenced while `clearing` is set).
+      this.cancelScheduledPersist();
       await this.load();
       // Flush parked writes (they see the already-empty map), then drop
       // any entries a racing tag added while waiting before the wipe.
@@ -125,17 +135,41 @@ export class CoverCacheRegistry {
   async prune(missingUrls: string[]): Promise<void> {
     if (this.clearing || missingUrls.length === 0) return;
     for (const url of missingUrls) this.entries.delete(url);
-    await this.softPersist();
+    await this.flushPersist();
   }
 
-  /** Chains persists so concurrent tags can't write stale snapshots (last queued write wins). */
-  private softPersist(): Promise<void> {
+  /**
+   * Coalesces a burst of tags into one trailing write. Later tags restart
+   * the timer, so a screenful of covers costs a single AsyncStorage write.
+   */
+  private schedulePersist(): void {
+    this.cancelScheduledPersist();
+    this.persistTimer = setTimeout(() => {
+      this.persistTimer = null;
+      void this.chainPersist();
+    }, PERSIST_DEBOUNCE_MS);
+  }
+
+  private cancelScheduledPersist(): void {
+    if (this.persistTimer == null) return;
+    clearTimeout(this.persistTimer);
+    this.persistTimer = null;
+  }
+
+  /** Chains persists so concurrent writes can't write stale snapshots (last queued write wins). */
+  private chainPersist(): Promise<void> {
     this.persistChain = this.persistChain.then(() => this.persist()).catch(
       (error) => {
         console.warn("[CoverCacheRegistry] persist chain failed:", error);
       },
     );
     return this.persistChain;
+  }
+
+  /** Writes now, cancelling a pending debounce, and awaits the chain. */
+  private flushPersist(): Promise<void> {
+    this.cancelScheduledPersist();
+    return this.chainPersist();
   }
 
   private async persist(): Promise<void> {

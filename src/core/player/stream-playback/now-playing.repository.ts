@@ -15,6 +15,8 @@ import type { Timer } from "@/core/player/timer";
 const TRACK_END_BUFFER_MS = 500;
 /** Delay when the track has already ended by the time we schedule (ms) */
 const TRACK_END_REFRESH_SOON_MS = 1000;
+/** Cap for the overdue-track backoff (ms) — see {@link NowPlayingRepository.scheduleTrackEndRefresh} */
+const TRACK_END_REFRESH_MAX_MS = 30_000;
 /** Base retry delay (ms) — doubles each consecutive error */
 const BASE_RETRY_DELAY_MS = 2000;
 /** Max backoff delay on consecutive network errors (ms) */
@@ -215,6 +217,13 @@ export class NowPlayingRepository {
   private refreshEpoch = 0;
   private refreshStartedAt = 0;
   private trackEndTimerId: number | null = null;
+  /**
+   * Overdue refreshes already run for the current track identity. A track
+   * the station keeps reporting past its metadata end (long song, metadata
+   * lag, gap between songs) would otherwise be re-fetched every second for
+   * as long as it stays overdue. Reset when the identity changes.
+   */
+  private overdueRefreshes = 0;
   private disposed = false;
   /**
    * Automatic station work is switched off ({@link setLiveStreamActive}
@@ -326,6 +335,11 @@ export class NowPlayingRepository {
     );
   }
 
+  /** A failed refresh is waiting on its exponential backoff timer. */
+  get retryPending(): boolean {
+    return this.retryScheduler.isPending;
+  }
+
   /** True when the polled program differs from the one installed. */
   private programIdentityChanged(program: Program): boolean {
     return (
@@ -349,6 +363,7 @@ export class NowPlayingRepository {
       ].slice(0, MAX_RECENT_ON_AIR);
     }
     this.currentTrackValue = track;
+    this.overdueRefreshes = 0;
     if (!isRealTrack(track)) return;
     // Nobody is looking at the history (hidden, nothing playing): skip the
     // request, the return catches up.
@@ -449,6 +464,7 @@ export class NowPlayingRepository {
     this.suspended = true;
     this.stopLive();
     this.cancelTrackEndTimer();
+    this.overdueRefreshes = 0;
     this.retryScheduler.reset();
     this.refreshFailureStreak = 0;
     // A run in flight belongs to the session being put to sleep. Left alone,
@@ -962,6 +978,8 @@ export class NowPlayingRepository {
    * delay is measured against the injected `getNow` — the station's live
    * point on the server's clock — so the refresh lands just after the
    * station crosses the track's end, with or without audio playing.
+   * A track already past its end is re-checked after 1 s the first time, then
+   * with a doubling delay (capped) while the same track stays on air.
    */
   scheduleTrackEndRefresh(): void {
     this.cancelTrackEndTimer();
@@ -975,13 +993,19 @@ export class NowPlayingRepository {
 
     const now = this.options.getNow?.() ?? Date.now();
     const msUntilEnd = track.startTime.getTime() + track.duration - now;
-    const delay =
-      msUntilEnd > 0
-        ? msUntilEnd + TRACK_END_BUFFER_MS
-        : TRACK_END_REFRESH_SOON_MS;
+    const overdue = msUntilEnd <= 0;
+    const delay = overdue
+      ? Math.min(
+          TRACK_END_REFRESH_SOON_MS * 2 ** this.overdueRefreshes,
+          TRACK_END_REFRESH_MAX_MS,
+        )
+      : msUntilEnd + TRACK_END_BUFFER_MS;
 
     this.trackEndTimerId = this.options.timer.set(() => {
       this.trackEndTimerId = null;
+      // Counted when it fires, not when armed: re-arming (partial failure,
+      // live push) without a run must not advance the backoff.
+      if (overdue) this.overdueRefreshes++;
       void this.refresh().catch(console.error);
     }, delay);
   }
@@ -1003,6 +1027,7 @@ export class NowPlayingRepository {
   /** Clears all now-playing data (destroy path). */
   clear(): void {
     this.currentTrackValue = null;
+    this.overdueRefreshes = 0;
     this.currentProgramValue = null;
     this.listenersValue = null;
     this.playedTracks = [];

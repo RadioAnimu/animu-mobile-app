@@ -74,6 +74,11 @@ export class AudioSampler implements VisualizerSampler {
   }
 
   get isActive(): boolean {
+    return this.gated && this.listeners.size > 0;
+  }
+
+  // Everything except whether anyone is listening: set by the owner's flags.
+  private get gated(): boolean {
     return this.enabled && this.foreground && this.playing && this.isSupported;
   }
 
@@ -94,9 +99,13 @@ export class AudioSampler implements VisualizerSampler {
 
   subscribeWindows(listener: (window: VisualizerWindow) => void): () => void {
     this.listeners.add(listener);
+    // First listener (or the first back from zero) turns sampling on; the
+    // final one turns it off, so native sampling only runs for a viewer.
+    this.apply();
     debugLog("[ScopeDiag] listener-add", { at: Date.now(), listeners: this.listeners.size });
     return () => {
       this.listeners.delete(listener);
+      this.apply();
       debugLog("[ScopeDiag] listener-remove", { at: Date.now(), listeners: this.listeners.size });
     };
   }
