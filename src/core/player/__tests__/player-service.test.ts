@@ -1274,6 +1274,54 @@ describe("PlayerService on react-native-anything-player", () => {
       vi.useRealTimers();
     });
 
+    it("a failed lookup is asked again on the return to the foreground; one that found nothing is not", async () => {
+      start();
+      let online = false;
+      const estimate = vi.fn(async () => {
+        if (!online) throw new Error("503");
+        return 200_000;
+      });
+      const t = liveSetup(0, estimate);
+      await listen(t);
+      expect(progressStore.getSnapshot()).toMatchObject({ showProgress: false, durationMs: 0 });
+      const asked = estimate.mock.calls.length;
+      online = true;
+      t.service.setAppActive(false);
+      t.service.setAppActive(true);
+      await flush();
+      expect(estimate).toHaveBeenCalledTimes(asked + 1);
+      expect(progressStore.getSnapshot()).toMatchObject({ showProgress: true, durationMs: 200_000 });
+
+      const none = vi.fn(async () => null);
+      const u = liveSetup(0, none);
+      await listen(u);
+      u.service.setAppActive(false);
+      u.service.setAppActive(true);
+      await flush();
+      expect(none).toHaveBeenCalledTimes(1);
+      vi.useRealTimers();
+    });
+
+    it("a program switch under the same song re-publishes the lock screen", async () => {
+      start();
+      const t = liveSetup(240_000);
+      t.repository.currentProgram = { name: "AutoDJ", dj: "Haruka Yuki", isLive: false };
+      await listen(t);
+      // The repository's AutoDJ rule (no progress here) until the live show starts.
+      expect(lastNowPlaying(t.player)!.duration).toBeUndefined();
+      t.repository.currentProgram = { name: "Live", dj: "DJ", isLive: true };
+      t.repository.onChange({
+        trackChanged: false,
+        programChanged: true,
+        listenersChanged: false,
+        playedChanged: false,
+        requestedChanged: false,
+      });
+      expect(progressStore.getSnapshot()).toMatchObject({ showProgress: true, durationMs: 240_000 });
+      expect(lastNowPlaying(t.player)).toMatchObject({ live: true, duration: 240 });
+      vi.useRealTimers();
+    });
+
     it.each([
       ["rejects", () => Promise.reject(new Error("offline"))],
       ["finds nothing", async () => null],

@@ -207,6 +207,9 @@ export class PlayerService {
         this.syncDurationEstimate();
         this.emitPlayer();
         this.emitProgress();
+        // The lock screen too: its live badge and seek bar follow the program,
+        // and the same song can stay on air across the switch.
+        if (this.loadedStreamId != null) this.pushNowPlaying();
       }
       if (change.listenersChanged || change.playedChanged || change.requestedChanged) {
         this.emitStation();
@@ -738,7 +741,16 @@ export class PlayerService {
     }
     this.durationEstimate = { key, ms: null };
     void estimate(track)
-      .catch(() => null)
+      .then(
+        (ms) => ms,
+        () => {
+          // A failed lookup (LRCLIB 503, offline) is forgotten, so the next
+          // sync — the return to the foreground — asks again; a lookup that
+          // found nothing stays answered.
+          if (this.durationEstimate?.key === key) this.durationEstimate = null;
+          return null;
+        },
+      )
       .then((ms) => {
         if (this.disposed || this.durationEstimate?.key !== key) return;
         if (ms == null || !Number.isFinite(ms) || ms <= 0) return;
