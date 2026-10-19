@@ -1,9 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
-import type {
-  ArtworkQuality,
-  Listeners,
-  LiveNowPlaying,
-  Track,
+import {
+  AnimuApiError,
+  type ArtworkQuality,
+  type Listeners,
+  type LiveNowPlaying,
+  type Track,
 } from "animu-api";
 import type { Program } from "@/core/domain/program";
 import {
@@ -221,6 +222,7 @@ describe("NowPlayingRepository", () => {
   it("retries failed refreshes with backoff and resets on success", async () => {
     const { timer, repository, changes } = makeRepository();
     const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const infoSpy = vi.spyOn(console, "info").mockImplementation(() => {});
 
     let failing = true;
     repository["options"].fetchers.getStreamMetadata = async () => {
@@ -248,6 +250,269 @@ describe("NowPlayingRepository", () => {
     expect(errorSpy).toHaveBeenCalled();
 
     errorSpy.mockRestore();
+    infoSpy.mockRestore();
+  });
+
+  it("applies the program/request legs when only the metadata leg fails", async () => {
+    // One endpoint being down must not blank the rest of the poll: the
+    // healthy legs still reach the stores, and the failed one arms exactly
+    // one backoff retry.
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const info = vi.spyOn(console, "info").mockImplementation(() => {});
+    try {
+      const { repository, timer } = makeRepository({
+        getStreamMetadata: vi.fn(async () => {
+          throw new AnimuApiError("Empty response body (expected JSON)", 0, {
+            method: "GET",
+            url: "https://api.animu.moe/",
+          });
+        }),
+      });
+
+      const changed = await repository.refresh();
+
+      expect(changed).toBe(false); // the run as a whole failed
+      expect(repository.currentTrack).toBeNull();
+
+      // …but the independent legs landed.
+      expect(repository.currentProgram?.name).toBe("AutoDJ");
+      expect(repository.lastRequestedTracks).toHaveLength(1);
+
+      expect(timer.scheduled).toHaveLength(1);
+      expect(timer.scheduled[0].ms).toBe(BASE_RETRY_MS);
+
+      // One concise line for the streak: message + url, no object dump.
+      expect(warn).toHaveBeenCalledTimes(1);
+      expect(warn.mock.calls[0][0]).toContain("Empty response body");
+      expect(warn.mock.calls[0][0]).toContain("https://api.animu.moe/");
+      expect(info).not.toHaveBeenCalled();
+    } finally {
+      warn.mockRestore();
+      info.mockRestore();
+    }
+  });
+
+  it("retries a sibling leg's failure even when the metadata payload is skipped", async () => {
+    // The metadata request SUCCEEDED but named no track (the upstream
+    // empty-body outage answers 200), while the program leg genuinely
+    // failed. The skip path must not swallow that failure: an independent
+    // rejected leg made the whole run fail and retry before the split.
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const info = vi.spyOn(console, "info").mockImplementation(() => {});
+    try {
+      const getCurrentProgram = vi.fn(async () => {
+        throw new AnimuApiError("Empty response body (expected JSON)", 0, {
+          method: "GET",
+          url: "https://api.animu.moe/",
+        });
+      });
+      const fixture = makeRepository({ getCurrentProgram });
+      fixture.setStreamMetadata({ track: null, listeners: { value: 5 } });
+
+      expect(await fixture.repository.refresh()).toBe(false);
+      expect(fixture.repository.currentTrack).toBeNull();
+
+      // The skip warns on its own, and the failed program leg gets its line.
+      expect(warn).toHaveBeenCalledTimes(2);
+      expect(
+        warn.mock.calls.some(([line]) =>
+          String(line).includes("invalid track data"),
+        ),
+      ).toBe(true);
+      expect(
+        warn.mock.calls.some(([line]) =>
+          String(line).includes("Empty response body"),
+        ),
+      ).toBe(true);
+
+      // The retry chain is armed and fires another run.
+      expect(fixture.timer.scheduled).toHaveLength(1);
+      expect(fixture.timer.scheduled[0].ms - fixture.timer.now).toBe(
+        BASE_RETRY_MS,
+      );
+
+      fixture.timer.advance(BASE_RETRY_MS);
+      await tick();
+
+      expect(getCurrentProgram).toHaveBeenCalledTimes(2);
+      // Still one line per streak: the retry re-arms at 2× without a second.
+      expect(fixture.timer.scheduled).toHaveLength(1);
+      expect(fixture.timer.scheduled[0].ms - fixture.timer.now).toBe(
+        BASE_RETRY_MS * 2,
+      );
+      expect(
+        warn.mock.calls.filter(([line]) =>
+          String(line).includes("Empty response body"),
+        ),
+      ).toHaveLength(1);
+      expect(info).not.toHaveBeenCalled();
+    } finally {
+      warn.mockRestore();
+      info.mockRestore();
+    }
+  });
+
+  it("keeps the no-track skip free of retries while every leg succeeded", async () => {
+    // Unchanged behaviour: nothing failed, so there is nothing to retry —
+    // the skip stays exactly as it was before the allSettled split.
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const info = vi.spyOn(console, "info").mockImplementation(() => {});
+    try {
+      const fixture = makeRepository();
+      fixture.setStreamMetadata({ track: null, listeners: { value: 5 } });
+
+      expect(await fixture.repository.refresh()).toBe(false);
+
+      expect(warn).toHaveBeenCalledTimes(1);
+      expect(warn.mock.calls[0][0]).toContain("invalid track data");
+      expect(fixture.timer.scheduled).toEqual([]);
+      expect(info).not.toHaveBeenCalled();
+    } finally {
+      warn.mockRestore();
+      info.mockRestore();
+    }
+  });
+
+  it("re-arms the track-end refresh when a partial failure applies a new track", async () => {
+    // The applied part of a partial run can move the track (or flip the
+    // program live): the predictive timer must follow the NEW end instead
+    // of staying pointed at the old track's, while the retry chain keeps
+    // its own backoff.
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const info = vi.spyOn(console, "info").mockImplementation(() => {});
+    try {
+      const fixture = makeRepository();
+      await fixture.repository.refresh();
+      const oldTrack = fixture.repository.currentTrack!;
+      const oldEndTimer = fixture.timer.scheduled.find(
+        (call) => call.ms > 100_000,
+      );
+      expect(oldEndTimer).toBeTruthy();
+
+      // Next poll: the station moved on and the requests leg failed.
+      fixture.setStreamMetadata({
+        track: makeTrack({
+          raw: "New - Song",
+          duration: 60_000,
+          startTime: new Date(Date.now() - 50_000),
+        }),
+        listeners: { value: 10 },
+      });
+      fixture.repository["options"].fetchers.getTrackHistory = async (type) => {
+        if (type === "requests") {
+          throw new AnimuApiError("Empty response body (expected JSON)", 0, {
+            method: "GET",
+            url: "https://api.animu.moe/",
+          });
+        }
+        return [];
+      };
+
+      expect(await fixture.repository.refresh()).toBe(false);
+
+      const newTrack = fixture.repository.currentTrack!;
+      expect(newTrack.raw).toBe("New - Song");
+      expect(newTrack.raw).not.toBe(oldTrack.raw);
+
+      // The old timer is gone; the live one targets the new track's end
+      // (≈ 10s remaining + buffer), not the old track's ~170s.
+      expect(
+        fixture.timer.scheduled.some((call) => call.id === oldEndTimer!.id),
+      ).toBe(false);
+      const endTimers = fixture.timer.scheduled.filter(
+        (call) => call.ms - fixture.timer.now !== BASE_RETRY_MS,
+      );
+      expect(endTimers).toHaveLength(1);
+      const endDelay = endTimers[0].ms - fixture.timer.now;
+      expect(endDelay).toBeGreaterThan(9_000);
+      expect(endDelay).toBeLessThan(11_000);
+
+      // …and the partial failure still armed its own retry.
+      expect(
+        fixture.timer.scheduled.filter(
+          (call) => call.ms - fixture.timer.now === BASE_RETRY_MS,
+        ),
+      ).toHaveLength(1);
+      expect(warn).toHaveBeenCalledTimes(1);
+      expect(warn.mock.calls[0][0]).toContain("Empty response body");
+    } finally {
+      warn.mockRestore();
+      info.mockRestore();
+    }
+  });
+
+  it("logs one line per failure streak and one on recovery", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const info = vi.spyOn(console, "info").mockImplementation(() => {});
+    const error = vi.spyOn(console, "error").mockImplementation(() => {});
+    try {
+      let failing = true;
+      const { repository, timer } = makeRepository({
+        getStreamMetadata: vi.fn(async () => {
+          if (failing) {
+            throw new AnimuApiError("Empty response body (expected JSON)", 0, {
+              method: "GET",
+              url: "https://api.animu.moe/",
+            });
+          }
+          return { track: makeTrack(), listeners: { value: 1 } };
+        }),
+      });
+
+      // First failure + two retries of the backoff chain → still ONE line.
+      await repository.refresh();
+      expect(warn).toHaveBeenCalledTimes(1);
+
+      timer.advance(BASE_RETRY_MS);
+      await tick();
+      expect(warn).toHaveBeenCalledTimes(1);
+
+      timer.advance(BASE_RETRY_MS * 2);
+      await tick();
+      expect(warn).toHaveBeenCalledTimes(1);
+
+      // Recovery closes the streak with a single line.
+      failing = false;
+      timer.advance(BASE_RETRY_MS * 4);
+      await tick();
+      expect(warn).toHaveBeenCalledTimes(1);
+      expect(info).toHaveBeenCalledTimes(1);
+      expect(error).not.toHaveBeenCalled();
+
+      // A new streak logs again.
+      failing = true;
+      await repository.refresh();
+      expect(warn).toHaveBeenCalledTimes(2);
+    } finally {
+      warn.mockRestore();
+      info.mockRestore();
+      error.mockRestore();
+    }
+  });
+
+  it("keeps non-API failures on console.error, still once per streak", async () => {
+    const error = vi.spyOn(console, "error").mockImplementation(() => {});
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      const { repository, timer } = makeRepository({
+        getStreamMetadata: vi.fn(async () => {
+          throw new TypeError("unexpected shape");
+        }),
+      });
+
+      await repository.refresh();
+      timer.advance(BASE_RETRY_MS);
+      await tick();
+
+      // A programming error is a genuine bug: it keeps the object and the
+      // `error` level, but the retry chain must not repeat it verbatim.
+      expect(error).toHaveBeenCalledTimes(1);
+      expect(error.mock.calls[0][1]).toBeInstanceOf(TypeError);
+      expect(warn).not.toHaveBeenCalled();
+    } finally {
+      error.mockRestore();
+      warn.mockRestore();
+    }
   });
 
   it("schedules a predictive track-end refresh for real, non-live tracks", async () => {
@@ -506,6 +771,10 @@ describe("NowPlayingRepository", () => {
     // Failing refresh arms the exponential retry chain
     await repository.refresh();
     expect(timer.scheduled).toHaveLength(1);
+    // The metadata leg failed, but the program/requests legs still landed
+    // (independent legs) — that emission is legitimate; only the ones AFTER
+    // teardown are not.
+    const changesBeforeDispose = changes.length;
 
     // Teardown must disarm it — an in-flight catch can never re-arm
     repository.dispose();
@@ -518,7 +787,7 @@ describe("NowPlayingRepository", () => {
     timer.advance(60_000);
 
     expect(getStreamMetadata).toHaveBeenCalledTimes(1);
-    expect(changes).toHaveLength(0);
+    expect(changes).toHaveLength(changesBeforeDispose);
     expect(timer.scheduled).toHaveLength(0);
   });
 
@@ -917,6 +1186,59 @@ describe("NowPlayingRepository — live SSE ingestion", () => {
       expect(fixture.repository.listeners?.value).toBe(77);
     } finally {
       vi.useRealTimers();
+    }
+  });
+
+  it("a metadata failure owned by a mid-flight live push is not a failure", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const error = vi.spyOn(console, "error").mockImplementation(() => {});
+    const info = vi.spyOn(console, "info").mockImplementation(() => {});
+    vi.useFakeTimers({ toFake: ["Date"] });
+    try {
+      const fixture = withLive();
+      fixture.pushSong(makeTrack({ raw: "Live - Song" }), 12);
+
+      let reject!: (reason: Error) => void;
+      const gate = new Promise((_resolve, rejectPromise) => {
+        reject = rejectPromise;
+      });
+      fixture.repository["options"].fetchers.getStreamMetadata = vi.fn(
+        () => gate,
+      ) as unknown as NowPlayingFetchers["getStreamMetadata"];
+
+      // Stream went quiet → this poll runs the HTTP metadata leg.
+      vi.setSystemTime(Date.now() + 16_000);
+      const poll = fixture.repository.refresh();
+      await tick();
+
+      // …then a live push lands mid-flight and re-takes ownership, so the
+      // HTTP answer is irrelevant by the time it fails.
+      fixture.pushOpen();
+      fixture.pushSong(makeTrack({ raw: "Live - Song B" }), 12);
+
+      reject(
+        new AnimuApiError("Empty response body (expected JSON)", 0, {
+          method: "GET",
+          url: "https://api.animu.moe/",
+        }),
+      );
+      await poll;
+
+      expect(fixture.repository.currentTrack?.raw).toBe("Live - Song B");
+      // No retry chain and nothing logged: the live stream owns the data.
+      expect(
+        fixture.timer.scheduled.filter(
+          (call) => call.ms - fixture.timer.now === BASE_RETRY_MS,
+        ),
+      ).toHaveLength(0);
+      expect(warn).not.toHaveBeenCalled();
+      expect(error).not.toHaveBeenCalled();
+      expect(info).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+      warn.mockRestore();
+      error.mockRestore();
+      info.mockRestore();
     }
   });
 

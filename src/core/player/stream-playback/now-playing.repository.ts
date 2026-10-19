@@ -1,9 +1,10 @@
-import type {
-  ArtworkQuality,
-  HistoryType,
-  Listeners,
-  LiveNowPlaying,
-  Track,
+import {
+  AnimuApiError,
+  type ArtworkQuality,
+  type HistoryType,
+  type Listeners,
+  type LiveNowPlaying,
+  type Track,
 } from "animu-api";
 import type { Program } from "@/core/domain/program";
 import { isRealTrack } from "@/core/domain/track";
@@ -50,6 +51,29 @@ const REFRESH_STALE_MS = 30_000;
  * metadata part of the poll to HTTP until the stream talks again.
  */
 const LIVE_STALE_MS = 15_000;
+
+/**
+ * Picks the legs that actually failed out of one refresh run. A metadata
+ * failure whose data the live stream owns is not an outage: its stale HTTP
+ * answer is discarded exactly like a successful stale payload would be.
+ */
+const collectRefreshFailures = (
+  metadata: PromiseSettledResult<{
+    track: Track | null;
+    listeners: Listeners | null;
+  }>,
+  program: PromiseSettledResult<Program>,
+  requested: PromiseSettledResult<Track[]>,
+  liveOwns: boolean,
+): unknown[] => {
+  const failures: unknown[] = [];
+  if (metadata.status === "rejected" && !liveOwns) {
+    failures.push(metadata.reason);
+  }
+  if (program.status === "rejected") failures.push(program.reason);
+  if (requested.status === "rejected") failures.push(requested.reason);
+  return failures;
+};
 
 /**
  * What the repository needs from the network — injectable for tests. */
@@ -217,6 +241,13 @@ export class NowPlayingRepository {
    * vouch for the track, so the poll's HTTP leg stays on meanwhile.
    */
   private liveTrackCurrent = false;
+  /**
+   * Consecutive failed refresh runs. Failures are logged once per streak —
+   * the backoff chain re-runs every few seconds, so one line per attempt is
+   * what turned an upstream outage into a log flood. Reset on success and
+   * whenever automatic work is suspended or torn down.
+   */
+  private refreshFailureStreak = 0;
 
   constructor(private readonly options: NowPlayingRepositoryOptions) {
     this.retryScheduler = new BackoffScheduler({
@@ -292,6 +323,16 @@ export class NowPlayingRepository {
     return (
       this.currentTrackValue?.raw !== track.raw ||
       this.currentTrackValue?.artwork !== track.artwork
+    );
+  }
+
+  /** True when the polled program differs from the one installed. */
+  private programIdentityChanged(program: Program): boolean {
+    return (
+      this.currentProgramValue?.name !== program.name ||
+      this.currentProgramValue?.dj !== program.dj ||
+      this.currentProgramValue?.isLive !== program.isLive ||
+      this.currentProgramValue?.acceptingRequests !== program.acceptingRequests
     );
   }
 
@@ -409,6 +450,7 @@ export class NowPlayingRepository {
     this.stopLive();
     this.cancelTrackEndTimer();
     this.retryScheduler.reset();
+    this.refreshFailureStreak = 0;
     // A run in flight belongs to the session being put to sleep. Left alone,
     // a resume before it settles would let its stale payload through the
     // guard (over the fresh stream's state) and its latch would turn the
@@ -539,7 +581,11 @@ export class NowPlayingRepository {
     const liveFresh = this.isLiveAuthoritative();
 
     try {
-      const [metadata, program, newRequestedTracks] = await Promise.all([
+      // The three legs are independent: one endpoint being down must not
+      // discard the other two's fresh data. `metadata` can never fail on a
+      // live skip leg (it is a snapshot), so a rejection here means the
+      // HTTP metadata call itself failed.
+      const [metadata, program, newRequestedTracks] = await Promise.allSettled([
         liveFresh
           ? Promise.resolve({
               track: this.currentTrackValue,
@@ -557,14 +603,10 @@ export class NowPlayingRepository {
         ),
       ]);
 
-      const { track, listeners } = metadata;
-
-      // Invalidated while in flight (watchdog expiry or dispose): the
-      // stuck run's late settler must not write state or re-arm timers —
-      // a newer run already owns the repository.
-      // Suspended while in flight: the run belongs to a station nobody follows
-      // any more — no writes, and no re-armed timer below.
-      if (epoch !== this.refreshEpoch || this.disposed || this.suspended) return false;
+      // Invalidated while in flight (watchdog expiry, dispose or suspend):
+      // the stuck run's late settler must not write state or re-arm timers —
+      // a newer run already owns the repository, or nobody does.
+      if (this.isRefreshInvalidated(epoch)) return false;
 
       // Same protection against the LIVE source: this HTTP run started on
       // a stale stream, but a song_change push may have landed while it
@@ -572,41 +614,65 @@ export class NowPlayingRepository {
       // payload must not walk the live data backwards.
       const liveOwns = this.isLiveAuthoritative();
 
-      // HTTP fetched invalid track data (and live is not authoritative to
-      // rescue us) → skip the update; keep the tests' intent unchanged.
-      if (!liveOwns && !track) {
-        console.warn(
-          "[NowPlayingRepository] API returned invalid track data, skipping update",
-        );
-        return false;
-      }
-
-      const { trackChanged, programChanged } = this.applyRefreshPayload({
-        track,
-        listeners,
+      // A leg whose data the live stream owns did not really fail: its
+      // stale HTTP answer is simply discarded, exactly like its payload.
+      // Computed BEFORE the merge decision below: a skipped payload must
+      // not swallow a sibling leg's failure that needs its own retry.
+      const failures = collectRefreshFailures(
+        metadata,
         program,
         newRequestedTracks,
         liveOwns,
-      });
+      );
+
+      const applied = this.applySettledRefresh(
+        metadata,
+        program,
+        newRequestedTracks,
+        liveOwns,
+      );
+      if (!applied) {
+        // The payload is skipped (no track to install), but a rejected
+        // program/requests leg in the same run still failed on its own:
+        // before the allSettled split it made the whole run fail and
+        // retry, so the retry must survive the skip.
+        if (failures.length > 0) {
+          this.reportRefreshFailure(failures[0]);
+          this.scheduleRetry();
+        }
+        return false;
+      }
+
+      if (failures.length > 0) {
+        // Keep what did arrive (the partial payload is applied above), but
+        // report the run as failed so the backoff chain retries the rest.
+        this.reportRefreshFailure(failures[0]);
+        this.scheduleRetry();
+        // The applied part may have moved the track (or flipped the program
+        // live), leaving the predictive timer pointed at the OLD track's
+        // end: recompute it from current state. Its own timer, so this does
+        // not disturb the retry chain armed just above.
+        this.scheduleTrackEndRefresh();
+        return false;
+      }
 
       // ── Success: reset error backoff & schedule track-end refresh ──
+      this.reportRefreshRecovered();
       this.retryScheduler.reset();
       this.scheduleTrackEndRefresh();
 
       // Only identity changes count as "changed": listener/request ticks
       // reach the badge UI through onChange but never re-push metadata.
-      return trackChanged || programChanged;
+      return applied.trackChanged || applied.programChanged;
     } catch (error) {
       // Invalidated run: its failure belongs to the past — no logging
       // noise, no retry re-arming over a newer run's head.
-      if (epoch !== this.refreshEpoch || this.disposed || this.suspended) return false;
+      if (this.isRefreshInvalidated(epoch)) return false;
 
-      console.error("[NowPlayingRepository] Error refreshing data:", error);
+      this.reportRefreshFailure(error);
 
       // ── Network / API error: exponential backoff retry ──
-      this.retryScheduler.schedule(() => {
-        void this.refresh().catch(console.error);
-      });
+      this.scheduleRetry();
 
       return false;
     } finally {
@@ -614,6 +680,89 @@ export class NowPlayingRepository {
       // late settler must not unlock a newer run's single-flight guard.
       if (epoch === this.refreshEpoch) this.refreshing = false;
     }
+  }
+
+  /** A run is stale once a newer one started, or the repository went away. */
+  private isRefreshInvalidated(epoch: number): boolean {
+    return epoch !== this.refreshEpoch || this.disposed || this.suspended;
+  }
+
+  private scheduleRetry(): void {
+    this.retryScheduler.schedule(() => {
+      void this.refresh().catch(console.error);
+    });
+  }
+
+  /**
+   * Merges one run's settled legs. Returns `null` when the payload must be
+   * skipped entirely: the HTTP metadata leg succeeded but named no track,
+   * and the live stream cannot vouch for one.
+   */
+  private applySettledRefresh(
+    metadata: PromiseSettledResult<{
+      track: Track | null;
+      listeners: Listeners | null;
+    }>,
+    program: PromiseSettledResult<Program>,
+    newRequestedTracks: PromiseSettledResult<Track[]>,
+    liveOwns: boolean,
+  ): { trackChanged: boolean; programChanged: boolean } | null {
+    const track = metadata.status === "fulfilled" ? metadata.value.track : null;
+
+    // A *failed* metadata leg is handled by the caller (partial apply +
+    // backoff); this is the case where the request succeeded but returned
+    // no track, which was never retried.
+    if (!liveOwns && metadata.status === "fulfilled" && !track) {
+      console.warn(
+        "[NowPlayingRepository] API returned invalid track data, skipping update",
+      );
+      return null;
+    }
+
+    return this.applyRefreshPayload({
+      track,
+      listeners:
+        metadata.status === "fulfilled" ? metadata.value.listeners : null,
+      program: program.status === "fulfilled" ? program.value : null,
+      newRequestedTracks:
+        newRequestedTracks.status === "fulfilled"
+          ? newRequestedTracks.value
+          : null,
+      liveOwns,
+    });
+  }
+
+  /**
+   * Logs a failed refresh run — once per streak. The retry chain re-runs
+   * every few seconds while an endpoint is down, so repeating the same line
+   * per attempt is what flooded the device log; the recovery line closes the
+   * streak. Typed API failures (the expected shape of an outage) stay at
+   * `warn` with a single readable line; anything else is a genuine bug and
+   * keeps `error` with the object.
+   */
+  private reportRefreshFailure(error: unknown): void {
+    this.refreshFailureStreak += 1;
+    if (this.refreshFailureStreak > 1) return;
+
+    if (error instanceof AnimuApiError) {
+      const code = error.code ? ` code=${error.code}` : "";
+      const url = error.url ? ` url=${error.url}` : "";
+      console.warn(
+        `[NowPlayingRepository] refresh failed: ${error.message}${code}${url}`,
+      );
+      return;
+    }
+    console.error("[NowPlayingRepository] refresh failed:", error);
+  }
+
+  /** Closes a failure streak with a single line; silent when there was none. */
+  private reportRefreshRecovered(): void {
+    if (this.refreshFailureStreak === 0) return;
+    const failedRuns = this.refreshFailureStreak;
+    this.refreshFailureStreak = 0;
+    console.info(
+      `[NowPlayingRepository] refresh recovered after ${failedRuns} failed run(s)`,
+    );
   }
 
   /**
@@ -636,12 +785,16 @@ export class NowPlayingRepository {
    * Only identity changes (track/program) are reported back: listener and
    * request ticks reach the badge UI through `onChange` but never re-push
    * metadata.
+   *
+   * `program` / `newRequestedTracks` are `null` when that leg failed: the
+   * repository keeps its previous value instead of clearing it, so a partial
+   * outage never blanks the UI.
    */
   private applyRefreshPayload(payload: {
     track: Track | null;
     listeners: Listeners | null | undefined;
-    program: Program;
-    newRequestedTracks: Track[];
+    program: Program | null;
+    newRequestedTracks: Track[] | null;
     liveOwns: boolean;
   }): { trackChanged: boolean; programChanged: boolean } {
     const { track, listeners, program, newRequestedTracks, liveOwns } = payload;
@@ -652,19 +805,21 @@ export class NowPlayingRepository {
       trackChanged = true;
     }
 
-    const programChanged =
-      this.currentProgramValue?.name !== program.name ||
-      this.currentProgramValue?.dj !== program.dj ||
-      this.currentProgramValue?.isLive !== program.isLive ||
-      this.currentProgramValue?.acceptingRequests !== program.acceptingRequests;
-    if (programChanged) this.currentProgramValue = program;
+    let programChanged = false;
+    if (program != null) {
+      programChanged = this.programIdentityChanged(program);
+      if (programChanged) this.currentProgramValue = program;
+    }
 
     // Enable progress for real, non-live tracks (radio keeps playing
     // server-side so we always show progress). Recompute on EITHER change:
     // a live block starting/ending while the same track stays on air must
-    // still flip the seek bar off/on.
+    // still flip the seek bar off/on. A failed program leg keeps the
+    // program already installed.
     if (trackChanged || programChanged) {
-      this.updateShowProgress(program.isLive);
+      this.updateShowProgress(
+        program?.isLive ?? this.currentProgramValue?.isLive ?? false,
+      );
     }
 
     // Same live-authority rule for the listener count: on a skip leg it
@@ -674,9 +829,12 @@ export class NowPlayingRepository {
       !liveOwns && listeners != null && this.mergeListeners(listeners);
 
     const requestedChanged =
+      newRequestedTracks != null &&
       newRequestedTracks.length > 0 &&
       newRequestedTracks[0].raw !== (this.requestedTracks[0]?.raw || "");
-    if (requestedChanged) this.requestedTracks = newRequestedTracks;
+    if (requestedChanged && newRequestedTracks) {
+      this.requestedTracks = newRequestedTracks;
+    }
 
     // Note: the fire-and-forget `refreshHistory("played")` triggered by a
     // track change reports its own playedChanged flag when it completes.
@@ -839,6 +997,7 @@ export class NowPlayingRepository {
     this.stopLive();
     this.cancelTrackEndTimer();
     this.retryScheduler.reset();
+    this.refreshFailureStreak = 0;
   }
 
   /** Clears all now-playing data (destroy path). */

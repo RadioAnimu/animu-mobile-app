@@ -22,12 +22,11 @@ export default function App() {
               edge-to-edge (Android draws under both system bars), so the
               reported keyboard height includes the navigation bar — the same
               quantity iOS reports — and each surface subtracts the bottom
-              safe area exactly once. */}
-          <KeyboardProvider
-            statusBarTranslucent
-            navigationBarTranslucent
-            preserveEdgeToEdge
-          >
+              safe area exactly once. The translucent/preserve-edge-to-edge
+              props are omitted because react-native-edge-to-edge is active:
+              the library enforces edge-to-edge itself and warns that these
+              props are ignored. */}
+          <KeyboardProvider>
             <MyStatusBar />
             <Background>
               <PortalProvider>
