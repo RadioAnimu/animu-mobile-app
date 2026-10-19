@@ -2,6 +2,7 @@
 import React from "react";
 import { act, cleanup, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { AnimuApiError } from "animu-api";
 
 import { AuthProvider, useAuth } from "@/contexts/auth/AuthProvider";
 import type { User } from "@/core/domain/user";
@@ -561,6 +562,55 @@ describe("AuthProvider", () => {
       expect(result.current.user).toBeNull();
       expect(mocks.facade.forget).toHaveBeenCalledTimes(1);
       expect(mocks.toast).not.toHaveBeenCalled();
+    });
+
+    it("deleteAccount signs the user out when the server rejects the deletion", async () => {
+      mocks.facade.restore.mockResolvedValue(CACHED);
+      const { result } = mountAuth();
+      await waitFor(() => expect(result.current.profile).toEqual(PROFILE));
+      mocks.facade.deleteAccount.mockRejectedValue(
+        new AnimuApiError("unauthorized", 401),
+      );
+
+      await act(async () => {
+        await expect(result.current.deleteAccount()).rejects.toThrow(
+          "unauthorized",
+        );
+      });
+
+      expect(result.current.user).toBeNull();
+      expect(result.current.profile).toBeNull();
+      expect(mocks.facade.forget).toHaveBeenCalledTimes(1);
+      expect(mocks.toast).not.toHaveBeenCalled();
+    });
+
+    it("deleteAccount keeps the user signed in when the failure is retryable", async () => {
+      mocks.facade.restore.mockResolvedValue(CACHED);
+      const { result } = mountAuth();
+      await waitFor(() => expect(result.current.profile).toEqual(PROFILE));
+      mocks.facade.deleteAccount.mockRejectedValue(
+        new AnimuApiError("offline", 0),
+      );
+
+      await act(async () => {
+        await expect(result.current.deleteAccount()).rejects.toThrow("offline");
+      });
+
+      expect(result.current.user).toBe(CACHED);
+      expect(result.current.profile).toEqual(PROFILE);
+      expect(mocks.facade.forget).not.toHaveBeenCalled();
+      expect(mocks.toast).not.toHaveBeenCalled();
+
+      // The ref was restored too, so account actions still reach the session.
+      mocks.facade.refreshProfile.mockResolvedValue({
+        user: FRESH,
+        profile: PROFILE,
+      });
+      await act(async () => {
+        await result.current.refreshProfile();
+      });
+      expect(mocks.facade.refreshProfile).toHaveBeenCalledWith(CACHED);
+      expect(result.current.user).toBe(FRESH);
     });
   });
 

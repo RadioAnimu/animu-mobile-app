@@ -915,6 +915,57 @@ describe("AuthFacade teardown", () => {
     expect(store.clear).toHaveBeenCalledTimes(1);
   });
 
+  it.each([
+    ["offline (no response)", new AnimuApiError("offline", 0)],
+    ["a 503", new AnimuApiError("unavailable", 503)],
+  ])(
+    "keeps the session when the deletion fails retryably (%s)",
+    async (_label, error) => {
+      const api = makeApi({
+        deleteAccount: vi.fn(async () => {
+          throw error;
+        }),
+      });
+      const { store, facade } = build({ api });
+
+      await expect(facade.deleteAccount()).rejects.toBe(error);
+
+      expect(api.deleteAccount).toHaveBeenCalledTimes(1);
+      expect(api.setSessionToken).not.toHaveBeenCalled();
+      expect(store.clear).not.toHaveBeenCalled();
+    },
+  );
+
+  it("forgets the session when the server rejects the deletion with a 401", async () => {
+    const error = new AnimuApiError("unauthorized", 401);
+    const api = makeApi({
+      deleteAccount: vi.fn(async () => {
+        throw error;
+      }),
+    });
+    const { store, facade } = build({ api });
+
+    await expect(facade.deleteAccount()).rejects.toBe(error);
+
+    expect(api.setSessionToken).toHaveBeenCalledWith(null);
+    expect(store.clear).toHaveBeenCalledTimes(1);
+  });
+
+  it("forgets the session when the server does not confirm the deletion", async () => {
+    const error = new Error("Account deletion was not confirmed by the server");
+    const api = makeApi({
+      deleteAccount: vi.fn(async () => {
+        throw error;
+      }),
+    });
+    const { store, facade } = build({ api });
+
+    await expect(facade.deleteAccount()).rejects.toBe(error);
+
+    expect(api.setSessionToken).toHaveBeenCalledWith(null);
+    expect(store.clear).toHaveBeenCalledTimes(1);
+  });
+
   it("forget clears the token without touching the server", async () => {
     const { api, store, facade } = build();
 

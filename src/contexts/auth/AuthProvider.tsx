@@ -17,7 +17,7 @@ import type {
   ProviderInfo,
 } from "animu-api";
 import { User } from "@/core/domain/user";
-import { authFacade } from "@/core/auth";
+import { authFacade, isRetryableRequestFailure } from "@/core/auth";
 import {
   useProfileMedia,
   type ProfileMedia,
@@ -463,16 +463,25 @@ function useAuthProviderValue(): AuthContextType {
   }, [clearSession]);
 
   const deleteAccount = useCallback(async () => {
+    const previous = userRef.current;
     // Same as logout: an in-flight poll must not toast this as an expiry.
     userRef.current = null;
     try {
       await authFacade.deleteAccount();
-    } finally {
-      // The facade forgets the local session even when the API call fails;
-      // clear the React state too, or the app looks signed in over a dead
-      // token (every authenticated request would 401).
-      await clearSession();
+    } catch (error) {
+      // A retryable failure (offline, timeout, 5xx) left the account and its
+      // session alive server-side, so the user stays signed in and can retry:
+      // put the ref back so the poll keeps watching this session. Any other
+      // failure killed the session (401, another 4xx, unconfirmed deletion), so
+      // clear the local state too or the app looks signed in over a dead token.
+      if (isRetryableRequestFailure(error)) {
+        userRef.current = previous;
+      } else {
+        await clearSession();
+      }
+      throw error;
     }
+    await clearSession();
   }, [clearSession]);
 
   useAuthBootstrap({
