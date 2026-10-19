@@ -31,7 +31,8 @@ import {
   FOUNDER,
   ILLUSTRATOR,
 } from "@/screens/About/credits";
-import { useAppInfo, type ReleaseChannel } from "@/screens/About/info";
+import { useAppInfo } from "@/screens/About/info";
+import type { ReleaseChannel } from "@/utils/release-channel";
 import { styles } from "@/screens/About/styles";
 
 type Props = NativeStackScreenProps<RootStackParamList, "About">;

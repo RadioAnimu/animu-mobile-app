@@ -28,7 +28,7 @@ vi.mock("@/contexts/alert/AlertProvider", () => ({
   useAlert: () => ({ toast: mocks.toast }),
 }));
 vi.mock("expo-application", () => ({ nativeApplicationVersion: "9.8.7" }));
-vi.mock("@/utils/store-review", () => ({ useStoreReview: mocks.useStoreReview }));
+vi.mock("@/hooks/useStoreReview", () => ({ useStoreReview: mocks.useStoreReview }));
 vi.mock("@/utils/browser", () => ({
   openInAppBrowser: mocks.openInAppBrowser,
   openExternal: mocks.openExternal,

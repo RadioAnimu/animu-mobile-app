@@ -2,10 +2,8 @@
 import { cleanup, renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import {
-  DEFAULT_STORE_LINKS,
-  resolveInstallSource,
-} from "@/utils/store-review";
+import { DEFAULT_STORE_LINKS } from "@/api/store-links";
+import { resolveInstallSource } from "@/hooks/useStoreReview";
 
 const mocks = vi.hoisted(() => ({
   getInstallReferrerAsync: vi.fn(),
@@ -36,7 +34,7 @@ vi.mock("expo-application", () => ({
 }));
 
 const storeReview = async () =>
-  (await import("@/utils/store-review")) as typeof import("@/utils/store-review");
+  (await import("@/hooks/useStoreReview")) as typeof import("@/hooks/useStoreReview");
 
 const RESPONSE = (payload: unknown, ok = true) =>
   ({ ok, json: async () => payload }) as Response;
@@ -107,98 +105,6 @@ describe("resolveInstallSource — iOS", () => {
     await expect(resolveInstallSource()).resolves.toBe("altstore");
     await expect(resolveInstallSource()).resolves.toBe("altstore");
     await expect(resolveInstallSource()).resolves.toBe("app-store");
-  });
-});
-
-describe("getStoreLinks", () => {
-  beforeEach(() => {
-    // Fresh module per test: the in-memory link cache is session-long.
-    vi.resetModules();
-  });
-
-  it("merges valid remote stores over the bundled defaults", async () => {
-    mocks.fetch.mockResolvedValue(RESPONSE(REMOTE_STORES));
-    const links = await (await storeReview()).getStoreLinks();
-    expect(links.play.name).toBe("Play Store");
-    expect(links["app-store"].url).toBe("https://apps.test/animu");
-    expect(links.altstore).toEqual(DEFAULT_STORE_LINKS.altstore);
-  });
-
-  it("falls back to the defaults when the endpoint is unreachable", async () => {
-    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
-    mocks.fetch.mockRejectedValue(new Error("offline"));
-    await expect((await storeReview()).getStoreLinks()).resolves.toEqual(
-      DEFAULT_STORE_LINKS,
-    );
-    expect(warn).toHaveBeenCalled();
-    warn.mockRestore();
-  });
-
-  it("falls back to the defaults on an invalid payload shape", async () => {
-    mocks.fetch.mockResolvedValue(RESPONSE({ version: 2 }));
-    await expect((await storeReview()).getStoreLinks()).resolves.toEqual(
-      DEFAULT_STORE_LINKS,
-    );
-  });
-
-  it("keeps a store's default when its remote entry is broken", async () => {
-    mocks.fetch.mockResolvedValue(
-      RESPONSE({
-        version: 1,
-        stores: {
-          play: { name: 42, url: "https://play.test" },
-          altstore: { ...DEFAULT_STORE_LINKS.altstore },
-        },
-      }),
-    );
-    const links = await (await storeReview()).getStoreLinks();
-    expect(links.play).toEqual(DEFAULT_STORE_LINKS.play);
-    expect(links.altstore).toEqual(DEFAULT_STORE_LINKS.altstore);
-  });
-
-  it("treats an unsanctioned URL scheme as no link", async () => {
-    mocks.fetch.mockResolvedValue(
-      RESPONSE({
-        version: 1,
-        stores: {
-          play: { ...DEFAULT_STORE_LINKS.play, url: "ftp://play.test" },
-          "app-store": { name: "App Store", url: "market://apps.test" },
-        },
-      }),
-    );
-    const links = await (await storeReview()).getStoreLinks();
-    expect(links.play.name).toBe("Google Play");
-    expect(links.play.url).toBeNull();
-    expect(links["app-store"].url).toBe("market://apps.test");
-  });
-
-  it("shares one fetch between concurrent callers", async () => {
-    mocks.fetch.mockResolvedValue(RESPONSE(REMOTE_STORES));
-    const { getStoreLinks } = await storeReview();
-    const [a, b] = await Promise.all([getStoreLinks(), getStoreLinks()]);
-    expect(mocks.fetch).toHaveBeenCalledTimes(1);
-    expect(a).toEqual(b);
-  });
-
-  it("aborts a slow endpoint after five seconds", async () => {
-    vi.useFakeTimers();
-    // A fetch that honours the signal and never resolves on its own.
-    mocks.fetch.mockImplementationOnce(
-      (_url: string, init?: { signal?: AbortSignal }) =>
-        new Promise<Response>((_, reject) => {
-          init?.signal?.addEventListener("abort", () =>
-            reject(new Error("The operation was aborted")),
-          );
-        }),
-    );
-    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
-    const pending = (await storeReview()).getStoreLinks();
-    await vi.advanceTimersByTimeAsync(4999);
-    expect(mocks.fetch).toHaveBeenCalledTimes(1);
-    await vi.advanceTimersByTimeAsync(1);
-    await expect(pending).resolves.toEqual(DEFAULT_STORE_LINKS);
-    expect(warn).toHaveBeenCalled();
-    warn.mockRestore();
   });
 });
 
