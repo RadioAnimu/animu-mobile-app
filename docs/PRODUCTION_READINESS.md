@@ -1,5 +1,90 @@
 # Production readiness audit
 
+## Re-audit — 19 October 2026
+
+Four feature commits landed after the 18 October re-audit, and `main` was red
+again on GitHub CI, Jenkins CI #128 and Sonar #68. Fixed in PR #26 (application),
+animu-api #19 and react-native-anything-player #30. The external submission
+items at the end of this document are unchanged and still block submission.
+
+Found and fixed:
+
+- **High — `main` red on three gates.** React Doctor flagged the new store
+  review hook (body read without an HTTP status check, a fetch in a utils hook),
+  and Sonar flagged its scheme list. The request now lives in
+  `src/api/store-links.ts`, and the hook reuses the About screen's release-channel
+  resolver instead of duplicating it. A broken remote URL keeps the bundled link,
+  and a failed lookup is retried instead of being cached for the session.
+  Jenkins CI #128 was a latent build fault: without an exact-commit API artifact,
+  `postinstall` built animu-api under `node_modules/.tmp`, where `tsc` emitted ESM
+  for its CommonJS target. Library scratch builds now run outside the app tree.
+- **High — QA release path could publish unchecked artifacts.** `SKIP_CHECKS`
+  (QA builds) still allowed `CREATE_GITHUB_RELEASE` and `COMMIT_BUMP`, with
+  release-identical artifact names. It is now refused with either option
+  (verified: release #30 failed at validation), names its artifacts
+  `*-qa-unchecked`, and archives only the APK.
+- **Medium — release gates could be bypassed or skipped.** `TRUST_CI` accepted
+  any job named in a free-form parameter. It now trusts only
+  `Animu/animu-mobile-app` and still runs a fresh dependency audit. Releases now
+  require a passing `Animu/animu-sonar` build for the exact commit. The AAB's
+  JAR signature is verified with `jarsigner` (a certificate in `META-INF` did
+  not prove it signs the bundle; tested against a real and a tampered AAB).
+- **Medium — account deletion signed the user out on a failed request.**
+  Offline and 5xx failures cleared the local session while the account still
+  existed, and `deleted: false` counted as success. Transient failures now keep
+  the session so the user can retry.
+- **Medium — Android 16 large screens.** Targeting API 36, the portrait lock is
+  ignored at 600dp and wider. The header bar, live ticker and oscilloscope were
+  pinned to the launch width; they now follow the window. Verified on an emulator
+  resized to 1600x2560 @ 320dpi and rotated; the phone layout is pixel-identical.
+- **Low — gates that could read green while broken.** The React Doctor workflow
+  was advisory and diff-scoped, so it passed while CI failed; it now blocks on
+  any finding across the project. The doctor report validator accepted missing
+  file counts. The Sonar scanner image floated on `latest`; all three repositories
+  now pin it by digest.
+
+Reviewed, not changed:
+
+- A now-playing refresh whose metadata names no track still discards that
+  run's program and request data. This is intentional and pinned by a test, and
+  only happens when the station reports no current song.
+- `server/teste/app-stores.php` is a copy of the station's live endpoint, which
+  the app reads from `https://www.animu.moe/teste/app-stores.php`. It is
+  deployed by hand, outside this repository.
+- Coverage figures for the player are JavaScript-only; its native code has its
+  own Swift and Kotlin suites in GitHub CI.
+
+New open items (need owner, backend or store access):
+
+- **No branch protection** on `main` in any of the three repositories, so a red
+  check does not block a push or merge. Enabling it changes the current
+  direct-push workflow, so it is the owner's call.
+- **Sign in with Apple token revocation.** The native flow sends only the
+  identity token, so the server cannot obtain revocable Apple tokens to revoke
+  on account deletion (Apple TN3194). This needs a server-side change in the
+  auth backend.
+- **iOS background keepalive.** The player plays near-silent audio to stay alive
+  through stream outages (up to ten minutes by default). Apple may treat this as
+  background-mode misuse (guideline 2.5.4). Disclose it in review notes or
+  replace it with bounded recovery.
+- Releases do not require the player's GitHub native suites (Swift conformance)
+  for the pinned revision. The Android release does run its Kotlin tests.
+- Cosmetic: on a landscape tablet, the narrow quality chip truncates "AAC+",
+  because sizes scale from the launch width by design.
+
+Final evidence (`e32ba21`; libraries `33aee8b` and `218a637`): 121 files / 1296
+tests, coverage 80.6 / 75.7 / 72.3 / 81.4%; React Doctor 100; Expo Doctor 21/21;
+SonarQube gate passed for all three projects (0 issues, 0 hotspots); dependency
+audit shows only the two reviewed build-tool advisories; Gitleaks clean across
+all three repositories' history. GitHub CI, CodeQL and React Doctor are green on
+all three repositories. Jenkins CI #129, Sonar #69, API #51/#31 and player
+#30/#30 passed. Signed release #31 (`TRUST_CI`) exercised the new gates: trusted
+CI #129, fresh dependency audit, Sonar #69 for the exact commit,
+`:app:lintRelease` and player release unit tests, bundletool validation, 48
+native libraries pass 16 KB ELF validation, APK zip alignment, `jar verified.`
+for the AAB, and matching AAB/APK upload signers. There are no open PRs or
+Dependabot/code-scanning alerts in the three repositories.
+
 ## Re-audit — 18 October 2026
 
 Re-ran every gate on the application and both libraries from fresh checkouts.
