@@ -19,7 +19,7 @@ export function TimeRemaining() {
   const syncing = player.syncing;
   const remainingMs = useRemainingMs(
     progress,
-    player.currentTrack?.duration || 0,
+    progress.durationMs,
     !isBackgrounded,
   );
 

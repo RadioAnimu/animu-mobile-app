@@ -69,6 +69,12 @@ export type ProgressSnapshot = {
   /** Audio flows: the position advances with the wall clock from {@link progressAt}. */
   progressRunning: boolean;
   showProgress: boolean;
+  /**
+   * The heard track's length as shown (bar, countdown): the station's, or —
+   * on a live program that sends none — the one estimated from its lyrics.
+   * `0` while unknown. Display only: the sync logic keeps the station's.
+   */
+  durationMs: number;
 };
 
 // ─── Singleton stores ───
@@ -87,4 +93,5 @@ export const progressStore = createStore<ProgressSnapshot>({
   progressAt: 0,
   progressRunning: false,
   showProgress: false,
+  durationMs: 0,
 });

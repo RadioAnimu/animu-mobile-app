@@ -265,7 +265,7 @@ anything but progress:
 | --- | --- | --- | --- |
 | `playerStore` | current track/program/stream, stream options, `isPlaying`, `playbackState`, `isInitialized` | per song / per action | `usePlayer()` |
 | `stationStore` | current listeners, request/played histories | per API poll (see cadence below) | `useStation()` |
-| `progressStore` | progress anchor (`progressMs` at `progressAt`, `progressRunning`), `showProgress` | per re-anchor | `useTrackProgress()` |
+| `progressStore` | progress anchor (`progressMs` at `progressAt`, `progressRunning`), `showProgress`, `durationMs` (the length shown) | per re-anchor | `useTrackProgress()` |
 
 The foreground ticker (1 Hz, only while the app is visible) re-publishes
 progress (a no-op unless the anchor moved) and polls the API every **5 s** while audio is wanted and every **30 s**
@@ -332,6 +332,17 @@ keeps using relative requires.
   audible with its ICY title; from then on Anything Player advances the lock-screen
   position natively (`updateNowPlaying({ duration, elapsed })`), frozen while
   audio does not flow.
+- **Live songs without a station length.** The daemon sends `duration` as
+  "notime" (`0` in `Track`) for a live DJ's song missing from the station
+  library; `PlayerService` then asks `estimateDuration` (wired to
+  `lyricsService().lyricsFor(...).source.durationMs` — the lookup the header's
+  lyrics button already shares, so no extra request) once per heard song, in the
+  foreground only (a song that started hidden is asked on the return). The
+  result is the **display** length (`progressStore.durationMs`, lock-screen
+  `duration`/`elapsed` clamp); `HeardTrack`, `NowHearing`, the repository's
+  refresh scheduling and `heardPosition()` keep the station's `duration`, so a
+  short LRCLIB cut never ends the lyrics early. A station length (> 0) always
+  wins, and live progress now shows for it too; AutoDJ is untouched.
 - **Realtime now-playing over SSE, with HTTP fallback.** `NowPlayingRepository`
   prefers the station's Server-Sent Events stream (`animu.live`) for track and
   listener updates and silently reverts to HTTP polling for the metadata when

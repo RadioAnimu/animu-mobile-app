@@ -109,10 +109,10 @@ export function HeaderBar({ openLiveRequestModal }: Readonly<Props>) {
   const player = usePlayer();
   const isBackgrounded = useIsBackgrounded();
   const reduceMotion = useReducedMotion();
-  const { currentTrack, currentProgram } = player;
+  const { currentProgram } = player;
   const progress = useTrackProgress();
   const { progressMs, progressAt, progressRunning, showProgress } = progress;
-  const duration = currentTrack?.duration ?? 0;
+  const duration = progress.durationMs;
   // The bar spawns AT the live ratio (cold start, screen switch, thaw after
   // a background freeze) — no first frame at 0 that then snaps forward.
   const [progressAnim] = useState(() =>

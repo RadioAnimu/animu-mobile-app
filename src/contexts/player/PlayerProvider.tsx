@@ -98,6 +98,7 @@ const ProgressContext = createContext<ProgressSnapshot>({
   progressAt: 0,
   progressRunning: false,
   showProgress: false,
+  durationMs: 0,
 });
 
 export const PlayerProvider: React.FC<{

@@ -21,7 +21,12 @@ listener count, remaining time and the stream-quality selector.
 - **Background playback** — audio continues with the screen locked via an
   Android foreground service and the iOS background-audio mode.
 - **Track progress** — remaining time is derived from the station's
-  `startTime` + `duration`, so it is accurate on ICY/live streams.
+  `startTime` + `duration`, so it is accurate on ICY/live streams. A live DJ's
+  song the station library does not know has no `duration` ("notime"): its
+  length is then estimated from its lyrics (LRCLIB, any accepted match) and
+  drives the bar, the countdown and the lock screen only — the lyrics clock
+  keeps the station's data. Past the estimated end the bar holds full and the
+  countdown at 0:00 until the next song. AutoDJ is unchanged.
 
 ![Home player](SCREENSHOT: Home screen mid-song — animated wordmark, live program + DJ, artwork, remaining time, NO AR/song title/artist, and the three bitrate buttons)
 

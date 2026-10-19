@@ -1,7 +1,7 @@
 import type { HistoryType } from "animu-api";
 import type { MediaMetadata, PlaybackState, PlayerStatus } from "react-native-anything-player";
 import type { Stream } from "@/core/domain/stream";
-import type { Track } from "@/core/domain/track";
+import { isRealTrack, type Track } from "@/core/domain/track";
 import { userSettingsService } from "@/core/services/user-settings.service";
 import type { listenStatsService } from "@/core/services/listen-stats.service";
 import { animuApi } from "@/api/client";
@@ -56,6 +56,12 @@ export interface PlayerServiceDependencies {
    * Lets other features warm up for it (lyrics).
    */
   onTrackAnnounced?: (track: Track | null) => void;
+  /**
+   * A live program's song with no length from the station: its length as the
+   * lyrics database knows it (ms), `null` when there is none. May reject.
+   * Display only (see {@link PlayerService}'s duration estimate).
+   */
+  estimateDuration?: (track: Track) => Promise<number | null>;
 }
 
 /** The heard song's position, read on demand (the lyrics clock samples it). */
@@ -71,6 +77,9 @@ export interface HeardPosition {
    */
   advancing: boolean;
 }
+
+/** A song's identity for its duration estimate: a replay of a title is a new song. */
+const estimateKey = (track: Track): string => `${track.raw}|${track.startTime.getTime()}`;
 
 /** Airwave's playback state → the UI's transport vocabulary. */
 const TRANSPORT: Record<PlaybackState, TransportState> = {
@@ -123,6 +132,16 @@ export class PlayerService {
   private wasIdle = false;
   /** A track change skipped the lyrics prefetch while idle; the return does it. */
   private lyricsSkipped = false;
+  /**
+   * The heard live song's length estimated from its lyrics — only for a real
+   * song on a live program that sends no duration (the daemon's "notime":
+   * not in the station library). `ms` is `null` while the lookup is pending
+   * or found nothing; a different song (key) makes it void. It feeds the
+   * DISPLAY only (bar, countdown, lock screen): the station's own `duration`
+   * keeps driving the sync — a TV-size row (1:30) against a full cut on air
+   * (4:00) must not end the lyrics and the position at 1:30.
+   */
+  private durationEstimate: { key: string; ms: number | null } | null = null;
   private readonly unsubscribe: (() => void)[] = [];
 
   constructor(private readonly deps: PlayerServiceDependencies) {
@@ -183,7 +202,12 @@ export class PlayerService {
         heard.stationChanged();
         hearing.stationChanged();
       }
-      if (change.programChanged) this.emitPlayer();
+      if (change.programChanged) {
+        // Live or not decides whether a length is estimated and shown.
+        this.syncDurationEstimate();
+        this.emitPlayer();
+        this.emitProgress();
+      }
       if (change.listenersChanged || change.playedChanged || change.requestedChanged) {
         this.emitStation();
       }
@@ -221,7 +245,8 @@ export class PlayerService {
     const meta = buildNowPlayingMetadata({
       track: artwork.apply(this.deps.hearing.track),
       isLive: this.deps.repository.currentProgram?.isLive ?? false,
-      showProgress: this.deps.repository.showProgress && this.deps.hearing.positionKnown,
+      showProgress: this.showsProgress() && this.deps.hearing.positionKnown,
+      durationMs: this.displayDurationMs(),
       defaultCover: artwork.defaultCover,
     });
     if (!meta.artwork || artwork.isRemote(meta.artwork)) meta.artwork = artwork.defaultCover;
@@ -248,6 +273,43 @@ export class PlayerService {
       return { raw: track.raw, elapsedMs: track.duration, advancing: false };
     }
     return { raw: track.raw, elapsedMs: elapsed, advancing: position.running };
+  }
+
+  private get isLiveProgram(): boolean {
+    return this.deps.repository.currentProgram?.isLive ?? false;
+  }
+
+  /** The heard track when its length is worth estimating: a real live song the station gave none. */
+  private estimableTrack(): Track | null {
+    const track = this.deps.hearing.track;
+    if (!track || track.duration > 0 || !this.isLiveProgram) return null;
+    return isRealTrack(track) ? track : null;
+  }
+
+  /**
+   * The heard track's length for display: the station's, else a live song's
+   * estimate, else 0. {@link heardPosition} and the sync never read this.
+   */
+  private displayDurationMs(): number {
+    const track = this.deps.hearing.track;
+    if (!track) return 0;
+    if (track.duration > 0) return track.duration;
+    const estimate = this.durationEstimate;
+    if (!estimate?.ms || estimate.key !== estimateKey(track)) return 0;
+    return this.estimableTrack() ? estimate.ms : 0;
+  }
+
+  /**
+   * Whether progress (bar, countdown, lock-screen seek bar) is shown. A live
+   * program's real song shows it whenever a length is known — the station's
+   * or the estimate; elsewhere the repository's rule (a real track on a
+   * non-live program) stands.
+   */
+  private showsProgress(): boolean {
+    if (this.isLiveProgram && isRealTrack(this.deps.hearing.track)) {
+      return this.displayDurationMs() > 0;
+    }
+    return this.deps.repository.showProgress;
   }
 
   peekArtwork(url: string): string | undefined {
@@ -355,6 +417,8 @@ export class PlayerService {
     if (active) {
       // Back after a long pause: the grace may have run out with no tick to say.
       this.deps.hearing.recheck();
+      // A live song that started while hidden is estimated now.
+      this.syncDurationEstimate();
       this.emitPlayer();
       this.emitStation();
       this.emitProgress();
@@ -399,6 +463,7 @@ export class PlayerService {
     if (this.disposed) return;
     this.initialized = true;
     this.updateTicker();
+    this.syncDurationEstimate();
     this.emitPlayer();
     this.emitProgress();
   }
@@ -420,6 +485,7 @@ export class PlayerService {
     this.deps.artwork.reset();
     this.deps.hearing.reset();
     this.deps.streamPreferences.reset();
+    this.durationEstimate = null;
     this.initialized = false;
     this.streamOptions = [];
     // Reset the stores now, the last write: once a replacement exists they
@@ -436,6 +502,7 @@ export class PlayerService {
       progressAt: 0,
       progressRunning: false,
       showProgress: false,
+      durationMs: 0,
     });
     try {
       await this.deps.player.release();
@@ -643,9 +710,42 @@ export class PlayerService {
       this.deps.stats?.onTrackHeard(this.deps.hearing.track, this.lastState === "playing");
     }
     this.tickStats();
+    this.syncDurationEstimate();
     this.emitPlayer();
     this.emitProgress();
     this.updateNowPlaying();
+  }
+
+  /**
+   * Keeps {@link durationEstimate} on the heard song: dropped when it changes,
+   * asked once per song while the app is in the foreground (hidden: a song
+   * that starts meanwhile is asked for on the return — no new background
+   * network). The answer re-publishes the progress and the lock screen; one
+   * for a song no longer heard is ignored.
+   */
+  private syncDurationEstimate(): void {
+    const track = this.estimableTrack();
+    const estimate = this.deps.estimateDuration;
+    if (!track || !estimate) {
+      this.durationEstimate = null;
+      return;
+    }
+    const key = estimateKey(track);
+    if (this.durationEstimate?.key === key) return;
+    if (!this.appActive) {
+      this.durationEstimate = null;
+      return;
+    }
+    this.durationEstimate = { key, ms: null };
+    void estimate(track)
+      .catch(() => null)
+      .then((ms) => {
+        if (this.disposed || this.durationEstimate?.key !== key) return;
+        if (ms == null || !Number.isFinite(ms) || ms <= 0) return;
+        this.durationEstimate = { key, ms };
+        this.emitProgress();
+        if (this.loadedStreamId != null) this.pushNowPlaying();
+      });
   }
 
   /**
@@ -700,12 +800,13 @@ export class PlayerService {
   /**
    * Elapsed ms for the lock screen, from the same anchor as the UI: held at
    * the song's end once past it (the next title is not heard yet), so the
-   * seek bar stays full instead of disappearing.
+   * seek bar stays full instead of disappearing. The end is the displayed
+   * length, estimate included.
    */
   private heardElapsedMs(): number | null {
     const { hearing } = this.deps;
     const position = hearing.position();
-    const duration = hearing.track?.duration ?? 0;
+    const duration = this.displayDurationMs();
     if (!position) return null;
     const elapsed = Math.max(0, positionAt(position, Date.now()));
     return duration > 0 ? Math.min(elapsed, duration) : elapsed;
@@ -791,7 +892,8 @@ export class PlayerService {
       progressMs: position?.elapsedMs ?? null,
       progressAt: position?.at ?? 0,
       progressRunning: position?.running ?? false,
-      showProgress: this.deps.repository.showProgress,
+      showProgress: this.showsProgress(),
+      durationMs: this.displayDurationMs(),
     });
   }
 }

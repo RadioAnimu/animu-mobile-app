@@ -119,6 +119,13 @@ export const createPlayerService = (onDestroyed?: () => void): PlayerService => 
     ticker: createTicker(),
     onDestroyed,
     onTrackAnnounced: (track) => lyricsService().prefetch(track),
+    // A live song the station gave no length for: LRCLIB's, from the same
+    // lookup the header's lyrics button makes (shared memory, in-flight and
+    // disk cache — no extra request).
+    estimateDuration: (track) =>
+      lyricsService()
+        .lyricsFor(track)
+        .then((lyrics) => lyrics?.source.durationMs ?? null),
   });
 };
 

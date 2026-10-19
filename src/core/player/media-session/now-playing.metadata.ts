@@ -6,6 +6,11 @@ export interface NowPlayingInput {
   isLive: boolean;
   /** Whether to show real progress in the media session notification. */
   showProgress: boolean;
+  /**
+   * The length to publish, ms: the station's, or a live program's estimate —
+   * decided by the caller (the track's own `duration` is not read here).
+   */
+  durationMs: number;
   defaultCover: string;
 }
 
@@ -33,6 +38,7 @@ export const buildNowPlayingMetadata = ({
   track,
   isLive,
   showProgress,
+  durationMs,
   defaultCover,
 }: NowPlayingInput): NowPlayingMetadata => {
   const baseMetadata: NowPlayingMetadata = {
@@ -41,10 +47,10 @@ export const buildNowPlayingMetadata = ({
     isLiveStream: isLive,
   };
 
-  // Show REAL duration from the track data so the OS can interpolate the
-  // seek bar. No progress → no duration so the bar is empty/hidden.
-  if (showProgress && track && track.duration > 0) {
-    return { ...baseMetadata, durationSec: track.duration / 1000 };
+  // Show the duration so the OS can interpolate the seek bar. No progress →
+  // no duration so the bar is empty/hidden.
+  if (showProgress && track && durationMs > 0) {
+    return { ...baseMetadata, durationSec: durationMs / 1000 };
   }
 
   return baseMetadata;

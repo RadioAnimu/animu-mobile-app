@@ -68,6 +68,7 @@ describe("player stores", () => {
       progressAt: 0,
       progressRunning: true,
       showProgress: true,
+      durationMs: 200_000,
     });
     expect(progressSpy).toHaveBeenCalledTimes(1);
     expect(playerSpy).not.toHaveBeenCalled();

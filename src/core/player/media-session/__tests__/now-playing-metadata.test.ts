@@ -23,6 +23,7 @@ describe("buildNowPlayingMetadata", () => {
       track: makeTrack(),
       isLive: false,
       showProgress: false,
+      durationMs: 0,
       defaultCover: "cover.png",
     });
 
@@ -39,6 +40,7 @@ describe("buildNowPlayingMetadata", () => {
       track: null,
       isLive: true,
       showProgress: false,
+      durationMs: 0,
       defaultCover: "cover.png",
     });
 
@@ -55,6 +57,7 @@ describe("buildNowPlayingMetadata", () => {
       track: makeTrack({ raw: "Ado - Value", title: "Value", artist: "Ado", anime: "" }),
       isLive: false,
       showProgress: false,
+      durationMs: 0,
       defaultCover: "cover.png",
     });
 
@@ -66,6 +69,7 @@ describe("buildNowPlayingMetadata", () => {
       track: makeTrack({ raw: "Just A Title | Naruto", title: "Just A Title", artist: "" }),
       isLive: false,
       showProgress: false,
+      durationMs: 0,
       defaultCover: "cover.png",
     });
 
@@ -77,13 +81,14 @@ describe("buildNowPlayingMetadata", () => {
       track: makeTrack({ raw: "Passagem", title: "Passagem", artist: "", anime: "" }),
       isLive: false,
       showProgress: false,
+      durationMs: 0,
       defaultCover: "cover.png",
     });
 
     expect(metadata).toMatchObject({ title: "Passagem", artist: "" });
   });
 
-  it("adds durationSec only when progress is shown and duration is valid", () => {
+  it("adds durationSec only when progress is shown and the given duration is valid", () => {
     const base = {
       isLive: false,
       defaultCover: "cover.png",
@@ -93,6 +98,7 @@ describe("buildNowPlayingMetadata", () => {
       ...base,
       track: makeTrack({ duration: 90_000 }),
       showProgress: true,
+      durationMs: 90_000,
     });
     expect(withProgress.durationSec).toBe(90);
 
@@ -100,15 +106,28 @@ describe("buildNowPlayingMetadata", () => {
       ...base,
       track: makeTrack({ duration: 90_000 }),
       showProgress: false,
+      durationMs: 90_000,
     });
     expect(hidden.durationSec).toBeUndefined();
 
     const zeroDuration = buildNowPlayingMetadata({
       ...base,
-      track: makeTrack({ duration: 0 }),
+      track: makeTrack({ duration: 90_000 }),
       showProgress: true,
+      durationMs: 0,
     });
     expect(zeroDuration.durationSec).toBeUndefined();
+  });
+
+  it("publishes the duration it is given, not the track's (a live song's estimate)", () => {
+    const metadata = buildNowPlayingMetadata({
+      track: makeTrack({ duration: 0 }),
+      isLive: true,
+      showProgress: true,
+      durationMs: 200_000,
+      defaultCover: "cover.png",
+    });
+    expect(metadata.durationSec).toBe(200);
   });
 
   it("uses the default cover when the track has none", () => {
@@ -116,6 +135,7 @@ describe("buildNowPlayingMetadata", () => {
       track: makeTrack({ artwork: "" }),
       isLive: false,
       showProgress: false,
+      durationMs: 0,
       defaultCover: "cover.png",
     });
 

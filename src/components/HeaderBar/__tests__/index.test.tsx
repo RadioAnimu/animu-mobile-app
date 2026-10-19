@@ -75,7 +75,7 @@ const pressRequest = () =>
 describe("HeaderBar", () => {
   beforeEach(() => {
     mocks.backgrounded = false;
-    mocks.progress = { progressMs: 0, progressAt: 0, progressRunning: false, showProgress: true };
+    mocks.progress = { progressMs: 0, progressAt: 0, progressRunning: false, showProgress: true, durationMs: 200_000 };
     setPlayer();
   });
   afterEach(cleanup);
@@ -181,6 +181,7 @@ describe("HeaderBar", () => {
         progressAt: NOW - 10_000,
         progressRunning: true,
         showProgress: true,
+        durationMs: 200_000,
       };
       render(<HeaderBar />);
       expect(runs()).toHaveLength(1);
@@ -199,18 +200,34 @@ describe("HeaderBar", () => {
         progressAt: NOW - 10_000,
         progressRunning: false,
         showProgress: true,
+        durationMs: 200_000,
       };
       render(<HeaderBar />);
       expect(runs()).toHaveLength(0);
     });
 
+    it("runs to the progress snapshot's duration, not the track's (a live song's estimate)", () => {
+      // The station sent no length (0): the bar follows the estimated 100 s.
+      setPlayer({ currentTrack: { duration: 0, raw: "Song A" } });
+      mocks.progress = {
+        progressMs: 50_000,
+        progressAt: NOW,
+        progressRunning: true,
+        showProgress: true,
+        durationMs: 100_000,
+      };
+      render(<HeaderBar />);
+      expect(runs()).toHaveLength(1);
+      expect(runs()[0][1].duration).toBe(50_000);
+    });
+
     it("restarts only on a re-anchor, from where the audio is", () => {
-      mocks.progress = { progressMs: 50_000, progressAt: NOW, progressRunning: true, showProgress: true };
+      mocks.progress = { progressMs: 50_000, progressAt: NOW, progressRunning: true, showProgress: true, durationMs: 200_000 };
       const { rerender } = render(<HeaderBar />);
       rerender(<HeaderBar />);
       expect(runs()).toHaveLength(1);
       const first = vi.mocked(Animated.timing).mock.results[0].value;
-      mocks.progress = { progressMs: 1_200, progressAt: NOW, progressRunning: true, showProgress: true };
+      mocks.progress = { progressMs: 1_200, progressAt: NOW, progressRunning: true, showProgress: true, durationMs: 200_000 };
       rerender(<HeaderBar />);
       expect(first.stop).toHaveBeenCalledTimes(1);
       expect(runs()).toHaveLength(2);

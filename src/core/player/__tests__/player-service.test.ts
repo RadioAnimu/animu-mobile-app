@@ -467,9 +467,10 @@ describe("PlayerService on react-native-anything-player", () => {
     vi.useRealTimers();
   });
 
-  it("no song progress on the lock screen during a live program", async () => {
+  it("no song progress on the lock screen during a live program that sends no length", async () => {
     const t = setup();
     t.repository.currentProgram = { name: "Live", dj: "DJ", isLive: true };
+    t.repository.currentTrack = track("Song A", { duration: 0 });
     t.repository.showProgress = false;
     await t.service.setupPlayer();
     await t.service.play();
@@ -1114,6 +1115,175 @@ describe("PlayerService on react-native-anything-player", () => {
       expect(t.player.play).toHaveBeenCalledTimes(1);
       expect(t.player.load).not.toHaveBeenCalled();
       expect(t.service.heardPosition()).toEqual({ ...before, advancing: true });
+      vi.useRealTimers();
+    });
+  });
+
+  describe("a live song's length", () => {
+    const start = () => {
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date("2026-10-05T05:00:00Z"));
+    };
+    /** Lets the estimate's promise chain run. */
+    const flush = () => vi.advanceTimersByTimeAsync(0);
+    /** A live program's Song A (on air 30 s) with the given station length. */
+    const liveSetup = (
+      duration: number,
+      estimateDuration?: PlayerServiceDependencies["estimateDuration"],
+    ) => {
+      const t = setup({ estimateDuration });
+      t.repository.currentProgram = { name: "Live", dj: "DJ", isLive: true };
+      t.repository.currentTrack = track("Song A", { duration });
+      // The repository hides progress on live: the service decides there.
+      t.repository.showProgress = false;
+      return t;
+    };
+    const listen = async (t: ReturnType<typeof setup>) => {
+      await t.service.setupPlayer();
+      await t.service.play();
+      t.player.setState("playing", true);
+      t.player.hear("Song A");
+      t.settle(5, 6);
+      await flush();
+    };
+
+    it("is estimated from the lyrics when the station sends none, for display only", async () => {
+      start();
+      const estimate = vi.fn(async () => 200_000);
+      const t = liveSetup(0, estimate);
+      await listen(t);
+      expect(estimate).toHaveBeenCalledTimes(1);
+      expect(estimate).toHaveBeenCalledWith(expect.objectContaining({ raw: "Song A" }));
+      expect(progressStore.getSnapshot()).toMatchObject({ showProgress: true, durationMs: 200_000 });
+      expect(lastNowPlaying(t.player)).toMatchObject({ duration: 200 });
+      expect(lastNowPlaying(t.player)!.elapsed).toBeGreaterThan(0);
+      // The sync keeps the station's word: no length, nothing is mutated.
+      expect(t.hearing.track?.duration).toBe(0);
+      expect(playerStore.getSnapshot().currentTrack?.duration).toBe(0);
+      vi.useRealTimers();
+    });
+
+    it("uses the station's length when it sends one, and shows progress for it", async () => {
+      start();
+      const estimate = vi.fn(async () => 90_000);
+      const t = liveSetup(240_000, estimate);
+      await listen(t);
+      expect(estimate).not.toHaveBeenCalled();
+      expect(progressStore.getSnapshot()).toMatchObject({ showProgress: true, durationMs: 240_000 });
+      expect(lastNowPlaying(t.player)).toMatchObject({ duration: 240 });
+      vi.useRealTimers();
+    });
+
+    it("is not asked for outside a live program", async () => {
+      start();
+      const estimate = vi.fn(async () => 200_000);
+      const t = setup({ estimateDuration: estimate }); // AutoDJ
+      t.repository.currentTrack = track("Song A", { duration: 0 });
+      t.repository.showProgress = false;
+      await listen(t);
+      expect(estimate).not.toHaveBeenCalled();
+      expect(progressStore.getSnapshot()).toMatchObject({ showProgress: false, durationMs: 0 });
+      expect(lastNowPlaying(t.player)!.duration).toBeUndefined();
+      vi.useRealTimers();
+    });
+
+    it("is not asked for filler (a jingle on a live program)", async () => {
+      start();
+      const estimate = vi.fn(async () => 5_000);
+      const t = liveSetup(0, estimate);
+      t.repository.currentTrack = track("Rádio Animu - Vinheta", { duration: 0 });
+      await t.service.setupPlayer();
+      await flush();
+      expect(estimate).not.toHaveBeenCalled();
+      expect(progressStore.getSnapshot()).toMatchObject({ showProgress: false, durationMs: 0 });
+      vi.useRealTimers();
+    });
+
+    it("ignores an answer for a song that is no longer heard", async () => {
+      start();
+      const answers = new Map<string, (ms: number) => void>();
+      const estimate = vi.fn(
+        (t: Track) => new Promise<number | null>((resolve) => answers.set(t.raw, resolve)),
+      );
+      const t = liveSetup(0, estimate);
+      await listen(t);
+      t.announce(track("Song B", { duration: 0, startTime: new Date() }));
+      t.player.hear("Song B");
+      await flush();
+      expect(estimate).toHaveBeenCalledTimes(2);
+      answers.get("Song A")!(200_000); // the song changed before it came
+      await flush();
+      expect(progressStore.getSnapshot()).toMatchObject({ showProgress: false, durationMs: 0 });
+      answers.get("Song B")!(150_000);
+      await flush();
+      expect(progressStore.getSnapshot()).toMatchObject({ showProgress: true, durationMs: 150_000 });
+      vi.useRealTimers();
+    });
+
+    it("is asked for only in the foreground: a song that started hidden is estimated on the return", async () => {
+      start();
+      const estimate = vi.fn(async () => 200_000);
+      const t = liveSetup(0, estimate);
+      t.service.setAppActive(false);
+      await t.service.setupPlayer();
+      await flush();
+      expect(estimate).not.toHaveBeenCalled();
+      t.service.setAppActive(true);
+      await flush();
+      expect(estimate).toHaveBeenCalledTimes(1);
+      expect(progressStore.getSnapshot()).toMatchObject({ showProgress: true, durationMs: 200_000 });
+      // Hidden again: the next song waits for the return too.
+      t.service.setAppActive(false);
+      t.announce(track("Song B", { duration: 0, startTime: new Date() }));
+      await flush();
+      expect(estimate).toHaveBeenCalledTimes(1);
+      t.service.setAppActive(true);
+      await flush();
+      expect(estimate).toHaveBeenCalledTimes(2);
+      expect(estimate).toHaveBeenLastCalledWith(expect.objectContaining({ raw: "Song B" }));
+      vi.useRealTimers();
+    });
+
+    it("an answer that lands after the app is hidden still reaches the lock screen", async () => {
+      start();
+      let answer: (ms: number) => void = () => {};
+      const t = liveSetup(0, () => new Promise<number | null>((resolve) => (answer = resolve)));
+      await listen(t);
+      expect(lastNowPlaying(t.player)!.duration).toBeUndefined();
+      t.service.setAppActive(false);
+      answer(180_000);
+      await flush();
+      expect(lastNowPlaying(t.player)).toMatchObject({ duration: 180 });
+      vi.useRealTimers();
+    });
+
+    it("an estimate shorter than the song clamps the display, never the lyrics clock", async () => {
+      start();
+      const t = liveSetup(0, async () => 20_000); // a TV-size row; the full cut is on air
+      await listen(t); // ~30 s into the song
+      const position = t.service.heardPosition()!;
+      expect(position.elapsedMs).toBeGreaterThan(20_000);
+      expect(position.advancing).toBe(true);
+      const { durationMs, ...anchor } = progressStore.getSnapshot();
+      expect(durationMs).toBe(20_000);
+      // Bar full, countdown at 0:00 until the next song.
+      expect(elapsedAt(anchor, durationMs, Date.now())).toBe(20_000);
+      expect(lastNowPlaying(t.player)).toMatchObject({ duration: 20, elapsed: 20 });
+      vi.advanceTimersByTime(60_000);
+      expect(t.service.heardPosition()!.elapsedMs).toBeGreaterThan(position.elapsedMs);
+      vi.useRealTimers();
+    });
+
+    it.each([
+      ["rejects", () => Promise.reject(new Error("offline"))],
+      ["finds nothing", async () => null],
+      ["reports no length", async () => 0],
+    ])("shows no progress when the lookup %s", async (_name, estimate) => {
+      start();
+      const t = liveSetup(0, estimate);
+      await listen(t);
+      expect(progressStore.getSnapshot()).toMatchObject({ showProgress: false, durationMs: 0 });
+      expect(lastNowPlaying(t.player)!.duration).toBeUndefined();
       vi.useRealTimers();
     });
   });
