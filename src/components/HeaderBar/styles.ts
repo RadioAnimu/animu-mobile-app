@@ -84,11 +84,30 @@ export const styles = StyleSheet.create({
   noteWrapper: {
     position: "relative",
   },
-  /** The note's slot: the microphone hangs off its left, out of the row's flex. */
+  /**
+   * The menu's slot: during live programs the microphone hangs off its
+   * right, out of the row's flex — the live badge would otherwise cover a
+   * mic parked beside the note.
+   */
+  menuSlot: {
+    position: "relative",
+  },
+  /**
+   * The note's slot: otherwise the microphone hangs off its left, out of
+   * the row's flex. Either way the play button stays centered.
+   */
   noteSlot: {
     position: "relative",
   },
-  lyricsButton: {
+  /** Mic right of the menu (live badge shown): mirrors the note-side spot. */
+  lyricsButtonByMenu: {
+    position: "absolute",
+    left: ICON_BTN + MIC_GAP,
+    // Centered on the menu icon's line.
+    top: (ICON_BTN - MIC_SIZE) / 2,
+  },
+  /** Mic left of the note (no live badge). */
+  lyricsButtonByNote: {
     position: "absolute",
     right: ICON_BTN + MIC_GAP,
     // Centered on the note's line.

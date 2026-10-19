@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { Animated } from "react-native";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -51,7 +51,11 @@ vi.mock("@/hooks/useDict", () => ({
   }),
 }));
 vi.mock("@/utils/haptics", () => ({ haptics: mocks.haptics }));
-vi.mock("@/components/LyricsButton", () => ({ LyricsButton: () => <i data-testid="lyrics-button" /> }));
+vi.mock("@/components/LyricsButton", () => ({
+  // Labeled like the real button (A11Y_OPEN_LYRICS) so placement tests can
+  // count the mics by their accessibility label.
+  LyricsButton: () => <i data-testid="lyrics-button" aria-label="Show lyrics" />,
+}));
 
 const setPlayer = (overrides: Record<string, unknown> = {}) => {
   mocks.player = {
@@ -79,6 +83,44 @@ describe("HeaderBar", () => {
   it("carries the lyrics microphone beside the request note", () => {
     render(<HeaderBar openLiveRequestModal={() => {}} />);
     expect(screen.getByTestId("lyrics-button")).toBeTruthy();
+  });
+
+  describe("microphone placement", () => {
+    const live = { currentProgram: { isLive: true, acceptingRequests: true } };
+
+    /** The mic sits in the given slot alone, and its neighbour order reads
+        like the visual one (the DOM is the a11y reading order here). */
+    const micSitsIn = (slot: "menu-slot" | "note-slot") => {
+      const slotEl = screen.getByTestId(slot);
+      const mic = within(slotEl).getAllByTestId("lyrics-button");
+      expect(mic).toHaveLength(1);
+      expect(screen.getAllByLabelText("Show lyrics")).toHaveLength(1);
+      return [slotEl, mic[0]] as const;
+    };
+
+    it("parks the mic beside the menu while a live badge hangs over the note", () => {
+      setPlayer(live);
+      render(<HeaderBar openLiveRequestModal={vi.fn()} />);
+      const [slotEl, mic] = micSitsIn("menu-slot");
+      const menu = within(slotEl).getByRole("button", { name: "Open menu" });
+      expect(menu.compareDocumentPosition(mic) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+      expect(within(screen.getByTestId("note-slot")).queryByTestId("lyrics-button")).toBeNull();
+    });
+
+    it("keeps the mic beside the note during a live show without the modal", () => {
+      setPlayer(live);
+      render(<HeaderBar />);
+      const [slotEl, mic] = micSitsIn("note-slot");
+      const note = within(slotEl).getByRole("button", { name: "Make request" });
+      expect(note.compareDocumentPosition(mic) & Node.DOCUMENT_POSITION_PRECEDING).toBeTruthy();
+    });
+
+    it("keeps the mic beside the note off the live program", () => {
+      render(<HeaderBar openLiveRequestModal={vi.fn()} />);
+      const [slotEl, mic] = micSitsIn("note-slot");
+      const note = within(slotEl).getByRole("button", { name: "Make request" });
+      expect(note.compareDocumentPosition(mic) & Node.DOCUMENT_POSITION_PRECEDING).toBeTruthy();
+    });
   });
 
   describe("make-request button", () => {

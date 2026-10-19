@@ -42,6 +42,65 @@ const PULSE_DURATION = 1750;
 const PULSE_TRAVEL = 50;
 const PULSE_BOB = PULSE_TRAVEL * 2 * PULSE_OPACITY;
 
+/**
+ * The header's play / pause toggle. Its own component: the re-entrancy guard
+ * and the optimistic status are its business alone, not the header's.
+ */
+function PlayPauseButton() {
+  const dict = useDict();
+  const player = usePlayer();
+  const [status, setStatus] = useState<Status>("playing");
+  /** Re-entrancy guard: two taps in one frame must not toggle twice. */
+  const changingRef = useRef(false);
+
+  return (
+    <TouchableOpacity
+      activeOpacity={THEME.OPACITY.PRESSED}
+      accessibilityRole="button"
+      accessibilityLabel={
+        player.isPlaying ? dict.A11Y_PAUSE : dict.A11Y_PLAY
+      }
+      accessibilityState={{ disabled: status === "changing" }}
+      onPress={async () => {
+        if (changingRef.current) return;
+        changingRef.current = true;
+        setStatus("changing");
+        haptics.tap();
+        // Capture the pre-toggle truth: after the await the render
+        // closure's `player.isPlaying` is stale (the store moved, this
+        // render did not), so re-reading it would report the WRONG
+        // state. On failure revert to that same truth; the provider
+        // already logs, the catch is the defensive backstop.
+        const wasPlaying = player.isPlaying;
+        try {
+          if (wasPlaying) {
+            await player.pause();
+          } else {
+            await player.play();
+          }
+          setStatus(wasPlaying ? "paused" : "playing");
+        } catch (error) {
+          console.warn("[HeaderBar] play/pause failed:", error);
+          setStatus(wasPlaying ? "playing" : "paused");
+        } finally {
+          changingRef.current = false;
+        }
+      }}
+    >
+      <Image
+        contentFit="contain"
+        style={[
+          styles.playBtn,
+          {
+            opacity: status === "changing" ? THEME.OPACITY.DISABLED : 1,
+          },
+        ]}
+        source={!player.isPlaying ? playAffordanceImage : pauseAffordanceImage}
+      />
+    </TouchableOpacity>
+  );
+}
+
 export function HeaderBar({ openLiveRequestModal }: Readonly<Props>) {
   const navigation =
     useNavigation<DrawerNavigationProp<DrawerParamList>>();
@@ -61,7 +120,6 @@ export function HeaderBar({ openLiveRequestModal }: Readonly<Props>) {
       progressRatio(elapsedAt(progress, duration, Date.now()), duration),
     ),
   );
-  const [status, setStatus] = useState<Status>("playing");
   /** Still locking the audible clock — the bar is a guess until then. */
   const syncing = player.syncing;
 
@@ -71,9 +129,6 @@ export function HeaderBar({ openLiveRequestModal }: Readonly<Props>) {
   // wrong/empty position reads as "working on it" instead of broken. Stops
   // (and resets to full opacity) the moment sync lands or the app hides.
   const syncBlink = useBlink(syncing && showProgress && !isBackgrounded);
-
-  /** Re-entrancy guard: two taps in one frame must not toggle twice. */
-  const changingRef = useRef(false);
 
   // The position is a real-time anchor, so the bar runs optimistically: placed
   // at the live ratio, then ONE linear native animation to the song's end.
@@ -161,66 +216,44 @@ export function HeaderBar({ openLiveRequestModal }: Readonly<Props>) {
         ]}
       >
         <View style={[styles.row, { width: contentWidth(windowWidth) }]}>
-          <TouchableOpacity
-            activeOpacity={THEME.OPACITY.PRESSED}
-            accessibilityRole="button"
-            accessibilityLabel={dict.A11Y_OPEN_MENU}
-            hitSlop={ICON_HIT_SLOP}
-            onPress={() => {
-              navigation.openDrawer();
-            }}
-          >
-            <Image contentFit="contain" style={styles.menuBtn} source={menuIcon} />
-          </TouchableOpacity>
-          <TouchableOpacity
-            activeOpacity={THEME.OPACITY.PRESSED}
-            accessibilityRole="button"
-            accessibilityLabel={
-              player.isPlaying ? dict.A11Y_PAUSE : dict.A11Y_PLAY
-            }
-            accessibilityState={{ disabled: status === "changing" }}
-            onPress={async () => {
-              if (changingRef.current) return;
-              changingRef.current = true;
-              setStatus("changing");
-              haptics.tap();
-              // Capture the pre-toggle truth: after the await the render
-              // closure's `player.isPlaying` is stale (the store moved, this
-              // render did not), so re-reading it would report the WRONG
-              // state. On failure revert to that same truth; the provider
-              // already logs, the catch is the defensive backstop.
-              const wasPlaying = player.isPlaying;
-              try {
-                if (wasPlaying) {
-                  await player.pause();
-                } else {
-                  await player.play();
-                }
-                setStatus(wasPlaying ? "paused" : "playing");
-              } catch (error) {
-                console.warn("[HeaderBar] play/pause failed:", error);
-                setStatus(wasPlaying ? "playing" : "paused");
-              } finally {
-                changingRef.current = false;
-              }
-            }}
-          >
-            <Image
-              contentFit="contain"
-              style={[
-                styles.playBtn,
-                {
-                  opacity: status === "changing" ? THEME.OPACITY.DISABLED : 1,
-                },
-              ]}
-              source={!player.isPlaying ? playAffordanceImage : pauseAffordanceImage}
-            />
-          </TouchableOpacity>
+          {/* The microphone never joins the row's flex, so the play button
+              stays centered wherever it hangs. Live shows dangle the
+              live-request badge over the note — right where a note-side mic
+              would sit — so during a live program the mic parks beside the
+              menu instead (menu·mic, play, note). */}
+          <View style={styles.menuSlot} testID="menu-slot">
+            <TouchableOpacity
+              activeOpacity={THEME.OPACITY.PRESSED}
+              accessibilityRole="button"
+              accessibilityLabel={dict.A11Y_OPEN_MENU}
+              hitSlop={ICON_HIT_SLOP}
+              onPress={() => {
+                navigation.openDrawer();
+              }}
+            >
+              <Image contentFit="contain" style={styles.menuBtn} source={menuIcon} />
+            </TouchableOpacity>
+            {showLiveBadge && (
+              <LyricsButton
+                size={MIC_SIZE}
+                hitSlop={ICON_HIT_SLOP / 2}
+                style={styles.lyricsButtonByMenu}
+              />
+            )}
+          </View>
+          <PlayPauseButton />
 
-          {/* The microphone sits left of the note without joining the row's
-              flex, so the play button stays centered. */}
-          <View style={styles.noteSlot}>
-            <LyricsButton size={MIC_SIZE} hitSlop={ICON_HIT_SLOP / 2} style={styles.lyricsButton} />
+          {/* Fallback placement: away from a live badge the mic hangs off the
+              note's left, as before. Only one mic mounts at a time — the two
+              branches swap it between slots. */}
+          <View style={styles.noteSlot} testID="note-slot">
+            {!showLiveBadge && (
+              <LyricsButton
+                size={MIC_SIZE}
+                hitSlop={ICON_HIT_SLOP / 2}
+                style={styles.lyricsButtonByNote}
+              />
+            )}
             <TouchableOpacity
               activeOpacity={THEME.OPACITY.PRESSED}
               accessibilityRole="button"
