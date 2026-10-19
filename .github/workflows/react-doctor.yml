@@ -7,7 +7,7 @@
 name: React Doctor
 
 on:
-  # Scans the PR's changed files and posts a sticky summary comment listing only the new issues introduced relative to the merge base of the target branch.
+  # Scans the whole project on each PR and posts a sticky summary comment.
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
   # Scans `main` on every push to track the health-score trend and catch regressions that slipped past PR review.
@@ -34,17 +34,17 @@ jobs:
         with:
           fetch-depth: 0
 
-      # Advisory by default: React Doctor reports findings on every PR — a
-      # sticky summary comment, inline review comments, and a commit status
-      # with the health score — but never fails the check, so it won't red-X
-      # a teammate's PR on day one. When the team trusts the signal, graduate
-      # the gate with `blocking: error` (new error-severity findings) or
-      # `blocking: warning` (any finding). Full reference: https://www.react.doctor/ci
+      # Scans the whole project and blocks on any finding, like the CI gate
+      # (scripts/react-doctor-gate.mjs), so this status cannot read green
+      # while CI is red. On pull requests it also posts the sticky summary and
+      # inline comments. Full reference: https://www.react.doctor/ci
       #
-      # Pinned to the commit behind the v2 tag (v2.2.9) for supply-chain
-      # safety — a floating major tag can move under us. Bump deliberately.
+      # Pinned to a commit for supply-chain safety — a floating major tag can
+      # move under us. Bump deliberately.
       - uses: millionco/react-doctor@695e46eee203a5d1855020191aa7e9c010a1250e  # v2.4.0
         with:
-          # Pin the CLI the action downloads to the version this repo develops
-          # against (package.json devDependency) instead of "latest".
-          version: "0.9.14"
+          blocking: warning
+          scope: full
+          # The CLI version the lockfile resolves (checked by test:tooling):
+          # without an install step the action would otherwise fetch "latest".
+          version: "0.9.17"
