@@ -1,8 +1,7 @@
 import { StyleSheet } from "react-native";
 import { THEME } from "@/theme";
-import { SCREEN_WIDTH, scale } from "@/theme/responsive";
+import { scale } from "@/theme/responsive";
 
-const TRACK_WIDTH = SCREEN_WIDTH;
 const INFO_MARGIN = scale(14);
 /** Designer-specified tight leading between the ticker lines. */
 const INFO_GAP = scale(-3.823);
@@ -10,9 +9,11 @@ const INFO_GAP = scale(-3.823);
 const INFO_PADDING_BOTTOM = scale(3);
 
 export const styles = StyleSheet.create({
+  // Full-bleed ticker: stretches to the screen's safe width, so it follows
+  // the window when it resizes (the marquee lines re-measure via onLayout).
   track: {
+    alignSelf: "stretch",
     flexDirection: "row",
-    width: TRACK_WIDTH,
     backgroundColor: THEME.COLORS.SURFACE,
   },
   info: {

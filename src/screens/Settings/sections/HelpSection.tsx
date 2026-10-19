@@ -9,7 +9,7 @@ import { SectionTitle } from "@/components/SectionTitle";
 import { useDict } from "@/hooks/useDict";
 import { interpolate } from "@/utils/format";
 import { haptics } from "@/utils/haptics";
-import { useStoreReview } from "@/utils/store-review";
+import { useStoreReview } from "@/hooks/useStoreReview";
 import { InfoRow, LinkRow, ValueRow } from "@/screens/Settings/rows";
 import { styles } from "@/screens/Settings/styles";
 import { openExternal, openInAppBrowser } from "@/utils/browser";

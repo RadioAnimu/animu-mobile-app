@@ -1,3 +1,19 @@
+import { AnimuApiError } from "animu-api";
+
+/**
+ * Whether `error` is a request failure that can simply be retried: no response
+ * at all (offline, timeout — status `0`) or a server-side failure (5xx). Every
+ * other outcome — a 401/other 4xx, or a 2xx the server did not confirm — says
+ * something about the account's real state, so callers must not treat it as a
+ * transient blip.
+ */
+export function isRetryableRequestFailure(error: unknown): boolean {
+  return (
+    error instanceof AnimuApiError &&
+    (error.statusCode === 0 || error.statusCode >= 500)
+  );
+}
+
 /** Thrown when the user dismisses an OAuth prompt — not a real failure. */
 export class AuthFlowCancelled extends Error {
   constructor() {

@@ -37,7 +37,9 @@ export const styles = StyleSheet.create({
     marginTop: RHYTHM.TIME_TOP,
     marginBottom: RHYTHM.TIME_BOTTOM,
   },
+  // The ticker is full-bleed: stretch out of the centered column.
   liveWrapper: {
+    alignSelf: "stretch",
     marginBottom: RHYTHM.LIVE,
   },
   programWrapper: {

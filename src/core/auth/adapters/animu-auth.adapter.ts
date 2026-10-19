@@ -105,6 +105,9 @@ export class AnimuAuthAdapter implements AuthApiPort {
   }
 
   async deleteAccount(): Promise<void> {
-    await this.client.deleteAccount();
+    const deleted = await this.client.deleteAccount();
+    if (!deleted) {
+      throw new Error("Account deletion was not confirmed by the server");
+    }
   }
 }

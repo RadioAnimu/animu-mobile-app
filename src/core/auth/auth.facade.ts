@@ -24,6 +24,7 @@ import {
   AuthFlowCancelled,
   ProviderEmailTaken,
   ProviderLinkConflict,
+  isRetryableRequestFailure,
 } from "@/core/auth/errors";
 import type {
   AppleNativeCredential,
@@ -438,9 +439,17 @@ export class AuthFacade {
   async deleteAccount(): Promise<void> {
     try {
       await this.api.deleteAccount();
-    } finally {
+    } catch (error) {
+      // Offline/timeout/5xx left the account in place server-side, so keeping
+      // the session lets the user retry without signing in again. Any other
+      // failure — 401, another 4xx, or a 2xx the server did not confirm —
+      // leaves no usable session (the animu-api client drops its own after
+      // any 2xx), so the local copy must go too.
+      if (isRetryableRequestFailure(error)) throw error;
       await this.forget();
+      throw error;
     }
+    await this.forget();
   }
 
   /** Forgets the session locally without calling the server. */

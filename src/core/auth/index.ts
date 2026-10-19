@@ -3,4 +3,5 @@ export {
   AuthFlowCancelled,
   ProviderEmailTaken,
   ProviderLinkConflict,
+  isRetryableRequestFailure,
 } from "@/core/auth/errors";

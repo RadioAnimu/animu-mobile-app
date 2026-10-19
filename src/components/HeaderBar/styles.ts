@@ -1,6 +1,6 @@
 import { StyleSheet } from "react-native";
 import { THEME } from "@/theme";
-import { CONTENT_WIDTH, SCREEN_WIDTH, scale } from "@/theme/responsive";
+import { scale } from "@/theme/responsive";
 
 const CONTAINER_HEIGHT = scale(67);
 const VIEW_MIN_HEIGHT = scale(72);
@@ -35,18 +35,20 @@ export const styles = StyleSheet.create({
   },
   // Full-bleed SURFACE bar; the row inside is the capped content column so
   // the icons keep their spacing on tablets instead of drifting apart.
+  // Stretch follows the window on resize instead of pinning the launch width.
   container: {
+    alignSelf: "stretch",
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: THEME.COLORS.SURFACE,
-    width: SCREEN_WIDTH,
     height: CONTAINER_HEIGHT,
   },
+  // The row's width is applied by the component (`contentWidth` of the
+  // current window): full width on phones, the capped column on tablets.
   row: {
     alignItems: "center",
     flexDirection: "row",
     justifyContent: "space-around",
-    width: CONTENT_WIDTH,
     height: "100%",
   },
   playBtn: {

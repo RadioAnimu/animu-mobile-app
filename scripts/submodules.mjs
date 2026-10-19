@@ -26,12 +26,21 @@ export function clean(dir) {
   if (!fs.existsSync(path.join(dir, ".git"))) return false;
   return execFileSync("git", ["status", "--porcelain", "--untracked-files=normal"], { cwd: dir, encoding: "utf8" }).trim() === "";
 }
+// pnpm runs lifecycle scripts as root (the Jenkins CI container) with
+// TMPDIR=<project>/node_modules/.tmp. A build there sits inside the tree Metro
+// and autolinking scan, and under node_modules, where TypeScript follows the
+// API's "type": "module" and emits ESM for its CommonJS target. pnpm only does
+// this on POSIX, so /tmp is the fallback.
+export function scratchBase(tmp = os.tmpdir()) {
+  const relative = path.relative(root, tmp);
+  return relative.startsWith("..") || path.isAbsolute(relative) ? tmp : "/tmp";
+}
 // Build/test from the actual worktree, including local edits, with an isolated
 // toolchain. Never delete a developer's node_modules or expose a second React
 // Native installation to the application's Metro/autolinker.
 export function isolated(name, action) {
   const source = path.join(root, "packages", name);
-  const temp = fs.mkdtempSync(path.join(os.tmpdir(), `${name}-`));
+  const temp = fs.mkdtempSync(path.join(scratchBase(), `${name}-`));
   try {
     const files = fs.existsSync(path.join(source, ".git"))
       ? execFileSync("git", ["ls-files", "-z", "--cached", "--others", "--exclude-standard"], { cwd: source, encoding: "utf8" }).split("\0").filter(Boolean)

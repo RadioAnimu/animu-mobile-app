@@ -27,9 +27,6 @@ const ratio = Math.min(width / DESIGN_WIDTH, MAX_SCALE);
  */
 export const scale = (size: number): number => size * ratio;
 
-/** Full device width — for full-bleed surfaces (header bar, ticker). */
-export const SCREEN_WIDTH = width;
-
 /**
  * Fraction of the screen the page content column occupies before the cap.
  * Mirrors `THEME.LAYOUT.CONTENT_WIDTH` ("88%") — one column spec, used by
@@ -41,15 +38,19 @@ const CONTENT_WIDTH_RATIO = 0.88;
 export const CONTENT_MAX_WIDTH = scale(560);
 
 /**
- * Width of the shared centered content column.
+ * Width of the shared centered content column for a window width.
  *
  * On phones the column is the full device width (the header stays full-bleed
  * and pages are inset by `CONTENT_WIDTH_RATIO` via their own style). Once the
  * device is wider than the column cap — a tablet — this returns the SAME
  * `min(88%, cap)` the pages use, so the header's icons align with the page
  * content instead of ending up narrower than it.
+ *
+ * Takes the width as an argument (the header passes `useWindowDimensions()`)
+ * so it survives the window rotating or resizing after launch instead of
+ * sizing against a frozen module-load width.
  */
-export const CONTENT_WIDTH =
-  width > CONTENT_MAX_WIDTH
-    ? Math.min(width * CONTENT_WIDTH_RATIO, CONTENT_MAX_WIDTH)
-    : width;
+export const contentWidth = (windowWidth: number): number =>
+  windowWidth > CONTENT_MAX_WIDTH
+    ? Math.min(windowWidth * CONTENT_WIDTH_RATIO, CONTENT_MAX_WIDTH)
+    : windowWidth;

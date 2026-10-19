@@ -41,11 +41,12 @@ pipeline {
               mkdir -p "$CI_CACHE_DIR/sonar"
               set +x
               export SONAR_TOKEN="$(cat "$TOKEN_FILE")"
+              # Pinned by digest for supply-chain safety; bump deliberately: docker pull sonarsource/sonar-scanner-cli, then docker image inspect --format '{{index .RepoDigests 0}}'.
               docker run --rm --network host \
                 -v "$WORKSPACE:/usr/src" -w /usr/src \
                 -v "$CI_CACHE_DIR/sonar:/opt/sonar-scanner/.sonar" \
                 -e SONAR_TOKEN -e SONAR_USER_HOME=/opt/sonar-scanner/.sonar \
-                sonarsource/sonar-scanner-cli \
+                sonarsource/sonar-scanner-cli@sha256:a3f4215076706c95a17a68c19322ee916e40a3acd081a8c1a1e839e0194afa57 \
                 -Dsonar.host.url=http://localhost:9001 \
                 -Dsonar.qualitygate.wait=true
           '''

@@ -2,7 +2,7 @@ import { useNavigation } from "@react-navigation/native";
 import type { DrawerNavigationProp } from "@react-navigation/drawer";
 import { useEffect, useRef, useState } from "react";
 import { Image } from "expo-image";
-import { Animated, Easing, TouchableOpacity, View } from "react-native";
+import { Animated, Easing, TouchableOpacity, View, useWindowDimensions } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import menuIcon from "@/assets/icons/menu.webp";
 import noteIcon from "@/assets/icons/note.webp";
@@ -15,6 +15,7 @@ import playAffordanceImage from "@/assets/play_triangle_btn.webp";
 import { IMGS } from "@/i18n";
 import { THEME } from "@/theme";
 import { CONTAINER_HEIGHT, ICON_HIT_SLOP, MIC_SIZE, styles } from "@/components/HeaderBar/styles";
+import { contentWidth } from "@/theme/responsive";
 import { LyricsButton } from "@/components/LyricsButton";
 import { useUserSettings } from "@/contexts/user/UserSettingsProvider";
 import {
@@ -140,6 +141,10 @@ export function HeaderBar({ openLiveRequestModal }: Readonly<Props>) {
 
   const { settings } = useUserSettings();
 
+  // The row follows the current window (Android 16 may resize the app on
+  // tablets), keeping the icons aligned with the page column.
+  const { width: windowWidth } = useWindowDimensions();
+
   const LiveRequestComponent = currentProgram?.acceptingRequests
     ? IMGS[settings.selectedLanguage].LIVE_REQUEST_ENABLED
     : IMGS[settings.selectedLanguage].LIVE_REQUEST_DISABLED;
@@ -155,7 +160,7 @@ export function HeaderBar({ openLiveRequestModal }: Readonly<Props>) {
           },
         ]}
       >
-        <View style={styles.row}>
+        <View style={[styles.row, { width: contentWidth(windowWidth) }]}>
           <TouchableOpacity
             activeOpacity={THEME.OPACITY.PRESSED}
             accessibilityRole="button"
