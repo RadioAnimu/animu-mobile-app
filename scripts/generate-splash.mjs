@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import fs from "node:fs";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { createCanvas, loadImage, GlobalFonts } from "@napi-rs/canvas";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -20,16 +20,29 @@ const ERASE_TOP = 560;
 const ERASE_BOTTOM = 658;
 const TEXT_CENTER_Y = 595;
 
+// Mode colour of a row of RGBA pixels, as `#rrggbb`. The band is painted with
+// the artwork's own background rather than the plugin config colour, which is
+// a shade off and would leave a visible seam. Alpha is ignored.
+export function dominantColor(rgbaData) {
+  const counts = new Map();
+  let best = 0;
+  let color = 0;
+  for (let i = 0; i < rgbaData.length; i += 4) {
+    const rgb = (rgbaData[i] << 16) | (rgbaData[i + 1] << 8) | rgbaData[i + 2];
+    const count = (counts.get(rgb) ?? 0) + 1;
+    counts.set(rgb, count);
+    if (count > best) {
+      best = count;
+      color = rgb;
+    }
+  }
+  return `#${color.toString(16).padStart(6, "0")}`;
+}
+
 async function main() {
   const app = readJson(path.join(ROOT, "app.json")).expo;
   const pkg = readJson(path.join(ROOT, "package.json"));
   const version = app.version ?? pkg.version;
-  // The legacy top-level `splash` key was replaced by the `expo-splash-screen`
-  // config plugin in SDK 55+; read the background from there.
-  const splashPlugin = (app.plugins ?? []).find(
-    (plugin) => Array.isArray(plugin) && plugin[0] === "expo-splash-screen",
-  );
-  const background = splashPlugin?.[1]?.backgroundColor ?? "#270052";
   const label = process.env.SPLASH_LABEL ?? `v${version}`;
 
   if (!GlobalFonts.registerFromPath(FONT_FILE, "ProximaNovaBold")) {
@@ -44,7 +57,11 @@ async function main() {
   const ctx = canvas.getContext("2d");
 
   ctx.drawImage(art, 0, 0, width, height);
-  ctx.fillStyle = background;
+  // Sample the row just above the band: it is never painted, so re-runs keep
+  // picking the same colour from the untouched artwork.
+  ctx.fillStyle = dominantColor(
+    ctx.getImageData(0, ERASE_TOP - 1, width, 1).data,
+  );
   ctx.fillRect(0, ERASE_TOP, width, ERASE_BOTTOM - ERASE_TOP + 1);
 
   ctx.font = `${FONT_SIZE}px ProximaNovaBold`;
@@ -65,7 +82,9 @@ async function main() {
   console.log(`splash -> ${path.relative(ROOT, WEBP_FILE)} (${label})`);
 }
 
-main().catch((error) => {
-  console.error(error);
-  process.exit(1);
-});
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  main().catch((error) => {
+    console.error(error);
+    process.exit(1);
+  });
+}

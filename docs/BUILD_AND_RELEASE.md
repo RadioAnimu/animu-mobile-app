@@ -53,23 +53,28 @@ CI runs in the Node container; release builds run on the
 1. Validate parameters and `app.json` (version/versionCode must match).
 2. Checkout both public submodules at their pinned revisions.
 3. Install dependencies with pnpm — when dependency configuration changes (stamped); verify both library outputs every run.
-4. `TRUST_CI`: if the CI job has a SUCCESS build for `HEAD`, the pre-release
+4. Regenerate the splash art (`assets/splash_top.png`, `assets/splash_top.webp`)
+   with `pnpm run splash` when the resolved version differs from `expo.version`
+   at `HEAD`, so the native and Loading-screen labels match the build. With
+   `COMMIT_BUMP`, the images are committed alongside `app.json`; a versionCode-only
+   bump leaves them untouched.
+5. `TRUST_CI`: if the CI job has a SUCCESS build for `HEAD`, the pre-release
    checks are skipped (the dependency audit still runs); otherwise they run
    (typecheck, lint, tests, React Doctor). Either way the `Animu/animu-sonar`
    job must have a SUCCESS build for `HEAD`.
-5. `expo prebuild --platform android` — only when `app.json` / `plugins` /
+6. `expo prebuild --platform android` — only when `app.json` / `plugins` /
    lockfile / Anything Player's config plugin changed (stamped). Otherwise the existing `android/` is reused so
    Gradle stays incremental.
-6. Inject the release signing config (see below) and run
+7. Inject the release signing config (see below) and run
    `./gradlew :app:lintRelease :react-native-anything-player:testReleaseUnitTest :app:bundleRelease`.
-7. Validate the bundle, merged release manifest, and every shipped 64-bit ELF library for 16 KB compatibility. Derive the universal APK from the AAB with **bundletool**
+8. Validate the bundle, merged release manifest, and every shipped 64-bit ELF library for 16 KB compatibility. Derive the universal APK from the AAB with **bundletool**
    (`--mode=universal`) instead of a second Gradle build.
-8. Check the APK with `zipalign -c -P 16 4`; verify the AAB's JAR signature
+9. Check the APK with `zipalign -c -P 16 4`; verify the AAB's JAR signature
    (`jarsigner -verify`), that neither artifact is signed with the Android debug
    key, and that the APK signer matches the AAB signer.
-9. Write SHA-256 checksums, per-device Play download sizes (bundletool), and
-   `RELEASE_NOTES.md`.
-10. Optionally create the GitHub release and upload the artifacts.
+10. Write SHA-256 checksums, per-device Play download sizes (bundletool), and
+    `RELEASE_NOTES.md`.
+11. Optionally create the GitHub release and upload the artifacts.
 
 The universal APK uses the upload key. Google Play App Signing may use a
 different app-signing key, so matching APK/AAB upload signatures do not prove
