@@ -37,6 +37,10 @@ export class CoverFileHashMap implements CoverFileCache {
     }
   }
 
+  forget(url: string): void {
+    this.entries.delete(url);
+  }
+
   get size(): number {
     return this.entries.size;
   }

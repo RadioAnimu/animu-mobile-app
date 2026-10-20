@@ -11,6 +11,8 @@ export interface CoverFileCache {
   peek(url: string): string | undefined;
   /** Inserts or bumps a URL to the most-recent position, evicting LRU entries beyond capacity. */
   track(url: string, fileUri: string): void;
+  /** Drops one URL's lookup (a no-op when it isn't tracked). */
+  forget(url: string): void;
   /** Live number of tracked URLs. */
   readonly size: number;
   /** Drops every lookup (called on the resolver's destroy path). */

@@ -122,6 +122,12 @@ export class ArtworkResolver {
   private readonly fileMap: CoverFileCache;
   /** In-flight downloads — concurrent callers share one download per URL. */
   private readonly inFlight = new Map<string, Promise<string>>();
+  /**
+   * Full URL → the low-res preview file mapped onto it while its own
+   * download runs. Lets a failed full download take the preview back off
+   * the full URL instead of leaving the miniature as "the" cover.
+   */
+  private readonly previewFor = new Map<string, string>();
   /** Spread-identity cache for `apply` — track object → stable wrapper. */
   private readonly appliedTracks = new WeakMap<Track, Track>();
   /** Remote URL until the bundled default cover resolves (see `init`). */
@@ -242,10 +248,19 @@ export class ArtworkResolver {
           `[ArtDebug] resolve FAILED after ${Date.now() - startedAt}ms (${url}):`,
           error,
         );
+        // The preview stood in for the full file only until it landed. Left
+        // mapped, every later lookup (the store's apply(), the media session,
+        // a retry's peek) would serve the miniature as the final cover — and
+        // the peek would also stop anyone from retrying the download.
+        const preview = this.previewFor.get(url);
+        if (preview && this.fileMap.peek(url) === preview) {
+          this.fileMap.forget(url);
+        }
         return url;
       })
       .finally(() => {
         this.inFlight.delete(url);
+        this.previewFor.delete(url);
       });
 
     this.inFlight.set(url, promise);
@@ -273,8 +288,15 @@ export class ArtworkResolver {
         // run while the download was in flight; a destroyed resolver must
         // not repopulate its map or paint into a dead consumer.
         if (this.disposed) return;
-        if (local !== previewUrl && !this.fileMap.peek(fullUrl)) {
+        // Only while the full download is still running: a preview landing
+        // after the full one failed would otherwise pin the miniature.
+        if (
+          local !== previewUrl &&
+          !this.fileMap.peek(fullUrl) &&
+          this.inFlight.has(fullUrl)
+        ) {
           this.fileMap.track(fullUrl, local);
+          this.previewFor.set(fullUrl, local);
           onPreview?.(local);
         }
       })
@@ -355,5 +377,6 @@ export class ArtworkResolver {
     this.disposed = true;
     this.fileMap.clear();
     this.inFlight.clear();
+    this.previewFor.clear();
   }
 }

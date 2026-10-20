@@ -389,6 +389,66 @@ describe("ArtworkResolver", () => {
 
       expect(await done).toBe("file://image-cache/full.jpg");
     });
+    it("does not pin the full URL to its preview when the full download fails", async () => {
+      const fullUrl = "https://images.test/trackImage1_large.jpg";
+      const previewUrl = "https://images.test/trackImage1.jpg";
+      // The full download fails (both the direct path and the fallback).
+      assetMocks.fromURI.mockReturnValue({
+        localUri: null,
+        downloadAsync: () => Promise.reject(new Error("deadline")),
+      });
+
+      const resolver = new ArtworkResolver({
+        findCachedCoverFile: async (url) =>
+          url === previewUrl ? "file://image-cache/tiny.jpg" : null,
+      });
+
+      const previews: string[] = [];
+      const result = await resolver.resolve(
+        fullUrl,
+        (local) => previews.push(local),
+        previewUrl,
+      );
+      await flush();
+
+      // The preview painted, the full failed → the caller falls back to the
+      // remote URL...
+      expect(previews).toEqual(["file://image-cache/tiny.jpg"]);
+      expect(result).toBe(fullUrl);
+      // ...and the low-res preview must not stay mapped as the full cover:
+      // every later lookup (apply(), peek, a retry) would serve 100px.
+      expect(resolver.peek(fullUrl)).toBeUndefined();
+    });
+
+    it("ignores a preview that lands after the full download already failed", async () => {
+      const fullUrl = "https://images.test/trackImage1_large.jpg";
+      const previewUrl = "https://images.test/trackImage1.jpg";
+      assetMocks.fromURI.mockReturnValue({
+        localUri: null,
+        downloadAsync: () => Promise.reject(new Error("deadline")),
+      });
+
+      let releasePreview!: (value: string) => void;
+      const resolver = new ArtworkResolver({
+        findCachedCoverFile: (url) =>
+          url === previewUrl
+            ? new Promise<string | null>((resolve) => {
+                releasePreview = resolve;
+              })
+            : Promise.resolve(null),
+      });
+
+      const previews: string[] = [];
+      expect(
+        await resolver.resolve(fullUrl, (local) => previews.push(local), previewUrl),
+      ).toBe(fullUrl);
+
+      releasePreview("file://image-cache/tiny.jpg");
+      await flush();
+
+      expect(previews).toEqual([]);
+      expect(resolver.peek(fullUrl)).toBeUndefined();
+    });
   });
 
   describe("apply()", () => {
