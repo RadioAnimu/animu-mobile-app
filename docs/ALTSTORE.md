@@ -12,6 +12,7 @@ testers sideload the IPA without an App Store listing.
 | `classic.json` | AltStore **Classic** source — points directly at a single `.ipa` with a `sha256` |
 | `icon.png`, `header.png` | Source artwork |
 | `screenshots/*.png` | Store screenshots used by the source listing |
+| `delete-account/index.html` | Public account/data deletion instructions linked from Google Play; shares the existing Pages deployment |
 
 Both sources describe the same app:
 

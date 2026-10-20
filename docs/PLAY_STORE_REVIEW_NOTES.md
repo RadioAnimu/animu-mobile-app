@@ -44,10 +44,25 @@ Play requires apps with accounts to offer deletion **both in-app and via a web
 URL**.
 
 - In-app: **Account → Delete account** ✅
-- Web URL: verify an accessible account-deletion request path, clearly naming
-  the app/developer and explaining what is deleted or retained. A privacy page
-  alone is insufficient unless it provides that path. Candidate to verify:
-  `https://www.animu.com.br/privacypolicy` (or the Termly DSAR link).
+- Account deletion URL:
+  `https://radioanimu.github.io/animu-mobile-app/delete-account/`
+- Partial data deletion URL:
+  `https://radioanimu.github.io/animu-mobile-app/delete-account/#data`
+- Both use the existing station privacy contact and DSAR request mechanism.
+  The page names the exact Play app titles, developer `rmotafreitas` and package,
+  explains the request steps without requiring app installation, and distinguishes
+  account-profile deletion from separately retained requests, posts and logs.
+- **20 October 2026 rejection:** Google rejected the direct Termly URLs because
+  the destination did not reference the entity shown in the Play listing.
+  Loading the form and finding its generic “Animu” label was insufficient.
+  Do not restore the direct Termly URL as either console destination.
+- Verify the Pages deployment and both public links before submitting console
+  changes. A successful deployment/save is not Google approval.
+- Backend source `RadioAnimu/login-system-project` at `aceb36e` confirms that
+  `AuthFacade::deleteAccount` deletes `auth_users`; foreign keys cascade to linked
+  accounts, emails and sessions. It does not delete the separate request database,
+  Discord posts, email-code rows or server backups. The public policy provides no
+  fixed numeric retention period for logs/backups; do not invent one.
 
 ## Content rating (Play Console → App content → Content rating)
 
