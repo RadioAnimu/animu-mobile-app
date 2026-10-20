@@ -15,11 +15,13 @@ this folder holds the detail.
 | [Store Submission](STORE_SUBMISSION.md) | Master checklist, data inventory and privacy-policy edits |
 | [App Store Review Notes](APP_STORE_REVIEW_NOTES.md) | Apple review notes, App Privacy and age rating |
 | [Play Store Review Notes](PLAY_STORE_REVIEW_NOTES.md) | Play Data safety, data deletion and content rating |
+| [Google Play listing](../store/google-play/README.md) | Store listing text, release notes and screenshots in every listing language |
 
 ## Screenshot placeholders
 
-Store and docs screenshots are **not** committed here yet. Where a screenshot
-belongs you'll find a placeholder in this form:
+The Google Play screenshots live in [`store/google-play`](../store/google-play/README.md).
+Screenshots for these docs are **not** committed yet. Where one belongs you'll
+find a placeholder in this form:
 
 ```md
 ![Home player](SCREENSHOT: description of the exact screen and state to capture)

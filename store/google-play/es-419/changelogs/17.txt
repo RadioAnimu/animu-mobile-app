@@ -1,0 +1,9 @@
+Rádio Animu 3.0 — ¡nuestra mayor actualización!
+• Letras sincronizadas, línea a línea, con romaji y lectura en japonés
+• Inicia sesión con Google, Apple, Discord o Animu Connect
+• Tus estadísticas en una tarjeta para compartir
+• Inicio, ajustes, cuenta y solicitudes rediseñados
+• Visualizador de audio en vivo
+• Portadas guardadas en tu dispositivo y control de espacio
+• Reproducción más estable: reconecta en segundo plano y sigue lo que oyes
+• Asistente de voz, vibración y muchas correcciones

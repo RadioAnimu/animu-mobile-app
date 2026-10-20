@@ -1,0 +1,34 @@
+Rádio Animu es una radio de anime desde Brasil: música de anime en vivo, 24 horas al día. Openings y endings de anime, anisongs, J-pop, vocaloid y música de juegos de ritmo, con DJs en vivo y una comunidad otaku hecha por fans.
+
+ESCUCHA RADIO DE ANIME EN VIVO
+• Radio de anime en línea a 64, 192 o 320 kbps
+• Portada, anime, artista y la canción de anime que suena ahora, sincronizados con lo que escuchas
+• Programación con el DJ en vivo y el tiempo restante de cada canción
+• Sigue sonando en segundo plano y se reconecta sola si se cae la conexión
+• Controles en la notificación y en la pantalla de bloqueo
+• Visualizador de audio en vivo en la pantalla de inicio
+
+LETRAS SINCRONIZADAS DE CANCIONES DE ANIME
+• Letras que siguen la canción línea por línea, estilo karaoke
+• En las canciones japonesas: escritura original, romaji y lectura palabra por palabra
+
+PIDE TUS CANCIONES DE ANIME FAVORITAS
+• Busca en el catálogo y pide el opening o el ending que quieras escuchar
+• Sigue el estado de tu pedido y envía mensajes al DJ en los programas en vivo
+• Mira las últimas canciones de anime pedidas y las que ya sonaron en la radio
+
+TUS ESTADÍSTICAS
+• Tiempo escuchando, canciones escuchadas, racha de días y mapa de calor
+• Genera una tarjeta para compartir con tus amigos
+
+TU CUENTA
+• Inicia sesión con Discord, Google, Fluxer o Apple, o con un código por correo si ya tienes cuenta Animu Connect
+• Escuchar radio de anime no requiere cuenta: iniciar sesión solo es necesario para pedidos y perfil
+• Elimina tu cuenta cuando quieras dentro de la app
+
+A TU MANERA
+• Disponible en portugués, inglés, español y japonés
+• Portadas guardadas en el dispositivo, con control de espacio y modo de ahorro de datos
+• Comando de voz para empezar a reproducir y vibración en los botones
+
+Rádio Animu es una radio de anime sin fines de lucro, creada por amor al anime y a la cultura otaku. Sin anuncios, sin compras dentro de la app y sin rastreo. El código fuente de la app es abierto y está en GitHub.

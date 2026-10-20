@@ -85,11 +85,10 @@ content. Re-rate only if the questionnaire answers change.
 
 ## Store listing copy
 
-- **App name:** Animu Radio (max 30 chars)
-- **Short description (max 80):** `Brazil's most moe otaku radio — anime songs, live shows and requests.`
-- **Full description:** reuse the Play listing text (non-profit Brazilian otaku
-  radio, anime songs / openings / endings / vocaloid / rhythm-game music, live
-  DJ schedule, listener requests, Discord community).
+The listing text (app name, short and full description), release notes and
+phone screenshots for every listing language live in
+[`store/google-play`](../store/google-play/README.md).
+
 ## Update-review checklist
 
 - [ ] Data safety corrected

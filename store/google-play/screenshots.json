@@ -1,0 +1,71 @@
+{
+  "shots": [
+    "home",
+    "lyrics-romaji",
+    "request-results",
+    "history",
+    "stats",
+    "login",
+    "settings",
+    "storage"
+  ],
+  "uiLanguage": {
+    "pt-BR": "pt",
+    "pt-PT": "pt",
+    "en-US": "en",
+    "es-419": "es",
+    "ja-JP": "ja"
+  },
+  "captions": {
+    "pt-BR": [
+      "Anisongs ao vivo, 24h por dia",
+      "Letras sincronizadas com romaji",
+      "Peça as suas músicas favoritas",
+      "Veja tudo o que acabou de tocar",
+      "Suas estatísticas de escuta",
+      "Entre com Discord, Google, Fluxer ou Apple",
+      "Visualizador, idioma e mais, do seu jeito",
+      "Capas salvas no aparelho, com controle de espaço"
+    ],
+    "pt-PT": [
+      "Anisongs em direto, 24 horas por dia",
+      "Letras sincronizadas com romaji",
+      "Peça as suas músicas favoritas",
+      "Veja tudo o que acabou de tocar",
+      "As suas estatísticas de escuta",
+      "Inicie sessão com Discord, Google, Fluxer ou Apple",
+      "Visualizador, idioma e mais, à sua medida",
+      "Capas no dispositivo, com controlo do espaço"
+    ],
+    "en-US": [
+      "Anime songs live, 24/7",
+      "Synced lyrics with romaji",
+      "Request your favorite songs",
+      "See everything that just played",
+      "Your listening stats",
+      "Sign in with Discord, Google, Fluxer or Apple",
+      "Visualizer, language and more, your way",
+      "Covers saved on your device, with storage controls"
+    ],
+    "es-419": [
+      "Anisongs en vivo, 24 horas al día",
+      "Letras sincronizadas con romaji",
+      "Pide tus canciones favoritas",
+      "Mira todo lo que acaba de sonar",
+      "Tus estadísticas de escucha",
+      "Inicia sesión con Discord, Google, Fluxer o Apple",
+      "Visualizador, idioma y más, a tu manera",
+      "Portadas en tu dispositivo, con control de espacio"
+    ],
+    "ja-JP": [
+      "アニソンを\n24時間ライブ配信",
+      "ローマ字付きの同期歌詞",
+      "好きな曲をリクエスト",
+      "さっき流れた曲をチェック",
+      "あなたの再生統計",
+      "Discord・Google・\nFluxer・Appleでログイン",
+      "波形表示や言語など、\n自分好みに",
+      "ジャケットを端末に保存、\n容量も管理"
+    ]
+  }
+}

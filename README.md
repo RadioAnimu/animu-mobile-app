@@ -17,18 +17,35 @@ This repository is the official mobile application: a real-time internet-radio c
 - **iOS** — in development · sideload via the [AltStore source](docs/ALTSTORE.md)
 - **Website** — [animu.moe](https://www.animu.moe) · [animu.com.br](https://www.animu.com.br)
 
-![Home player](SCREENSHOT: hero shot of the Home screen playing a track — wordmark, live DJ, artwork, remaining time and the bitrate selector)
+<p align="center">
+  <a href="https://play.google.com/store/apps/details?id=com.nessjs.animu">
+    <img src="https://play.google.com/intl/en_us/badges/static/images/badges/en_badge_web_generic.png" alt="Get it on Google Play" height="80">
+  </a>
+</p>
 
-![Drawer](SCREENSHOT: open navigation drawer with the menu items and the signed-in identity chip)
+<table align="center">
+  <tr>
+    <td><img src="store/google-play/en-US/images/phoneScreenshots/1.jpg" width="200" alt="Live player"></td>
+    <td><img src="store/google-play/en-US/images/phoneScreenshots/2.jpg" width="200" alt="Synced lyrics with romaji"></td>
+    <td><img src="store/google-play/en-US/images/phoneScreenshots/3.jpg" width="200" alt="Song requests"></td>
+    <td><img src="store/google-play/en-US/images/phoneScreenshots/4.jpg" width="200" alt="Recently played"></td>
+  </tr>
+  <tr>
+    <td><img src="store/google-play/en-US/images/phoneScreenshots/5.jpg" width="200" alt="Listening stats"></td>
+    <td><img src="store/google-play/en-US/images/phoneScreenshots/6.jpg" width="200" alt="Sign-in options"></td>
+    <td><img src="store/google-play/en-US/images/phoneScreenshots/7.jpg" width="200" alt="Settings"></td>
+    <td><img src="store/google-play/en-US/images/phoneScreenshots/8.jpg" width="200" alt="Cover storage"></td>
+  </tr>
+</table>
 
-![Last requested](SCREENSHOT: Últimas Pedidas history list with cover thumbnails and durations)
-
-![Make a request](SCREENSHOT: Make Request screen with a search query, results and the submit button)
-
-![Account](SCREENSHOT: Account screen with the profile banner, avatar and linked provider icons)
-
-> Screenshots aren't committed yet — the text inside each `()` is a brief for the
-> shot to capture. See the [docs index](docs/README.md#screenshot-placeholders).
+<p align="center"><sub>
+  Store screenshots in every listing language:
+  <a href="store/google-play/pt-BR/images/phoneScreenshots">pt-BR</a> ·
+  <a href="store/google-play/en-US/images/phoneScreenshots">en-US</a> ·
+  <a href="store/google-play/pt-PT/images/phoneScreenshots">pt-PT</a> ·
+  <a href="store/google-play/es-419/images/phoneScreenshots">es-419</a> ·
+  <a href="store/google-play/ja-JP/images/phoneScreenshots">ja-JP</a>
+</sub></p>
 
 ---
 
@@ -36,10 +53,13 @@ This repository is the official mobile application: a real-time internet-radio c
 
 - **Live radio streaming** — selectable 320/192 kbps MP3 and 64 kbps AAC+, with dynamic stream discovery and a fallback list.
 - **True now-playing everywhere** — the track you *hear* (the stream's ICY title, delivered when audible, matched to the station API) with its real progress on the lock screen and notification, plus background playback on both platforms.
+- **Synced lyrics** — an Apple Music-style, line-by-line view of the song being heard, from [LRCLIB](https://lrclib.net), with **romaji or hiragana** readings for Japanese lyrics (on-device dictionary, optional download).
 - **Audio visualizer (iOS and Android)** — an oscilloscope fed by the player's own decoded audio and drawn by the web player's own canvas loop in a transparent WebView, with **no microphone permission**.
 - **Optional accounts** — Discord, Google, Apple, Fluxer and Animu Connect (passwordless email codes), with profile, avatar and provider management. Playback works anonymously.
 - **Requests** — search and request tracks, and send live shout-outs to the DJ panel.
-- **History & preferences** — last requested / last played lists, cover-art quality per view, and PT / EN / ES / JP localisation.
+- **Listening stats** — time listened, songs heard, a listening heatmap and profile, kept on the device, plus a shareable card when signed in.
+- **History & preferences** — last requested / last played lists, cover-art quality per view, a managed on-device cover cache, haptics and PT / EN / ES / JP localisation.
+- **Voice assistants** — "Ok Google, play Rádio Animu" on Android and "Hey Siri, play Rádio Animu" on iOS.
 - **Offline resilience** — native reconnects (stalls, dead sockets, network handoffs, outages) that keep working with the app in the background, plus exponential-backoff API retries.
 
 Read the full, screen-by-screen breakdown in **[Features](docs/FEATURES.md)**.
@@ -81,6 +101,7 @@ access to `animu.moe`. The
 | [Store Submission](docs/STORE_SUBMISSION.md) | Master checklist and data inventory |
 | [App Store Review Notes](docs/APP_STORE_REVIEW_NOTES.md) | Apple review notes + App Privacy |
 | [Play Store Review Notes](docs/PLAY_STORE_REVIEW_NOTES.md) | Play Data safety + content rating |
+| [Google Play listing](store/google-play/README.md) | Store listing, release notes and screenshots in every language |
 
 ## Roadmap
 
