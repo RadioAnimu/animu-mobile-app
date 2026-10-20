@@ -64,6 +64,13 @@ export const abortPlayerRequests = (): void => {
   playerScope = new AbortController();
 };
 
+/**
+ * The current player scope's signal, for calls that outlive the fetch itself
+ * (the now-playing snapshot keeps reading the SSE body after the headers, when
+ * `playerScopedFetch` has already unlinked the scope).
+ */
+export const playerRequestSignal = (): AbortSignal => playerScope.signal;
+
 /** Runs `clockAwareFetch` with a signal that fires on the package's abort OR the scope's. */
 const playerScopedFetch: typeof expoFetch = async (input, init) => {
   const scope = playerScope.signal;

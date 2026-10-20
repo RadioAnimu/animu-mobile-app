@@ -1,6 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { abortPlayerRequests, createApiClient } from "@/api/client";
+import {
+  abortPlayerRequests,
+  createApiClient,
+  playerRequestSignal,
+} from "@/api/client";
 
 // `client.ts` pulls native modules at import time only to build CLIENT_INFO —
 // stub them out so the fetch wrapper's abort logic can be tested in node.
@@ -82,7 +86,7 @@ describe("playerScopedFetch", () => {
     // The package's OWN controller must stay untouched — its timeout and the
     // in-flight bookkeeping depend on deciding "timed out" from it.
     const packageController = new AbortController();
-    const request = impl!("https://api.animu.moe", {
+    const request = impl!("https://api.animu.moe/tungtungtung/", {
       signal: packageController.signal,
     });
 
@@ -98,7 +102,7 @@ describe("playerScopedFetch", () => {
 
     // Package timeout abort → the request rejects...
     const first = new AbortController();
-    const firstRequest = impl("https://api.animu.moe", {
+    const firstRequest = impl("https://api.animu.moe/tungtungtung/", {
       signal: first.signal,
     });
     expect(await probe(firstRequest)).toBe("pending");
@@ -107,12 +111,23 @@ describe("playerScopedFetch", () => {
 
     // ...but the SCOPE survives: a fresh request keeps running.
     const second = new AbortController();
-    const secondRequest = impl("https://api.animu.moe", {
+    const secondRequest = impl("https://api.animu.moe/tungtungtung/", {
       signal: second.signal,
     });
     expect(await probe(secondRequest)).toBe("pending");
     expect(second.signal.aborted).toBe(false);
     abortPlayerRequests();
     expect(await outcome(secondRequest)).toBe("aborted");
+  });
+
+  it("hands out a signal the watchdog aborts, then re-arms a fresh one", () => {
+    const signal = playerRequestSignal();
+    expect(signal.aborted).toBe(false);
+
+    abortPlayerRequests();
+
+    expect(signal.aborted).toBe(true);
+    expect(playerRequestSignal()).not.toBe(signal);
+    expect(playerRequestSignal().aborted).toBe(false);
   });
 });

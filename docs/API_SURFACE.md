@@ -12,7 +12,7 @@ Full schemas and business rules: [`animu-api` API reference](https://github.com/
 
 | Endpoint | Purpose |
 | --- | --- |
-| `api.animu.moe` | Current track + artwork + listener count (also realtime SSE) |
+| `api.animu.moe/tungtungtung/` | Current track + artwork + listener count — the Go `rewrite-animu-api` SSE daemon, used both as the realtime stream and (first seeded `song_change`) as the one-shot now-playing snapshot. The legacy PHP root `api.animu.moe/` is retired and no longer used. |
 | `www.animu.moe/teste/locutor.php` | Live program / DJ information |
 | `www.animu.moe/teste/ultimospedidos_json.php` | Last requested tracks |
 | `www.animu.moe/teste/ultimasmusicas_json.php` | Last played tracks |

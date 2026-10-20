@@ -9,7 +9,11 @@ import {
 } from "animu-api";
 import type { Program } from "@/core/domain/program";
 import { DICT } from "@/i18n";
-import { abortPlayerRequests, createApiClient } from "@/api/client";
+import {
+  abortPlayerRequests,
+  createApiClient,
+  playerRequestSignal,
+} from "@/api/client";
 import { userSettingsService } from "@/core/services/user-settings.service";
 
 class AnimuService {
@@ -26,7 +30,9 @@ class AnimuService {
   private programClient: AnimuApi | null = null;
   private programClientQuality: ArtworkQuality | null = null;
   /**
-   * Fetches track + listeners from a single API call.
+   * Fetches track + listeners in one snapshot: the package reads the Go
+   * SSE daemon's seeded `song_change` and closes the connection (the legacy
+   * PHP now-playing endpoint is retired).
    *
    * Artwork quality is a runtime user setting and the default cover a
    * runtime resolver value (bundled asset), so this uses a dedicated
@@ -39,7 +45,9 @@ class AnimuService {
     const client = createApiClient(artworkQuality ?? "medium", defaultCover, {
       playerScoped: true,
     });
-    return client.getStreamMetadata();
+    // The scope's signal, not just the scoped fetch: the watchdog must also
+    // reach the wait for the first SSE event, after the headers arrived.
+    return client.getStreamMetadata({ signal: playerRequestSignal() });
   }
 
   /**
