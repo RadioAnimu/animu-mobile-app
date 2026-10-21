@@ -197,6 +197,11 @@ export const styles = StyleSheet.create({
   form: {
     marginTop: THEME.SPACE.XL,
   },
+  // The step-changing body under the indicator: the gap keeps the indicator
+  // a header of the form rather than part of the first field.
+  connectBody: {
+    marginTop: THEME.SPACE.MD,
+  },
   connectActions: {
     marginTop: CONTENT_PADDING,
   },

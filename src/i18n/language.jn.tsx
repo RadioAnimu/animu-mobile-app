@@ -195,6 +195,9 @@ const DICT: Dict = {
   A11Y_CLOSE: "閉じる",
   A11Y_CLEAR_SEARCH: "検索をクリア",
   A11Y_CLEAR_INPUT: "入力を消す",
+  A11Y_EMAIL_CODE_CHANGE: "メールアドレスを変更",
+  A11Y_EMAIL_CODE_STEP_EMAIL: "ステップ1/2。メールアドレスを入力してね。",
+  A11Y_EMAIL_CODE_STEP_CODE: "ステップ2/2。メールで届いた4桁のコードを入力してね。",
   SETTINGS_MEMORY_CLEAR_CACHE_DESC: "通信量が減り、表示も速くなります。オフにすると保存したカバー画像は削除されます。",
   SETTINGS_ASSISTANT_TITLE: "音声で再生",
   SETTINGS_ASSISTANT_HINT_IOS:
@@ -454,8 +457,7 @@ const DICT: Dict = {
   LOGIN_ANIMU_CONNECT_HINT:
     "すでにあるアカウント専用だよ。ログインしたことがあるプロバイダーのメールか、アカウントで追加したメールを使ってね。Apple の「メールを非公開」のアドレスにはコードを送れないよ。",
   LOGIN_CONNECT_TITLE: "Animu Connect",
-  LOGIN_CONNECT_SUBTITLE:
-    "4桁のコードをメールで送るよ。パスワードはいらないよ。",
+  LOGIN_CONNECT_SUBTITLE: "メールで届く4桁のコードでログインできるよ。パスワードはいらないよ。",
   LOGIN_CONNECT_NEW_HERE: "はじめて？ログイン方法を選んでね",
   LOGIN_CONNECT_CODE_SENT:
     "このメールが Animu アカウントに登録されていれば、もうすぐコードが届くよ。",
@@ -465,11 +467,13 @@ const DICT: Dict = {
   LOGIN_CODE: "コード",
 
   LOGIN_CODE_SENT: "メールにコードを送ったよ。",
-  LOGIN_CODE_TITLE: "メールを確認してね",
-  LOGIN_CODE_SUBTITLE: "{email} に送ったコードを入力してね",
   LOGIN_CODE_RESEND: "コードを再送",
   LOGIN_CODE_RESEND_IN: "{seconds}秒後に再送",
-  LOGIN_CODE_CHANGE_EMAIL: "別のメールを使う",
+  EMAIL_CODE_STEP: "ステップ {step}/{total} · {label}",
+  EMAIL_CODE_STEP_EMAIL: "メールを入力",
+  EMAIL_CODE_STEP_CODE: "コードを入力",
+  EMAIL_CODE_INSTRUCTION: "メールで届いた4桁のコードを入力してね。",
+  EMAIL_CODE_CHANGE: "変更",
   LOGIN_CODE_INVALID:
     "このコードは使えないか、期限切れだよ。{attempts}回間違えたら、新しいコードをリクエストしてね。",
   LOGIN_CODE_VALIDITY:

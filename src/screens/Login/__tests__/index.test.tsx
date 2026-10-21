@@ -7,7 +7,7 @@ import {
   screen,
   waitFor,
 } from "@testing-library/react";
-import { BackHandler } from "react-native";
+import { AccessibilityInfo, Animated, BackHandler } from "react-native";
 import { useEffect, type ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -75,6 +75,9 @@ vi.mock("@/hooks/useDict", () => ({
   useDict: () => ({
     A11Y_BACK: "Back",
     A11Y_CLEAR_INPUT: "Clear",
+    A11Y_EMAIL_CODE_CHANGE: "Change email address",
+    A11Y_EMAIL_CODE_STEP_EMAIL: "Step 1 of 2. Enter your email address.",
+    A11Y_EMAIL_CODE_STEP_CODE: "Step 2 of 2. Enter the 4-digit code.",
     SETTINGS_PRIVACY_POLICY: "Privacy Policy",
     LOGIN_SUCCESS: "Signed in",
     LOGIN_FAILED: "Could not sign in",
@@ -91,7 +94,7 @@ vi.mock("@/hooks/useDict", () => ({
     LOGIN_LEGAL: "Agree to {link}.",
     LOGIN_ANIMU_CONNECT_HINT: "Only for existing accounts",
     LOGIN_CONNECT_TITLE: "Animu Connect",
-    LOGIN_CONNECT_SUBTITLE: "We email you a code",
+    LOGIN_CONNECT_SUBTITLE: "Sign in with an email code",
     LOGIN_CONNECT_NEW_HERE: "New here?",
     LOGIN_CONNECT_CODE_SENT: "If this email is on an account, a code is coming",
     LOGIN_CODE_SENT: "Code sent (Account copy)",
@@ -99,14 +102,20 @@ vi.mock("@/hooks/useDict", () => ({
     LOGIN_EMAIL_PLACEHOLDER: "you@example.com",
     LOGIN_SEND_CODE: "Send code",
     LOGIN_CODE: "Code",
-    LOGIN_CODE_TITLE: "Enter the code",
-    LOGIN_CODE_SUBTITLE: "Sent to {email}.",
+    EMAIL_CODE_STEP: "Step {step} of {total} · {label}",
+    EMAIL_CODE_STEP_EMAIL: "Enter email",
+    EMAIL_CODE_STEP_CODE: "Enter code",
+    EMAIL_CODE_INSTRUCTION: "Enter the 4-digit code from your email.",
+    EMAIL_CODE_CHANGE: "Change",
     LOGIN_CODE_VALIDITY: "Single use · expires in {minutes} minutes",
     LOGIN_CODE_RESEND: "Resend code",
     LOGIN_CODE_RESEND_IN: "Resend in {seconds}s",
-    LOGIN_CODE_CHANGE_EMAIL: "Use a different email",
     LOGIN_CODE_INVALID: "Wrong code ({attempts})",
   }),
+}));
+// The real countdown would lock "Resend code" the moment a code is sent.
+vi.mock("@/hooks/useResendCooldown", () => ({
+  useResendCooldown: () => ({ remaining: 0, start: vi.fn() }),
 }));
 vi.mock("@/utils/haptics", () => ({ haptics: mocks.haptics }));
 vi.mock("@/utils/keyboard", () => ({ focusWithKeyboard: vi.fn() }));
@@ -123,6 +132,8 @@ vi.mock("@/components/ProviderIcon", () => ({
 }));
 
 const NAV = mocks.navigation as never;
+const BRAND = "#6BDB00";
+const CODE_INSTRUCTION = "Enter the 4-digit code from your email.";
 
 const providerPills = () =>
   screen
@@ -136,6 +147,10 @@ const openConnect = () =>
 
 async function sendCodeTo(email: string) {
   openConnect();
+  await sendCodeFromEmailStep(email);
+}
+
+async function sendCodeFromEmailStep(email: string) {
   fireEvent.change(screen.getByRole("textbox", { name: "Email" }), {
     target: { value: email },
   });
@@ -145,7 +160,7 @@ async function sendCodeTo(email: string) {
   // on failure — before the caller's assertions run.
   await waitFor(() => {
     expect(
-      screen.queryByText("Enter the code") ?? screen.getByRole("alert"),
+      screen.queryByText(CODE_INSTRUCTION) ?? screen.getByRole("alert"),
     ).toBeTruthy();
   });
 }
@@ -161,6 +176,7 @@ describe("Login screen", () => {
     mocks.auth.isAuthenticating = false;
     mocks.auth.loginWithProvider.mockResolvedValue(undefined);
     mocks.auth.requestEmailLoginCode.mockResolvedValue(undefined);
+    mocks.auth.loginWithEmailCode.mockResolvedValue(undefined);
     mocks.navigation.canGoBack.mockReturnValue(true);
     mocks.hardwareBack = null;
     vi.mocked(BackHandler.addEventListener).mockImplementation(
@@ -353,13 +369,162 @@ describe("Login screen", () => {
         "If this email is on an account, a code is coming",
       );
       expect(mocks.toast).not.toHaveBeenCalledWith("Code sent (Account copy)");
-      expect(screen.getByText("Enter the code")).toBeTruthy();
+      expect(screen.getByText(CODE_INSTRUCTION)).toBeTruthy();
       expect(
         screen.getByText("Single use · expires in 10 minutes"),
       ).toBeTruthy();
       // The eligibility notice belongs to the email step only.
       expect(screen.queryByText("Only for existing accounts")).toBeNull();
       expect(screen.queryByRole("button", { name: "New here?" })).toBeNull();
+    });
+
+    it("keeps the same header and a step indicator across both steps", async () => {
+      const { container } = render(
+        <Login navigation={NAV} route={undefined as never} />,
+      );
+      openConnect();
+      const header = () => [
+        screen.getByText("Animu Connect").textContent,
+        screen.getByText("Sign in with an email code").textContent,
+        container.querySelector("[data-icon]:not([data-icon='info-outline'])")
+          ?.getAttribute("data-icon"),
+      ];
+      const emailHeader = header();
+      expect(emailHeader[2]).toBe("alternate-email");
+      expect(screen.getByText("Step 1 of 2 · Enter email")).toBeTruthy();
+      expect(
+        screen.getByTestId("step-segment-code").getAttribute("data-style"),
+      ).not.toContain(BRAND);
+
+      await sendCodeFromEmailStep("me@example.com");
+      expect(header()).toEqual(emailHeader);
+      expect(screen.getByText("Step 2 of 2 · Enter code")).toBeTruthy();
+      expect(
+        screen.getByTestId("step-segment-code").getAttribute("data-style"),
+      ).toContain(BRAND);
+    });
+
+    it("shows the address read-only with Change, and the code boxes after it", async () => {
+      render(<Login navigation={NAV} route={undefined as never} />);
+      await sendCodeTo("  me@example.com ");
+      expect(screen.getByText("me@example.com")).toBeTruthy();
+      // The email field is gone; the code boxes are in.
+      expect(screen.queryByRole("textbox", { name: "Email" })).toBeNull();
+      const address = screen.getByText("me@example.com");
+      const code = screen.getByRole("textbox", { name: "Code" });
+      expect(
+        address.compareDocumentPosition(code) &
+          Node.DOCUMENT_POSITION_FOLLOWING,
+      ).toBeTruthy();
+      expect(
+        screen.queryByRole("button", { name: "Use a different email" }),
+      ).toBeNull();
+      expect(screen.getByRole("button", { name: "Resend code" })).toBeTruthy();
+    });
+
+    it("returns to the email step, keeping the address, from Change", async () => {
+      render(<Login navigation={NAV} route={undefined as never} />);
+      await sendCodeTo("me@example.com");
+      fireEvent.click(
+        screen.getByRole("button", { name: "Change email address" }),
+      );
+      const field = screen.getByRole("textbox", { name: "Email" }) as HTMLInputElement;
+      expect(field.value).toBe("me@example.com");
+      expect(screen.getByText("Step 1 of 2 · Enter email")).toBeTruthy();
+      expect(mocks.navigation.goBack).not.toHaveBeenCalled();
+    });
+
+    it("steps back code → email → method with the arrow", async () => {
+      render(<Login navigation={NAV} route={undefined as never} />);
+      await sendCodeTo("me@example.com");
+      fireEvent.click(screen.getByRole("button", { name: "Back" }));
+      expect(screen.getByRole("textbox", { name: "Email" })).toBeTruthy();
+      fireEvent.click(screen.getByRole("button", { name: "Back" }));
+      expect(screen.getByText("Sign in to Animu")).toBeTruthy();
+    });
+
+    it("keeps the step while a verify is running, for Change, the arrow and hardware back", async () => {
+      let settle: () => void = () => undefined;
+      mocks.auth.loginWithEmailCode.mockReturnValue(
+        new Promise<void>((resolve) => {
+          settle = resolve;
+        }),
+      );
+      render(<Login navigation={NAV} route={undefined as never} />);
+      await sendCodeTo("me@example.com");
+      fireEvent.change(screen.getByRole("textbox", { name: "Code" }), {
+        target: { value: "1234" },
+      });
+      await waitFor(() =>
+        expect(mocks.auth.loginWithEmailCode).toHaveBeenCalledTimes(1),
+      );
+
+      const change = screen.getByRole("button", { name: "Change email address" });
+      expect(change.getAttribute("aria-disabled")).toBe("true");
+      fireEvent.click(change);
+      fireEvent.click(screen.getByRole("button", { name: "Back" }));
+      let handled = false;
+      act(() => {
+        handled = mocks.hardwareBack?.() ?? false;
+      });
+      // Handled (so Login isn't left) but the step didn't move.
+      expect(handled).toBe(true);
+      expect(screen.getByText("Step 2 of 2 · Enter code")).toBeTruthy();
+      expect(screen.getByRole("textbox", { name: "Code" })).toBeTruthy();
+
+      await act(async () => settle());
+    });
+
+    it("announces each real step change once, never on resend or a verify success", async () => {
+      const announce = vi.mocked(AccessibilityInfo.announceForAccessibility);
+      announce.mockClear();
+      render(<Login navigation={NAV} route={undefined as never} />);
+      openConnect();
+      expect(announce).not.toHaveBeenCalled();
+
+      await sendCodeFromEmailStep("me@example.com");
+      expect(announce).toHaveBeenCalledTimes(1);
+      expect(announce).toHaveBeenLastCalledWith(
+        "Step 2 of 2. Enter the 4-digit code.",
+      );
+
+      fireEvent.click(screen.getByRole("button", { name: "Resend code" }));
+      await waitFor(() =>
+        expect(mocks.auth.requestEmailLoginCode).toHaveBeenCalledTimes(2),
+      );
+      expect(announce).toHaveBeenCalledTimes(1);
+
+      fireEvent.click(
+        screen.getByRole("button", { name: "Change email address" }),
+      );
+      expect(announce).toHaveBeenCalledTimes(2);
+      expect(announce).toHaveBeenLastCalledWith(
+        "Step 1 of 2. Enter your email address.",
+      );
+
+      // Verifying resets the form as the screen closes: not a step to read out.
+      fireEvent.click(screen.getByRole("button", { name: "Send code" }));
+      await waitFor(() => screen.getByRole("textbox", { name: "Code" }));
+      announce.mockClear();
+      fireEvent.change(screen.getByRole("textbox", { name: "Code" }), {
+        target: { value: "1234" },
+      });
+      await waitFor(() => expect(mocks.navigation.goBack).toHaveBeenCalled());
+      expect(announce).not.toHaveBeenCalled();
+    });
+
+    it("fades only the form body on a step change, not on arrival", async () => {
+      const timing = vi.mocked(Animated.timing);
+      render(<Login navigation={NAV} route={undefined as never} />);
+      openConnect();
+      timing.mockClear();
+      await sendCodeFromEmailStep("me@example.com");
+      expect(timing).toHaveBeenCalledTimes(1);
+      expect(timing.mock.calls[0][1]).toMatchObject({
+        toValue: 1,
+        duration: 110,
+        useNativeDriver: true,
+      });
     });
 
     it("says a malformed address is not an email, staying on the form", async () => {
@@ -370,7 +535,7 @@ describe("Login screen", () => {
       await sendCodeTo("nope");
       expect(screen.getByRole("alert").textContent).toContain("Not an email address");
       expect(mocks.haptics.error).toHaveBeenCalled();
-      expect(screen.queryByText("Enter the code")).toBeNull();
+      expect(screen.queryByText(CODE_INSTRUCTION)).toBeNull();
     });
 
     it("keeps the generic failure for any other request error", async () => {

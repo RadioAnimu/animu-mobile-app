@@ -11,19 +11,18 @@ interface Props {
   /** Seconds left on the resend lockout (0 = resend is available). */
   resendRemaining: number;
   onResend: () => void;
-  onChangeEmail: () => void;
 }
 
 /**
- * The code step's secondary actions — "resend code" (with its countdown) and
- * "use a different email". Shared by the Login screen and the Account
- * screen's add-email form so both Animu Connect forms stay in step.
+ * The code step's secondary action — "resend code", with its countdown.
+ * Shared by the Login screen and the Account screen's add-email form so both
+ * Animu Connect forms stay in step. Changing the address lives on the
+ * address row itself ({@link EmailCodeEmailRow}).
  */
 export function ConnectActions({
   busy,
   resendRemaining,
   onResend,
-  onChangeEmail,
 }: Readonly<Props>) {
   const dict = useDict();
   const resendLocked = busy || resendRemaining > 0;
@@ -48,18 +47,6 @@ export function ConnectActions({
             : dict.LOGIN_CODE_RESEND}
         </Text>
       </TouchableOpacity>
-      <Text style={styles.dot}>•</Text>
-      <TouchableOpacity
-        accessibilityRole="button"
-        activeOpacity={THEME.OPACITY.PRESSED}
-        disabled={busy}
-        style={styles.action}
-        onPress={onChangeEmail}
-      >
-        <Text style={[styles.link, busy && styles.disabled]}>
-          {dict.LOGIN_CODE_CHANGE_EMAIL}
-        </Text>
-      </TouchableOpacity>
     </View>
   );
 }
@@ -80,14 +67,10 @@ const styles = StyleSheet.create({
     fontFamily: THEME.FONT_FAMILY.BOLD,
     fontSize: THEME.FONT_SIZE.BODY,
     // The resend countdown ticks inside a centered row: tabular figures keep
-    // the "•" and "Change email" from sliding sideways every second.
+    // the label from sliding sideways every second.
     fontVariant: ["tabular-nums"],
   },
   disabled: {
     opacity: THEME.OPACITY.DISABLED,
-  },
-  dot: {
-    color: THEME.COLORS.TEXT_DIM,
-    fontSize: THEME.FONT_SIZE.BODY,
   },
 });

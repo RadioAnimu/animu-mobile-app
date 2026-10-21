@@ -4,6 +4,7 @@ import type { AuthAccountEmail, LinkedProvider } from "animu-api";
 import {
   ActivityIndicator,
   Alert,
+  Animated,
   Text,
   TouchableOpacity,
   View,
@@ -11,6 +12,8 @@ import {
 import { useAlert } from "@/contexts/alert/AlertProvider";
 import { useAuth } from "@/contexts/auth/AuthProvider";
 import { useDict } from "@/hooks/useDict";
+import { useEmailCodeStepAnnouncement } from "@/hooks/useEmailCodeStepAnnouncement";
+import { useStepFade } from "@/hooks/useStepFade";
 import {
   useEmailCodeFlow,
   emailCodeError,
@@ -26,9 +29,9 @@ import { THEME } from "@/theme";
 import { haptics } from "@/utils/haptics";
 import { interpolate } from "@/utils/format";
 import { maskEmail } from "@/utils/mask";
-import { CodeSubtitle } from "@/components/CodeSubtitle";
 import { ConnectActions } from "@/components/ConnectActions";
 import { EmailCodeFields } from "@/components/EmailCodeFields";
+import { EmailCodeStepIndicator } from "@/components/EmailCodeStepIndicator";
 import { FormError } from "@/components/FormError";
 import { ActionRow, LeadingIcon } from "@/components/ListRow";
 import { MaskedValue } from "@/components/MaskedValue";
@@ -285,76 +288,75 @@ function EmailFootnotes({ notes }: Readonly<{ notes: string[] }>) {
 
 /**
  * The inline add form, revealed by the add row while the account has no extra
- * email: the explanation, the email field (swapping to the code field), the
- * code step's resend / change-email links, and the way back out. No modal —
- * the Account scroll view keeps the focused field above the keyboard.
+ * email: the explanation, a step indicator, the email field (which keeps the
+ * address read-only, with "Change", once the code field takes over), the code
+ * step's resend link, and the way back out. No modal — the Account scroll
+ * view keeps the focused field above the keyboard.
  */
 function AddEmailForm({
   flow,
   dict,
   resendRemaining,
   onResend,
-  onChangeEmail,
   onCancel,
 }: Readonly<{
   flow: EmailCodeFlow;
   dict: Dict;
   resendRemaining: number;
   onResend: () => void;
-  onChangeEmail: () => void;
   /** Drops the half-finished flow and collapses the form. */
   onCancel: () => void;
 }>) {
   const onCodeStep = flow.step === "code";
+  const bodyOpacity = useStepFade(flow.step);
+  useEmailCodeStepAnnouncement(flow.step);
 
   return (
     <View style={styles.form}>
-      <Text style={styles.formHint}>
-        {onCodeStep ? (
-          <CodeSubtitle
-            template={dict.LOGIN_CODE_SUBTITLE}
-            email={flow.email.trim()}
-          />
-        ) : (
-          dict.ACCOUNT_ANIMU_CONNECT_FORM_HINT
+      {/* Constant across both steps: the code step is the same form, so the
+          explanation stays and the address row below it carries the context. */}
+      <Text style={styles.formHint}>{dict.ACCOUNT_ANIMU_CONNECT_FORM_HINT}</Text>
+
+      <EmailCodeStepIndicator step={flow.step} style={styles.formStep} />
+
+      {/* Only the part that differs between the steps fades; Cancel below is
+          the same on both. */}
+      <Animated.View style={{ opacity: bodyOpacity }}>
+        {/* The user tapped "Add extra email", so the field opens its keyboard
+            without a second tap. */}
+        <EmailCodeFields flow={flow} autoFocusEmail />
+
+        {onCodeStep && (
+          <Text style={styles.formValidity}>
+            {interpolate(dict.ACCOUNT_EMAIL_CODE_VALIDITY, {
+              minutes: CODE_TTL_MINUTES,
+            })}
+          </Text>
         )}
-      </Text>
 
-      {/* The user tapped "Add extra email", so the field opens its keyboard
-          without a second tap. */}
-      <EmailCodeFields flow={flow} autoFocusEmail />
+        {flow.error && (
+          <View style={styles.formError}>
+            <FormError message={flow.error} />
+          </View>
+        )}
 
-      {onCodeStep && (
-        <Text style={styles.formValidity}>
-          {interpolate(dict.ACCOUNT_EMAIL_CODE_VALIDITY, {
-            minutes: CODE_TTL_MINUTES,
-          })}
-        </Text>
-      )}
+        {/* The email step's button carries its own spinner. */}
+        {flow.busy && onCodeStep && (
+          <View style={styles.formBusy}>
+            <ActivityIndicator color={THEME.COLORS.SPINNER} />
+          </View>
+        )}
 
-      {flow.error && (
-        <View style={styles.formError}>
-          <FormError message={flow.error} />
-        </View>
-      )}
-
-      {/* The email step's button carries its own spinner. */}
-      {flow.busy && onCodeStep && (
-        <View style={styles.formBusy}>
-          <ActivityIndicator color={THEME.COLORS.SPINNER} />
-        </View>
-      )}
-
-      {onCodeStep && (
-        <View style={styles.formActions}>
-          <ConnectActions
-            busy={flow.busy}
-            resendRemaining={resendRemaining}
-            onResend={onResend}
-            onChangeEmail={onChangeEmail}
-          />
-        </View>
-      )}
+        {onCodeStep && (
+          <View style={styles.formActions}>
+            <ConnectActions
+              busy={flow.busy}
+              resendRemaining={resendRemaining}
+              onResend={onResend}
+            />
+          </View>
+        )}
+      </Animated.View>
 
       {/* Locked while a send/verify runs, so the flow can't be dropped out
           from under an in-flight request. */}
@@ -539,7 +541,6 @@ export function AccountEmails() {
               dict={dict}
               resendRemaining={resend.remaining}
               onResend={() => void flow.sendCode()}
-              onChangeEmail={flow.backToEmail}
               onCancel={cancelAdd}
             />
           ) : (

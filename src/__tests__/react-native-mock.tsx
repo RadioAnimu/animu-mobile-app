@@ -208,6 +208,7 @@ export function createReactNativeMock() {
     AccessibilityInfo: {
       isReduceMotionEnabled: vi.fn(() => Promise.resolve(false)),
       addEventListener: vi.fn(() => ({ remove: vi.fn() })),
+      announceForAccessibility: vi.fn(),
     },
     PanResponder: {
       create: vi.fn(() => ({ panHandlers: {} })),

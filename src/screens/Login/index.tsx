@@ -17,9 +17,9 @@ import { API } from "@/api";
 import { AuthBackdrop } from "@/components/AuthBackdrop";
 import { Background } from "@/components/Background";
 import { BackArrow } from "@/components/BackArrow";
-import { CodeSubtitle } from "@/components/CodeSubtitle";
 import { ConnectActions } from "@/components/ConnectActions";
 import { EmailCodeFields } from "@/components/EmailCodeFields";
+import { EmailCodeStepIndicator } from "@/components/EmailCodeStepIndicator";
 import { FormError } from "@/components/FormError";
 import { KeyboardScrollView } from "@/components/KeyboardScrollView";
 import { Logo } from "@/components/Logo";
@@ -38,8 +38,10 @@ import {
   emailCodeError,
   type EmailCodeFlow,
 } from "@/hooks/useEmailCodeFlow";
+import { useEmailCodeStepAnnouncement } from "@/hooks/useEmailCodeStepAnnouncement";
 import { useReducedMotion } from "@/hooks/useReducedMotion";
 import { useResendCooldown } from "@/hooks/useResendCooldown";
+import { useStepFade } from "@/hooks/useStepFade";
 import { haptics } from "@/utils/haptics";
 import { openInAppBrowser } from "@/utils/browser";
 import { interpolate } from "@/utils/format";
@@ -232,6 +234,11 @@ interface ConnectStepProps {
  * compact so the field, its notice and the keyboard share the screen; the
  * eligibility notice sits above the field because the keyboard covers
  * anything below it.
+ *
+ * The two steps are one form: the header and the step indicator never change,
+ * the address field stays where it was (read-only, with "Change") and only
+ * the body below the indicator fades between the steps. The entrance motion
+ * plays once, on arriving from the method step.
  */
 function ConnectStep({
   dict,
@@ -244,86 +251,79 @@ function ConnectStep({
   const onCodeStep = flow.step === "code";
   const headerStyle = useEntrance(0);
   const formStyle = useEntrance(1);
+  const bodyOpacity = useStepFade(flow.step);
 
   return (
     <>
       <Animated.View style={[styles.connectHeader, headerStyle]}>
         <View style={styles.connectBadge}>
           <Icon
-            name={onCodeStep ? "mark-email-unread" : "alternate-email"}
+            name="alternate-email"
             size={THEME.ICON.LG}
             color={THEME.COLORS.BRAND}
           />
         </View>
-        <Text style={styles.title}>
-          {onCodeStep ? dict.LOGIN_CODE_TITLE : dict.LOGIN_CONNECT_TITLE}
-        </Text>
-        <Text style={styles.subtitle}>
-          {onCodeStep ? (
-            <CodeSubtitle
-              template={dict.LOGIN_CODE_SUBTITLE}
-              email={flow.email.trim()}
-            />
-          ) : (
-            dict.LOGIN_CONNECT_SUBTITLE
-          )}
-        </Text>
+        <Text style={styles.title}>{dict.LOGIN_CONNECT_TITLE}</Text>
+        <Text style={styles.subtitle}>{dict.LOGIN_CONNECT_SUBTITLE}</Text>
       </Animated.View>
 
       <Animated.View style={[styles.form, formStyle]}>
-        {!onCodeStep && (
-          <AuthNotice
-            icon="info-outline"
-            text={dict.LOGIN_ANIMU_CONNECT_HINT}
-            style={styles.noticeAboveField}
-          />
-        )}
+        <EmailCodeStepIndicator step={flow.step} />
 
-        <EmailCodeFields flow={flow} autoFocusEmail />
-
-        {onCodeStep && (
-          <Text style={styles.caption}>
-            {interpolate(dict.LOGIN_CODE_VALIDITY, {
-              minutes: CODE_TTL_MINUTES,
-            })}
-          </Text>
-        )}
-
-        {error && (
-          <View style={styles.errorSlot}>
-            <FormError message={error} center />
-          </View>
-        )}
-
-        {/* The email step's button carries its own spinner. */}
-        {flow.busy && onCodeStep && (
-          <View style={styles.busyRow}>
-            <ActivityIndicator color={THEME.COLORS.SPINNER} />
-          </View>
-        )}
-
-        {onCodeStep ? (
-          <View style={styles.connectActions}>
-            <ConnectActions
-              busy={flow.busy}
-              resendRemaining={resendRemaining}
-              onResend={() => void onResend()}
-              onChangeEmail={flow.backToEmail}
+        <Animated.View style={[styles.connectBody, { opacity: bodyOpacity }]}>
+          {!onCodeStep && (
+            <AuthNotice
+              icon="info-outline"
+              text={dict.LOGIN_ANIMU_CONNECT_HINT}
+              style={styles.noticeAboveField}
             />
-          </View>
-        ) : (
-          // Animu Connect can't create an account, so a new user needs a
-          // way out that doesn't read as a dead end.
-          <TouchableOpacity
-            accessibilityRole="button"
-            activeOpacity={THEME.OPACITY.PRESSED}
-            disabled={flow.busy}
-            onPress={onNewHere}
-            style={styles.link}
-          >
-            <Text style={styles.linkText}>{dict.LOGIN_CONNECT_NEW_HERE}</Text>
-          </TouchableOpacity>
-        )}
+          )}
+
+          <EmailCodeFields flow={flow} autoFocusEmail />
+
+          {onCodeStep && (
+            <Text style={styles.caption}>
+              {interpolate(dict.LOGIN_CODE_VALIDITY, {
+                minutes: CODE_TTL_MINUTES,
+              })}
+            </Text>
+          )}
+
+          {error && (
+            <View style={styles.errorSlot}>
+              <FormError message={error} center />
+            </View>
+          )}
+
+          {/* The email step's button carries its own spinner. */}
+          {flow.busy && onCodeStep && (
+            <View style={styles.busyRow}>
+              <ActivityIndicator color={THEME.COLORS.SPINNER} />
+            </View>
+          )}
+
+          {onCodeStep ? (
+            <View style={styles.connectActions}>
+              <ConnectActions
+                busy={flow.busy}
+                resendRemaining={resendRemaining}
+                onResend={() => void onResend()}
+              />
+            </View>
+          ) : (
+            // Animu Connect can't create an account, so a new user needs a
+            // way out that doesn't read as a dead end.
+            <TouchableOpacity
+              accessibilityRole="button"
+              activeOpacity={THEME.OPACITY.PRESSED}
+              disabled={flow.busy}
+              onPress={onNewHere}
+              style={styles.link}
+            >
+              <Text style={styles.linkText}>{dict.LOGIN_CONNECT_NEW_HERE}</Text>
+            </TouchableOpacity>
+          )}
+        </Animated.View>
       </Animated.View>
     </>
   );
@@ -347,6 +347,9 @@ export function Login({ navigation }: Readonly<Props>) {
   const dict = useDict();
 
   const [step, setStep] = useState<Step>("method");
+  // Set once a code verifies: the form resets as the screen closes, and that
+  // reset is not a step the user should hear announced.
+  const [leaving, setLeaving] = useState(false);
   const [busyProvider, setBusyProvider] = useState<string | null>(null);
   const [providerError, setProviderError] = useState<string | null>(null);
   const resend = useResendCooldown(RESEND_COOLDOWN_SECONDS);
@@ -367,6 +370,7 @@ export function Login({ navigation }: Readonly<Props>) {
       toast(dict.LOGIN_CONNECT_CODE_SENT);
     },
     onVerified: () => {
+      setLeaving(true);
       haptics.success();
       toast(dict.LOGIN_SUCCESS);
       finish();
@@ -377,6 +381,8 @@ export function Login({ navigation }: Readonly<Props>) {
       }),
     mapVerifyError: (error) => emailCodeError(dict, error, dict.LOGIN_FAILED),
   });
+
+  useEmailCodeStepAnnouncement(flow.step, step === "connect" && !leaving);
 
   const handleProvider = async (provider: string) => {
     if (isAuthenticating || busyProvider) return;
@@ -419,6 +425,9 @@ export function Login({ navigation }: Readonly<Props>) {
 
   const goBack = () => {
     if (step === "connect") {
+      // Same lock as the "Change" button: a send/verify in flight owns the
+      // form, so neither the arrow nor hardware back may change its step.
+      if (flow.busy) return;
       if (flow.step === "code") {
         flow.backToEmail();
         return;

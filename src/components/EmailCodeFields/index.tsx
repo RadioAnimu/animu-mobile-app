@@ -3,6 +3,7 @@ import { Icon } from "@/components/Icon";
 import { Text, TextInput, TouchableOpacity, View } from "react-native";
 
 import { CodeInput, CODE_LENGTH } from "@/components/CodeInput";
+import { EmailCodeEmailRow } from "@/components/EmailCodeEmailRow";
 import { PrimaryButton } from "@/components/PrimaryButton";
 import type { EmailCodeFlow } from "@/hooks/useEmailCodeFlow";
 import { useDict } from "@/hooks/useDict";
@@ -21,6 +22,12 @@ import { styles } from "@/components/EmailCodeFields/styles";
  * keyboard from the user's tap. The code step always takes focus: it only
  * ever appears because the user just asked for a code, so the number pad
  * must be up the moment the boxes are.
+ *
+ * On the code step the address stays on screen, read-only, with a "Change"
+ * button back to the email step, so the step reads as the second half of the
+ * same form. This component is never remounted between steps (the host keeps
+ * one instance), which is what lets the code boxes mount and focus in the
+ * same frame the email field leaves.
  *
  * Neither field flips `editable` off while a request runs. That blurs the
  * focused field and dismisses the keyboard on both platforms, which is what
@@ -134,7 +141,15 @@ export function EmailCodeFields({
 
   return (
     <>
-      <Text style={styles.fieldLabel}>{dict.LOGIN_CODE}</Text>
+      <Text style={styles.fieldLabel}>{dict.LOGIN_EMAIL}</Text>
+      <EmailCodeEmailRow
+        email={flow.email.trim()}
+        busy={flow.busy}
+        onChangeEmail={flow.backToEmail}
+      />
+      {/* The instruction is the code field's label: a second "Code" caption
+          on top of it would only repeat it. */}
+      <Text style={styles.fieldLabel}>{dict.EMAIL_CODE_INSTRUCTION}</Text>
       {/* The step just changed, so the field mounts here: focus it right away
           and the one-time-code keyboard opens without another tap. */}
       <CodeInput

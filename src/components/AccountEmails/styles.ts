@@ -109,12 +109,15 @@ export const styles = StyleSheet.create({
     paddingBottom: THEME.SPACE.LG,
   },
   // The explanatory line above the field: how many extra addresses the server
-  // accepts, or where the code went on the code step.
+  // accepts. The same on both steps.
   formHint: {
     color: THEME.COLORS.TEXT_SOFT,
     fontFamily: THEME.FONT_FAMILY.REGULAR,
     fontSize: THEME.FONT_SIZE.BODY,
     lineHeight: THEME.LINE_HEIGHT.RELAXED,
+  },
+  formStep: {
+    marginTop: THEME.SPACE.MD,
   },
   // The code step's expiry note, in Login's caption recipe (dim, small) so
   // both Animu Connect forms describe the code the same way.

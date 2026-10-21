@@ -7,7 +7,7 @@ import {
   screen,
   within,
 } from "@testing-library/react";
-import { Alert } from "react-native";
+import { AccessibilityInfo, Alert, Animated } from "react-native";
 import type { AuthAccountEmail, LinkedProvider } from "animu-api";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -63,7 +63,11 @@ vi.mock("@/hooks/useDict", () => ({
     ACCOUNT_ACTION_FAILED: "Action failed",
     LOGIN_EMAIL_INVALID: "Not an email",
     LOGIN_CODE_SENT: "Code sent",
-    LOGIN_CODE_SUBTITLE: "Code sent to {email}.",
+    EMAIL_CODE_STEP: "Step {step} of {total} · {label}",
+    EMAIL_CODE_STEP_EMAIL: "Enter email",
+    EMAIL_CODE_STEP_CODE: "Enter code",
+    A11Y_EMAIL_CODE_STEP_EMAIL: "Step 1 of 2. Enter your email address.",
+    A11Y_EMAIL_CODE_STEP_CODE: "Step 2 of 2. Enter the 4-digit code.",
   }),
 }));
 vi.mock("@/hooks/useEmailCodeFlow", () => ({
@@ -126,16 +130,13 @@ vi.mock("@/components/ConnectActions", () => ({
     busy,
     resendRemaining,
     onResend,
-    onChangeEmail,
   }: {
     busy: boolean;
     resendRemaining: number;
     onResend: () => void;
-    onChangeEmail: () => void;
   }) => (
     <div data-testid="connect-actions" data-busy={String(busy)}>
       <button onClick={onResend}>resend {resendRemaining}</button>
-      <button onClick={onChangeEmail}>change email</button>
     </div>
   ),
 }));
@@ -187,9 +188,10 @@ const rowOf = (email: string): HTMLElement =>
     .parentElement!;
 
 async function renderLoaded() {
-  render(<AccountEmails />);
+  const view = render(<AccountEmails />);
   // Let the mount-time refreshEmails() promise settle.
   await act(async () => undefined);
+  return view;
 }
 
 /** Opens the collapsed add-email form (the card's "Add extra email" row). */
@@ -568,22 +570,69 @@ describe("AccountEmails", () => {
       expect(screen.getByRole("progressbar")).toBeTruthy();
     });
 
-    it("on the code step, names the destination and wires resend / change email", async () => {
+    it("keeps the hint and wires resend on the code step, with Cancel still there", async () => {
       setAuth([row({})]);
       mocks.flow = { ...mocks.flow, step: "code", email: "  new@example.com " };
       mocks.resendRemaining = 12;
       await renderLoaded();
       expandAddForm();
-      expect(screen.getByText("new@example.com").tagName).toBe("SPAN");
-      expect(screen.getByText(/Code sent to/).textContent).toBe(
-        "Code sent to new@example.com.",
-      );
-      expect(screen.queryByText("Add an address")).toBeNull();
+      // The code step is the same form: nothing is swapped for a new sentence.
+      expect(screen.getByText("Add an address")).toBeTruthy();
+      expect(screen.getByRole("button", { name: "Cancel" })).toBeTruthy();
 
       fireEvent.click(screen.getByText("resend 12"));
       expect(mocks.flow.sendCode).toHaveBeenCalledTimes(1);
-      fireEvent.click(screen.getByText("change email"));
-      expect(mocks.flow.backToEmail).toHaveBeenCalledTimes(1);
+      // Changing the address is the email row's job now, not these actions'.
+      expect(screen.queryByText("change email")).toBeNull();
+    });
+
+    it("shows the step indicator above the fields on both steps", async () => {
+      setAuth([row({})]);
+      const { rerender } = await renderLoaded();
+      expandAddForm();
+      const indicator = screen.getByText("Step 1 of 2 · Enter email");
+      expect(
+        indicator.compareDocumentPosition(screen.getByTestId("code-fields")) &
+          Node.DOCUMENT_POSITION_FOLLOWING,
+      ).toBeTruthy();
+
+      mocks.flow = { ...mocks.flow, step: "code", email: "new@example.com" };
+      rerender(<AccountEmails />);
+      expect(screen.getByText("Step 2 of 2 · Enter code")).toBeTruthy();
+      expect(screen.queryByText("Step 1 of 2 · Enter email")).toBeNull();
+      expect(screen.getByText("Add an address")).toBeTruthy();
+    });
+
+    it("announces a real step change once, and fades the body in", async () => {
+      setAuth([row({})]);
+      const announce = vi.mocked(AccessibilityInfo.announceForAccessibility);
+      const timing = vi.mocked(Animated.timing);
+      const { rerender } = await renderLoaded();
+      expandAddForm();
+      announce.mockClear();
+      timing.mockClear();
+      expect(announce).not.toHaveBeenCalled();
+
+      mocks.flow = { ...mocks.flow, step: "code", email: "new@example.com" };
+      rerender(<AccountEmails />);
+      expect(announce).toHaveBeenCalledTimes(1);
+      expect(announce).toHaveBeenLastCalledWith(
+        "Step 2 of 2. Enter the 4-digit code.",
+      );
+      expect(timing).toHaveBeenCalledTimes(1);
+
+      // A countdown tick / resend re-renders on the same step: silent.
+      mocks.resendRemaining = 9;
+      rerender(<AccountEmails />);
+      expect(announce).toHaveBeenCalledTimes(1);
+      expect(timing).toHaveBeenCalledTimes(1);
+
+      mocks.flow = { ...mocks.flow, step: "email" };
+      rerender(<AccountEmails />);
+      expect(announce).toHaveBeenCalledTimes(2);
+      expect(announce).toHaveBeenLastCalledWith(
+        "Step 1 of 2. Enter your email address.",
+      );
     });
 
     it("shows the code's validity window on the code step", async () => {
