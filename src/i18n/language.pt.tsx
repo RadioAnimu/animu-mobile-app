@@ -195,6 +195,10 @@ const DICT: Dict = {
   A11Y_CLOSE: "Fechar",
   A11Y_CLEAR_SEARCH: "Limpar pesquisa",
   A11Y_CLEAR_INPUT: "Limpar campo",
+  A11Y_EMAIL_CODE_CHANGE: "Alterar endereço de e-mail",
+  A11Y_EMAIL_CODE_STEP_EMAIL: "Etapa 1 de 2. Informe seu endereço de e-mail.",
+  A11Y_EMAIL_CODE_STEP_CODE:
+    "Etapa 2 de 2. Digite o código de 4 dígitos que você recebeu por e-mail.",
   SETTINGS_MEMORY_CLEAR_CACHE_DESC:
     "Usa menos dados e carrega mais rápido. Ao desativar, apaga as capas salvas.",
   SETTINGS_ASSISTANT_TITLE: "Reprodução por voz",
@@ -460,7 +464,7 @@ const DICT: Dict = {
     "Funciona apenas para contas existentes: use o e-mail de um provedor com o qual você já entrou, ou o e-mail extra que você adicionou na Conta. Endereços de \"Ocultar Meu E-mail\" da Apple não podem receber códigos.",
   LOGIN_CONNECT_TITLE: "Animu Connect",
   LOGIN_CONNECT_SUBTITLE:
-    "Vamos enviar um código de 4 dígitos por e-mail. Sem senha.",
+    "Entre com um código de 4 dígitos por e-mail. Sem senha.",
   LOGIN_CONNECT_NEW_HERE: "Primeira vez aqui? Escolha uma forma de entrar",
   LOGIN_CONNECT_CODE_SENT:
     "Se esse e-mail estiver em uma conta Animu, um código já está a caminho.",
@@ -470,11 +474,14 @@ const DICT: Dict = {
   LOGIN_CODE: "Código",
 
   LOGIN_CODE_SENT: "Enviamos um código para o seu e-mail.",
-  LOGIN_CODE_TITLE: "Confira seu e-mail",
-  LOGIN_CODE_SUBTITLE: "Digite o código enviado para {email}",
   LOGIN_CODE_RESEND: "Reenviar código",
   LOGIN_CODE_RESEND_IN: "Reenviar em {seconds}s",
-  LOGIN_CODE_CHANGE_EMAIL: "Usar outro e-mail",
+  EMAIL_CODE_STEP: "Etapa {step} de {total} · {label}",
+  EMAIL_CODE_STEP_EMAIL: "Informe o e-mail",
+  EMAIL_CODE_STEP_CODE: "Digite o código",
+  EMAIL_CODE_INSTRUCTION:
+    "Digite o código de 4 dígitos que você recebeu por e-mail.",
+  EMAIL_CODE_CHANGE: "Alterar",
   LOGIN_CODE_INVALID:
     "Esse código não funcionou ou expirou. Depois de {attempts} tentativas erradas, peça um novo.",
   LOGIN_CODE_VALIDITY:

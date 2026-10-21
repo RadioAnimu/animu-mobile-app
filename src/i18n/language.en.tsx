@@ -194,6 +194,10 @@ const DICT = {
   A11Y_CLOSE: "Close",
   A11Y_CLEAR_SEARCH: "Clear search",
   A11Y_CLEAR_INPUT: "Clear field",
+  A11Y_EMAIL_CODE_CHANGE: "Change email address",
+  A11Y_EMAIL_CODE_STEP_EMAIL: "Step 1 of 2. Enter your email address.",
+  A11Y_EMAIL_CODE_STEP_CODE:
+    "Step 2 of 2. Enter the 4-digit code from your email.",
   SETTINGS_MEMORY_CLEAR_CACHE_DESC:
     "Uses less data and loads faster. Turning this off clears saved covers.",
   SETTINGS_ASSISTANT_TITLE: "Voice playback",
@@ -453,7 +457,8 @@ const DICT = {
   LOGIN_ANIMU_CONNECT_HINT:
     "Works only for existing accounts: use the email of a provider you've signed in with, or the extra email you added in Account. Apple \"Hide My Email\" addresses can't get codes.",
   LOGIN_CONNECT_TITLE: "Animu Connect",
-  LOGIN_CONNECT_SUBTITLE: "We'll email you a 4-digit code. No password needed.",
+  LOGIN_CONNECT_SUBTITLE:
+    "Sign in with a 4-digit email code. No password needed.",
   LOGIN_CONNECT_NEW_HERE: "New here? Choose a sign-in method",
   LOGIN_CONNECT_CODE_SENT:
     "If this email is on an Animu account, a code is on its way.",
@@ -463,11 +468,13 @@ const DICT = {
   LOGIN_CODE: "Code",
 
   LOGIN_CODE_SENT: "We sent a sign-in code to your email.",
-  LOGIN_CODE_TITLE: "Check your email",
-  LOGIN_CODE_SUBTITLE: "Enter the code we sent to {email}",
   LOGIN_CODE_RESEND: "Resend code",
   LOGIN_CODE_RESEND_IN: "Resend in {seconds}s",
-  LOGIN_CODE_CHANGE_EMAIL: "Use a different email",
+  EMAIL_CODE_STEP: "Step {step} of {total} · {label}",
+  EMAIL_CODE_STEP_EMAIL: "Enter email",
+  EMAIL_CODE_STEP_CODE: "Enter code",
+  EMAIL_CODE_INSTRUCTION: "Enter the 4-digit code from your email.",
+  EMAIL_CODE_CHANGE: "Change",
   LOGIN_CODE_INVALID:
     "That code didn't work or has expired. After {attempts} wrong tries, request a new one.",
   LOGIN_CODE_VALIDITY:

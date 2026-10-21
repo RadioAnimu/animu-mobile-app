@@ -132,6 +132,24 @@ describe("CodeInput", () => {
     expect(document.activeElement).not.toBe(input);
   });
 
+  it("refocuses the field from a tap on the boxes after the keyboard was dismissed", () => {
+    // iOS skips the near-invisible field when hit-testing, so the tap lands
+    // on a box and the row has to hand focus back to the field.
+    const { input } = setup({ value: "1" });
+    input.focus();
+    input.blur();
+    expect(document.activeElement).not.toBe(input);
+
+    fireEvent.click(screen.getByText("1"));
+    expect(document.activeElement).toBe(input);
+  });
+
+  it("does not focus from a tap on the boxes while not editable", () => {
+    const { input } = setup({ value: "1", editable: false });
+    fireEvent.click(screen.getByText("1"));
+    expect(document.activeElement).not.toBe(input);
+  });
+
   it("re-renders boxes when the value prop changes", () => {
     const { rerender, onChangeText } = setup({ value: "9" });
     expect(screen.getByText("9")).toBeTruthy();

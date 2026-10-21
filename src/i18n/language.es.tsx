@@ -197,6 +197,10 @@ const DICT: Dict = {
   A11Y_CLOSE: "Cerrar",
   A11Y_CLEAR_SEARCH: "Borrar búsqueda",
   A11Y_CLEAR_INPUT: "Borrar campo",
+  A11Y_EMAIL_CODE_CHANGE: "Cambiar dirección de correo",
+  A11Y_EMAIL_CODE_STEP_EMAIL: "Paso 1 de 2. Escribe tu dirección de correo.",
+  A11Y_EMAIL_CODE_STEP_CODE:
+    "Paso 2 de 2. Escribe el código de 4 dígitos que recibiste por correo.",
   SETTINGS_MEMORY_CLEAR_CACHE_DESC:
     "Usa menos datos y carga más rápido. Al desactivarlo, se borran las portadas guardadas.",
   SETTINGS_ASSISTANT_TITLE: "Reproducción por voz",
@@ -463,7 +467,7 @@ const DICT: Dict = {
     "Funciona solo para cuentas existentes: usa el correo de un proveedor con el que hayas iniciado sesión, o el correo extra que añadiste en Cuenta. Las direcciones de \"Ocultar mi correo electrónico\" de Apple no pueden recibir códigos.",
   LOGIN_CONNECT_TITLE: "Animu Connect",
   LOGIN_CONNECT_SUBTITLE:
-    "Te enviaremos un código de 4 dígitos por correo. Sin contraseña.",
+    "Inicia sesión con un código de 4 dígitos por correo. Sin contraseña.",
   LOGIN_CONNECT_NEW_HERE: "¿Primera vez? Elige una forma de iniciar sesión",
   LOGIN_CONNECT_CODE_SENT:
     "Si este correo pertenece a una cuenta de Animu, el código ya está en camino.",
@@ -473,11 +477,14 @@ const DICT: Dict = {
   LOGIN_CODE: "Código",
 
   LOGIN_CODE_SENT: "Enviamos un código a tu correo.",
-  LOGIN_CODE_TITLE: "Revisa tu correo",
-  LOGIN_CODE_SUBTITLE: "Escribe el código enviado a {email}",
   LOGIN_CODE_RESEND: "Reenviar código",
   LOGIN_CODE_RESEND_IN: "Reenviar en {seconds}s",
-  LOGIN_CODE_CHANGE_EMAIL: "Usar otro correo",
+  EMAIL_CODE_STEP: "Paso {step} de {total} · {label}",
+  EMAIL_CODE_STEP_EMAIL: "Escribe tu correo",
+  EMAIL_CODE_STEP_CODE: "Escribe el código",
+  EMAIL_CODE_INSTRUCTION:
+    "Escribe el código de 4 dígitos que recibiste por correo.",
+  EMAIL_CODE_CHANGE: "Cambiar",
   LOGIN_CODE_INVALID:
     "Ese código no funcionó o caducó. Tras {attempts} intentos fallidos, solicita uno nuevo.",
   LOGIN_CODE_VALIDITY:

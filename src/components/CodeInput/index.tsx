@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from "react";
-import { Animated, Text, TextInput, View } from "react-native";
+import { Animated, Pressable, Text, TextInput, View } from "react-native";
 
 import { styles } from "@/components/CodeInput/styles";
 import { useFocusOnMount } from "@/hooks/useFocusOnMount";
 import { MOTION } from "@/theme/motion";
+import { focusWithKeyboard } from "@/utils/keyboard";
 
 /** Digits the Animu Connect email code is made of. */
 export const CODE_LENGTH = 4;
@@ -34,6 +35,13 @@ interface Props {
  * one focusable field — one keyboard, one value, and paste/one-time-code
  * autofill keep working — while each digit paints into its own box and a
  * caret marks the box being typed.
+ *
+ * The row itself also focuses the field on tap. iOS hit-testing skips any
+ * view under 1% alpha, and the hidden field's `OPACITY.INVISIBLE` (0.01,
+ * stored as a 32-bit float just below it) is under: once the keyboard is
+ * dismissed, a tap on the boxes never reaches the field, so it falls through
+ * to the row instead. Android hit-tests regardless of alpha, so there the
+ * field takes the tap itself.
  */
 export function CodeInput({
   value,
@@ -86,7 +94,13 @@ export function CodeInput({
   };
 
   return (
-    <View style={styles.row}>
+    <Pressable
+      // The TextInput is the accessible element; the row is only a tap target.
+      accessible={false}
+      disabled={!editable}
+      onPress={() => focusWithKeyboard(inputRef.current)}
+      style={styles.row}
+    >
       {chars.map((char, index) => (
         <View
           key={index}
@@ -126,6 +140,6 @@ export function CodeInput({
         onBlur={() => setFocused(false)}
         style={styles.input}
       />
-    </View>
+    </Pressable>
   );
 }
