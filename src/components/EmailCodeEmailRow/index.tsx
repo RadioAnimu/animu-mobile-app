@@ -1,11 +1,13 @@
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 
+import { Icon } from "@/components/Icon";
 import { useDict } from "@/hooks/useDict";
 import { THEME } from "@/theme";
 
 /**
- * The address the code went to, on the code step: the same field the user
- * just typed it into, now read-only, with "Change" where the clear button
+ * The address the code went to, on the code step: where the user just typed
+ * it, now a quiet read-only summary (a "sent" mark, no input fill) so it
+ * isn't mistaken for a field to tap, with "Change" where the clear button
  * was. It keeps the first step on screen so the second reads as its
  * continuation, and is the only way back to the email step.
  *
@@ -26,6 +28,11 @@ export function EmailCodeEmailRow({
 
   return (
     <View style={styles.field}>
+      <Icon
+        name="mark-email-read"
+        size={THEME.ICON.MD}
+        color={THEME.COLORS.TEXT_SOFT}
+      />
       <Text style={styles.email} numberOfLines={1} ellipsizeMode="middle">
         {email}
       </Text>
@@ -47,8 +54,8 @@ export function EmailCodeEmailRow({
   );
 }
 
-// The email field's recipe (EmailCodeFields styles), minus the focus ring: a
-// read-only value, so it only borrows the look.
+// The email field's shape (EmailCodeFields styles) without its input fill: a
+// read-only value sits on the subtle surface with a hairline edge.
 const styles = StyleSheet.create({
   field: {
     flexDirection: "row",
@@ -57,9 +64,9 @@ const styles = StyleSheet.create({
     minHeight: THEME.LAYOUT.FIELD_HEIGHT,
     paddingLeft: THEME.SPACE.LG,
     borderRadius: THEME.RADIUS.MD,
-    backgroundColor: THEME.COLORS.INPUT_BG,
+    backgroundColor: THEME.COLORS.SURFACE_SUBTLE,
     borderWidth: 1,
-    borderColor: THEME.COLORS.INPUT_BORDER,
+    borderColor: THEME.COLORS.HAIRLINE,
   },
   email: {
     flex: 1,
