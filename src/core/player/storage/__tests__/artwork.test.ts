@@ -18,24 +18,41 @@ const assetMocks = vi.hoisted(() => ({
 // cover the direct path re-set the implementation per case.
 const fileSystemMocks = vi.hoisted(() => ({ directDownload: vi.fn() }));
 
+// An in-memory cache dir: `File` instances are views on it by name, so a
+// download into a `.part` file followed by `rename` behaves like the device.
+const fileSystemState = vi.hoisted(() => ({ files: new Map<string, number>() }));
+
 vi.mock("expo-file-system", () => {
-  const File = Object.assign(
-    function (this: { exists: boolean; size: number; uri: string }, dir: unknown, name: string) {
-      void dir;
-      this.exists = false;
-      this.size = 0;
-      this.uri = `file://mock/cache/${name}`;
-    },
-    {
-      downloadFileAsync: fileSystemMocks.directDownload,
-    },
-  ) as unknown as {
-    new (dir: unknown, name: string): {
-      exists: boolean;
-      size: number;
-      uri: string;
-    };
-  };
+  const files = fileSystemState.files;
+  class File {
+    constructor(_dir: unknown, public name: string) {}
+    get uri(): string {
+      return `file://mock/cache/${this.name}`;
+    }
+    get exists(): boolean {
+      return files.has(this.name);
+    }
+    set exists(value: boolean) {
+      if (value) files.set(this.name, files.get(this.name) ?? 0);
+      else files.delete(this.name);
+    }
+    get size(): number {
+      return files.get(this.name) ?? 0;
+    }
+    set size(value: number) {
+      files.set(this.name, value);
+    }
+    delete(): void {
+      files.delete(this.name);
+    }
+    rename(newName: string): void {
+      if (files.has(newName)) throw new Error("FileAlreadyExists");
+      files.set(newName, files.get(this.name) ?? 0);
+      files.delete(this.name);
+      this.name = newName;
+    }
+    static downloadFileAsync = fileSystemMocks.directDownload;
+  }
   return { File, Paths: { cache: "file://mock/cache" } };
 });
 
@@ -88,6 +105,7 @@ describe("pickPreviewArtwork", () => {
 
 describe("ArtworkResolver", () => {
   beforeEach(() => {
+    fileSystemState.files.clear();
     assetMocks.fromModule.mockReset();
     assetMocks.fromURI.mockReset();
     // Default: the direct download is unavailable → resolver uses the
@@ -225,6 +243,91 @@ describe("ArtworkResolver", () => {
       expect(await resolver.resolve(url)).toBe(url);
       expect(resolver.peek(url)).toBeUndefined();
       expect(warnSpy).toHaveBeenCalled();
+    });
+
+    it("never exposes a half-written download under the cover's file name", async () => {
+      let finish!: () => void;
+      fileSystemMocks.directDownload.mockImplementation(
+        (_url: string, file: { size: number }) => {
+          file.size = 4096; // bytes arriving…
+          return new Promise<void>((resolve) => {
+            finish = () => {
+              file.size = 120540;
+              resolve();
+            };
+          });
+        },
+      );
+
+      const resolver = new ArtworkResolver();
+      const pending = resolver.resolve("https://images.test/cover.png");
+      await vi.waitFor(() => expect(fileSystemMocks.directDownload).toHaveBeenCalled());
+
+      // Mid-transfer only the private part file exists: a second lookup (the
+      // adoption after a prefetch gave up) cannot take it for a done cover.
+      const names = [...fileSystemState.files.keys()];
+      expect(names).toHaveLength(1);
+      expect(names[0]).toMatch(/^animu-cover-[0-9a-f]+\.jpg\..+\.part$/);
+
+      finish();
+      const local = await pending;
+      expect([...fileSystemState.files.keys()]).toEqual([
+        local.replace("file://mock/cache/", ""),
+      ]);
+      expect(fileSystemState.files.get(local.replace("file://mock/cache/", ""))).toBe(120540);
+    });
+
+    it("adopts a download that lands after its resolve gave up, and says so", async () => {
+      vi.useFakeTimers();
+      let finish!: () => void;
+      fileSystemMocks.directDownload.mockImplementation(
+        (_url: string, file: { size: number }) =>
+          new Promise<void>((resolve) => {
+            finish = () => {
+              file.size = 120540;
+              resolve();
+            };
+          }),
+      );
+      assetMocks.fromURI.mockReturnValue({
+        localUri: null,
+        downloadAsync: () => new Promise(() => {}), // fallback hangs too
+      });
+      vi.spyOn(console, "warn").mockImplementation(() => {});
+
+      const resolver = new ArtworkResolver();
+      const late: string[] = [];
+      resolver.onLateResolve = (lateUrl) => late.push(lateUrl);
+      const url = "https://images.test/cover.png";
+
+      const pending = resolver.resolve(url);
+      await vi.advanceTimersByTimeAsync(10_000); // both deadlines
+      expect(await pending).toBe(url);
+      expect(resolver.peek(url)).toBeUndefined();
+      expect(late).toEqual([]);
+
+      finish();
+      await vi.advanceTimersByTimeAsync(0);
+
+      expect(resolver.peek(url)).toMatch(/^file:\/\/mock\/cache\/animu-cover-[0-9a-f]+\.jpg$/);
+      expect(late).toEqual([url]);
+    });
+
+    it("does not announce a download that landed in time", async () => {
+      fileSystemMocks.directDownload.mockImplementation(
+        async (_url: string, file: { size: number }) => {
+          file.size = 120540;
+        },
+      );
+      const resolver = new ArtworkResolver();
+      const late: string[] = [];
+      resolver.onLateResolve = (lateUrl) => late.push(lateUrl);
+
+      const local = await resolver.resolve("https://images.test/cover.png");
+      await new Promise((resolve) => setTimeout(resolve, 0));
+
+      expect(resolver.peek("https://images.test/cover.png")).toBe(local);
+      expect(late).toEqual([]);
     });
 
     it("passes non-remote URLs through untouched", async () => {

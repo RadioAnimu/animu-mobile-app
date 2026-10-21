@@ -65,6 +65,44 @@ function coverFileNameFor(key: string): string {
  */
 const DIRECT_DOWNLOAD_DEADLINE_MS = 5_000;
 
+let partFileSeq = 0;
+
+/**
+ * Downloads `url` into the cache as `name`, but only ever exposes a complete
+ * file under that name: the bytes land in a private `.part` file that is
+ * renamed onto `name` once the transfer finished.
+ *
+ * `File.downloadFileAsync` writes straight into its destination, so the
+ * final name used to exist — non-empty — for the whole transfer. A resolve
+ * running meanwhile (the prefetch's download outliving its deadline, then the
+ * adoption's resolve) took that half-written file as done, and the native
+ * media session read it once and kept those bytes for the path: a broken
+ * lock-screen cover until the app restarted, while the in-app view (decoding
+ * later) looked fine.
+ */
+async function downloadComplete(url: string, name: string): Promise<File> {
+  const destination = new File(Paths.cache, name);
+  // Unique per transfer: two downloads of one cover never share a part file.
+  partFileSeq += 1;
+  const part = new File(
+    Paths.cache,
+    `${name}.${Date.now().toString(36)}-${partFileSeq}.part`,
+  );
+  try {
+    await File.downloadFileAsync(url, part);
+    if (destination.exists && destination.size > 0) {
+      part.delete(); // A concurrent download already landed it.
+    } else {
+      part.rename(name);
+    }
+  } catch (error) {
+    if (part.exists) part.delete();
+    // Lost a rename race to a concurrent download: its file is complete too.
+    if (!(destination.exists && destination.size > 0)) throw error;
+  }
+  return destination;
+}
+
 /** Rejects after `ms` — releases the caller without aborting the work. */
 function deadline<T>(promise: Promise<T>, ms: number): Promise<T> {
   let timer: ReturnType<typeof globalThis.setTimeout>;
@@ -133,6 +171,12 @@ export class ArtworkResolver {
   /** Remote URL until the bundled default cover resolves (see `init`). */
   private defaultCoverValue = CONFIG.DEFAULT_COVER;
   private initPromise: Promise<void> | null = null;
+  /**
+   * A download that outlived its deadline landed after all (the resolve
+   * already answered with the remote URL). The lock screen only shows local
+   * files, so whoever published that cover must publish it again.
+   */
+  onLateResolve: ((url: string) => void) | null = null;
   /** Set by `reset()`; late downloads must not repopulate a destroyed resolver. */
   private disposed = false;
 
@@ -322,16 +366,20 @@ export class ArtworkResolver {
     // 75-second transfer (direct fetch of the same URL: <1s). Files
     // accumulate in the OS cache dir (unlimited, tiny covers), and a
     // pre-existing file short-circuits the network entirely.
-    const destination = new File(Paths.cache, coverFileName(url));
+    const name = coverFileName(url);
+    const destination = new File(Paths.cache, name);
     try {
       if (!destination.exists || destination.size === 0) {
         // Raced against a short deadline: a wedged connection must not
         // cost the full native timeout (measured 10s) before the
         // fallback even starts. The direct attempt keeps running
-        // underneath — if it lands later it still fills the
-        // deterministic cache file for next time.
-        const direct = File.downloadFileAsync(url, destination);
-        direct.catch(() => {}); // late failures are cache-only misses
+        // underneath — if it lands later it fills the deterministic cache
+        // file and is adopted then (see `adoptLate`).
+        const direct = downloadComplete(url, name);
+        direct.then(
+          (file) => this.adoptLate(url, file.uri),
+          () => {}, // late failures are cache-only misses
+        );
         await deadline(direct, DIRECT_DOWNLOAD_DEADLINE_MS);
       }
     } catch (error) {
@@ -345,10 +393,14 @@ export class ArtworkResolver {
       // forever and latch its entry in `inFlight`, so that cover could never
       // retry. The deadline releases the caller; the work itself is left to
       // finish (or not) as a cache-only miss.
-      return deadline(
-        Asset.fromURI(url).downloadAsync(),
-        DIRECT_DOWNLOAD_DEADLINE_MS,
-      ).then((asset) => {
+      const fallback = Asset.fromURI(url).downloadAsync();
+      fallback.then(
+        (asset) => {
+          if (asset.localUri) this.adoptLate(url, asset.localUri);
+        },
+        () => {}, // late failures are cache-only misses
+      );
+      return deadline(fallback, DIRECT_DOWNLOAD_DEADLINE_MS).then((asset) => {
         if (this.disposed) return url;
         const local = asset.localUri ?? url;
         debugLog(
@@ -370,6 +422,26 @@ export class ArtworkResolver {
     this.fileMap.track(url, local);
     void this.options?.onResolved?.(local, url);
     return local;
+  }
+
+  /**
+   * Adopts a downloaded file when nothing real holds its URL yet (unmapped,
+   * or just its stand-in preview). Runs for every direct/fallback download,
+   * including ones that outlived their deadline. While the URL's resolve is
+   * still running, recording the file is enough: its settle republishes and
+   * every reader goes through the map. Once it has settled (it answered with
+   * the remote URL), nobody would look again — {@link onLateResolve} says so.
+   */
+  private adoptLate(url: string, local: string): void {
+    if (this.disposed) return;
+    const mapped = this.fileMap.peek(url);
+    if (mapped && mapped !== this.previewFor.get(url)) return;
+    this.fileMap.track(url, local);
+    this.previewFor.delete(url);
+    if (this.inFlight.has(url)) return;
+    debugLog(`[ArtDebug] resolve LATE landing url=${url} local=${local}`);
+    void this.options?.onResolved?.(local, url);
+    this.onLateResolve?.(url);
   }
 
   /** Destroy path: drop the in-memory lookups (cache files are OS-owned). */

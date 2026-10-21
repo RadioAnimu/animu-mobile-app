@@ -183,6 +183,13 @@ export class PlayerService {
     // The deadline is enforced where JS runs in the background: the SSE events.
     repository.shouldStayLive = () => this.updateLiveStreamLifecycle();
     repository.isQuiet = () => this.isQuiet;
+    // A cover that landed after its resolve gave up: the lock screen (local
+    // files only) is still on the default — publish it, and the UI with it.
+    deps.artwork.onLateResolve = (url) => {
+      if (this.disposed || this.deps.hearing.track?.artwork !== url) return;
+      if (this.loadedStreamId != null) this.pushNowPlaying();
+      this.emitPlayer();
+    };
     repository.onChange = (change) => {
       if (change.trackChanged) {
         if (this.isQuiet) {

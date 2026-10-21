@@ -112,7 +112,9 @@
           "granularPermissions": []
         }
       ],
-      "./plugins/withAndroidReleaseResources"
+      "./plugins/withAndroidReleaseResources",
+      "./plugins/withAndroidLargeScreenOrientation",
+      "./plugins/withAndroidR8Optimization"
     ],
     "extra": {
       "eas": {

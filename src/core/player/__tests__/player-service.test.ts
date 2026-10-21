@@ -106,6 +106,7 @@ const setup = (extra: Partial<PlayerServiceDependencies> = {}) => {
     isRemote: (url: string) => url.startsWith("http"),
     resolve: vi.fn(async (url: string) => url),
     reset: vi.fn(),
+    onLateResolve: null as ((url: string) => void) | null,
   };
   const heard = new HeardTrack({
     candidates: () => [repository.currentTrack, ...repository.lastPlayedTracks],
@@ -530,6 +531,25 @@ describe("PlayerService on react-native-anything-player", () => {
     await Promise.resolve();
     expect(lastNowPlaying(t.player)?.artwork).toBe("file://cache/a.jpg");
     expect(t.player.updateNowPlaying.mock.calls.every(([m]) => !String(m.artwork).startsWith("http"))).toBe(true);
+  });
+
+  it("publishes a cover whose download landed after its resolve gave up", async () => {
+    const t = setup();
+    await t.service.setupPlayer();
+    await t.service.play();
+    t.player.setState("playing", true);
+    t.player.hear("Song A");
+    await Promise.resolve();
+    // The resolve gave up (remote URL): the lock screen keeps the default.
+    expect(lastNowPlaying(t.player)?.artwork).toBe("file://default.png");
+
+    // The download lands later; the resolver now maps the file.
+    t.artwork.apply = (tr) => (tr ? ({ ...tr, artwork: "file://cache/a.jpg" } as Track) : tr);
+    t.artwork.onLateResolve?.("https://example.test/elsewhere.jpg"); // not the shown song
+    expect(lastNowPlaying(t.player)?.artwork).toBe("file://default.png");
+    t.artwork.onLateResolve?.(t.hearing.track?.artwork ?? "");
+
+    expect(lastNowPlaying(t.player)?.artwork).toBe("file://cache/a.jpg");
   });
 
   it("an unknown heard title fetches fresh data (no timer) and falls back to the title", async () => {
