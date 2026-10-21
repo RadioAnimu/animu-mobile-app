@@ -83,7 +83,8 @@ export const THEME = {
     /**
      * A field that must stay focusable and readable by screen readers while
      * painting nothing (the code input's hidden TextInput): `0` would drop it
-     * from the accessibility tree on both platforms.
+     * from the accessibility tree on both platforms. iOS hit-testing skips
+     * it (alpha under 0.01 as a float), so taps must reach it another way.
      */
     INVISIBLE: 0.01,
   },
