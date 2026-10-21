@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "Rádio Animu",
-    "version": "4.0.0",
+    "version": "4.0.1",
     "slug": "animu",
     "orientation": "portrait",
     "icon": "./assets/icon-android.png",
@@ -36,7 +36,7 @@
         "backgroundColor": "#270052"
       },
       "package": "com.nessjs.animu",
-      "versionCode": 18,
+      "versionCode": 19,
       "blockedPermissions": [
         "android.permission.RECORD_AUDIO",
         "android.permission.READ_EXTERNAL_STORAGE",
