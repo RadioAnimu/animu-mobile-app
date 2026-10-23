@@ -1,5 +1,6 @@
-import { DefaultTheme, NavigationContainer } from "@react-navigation/native";
-import { AppRoutes } from "@/routes/app.routes";
+import { DefaultTheme, NavigationContainer, useNavigationContainerRef } from "@react-navigation/native";
+import { AppRoutes, type RootStackParamList } from "@/routes/app.routes";
+import { applyOrientationPolicy } from "@/routes/orientation";
 
 /**
  * The app paints its own full-screen artwork behind the navigator
@@ -15,8 +16,17 @@ const NAV_THEME = {
 };
 
 export function Routes() {
+  const navigation = useNavigationContainerRef<RootStackParamList>();
+  // Phones turn to landscape on the player only (see `orientation.ts`).
+  const applyOrientation = () => applyOrientationPolicy(navigation.getCurrentRoute()?.name);
+
   return (
-    <NavigationContainer theme={NAV_THEME}>
+    <NavigationContainer
+      ref={navigation}
+      theme={NAV_THEME}
+      onReady={applyOrientation}
+      onStateChange={applyOrientation}
+    >
       <AppRoutes />
     </NavigationContainer>
   );

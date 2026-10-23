@@ -72,6 +72,10 @@ trustPolicyExclude:
   - expo-modules-jsi@57.1.3
   - expo-sharing@57.0.24
   - expo-splash-screen@57.0.10
+  # Added for the phone rotation policy: the SDK 57 release (October 12), same
+  # Expo maintainer, npm registry signatures present; only the 58.x line
+  # carries trusted-publisher provenance.
+  - expo-screen-orientation@57.0.3
   - babel-preset-expo@57.0.16
   - "@expo/cli@57.0.32"
   - "@expo/fingerprint@0.20.14"
