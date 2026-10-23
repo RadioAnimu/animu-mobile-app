@@ -204,11 +204,8 @@ export function Sheet({
             styles.sheet,
             maxHeight != null && { maxHeight },
             {
-              // Landscape puts the notch beside the sheet's edges; the
-              // insets shrink it into the safe area. On a portrait phone
-              // both are 0, so the sheet spans exactly as it always has.
-              marginLeft: insets.left,
-              marginRight: insets.right,
+              // Edge to edge in every orientation, like the portrait sheet;
+              // its content (below) keeps clear of a landscape notch.
               paddingBottom: insets.bottom + THEME.LAYOUT.SHEET_END_GAP,
               opacity: reduceMotion ? progress : 1,
               transform: [{ translateY: Animated.add(slide, drag) }],
@@ -239,7 +236,22 @@ export function Sheet({
               />
             </TouchableOpacity>
           </View>
-          {children}
+          {/* The content: past a landscape notch, and in a readable centered
+              column on a wide window (the surface itself spans it all). On a
+              portrait phone it is the full width, exactly as before. The
+              notch's insets come on top of the column's cap, not out of it. */}
+          <View
+            style={[
+              styles.content,
+              {
+                paddingLeft: insets.left,
+                paddingRight: insets.right,
+                maxWidth: THEME.LAYOUT.CONTENT_MAX_WIDTH + insets.left + insets.right,
+              },
+            ]}
+          >
+            {children}
+          </View>
         </Animated.View>
         {chip && (
           <View
@@ -279,16 +291,17 @@ const styles = StyleSheet.create({
   },
   sheet: {
     width: "100%",
-    // Full width on a phone (the cap is wider than any portrait window),
-    // but on a wide window a full-width sheet reads as stretched: it stops
-    // at the shared content cap and centers over the scrim.
-    maxWidth: THEME.LAYOUT.CONTENT_MAX_WIDTH,
-    alignSelf: "center",
     flexShrink: 1,
     backgroundColor: THEME.COLORS.SURFACE,
     borderTopLeftRadius: THEME.RADIUS.SHEET,
     borderTopRightRadius: THEME.RADIUS.SHEET,
     ...CONTINUOUS,
+  },
+  content: {
+    width: "100%",
+    maxWidth: THEME.LAYOUT.CONTENT_MAX_WIDTH,
+    alignSelf: "center",
+    flexShrink: 1,
   },
   closeArea: {
     width: "100%",

@@ -81,6 +81,16 @@ const sheetStyle = (): Record<string, unknown> => {
   return JSON.parse(el.dataset.style ?? "{}");
 };
 
+/** The content column: the one view that pads past the notch insets. */
+const contentStyle = (): Record<string, unknown> => {
+  const el = [...document.querySelectorAll<HTMLElement>("[data-style]")].find((candidate) => {
+    const style = JSON.parse(candidate.dataset.style ?? "{}");
+    return "paddingLeft" in style && "maxWidth" in style;
+  });
+  if (!el) throw new Error("no sheet content rendered");
+  return JSON.parse(el.dataset.style ?? "{}");
+};
+
 describe("Sheet", () => {
   beforeEach(() => {
     layout.value = {
@@ -96,36 +106,35 @@ describe("Sheet", () => {
   });
   afterEach(cleanup);
 
-  it("stays full width on a phone in portrait", () => {
-    render(
-      <Sheet visible onClose={vi.fn()}>
-        content
-      </Sheet>,
-    );
-    const sheet = sheetStyle();
-    expect(sheet.width).toBe("100%");
-    // The cap is wider than any phone window, so it is inert there — but it
-    // stands ready for the wide ones.
-    expect(sheet.maxWidth).toBe(THEME.LAYOUT.CONTENT_MAX_WIDTH);
-    expect(sheet.alignSelf).toBe("center");
-    expect(sheet.marginLeft).toBe(0);
-    expect(sheet.marginRight).toBe(0);
-    expect(sheet.maxHeight).toBeUndefined();
+  it("spans the window edge to edge, as in portrait, at every size", () => {
+    for (const [width, height] of [[393, 852], [852, 393], [1180, 820]] as const) {
+      setLayout(width, height);
+      render(
+        <Sheet visible onClose={vi.fn()}>
+          content
+        </Sheet>,
+      );
+      const sheet = sheetStyle();
+      expect(sheet.maxWidth).toBeUndefined();
+      expect(sheet.marginLeft).toBeUndefined();
+      expect(sheet.marginRight).toBeUndefined();
+      cleanup();
+    }
   });
 
-  it("caps the width on a wide window instead of stretching edge to edge", () => {
+  it("holds its content in a readable centered column on a wide window", () => {
     setLayout(1180, 820);
     render(
       <Sheet visible onClose={vi.fn()}>
         content
       </Sheet>,
     );
-    const sheet = sheetStyle();
-    expect(sheet.maxWidth).toBe(THEME.LAYOUT.CONTENT_MAX_WIDTH);
-    expect(sheet.alignSelf).toBe("center");
+    const column = contentStyle();
+    expect(column.maxWidth).toBe(THEME.LAYOUT.CONTENT_MAX_WIDTH);
+    expect(column.alignSelf).toBe("center");
   });
 
-  it("keeps the edges clear of the notch insets in landscape", () => {
+  it("keeps the content clear of the notch insets, on top of the column's cap", () => {
     setLayout(852, 393);
     insetsCtl.value = { top: 0, bottom: 21, left: 47, right: 0 };
     render(
@@ -133,9 +142,10 @@ describe("Sheet", () => {
         content
       </Sheet>,
     );
-    const sheet = sheetStyle();
-    expect(sheet.marginLeft).toBe(47);
-    expect(sheet.marginRight).toBe(0);
+    const column = contentStyle();
+    expect(column.paddingLeft).toBe(47);
+    expect(column.paddingRight).toBe(0);
+    expect(column.maxWidth).toBe(THEME.LAYOUT.CONTENT_MAX_WIDTH + 47);
   });
 
   it("caps the height in a short window so the content scrolls instead of clipping", () => {
