@@ -16,7 +16,7 @@ export interface PageState {
 
 type Listener = (event: { data: string }) => void;
 
-export function loadPage(html: string, width = 320.8) {
+export function loadPage(html: string, width = 320.8, height = 127) {
   const widthAssignments: number[] = [];
   const heightAssignments: number[] = [];
   let canvasWidth = 0;
@@ -37,7 +37,9 @@ export function loadPage(html: string, width = 320.8) {
     set lineJoin(value: string) { state.lineJoin = value; commands.push(["lineJoin", value]); },
     set lineCap(value: string) { state.lineCap = value; commands.push(["lineCap", value]); },
   };
+  const canvasStyle = { top: "" };
   const canvas = {
+    style: canvasStyle,
     get width() { return canvasWidth; },
     set width(value: number) { canvasWidth = value; widthAssignments.push(value); resetContext(); },
     get height() { return canvasHeight; },
@@ -50,6 +52,7 @@ export function loadPage(html: string, width = 320.8) {
   const nativeMessages: Record<string, unknown>[] = [];
   const pageWindow = {
     innerWidth: width,
+    innerHeight: height,
     addEventListener: (name: string, callback: Listener) => { listeners[name] = callback; },
     ReactNativeWebView: { postMessage: (value: string) => nativeMessages.push(JSON.parse(value)) },
   };

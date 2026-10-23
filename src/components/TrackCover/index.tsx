@@ -3,7 +3,12 @@ import { usePlayer } from "@/contexts/player/PlayerProvider";
 import { Cover, CoverPlaceholder } from "@/components/Cover";
 import { useResolvedArtwork } from "@/hooks/useResolvedArtwork";
 
-export const TrackCover = React.memo(function TrackCover() {
+interface Props {
+  /** Square side of the frame where the layout measured room for it (split). */
+  size?: number;
+}
+
+export const TrackCover = React.memo(function TrackCover({ size }: Readonly<Props>) {
   const player = usePlayer();
   const track = player.currentTrack;
   // The now-playing cover joins the media session's own download instead
@@ -18,8 +23,8 @@ export const TrackCover = React.memo(function TrackCover() {
   // heard before the station names it has none): the default cover holds
   // the square instead of the layout collapsing.
   if (!track || !cover) {
-    return <CoverPlaceholder />;
+    return <CoverPlaceholder size={size} />;
   }
 
-  return <Cover cover={cover} category="live" preserveAspectRatio />;
+  return <Cover cover={cover} category="live" preserveAspectRatio size={size} />;
 });

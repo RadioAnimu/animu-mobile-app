@@ -62,7 +62,16 @@ const host = (tag: string) => {
   return Component;
 };
 
-function Touchable({ children, onPress, disabled, style, onLayout, ...props }: AnyProps) {
+function Touchable({
+  children,
+  onPress,
+  disabled,
+  style,
+  onLayout,
+  focusable,
+  hasTVPreferredFocus,
+  ...props
+}: AnyProps) {
   const ref = useLayoutHandler(onLayout);
   return React.createElement(
     "div",
@@ -70,6 +79,9 @@ function Touchable({ children, onPress, disabled, style, onLayout, ...props }: A
       ref,
       ...a11yProps({ ...props, disabled }),
       "data-style": JSON.stringify(flattenStyle(style)),
+      // D-pad focus props (Android TV), surfaced only when set.
+      ...(focusable === undefined ? {} : { "data-focusable": String(focusable) }),
+      ...(hasTVPreferredFocus ? { "data-tv-preferred-focus": "true" } : {}),
       onClick: disabled ? undefined : onPress,
     },
     children,

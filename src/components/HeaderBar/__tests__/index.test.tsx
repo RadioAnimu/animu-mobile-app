@@ -8,7 +8,11 @@ import { HeaderBar } from "@/components/HeaderBar";
 vi.mock("react-native", async () =>
   (await import("@/__tests__/react-native-mock")).createReactNativeMock(),
 );
-vi.mock("expo-image", () => ({ Image: () => <span data-testid="image" /> }));
+vi.mock("expo-image", () => ({
+  Image: ({ style }: { style?: unknown }) => (
+    <span data-testid="image" data-style={JSON.stringify(style)} />
+  ),
+}));
 vi.mock("react-native-safe-area-context", () => ({
   useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }),
 }));
@@ -19,6 +23,10 @@ const mocks = vi.hoisted(() => ({
   progress: {} as Record<string, unknown>,
   backgrounded: false,
   haptics: { tap: vi.fn() },
+  layout: { usableWidth: 393, tv: false, windowControlsInset: 0 },
+}));
+vi.mock("@/hooks/useResponsiveLayout", () => ({
+  useResponsiveLayout: () => mocks.layout,
 }));
 
 vi.mock("@react-navigation/native", () => ({
@@ -75,6 +83,7 @@ const pressRequest = () =>
 describe("HeaderBar", () => {
   beforeEach(() => {
     mocks.backgrounded = false;
+    mocks.layout = { usableWidth: 393, tv: false, windowControlsInset: 0 };
     mocks.progress = { progressMs: 0, progressAt: 0, progressRunning: false, showProgress: true, durationMs: 200_000 };
     setPlayer();
   });
@@ -83,6 +92,70 @@ describe("HeaderBar", () => {
   it("carries the lyrics microphone beside the request note", () => {
     render(<HeaderBar openLiveRequestModal={() => {}} />);
     expect(screen.getByTestId("lyrics-button")).toBeTruthy();
+  });
+
+  describe("row width", () => {
+    const rowWidth = () =>
+      JSON.parse(
+        screen.getByTestId("menu-slot").parentElement!.getAttribute("data-style")!,
+      ).width;
+    /** Side margin of the play button (the last style entry wins, as in RN). */
+    const playMargin = () =>
+      JSON.parse(
+        within(screen.getByRole("button", { name: "Play" }))
+          .getByTestId("image")
+          .getAttribute("data-style")!,
+      )
+        .flat()
+        .reverse()
+        .find((entry: { marginHorizontal?: number }) => entry?.marginHorizontal !== undefined)
+        .marginHorizontal;
+
+    it("spans a phone in portrait with the designed play button margins", () => {
+      render(<HeaderBar />);
+      expect(rowWidth()).toBe(393);
+      expect(playMargin()).toBe(47);
+    });
+
+    it("sits inside the side safe areas, capped to the page column", () => {
+      mocks.layout = { usableWidth: 734, tv: false, windowControlsInset: 0 };
+      render(<HeaderBar />);
+      expect(rowWidth()).toBe(560);
+      expect(playMargin()).toBe(47);
+    });
+
+    it("keeps a centered row centered when it already clears the window controls", () => {
+      mocks.layout = { usableWidth: 1180, tv: false, windowControlsInset: 72 };
+      render(<HeaderBar rowWidth={900} />);
+      const container = screen.getByTestId("menu-slot").parentElement!.parentElement!;
+      expect(JSON.parse(container.getAttribute("data-style")!).paddingLeft).toBe(0);
+      expect(rowWidth()).toBe(900);
+    });
+
+    it("starts the row past the iPadOS window controls in a resizable window", () => {
+      mocks.layout = { usableWidth: 375, tv: false, windowControlsInset: 72 };
+      render(<HeaderBar />);
+      const container = screen.getByTestId("menu-slot").parentElement!.parentElement!;
+      expect(JSON.parse(container.getAttribute("data-style")!).paddingLeft).toBe(72);
+      expect(JSON.parse(screen.getByTestId("menu-slot").parentElement!.getAttribute("data-style")!).width).toBe(303);
+    });
+
+    it("takes the width the split layout gives it", () => {
+      // A landscape phone: 734pt between the island insets, panes 686pt wide.
+      mocks.layout = { usableWidth: 734, tv: false, windowControlsInset: 0 };
+      render(<HeaderBar rowWidth={686} />);
+      expect(rowWidth()).toBe(686);
+    });
+
+    it("pulls the play button's margins in on a narrow window, down to a floor", () => {
+      mocks.layout = { usableWidth: 300, tv: false, windowControlsInset: 0 };
+      const { unmount } = render(<HeaderBar />);
+      expect(rowWidth()).toBe(300);
+      expect(playMargin()).toBeCloseTo((47 * 300) / 360);
+      unmount();
+      render(<HeaderBar rowWidth={150} />);
+      expect(playMargin()).toBe(24);
+    });
   });
 
   describe("microphone placement", () => {
@@ -281,6 +354,18 @@ describe("HeaderBar", () => {
       expect(mocks.haptics.tap).toHaveBeenCalledTimes(1);
     });
 
+    it("marks a toggle in flight busy, never disabled (a disabled view drops D-pad focus)", async () => {
+      let resolve!: () => void;
+      setPlayer({ play: vi.fn(() => new Promise<void>((r) => (resolve = r))) });
+      render(<HeaderBar />);
+      const button = screen.getByRole("button", { name: "Play" });
+      fireEvent.click(button);
+      await waitFor(() => expect(button.getAttribute("aria-busy")).toBe("true"));
+      expect(button.getAttribute("aria-disabled")).toBeNull();
+      resolve();
+      await waitFor(() => expect(button.getAttribute("aria-busy")).toBe("false"));
+    });
+
     it("pauses when playing", async () => {
       setPlayer({ isPlaying: true });
       render(<HeaderBar />);
@@ -296,7 +381,7 @@ describe("HeaderBar", () => {
       const button = () => screen.getByRole("button", { name: "Play" });
       fireEvent.click(button());
       await waitFor(() =>
-        expect(warn).toHaveBeenCalledWith("[HeaderBar] play/pause failed:", expect.any(Error)),
+        expect(warn).toHaveBeenCalledWith("[PlayPauseButton] play/pause failed:", expect.any(Error)),
       );
       fireEvent.click(button());
       await waitFor(() => expect(play).toHaveBeenCalledTimes(2));

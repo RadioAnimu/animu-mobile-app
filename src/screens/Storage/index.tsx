@@ -173,7 +173,7 @@ export function Storage({ navigation }: Readonly<Props>) {
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={["left", "right"]}>
+    <SafeAreaView style={styles.container} edges={[]}>
       <ScreenHeader
         title={dict.STORAGE_TITLE}
         onBack={() => navigation.goBack()}

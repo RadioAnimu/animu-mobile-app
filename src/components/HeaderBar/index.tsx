@@ -1,22 +1,24 @@
 import { useNavigation } from "@react-navigation/native";
 import type { DrawerNavigationProp } from "@react-navigation/drawer";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { Image } from "expo-image";
-import { Animated, Easing, TouchableOpacity, View, useWindowDimensions } from "react-native";
+import { Animated, Easing, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import menuIcon from "@/assets/icons/menu.webp";
 import noteIcon from "@/assets/icons/note.webp";
-// Named for the ACTION they afford, not the glyph: the square (pause bars)
-// renders while PLAYING, the triangle renders while PAUSED. The file names
-// ("play_square_btn" / "play_triangle_btn") describe the paused/play button
-// pair, which reads backwards at the call site otherwise.
-import pauseAffordanceImage from "@/assets/play_square_btn.webp";
-import playAffordanceImage from "@/assets/play_triangle_btn.webp";
 import { IMGS } from "@/i18n";
 import { THEME } from "@/theme";
-import { CONTAINER_HEIGHT, ICON_HIT_SLOP, MIC_SIZE, styles } from "@/components/HeaderBar/styles";
+import {
+  CONTAINER_HEIGHT,
+  ICON_HIT_SLOP,
+  MIC_SIZE,
+  micOffset,
+  playButtonMargin,
+  styles,
+} from "@/components/HeaderBar/styles";
 import { contentWidth } from "@/theme/responsive";
 import { LyricsButton } from "@/components/LyricsButton";
+import { PlayPauseButton } from "@/components/PlayPauseButton";
 import { useUserSettings } from "@/contexts/user/UserSettingsProvider";
 import {
   usePlayer,
@@ -26,15 +28,19 @@ import { useIsBackgrounded } from "@/contexts/app-state/AppStateProvider";
 import { useDict } from "@/hooks/useDict";
 import { useBlink } from "@/hooks/useBlink";
 import { useReducedMotion } from "@/hooks/useReducedMotion";
+import { useResponsiveLayout } from "@/hooks/useResponsiveLayout";
 import { elapsedAt, progressRatio } from "@/utils/progress";
 import type { DrawerParamList } from "@/routes/app.routes";
-import { haptics } from "@/utils/haptics";
 
 interface Props {
   openLiveRequestModal?: () => void;
+  /**
+   * Width of the icon row. Defaults to the page column of the usable window;
+   * the split layout passes its two-pane content width so the icons line up
+   * with the panes beneath.
+   */
+  rowWidth?: number;
 }
-
-type Status = "playing" | "paused" | "changing";
 
 const PULSE_OPACITY = 0.05;
 const PULSE_DURATION = 1750;
@@ -42,66 +48,7 @@ const PULSE_DURATION = 1750;
 const PULSE_TRAVEL = 50;
 const PULSE_BOB = PULSE_TRAVEL * 2 * PULSE_OPACITY;
 
-/**
- * The header's play / pause toggle. Its own component: the re-entrancy guard
- * and the optimistic status are its business alone, not the header's.
- */
-function PlayPauseButton() {
-  const dict = useDict();
-  const player = usePlayer();
-  const [status, setStatus] = useState<Status>("playing");
-  /** Re-entrancy guard: two taps in one frame must not toggle twice. */
-  const changingRef = useRef(false);
-
-  return (
-    <TouchableOpacity
-      activeOpacity={THEME.OPACITY.PRESSED}
-      accessibilityRole="button"
-      accessibilityLabel={
-        player.isPlaying ? dict.A11Y_PAUSE : dict.A11Y_PLAY
-      }
-      accessibilityState={{ disabled: status === "changing" }}
-      onPress={async () => {
-        if (changingRef.current) return;
-        changingRef.current = true;
-        setStatus("changing");
-        haptics.tap();
-        // Capture the pre-toggle truth: after the await the render
-        // closure's `player.isPlaying` is stale (the store moved, this
-        // render did not), so re-reading it would report the WRONG
-        // state. On failure revert to that same truth; the provider
-        // already logs, the catch is the defensive backstop.
-        const wasPlaying = player.isPlaying;
-        try {
-          if (wasPlaying) {
-            await player.pause();
-          } else {
-            await player.play();
-          }
-          setStatus(wasPlaying ? "paused" : "playing");
-        } catch (error) {
-          console.warn("[HeaderBar] play/pause failed:", error);
-          setStatus(wasPlaying ? "playing" : "paused");
-        } finally {
-          changingRef.current = false;
-        }
-      }}
-    >
-      <Image
-        contentFit="contain"
-        style={[
-          styles.playBtn,
-          {
-            opacity: status === "changing" ? THEME.OPACITY.DISABLED : 1,
-          },
-        ]}
-        source={!player.isPlaying ? playAffordanceImage : pauseAffordanceImage}
-      />
-    </TouchableOpacity>
-  );
-}
-
-export function HeaderBar({ openLiveRequestModal }: Readonly<Props>) {
+export function HeaderBar({ openLiveRequestModal, rowWidth }: Readonly<Props>) {
   const navigation =
     useNavigation<DrawerNavigationProp<DrawerParamList>>();
   const insets = useSafeAreaInsets();
@@ -196,9 +143,20 @@ export function HeaderBar({ openLiveRequestModal }: Readonly<Props>) {
 
   const { settings } = useUserSettings();
 
-  // The row follows the current window (Android 16 may resize the app on
-  // tablets), keeping the icons aligned with the page column.
-  const { width: windowWidth } = useWindowDimensions();
+  // The row follows the live window (rotation, split view, Android
+  // multi-window), inside the side safe areas — the notch of a landscape
+  // phone is not room for icons — keeping them aligned with the page column.
+  const { usableWidth, tv, windowControlsInset } = useResponsiveLayout();
+  // In an iPadOS window the row must start past the window controls. A
+  // centered row that already clears them stays centered over the page; one
+  // that would reach under them (a narrow window's full-width row) gives up
+  // just enough of its leading room.
+  const baseWidth = rowWidth ?? contentWidth(usableWidth);
+  const controlsLead = Math.max(0, windowControlsInset - (usableWidth - baseWidth) / 2);
+  const width = Math.min(baseWidth, usableWidth - controlsLead);
+  const playMargin = playButtonMargin(width);
+  const micByMenu = { left: micOffset(width) };
+  const micByNote = { right: micOffset(width) };
 
   const LiveRequestComponent = currentProgram?.acceptingRequests
     ? IMGS[settings.selectedLanguage].LIVE_REQUEST_ENABLED
@@ -212,10 +170,13 @@ export function HeaderBar({ openLiveRequestModal }: Readonly<Props>) {
           {
             height: CONTAINER_HEIGHT + insets.top,
             paddingTop: insets.top,
+            // The bar runs under a landscape notch / cutout; its row does not.
+            paddingLeft: insets.left + controlsLead,
+            paddingRight: insets.right,
           },
         ]}
       >
-        <View style={[styles.row, { width: contentWidth(windowWidth) }]}>
+        <View style={[styles.row, { width }]}>
           {/* The microphone never joins the row's flex, so the play button
               stays centered wherever it hangs. Live shows dangle the
               live-request badge over the note — right where a note-side mic
@@ -237,11 +198,14 @@ export function HeaderBar({ openLiveRequestModal }: Readonly<Props>) {
               <LyricsButton
                 size={MIC_SIZE}
                 hitSlop={ICON_HIT_SLOP / 2}
-                style={styles.lyricsButtonByMenu}
+                style={[styles.lyricsButtonByMenu, micByMenu]}
               />
             )}
           </View>
-          <PlayPauseButton />
+          <PlayPauseButton
+            style={[styles.playBtn, { marginHorizontal: playMargin }]}
+            hasTVPreferredFocus={tv}
+          />
 
           {/* Fallback placement: away from a live badge the mic hangs off the
               note's left, as before. Only one mic mounts at a time — the two
@@ -251,7 +215,7 @@ export function HeaderBar({ openLiveRequestModal }: Readonly<Props>) {
               <LyricsButton
                 size={MIC_SIZE}
                 hitSlop={ICON_HIT_SLOP / 2}
-                style={styles.lyricsButtonByNote}
+                style={[styles.lyricsButtonByNote, micByNote]}
               />
             )}
             <TouchableOpacity

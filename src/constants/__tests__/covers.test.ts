@@ -5,6 +5,7 @@ import type { Dict } from "@/i18n";
 
 vi.mock("react-native", () => ({
   Dimensions: { get: () => ({ width: 393, height: 852 }) },
+  Platform: { OS: "ios", isTV: false },
   PixelRatio: { getFontScale: () => 1 },
 }));
 

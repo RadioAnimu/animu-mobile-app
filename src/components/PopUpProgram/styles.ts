@@ -2,7 +2,8 @@ import { StyleSheet } from "react-native";
 import { THEME } from "@/theme";
 import { scale } from "@/theme/responsive";
 
-const IMG_HEIGHT = scale(140);
+/** Height of the artwork band — exported so the component can shrink it in short windows. */
+export const IMG_HEIGHT = scale(140);
 
 export const styles = StyleSheet.create({
   scrollContent: {

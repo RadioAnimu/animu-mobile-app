@@ -25,6 +25,7 @@ import { About } from "@/screens/About";
 import { Lyrics } from "@/screens/Lyrics";
 import { useDict } from "@/hooks/useDict";
 import { useReducedMotion } from "@/hooks/useReducedMotion";
+import { scale } from "@/theme/responsive";
 import type { HistoryType } from "animu-api";
 
 interface HistoryProps {
@@ -64,7 +65,10 @@ export type AppRouteName = keyof DrawerParamList | keyof DetailParamList;
 const Drawer = createDrawerNavigator<DrawerParamList>();
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
+/** The drawer's share of the window — its overlay width on a phone. */
 const DRAWER_WIDTH_RATIO = 0.8;
+/** Tablet cap on the drawer overlay, in scaled points (see `scale`). */
+const DRAWER_MAX_WIDTH = scale(320);
 
 // Module-level on purpose: render callbacks defined inside AppRoutes get a new
 // identity every render, which remounts the drawer content / menu icons.
@@ -103,7 +107,10 @@ function DrawerRoutes() {
         overlayAccessibilityLabel: dict.A11Y_CLOSE_MENU,
         drawerStyle: {
           backgroundColor: THEME.COLORS.SURFACE,
-          width: width * DRAWER_WIDTH_RATIO,
+          // A phone keeps its 80% overlay (80% of 393 < the cap); an iPad
+          // landscape window would get a 900pt menu, so the drawer stops at
+          // the scaled cap instead.
+          width: Math.min(width * DRAWER_WIDTH_RATIO, DRAWER_MAX_WIDTH),
         },
       }}
       drawerContent={renderDrawerContent}

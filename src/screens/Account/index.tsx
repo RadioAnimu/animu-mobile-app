@@ -179,14 +179,14 @@ export function Account({ navigation }: Readonly<Props>) {
   if (signedOut) {
     // One frame before the replace lands: keep the header, skip the content.
     return (
-      <SafeAreaView style={styles.container} edges={["left", "right"]}>
+      <SafeAreaView style={styles.container} edges={[]}>
         {renderHeader()}
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={["left", "right"]}>
+    <SafeAreaView style={styles.container} edges={[]}>
       {renderHeader()}
       {/* Animu Connect's add-email form is inline here: the keyboard-aware
           view keeps its field and the button under it above the keyboard. */}

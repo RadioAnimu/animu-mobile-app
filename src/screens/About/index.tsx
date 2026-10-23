@@ -310,7 +310,7 @@ export function About({ navigation }: Readonly<Props>) {
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={["left", "right"]}>
+    <SafeAreaView style={styles.container} edges={[]}>
       <ScreenHeader
         title={dict.ABOUT_TITLE}
         onBack={() => navigation.goBack()}

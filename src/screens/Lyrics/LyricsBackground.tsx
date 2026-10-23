@@ -1,5 +1,5 @@
-import { useEffect } from "react";
-import { StyleSheet, View, type ViewStyle } from "react-native";
+import { useEffect, useMemo } from "react";
+import { StyleSheet, View, useWindowDimensions, type ViewStyle } from "react-native";
 import { Image } from "expo-image";
 import Animated, {
   cancelAnimation,
@@ -14,11 +14,14 @@ import Animated, {
 /** One full turn of the color field (ms): slow enough to read as drift. */
 const TURN_MS = 48_000;
 /**
- * A full-screen layer turned to any angle still covers the screen once
- * scaled past diagonal ÷ width (≈ 2.44 on a 20:9 phone).
+ * A full-screen layer turned to any angle still covers the window once
+ * scaled past diagonal ÷ short side: ≈2.44 on a 20:9 phone. These are the
+ * portrait constants the backdrop was tuned on.
  */
 const FRONT_SCALE = 2.7;
 const BACK_SCALE = 3.2;
+/** How far past the diagonal the field is scaled: covers its tilt at any angle. */
+const OVERSCAN_MARGIN = 1.13;
 /** Blur of the back and front layers (the front one sits at 70%). */
 const BACK_BLUR = 80;
 const FRONT_BLUR = 60;
@@ -42,6 +45,20 @@ export function useBackgroundTurn(animate: boolean): SharedValue<number> {
   }, [animate, turn]);
 
   return turn;
+}
+
+/**
+ * The overscan a full-window layer needs here: diagonal ÷ short side (the
+ * worst case of a rotated layer covering the window), plus a margin.
+ * Portrait windows — the tall aspect the constants were tuned on — keep them
+ * exactly. A wide window needs far less (≈1.98 on 1180×820), so the field
+ * stops ballooning, while still covering every edge through the whole turn.
+ */
+function overscan(width: number, height: number, fixed: number): number {
+  const shortSide = Math.min(width, height);
+  if (!(shortSide > 0)) return fixed;
+  if (height >= width) return fixed;
+  return Math.min(fixed, (Math.hypot(width, height) / shortSide) * OVERSCAN_MARGIN);
 }
 
 interface Props {
@@ -68,11 +85,16 @@ export function LyricsBackground({
   fade = true,
 }: Readonly<Props>) {
   const transition = fade ? COVER_FADE_MS : 0;
+  const window = useWindowDimensions();
+  const scales = useMemo(() => {
+    const front = overscan(window.width, window.height, FRONT_SCALE);
+    return { front, back: front * (BACK_SCALE / FRONT_SCALE) };
+  }, [window.width, window.height]);
   const front = useAnimatedStyle(() => ({
-    transform: [{ rotate: `${turn.get() * 360}deg` }, { scale: FRONT_SCALE }],
+    transform: [{ rotate: `${turn.get() * 360}deg` }, { scale: scales.front }],
   }));
   const back = useAnimatedStyle(() => ({
-    transform: [{ rotate: `${-turn.get() * 360 + 140}deg` }, { scale: BACK_SCALE }, { translateX: 40 }],
+    transform: [{ rotate: `${-turn.get() * 360 + 140}deg` }, { scale: scales.back }, { translateX: 40 }],
   }));
 
   return (

@@ -1,4 +1,5 @@
-import { Text } from "react-native";
+import { useCallback } from "react";
+import { Text, View, type StyleProp, type ViewStyle } from "react-native";
 import { useIsFocused } from "@react-navigation/native";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
@@ -11,14 +12,19 @@ import { useHeardPosition } from "@/hooks/useHeardPosition";
 import { useLyrics } from "@/hooks/useLyrics";
 import { useReducedMotion } from "@/hooks/useReducedMotion";
 import { useResolvedArtwork } from "@/hooks/useResolvedArtwork";
+import { useResponsiveLayout } from "@/hooks/useResponsiveLayout";
 import { japaneseDictionary } from "@/core/japanese";
 import type { RootStackParamList } from "@/routes/app.routes";
+import { LyricsArtworkPanel } from "@/screens/Lyrics/LyricsArtworkPanel";
 import { LyricsBackground, useBackgroundTurn } from "@/screens/Lyrics/LyricsBackground";
 import { LyricsBody } from "@/screens/Lyrics/LyricsBody";
+import { LyricsCloseHandle } from "@/screens/Lyrics/LyricsCloseHandle";
 import { LyricsHeader } from "@/screens/Lyrics/LyricsHeader";
 import { PronunciationMenu } from "@/screens/Lyrics/PronunciationMenu";
+import { artworkPaneWidth, TWO_PANE_MIN_WIDTH } from "@/screens/Lyrics/geometry";
 import { styles } from "@/screens/Lyrics/styles";
 import { usePronunciation } from "@/screens/Lyrics/usePronunciation";
+import { THEME } from "@/theme";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Lyrics">;
 
@@ -30,10 +36,17 @@ const MENU_BLUR = 6;
  * colors drifting behind, the active line lit and followed, words filling as
  * they are sung (when the lyrics carry word timing), breathing dots through
  * instrumental breaks, and romaji / hiragana under Japanese lines.
+ *
+ * Arrangement follows the live window: a phone keeps the sheet's single
+ * column (pixel-identical in portrait), a wide window puts the artwork and
+ * controls beside the lyrics. The body sits at the same place in the tree in
+ * both arrangements, so rotating does not remount the list or lose the
+ * follow state.
  */
 export function Lyrics({ navigation }: Readonly<Props>) {
   const dict = useDict();
   const insets = useSafeAreaInsets();
+  const layout = useResponsiveLayout();
   const player = usePlayer();
   const reduceMotion = useReducedMotion();
   const isBackgrounded = useIsBackgrounded();
@@ -54,27 +67,68 @@ export function Lyrics({ navigation }: Readonly<Props>) {
     filter: [{ blur: interpolate(menu.get(), [0, 1], [0, MENU_BLUR], "clamp") }],
   }));
 
+  const onClose = useCallback(() => navigation.goBack(), [navigation]);
+  const title = track?.title ?? "";
+  const subtitle = syncing ? `${dict.SYNCHRONIZING}…` : (track?.artist ?? "");
+
+  // Two panes need real room for both: a landscape phone (852×393 past its
+  // 59pt insets = 734pt) keeps the single column it always had.
+  const twoPane = layout.split && layout.usableWidth >= TWO_PANE_MIN_WIDTH;
+  const artworkWidth = twoPane ? artworkPaneWidth(layout.usableWidth) : 0;
+  // The menu hangs from the left of the pane it belongs to, never wider than
+  // that pane minus its margins.
+  const menuLeft = insets.left + artworkWidth + THEME.SPACE.XXL;
+  const menuMaxWidth = layout.usableWidth - artworkWidth - 2 * THEME.SPACE.XXL;
+
   return (
     <GestureHandlerRootView style={styles.container}>
       <LyricsBackground cover={cover} turn={turn} />
-      <LyricsHeader
-        cover={cover}
-        title={track?.title ?? ""}
-        subtitle={syncing ? `${dict.SYNCHRONIZING}…` : (track?.artist ?? "")}
-        onClose={() => navigation.goBack()}
-      />
-      <PronunciationNotice preparing={pronunciation.preparing} failed={pronunciation.failed} />
-      <Animated.View style={[styles.body, { marginBottom: insets.bottom }, recede]}>
-        <LyricsBody
-          status={status}
-          lyrics={lyrics}
-          labels={pronunciation.labels}
-          position={clock.position}
-          known={clock.known}
-          reduceMotion={reduceMotion}
-          onRetry={retry}
-        />
-      </Animated.View>
+      <View
+        style={[
+          styles.content,
+          {
+            paddingLeft: insets.left,
+            paddingRight: insets.right,
+            paddingBottom: insets.bottom,
+            paddingTop: twoPane ? insets.top : 0,
+          },
+        ]}
+      >
+        {twoPane ? (
+          <LyricsArtworkPanel
+            key="artwork"
+            cover={cover}
+            title={title}
+            subtitle={subtitle}
+            width={artworkWidth}
+            height={layout.height - insets.top - insets.bottom}
+            tv={layout.tv}
+          />
+        ) : null}
+        <View key="main" style={styles.main}>
+          {twoPane ? (
+            <LyricsCloseHandle onClose={onClose} />
+          ) : (
+            <LyricsHeader cover={cover} title={title} subtitle={subtitle} short={layout.short} onClose={onClose} />
+          )}
+          <PronunciationNotice
+            preparing={pronunciation.preparing}
+            failed={pronunciation.failed}
+            style={twoPane ? styles.columnCap : undefined}
+          />
+          <Animated.View style={[styles.body, styles.columnCap, recede]}>
+            <LyricsBody
+              status={status}
+              lyrics={lyrics}
+              labels={pronunciation.labels}
+              position={clock.position}
+              known={clock.known}
+              reduceMotion={reduceMotion}
+              onRetry={retry}
+            />
+          </Animated.View>
+        </View>
+      </View>
       {pronunciation.modes.length > 0 ? (
         <PronunciationMenu
           mode={pronunciation.mode}
@@ -92,6 +146,8 @@ export function Lyrics({ navigation }: Readonly<Props>) {
           cover={cover}
           turn={turn}
           progress={menu}
+          left={menuLeft}
+          maxWidth={menuMaxWidth}
         />
       ) : null}
     </GestureHandlerRootView>
@@ -99,12 +155,18 @@ export function Lyrics({ navigation }: Readonly<Props>) {
 }
 
 /** Why the labels are not there yet (being prepared) or at all (failed). */
-function PronunciationNotice({ preparing, failed }: Readonly<{ preparing: boolean; failed: boolean }>) {
+function PronunciationNotice({
+  preparing,
+  failed,
+  style,
+}: Readonly<{ preparing: boolean; failed: boolean; style?: StyleProp<ViewStyle> }>) {
   const dict = useDict();
   if (!preparing && !failed) return null;
   return (
-    <Text style={[styles.notice, styles.column]} accessibilityLiveRegion="polite">
-      {failed ? dict.LYRICS_DICTIONARY_FAILED : dict.LYRICS_DICTIONARY_PREPARING}
-    </Text>
+    <View style={style}>
+      <Text style={[styles.notice, styles.column]} accessibilityLiveRegion="polite">
+        {failed ? dict.LYRICS_DICTIONARY_FAILED : dict.LYRICS_DICTIONARY_PREPARING}
+      </Text>
+    </View>
   );
 }

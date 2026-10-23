@@ -14,6 +14,7 @@ import { SYNC_SLACK_MS, companionIndexAt, entryIndexAt, entryKey } from "@/core/
 import type { LyricEntry } from "@/core/lyrics/types";
 import { labelText, type LineLabel } from "@/core/lyrics/pronunciation";
 import { useScreenReader } from "@/hooks/useScreenReader";
+import { lyricGeometry } from "@/screens/Lyrics/geometry";
 import {
   LyricRow,
   UNKNOWN_INDEX,
@@ -80,13 +81,18 @@ export function SyncedLyrics({ entries, labels, position, known, reduceMotion, f
   const activeIndex = useSharedValue(UNKNOWN_INDEX);
   const companionIndex = useSharedValue(-1);
   const viewport = useSharedValue(0);
+  // The lit line's anchor and the edge fade, clamped for a short window. Shared
+  // so a rotation re-anchors without re-rendering every row.
+  const anchor = useSharedValue(LYRIC.ANCHOR);
+  const edgeFade = useSharedValue(LYRIC.EDGE_FADE);
+  const geometry = useRef(lyricGeometry(0, LYRIC.ANCHOR, LYRIC.EDGE_FADE));
   const tops = useSharedValue<number[]>([]);
   const contentHeight = useSharedValue(0);
   const knownShared = useSharedValue(known);
 
   const motion = useMemo<ListMotion>(
-    () => ({ follow, browsing, manual, activeIndex, companionIndex, viewport, reduceMotion }),
-    [follow, browsing, manual, activeIndex, companionIndex, viewport, reduceMotion],
+    () => ({ follow, browsing, manual, activeIndex, companionIndex, viewport, anchor, edgeFade, reduceMotion }),
+    [follow, browsing, manual, activeIndex, companionIndex, viewport, anchor, edgeFade, reduceMotion],
   );
 
   // Only what the worklets need: start/end per entry, and whether it is sung.
@@ -107,10 +113,10 @@ export function SyncedLyrics({ entries, labels, position, known, reduceMotion, f
       activeIndex.set(index);
       const rows = tops.get();
       if (rows.length > 0) {
-        const anchor = LYRIC.ANCHOR;
+        const anchorY = anchor.get();
         const row = Math.min(Math.max(index, 0), rows.length - 1);
         follow.set({
-          y: rows[row] - anchor,
+          y: rows[row] - anchorY,
           active: row,
           seq: follow.get().seq + 1,
           instant: previous === null,
@@ -145,7 +151,7 @@ export function SyncedLyrics({ entries, labels, position, known, reduceMotion, f
     const row = Math.min(Math.max(playing === UNKNOWN_INDEX ? 0 : playing, 0), rowTops.current.length - 1);
     if (row < 0) return;
     // A relayout (opening, label toggle, rotation, text size) re-places without a ripple.
-    follow.set({ y: rowTops.current[row] - LYRIC.ANCHOR, active: row, seq: target.seq + 1, instant: true });
+    follow.set({ y: rowTops.current[row] - geometry.current.anchor, active: row, seq: target.seq + 1, instant: true });
   }, [activeIndex, follow, tops]);
 
   const onRowLayout = useCallback(
@@ -163,7 +169,14 @@ export function SyncedLyrics({ entries, labels, position, known, reduceMotion, f
   }, [entries.length]);
 
   const onViewportLayout = (event: LayoutChangeEvent) => {
-    viewport.set(event.nativeEvent.layout.height);
+    const height = event.nativeEvent.layout.height;
+    viewport.set(height);
+    // A short window gets a proportional anchor/fade; a phone in portrait
+    // keeps the tuned constants (see `lyricGeometry`).
+    const next = lyricGeometry(height, LYRIC.ANCHOR, LYRIC.EDGE_FADE);
+    geometry.current = next;
+    anchor.set(next.anchor);
+    edgeFade.set(next.fade);
     flushLayout();
   };
 
@@ -184,8 +197,8 @@ export function SyncedLyrics({ entries, labels, position, known, reduceMotion, f
   const gesture = useMemo(() => {
     const bounds = () => {
       "worklet";
-      const anchor = LYRIC.ANCHOR;
-      return { min: -anchor, max: Math.max(-anchor, contentHeight.get() - anchor) };
+      const anchorY = anchor.get();
+      return { min: -anchorY, max: Math.max(-anchorY, contentHeight.get() - anchorY) };
     };
     const pan = Gesture.Pan()
       .activeOffsetY([-10, 10])
@@ -210,7 +223,7 @@ export function SyncedLyrics({ entries, labels, position, known, reduceMotion, f
       if (browsing.get()) scheduleOnRN(resumeFollow);
     });
     return Gesture.Race(pan, tap);
-  }, [browsing, contentHeight, dragStart, follow, holdResume, manual, resumeFollow, scheduleResume]);
+  }, [anchor, browsing, contentHeight, dragStart, follow, holdResume, manual, resumeFollow, scheduleResume]);
 
   // VoiceOver / TalkBack: a plain list the reader can walk, current line marked.
   if (screenReader) {

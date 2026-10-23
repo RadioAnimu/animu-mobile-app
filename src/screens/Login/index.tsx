@@ -42,6 +42,7 @@ import { useEmailCodeStepAnnouncement } from "@/hooks/useEmailCodeStepAnnounceme
 import { useReducedMotion } from "@/hooks/useReducedMotion";
 import { useResendCooldown } from "@/hooks/useResendCooldown";
 import { useStepFade } from "@/hooks/useStepFade";
+import { useResponsiveLayout } from "@/hooks/useResponsiveLayout";
 import { haptics } from "@/utils/haptics";
 import { openInAppBrowser } from "@/utils/browser";
 import { interpolate } from "@/utils/format";
@@ -473,6 +474,7 @@ export function Login({ navigation }: Readonly<Props>) {
   };
 
   const error = providerError ?? flow.error;
+  const { windowControlsInset } = useResponsiveLayout();
 
   return (
     // The stack scene is opaque, so the screen paints the app artwork itself.
@@ -483,7 +485,8 @@ export function Login({ navigation }: Readonly<Props>) {
         edges={["top", "left", "right", "bottom"]}
       >
         {/* Outside the scroll view so it stays reachable with the keyboard up. */}
-        <View style={styles.topBar}>
+        {/* In an iPadOS window the back arrow steps past the window controls. */}
+        <View style={[styles.topBar, { paddingLeft: THEME.SPACE.SM + windowControlsInset }]}>
           <TouchableOpacity
             accessibilityRole="button"
             accessibilityLabel={dict.A11Y_BACK}

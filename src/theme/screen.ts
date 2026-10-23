@@ -9,6 +9,11 @@ import { CONTINUOUS } from "@/theme/shape";
  * content column with the one-gap-under-header inset, and the borderless
  * surface "group" card the rows live inside — the hairline dividers inside
  * carry the separation, a box outline would only add noise.
+ *
+ * Side safe areas: the screens' SafeAreaViews take no left/right edges. The
+ * header bar runs full-bleed under a landscape notch / camera cutout and
+ * insets its own content (`ScreenHeader`, `HeaderBar`), and this capped,
+ * centered column always clears the side insets on its own.
  */
 export const SCREEN_STYLES = StyleSheet.create({
   container: {
@@ -49,6 +54,10 @@ export const FLOW_STYLES = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     width: "85%",
+    // The 85% column is a phone proportion; on a tablet window it would run
+    // edge to edge, so it stops at the shared content cap. A portrait phone
+    // (393pt) is far under it, so nothing moves there.
+    maxWidth: THEME.LAYOUT.CONTENT_MAX_WIDTH,
     alignSelf: "center",
   },
   listWrapper: {

@@ -1,9 +1,10 @@
 // @vitest-environment jsdom
 import React from "react";
 import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { Toast } from "@/components/Toast";
+import { THEME } from "@/theme";
 
 /** `Animated.sequence` steps are recorded so holds can be asserted from them. */
 const animated = vi.hoisted(() => {
@@ -23,18 +24,30 @@ const animated = vi.hoisted(() => {
 });
 
 vi.mock("react-native", () => {
+  const flattenStyle = (style: unknown): Record<string, unknown> =>
+    Array.isArray(style)
+      ? style.reduce<Record<string, unknown>>(
+          (acc, entry) => ({ ...acc, ...flattenStyle(entry) }),
+          {},
+        )
+      : style && typeof style === "object"
+        ? (style as Record<string, unknown>)
+        : {};
+
   const passthrough = (tag: string) => {
     const Component = ({
       children,
       onPress,
       accessibilityLabel,
       pointerEvents,
+      style,
     }: Record<string, unknown>) =>
       React.createElement(
         tag,
         {
           "aria-label": accessibilityLabel as string | undefined,
           "data-pointer-events": pointerEvents as string | undefined,
+          "data-style": JSON.stringify(flattenStyle(style)),
           onClick: onPress as (() => void) | undefined,
         },
         children as React.ReactNode,
@@ -44,6 +57,7 @@ vi.mock("react-native", () => {
   };
   return {
     Dimensions: { get: () => ({ width: 390, height: 844 }) },
+    Platform: { OS: "ios", isTV: false, select: (spec: Record<string, unknown>) => spec.ios ?? spec.default },
     Easing: {
       out: (fn: unknown) => fn,
       in: (fn: unknown) => fn,
@@ -69,9 +83,24 @@ vi.mock("@/hooks/useReducedMotion", () => ({ useReducedMotion: () => false }));
 const haptics = vi.hoisted(() => ({ select: vi.fn() }));
 vi.mock("@/utils/haptics", () => ({ haptics }));
 
+// Mutable stand-ins for the window the chip is measured against.
+const windowCtl = vi.hoisted(() => ({ width: 393 }));
+vi.mock("@/hooks/useResponsiveLayout", () => ({
+  useResponsiveLayout: () => ({ width: windowCtl.width, height: 852 }),
+}));
+const insetsCtl = vi.hoisted(() => ({ value: { left: 0, right: 0 } }));
+vi.mock("react-native-safe-area-context", () => ({
+  useSafeAreaInsets: () => insetsCtl.value,
+}));
+
 afterEach(cleanup);
 
 describe("Toast", () => {
+  beforeEach(() => {
+    windowCtl.width = 393;
+    insetsCtl.value = { left: 0, right: 0 };
+  });
+
   it("renders an action-less chip as a non-interactive surface", () => {
     const { container } = render(<Toast message="Copied" />);
 
@@ -133,5 +162,35 @@ describe("Toast", () => {
     act(() => start?.mock.calls[0]?.[0]?.({ finished: true }));
 
     expect(onDone).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps the phone-era 86% width on a phone in portrait", () => {
+    const { container } = render(<Toast message="Copied" />);
+    const style = JSON.parse(
+      (container.firstChild as HTMLElement).dataset.style ?? "{}",
+    );
+    expect(style.maxWidth).toBeCloseTo(393 * 0.86);
+    expect(style.marginLeft).toBe(0);
+  });
+
+  it("caps the chip width once the window outgrows a phone", () => {
+    windowCtl.width = 1180;
+    const { container } = render(<Toast message="Copied" />);
+    const style = JSON.parse(
+      (container.firstChild as HTMLElement).dataset.style ?? "{}",
+    );
+    expect(style.maxWidth).toBe(THEME.LAYOUT.CONTENT_MAX_WIDTH);
+  });
+
+  it("stays clear of the side insets in landscape", () => {
+    windowCtl.width = 852;
+    insetsCtl.value = { left: 47, right: 0 };
+    const { container } = render(<Toast message="Copied" />);
+    const style = JSON.parse(
+      (container.firstChild as HTMLElement).dataset.style ?? "{}",
+    );
+    expect(style.maxWidth).toBe(THEME.LAYOUT.CONTENT_MAX_WIDTH - 47);
+    expect(style.marginLeft).toBe(47);
+    expect(style.marginRight).toBe(0);
   });
 });

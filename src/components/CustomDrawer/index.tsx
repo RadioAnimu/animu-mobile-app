@@ -3,11 +3,15 @@ import { Icon } from "@/components/Icon";
 import {
   DrawerContentComponentProps,
   DrawerContentScrollView,
+  useDrawerStatus,
 } from "@react-navigation/drawer";
 import { CommonActions, DrawerActions } from "@react-navigation/native";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Avatar } from "@/components/Avatar";
 import { Logo } from "@/components/Logo";
+import { useResponsiveLayout } from "@/hooks/useResponsiveLayout";
+import { WINDOW_CONTROLS_HEIGHT } from "@/theme/layout";
 import { useAlert } from "@/contexts/alert/AlertProvider";
 import { useAuth } from "@/contexts/auth/AuthProvider";
 import { usePlayer } from "@/contexts/player/PlayerProvider";
@@ -19,6 +23,19 @@ import { styles } from "@/components/CustomDrawer/styles";
 
 const MENU_ICON_SIZE = THEME.ICON.MD;
 const SECTION_ICON_SIZE = THEME.ICON.SECTION;
+
+/**
+ * The drawer stays mounted while closed, parked off-screen by a transform
+ * that Android's D-pad focus search does not see: its controls would be
+ * focus targets beside the header's menu button (Android TV, a keyboard on a
+ * tablet). They are focusable — and accessible: Android makes every
+ * accessible view focusable, and an off-screen menu has nothing to read —
+ * only while the drawer is open, and opening it puts focus on the current
+ * destination.
+ */
+const useDrawerOpen = () => useDrawerStatus() === "open";
+/** The drawer logo's size in a short (landscape phone) window. */
+const SHORT_LOGO_RATIO = 0.55;
 
 /** Routes unavailable while a live DJ is on air (requests go via the live sheet). */
 const LIVE_LOCKED_ROUTES = new Set(["MakeRequest"]);
@@ -74,6 +91,7 @@ function NavItems({
   const { toast } = useAlert();
   const { currentProgram } = usePlayer();
   const isLive = Boolean(currentProgram?.isLive);
+  const open = useDrawerOpen();
 
   return (
     <View>
@@ -112,6 +130,9 @@ function NavItems({
         return (
           <TouchableOpacity
             key={route.key}
+            accessible={open}
+            focusable={open}
+            hasTVPreferredFocus={open && focused}
             accessibilityRole="button"
             accessibilityLabel={label}
             accessibilityState={{ selected: focused, disabled: locked }}
@@ -158,6 +179,7 @@ interface AccountRowProps {
 function AccountRow({ onOpenLogin, onOpenAccount, onOpenSettings }: Readonly<AccountRowProps>) {
   const { user, profile } = useAuth();
   const dict = useDict();
+  const open = useDrawerOpen();
 
   let caption = dict.SETTINGS_ACCOUNT_SIGN_IN;
   // The stored session can predate the provider handle; the profile is fresher.
@@ -170,6 +192,8 @@ function AccountRow({ onOpenLogin, onOpenAccount, onOpenSettings }: Readonly<Acc
     <View style={styles.bottom}>
       <View style={styles.accountRow}>
         <TouchableOpacity
+          accessible={open}
+          focusable={open}
           accessibilityRole="button"
           accessibilityLabel={
             user
@@ -222,6 +246,8 @@ function AccountRow({ onOpenLogin, onOpenAccount, onOpenSettings }: Readonly<Acc
         {/* Always visible: the chip is identity (Account or Login), so the
             gear is the one way into Settings. */}
         <TouchableOpacity
+          accessible={open}
+          focusable={open}
           accessibilityRole="button"
           accessibilityHint={dict.A11Y_OPENS_SETTINGS}
           accessibilityLabel={dict.SETTINGS_TITLE}
@@ -243,6 +269,9 @@ function AccountRow({ onOpenLogin, onOpenAccount, onOpenSettings }: Readonly<Acc
 export function CustomDrawerContent(props: Readonly<DrawerContentComponentProps>) {
   const dict = useDict();
   const { navigation } = props;
+  const insets = useSafeAreaInsets();
+  const { short, windowControlsInset } = useResponsiveLayout();
+  const open = useDrawerOpen();
 
   // Detail pages push over the drawer; close it underneath so popping back
   // lands on the screen, not on a still-open menu.
@@ -262,10 +291,24 @@ export function CustomDrawerContent(props: Readonly<DrawerContentComponentProps>
   };
 
   return (
-    <DrawerContentScrollView {...props} contentContainerStyle={{ flexGrow: 1 }}>
+    // The drawer surface runs edge-to-edge on the left, so in landscape the
+    // notch would clip the rows: the content is padded by the side inset. A
+    // portrait phone reports 0 for both, so nothing moves there; the
+    // scroll view itself already scrolls the menu in short windows.
+    <DrawerContentScrollView
+      {...props}
+      // Android makes a scroll view focusable exactly when it scrolls: closed,
+      // the off-screen menu must not be a D-pad stop.
+      scrollEnabled={open}
+      contentContainerStyle={{ flexGrow: 1, paddingLeft: insets.left }}
+    >
       <View>
-        <View style={styles.header}>
+        {/* In an iPadOS window the system's window controls cover the
+            drawer's top-leading corner: the logo drops below them. */}
+        <View style={[styles.header, windowControlsInset > 0 && { marginTop: WINDOW_CONTROLS_HEIGHT }]}>
           <TouchableOpacity
+            accessible={open}
+            focusable={open}
             accessibilityRole="button"
             accessibilityLabel="Animu"
             activeOpacity={THEME.OPACITY.PRESSED}
@@ -274,7 +317,9 @@ export function CustomDrawerContent(props: Readonly<DrawerContentComponentProps>
             }}
             style={styles.logoButton}
           >
-            <Logo size={THEME.LAYOUT.LOGO_HEIGHT} />
+            {/* A landscape phone gives the menu ~390pt of height: a smaller
+                logo leaves the destinations on the first screen. */}
+            <Logo size={short ? THEME.LAYOUT.LOGO_HEIGHT * SHORT_LOGO_RATIO : THEME.LAYOUT.LOGO_HEIGHT} />
           </TouchableOpacity>
         </View>
 

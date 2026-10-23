@@ -22,6 +22,7 @@ import { IMGS } from "@/i18n";
 import { THEME } from "@/theme";
 import { useUserSettings } from "@/contexts/user/UserSettingsProvider";
 import { useCopyToClipboard } from "@/hooks/useCopyToClipboard";
+import { useResponsiveLayout } from "@/hooks/useResponsiveLayout";
 import { usePlayer, useStation } from "@/contexts/player/PlayerProvider";
 import type { StationSnapshot } from "@/core/player";
 import { useRouteReselect } from "@/hooks/useRouteReselect";
@@ -54,6 +55,8 @@ export function History({ route }: Readonly<Props>) {
   const { toast } = useAlert();
   const [refreshing, setRefreshing] = useState(false);
   const endPadding = useScrollEndPadding(THEME.SPACE.LG);
+  // Short windows (landscape phones) hand the banner's room to the list.
+  const layout = useResponsiveLayout();
 
   // Re-tapping the drawer's active history item jumps back to the newest row.
   const listRef = useRef<FlatList<HistoryTrack> | null>(null);
@@ -128,8 +131,27 @@ export function History({ route }: Readonly<Props>) {
     [isRequestHistory, station.lastRequestedTracks, station.lastPlayedTracks],
   );
 
+  // The banner is decorative art pinned above the list (it never scrolled
+  // with it, and it must stay put in portrait), so in a short window — a
+  // landscape phone — it is shrunk to a third of the window height instead
+  // of permanently eating the rows' room. Portrait keeps it untouched.
+  const headerImageStyle = layout.short
+    ? [
+        styles.headerImage,
+        {
+          height: Math.min(
+            THEME.LAYOUT.LOGO_HEIGHT,
+            Math.round(layout.height * 0.3),
+          ),
+        },
+      ]
+    : styles.headerImage;
+
   return (
-    <SafeAreaView style={styles.container} edges={["left", "right"]}>
+    // No side edges: the header bar runs full-bleed under a landscape notch /
+    // camera cutout and insets its own row (as on Home); the content column
+    // is capped and centered, so it already clears the side safe areas.
+    <SafeAreaView style={styles.container} edges={[]}>
       <HeaderBar />
       <View style={styles.appContainer}>
         <Image
@@ -138,7 +160,7 @@ export function History({ route }: Readonly<Props>) {
               ? IMGS[settings.selectedLanguage].LAST_REQUEST
               : IMGS[settings.selectedLanguage].LAST_PLAYED
           }
-          style={styles.headerImage}
+          style={headerImageStyle}
           contentFit="contain"
           cachePolicy={"none"}
         />

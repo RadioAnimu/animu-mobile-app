@@ -25,6 +25,7 @@ vi.mock("react-native", () => {
   };
   return {
     Dimensions: { get: () => ({ width: 390, height: 844 }) },
+    Platform: { OS: "ios", isTV: false, select: (spec: Record<string, unknown>) => spec.ios ?? spec.default },
     StyleSheet: { create: (styles: object) => styles },
     // Like the real Modal: nothing is mounted while not visible.
     Modal: ({ visible, children }: { visible: boolean; children: React.ReactNode }) =>
@@ -102,6 +103,19 @@ vi.mock("@/hooks/usePresence", () => ({
   }),
 }));
 vi.mock("@/hooks/useReducedMotion", () => ({ useReducedMotion: () => false }));
+// The provider reads the window class only for short-window presentation;
+// these tests run the phone-portrait window.
+vi.mock("@/hooks/useResponsiveLayout", () => ({
+  useResponsiveLayout: () => ({
+    width: 390,
+    height: 844,
+    windowClass: "compact",
+    landscape: false,
+    split: false,
+    short: false,
+    tv: false, windowControlsInset: 0,
+  }),
+}));
 const haptics = vi.hoisted(() => ({ error: vi.fn() }));
 vi.mock("@/utils/haptics", () => ({ haptics }));
 vi.mock("@/hooks/useDict", () => ({

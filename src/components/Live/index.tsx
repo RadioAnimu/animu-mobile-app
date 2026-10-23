@@ -1,5 +1,6 @@
 import React, { useCallback } from "react";
 import { Text, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { THEME } from "@/theme";
 import { Marquee, MarqueeGroup } from "@/components/Marquee";
 import { IMGS } from "@/i18n";
@@ -14,6 +15,10 @@ export const Live = React.memo(function Live() {
   const player = usePlayer();
   const copy = useCopyToClipboard();
   const LiveLabel = IMGS[settings.selectedLanguage].LIVE_LABEL;
+  // The strip is full-bleed; in landscape its label and lines step in past
+  // a notch / camera cutout (both insets are zero in portrait).
+  const { left, right } = useSafeAreaInsets();
+  const trackStyle = [styles.track, { paddingLeft: left, paddingRight: right }];
 
   const track = player.currentTrack;
   // A song from no anime keeps the home screen's "Now Playing" label.
@@ -30,7 +35,7 @@ export const Live = React.memo(function Live() {
   // so the program block below doesn't jump when the names arrive.
   if (!track) {
     return (
-      <View style={styles.track}>
+      <View style={trackStyle}>
         <LiveLabel />
         <View
           style={styles.info}
@@ -53,7 +58,7 @@ export const Live = React.memo(function Live() {
   }
 
   return (
-    <View style={styles.track}>
+    <View style={trackStyle}>
       <LiveLabel />
       <View style={styles.info}>
         <MarqueeGroup>

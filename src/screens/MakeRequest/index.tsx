@@ -17,6 +17,7 @@ import { useUserSettings } from "@/contexts/user/UserSettingsProvider";
 import type { MusicRequest } from "@/core/domain/music-request";
 import { useDict } from "@/hooks/useDict";
 import { useRecentSearches } from "@/hooks/useRecentSearches";
+import { useResponsiveLayout } from "@/hooks/useResponsiveLayout";
 import { useRouteReselect } from "@/hooks/useRouteReselect";
 import { useScrollEndPadding } from "@/hooks/useScrollEndPadding";
 import { IMGS } from "@/i18n";
@@ -70,6 +71,9 @@ export function MakeRequest() {
   // The lists run under the home indicator / nav bar and pad past it; the
   // keyboard-aware lists add the keyboard's room themselves.
   const bottomPadding = useScrollEndPadding(THEME.SPACE.LG);
+
+  // Short windows (landscape phones) cannot spare the full logo.
+  const layout = useResponsiveLayout();
 
   // Re-tapping the drawer's active item jumps the results back to the top.
   useRouteReselect("MakeRequest", () =>
@@ -153,16 +157,25 @@ export function MakeRequest() {
   // The banner steps aside while searching so the list gets the room above
   // the keyboard.
   const showLogo = !searchFocused && query === "";
+  // Decorative full-size in portrait; in a short window (landscape phone) it
+  // shrinks to a third of the window height so the search field and the
+  // results keep the room below it.
+  const logoSize = layout.short
+    ? Math.min(LOGO_HEIGHT, Math.round(layout.height * 0.3))
+    : LOGO_HEIGHT;
 
   return (
-    <SafeAreaView style={styles.container} edges={["left", "right"]}>
+    // No side edges: the header bar runs full-bleed under a landscape notch /
+    // camera cutout and insets its own row (as on Home); the content column
+    // is capped and centered, so it already clears the side safe areas.
+    <SafeAreaView style={styles.container} edges={[]}>
       <HeaderBar />
       <View style={styles.appContainer}>
         {showLogo && (
           <View style={styles.logoWrapper}>
             <Logo
               img={IMGS[settings.selectedLanguage].MAKE_REQUEST}
-              size={LOGO_HEIGHT}
+              size={logoSize}
             />
           </View>
         )}

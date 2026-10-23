@@ -216,6 +216,16 @@ describe("Oscilloscope (Android)", () => {
       expect(sent()).toEqual([]);
     });
 
+    it("keeps one page while the strip height changes (a live resize never reloads it)", () => {
+      const { rerender } = render(<Oscilloscope height={127} />);
+      message({ type: "ready" });
+      const html = webview.html;
+      const mounts = webview.mounts;
+      rerender(<Oscilloscope height={90} />);
+      expect(webview.mounts).toBe(mounts);
+      expect(webview.html).toBe(html);
+    });
+
     it("remounts a fresh page when the WebView's renderer process dies", () => {
       render(<Oscilloscope />);
       message({ type: "ready" });
@@ -248,6 +258,20 @@ describe("Oscilloscope (Android)", () => {
     const due = (at: number, delay: number) => (at - delay) / 25 + 1;
     const steady = (from: number, to: number, period = 25) =>
       Array.from({ length: Math.floor((to - from) / period) }, (_, k) => from + k * period);
+
+    it("sizes and centres the canvas from its own viewport height, following a resize", () => {
+      const p = page(320.8);
+      // The reference strip: 75 of 127, centred — 26px from the top.
+      expect(p.heightAssignments).toEqual([75]);
+      expect(p.canvas.style.top).toBe("26px");
+
+      // A shorter strip (landscape phone logo) without reloading the page.
+      p.pageWindow.innerHeight = 89;
+      p.frame(16);
+      // 89 × 75/127 = 52.6 → 52, centred: (89 − 52) / 2 = 18.5 → 18.
+      expect(p.heightAssignments).toEqual([75, 52]);
+      expect(p.canvas.style.top).toBe("18px");
+    });
 
     it("paints the idle flat line once and caches canvas, context and stroke state", () => {
       const p = page(320.8);

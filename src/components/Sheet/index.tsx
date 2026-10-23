@@ -6,18 +6,19 @@ import {
   StyleSheet,
   TouchableOpacity,
   View,
-  useWindowDimensions,
   type GestureResponderEvent,
 } from "react-native";
 import { Image } from "expo-image";
 import DragIcon from "@/assets/icons/drag_down.webp";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useResponsiveLayout } from "@/hooks/useResponsiveLayout";
 import { useDict } from "@/hooks/useDict";
 import { usePresence } from "@/hooks/usePresence";
 import { useReducedMotion } from "@/hooks/useReducedMotion";
 import type { ChipState } from "@/hooks/useChip";
 import { Toast } from "@/components/Toast";
 import { THEME } from "@/theme";
+import { ALL_ORIENTATIONS } from "@/theme/layout";
 import { MOTION } from "@/theme/motion";
 import { scale } from "@/theme/responsive";
 import { CONTINUOUS } from "@/theme/shape";
@@ -76,16 +77,21 @@ export function Sheet({
   const insets = useSafeAreaInsets();
   const dict = useDict();
   const reduceMotion = useReducedMotion();
-  const { height: windowHeight } = useWindowDimensions();
+  // The live window: drives the short-window height cap (and re-renders on
+  // rotation / resize so the cap tracks the window it actually gets).
+  const layout = useResponsiveLayout();
 
   // The modal stays mounted until the exit animation has played.
   const { mounted, progress } = usePresence(visible);
 
   const [drag] = useState(() => new Animated.Value(0));
   // Starts at the window height (the first frame is off-screen whatever the
-  // sheet measures), then the sheet's own height once laid out.
-  const [travel] = useState(() => new Animated.Value(windowHeight));
-  const sheetHeight = useRef(windowHeight);
+  // sheet measures), then the sheet's own height once laid out. A rotation
+  // re-seeds it via onLayout: the sheet's height follows the window in a
+  // short one (see the cap below), so the next presentation or an in-flight
+  // animation travels the new height, not the mount-time one.
+  const [travel] = useState(() => new Animated.Value(layout.height));
+  const sheetHeight = useRef(layout.height);
 
   // A fresh presentation starts from rest, not from the last drag offset.
   const [wasVisible, setWasVisible] = useState(visible);
@@ -163,6 +169,7 @@ export function Sheet({
       // Sensitive props stay authoritative — after `rest` on purpose. The
       // sheet animates itself, so the modal appears without its own motion.
       animationType="none"
+      supportedOrientations={ALL_ORIENTATIONS}
       transparent
       statusBarTranslucent
       navigationBarTranslucent
@@ -197,9 +204,23 @@ export function Sheet({
             styles.sheet,
             maxHeight != null && { maxHeight },
             {
+              // Landscape puts the notch beside the sheet's edges; the
+              // insets shrink it into the safe area. On a portrait phone
+              // both are 0, so the sheet spans exactly as it always has.
+              marginLeft: insets.left,
+              marginRight: insets.right,
               paddingBottom: insets.bottom + THEME.LAYOUT.SHEET_END_GAP,
               opacity: reduceMotion ? progress : 1,
               transform: [{ translateY: Animated.add(slide, drag) }],
+            },
+            // A short window (landscape phone) cannot hold the sheet's
+            // natural height — and a caller's percentage cap can still
+            // overshoot once the window is that low. This hard cap wins
+            // (it is last in the list): the sheet tops out a gap under the
+            // window and its keyboard-aware content scrolls instead of
+            // being clipped.
+            layout.short && {
+              maxHeight: layout.height - insets.top - THEME.SPACE.MD,
             },
           ]}
         >
@@ -258,6 +279,11 @@ const styles = StyleSheet.create({
   },
   sheet: {
     width: "100%",
+    // Full width on a phone (the cap is wider than any portrait window),
+    // but on a wide window a full-width sheet reads as stretched: it stops
+    // at the shared content cap and centers over the scrim.
+    maxWidth: THEME.LAYOUT.CONTENT_MAX_WIDTH,
+    alignSelf: "center",
     flexShrink: 1,
     backgroundColor: THEME.COLORS.SURFACE,
     borderTopLeftRadius: THEME.RADIUS.SHEET,

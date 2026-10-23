@@ -14,11 +14,13 @@ import { Icon } from "@/components/Icon";
 import HarukaError from "@/assets/error_haruka.webp";
 import HarukaSuccess from "@/assets/success_haruka.webp";
 import { THEME } from "@/theme";
-import { styles } from "@/contexts/alert/styles";
+import { ALL_ORIENTATIONS } from "@/theme/layout";
+import { IMG_HEIGHT, styles } from "@/contexts/alert/styles";
 import { Portal } from "@/contexts/Portal";
 import { PrimaryButton } from "@/components/PrimaryButton";
 import { Toast, type ToastVariant } from "@/components/Toast";
 import { useDict } from "@/hooks/useDict";
+import { useResponsiveLayout } from "@/hooks/useResponsiveLayout";
 import { usePresence } from "@/hooks/usePresence";
 import { useReducedMotion } from "@/hooks/useReducedMotion";
 import { haptics } from "@/utils/haptics";
@@ -158,6 +160,18 @@ export const AlertProvider: React.FC<{ children: ReactNode }> = ({
 
   const insets = useSafeAreaInsets();
   const dict = useDict();
+  // Short windows (landscape phones) cannot hold the full dialog card.
+  const layout = useResponsiveLayout();
+
+  // In a short window Haruka's band gives way to the message: a third of the
+  // window height so the close, the text and the button still fit. Portrait
+  // keeps the full artwork band untouched.
+  const harukaStyle = layout.short
+    ? [
+        styles.img,
+        { height: Math.min(IMG_HEIGHT, Math.round(layout.height * 0.3)) },
+      ]
+    : styles.img;
 
   const value = useMemo(
     () => ({ success, error, toast }),
@@ -200,6 +214,7 @@ export const AlertProvider: React.FC<{ children: ReactNode }> = ({
             app's tempo (the OS fade is slower and differs per platform). */}
         <Modal
           animationType="none"
+          supportedOrientations={ALL_ORIENTATIONS}
           visible={mounted}
           statusBarTranslucent
           navigationBarTranslucent
@@ -244,7 +259,11 @@ export const AlertProvider: React.FC<{ children: ReactNode }> = ({
                   color={THEME.COLORS.TEXT}
                 />
               </TouchableOpacity>
-              <Image contentFit="contain" source={haruka} style={styles.img} />
+              <Image
+                contentFit="contain"
+                source={haruka}
+                style={harukaStyle}
+              />
               <Text
                 accessibilityRole={shown?.type === "error" ? "alert" : undefined}
                 style={styles.text}

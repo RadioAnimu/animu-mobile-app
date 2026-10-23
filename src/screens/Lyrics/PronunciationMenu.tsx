@@ -54,6 +54,13 @@ interface Props {
   turn: SharedValue<number>;
   /** 0 closed → 1 open, driven here, read by the screen to blur what's behind. */
   progress: SharedValue<number>;
+  /**
+   * Screen x of the pane the menu hangs from (the lyrics pane in two-pane
+   * mode). Defaults to the phone's left margin.
+   */
+  left?: number;
+  /** Widest the menu may be on a narrow window / pane (default: 290pt). */
+  maxWidth?: number;
 }
 
 /**
@@ -75,6 +82,8 @@ export function PronunciationMenu({
   cover,
   turn,
   progress,
+  left,
+  maxWidth,
 }: Readonly<Props>) {
   const dict = useDict();
   const [open, setOpen] = useState(false);
@@ -83,6 +92,10 @@ export function PronunciationMenu({
   const press = useSharedValue(0);
   const bottom = bottomInset + THEME.SPACE.LG;
   const menuBottom = bottom + BUTTON + THEME.SPACE.SM;
+  const anchorLeft = left ?? MENU_LEFT;
+  // A narrow window (or the lyrics pane) may be smaller than the menu: never
+  // let it run off the edge.
+  const menuWidth = maxWidth === undefined ? MENU_WIDTH : Math.min(MENU_WIDTH, Math.max(0, maxWidth));
 
   const toggle = (next: boolean) => {
     setOpen(next);
@@ -158,11 +171,11 @@ export function PronunciationMenu({
       ) : null}
       {shown ? (
         <Animated.View
-          style={[styles.menu, { bottom: menuBottom }, menu]}
+          style={[styles.menu, { bottom: menuBottom, left: anchorLeft, width: menuWidth }, menu]}
           pointerEvents={open ? "auto" : "none"}
           accessibilityRole="menu"
         >
-          <Glass cover={cover} turn={turn} left={MENU_LEFT} bottom={menuBottom} style={styles.menuGlass}>
+          <Glass cover={cover} turn={turn} left={anchorLeft} bottom={menuBottom} style={styles.menuGlass}>
             <Animated.View style={items}>
               {choices.map((item, index) => {
                 const available = modes.includes(item.mode);
@@ -195,8 +208,8 @@ export function PronunciationMenu({
           </Glass>
         </Animated.View>
       ) : null}
-      <Animated.View style={[styles.button, { bottom }, button]}>
-        <Glass cover={cover} turn={turn} left={BUTTON_LEFT} bottom={bottom} style={styles.buttonGlass}>
+      <Animated.View style={[styles.button, { bottom, left: anchorLeft }, button]}>
+        <Glass cover={cover} turn={turn} left={anchorLeft} bottom={bottom} style={styles.buttonGlass}>
           <Animated.View style={[StyleSheet.absoluteFill, styles.glint, glint]} pointerEvents="none" />
           <Pressable
             accessibilityRole="button"

@@ -2,8 +2,9 @@ import { Image } from "expo-image";
 import React from "react";
 import { ScrollView, Text, View } from "react-native";
 import { usePlayer } from "@/contexts/player/PlayerProvider";
+import { useResponsiveLayout } from "@/hooks/useResponsiveLayout";
 import { useDict } from "@/hooks/useDict";
-import { styles } from "@/components/PopUpProgram/styles";
+import { IMG_HEIGHT, styles } from "@/components/PopUpProgram/styles";
 import { Sheet } from "@/components/Sheet";
 
 interface Props {
@@ -17,6 +18,8 @@ export const PopUpProgram = React.memo(function PopUpProgram({
 }: Props) {
   const dict = useDict();
   const player = usePlayer();
+  // Short windows (landscape phones) cannot hold the full artwork band.
+  const layout = useResponsiveLayout();
 
   const program = player.currentProgram;
 
@@ -34,6 +37,17 @@ export const PopUpProgram = React.memo(function PopUpProgram({
   const programTheme = localized?.theme ?? program?.theme;
   const programDayTime = localized?.dayAndTime;
 
+  // In a short window the artwork gives way to the text: it shrinks to a
+  // third of the window height so the name and info block fit under it (the
+  // sheet itself is height-capped there and its content scrolls). Portrait
+  // keeps the full band untouched.
+  const imgStyle = layout.short
+    ? [
+        styles.img,
+        { height: Math.min(IMG_HEIGHT, Math.round(layout.height * 0.3)) },
+      ]
+    : styles.img;
+
   return (
     <Sheet visible={visible} onClose={handleClose} maxHeight="75%">
       {program ? (
@@ -43,7 +57,7 @@ export const PopUpProgram = React.memo(function PopUpProgram({
         >
           <Image
             source={{ uri: program.imageUrl }}
-            style={styles.img}
+            style={imgStyle}
             contentFit="contain"
           />
 

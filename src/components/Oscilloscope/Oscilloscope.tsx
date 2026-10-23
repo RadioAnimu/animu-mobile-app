@@ -15,11 +15,18 @@ import { styles } from "@/components/Oscilloscope/styles";
  * Full strip the native container reserves for the scope (logo renders
  * around it) — the canvas is absolutely pinned to its vertical centre.
  * Geometry is authored at the 393pt reference and scaled with the logo so
- * the trace stays centred behind it on every device.
+ * the trace stays centred behind it on every device. The default strip is
+ * the logo's height; a smaller logo (landscape phones) passes its own, and
+ * the canvas keeps the same proportions inside it.
  */
 const STRIP_HEIGHT = scale(127);
-const CANVAS_HEIGHT = scale(75);
-const CANVAS_TOP = scale(26);
+/**
+ * The canvas's share of the strip (75 of 127 at the reference), centred in
+ * it. The page derives both from its own viewport height, so a strip of any
+ * height — resized live — keeps the trace centred behind the logo without
+ * reloading the page.
+ */
+const CANVAS_RATIO = 75 / 127;
 
 type WebViewHandle = React.ComponentRef<typeof WebView>;
 
@@ -77,7 +84,7 @@ const PAGE_HTML = `<!DOCTYPE html>
       /* The canvas is pinned to the exact vertical centre of the strip the
          native container reserves for it, so no body-flow or zoom quirk of
          the embed can shift where the trace sits. */
-      #oscilloscope { display: block; position: absolute; left: 0; top: ${CANVAS_TOP}px; z-index: 0; color: white; }
+      #oscilloscope { display: block; position: absolute; left: 0; top: 0; z-index: 0; color: white; }
     </style>
   </head>
   <body>
@@ -365,7 +372,11 @@ const PAGE_HTML = `<!DOCTYPE html>
         // Identical to the web player: CSS-pixel canvas, 1x, compositor
         // handles upscaling on hi-DPI phones.
         var canvasWidth = Math.floor(window.innerWidth);
-        var canvasHeight = Math.floor(${CANVAS_HEIGHT});
+        var canvasHeight = Math.floor(window.innerHeight * ${CANVAS_RATIO});
+        var canvasTop = Math.floor((window.innerHeight - canvasHeight) / 2);
+        if (scopeCanvas.style.top !== canvasTop + 'px') {
+          scopeCanvas.style.top = canvasTop + 'px';
+        }
         if (scopeCanvas.width !== canvasWidth) {
           scopeCanvas.width = canvasWidth;
           applyStrokeStyles();
@@ -461,7 +472,21 @@ const PAGE_HTML = `<!DOCTYPE html>
 /** One source object for the page's lifetime (a new one per render is prop churn). */
 const PAGE_SOURCE = { html: PAGE_HTML };
 
-export const Oscilloscope = React.memo(function Oscilloscope() {
+interface Props {
+  /**
+   * Width of the strip. Defaults to the window's; a pane that does not span
+   * the window passes its own (the page sizes its canvas to the WebView's
+   * `innerWidth`, so the trace follows).
+   */
+  width?: number;
+  /** Height of the strip — the logo's, so the trace stays centred behind it. */
+  height?: number;
+}
+
+export const Oscilloscope = React.memo(function Oscilloscope({
+  width: widthProp,
+  height = STRIP_HEIGHT,
+}: Readonly<Props>) {
   const {
     subscribeVisualizerWindows,
     isPlaying,
@@ -473,7 +498,8 @@ export const Oscilloscope = React.memo(function Oscilloscope() {
   // other screens are in front of it): sampling must stop when it is not
   // the screen the user is actually looking at.
   const isFocused = useIsFocused();
-  const { width } = useWindowDimensions();
+  const { width: windowWidth } = useWindowDimensions();
+  const width = widthProp ?? windowWidth;
 
   const diagnosticRef = useRef({ start: 0, last: 0, waves: 0, gapMaxMs: 0, encodePostMaxMs: 0 });
   const webviewRef = useRef<WebViewHandle | null>(null);
@@ -594,7 +620,7 @@ export const Oscilloscope = React.memo(function Oscilloscope() {
   if (!wantsOn) return null;
 
   return (
-    <View style={styles.container} pointerEvents="none">
+    <View style={[styles.container, { height }]} pointerEvents="none">
       {/* The WebView *is* the 127px strip: nesting it inside the old 75px
           `canvas` view double-offset the trace (wrapper centred the 127px
           viewport 26px down, then the page offset the canvas another 26px). */}
@@ -613,7 +639,7 @@ export const Oscilloscope = React.memo(function Oscilloscope() {
         scrollEnabled={false}
         showsHorizontalScrollIndicator={false}
         showsVerticalScrollIndicator={false}
-        style={{ width, height: STRIP_HEIGHT, backgroundColor: "transparent" }}
+        style={{ width, height, backgroundColor: "transparent" }}
       />
     </View>
   );

@@ -24,7 +24,38 @@ const MIC_GAP = scale(28);
  */
 const MIC_SIZE = Math.round(ICON_BTN * 1.25);
 
-export { CONTAINER_HEIGHT, ICON_HIT_SLOP, MIC_SIZE };
+/** The bar and its progress slot together (below the status bar inset). */
+const BAR_HEIGHT = CONTAINER_HEIGHT + PROGRESS_HEIGHT;
+
+/**
+ * Below this row width the play button's side margins give way: the row's
+ * three groups (menu, play, note — the microphone hangs off one of them) need
+ * ~`scale(300)` and an iPad slide-over / split-view column is narrower than
+ * the phone the margins were drawn for.
+ */
+const NARROW_ROW = scale(360);
+/** The play button never sits closer than this to its neighbours. */
+const PLAY_BTN_MIN_MARGIN = scale(24);
+
+/**
+ * The play button's side margin for a row of this width: the designed one
+ * from `NARROW_ROW` up (every phone, in either orientation), shrinking in
+ * proportion below it.
+ */
+const playButtonMargin = (rowWidth: number): number =>
+  rowWidth >= NARROW_ROW
+    ? PLAY_BTN_MARGIN
+    : Math.max(PLAY_BTN_MIN_MARGIN, (PLAY_BTN_MARGIN * rowWidth) / NARROW_ROW);
+
+/**
+ * How far the microphone hangs off the menu / note, from its icon's edge:
+ * the designed gap on every phone, pulled in with the play button's margins
+ * on a narrow row so the mic never crowds the play button.
+ */
+const micOffset = (rowWidth: number): number =>
+  ICON_BTN + (MIC_GAP * playButtonMargin(rowWidth)) / PLAY_BTN_MARGIN;
+
+export { BAR_HEIGHT, CONTAINER_HEIGHT, ICON_HIT_SLOP, MIC_SIZE, micOffset, playButtonMargin };
 
 export const styles = StyleSheet.create({
   view: {

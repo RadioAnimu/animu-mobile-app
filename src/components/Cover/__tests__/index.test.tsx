@@ -35,6 +35,7 @@ vi.mock("expo-image", () => ({
 
 vi.mock("react-native", () => ({
   Dimensions: { get: () => ({ width: 390, height: 844 }) },
+  Platform: { isTV: false },
   StyleSheet: { create: (styles: object) => styles },
   View: ({ children }: { children?: unknown }) => children,
 }));
@@ -120,5 +121,27 @@ describe("Cover bounded retry", () => {
     // A new cover never renders with the previous artwork's proportions.
     rerender(<Cover cover="https://cdn.test/other.jpg" preserveAspectRatio />);
     expect(lastProps?.style).toContainEqual({ width: SIZE, height: SIZE });
+  });
+
+  it("contains the artwork in a bounded frame when given a size", () => {
+    render(<Cover cover={COVER} preserveAspectRatio size={200} />);
+    expect(lastProps?.style).toContainEqual({ width: 200, height: 200 });
+
+    // Wide art keeps the width and gets shorter (clamped at 2:1).
+    act(() => lastProps?.onLoad?.(LOADED(400, 200)));
+    expect(lastProps?.style).toContainEqual({ width: 200, height: 100 });
+    act(() => lastProps?.onLoad?.(LOADED(1000, 100)));
+    expect(lastProps?.style).toContainEqual({ width: 200, height: 100 });
+
+    // Tall art keeps the height and narrows: it never outgrows the frame.
+    act(() => lastProps?.onLoad?.(LOADED(250, 1000)));
+    expect(lastProps?.style).toContainEqual({ width: 50, height: 200 });
+    act(() => lastProps?.onLoad?.(LOADED(400, 500)));
+    expect(lastProps?.style).toContainEqual({ width: 160, height: 200 });
+  });
+
+  it("sizes the plain square frame too", () => {
+    render(<Cover cover={COVER} size={150} />);
+    expect(lastProps?.style).toContainEqual({ width: 150, height: 150 });
   });
 });

@@ -14,7 +14,7 @@ import Animated, {
 import type { LyricEntry, LyricLine } from "@/core/lyrics";
 import type { LineLabel } from "@/core/lyrics/pronunciation";
 import { SegmentColumns, SungColumns, SungWords } from "@/screens/Lyrics/Segments";
-import { LYRIC, styles } from "@/screens/Lyrics/styles";
+import { styles } from "@/screens/Lyrics/styles";
 
 /** `activeIndex` while the heard position is not known. */
 export const UNKNOWN_INDEX = -2;
@@ -41,6 +41,10 @@ export interface ListMotion {
   companionIndex: SharedValue<number>;
   /** Height of the lyrics viewport. */
   viewport: SharedValue<number>;
+  /** Where the lit line's top sits below the viewport top (short-window aware). */
+  anchor: SharedValue<number>;
+  /** Rows fade out over this distance at the viewport's bottom edge. */
+  edgeFade: SharedValue<number>;
   reduceMotion: boolean;
 }
 
@@ -156,7 +160,7 @@ export const LyricRow = memo(function LyricRow({
   motion,
   onRowLayout,
 }: Readonly<RowProps>) {
-  const { activeIndex, companionIndex, browsing, viewport, reduceMotion } = motion;
+  const { activeIndex, companionIndex, browsing, viewport, anchor, edgeFade, reduceMotion } = motion;
   const isActive = depth === 0;
   const lit = isActive || companion;
   // Android 12+ blurs natively, iOS through SwiftUI-backed view filters (a
@@ -182,8 +186,8 @@ export const LyricRow = memo(function LyricRow({
     // At the top: full at the lit line's place, gone once the row is above
     // the edge — a line leaving under the header is faint before it is cut.
     const screenTop = top.get() - y.get();
-    const edge = LYRIC.EDGE_FADE;
-    const fadeTop = interpolate(screenTop, [-height.get(), LYRIC.ANCHOR], [0, 1], Extrapolation.CLAMP);
+    const edge = edgeFade.get();
+    const fadeTop = interpolate(screenTop, [-height.get(), anchor.get()], [0, 1], Extrapolation.CLAMP);
     const fadeBottom = interpolate(screenTop, [viewport.get() - edge, viewport.get()], [1, 0], Extrapolation.CLAMP);
     // The lit line stands a touch larger than the rest (follows the fade).
     const scale = reduceMotion || interlude ? 1 : interpolate(emphasis.get(), [0.5, 1], [0.97, 1], Extrapolation.CLAMP);

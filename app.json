@@ -3,14 +3,14 @@
     "name": "Rádio Animu",
     "version": "4.0.1",
     "slug": "animu",
-    "orientation": "portrait",
+    "orientation": "default",
     "icon": "./assets/icon-android.png",
     "userInterfaceStyle": "dark",
     "backgroundColor": "#270052",
     "scheme": "animuapp",
     "ios": {
       "icon": "./assets/icon-ios.png",
-      "supportsTablet": false,
+      "supportsTablet": true,
       "bundleIdentifier": "com.nessjs.animu",
       "appleTeamId": "RWDZC8478Q",
       "infoPlist": {
@@ -113,6 +113,8 @@
       ],
       "./plugins/withAndroidReleaseResources",
       "./plugins/withAndroidLargeScreenOrientation",
+      "./plugins/withAndroidTV",
+      "./plugins/withAndroidFocusRing",
       "./plugins/withAndroidR8Optimization"
     ],
     "extra": {

@@ -21,6 +21,16 @@ function fitInSlot(ratio: number) {
   return { width: SIZE, height: SIZE / Math.min(ratio, MAX_RATIO) };
 }
 
+/**
+ * Inside a bounded frame nothing may outgrow the square: wide art fills the
+ * width (cropped at `MAX_RATIO`), tall art fills the height and narrows.
+ */
+function fitInFrame(ratio: number, size: number) {
+  return ratio >= 1
+    ? { width: size, height: size / Math.min(ratio, MAX_RATIO) }
+    : { width: size * ratio, height: size };
+}
+
 interface Props {
   cover: string;
   /** Overrides the default (now-playing) frame — e.g. list rows. */
@@ -47,6 +57,12 @@ interface Props {
    * square until the image reports its size.
    */
   preserveAspectRatio?: boolean;
+  /**
+   * Bounds the cover to a square frame of this side instead of the default
+   * (`SIZE`). Where the player has a measured amount of room (the split
+   * layout) tall art is contained in it rather than growing the slot.
+   */
+  size?: number;
 }
 
 /**
@@ -76,6 +92,7 @@ export function Cover({
   recyclingKey,
   category,
   preserveAspectRatio,
+  size,
 }: Readonly<Props>) {
   const { settings } = useUserSettings();
   // Failure count lives per URL in a ref, NOT in the state that derives the
@@ -117,7 +134,9 @@ export function Cover({
       style={[
         { backgroundColor: THEME.COLORS.APP_BG },
         style ?? styles.image,
-        preserveAspectRatio && fitInSlot(ratio),
+        size !== undefined && { width: size, height: size },
+        preserveAspectRatio &&
+          (size === undefined ? fitInSlot(ratio) : fitInFrame(ratio, size)),
       ]}
       placeholder={DEFAULT_COVER}
       placeholderContentFit="cover"
@@ -147,7 +166,17 @@ export function Cover({
     />
   );
 
-  return preserveAspectRatio ? <View style={styles.slot}>{image}</View> : image;
+  if (!preserveAspectRatio) return image;
+  return (
+    <View style={size === undefined ? styles.slot : [styles.slot, boundedSlot(size)]}>
+      {image}
+    </View>
+  );
+}
+
+/** A slot held to exactly `size` square — tall art cannot grow it. */
+function boundedSlot(size: number) {
+  return { width: size, height: size, minHeight: 0 };
 }
 
 /**
@@ -155,12 +184,16 @@ export function Cover({
  * bundled cover in the same square slot, so the player doesn't open with a
  * gap that the first artwork then shoves everything down to fill.
  */
-export function CoverPlaceholder() {
+export function CoverPlaceholder({ size }: Readonly<{ size?: number }>) {
   return (
-    <View style={styles.slot}>
+    <View style={size === undefined ? styles.slot : [styles.slot, boundedSlot(size)]}>
       <Image
         source={DEFAULT_COVER}
-        style={[{ backgroundColor: THEME.COLORS.APP_BG }, styles.image]}
+        style={[
+          { backgroundColor: THEME.COLORS.APP_BG },
+          styles.image,
+          size !== undefined && { width: size, height: size },
+        ]}
         contentFit="cover"
       />
     </View>

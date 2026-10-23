@@ -5,6 +5,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { CustomDrawerContent } from "@/components/CustomDrawer";
 import { onReselect } from "@/core/navigation/reselect";
+import { THEME } from "@/theme";
+import { WINDOW_CONTROLS_HEIGHT, type ResponsiveLayout } from "@/theme/layout";
 
 vi.mock("react-native", async () =>
   (await import("@/__tests__/react-native-mock")).createReactNativeMock(),
@@ -15,9 +17,19 @@ vi.mock("@react-native-vector-icons/material-icons/static", async () =>
 vi.mock("@/components/Logo", () => ({
   Logo: () => <span data-testid="logo" />,
 }));
+const drawerStatus = vi.hoisted(() => ({ value: "open" as "open" | "closed" }));
 vi.mock("@react-navigation/drawer", () => ({
-  DrawerContentScrollView: ({ children }: { children: React.ReactNode }) => (
-    <div>{children}</div>
+  useDrawerStatus: () => drawerStatus.value,
+  DrawerContentScrollView: ({
+    children,
+    contentContainerStyle,
+  }: {
+    children: React.ReactNode;
+    contentContainerStyle?: Record<string, unknown>;
+  }) => (
+    <div data-content-style={JSON.stringify(contentContainerStyle ?? {})}>
+      {children}
+    </div>
   ),
 }));
 vi.mock("@react-navigation/native", () => ({
@@ -31,6 +43,14 @@ vi.mock("@react-navigation/native", () => ({
   DrawerActions: { closeDrawer: () => ({ type: "CLOSE_DRAWER" }) },
 }));
 
+/** Mutable stand-in for the window's safe-area insets. */
+const insetsCtl = vi.hoisted(() => ({
+  value: { top: 0, bottom: 0, left: 0, right: 0 },
+}));
+vi.mock("react-native-safe-area-context", () => ({
+  useSafeAreaInsets: () => insetsCtl.value,
+}));
+
 const mocks = vi.hoisted(() => ({
   auth: {} as { user?: object | null; profile?: object | null },
   haptics: { select: vi.fn(), error: vi.fn() },
@@ -38,6 +58,12 @@ const mocks = vi.hoisted(() => ({
     currentProgram?: { isLive: boolean };
   },
   toast: vi.fn(),
+  /** The window's layout; each test sets it before rendering (phone by default). */
+  layout: null as unknown as ResponsiveLayout,
+}));
+
+vi.mock("@/hooks/useResponsiveLayout", () => ({
+  useResponsiveLayout: () => mocks.layout,
 }));
 
 vi.mock("@/contexts/player/PlayerProvider", () => ({
@@ -97,13 +123,68 @@ function makeProps(focusedIndex = 0): DrawerContentComponentProps {
 
 const user = { username: "ana_u", handle: "ana", avatarUrl: "https://a/x.png" };
 
+/** A portrait phone: no window controls over the drawer's top corner. */
+const PHONE: ResponsiveLayout = {
+  width: 393,
+  height: 852,
+  usableWidth: 393,
+  windowClass: "compact",
+  landscape: false,
+  split: false,
+  short: false,
+  tv: false,
+  windowControlsInset: 0,
+};
+
 describe("CustomDrawerContent", () => {
   beforeEach(() => {
     mocks.auth = { user: null, profile: null };
     mocks.player = { currentProgram: undefined };
+    mocks.layout = { ...PHONE, windowControlsInset: 0 };
     vi.clearAllMocks();
   });
   afterEach(cleanup);
+
+  describe("safe area", () => {
+    it("keeps the menu clear of the landscape (left) inset", () => {
+      insetsCtl.value = { top: 24, bottom: 49, left: 47, right: 0 };
+      render(<CustomDrawerContent {...makeProps()} />);
+      const content = document.querySelector("[data-content-style]")!;
+      expect(JSON.parse(content.getAttribute("data-content-style")!)).toEqual({
+        flexGrow: 1,
+        paddingLeft: 47,
+      });
+    });
+
+    it("changes nothing on a portrait phone, where the side insets are 0", () => {
+      insetsCtl.value = { top: 59, bottom: 34, left: 0, right: 0 };
+      render(<CustomDrawerContent {...makeProps()} />);
+      const content = document.querySelector("[data-content-style]")!;
+      expect(JSON.parse(content.getAttribute("data-content-style")!)).toEqual({
+        flexGrow: 1,
+        paddingLeft: 0,
+      });
+    });
+  });
+
+  describe("window controls", () => {
+    /** The header View — the parent of the logo (Animu) button. */
+    const headerStyle = () =>
+      JSON.parse(
+        screen.getByRole("button", { name: "Animu" }).parentElement!.getAttribute("data-style")!,
+      );
+
+    it("keeps the header's designed margin on a phone", () => {
+      render(<CustomDrawerContent {...makeProps()} />);
+      expect(headerStyle().marginTop).toBe(THEME.SPACE.MD);
+    });
+
+    it("drops the logo below the iPadOS window controls in a resizable window", () => {
+      mocks.layout = { ...PHONE, windowControlsInset: 72 };
+      render(<CustomDrawerContent {...makeProps()} />);
+      expect(headerStyle().marginTop).toBe(WINDOW_CONTROLS_HEIGHT);
+    });
+  });
 
   describe("account row", () => {
     it("signed out: invites sign-in, opens Login, and offers a separate settings gear", () => {
@@ -233,5 +314,30 @@ describe("CustomDrawerContent", () => {
       fireEvent.click(screen.getByRole("button", { name: "Animu" }));
       expect(navigation.navigate).toHaveBeenCalledWith("Home");
     });
+  });
+});
+
+describe("CustomDrawerContent — D-pad focus", () => {
+  afterEach(() => {
+    drawerStatus.value = "open";
+  });
+
+  it("takes none of its controls into focus while closed (it stays mounted off-screen)", () => {
+    drawerStatus.value = "closed";
+    const { container } = render(<CustomDrawerContent {...makeProps()} />);
+    const focusables = container.querySelectorAll("[data-focusable]");
+    expect(focusables.length).toBeGreaterThan(0);
+    focusables.forEach((node) => expect(node.getAttribute("data-focusable")).toBe("false"));
+    expect(container.querySelector("[data-tv-preferred-focus]")).toBeNull();
+  });
+
+  it("opens with focus on the current destination", () => {
+    const { container } = render(<CustomDrawerContent {...makeProps()} />);
+    container
+      .querySelectorAll("[data-focusable]")
+      .forEach((node) => expect(node.getAttribute("data-focusable")).toBe("true"));
+    const preferred = container.querySelectorAll("[data-tv-preferred-focus]");
+    expect(preferred).toHaveLength(1);
+    expect(preferred[0].getAttribute("aria-selected")).toBe("true");
   });
 });
