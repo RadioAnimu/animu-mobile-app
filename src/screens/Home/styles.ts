@@ -1,7 +1,6 @@
 import { StyleSheet } from "react-native";
 import { FLOW_STYLES } from "@/theme/screen";
 import { scale } from "@/theme/responsive";
-import { THEME } from "@/theme";
 
 /** Designer's vertical rhythm between the player sections. */
 export const RHYTHM = {
@@ -49,32 +48,41 @@ export const styles = StyleSheet.create({
 });
 
 /**
- * The two-pane (split) composition. Widths and gaps that depend on the
+ * The landscape (website hero) composition. Widths that depend on the
  * window are inline (from `resolveSplitMetrics`); what is fixed lives here.
  */
 export const splitStyles = StyleSheet.create({
-  /** Centers the panes and the ticker as one block in the scroll view. */
-  root: {
+  // The hero keeps the player's own rhythm from the header: the same gap
+  // above it as under its countdown, as between the cover and countdown.
+  page: {
     alignItems: "center",
+    paddingTop: RHYTHM.TIME_BOTTOM,
   },
-  panes: {
+  /** The art and the cover block side by side, centered as one. */
+  hero: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
+    marginBottom: RHYTHM.TIME_BOTTOM,
   },
-  pane: {
+  coverColumn: {
     alignItems: "center",
   },
-  // Same full-bleed ticker as the stack, set under the panes like the
-  // website's song lines under its hero.
-  liveWrapper: {
-    alignSelf: "stretch",
-    marginTop: THEME.SPACE.MD,
+  listenersWrapper: {
+    marginBottom: RHYTHM.LISTENERS,
   },
-  // The countdown sits at the foot of the art column: no gap below it.
+  coverWrapper: {
+    marginBottom: RHYTHM.COVER,
+  },
+  // Full column width: the countdown's messages overlay a fixed-height slot.
   timeRemainingWrapper: {
     alignSelf: "stretch",
     marginTop: RHYTHM.TIME_TOP,
+  },
+  // The ticker is full-bleed, as in portrait.
+  liveWrapper: {
+    alignSelf: "stretch",
+    marginBottom: RHYTHM.LIVE,
   },
   programWrapper: {
     marginBottom: RHYTHM.PROGRAM,

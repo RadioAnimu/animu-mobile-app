@@ -117,88 +117,47 @@ describe("Home", () => {
     });
   });
 
-  describe("split panes", () => {
-    const panesOf = () => {
-      const art = screen.getByTestId("listeners").parentElement!.parentElement!;
-      return { art, info: screen.getByTestId("program").parentElement!.parentElement!, row: art.parentElement! };
-    };
+  describe("landscape hero", () => {
+    const heroOf = () => screen.getByTestId("listeners").parentElement!.parentElement!.parentElement!;
 
-    it("puts program info and artwork side by side with the ticker below both", () => {
+    it("puts the program art beside the cover block, the rest of the player below", () => {
       setWindow(1180, 820, IPAD_INSETS);
       render(<Home />);
-      const { art, info, row } = panesOf();
-      expect(JSON.parse(row.getAttribute("data-style")!).flexDirection).toBe("row");
-      expect([...row.children]).toEqual([info, art]);
-      expect(info.contains(screen.getByTestId("scope"))).toBe(true);
-      expect(info.contains(screen.getByTestId("bitrate"))).toBe(true);
+      const hero = heroOf();
+      expect(JSON.parse(hero.getAttribute("data-style")!).flexDirection).toBe("row");
+      const art = screen.getByRole("button", { name: BANNER.name });
+      expect(art.querySelector("img")?.getAttribute("src")).toBe(BANNER.imageUrl);
+      // Art first (left), then listeners, cover and countdown.
+      expect(hero.firstElementChild!.contains(art)).toBe(true);
       for (const id of ["listeners", "cover", "time"]) {
-        expect(art.contains(screen.getByTestId(id))).toBe(true);
+        expect(hero.lastElementChild!.contains(screen.getByTestId(id))).toBe(true);
       }
-      // The ticker is outside both panes, after them, in the centered block.
-      const live = screen.getByTestId("live");
-      expect(row.contains(live)).toBe(false);
-      expect(row.compareDocumentPosition(live) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-      expect(row.parentElement!.contains(live)).toBe(true);
+      // No logo: the oscilloscope runs behind the header (mocked here) instead.
+      expect(screen.queryByTestId("logo")).toBeNull();
+      // The bitrate pills stay in portrait.
+      expect(order()).toEqual(["listeners", "cover", "time", "live", "program"]);
       expect(content()).toEqual({ flexGrow: 1, justifyContent: "center" });
     });
 
-    it("sizes the scope to the info pane and the cover to the room", () => {
+    it("aligns the header's row with the hero", () => {
       setWindow(1180, 820, IPAD_INSETS);
       render(<Home />);
-      const infoWidth = JSON.parse(panesOf().info.getAttribute("data-style")!).width;
-      expect(Number(screen.getByTestId("scope").getAttribute("data-width"))).toBe(infoWidth);
-      expect(screen.getByTestId("scope").getAttribute("data-height")).toBe(
-        screen.getByTestId("logo").getAttribute("data-size"),
-      );
-      const cover = Number(screen.getByTestId("cover").getAttribute("data-size"));
-      expect(cover).toBeGreaterThan(240);
-      expect(cover).toBeLessThanOrEqual(JSON.parse(panesOf().art.getAttribute("data-style")!).width);
+      const heroWidth = JSON.parse(heroOf().getAttribute("data-style")!).width;
+      expect(Number(screen.getByTestId("header").getAttribute("data-row-width"))).toBe(heroWidth);
     });
 
-    it("aligns the header's row with the panes", () => {
-      setWindow(1180, 820, IPAD_INSETS);
-      render(<Home />);
-      const rowWidth = JSON.parse(panesOf().row.getAttribute("data-style")!).width;
-      expect(Number(screen.getByTestId("header").getAttribute("data-row-width"))).toBe(rowWidth);
-    });
-
-    it("shows the tappable program banner only when the window is roomy", () => {
-      setWindow(1180, 820, IPAD_INSETS);
-      const { unmount } = render(<Home />);
-      const banner = screen.getByRole("button", { name: BANNER.name });
-      expect(banner.querySelector("img")?.getAttribute("src")).toBe(BANNER.imageUrl);
-      // Between the logo and the program line.
-      expect(
-        screen.getByTestId("logo").compareDocumentPosition(banner) & Node.DOCUMENT_POSITION_FOLLOWING,
-      ).toBeTruthy();
-      expect(
-        banner.compareDocumentPosition(screen.getByTestId("program")) & Node.DOCUMENT_POSITION_FOLLOWING,
-      ).toBeTruthy();
-      unmount();
-
-      // A landscape phone: short, no banner, a smaller logo, a bounded cover.
+    it("sizes a landscape phone's cover to the first screen", () => {
       setWindow(852, 393, PHONE_INSETS);
       render(<Home />);
-      expect(screen.queryByRole("button", { name: BANNER.name })).toBeNull();
-      expect(Number(screen.getByTestId("logo").getAttribute("data-size"))).toBeLessThan(127);
       expect(Number(screen.getByTestId("cover").getAttribute("data-size"))).toBeLessThan(240);
-      cleanup();
-
-      // A TV's body is too short for it whatever the width.
-      mocks.layout = resolveLayout(960, 540, undefined, true);
-      mocks.insets = { top: 0, right: 0, bottom: 0, left: 0 };
-      render(<Home />);
-      expect(screen.queryByRole("button", { name: BANNER.name })).toBeNull();
     });
 
-    it("holds the banner's room until the program has an image", () => {
+    it("holds the art's place with the logo until the program has art", () => {
       mocks.player = { currentProgram: undefined };
       setWindow(1180, 820, IPAD_INSETS);
       render(<Home />);
       expect(screen.queryByRole("button", { name: BANNER.name })).toBeNull();
-      const logo = screen.getByTestId("logo").parentElement!.parentElement!;
-      // logo block, banner placeholder, program block, bitrate.
-      expect(logo.children).toHaveLength(4);
+      expect(screen.getByTestId("logo")).toBeTruthy();
     });
   });
 });

@@ -16,6 +16,12 @@ const LIVE_BADGE_BOTTOM = scale(48);
  */
 const ICON_HIT_SLOP = scale(14);
 
+/**
+ * How far the live badge (its widest artwork, 86) reaches left of the note it
+ * points at, past the bar's usual gap, plus a little air.
+ */
+const LIVE_BADGE_ROOM = 86 - LIVE_BADGE_RIGHT + scale(8);
+
 /** Space between the lyrics microphone and the note it sits beside. */
 const MIC_GAP = scale(28);
 /**
@@ -74,6 +80,13 @@ export const styles = StyleSheet.create({
     backgroundColor: THEME.COLORS.SURFACE,
     height: CONTAINER_HEIGHT,
   },
+  /** The bar's area under the status bar, behind the row (see `backdrop`). */
+  backdrop: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    height: CONTAINER_HEIGHT,
+  },
   // The row's width is applied by the component (`contentWidth` of the
   // current window): full width on phones, the capped column on tablets.
   row: {
@@ -81,6 +94,22 @@ export const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-around",
     height: "100%",
+  },
+  /**
+   * The landscape bar (player.animu.moe): its two groups on the page's
+   * edges, over the art's left and the cover column's right.
+   */
+  barRow: {
+    justifyContent: "space-between",
+  },
+  barGroup: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: MIC_GAP,
+  },
+  /** The note steps away from the mic so the live badge hangs between them. */
+  noteBesideBadge: {
+    marginLeft: LIVE_BADGE_ROOM,
   },
   playBtn: {
     width: PLAY_BTN,

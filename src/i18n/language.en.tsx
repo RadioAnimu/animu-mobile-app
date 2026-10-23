@@ -554,6 +554,7 @@ const DICT = {
   ACCOUNT_EMAIL_EMPTY: "No emails linked yet.",
   SETTINGS_ACCOUNT_SIGN_IN: "Sign in to your account",
   A11Y_OPEN_LYRICS: "Show lyrics",
+  A11Y_STREAM_QUALITY: "Audio quality",
   A11Y_CLOSE_LYRICS: "Close lyrics",
   LYRICS_LOADING: "Looking for lyrics…",
   LYRICS_MISSING: "No lyrics for this song yet",

@@ -560,6 +560,7 @@ const DICT: Dict = {
   ACCOUNT_EMAIL_EMPTY: "Nenhum e-mail vinculado ainda.",
   SETTINGS_ACCOUNT_SIGN_IN: "Entrar na sua conta",
   A11Y_OPEN_LYRICS: "Mostrar letra",
+  A11Y_STREAM_QUALITY: "Qualidade do áudio",
   A11Y_CLOSE_LYRICS: "Fechar letra",
   LYRICS_LOADING: "Procurando a letra…",
   LYRICS_MISSING: "Ainda não há letra para esta música",

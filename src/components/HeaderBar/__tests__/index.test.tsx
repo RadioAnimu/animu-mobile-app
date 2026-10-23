@@ -59,6 +59,9 @@ vi.mock("@/hooks/useDict", () => ({
   }),
 }));
 vi.mock("@/utils/haptics", () => ({ haptics: mocks.haptics }));
+vi.mock("@/components/BitrateSelect", () => ({
+  BitrateSelect: () => <i data-testid="bitrate-select" />,
+}));
 vi.mock("@/components/LyricsButton", () => ({
   // Labeled like the real button (A11Y_OPEN_LYRICS) so placement tests can
   // count the mics by their accessibility label.
@@ -155,6 +158,32 @@ describe("HeaderBar", () => {
       unmount();
       render(<HeaderBar rowWidth={150} />);
       expect(playMargin()).toBe(24);
+    });
+  });
+
+  describe("landscape bar", () => {
+    const labelsIn = (slot: string) =>
+      [...screen.getByTestId(slot).querySelectorAll("[aria-label], [data-testid]")]
+        .map((el) => el.getAttribute("aria-label") ?? el.getAttribute("data-testid"))
+        .filter((label) => label !== "image");
+
+    it("reads like the website player: menu and play left; stream, lyrics and requests right", () => {
+      mocks.layout = { usableWidth: 734, tv: false, windowControlsInset: 0 };
+      render(<HeaderBar rowWidth={686} bar openLiveRequestModal={vi.fn()} />);
+      expect(labelsIn("menu-slot")).toEqual(["Open menu", "Play"]);
+      expect(labelsIn("note-slot")).toEqual(["bitrate-select", "Show lyrics", "Make request"]);
+    });
+
+    it("keeps the mic beside the stream picker during a live show", () => {
+      setPlayer({ currentProgram: { isLive: true, acceptingRequests: true } });
+      render(<HeaderBar rowWidth={686} bar openLiveRequestModal={vi.fn()} />);
+      expect(screen.getAllByLabelText("Show lyrics")).toHaveLength(1);
+      expect(within(screen.getByTestId("note-slot")).getByTestId("badge-enabled")).toBeTruthy();
+    });
+
+    it("leaves the portrait row without the stream picker", () => {
+      render(<HeaderBar />);
+      expect(screen.queryByTestId("bitrate-select")).toBeNull();
     });
   });
 

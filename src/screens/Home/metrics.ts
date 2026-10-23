@@ -6,78 +6,54 @@ import type { ResponsiveLayout } from "@/theme/layout";
 import { RHYTHM } from "@/screens/Home/styles";
 
 /**
- * Sizes of the split (two-pane) Home. The cover and the program banner are
- * the only pieces that stretch, and they need to know how much room the
- * window leaves them — so the player's other rows are budgeted here, as
- * authored heights, instead of measured with `onLayout` (a measurement that
- * feeds back into a size loops during an iPad window drag). The budgets lean
- * a little generous: an overrun scrolls, it never clips.
+ * Sizes of the landscape Home: the website's hero (animu.moe from 768px up).
+ * The program's art on the left — the website's hero image — and on the
+ * right the cover block (listeners badge, cover, countdown); the rest of the
+ * portrait player follows underneath, full width, and the page scrolls where
+ * the height runs out. The rows around the cover are budgeted as authored
+ * heights rather than measured with `onLayout` (a measurement feeding back
+ * into a size loops during an iPad window drag).
  */
 
-/** Widest the two panes grow; past it a bigger window only adds margin. */
-const MAX_CONTENT_WIDTH = scale(900);
-/** Info pane's share of the pane space (info : art ≈ 1.1 : 1). */
-const INFO_SHARE = 1.1 / 2.1;
-/**
- * The cover may outgrow the stack's square where there is room for it — up
- * to this much. The window's height is what really bounds it (see the
- * budget below): a landscape iPad Air lands near 1.5×, a 13" iPad Pro uses
- * the full step instead of leaving a band of empty space under the ticker.
- */
-const COVER_GROWTH = 1.7;
+/** Side margin of the hero inside the safe area. */
+const EDGE = THEME.SPACE.XXL;
+/** Widest the hero grows: the website's own hero container. */
+const HERO_MAX_WIDTH = 1100;
+/** Gap between the art and the cover block. */
+const COLUMN_GAP = THEME.SPACE.XXL;
+/** Share of the hero the program's art takes, as on the website. */
+const ART_SHARE = 0.57;
+/** The program art's proportions (the website's hero image). */
+export const ART_ASPECT = 1.92;
 /** Smallest cover; below it the page scrolls rather than shrink further. */
 const COVER_MIN = scale(120);
-/**
- * How far the decorative logo (and its scope) shrinks to fit a short window:
- * a landscape phone keeps ~190pt for the panes, and the program, bitrate and
- * song ticker matter more than the logo's size.
- */
-const LOGO_MIN_RATIO = 0.55;
-/** The program banner's proportions (the website's hero image). */
-export const BANNER_ASPECT = 1.92;
-/** The banner needs a body at least this tall (pt): see `resolveSplitMetrics`. */
-const BANNER_MIN_BODY_HEIGHT = 600;
-const BANNER_MIN_HEIGHT = scale(110);
 
-// Authored heights of the rows around the stretchy pieces.
+// Authored heights of the player's rows (the stretchy cover aside).
 const LISTENERS_ROW = scale(32);
 const TIME_ROW = scale(18);
 const PROGRAM_ROW = scale(48);
 const BITRATE_ROW = scale(49);
-/**
- * The song ticker's three lines as rendered (measured on an iPhone SE in
- * landscape, where an under-estimate pushes its last line off the window).
- */
+/** The song ticker's three lines as rendered. */
 const TICKER_ROW = scale(84);
 
-const GAP = {
-  /** Between the stacked blocks of the info pane. */
-  ROOMY: THEME.SPACE.MD,
-  SHORT: THEME.SPACE.SM,
-};
-/** Art column rhythm: the stack's, tightened where height is scarce. */
-const TIGHT_RHYTHM = { LISTENERS: scale(6), COVER: scale(6) };
+/** Under the hero: the song ticker and the program, with their gaps. */
+const BELOW_HERO = RHYTHM.TIME_BOTTOM + TICKER_ROW + RHYTHM.LIVE + PROGRAM_ROW + RHYTHM.PROGRAM;
+/** The smallest cover worth fitting the whole page for; below it, the page scrolls. */
+const PAGE_FIT_MIN_COVER = scale(200);
 
 export interface SplitMetrics {
-  /** Width of the two panes together — the header's icon row matches it. */
+  /** Width of the hero — the header's icon row matches it. */
   contentWidth: number;
-  infoWidth: number;
+  /** The program art's width; its height follows `ART_ASPECT`. */
   artWidth: number;
-  /** Logo height; the oscilloscope strip follows it. */
-  logoHeight: number;
+  coverColumnWidth: number;
   /** Side of the square frame the cover is held to. */
   coverSize: number;
-  /** Banner width (height is `width / BANNER_ASPECT`); null when there is no room. */
-  bannerWidth: number | null;
-  /** Gap between the info pane's blocks. */
-  gap: number;
-  listenersGap: number;
-  coverGap: number;
 }
 
-/** Page content width for a split window — the header's row uses it too. */
+/** Page content width for a landscape window — the header's row uses it too. */
 export const splitContentWidth = (usableWidth: number): number =>
-  Math.min(usableWidth - 2 * THEME.SPACE.XXL, MAX_CONTENT_WIDTH);
+  Math.min(usableWidth - 2 * EDGE, HERO_MAX_WIDTH);
 
 /**
  * @param headerHeight the pinned header (bar, progress slot, status bar)
@@ -89,58 +65,21 @@ export function resolveSplitMetrics(
   endPadding: number,
 ): SplitMetrics {
   const contentWidth = splitContentWidth(layout.usableWidth);
-  const paneSpace = contentWidth - THEME.SPACE.XXL;
-  const infoWidth = Math.floor(paneSpace * INFO_SHARE);
-  const artWidth = paneSpace - infoWidth;
-
-  const gap = layout.short ? GAP.SHORT : GAP.ROOMY;
-  const listenersGap = layout.short ? TIGHT_RHYTHM.LISTENERS : RHYTHM.LISTENERS;
-  const coverGap = layout.short ? TIGHT_RHYTHM.COVER : RHYTHM.COVER;
-
-  // What the panes may use: the window minus the header, the ticker under
-  // them and the end padding.
-  const budget =
-    layout.height - headerHeight - (TICKER_ROW + THEME.SPACE.MD) - endPadding;
-
-  const artChrome = LISTENERS_ROW + listenersGap + coverGap + RHYTHM.TIME_TOP + TIME_ROW;
-  const coverCap = COVER_SIZE * (layout.short ? 1 : COVER_GROWTH);
+  const artWidth = Math.round(contentWidth * ART_SHARE);
+  const coverColumnWidth = contentWidth - artWidth - COLUMN_GAP;
+  // The cover matches the art's height, as on the website, and gives way
+  // to the height: where the window can hold the whole page with a cover of
+  // a fair size (a tablet), the page fits without scrolling; otherwise (a
+  // phone) the whole cover block fits the first screen and the rest scrolls
+  // into view.
+  const body = layout.height - headerHeight - endPadding - RHYTHM.TIME_BOTTOM;
+  const coverChrome = LISTENERS_ROW + RHYTHM.LISTENERS + RHYTHM.COVER + RHYTHM.TIME_TOP + TIME_ROW;
+  const fitsPage = body - BELOW_HERO - coverChrome;
+  const room = fitsPage >= PAGE_FIT_MIN_COVER ? fitsPage : body - coverChrome;
   const coverSize = Math.floor(
-    Math.max(COVER_MIN, Math.min(coverCap, artWidth, budget - artChrome)),
+    Math.max(COVER_MIN, Math.min(artWidth / ART_ASPECT, coverColumnWidth, room)),
   );
-
-  // The banner is for windows with a body this tall (a TV's, a landscape
-  // phone's are not — whatever the device) and takes what the logo, the
-  // program line and the bitrate row leave of the budget.
-  const below = gap + PROGRAM_ROW + RHYTHM.PROGRAM + BITRATE_ROW;
-  const bodyHeight = layout.height - headerHeight;
-  const bannerRoom = budget - (THEME.LAYOUT.LOGO_HEIGHT + below + gap);
-  const bannerHeight = Math.min(infoWidth / BANNER_ASPECT, bannerRoom);
-  const roomy =
-    !layout.short &&
-    bodyHeight >= BANNER_MIN_BODY_HEIGHT &&
-    bannerHeight >= BANNER_MIN_HEIGHT;
-
-  // Without a banner the logo takes what is left, between 70% and its full height.
-  const logoHeight = roomy
-    ? THEME.LAYOUT.LOGO_HEIGHT
-    : Math.round(
-        Math.min(
-          THEME.LAYOUT.LOGO_HEIGHT,
-          Math.max(THEME.LAYOUT.LOGO_HEIGHT * LOGO_MIN_RATIO, budget - below),
-        ),
-      );
-
-  return {
-    contentWidth,
-    infoWidth,
-    artWidth,
-    logoHeight,
-    coverSize,
-    bannerWidth: roomy ? Math.floor(bannerHeight * BANNER_ASPECT) : null,
-    gap,
-    listenersGap,
-    coverGap,
-  };
+  return { contentWidth, artWidth, coverColumnWidth, coverSize };
 }
 
 /** Widest the stacked cover grows, as a share of the window (tablet portrait). */

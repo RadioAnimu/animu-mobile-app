@@ -552,6 +552,7 @@ const DICT: Dict = {
   ACCOUNT_EMAIL_EMPTY: "まだメールが登録されていないよ。",
   SETTINGS_ACCOUNT_SIGN_IN: "アカウントにログイン",
   A11Y_OPEN_LYRICS: "歌詞を表示",
+  A11Y_STREAM_QUALITY: "音質",
   A11Y_CLOSE_LYRICS: "歌詞を閉じる",
   LYRICS_LOADING: "歌詞を探しています…",
   LYRICS_MISSING: "この曲の歌詞はまだありません",

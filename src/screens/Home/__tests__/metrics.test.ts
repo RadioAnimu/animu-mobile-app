@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import { resolveLayout } from "@/theme/layout";
 import {
-  BANNER_ASPECT,
+  ART_ASPECT,
   headerHeight,
   resolveSplitMetrics,
   resolveStackedCover,
@@ -27,69 +27,38 @@ const metrics = (
 ) => resolveSplitMetrics(layout, headerHeight(top), bottom + gap);
 
 describe("splitContentWidth", () => {
-  it("leaves a margin on each side and stops growing past the cap", () => {
+  it("leaves a margin on each side and stops at the website's hero width", () => {
     expect(splitContentWidth(734)).toBe(686);
-    expect(splitContentWidth(1366)).toBe(900);
+    expect(splitContentWidth(1366)).toBe(1100);
   });
 });
 
-describe("resolveSplitMetrics", () => {
-  it("fits a landscape phone: no banner, shrunk logo, cover to the room left", () => {
+describe("resolveSplitMetrics (the website hero)", () => {
+  it("gives the program art the website's share, the cover block the rest", () => {
     const m = metrics(PHONE, 0, 21, 8);
     expect(m.contentWidth).toBe(686);
-    expect(m.infoWidth + m.artWidth + 24).toBe(686);
-    expect(m.bannerWidth).toBeNull();
-    // Between 55% and the full logo, whichever the info pane fits.
-    expect(m.logoHeight).toBeGreaterThanOrEqual(Math.round(127 * 0.55));
-    expect(m.logoHeight).toBeLessThan(127);
-    // 393 − header 72 − ticker 96 − end 29 − the art column's chrome.
-    expect(m.coverSize).toBe(130);
+    // 57% of the hero, then the gap, then the cover block.
+    expect(m.artWidth).toBe(391);
+    expect(m.artWidth + 24 + m.coverColumnWidth).toBe(686);
   });
 
-  it("gives a roomy tablet window the banner, within the info pane", () => {
+  it("fits the whole cover block in a landscape phone's first screen", () => {
+    // 393 − header 72 − end 29 − top gap 14.5 − listeners, gaps and countdown.
+    expect(metrics(PHONE, 0, 21, 8).coverSize).toBe(203);
+  });
+
+  it("fits a tablet's whole page, the cover matching the art's height", () => {
     const m = metrics(IPAD, 24, 20, 16);
-    expect(m.logoHeight).toBe(127);
-    expect(m.bannerWidth).not.toBeNull();
-    expect(m.bannerWidth!).toBeLessThanOrEqual(m.infoWidth);
-    expect(m.bannerWidth!).toBeGreaterThan(m.infoWidth * 0.9);
-    // The cover may outgrow the stack's 240 square (here up to its 1.7×
-    // cap), never the art pane.
-    expect(m.coverSize).toBe(Math.floor(240 * 1.7));
-    expect(m.coverSize).toBeLessThanOrEqual(m.artWidth);
+    expect(m.contentWidth).toBe(1100);
+    expect(m.coverSize).toBe(Math.floor(m.artWidth / ART_ASPECT));
+    expect(metrics(TV, 0, 0, 16).coverSize).toBe(270);
   });
 
-  it("decides the banner by the body's height, not the device", () => {
-    // A TV's 540pt window has a ~470pt body: no banner.
-    expect(metrics(TV, 0, 0, 16).bannerWidth).toBeNull();
-    // Same width and any device: 600pt of body (window − 72 header) is the line.
-    const at = (height: number) =>
-      metrics(resolveLayout(1100, height), 0, 0, 16).bannerWidth;
-    expect(at(671)).toBeNull();
-    expect(at(672)).not.toBeNull();
-  });
-
-  it("keeps the banner in the 1.92:1 proportions of the website's hero", () => {
-    const m = metrics(IPAD, 24, 20, 16);
-    expect(m.bannerWidth! / BANNER_ASPECT).toBeLessThanOrEqual(
-      m.infoWidth / BANNER_ASPECT,
-    );
-  });
-
-  it("bounds the cover by the room the window leaves, down to a floor", () => {
-    const wide = (height: number) =>
-      metrics(resolveLayout(1100, height), 0, 0, 16).coverSize;
-    expect(wide(1000)).toBe(408);
-    // Shorter windows give it less height, down to the floor.
-    expect(wide(560)).toBeLessThan(408);
-    expect(wide(480)).toBeLessThan(wide(560));
-    expect(wide(520)).toBeGreaterThan(wide(440));
-    // Never absurdly small: the page scrolls instead.
-    expect(wide(300)).toBe(120);
-  });
-
-  it("never lets the cover outgrow the art pane", () => {
+  it("never lets the cover outgrow its column, nor shrink past a floor", () => {
     const narrow = metrics(resolveLayout(660, 600), 0, 0, 16);
-    expect(narrow.coverSize).toBeLessThanOrEqual(narrow.artWidth);
+    expect(narrow.coverSize).toBeLessThanOrEqual(narrow.coverColumnWidth);
+    // Never absurdly small: the page scrolls instead.
+    expect(metrics(resolveLayout(1100, 280), 0, 0, 16).coverSize).toBe(120);
   });
 });
 

@@ -1,9 +1,11 @@
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ScrollView, View } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 
 // Components
 import { HeaderBar } from "@/components/HeaderBar";
+import { CONTAINER_HEIGHT } from "@/components/HeaderBar/styles";
+import { Oscilloscope } from "@/components/Oscilloscope";
 import { LiveRequestModal } from "@/components/LiveRequestModal";
 import { PopUpProgram } from "@/components/PopUpProgram";
 
@@ -35,6 +37,12 @@ export const Home = () => {
 
   const layout = useResponsiveLayout();
   const { split, short } = layout;
+  // Rotating swaps the composition: the new one starts at its top, not at
+  // the old one's scroll offset (which lands mid-hero).
+  useEffect(() => {
+    scrollRef.current?.scrollTo({ y: 0, animated: false });
+  }, [split]);
+
   // A landscape phone has no height to spare: only the home indicator is cleared.
   const endPadding = useScrollEndPadding(
     split && short ? THEME.SPACE.SM : THEME.SPACE.LG,
@@ -74,6 +82,12 @@ export const Home = () => {
       <HeaderBar
         openLiveRequestModal={() => handleLiveRequestModal(true)}
         rowWidth={split ? splitContentWidth(layout.usableWidth) : undefined}
+        bar={split}
+        // Landscape: the oscilloscope leaves the logo and runs behind the
+        // bar, the website player's signature.
+        backdrop={
+          split ? <Oscilloscope width={layout.width} height={CONTAINER_HEIGHT} /> : undefined
+        }
       />
       {/* Scrolls only when the player outgrows the screen (small phones,
           large text) — no rubber-band drag when everything already fits.

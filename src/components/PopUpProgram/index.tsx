@@ -4,7 +4,7 @@ import { ScrollView, Text, View } from "react-native";
 import { usePlayer } from "@/contexts/player/PlayerProvider";
 import { useResponsiveLayout } from "@/hooks/useResponsiveLayout";
 import { useDict } from "@/hooks/useDict";
-import { IMG_HEIGHT, styles } from "@/components/PopUpProgram/styles";
+import { styles } from "@/components/PopUpProgram/styles";
 import { Sheet } from "@/components/Sheet";
 
 interface Props {
@@ -18,8 +18,9 @@ export const PopUpProgram = React.memo(function PopUpProgram({
 }: Props) {
   const dict = useDict();
   const player = usePlayer();
-  // Short windows (landscape phones) cannot hold the full artwork band.
-  const layout = useResponsiveLayout();
+  // In landscape the program's art is already on screen — the Home hero —
+  // so the sheet is its text alone.
+  const { landscape } = useResponsiveLayout();
 
   const program = player.currentProgram;
 
@@ -37,17 +38,6 @@ export const PopUpProgram = React.memo(function PopUpProgram({
   const programTheme = localized?.theme ?? program?.theme;
   const programDayTime = localized?.dayAndTime;
 
-  // In a short window the artwork gives way to the text: it shrinks to a
-  // third of the window height so the name and info block fit under it (the
-  // sheet itself is height-capped there and its content scrolls). Portrait
-  // keeps the full band untouched.
-  const imgStyle = layout.short
-    ? [
-        styles.img,
-        { height: Math.min(IMG_HEIGHT, Math.round(layout.height * 0.3)) },
-      ]
-    : styles.img;
-
   return (
     <Sheet visible={visible} onClose={handleClose} maxHeight="75%">
       {program ? (
@@ -55,11 +45,13 @@ export const PopUpProgram = React.memo(function PopUpProgram({
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.scrollContent}
         >
-          <Image
-            source={{ uri: program.imageUrl }}
-            style={imgStyle}
-            contentFit="contain"
-          />
+          {landscape ? null : (
+            <Image
+              source={{ uri: program.imageUrl }}
+              style={styles.img}
+              contentFit="contain"
+            />
+          )}
 
           <Text style={styles.programName}>{programName}</Text>
 

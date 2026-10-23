@@ -1,6 +1,6 @@
 import { useNavigation } from "@react-navigation/native";
 import type { DrawerNavigationProp } from "@react-navigation/drawer";
-import { useEffect, useState } from "react";
+import { type ReactNode, useEffect, useState } from "react";
 import { Image } from "expo-image";
 import { Animated, Easing, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -17,6 +17,7 @@ import {
   styles,
 } from "@/components/HeaderBar/styles";
 import { contentWidth } from "@/theme/responsive";
+import { BitrateSelect } from "@/components/BitrateSelect";
 import { LyricsButton } from "@/components/LyricsButton";
 import { PlayPauseButton } from "@/components/PlayPauseButton";
 import { useUserSettings } from "@/contexts/user/UserSettingsProvider";
@@ -40,6 +41,17 @@ interface Props {
    * with the panes beneath.
    */
   rowWidth?: number;
+  /**
+   * Drawn behind the icon row, across the whole bar under the status bar —
+   * the landscape player runs its oscilloscope here, as the website player
+   * draws its wave behind its bar.
+   */
+  backdrop?: ReactNode;
+  /**
+   * The landscape player's bar, as on player.animu.moe: menu and play on the
+   * left; the stream picker, lyrics and requests on the right.
+   */
+  bar?: boolean;
 }
 
 const PULSE_OPACITY = 0.05;
@@ -48,7 +60,7 @@ const PULSE_DURATION = 1750;
 const PULSE_TRAVEL = 50;
 const PULSE_BOB = PULSE_TRAVEL * 2 * PULSE_OPACITY;
 
-export function HeaderBar({ openLiveRequestModal, rowWidth }: Readonly<Props>) {
+export function HeaderBar({ openLiveRequestModal, rowWidth, backdrop, bar = false }: Readonly<Props>) {
   const navigation =
     useNavigation<DrawerNavigationProp<DrawerParamList>>();
   const insets = useSafeAreaInsets();
@@ -162,6 +174,52 @@ export function HeaderBar({ openLiveRequestModal, rowWidth }: Readonly<Props>) {
     ? IMGS[settings.selectedLanguage].LIVE_REQUEST_ENABLED
     : IMGS[settings.selectedLanguage].LIVE_REQUEST_DISABLED;
 
+  const menuButton = (
+    <TouchableOpacity
+      activeOpacity={THEME.OPACITY.PRESSED}
+      accessibilityRole="button"
+      accessibilityLabel={dict.A11Y_OPEN_MENU}
+      hitSlop={ICON_HIT_SLOP}
+      onPress={() => {
+        navigation.openDrawer();
+      }}
+    >
+      <Image contentFit="contain" style={styles.menuBtn} source={menuIcon} />
+    </TouchableOpacity>
+  );
+
+  const requestButton = (
+    <TouchableOpacity
+      activeOpacity={THEME.OPACITY.PRESSED}
+      accessibilityRole="button"
+      accessibilityLabel={dict.A11Y_MAKE_REQUEST}
+      hitSlop={ICON_HIT_SLOP}
+      onPress={() => {
+        if (currentProgram?.isLive) {
+          // Live: requests go through the modal, or nowhere while closed.
+          if (currentProgram.acceptingRequests && openLiveRequestModal) {
+            openLiveRequestModal();
+          }
+          return;
+        }
+        navigation.navigate("MakeRequest");
+      }}
+      style={[styles.noteWrapper, bar && showLiveBadge && styles.noteBesideBadge]}
+    >
+      {currentProgram?.isLive && openLiveRequestModal && (
+        <Animated.View
+          style={[
+            styles.liveRequestBadge,
+            { transform: [{ translateY }] },
+          ]}
+        >
+          <LiveRequestComponent />
+        </Animated.View>
+      )}
+      <Image contentFit="contain" style={styles.noteIcon} source={noteIcon} />
+    </TouchableOpacity>
+  );
+
   return (
     <View style={styles.view}>
       <View
@@ -176,79 +234,65 @@ export function HeaderBar({ openLiveRequestModal, rowWidth }: Readonly<Props>) {
           },
         ]}
       >
-        <View style={[styles.row, { width }]}>
-          {/* The microphone never joins the row's flex, so the play button
-              stays centered wherever it hangs. Live shows dangle the
-              live-request badge over the note — right where a note-side mic
-              would sit — so during a live program the mic parks beside the
-              menu instead (menu·mic, play, note). */}
-          <View style={styles.menuSlot} testID="menu-slot">
-            <TouchableOpacity
-              activeOpacity={THEME.OPACITY.PRESSED}
-              accessibilityRole="button"
-              accessibilityLabel={dict.A11Y_OPEN_MENU}
-              hitSlop={ICON_HIT_SLOP}
-              onPress={() => {
-                navigation.openDrawer();
-              }}
-            >
-              <Image contentFit="contain" style={styles.menuBtn} source={menuIcon} />
-            </TouchableOpacity>
-            {showLiveBadge && (
-              <LyricsButton
-                size={MIC_SIZE}
-                hitSlop={ICON_HIT_SLOP / 2}
-                style={[styles.lyricsButtonByMenu, micByMenu]}
-              />
-            )}
+        {backdrop ? (
+          <View
+            pointerEvents="none"
+            style={[styles.backdrop, { top: insets.top }]}
+          >
+            {backdrop}
           </View>
-          <PlayPauseButton
-            style={[styles.playBtn, { marginHorizontal: playMargin }]}
-            hasTVPreferredFocus={tv}
-          />
-
-          {/* Fallback placement: away from a live badge the mic hangs off the
-              note's left, as before. Only one mic mounts at a time — the two
-              branches swap it between slots. */}
-          <View style={styles.noteSlot} testID="note-slot">
-            {!showLiveBadge && (
-              <LyricsButton
-                size={MIC_SIZE}
-                hitSlop={ICON_HIT_SLOP / 2}
-                style={[styles.lyricsButtonByNote, micByNote]}
-              />
-            )}
-            <TouchableOpacity
-              activeOpacity={THEME.OPACITY.PRESSED}
-              accessibilityRole="button"
-              accessibilityLabel={dict.A11Y_MAKE_REQUEST}
-              hitSlop={ICON_HIT_SLOP}
-              onPress={() => {
-                if (currentProgram?.isLive) {
-                  // Live: requests go through the modal, or nowhere while closed.
-                  if (currentProgram.acceptingRequests && openLiveRequestModal) {
-                    openLiveRequestModal();
-                  }
-                  return;
-                }
-                navigation.navigate("MakeRequest");
-              }}
-              style={styles.noteWrapper}
-            >
-              {currentProgram?.isLive && openLiveRequestModal && (
-                <Animated.View
-                  style={[
-                    styles.liveRequestBadge,
-                    { transform: [{ translateY }] },
-                  ]}
-                >
-                  <LiveRequestComponent />
-                </Animated.View>
+        ) : null}
+        {bar ? (
+          <View style={[styles.row, styles.barRow, { width }]}>
+            <View style={styles.barGroup} testID="menu-slot">
+              {menuButton}
+              <PlayPauseButton style={styles.playBtn} hasTVPreferredFocus={tv} />
+            </View>
+            {/* Live shows hang the request badge off the note's left: the
+                note steps aside from the mic to make room for it. */}
+            <View style={styles.barGroup} testID="note-slot">
+              <BitrateSelect />
+              <LyricsButton size={MIC_SIZE} hitSlop={ICON_HIT_SLOP / 2} />
+              {requestButton}
+            </View>
+          </View>
+        ) : (
+          <View style={[styles.row, { width }]}>
+            {/* The microphone never joins the row's flex, so the play button
+                stays centered wherever it hangs. Live shows dangle the
+                live-request badge over the note — right where a note-side mic
+                would sit — so during a live program the mic parks beside the
+                menu instead (menu·mic, play, note). */}
+            <View style={styles.menuSlot} testID="menu-slot">
+              {menuButton}
+              {showLiveBadge && (
+                <LyricsButton
+                  size={MIC_SIZE}
+                  hitSlop={ICON_HIT_SLOP / 2}
+                  style={[styles.lyricsButtonByMenu, micByMenu]}
+                />
               )}
-              <Image contentFit="contain" style={styles.noteIcon} source={noteIcon} />
-            </TouchableOpacity>
+            </View>
+            <PlayPauseButton
+              style={[styles.playBtn, { marginHorizontal: playMargin }]}
+              hasTVPreferredFocus={tv}
+            />
+
+            {/* Fallback placement: away from a live badge the mic hangs off the
+                note's left, as before. Only one mic mounts at a time — the two
+                branches swap it between slots. */}
+            <View style={styles.noteSlot} testID="note-slot">
+              {!showLiveBadge && (
+                <LyricsButton
+                  size={MIC_SIZE}
+                  hitSlop={ICON_HIT_SLOP / 2}
+                  style={[styles.lyricsButtonByNote, micByNote]}
+                />
+              )}
+              {requestButton}
+            </View>
           </View>
-        </View>
+        )}
       </View>
       {/* The slot is always there: live shows and jingles have no bar, and
           dropping its height used to nudge the whole player up and down. */}
