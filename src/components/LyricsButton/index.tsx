@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { TouchableOpacity, type StyleProp, type ViewStyle } from "react-native";
+import { Platform, TouchableOpacity, type StyleProp, type ViewStyle } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { KaraokeMicIcon } from "@/components/KaraokeMicIcon";
@@ -31,10 +31,19 @@ export function LyricsButton({ size, hitSlop, style }: Readonly<Props>) {
 
   // At launch, once the player has settled: adopt the Japanese dictionary,
   // or delete an install the app was killed in (no dead files until Settings
-  // or the lyrics happen to open).
+  // or the lyrics happen to open). A TV always keeps it: there is no opting
+  // in from the couch, and a TV has the room — it installs when missing.
   useEffect(() => {
     const task = requestIdleCallback(() => {
-      japaneseDictionary.restore().catch(() => {});
+      japaneseDictionary
+        .restore()
+        .then(() => {
+          if (Platform.isTV && japaneseDictionary.snapshot.install === "none") {
+            return japaneseDictionary.install();
+          }
+          return undefined;
+        })
+        .catch(() => {});
     });
     return () => cancelIdleCallback(task);
   }, []);
