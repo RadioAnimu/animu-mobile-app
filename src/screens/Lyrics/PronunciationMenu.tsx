@@ -34,8 +34,11 @@ const CLOSE_SPRING = { duration: 300, dampingRatio: 1 };
 const PRESS_SPRING = { duration: 260, dampingRatio: 0.6 };
 /** How far the glass swells under the finger. */
 const PRESS_SWELL = 0.12;
-/** The button's glyph turns this far (deg, counter-clockwise) while its menu is out. */
-const OPEN_TURN = -33;
+/**
+ * The button's glyph turns this far (deg, clockwise) while its menu is out —
+ * toward the menu, which opens up and to the left of the corner button.
+ */
+const OPEN_TURN = 33;
 /** Blur the glass adds over the backdrop it covers. */
 const FROST = 40;
 
@@ -55,16 +58,16 @@ interface Props {
   /** 0 closed → 1 open, driven here, read by the screen to blur what's behind. */
   progress: SharedValue<number>;
   /**
-   * Screen x of the pane the menu hangs from (the lyrics pane in two-pane
-   * mode). Defaults to the phone's left margin.
+   * Distance from the screen's right edge to where the button and its menu
+   * end (past a landscape notch's inset). Defaults to the phone's margin.
    */
-  left?: number;
+  right?: number;
   /** Widest the menu may be on a narrow window / pane (default: 290pt). */
   maxWidth?: number;
 }
 
 /**
- * Apple Music's lyrics menu: a round glass button bottom-left whose menu of
+ * Apple Music's lyrics menu: a round glass button bottom-right whose menu of
  * pronunciations — romaji, hiragana, off — slides out of it, with the
  * Japanese dictionary offered (and its download shown) where a mode needs
  * it. Both are clear glass over a heavy blur, stained with the cover's own color; the
@@ -82,20 +85,24 @@ export function PronunciationMenu({
   cover,
   turn,
   progress,
-  left,
+  right = EDGE,
   maxWidth,
 }: Readonly<Props>) {
   const dict = useDict();
+  const window = useWindowDimensions();
   const [open, setOpen] = useState(false);
   // Outlives `open` by the closing slide, so the menu tucks away before unmounting.
   const [shown, setShown] = useState(false);
   const press = useSharedValue(0);
   const bottom = bottomInset + THEME.SPACE.LG;
   const menuBottom = bottom + BUTTON + THEME.SPACE.SM;
-  const anchorLeft = left ?? MENU_LEFT;
   // A narrow window (or the lyrics pane) may be smaller than the menu: never
   // let it run off the edge.
   const menuWidth = maxWidth === undefined ? MENU_WIDTH : Math.min(MENU_WIDTH, Math.max(0, maxWidth));
+  // Both end at the corner; the glass needs their screen x to line its
+  // backdrop up with the real one.
+  const buttonLeft = window.width - right - BUTTON;
+  const menuLeft = window.width - right - menuWidth;
 
   const toggle = (next: boolean) => {
     setOpen(next);
@@ -134,7 +141,7 @@ export function PronunciationMenu({
     return {
       opacity: interpolate(p, [0, 0.25], [0, 1], Extrapolation.CLAMP),
       transform: [
-        { translateX: (1 - p) * (BUTTON / 2) },
+        { translateX: -(1 - p) * (BUTTON / 2) },
         { translateY: (1 - p) * (BUTTON / 2 + THEME.SPACE.SM) },
         { scale: interpolate(p, [0, 1], [0.15, 1]) },
       ],
@@ -171,11 +178,11 @@ export function PronunciationMenu({
       ) : null}
       {shown ? (
         <Animated.View
-          style={[styles.menu, { bottom: menuBottom, left: anchorLeft, width: menuWidth }, menu]}
+          style={[styles.menu, { bottom: menuBottom, right, width: menuWidth }, menu]}
           pointerEvents={open ? "auto" : "none"}
           accessibilityRole="menu"
         >
-          <Glass cover={cover} turn={turn} left={anchorLeft} bottom={menuBottom} style={styles.menuGlass}>
+          <Glass cover={cover} turn={turn} left={menuLeft} bottom={menuBottom} style={styles.menuGlass}>
             <Animated.View style={items}>
               {choices.map((item, index) => {
                 const available = modes.includes(item.mode);
@@ -208,8 +215,8 @@ export function PronunciationMenu({
           </Glass>
         </Animated.View>
       ) : null}
-      <Animated.View style={[styles.button, { bottom, left: anchorLeft }, button]}>
-        <Glass cover={cover} turn={turn} left={anchorLeft} bottom={bottom} style={styles.buttonGlass}>
+      <Animated.View style={[styles.button, { bottom, right }, button]}>
+        <Glass cover={cover} turn={turn} left={buttonLeft} bottom={bottom} style={styles.buttonGlass}>
           <Animated.View style={[StyleSheet.absoluteFill, styles.glint, glint]} pointerEvents="none" />
           <Pressable
             accessibilityRole="button"
@@ -321,8 +328,8 @@ function DictionaryItem({
 }
 
 const BUTTON = scale(52);
-const BUTTON_LEFT = THEME.SPACE.XXL;
-const MENU_LEFT = THEME.SPACE.XXL;
+/** The corner margin the button and its menu keep from the screen's right edge. */
+const EDGE = THEME.SPACE.XXL;
 const MENU_WIDTH = scale(290);
 const MENU_RADIUS = scale(28);
 
@@ -341,7 +348,6 @@ const styles = StyleSheet.create({
   button: {
     position: "absolute",
     zIndex: 2,
-    left: BUTTON_LEFT,
     width: BUTTON,
     height: BUTTON,
   },
@@ -361,9 +367,8 @@ const styles = StyleSheet.create({
   menu: {
     position: "absolute",
     zIndex: 2,
-    left: MENU_LEFT,
     width: MENU_WIDTH,
-    transformOrigin: "left bottom",
+    transformOrigin: "right bottom",
   },
   menuGlass: {
     borderRadius: MENU_RADIUS,

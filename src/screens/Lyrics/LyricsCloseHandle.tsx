@@ -10,9 +10,9 @@ interface Props {
 }
 
 /**
- * The two-pane head: the grabber alone, over the lyrics pane. Tapping it (or
- * swiping down on it) closes the screen; the artwork and title beside it stay
- * inert so a tap there cannot dismiss by accident.
+ * The two-pane head: the grabber alone, centered over the whole window.
+ * Tapping it (or swiping down on it) closes the screen, as does a tap on the
+ * artwork and song under it.
  */
 export function LyricsCloseHandle({ onClose }: Readonly<Props>) {
   const dict = useDict();

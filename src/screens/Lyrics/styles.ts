@@ -9,6 +9,9 @@ import { scale } from "@/theme/responsive";
  */
 export const LYRICS_COLUMN_MAX = Math.min(scale(600), 640);
 
+/** The two-pane head's height: the grabber in its tap target. */
+export const CLOSE_HANDLE_HEIGHT = THEME.SPACE.XS + 2 * THEME.SPACE.SM + scale(5);
+
 /** Lyric text: large, bold, left-aligned — the Apple Music read. */
 export const LYRIC = {
   SIZE: scale(32),
@@ -43,7 +46,15 @@ export const styles = StyleSheet.create({
   /** The safe-area-padded content layer (the backdrop stays full-bleed). */
   content: {
     flex: 1,
+  },
+  /**
+   * The panes: the lyrics alone, or the artwork beside them — one group,
+   * centered in the window, so a wide window keeps equal margins.
+   */
+  panes: {
+    flex: 1,
     flexDirection: "row",
+    justifyContent: "center",
   },
   /** One pane: the header/close handle over the lyrics. */
   main: {
@@ -77,12 +88,10 @@ export const styles = StyleSheet.create({
     color: THEME.COLORS.TEXT_SOFT,
     textAlign: "center",
   },
-  artworkPlay: {
-    marginTop: THEME.SPACE.MD,
-  },
-  /** The two-pane head: the grabber, centered over the lyrics pane. */
+  /** The two-pane head: the grabber, centered over the whole window. */
   closeHandle: {
     alignItems: "center",
+    height: CLOSE_HANDLE_HEIGHT,
     paddingTop: THEME.SPACE.XS,
   },
   /** The readable column: never grows past a comfortable line length. */

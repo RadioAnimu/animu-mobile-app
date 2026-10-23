@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import type { ReactNode } from "react";
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { ResponsiveLayout } from "@/theme/layout";
 import { Lyrics } from "@/screens/Lyrics";
@@ -100,7 +100,7 @@ const TABLET_LANDSCAPE: ResponsiveLayout = {
   short: false,
   tv: false, windowControlsInset: 0,
 };
-/** 852×393 past the island's 59pt side insets: split, but not wide enough for panes. */
+/** 852×393 past the island's 59pt side insets: two panes, like every landscape window. */
 const PHONE_LANDSCAPE: ResponsiveLayout = {
   ...TABLET_LANDSCAPE,
   width: 852,
@@ -133,22 +133,19 @@ describe("Lyrics screen", () => {
     expect(screen.queryByRole("button", { name: "Play" })).toBeNull();
   });
 
-  it("puts the artwork, song and play button beside the lyrics on a wide window", () => {
+  it("puts the artwork and song beside the lyrics on a wide window", () => {
     renderAt(TABLET_LANDSCAPE);
     expect(screen.getByTestId("lyrics-body")).toBeTruthy();
-    expect(screen.getByRole("button", { name: "Play" })).toBeTruthy();
+    // Playback stays on the player: the panel is artwork and song only.
+    expect(screen.queryByRole("button", { name: "Play" })).toBeNull();
     expect(document.querySelector("[data-cover]")).not.toBeNull();
     // 38% of 1180 usable points.
     expect(document.querySelector('[data-style*=\'"width":448\']')).not.toBeNull();
-    // The song itself is not a dismiss target in two-pane mode; the grabber is.
-    expect(screen.queryByRole("button", { name: "Our Carol, Roselia" })).toBeNull();
-    expect(screen.getByText("Our Carol")).toBeTruthy();
+    // The artwork and song close the lyrics, like the portrait head's song
+    // row; so does the grabber over the window.
+    fireEvent.click(screen.getByRole("button", { name: "Our Carol, Roselia" }));
+    expect(props.navigation.goBack).toHaveBeenCalled();
     expect(screen.getByRole("button", { name: "A11Y_CLOSE_LYRICS" })).toBeTruthy();
-  });
-
-  it("gives the TV's D-pad a preferred play button in two-pane mode", () => {
-    renderAt({ ...TABLET_LANDSCAPE, tv: true, windowControlsInset: 0 });
-    expect(screen.getByRole("button", { name: "Play" }).getAttribute("data-tv-focus")).toBe("true");
   });
 
   it("does not remount the lyrics when the window rotates into two panes", () => {
@@ -160,10 +157,13 @@ describe("Lyrics screen", () => {
     expect(screen.getByTestId("lyrics-body")).toBe(body);
   });
 
-  it("keeps a landscape phone single-pane: 734 usable points is not enough", () => {
+  it("puts the cover beside the lyrics on a landscape phone too", () => {
     renderAt(PHONE_LANDSCAPE);
-    expect(screen.getByRole("button", { name: "Our Carol, Roselia" })).toBeTruthy();
-    expect(screen.queryByRole("button", { name: "Play" })).toBeNull();
+    expect(document.querySelector("[data-cover]")).not.toBeNull();
+    // 38% of 734 usable points.
+    expect(document.querySelector('[data-style*=\'"width":279\']')).not.toBeNull();
+    // The lyrics take the rest: 734 − 279, under the readable cap.
+    expect(document.querySelector('[data-style*=\'"maxWidth":455\']')).not.toBeNull();
   });
 
   it("keeps the content inside the side safe areas in landscape", () => {

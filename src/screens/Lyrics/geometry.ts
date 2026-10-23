@@ -6,11 +6,12 @@
 
 /**
  * Narrowest usable width (window minus the side safe areas) that gives the
- * lyrics enough room for two panes. Landscape tablets — 1180×820, 1366×1024,
- * Android 1280×800, TV 960×540 — qualify; a landscape phone (852×393 with
- * 59pt side insets leaves 734pt) does not: its lyrics need the full width.
+ * lyrics enough room for two panes. Every landscape window qualifies, phones
+ * included — 852×393 past its 59pt insets leaves 734pt, an iPhone SE 667pt —
+ * as do tablets and TVs; a portrait window or an iPad split-view half keeps
+ * the single column.
  */
-export const TWO_PANE_MIN_WIDTH = 760;
+export const TWO_PANE_MIN_WIDTH = 600;
 
 /** Share of the usable width the artwork panel takes when there are two panes. */
 export const ARTWORK_PANE_RATIO = 0.38;
@@ -48,4 +49,24 @@ export function lyricGeometry(height: number, anchor: number, fade: number): Lyr
 /** The artwork panel's width for a window's usable width (whole points). */
 export function artworkPaneWidth(usableWidth: number): number {
   return Math.round(usableWidth * ARTWORK_PANE_RATIO);
+}
+
+export interface PaneLayout {
+  /** 0 without the artwork pane. */
+  artworkWidth: number;
+  lyricsWidth: number;
+  /** Room left on each side of the two panes, centered as one group. */
+  sideMargin: number;
+}
+
+/**
+ * How the panes share a window's usable width: the lyrics alone take all of
+ * it; beside the artwork they stop at their readable width (`lyricsMax`) and
+ * the two sit centered as one group, with equal margins on a wide window.
+ */
+export function paneLayout(usableWidth: number, twoPane: boolean, lyricsMax: number): PaneLayout {
+  if (!twoPane) return { artworkWidth: 0, lyricsWidth: usableWidth, sideMargin: 0 };
+  const artworkWidth = artworkPaneWidth(usableWidth);
+  const lyricsWidth = Math.min(usableWidth - artworkWidth, lyricsMax);
+  return { artworkWidth, lyricsWidth, sideMargin: (usableWidth - artworkWidth - lyricsWidth) / 2 };
 }
