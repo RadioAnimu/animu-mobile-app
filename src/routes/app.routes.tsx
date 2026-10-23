@@ -9,6 +9,7 @@ import {
 import type { NavigatorScreenParams } from "@react-navigation/native";
 
 import { useWindowDimensions } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { CustomDrawerContent, DrawerIcon } from "@/components/CustomDrawer";
 import { MakeRequest } from "@/screens/MakeRequest";
 import { Home } from "@/screens/Home";
@@ -92,6 +93,9 @@ const makeRequestIcon = ({ color }: { color: string }) => (
 function DrawerRoutes() {
   const dict = useDict();
   const { width } = useWindowDimensions();
+  // The drawer's content pads past a landscape notch; the drawer grows by it
+  // so the menu keeps its portrait width instead of losing the notch's share.
+  const { left: notch } = useSafeAreaInsets();
 
   return (
     <Drawer.Navigator
@@ -110,7 +114,7 @@ function DrawerRoutes() {
           // A phone keeps its 80% overlay (80% of 393 < the cap); an iPad
           // landscape window would get a 900pt menu, so the drawer stops at
           // the scaled cap instead.
-          width: Math.min(width * DRAWER_WIDTH_RATIO, DRAWER_MAX_WIDTH),
+          width: Math.min(width * DRAWER_WIDTH_RATIO, DRAWER_MAX_WIDTH) + notch,
         },
       }}
       drawerContent={renderDrawerContent}
