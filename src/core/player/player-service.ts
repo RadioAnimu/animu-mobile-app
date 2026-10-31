@@ -62,7 +62,34 @@ export interface PlayerServiceDependencies {
    * Display only (see {@link PlayerService}'s duration estimate).
    */
   estimateDuration?: (track: Track) => Promise<number | null>;
+  /**
+   * Stores the station for voice requests and car picks (`setCatalog`):
+   * the relays, starting at the listener's quality. May reject.
+   */
+  publishCatalog?: (streams: Stream[], current: Stream) => Promise<void>;
 }
+
+/**
+ * What the player loads for `stream`: every relay as a rendition of one live
+ * source, so a quality change has no gap. A stream outside the fetched list
+ * (the fallback) plays on its own. The voice catalog stores the same source,
+ * so a request while it plays goes on instead of opening it again.
+ */
+export const streamSource = (streams: Stream[], stream: Stream) => {
+  const renditions = streams.some((option) => option.id === stream.id) ? streams : [];
+  return {
+    uri: stream.url,
+    ...(renditions.length > 0 && {
+      renditions: renditions.map((option) => ({
+        id: option.id,
+        uri: option.url,
+        bitrate: option.bitrate * 1_000,
+      })),
+    }),
+    live: true,
+    headers: { "User-Agent": CONFIG.USER_AGENT },
+  };
+};
 
 /** The heard song's position, read on demand (the lyrics clock samples it). */
 export interface HeardPosition {
@@ -154,6 +181,8 @@ export class PlayerService {
       player.on("status", (status) => this.handleStatus(status)),
       player.on("metadata", (metadata) => this.handleStreamMetadata(metadata)),
       player.on("discontinuity", () => this.handleDiscontinuity()),
+      // A voice request or a car pick played the station natively.
+      player.on("searchPlay", () => this.adoptNativeLoad()),
       // A gapless switch that failed keeps the old relay playing: re-open the
       // one picked instead, as a switch did before renditions.
       player.on("error", (error) => {
@@ -484,10 +513,47 @@ export class PlayerService {
     }
     if (this.disposed) return;
     this.initialized = true;
+    // Started before this service (Siri, the car, a reload): follow it.
+    if (this.deps.player.status.state !== "idle") {
+      this.handleStatus(this.deps.player.status);
+      this.adoptNativeLoad();
+    }
+    this.publishCatalog();
     this.updateTicker();
     this.syncDurationEstimate();
     this.emitPlayer();
     this.emitProgress();
+  }
+
+  /**
+   * The player holds a source the app did not load (a voice request, a car
+   * pick, a player that outlived a reload): it is the stream its quality
+   * names, as if the app had opened it, and the lock screen gets the app's
+   * now-playing back (a native load shows the catalog's).
+   */
+  private adoptNativeLoad(): void {
+    const { status } = this.deps.player;
+    const stream = this.streamOptions.find(
+      (option) => option.id === (status.quality ?? status.selectedQuality),
+    );
+    if (!stream) return;
+    this.loadedStreamId = stream.id;
+    this.loadedRenditionIds = status.qualities
+      .map((quality) => quality.id)
+      .filter((id) => this.streamOptions.some((option) => option.id === id));
+    this.deps.heard.useStream(stream.id, stream.bitrate);
+    this.pushNowPlaying();
+    this.emitPlayer();
+    // Another relay than the listener's pick (a switch that failed before a
+    // reload): back to the pick, without a gap.
+    const pick = this.deps.streamPreferences.current;
+    if (pick.id !== stream.id && this.loadedRenditionIds.includes(pick.id)) void this.retune(pick);
+  }
+
+  private publishCatalog(): void {
+    void this.deps
+      .publishCatalog?.(this.streamOptions, this.deps.streamPreferences.current)
+      .catch((error) => console.warn("[PlayerService] catalog:", error));
   }
 
   /** Releases the player and every unit. Safe at any stage; one-way. */
@@ -596,6 +662,7 @@ export class PlayerService {
   async changeStream(stream: Stream): Promise<void> {
     if (this.deps.streamPreferences.current.id === stream.id) return;
     await this.deps.streamPreferences.set(stream);
+    this.publishCatalog();
     // Re-tune only a loaded player; otherwise the next play() opens it.
     if (this.loadedStreamId != null) await this.retune(stream);
     this.emitPlayer();
@@ -625,28 +692,12 @@ export class PlayerService {
     this.deps.heard.useStream(stream.id, stream.bitrate);
     this.deps.heard.reopened();
     this.deps.hearing.reopened();
-    // Every relay as a rendition of one source, so a later switch has no gap.
-    // A stream outside the fetched list (the fallback) plays on its own.
-    const renditions = this.streamOptions.some((option) => option.id === stream.id)
-      ? this.streamOptions
-      : [];
-    this.loadedRenditionIds = renditions.map((option) => option.id);
+    const source = streamSource(this.streamOptions, stream);
+    this.loadedRenditionIds = source.renditions?.map((rendition) => rendition.id) ?? [];
     try {
       await this.deps.player.load(
-        {
-          uri: stream.url,
-          ...(renditions.length > 0 && {
-            renditions: renditions.map((option) => ({
-              id: option.id,
-              uri: option.url,
-              bitrate: option.bitrate * 1_000,
-            })),
-          }),
-          live: true,
-          headers: { "User-Agent": CONFIG.USER_AGENT },
-          metadata: this.getNowPlayingMetadata(),
-        },
-        { autoplay, ...(renditions.length > 0 && { quality: stream.id }) },
+        { ...source, metadata: this.getNowPlayingMetadata() },
+        { autoplay, ...(source.renditions && { quality: stream.id }) },
       );
     } catch (error) {
       // Recoverable failures keep reconnecting natively; the status tells the UI.

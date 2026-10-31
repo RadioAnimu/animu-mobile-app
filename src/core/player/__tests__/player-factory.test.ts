@@ -17,7 +17,19 @@ vi.mock("react-native-anything-player", () => ({
   Player: class {
     listeners = new Map<string, (...args: unknown[]) => void>();
     setAudioSampling = vi.fn(() => true);
-    release = vi.fn(async () => {});
+    released = false;
+    release = vi.fn(async () => {
+      this.released = true;
+    });
+    get isReleased() {
+      return this.released;
+    }
+    load = vi.fn();
+    play = vi.fn();
+    pause = vi.fn();
+    selectQuality = vi.fn();
+    getProgress = vi.fn();
+    updateNowPlaying = vi.fn(async () => {});
     status = { state: "idle", playWhenReady: false, network: "online" };
     constructor(public options: unknown) {
       players.push(this);
@@ -58,6 +70,8 @@ vi.mock("../../../api/client", () => ({
 const load = async () => {
   vi.resetModules();
   players.length = 0;
+  // The shared player outlives a module re-run (Fast Refresh): a fresh app per test.
+  (globalThis as { __animuPlayer?: unknown }).__animuPlayer = null;
   return import("@/core/player/player-factory");
 };
 
@@ -71,6 +85,7 @@ describe("player factory", () => {
     createPlayerService();
     expect(players).toHaveLength(1);
     expect(players[0].options).toEqual({
+      id: "animu",
       diagnostics: expect.any(Boolean),
       metadata: { useStreamMetadataForNowPlaying: false },
       android: { stopOnTaskRemoved: true },
@@ -132,6 +147,22 @@ describe("player factory", () => {
     expect(second).not.toBe(first);
     expect(playerService()).toBe(second);
     expect(players[0].release).toHaveBeenCalled();
+    // The released player is not reused.
+    expect(players).toHaveLength(2);
+  });
+
+  it("a module re-run (Fast Refresh) takes the live player over, and only its new owner ends it", async () => {
+    const { createPlayerService } = await load();
+    const first = createPlayerService();
+    // Fast Refresh: the module runs again, the first service is never torn down.
+    vi.resetModules();
+    const again = await import("@/core/player/player-factory");
+    const second = again.createPlayerService();
+    expect(players).toHaveLength(1);
+    await first.destroy();
+    expect(players[0].release).not.toHaveBeenCalled();
+    await second.destroy();
+    expect(players[0].release).toHaveBeenCalledTimes(1);
   });
 
   it("a remount during the native release gets a fresh service (not the disposed one)", async () => {

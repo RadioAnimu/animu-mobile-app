@@ -148,8 +148,9 @@ export const PlayerProvider: React.FC<{
   useEffect(() => {
     let cancelled = false;
     let unsubscribeAssistant: (() => void) | null = null;
-    // A Siri/Google deep link can land before the player has a stream to
-    // resolve (cold start via an App Intent). Buffer it instead of dropping it.
+    // An `animuapp://assistant/play` link can land before the player has a
+    // stream to resolve (cold start). Buffer it instead of dropping it. (Siri
+    // and Google Assistant play natively, through the voice catalog.)
     let assistantPlayPending = false;
 
     const playFromAssistant = () => {
