@@ -85,6 +85,25 @@ describe("player factory", () => {
     vi.useRealTimers();
   });
 
+  // The catalog the app bundles (app.json's `catalog`: voice requests and cars
+  // on a fresh install, before the app ever ran) is what the app publishes at
+  // start with the fallback relays and the default quality. Regenerate it with
+  // `CATALOG_SEED_WRITE=1 pnpm vitest run player-factory`.
+  it("bundles the catalog the app publishes with the fallback relays", async () => {
+    const { catalogFor } = await load();
+    const { CONFIG } = await import("@/utils/player.config");
+    const text = `${JSON.stringify(catalogFor(CONFIG.FALLBACK_STREAM_OPTIONS, CONFIG.DEFAULT_STREAM_OPTION), null, 2)}\n`;
+    const file = new URL("../../../../rnap-catalog.json", import.meta.url);
+    const fs = await import("node:fs");
+    if (process.env.CATALOG_SEED_WRITE) fs.writeFileSync(file, text);
+    const bundled = JSON.parse(fs.readFileSync(file, "utf8"));
+    expect(bundled).toEqual(JSON.parse(text));
+    // And RNAP takes it as the prebuild will (its setCatalog rules, at this pin).
+    const { createRequire } = await import("node:module");
+    const { catalogSeed } = createRequire(import.meta.url)("react-native-anything-player/plugin/catalogSeed");
+    expect(catalogSeed(bundled).items).toHaveLength(1);
+  });
+
   it("creates the Airwave player with the app's options", async () => {
     const { createPlayerService } = await load();
     createPlayerService();

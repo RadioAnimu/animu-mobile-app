@@ -1,0 +1,52 @@
+{
+  "items": [
+    {
+      "id": "animu",
+      "title": "Rádio Animu",
+      "keywords": [
+        "Animu",
+        "Radio Animu",
+        "Rádio Animu"
+      ],
+      "kind": "station",
+      "group": "Rádio Animu",
+      "artwork": "https://www.animu.moe/wp-content/uploads/2022/11/Animu-icon-para-OC.png",
+      "source": {
+        "uri": "https://stream.animu.moe/320",
+        "renditions": [
+          {
+            "id": "320",
+            "uri": "https://stream.animu.moe/320",
+            "bitrate": 320000
+          },
+          {
+            "id": "192",
+            "uri": "https://stream.animu.moe/192",
+            "bitrate": 192000
+          },
+          {
+            "id": "64",
+            "uri": "https://stream.animu.moe/64",
+            "bitrate": 64000
+          }
+        ],
+        "live": true,
+        "headers": {
+          "User-Agent": "animu-api"
+        }
+      },
+      "quality": "320"
+    }
+  ],
+  "playerId": "animu",
+  "playerOptions": {
+    "diagnostics": false,
+    "metadata": {
+      "useStreamMetadataForNowPlaying": true
+    },
+    "android": {
+      "stopOnTaskRemoved": true
+    },
+    "progressInterval": 1000
+  }
+}
