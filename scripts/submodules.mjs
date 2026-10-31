@@ -49,7 +49,9 @@ export function isolated(name, action) {
     for (const file of new Set(files)) {
       if (!fs.existsSync(path.join(source, file))) continue;
       fs.mkdirSync(path.dirname(path.join(temp, file)), { recursive: true });
-      fs.copyFileSync(path.join(source, file), path.join(temp, file));
+      // Git tracks a symlink (e.g. one to a directory) as the link itself.
+      if (fs.lstatSync(path.join(source, file)).isSymbolicLink()) fs.symlinkSync(fs.readlinkSync(path.join(source, file)), path.join(temp, file));
+      else fs.copyFileSync(path.join(source, file), path.join(temp, file));
     }
     const manager = name === "animu-api" ? "pnpm" : "yarn";
     run("corepack", [manager, "install", manager === "pnpm" ? "--frozen-lockfile" : "--immutable"], temp);
