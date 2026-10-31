@@ -2,11 +2,12 @@ import { spawnSync } from "node:child_process";
 
 // Unpatched build-tool advisories reviewed against the actual resolved paths.
 // Do not broaden these to package-wide exclusions: an added runtime path must fail.
+// `patched` (default: no fix at all) is for a fix only in a major the dependent cannot take.
 const exceptions = {
-  "GHSA-86w9-cpqp-85rv": {
-    name: "node-forge", version: "1.4.0",
-    paths: [".>expo>@expo/cli>node-forge"],
-    reason: "Expo CLI certificate tooling; absent from the mobile bundle; no published fix",
+  "GHSA-mrhx-c7xc-m3w5": {
+    name: "zod", version: "3.25.76", patched: ">=4.6.6",
+    paths: [".>expo>@expo/cli>zod"],
+    reason: "Expo CLI dev-server devtools plugin schemas; absent from the mobile bundle; fixed only in zod 4",
   },
   "GHSA-vfj7-8cjw-p6xm": {
     name: "braces", version: "3.0.3",
@@ -24,14 +25,16 @@ export function assessPnpm(report) {
   const findings = Object.values(report.advisories).map(advisory => {
     const id = advisory.github_advisory_id;
     const policy = exceptions[id];
-    const accepted = policy?.name === advisory.module_name && advisory.patched_versions === "<0.0.0" &&
+    const accepted = policy?.name === advisory.module_name && advisory.patched_versions === (policy.patched ?? "<0.0.0") &&
       advisory.findings?.length > 0 && advisory.findings.every(finding =>
         finding.version === policy.version && finding.paths?.length > 0 && finding.paths.every(p => policy.paths.includes(p)));
     return { name: advisory.module_name, severity: advisory.severity, id, accepted, reason: accepted ? policy.reason : undefined };
   });
-  // Fail closed if the registry reports vulnerabilities it did not describe.
+  // Fail closed if the registry reports vulnerabilities it did not describe
+  // (it counts one per vulnerable version, so an advisory can count twice).
   const total = Object.values(report.metadata.vulnerabilities).reduce((a, b) => a + b, 0);
-  if (total !== findings.length) throw new Error("Incomplete vulnerability details");
+  const described = Object.values(report.advisories).reduce((n, advisory) => n + (advisory.findings?.length ?? 0), 0);
+  if (total !== described) throw new Error("Incomplete vulnerability details");
   return findings;
 }
 
