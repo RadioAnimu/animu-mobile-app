@@ -671,6 +671,61 @@ describe("PlayerService on react-native-anything-player", () => {
     expect(playerStore.getSnapshot().currentStream?.id).toBe("high");
   });
 
+  it("publishes the station for voice and cars on setup and on a quality change", async () => {
+    const publishCatalog = vi.fn(async () => {});
+    const t = setup({ publishCatalog });
+    await t.service.setupPlayer();
+    expect(publishCatalog).toHaveBeenLastCalledWith(
+      [expect.objectContaining({ id: "high" }), expect.objectContaining({ id: "low" })],
+      STREAMS[0],
+    );
+    await t.service.changeStream(STREAMS[1]);
+    expect(publishCatalog).toHaveBeenLastCalledWith(expect.any(Array), STREAMS[1]);
+    expect(publishCatalog).toHaveBeenCalledTimes(2);
+  });
+
+  it("follows a player a voice request started before the app (no re-open)", async () => {
+    const t = setup();
+    t.player.status = {
+      ...t.player.status,
+      state: "playing",
+      playWhenReady: true,
+      quality: "low",
+      selectedQuality: "low",
+      qualities: [
+        { id: "high", height: null, bitrate: 192_000, label: null, audioOnly: true },
+        { id: "low", height: null, bitrate: 64_000, label: null, audioOnly: true },
+      ],
+    };
+    await t.service.setupPlayer();
+    expect(playerStore.getSnapshot().isPlaying).toBe(true);
+    // The app's now-playing replaces the catalog's on the lock screen.
+    expect(t.player.updateNowPlaying).toHaveBeenCalled();
+    t.preferences.current = STREAMS[1];
+    await t.service.play();
+    expect(t.player.load).not.toHaveBeenCalled();
+    // Its renditions switch without a gap.
+    await t.service.changeStream(STREAMS[0]);
+    expect(t.player.selectQuality).toHaveBeenLastCalledWith("high");
+    expect(t.player.load).not.toHaveBeenCalled();
+  });
+
+  it("a voice request while the app runs is followed as its own load", async () => {
+    const t = setup();
+    await t.service.setupPlayer();
+    t.player.status = {
+      ...t.player.status,
+      quality: "low",
+      selectedQuality: "low",
+      qualities: [{ id: "low", height: null, bitrate: 64_000, label: null, audioOnly: true }],
+    };
+    t.player.setState("playing", true);
+    t.player.emit("searchPlay", { request: { query: "", origin: "assistant" }, item: { id: "animu" } });
+    t.preferences.current = STREAMS[1];
+    await t.service.play();
+    expect(t.player.load).not.toHaveBeenCalled();
+  });
+
   it("a stream outside the loaded renditions, or a refused switch, re-opens", async () => {
     const t = setup();
     await t.service.setupPlayer();

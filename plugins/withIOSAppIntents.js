@@ -95,32 +95,55 @@ function buildSwiftSource() {
     (phrase) => `                "${toSwiftPhrase(phrase)}",`,
   ).join("\n");
 
-  return `import AppIntents
-import UIKit
+  return `import AnythingPlayer
+import AppIntents
+import Foundation
 
 /**
  * Siri / Shortcuts entry point for "Hey Siri, play R\u00e1dio Animu".
  *
- * The intent does not touch the player directly \u2014 it opens the same deep link
- * Google App Actions uses, so both assistants share one JS contract
- * (\`animuapp://assistant/play\`).
+ * Plays the station natively through react-native-anything-player, without
+ * opening the app and even when it is not running: the catalog the app stored
+ * with \`setCatalog\` (every relay, at the listener's quality), on the player
+ * the app attaches to.
  */
 @available(iOS 16.0, *)
-struct PlayAnimuIntent: AppIntent {
-    static var title: LocalizedStringResource = "Play R\u00e1dio Animu"
-    static var description = IntentDescription("Starts playing R\u00e1dio Animu.")
+struct PlayAnimuIntent: SystemIntent {
+    static let title: LocalizedStringResource = "Play R\u00e1dio Animu"
+    static let description: IntentDescription? = IntentDescription("Starts playing R\u00e1dio Animu.")
 
-    // Bring the app forward so the URL can be delivered to the running app.
-    static var openAppWhenRun: Bool = true
-
-    @MainActor
     func perform() async throws -> some IntentResult {
-        if let url = URL(string: "animuapp://assistant/play") {
-            await UIApplication.shared.open(url)
+        switch await RNAPVoice.play(query: "") {
+        case .playing: return .result()
+        case .noMatch: throw AnimuPlayError.notSetUp
+        default: throw AnimuPlayError.failed
         }
-        return .result()
     }
 }
+
+@available(iOS 16.0, *)
+enum AnimuPlayError: Error, CustomLocalizedStringResourceConvertible {
+    /// Nothing stored yet: the app stores the station the first time it runs.
+    case notSetUp
+    case failed
+
+    var localizedStringResource: LocalizedStringResource {
+        switch self {
+        case .notSetUp: return "Open R\u00e1dio Animu once, then ask again."
+        case .failed: return "R\u00e1dio Animu can't play right now."
+        }
+    }
+}
+
+// An audio intent: it plays without opening the app, and Siri does not talk
+// over the audio. iOS 16 calls the protocol AudioStartingIntent, iOS 17
+// renamed it AudioPlaybackIntent (\`deprecated\` on the iOS 16 extension only
+// silences the rename's warning; the intent declares SystemIntent itself).
+@available(iOS 16.0, *)
+@available(*, deprecated, message: "iOS 16's AudioPlaybackIntent")
+extension PlayAnimuIntent: AudioStartingIntent {}
+@available(iOS 17.0, *)
+extension PlayAnimuIntent: AudioPlaybackIntent {}
 
 /**
  * Phrases registered with the system. Every phrase must contain

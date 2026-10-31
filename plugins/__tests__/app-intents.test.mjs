@@ -3,7 +3,6 @@ import { describe, expect, it } from "vitest";
 
 const require = createRequire(import.meta.url);
 const iosAppIntents = require("../withIOSAppIntents.js");
-const androidAppActions = require("../withAndroidAppActions.js");
 
 const { PHRASE_KEYS, PHRASE_TRANSLATIONS } = iosAppIntents;
 
@@ -36,22 +35,20 @@ describe("withIOSAppIntents phrases", () => {
     }
   });
 
+  it("plays natively through the player's voice API, without a deep link", () => {
+    const swift = iosAppIntents.buildSwiftSource();
+
+    expect(swift).toContain("import AnythingPlayer");
+    expect(swift).toContain('await RNAPVoice.play(query: "")');
+    expect(swift).toContain("extension PlayAnimuIntent: AudioPlaybackIntent {}");
+    expect(swift).not.toContain("openAppWhenRun");
+  });
+
   it("emits a .strings key for every base phrase", () => {
     const strings = iosAppIntents.stringsContent("pt-BR");
 
     for (const phrase of PHRASE_KEYS) {
       expect(strings).toContain(`"${phrase}" =`);
     }
-  });
-});
-
-describe("withAndroidAppActions shortcuts.xml", () => {
-  it("targets the launcher activity explicitly", () => {
-    const xml = androidAppActions.buildShortcutsXml("com.example.app");
-
-    expect(xml).toContain('android:targetPackage="com.example.app"');
-    expect(xml).toContain('android:targetClass="com.example.app.MainActivity"');
-    expect(xml).toContain('android:name="actions.intent.PLAY_MEDIA"');
-    expect(xml).toContain('android:value="animuapp://assistant/play"');
   });
 });

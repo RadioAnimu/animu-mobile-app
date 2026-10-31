@@ -1,4 +1,6 @@
-import { Player } from "react-native-anything-player";
+import { Player, setCatalog, type PlayerOptions } from "react-native-anything-player";
+import type { Stream } from "@/core/domain/stream";
+import type { AudioPlayer } from "@/core/player/ports";
 import { setServerSkewListener } from "@/api/client";
 import { animuService } from "@/core/services/animu.service";
 import { coverCacheRegistry } from "@/core/services/cover-cache-registry.service";
@@ -6,7 +8,7 @@ import { listenStatsService } from "@/core/services/listen-stats.service";
 import { lyricsService } from "@/core/lyrics";
 import { userSettingsService } from "@/core/services/user-settings.service";
 import { CONFIG } from "@/utils/player.config";
-import { PlayerService, type Ticker } from "@/core/player/player-service";
+import { PlayerService, streamSource, type Ticker } from "@/core/player/player-service";
 import { ArtworkResolver } from "@/core/player/storage/artwork";
 import {
   CachedCoverLookup,
@@ -38,18 +40,87 @@ const createTicker = (): Ticker => {
 
 let playerServiceInstance: PlayerService | null = null;
 
+/**
+ * The player's id. Voice requests and car picks play on it natively, even
+ * before JavaScript runs (the catalog's player), and the app attaches to it.
+ */
+export const PLAYER_ID = "animu";
+
+/** Also the catalog's: a player native code creates must behave as the app's. */
+const playerOptions = (): Omit<PlayerOptions, "id"> => ({
+  diagnostics: CONFIG.DEBUG,
+  // The app publishes its own lock-screen metadata (anime / artist / cover
+  // from the station API); the raw ICY title is only matched, never shown.
+  metadata: { useStreamMetadataForNowPlaying: false },
+  // Swiping the app away ends playback (the controls never outlive the app).
+  android: { stopOnTaskRemoved: true },
+  // Native-timer readings while playing: the audible clock's lag, and JS at
+  // song boundaries where JS timers are frozen (Android background).
+  progressInterval: 1_000,
+});
+
+/**
+ * One player per JavaScript runtime. A service created while the previous one
+ * still holds it (Fast Refresh re-runs this module; a remount racing a
+ * teardown) takes it over: a second `Player` with the same id is refused, and
+ * one created right after a release could attach to the player being released.
+ * Kept on the global object, which a re-run module does not reset.
+ */
+const holder = globalThis as { __animuPlayer?: { player: Player; owner: object } | null };
+
+const acquirePlayer = (owner: object): AudioPlayer => {
+  const held = holder.__animuPlayer;
+  const player =
+    held && !held.player.isReleased
+      ? held.player
+      : new Player({ id: PLAYER_ID, ...playerOptions() });
+  holder.__animuPlayer = { player, owner };
+  return {
+    get status() {
+      return player.status;
+    },
+    load: player.load.bind(player),
+    play: player.play.bind(player),
+    pause: player.pause.bind(player),
+    selectQuality: player.selectQuality.bind(player),
+    on: player.on.bind(player),
+    getProgress: player.getProgress.bind(player),
+    updateNowPlaying: player.updateNowPlaying.bind(player),
+    setAudioSampling: player.setAudioSampling.bind(player),
+    // Only the last service to take the player ends it.
+    release: async () => {
+      if (holder.__animuPlayer?.owner !== owner) return;
+      holder.__animuPlayer = null;
+      await player.release();
+    },
+  };
+};
+
+/**
+ * The station for Siri, Google Assistant and cars: every relay as a
+ * rendition (the source the app loads itself, so a request while it plays
+ * goes on without a gap), starting at the listener's quality.
+ */
+const publishCatalog = async (streams: Stream[], current: Stream): Promise<void> => {
+  if (!streams.some((stream) => stream.id === current.id)) return;
+  await setCatalog(
+    [
+      {
+        id: "animu",
+        title: "Rádio Animu",
+        keywords: ["Animu", "Radio Animu", "Rádio Animu"],
+        kind: "station",
+        artwork: CONFIG.DEFAULT_COVER,
+        source: streamSource(streams, current),
+        quality: current.id,
+      },
+    ],
+    { playerId: PLAYER_ID, playerOptions: playerOptions() },
+  );
+};
+
 export const createPlayerService = (onDestroyed?: () => void): PlayerService => {
-  const player = new Player({
-    diagnostics: CONFIG.DEBUG,
-    // The app publishes its own lock-screen metadata (anime / artist / cover
-    // from the station API); the raw ICY title is only matched, never shown.
-    metadata: { useStreamMetadataForNowPlaying: false },
-    // Swiping the app away ends playback (the controls never outlive the app).
-    android: { stopOnTaskRemoved: true },
-    // Native-timer readings while playing: the audible clock's lag, and JS at
-    // song boundaries where JS timers are frozen (Android background).
-    progressInterval: 1_000,
-  });
+  const player = acquirePlayer({});
   const streamPreferences = new StreamPreferences();
   const repository = new NowPlayingRepository({
     fetchers: animuService,
@@ -119,6 +190,7 @@ export const createPlayerService = (onDestroyed?: () => void): PlayerService => 
     ticker: createTicker(),
     onDestroyed,
     onTrackAnnounced: (track) => lyricsService().prefetch(track),
+    publishCatalog,
     // A live song the station gave no length for: LRCLIB's, from the same
     // lookup the header's lyrics button makes (shared memory, in-flight and
     // disk cache — no extra request).
