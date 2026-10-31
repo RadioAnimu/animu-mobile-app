@@ -26,6 +26,9 @@ updates:
       - dependency-name: "expo"
       - dependency-name: "expo-*"
       - dependency-name: "babel-preset-expo"
+      # Its major is the SDK's (58.x lints for SDK 58).
+      - dependency-name: "eslint-config-expo"
+        update-types: ["version-update:semver-major"]
       # SDK 57 and its lint toolchain support only the current TypeScript major.
       - dependency-name: "typescript"
         update-types: ["version-update:semver-major"]
