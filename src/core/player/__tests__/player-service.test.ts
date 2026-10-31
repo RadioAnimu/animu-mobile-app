@@ -223,6 +223,20 @@ describe("PlayerService on react-native-anything-player", () => {
     expect(t.ticker.start).toHaveBeenCalled();
   });
 
+  it("sets the lock-screen fields again right after a load (a load drops them)", async () => {
+    const t = setup();
+    await t.service.setupPlayer();
+    t.player.updateNowPlaying.mockClear();
+    await t.service.play();
+    expect(t.player.load).toHaveBeenCalledTimes(1);
+    const loaded = t.player.load.mock.invocationCallOrder[0];
+    const republished = t.player.updateNowPlaying.mock.invocationCallOrder.filter((order) => order > loaded);
+    expect(republished.length).toBeGreaterThan(0);
+    expect(t.player.updateNowPlaying).toHaveBeenLastCalledWith(
+      expect.objectContaining({ title: expect.any(String), artwork: expect.any(String) }),
+    );
+  });
+
   it("opens the preferred stream once; later plays resume in place", async () => {
     const t = setup();
     await t.service.setupPlayer();

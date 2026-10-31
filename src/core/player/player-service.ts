@@ -699,6 +699,10 @@ export class PlayerService {
         { ...source, metadata: this.getNowPlayingMetadata() },
         { autoplay, ...(source.renditions && { quality: stream.id }) },
       );
+      // A load drops the lock-screen fields the app set; the load's own
+      // metadata ranks below the stream's ICY title, so set them again at
+      // once (before the first title arrives).
+      this.pushNowPlaying();
     } catch (error) {
       // Recoverable failures keep reconnecting natively; the status tells the UI.
       console.warn("[PlayerService] load:", error);
