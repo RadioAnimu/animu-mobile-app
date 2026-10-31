@@ -1,0 +1,4 @@
+interface:
+  display_name: "Council"
+  short_description: "Ask three strong models from different providers for review"
+  default_prompt: "Use $council to review this change."

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Sol Loop"
+  short_description: "Review changes with GPT Sol in a loop until approved"
+  default_prompt: "Use $sol-loop to review this change."

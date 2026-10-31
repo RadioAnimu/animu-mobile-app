@@ -23,6 +23,12 @@ export class FakePlayer {
     volume: 1,
     muted: false,
     rate: 1,
+    route: { kind: "speaker", name: null },
+    sleepAt: null,
+    qualities: [],
+    quality: null,
+    selectedQuality: null,
+    video: null,
   };
   private listeners = new Map<string, Set<(...args: unknown[]) => void>>();
   load = vi.fn(async (_source: unknown, options?: { autoplay?: boolean }) => {
@@ -37,6 +43,7 @@ export class FakePlayer {
     this.setState("paused", false);
     return this.status;
   });
+  selectQuality = vi.fn(async (_id: string) => {});
   updateNowPlaying = vi.fn(async (_m: AirwaveNowPlaying) => {});
   setAudioSampling = vi.fn(() => true);
   release = vi.fn(async () => {});
@@ -58,6 +65,12 @@ export class FakePlayer {
 
   setState(state: PlaybackState, playWhenReady = this.status.playWhenReady): void {
     this.status = { ...this.status, state, playWhenReady };
+    this.emit("status", this.status);
+  }
+
+  /** The rendition playing (a switch landed, or a load opened it). */
+  setQuality(quality: string | null): void {
+    this.status = { ...this.status, quality };
     this.emit("status", this.status);
   }
 

@@ -43,8 +43,8 @@ vi.mock("../../../api/client", () => ({
   setServerSkewListener: vi.fn(),
   animuApi: {
     getStreams: vi.fn(async () => [
-      { id: "high", url: "https://stream.example/192", label: "192" },
-      { id: "low", url: "https://stream.example/64", label: "64" },
+      { id: "high", url: "https://stream.example/192", label: "192", bitrate: 192 },
+      { id: "low", url: "https://stream.example/64", label: "64", bitrate: 64 },
     ]),
   },
 }));
@@ -63,8 +63,8 @@ const track = (raw: string, extra: Partial<Track> = {}): Track =>
   }) as unknown as Track;
 
 const STREAMS: Stream[] = [
-  { id: "high", url: "https://stream.example/192", label: "192" } as unknown as Stream,
-  { id: "low", url: "https://stream.example/64", label: "64" } as unknown as Stream,
+  { id: "high", url: "https://stream.example/192", label: "192", bitrate: 192 } as unknown as Stream,
+  { id: "low", url: "https://stream.example/64", label: "64", bitrate: 64 } as unknown as Stream,
 ];
 
 const setup = (extra: Partial<PlayerServiceDependencies> = {}) => {
@@ -234,7 +234,7 @@ describe("PlayerService on react-native-anything-player", () => {
       live: true,
       headers: { "User-Agent": expect.any(String) },
     });
-    expect(options).toEqual({ autoplay: true });
+    expect(options).toEqual({ autoplay: true, quality: "high" });
     t.player.setState("playing", true);
     // A heard title: the display is not the station's, so a resume continues
     // in place (see the station-mode re-open in `play`).
@@ -250,7 +250,7 @@ describe("PlayerService on react-native-anything-player", () => {
     const t = setup();
     t.player.emit("remoteCommand", { command: "play" });
     await vi.waitFor(() => expect(t.player.load).toHaveBeenCalledTimes(1));
-    expect(t.player.load.mock.calls[0][1]).toEqual({ autoplay: true });
+    expect(t.player.load.mock.calls[0][1]).toEqual({ autoplay: true, quality: "high" });
     // Once loaded, remote commands are Airwave's (native): no second load.
     t.player.emit("remoteCommand", { command: "togglePlayPause" });
     await Promise.resolve();
@@ -468,6 +468,76 @@ describe("PlayerService on react-native-anything-player", () => {
     vi.useRealTimers();
   });
 
+  it("a switch that fails natively (the old relay plays on) re-opens the one picked", async () => {
+    const t = setup();
+    await t.service.setupPlayer();
+    await t.service.play();
+    t.player.setQuality("high");
+    t.player.setState("playing", true);
+    await t.service.changeStream(STREAMS[1]);
+    expect(t.player.load).toHaveBeenCalledTimes(1);
+    t.player.emit("error", { code: "QUALITY_SWITCH_FAILED" }, { fatal: false });
+    expect(t.player.load).toHaveBeenCalledTimes(2);
+    expect(t.player.load).toHaveBeenLastCalledWith(
+      expect.objectContaining({ uri: "https://stream.example/64" }),
+      { autoplay: true, quality: "low" },
+    );
+    // Other non-fatal errors, or a failure once the pick plays, re-open nothing.
+    t.player.setQuality("low");
+    t.player.emit("error", { code: "QUALITY_SWITCH_FAILED" }, { fatal: false });
+    t.player.emit("error", { code: "NETWORK_ERROR" }, { fatal: false });
+    expect(t.player.load).toHaveBeenCalledTimes(2);
+  });
+
+  it("a rendition switch landing while playing re-places the song on the new relay", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-10-05T05:00:00Z"));
+    const t = setup(); // Song A: on air for 30 s
+    const useStream = vi.spyOn(t.heard, "useStream");
+    await t.service.setupPlayer();
+    await t.service.play();
+    t.player.setQuality("high");
+    t.player.setState("playing", true);
+    t.player.hear("Song A");
+    const read = (position: number, lagS: number) => {
+      vi.advanceTimersByTime(1_000);
+      t.player.emit("progress", { liveOffset: null, bufferedAhead: lagS, position });
+    };
+    for (let s = 1; s <= 5; s++) read(s, 6);
+    expect(heardProgress()).not.toBeNull();
+    await t.service.changeStream(STREAMS[1]);
+    expect(playerStore.getSnapshot().syncing).toBe(false); // the old relay plays on
+    // The switch lands: still "playing", now the 64 kbps relay from position 0.
+    t.player.setQuality("low");
+    expect(useStream).toHaveBeenLastCalledWith("low", 64);
+    read(0.1, 14);
+    expect(playerStore.getSnapshot().syncing).toBe(true);
+    expect(heardProgress()).toBeNull();
+    for (let s = 1; s <= 5; s++) read(0.1 + s, 14);
+    t.tick();
+    expect(playerStore.getSnapshot().currentTrack?.raw).toBe("Song A");
+    // 41 s on air, the new relay 14 s behind.
+    expect(heardProgress()).toBe(27_000 - STATION_AHEAD_OF_AUDIO_MS);
+    expect(t.player.load).toHaveBeenCalledTimes(1);
+    vi.useRealTimers();
+  });
+
+  it("a rendition switch while paused waits for the re-open to re-place", async () => {
+    const t = setup();
+    await t.service.setupPlayer();
+    await t.service.play();
+    t.player.setQuality("high");
+    t.player.setState("playing", true);
+    t.player.hear("Song A");
+    t.player.setState("paused", false);
+    const reopened = vi.spyOn(t.hearing, "reopened");
+    await t.service.changeStream(STREAMS[1]);
+    t.player.setQuality("low");
+    expect(reopened).not.toHaveBeenCalled();
+    t.player.setState("loading", true);
+    expect(reopened).toHaveBeenCalledTimes(1);
+  });
+
   it("no song progress on the lock screen during a live program that sends no length", async () => {
     const t = setup();
     t.repository.currentProgram = { name: "Live", dj: "DJ", isLive: true };
@@ -578,19 +648,49 @@ describe("PlayerService on react-native-anything-player", () => {
     expect(t.repository.tickLive).toHaveBeenCalledTimes(1);
   });
 
-  it("changing the stream re-tunes a loaded player, keeping the play intent", async () => {
+  it("loads every stream as a rendition and switches among them without a re-open", async () => {
     const t = setup();
     await t.service.setupPlayer();
     await t.service.changeStream(STREAMS[1]);
     expect(t.player.load).not.toHaveBeenCalled(); // nothing loaded yet
     await t.service.play();
+    expect(t.player.load).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        renditions: [
+          { id: "high", uri: "https://stream.example/192", bitrate: 192_000 },
+          { id: "low", uri: "https://stream.example/64", bitrate: 64_000 },
+        ],
+        live: true,
+      }),
+      { autoplay: true, quality: "low" },
+    );
     t.player.setState("playing", true);
+    await t.service.changeStream(STREAMS[0]);
+    expect(t.player.selectQuality).toHaveBeenLastCalledWith("high");
+    expect(t.player.load).toHaveBeenCalledTimes(1);
+    expect(playerStore.getSnapshot().currentStream?.id).toBe("high");
+  });
+
+  it("a stream outside the loaded renditions, or a refused switch, re-opens", async () => {
+    const t = setup();
+    await t.service.setupPlayer();
+    await t.service.play();
+    t.player.setState("playing", true);
+    const other = { id: "other", url: "https://stream.example/other", bitrate: 128 } as unknown as Stream;
+    await t.service.changeStream(other);
+    expect(t.player.selectQuality).not.toHaveBeenCalled();
+    expect(t.player.load).toHaveBeenLastCalledWith(
+      expect.objectContaining({ uri: "https://stream.example/other" }),
+      { autoplay: true },
+    );
+    expect(t.player.load.mock.lastCall?.[0]).not.toHaveProperty("renditions");
+    await t.service.changeStream(STREAMS[1]);
+    t.player.selectQuality.mockRejectedValueOnce(new Error("refused"));
     await t.service.changeStream(STREAMS[0]);
     expect(t.player.load).toHaveBeenLastCalledWith(
       expect.objectContaining({ uri: "https://stream.example/192" }),
-      { autoplay: true },
+      { autoplay: true, quality: "high" },
     );
-    expect(playerStore.getSnapshot().currentStream?.id).toBe("high");
   });
 
   it("listen stats follow audible playback (no background heartbeat needed)", async () => {
