@@ -30,6 +30,24 @@ test("a published fix or an unknown high advisory fails the gate", () => {
   assert.equal(blocking(assessPnpm(report({ ...braces, github_advisory_id: "GHSA-new-risk" }))), true);
 });
 
+test("an advisory over two vulnerable versions counts once per version", () => {
+  const twice = { ...braces, severity: "moderate", findings: [braces.findings[0], { version: "3.0.2", paths: [".>other>braces"] }] };
+  assert.equal(assessPnpm({ metadata: { vulnerabilities: { moderate: 2 } }, advisories: { 1: twice } }).length, 1);
+  assert.throws(() => assessPnpm({ metadata: { vulnerabilities: { moderate: 3 } }, advisories: { 1: twice } }));
+});
+
+test("a fix only in a newer major is accepted solely as reviewed, on the reviewed path", () => {
+  const zod = {
+    module_name: "zod", github_advisory_id: "GHSA-mrhx-c7xc-m3w5", severity: "high", patched_versions: ">=4.6.6",
+    findings: [{ version: "3.25.76", paths: [".>expo>@expo/cli>zod"] }],
+  };
+  assert.equal(blocking(assessPnpm(report(zod))), false);
+  assert.equal(blocking(assessPnpm(report({ ...zod, patched_versions: ">=3.25.77" }))), true);
+  const runtime = structuredClone(zod);
+  runtime.findings.push({ version: "4.6.5", paths: [".>eslint-config-expo>eslint-plugin-react-hooks>zod"] });
+  assert.equal(blocking(assessPnpm({ metadata: { vulnerabilities: { high: 2 } }, advisories: { 1: runtime } })), true);
+});
+
 test("an incomplete registry report cannot pass as an empty audit", () => {
   assert.throws(() => assessPnpm({}));
   assert.throws(() => assessPnpm({ metadata: { vulnerabilities: { high: 1 } }, advisories: {} }));
