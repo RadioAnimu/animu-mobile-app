@@ -50,8 +50,11 @@ export const PLAYER_ID = "animu";
 const playerOptions = (): Omit<PlayerOptions, "id"> => ({
   diagnostics: CONFIG.DEBUG,
   // The app publishes its own lock-screen metadata (anime / artist / cover
-  // from the station API); the raw ICY title is only matched, never shown.
-  metadata: { useStreamMetadataForNowPlaying: false },
+  // from the station API), which wins over the stream's. The ICY title shows
+  // only while no JavaScript runs: a car or a voice request can start the
+  // catalog's player natively, and the car then names the song, not just the
+  // station (the station's ICY name fills the album line the app leaves empty).
+  metadata: { useStreamMetadataForNowPlaying: true },
   // Swiping the app away ends playback (the controls never outlive the app).
   android: { stopOnTaskRemoved: true },
   // Native-timer readings while playing: the audible clock's lag, and JS at
