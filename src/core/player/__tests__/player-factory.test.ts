@@ -92,7 +92,7 @@ describe("player factory", () => {
     expect(players[0].options).toEqual({
       id: "animu",
       diagnostics: expect.any(Boolean),
-      metadata: { useStreamMetadataForNowPlaying: false },
+      metadata: { useStreamMetadataForNowPlaying: true },
       android: { stopOnTaskRemoved: true },
       progressInterval: 1_000,
     });

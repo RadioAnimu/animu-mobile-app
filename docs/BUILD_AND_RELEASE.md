@@ -202,6 +202,19 @@ car started is the one the app attaches to.
   starts playback from a link.
 - The iOS assistant hint shows only the Siri phrase (no "Ok Google").
 
+### Cars
+
+RNAP's `car` plugin option is `{ "ios": false }`: Android Auto is on (Media3's
+library service and `com.google.android.gms.car.application`), CarPlay is off
+until Apple grants the CarPlay audio entitlement (AltStore installs can never
+carry it). The car browses the same catalog as the voice assistants. Before
+JavaScript runs, the car's now-playing comes from the stream's ICY title
+(`useStreamMetadataForNowPlaying`); once the app runs, its own metadata wins,
+and it sets it again right after each load (a load drops it). The station's
+ICY name fills the album line, which the app leaves empty.
+Publishing on Google Play needs the Android Auto opt-in in Play Console (see
+[Play Store review notes](PLAY_STORE_REVIEW_NOTES.md)).
+
 ## AltStore
 
 Self-hosted iOS distribution is documented in [AltStore](ALTSTORE.md).

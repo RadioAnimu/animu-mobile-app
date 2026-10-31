@@ -59,7 +59,7 @@ This repository is the official mobile application: a real-time internet-radio c
 - **Requests** — search and request tracks, and send live shout-outs to the DJ panel.
 - **Listening stats** — time listened, songs heard, a listening heatmap and profile, kept on the device, plus a shareable card when signed in.
 - **History & preferences** — last requested / last played lists, cover-art quality per view, a managed on-device cover cache, haptics and PT / EN / ES / JP localisation.
-- **Voice assistants** — "Ok Google, play Rádio Animu" on Android and "Hey Siri, play Rádio Animu" on iOS.
+- **Voice assistants and cars** — "Ok Google, play Rádio Animu" on Android, "Hey Siri, play Rádio Animu" on iOS, and the station in Android Auto.
 - **Offline resilience** — native reconnects (stalls, dead sockets, network handoffs, outages) that keep working with the app in the background, plus exponential-backoff API retries.
 
 Read the full, screen-by-screen breakdown in **[Features](docs/FEATURES.md)**.

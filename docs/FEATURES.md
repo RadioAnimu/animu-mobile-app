@@ -14,7 +14,13 @@ listener count, remaining time and the stream-quality selector.
 
 - **Selectable bitrate** — 320 kbps MP3, 192 kbps MP3 and 64 kbps AAC+.
   Available streams are discovered at startup from `stream.animu.moe` with a
-  hardcoded fallback list when the endpoint is unreachable.
+  hardcoded fallback list when the endpoint is unreachable. A switch while
+  playing keeps the audio going. On Android the new relay is lined up with
+  what is heard first (each relay starts a different number of seconds behind
+  live), so normally nothing repeats or skips; a switch that cannot be lined
+  up (25 s, or a connection dropping meanwhile) takes over anyway and the
+  song is placed again. On iOS a switch can still repeat or skip those
+  seconds.
 - **Real-time station metadata** — the app keeps the UI in sync with the
   server-side track, cover artwork, live program, DJ and listener count,
   preferring the station's realtime SSE stream and falling back to HTTP polling.
@@ -38,6 +44,19 @@ screen, notification shade and the OS media controls. Progress is interpolated
 by the OS between snapshots (`durationSec` + periodic elapsed position).
 
 ![Now playing notification](SCREENSHOT: Android media notification and iOS lock-screen player showing the anime title, artist and a progress bar mid-track)
+
+## Voice and cars
+
+- **Google Assistant / Gemini** — "Ok Google, play Rádio Animu" plays the
+  station at the listener's quality, even when the app is not running.
+- **Siri** — "Hey Siri, play Rádio Animu" (PT / EN / ES / JA phrases) plays
+  it natively through an App Intent.
+- **Android Auto** — the car lists Rádio Animu and plays it. Started from the
+  car with the app closed, the car shows the song from the stream's own title
+  until the app runs and sets the anime, artist and cover. The station's
+  name fills the album line.
+- **CarPlay** — built in but switched off until Apple grants the CarPlay
+  audio entitlement (`car: { ios: false }` in `app.json`).
 
 ## Home audio visualizer
 

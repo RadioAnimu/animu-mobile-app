@@ -702,6 +702,11 @@ export class PlayerService {
     } catch (error) {
       // Recoverable failures keep reconnecting natively; the status tells the UI.
       console.warn("[PlayerService] load:", error);
+    } finally {
+      // A load drops the lock-screen fields the app set; the load's own
+      // metadata ranks below the stream's ICY title, so set them again at
+      // once (also after a failure the player recovers from on its own).
+      this.pushNowPlaying();
     }
   }
 
