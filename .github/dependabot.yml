@@ -26,6 +26,10 @@ updates:
       - dependency-name: "expo"
       - dependency-name: "expo-*"
       - dependency-name: "babel-preset-expo"
+      # Expo pins it to the SDK's patch range (~57.0.x in bundledNativeModules):
+      # patches pass `expo install --check`, a minor or major does not.
+      - dependency-name: "eslint-config-expo"
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]
       # SDK 57 and its lint toolchain support only the current TypeScript major.
       - dependency-name: "typescript"
         update-types: ["version-update:semver-major"]
