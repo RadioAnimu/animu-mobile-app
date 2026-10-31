@@ -154,6 +154,14 @@ export class PlayerService {
       player.on("status", (status) => this.handleStatus(status)),
       player.on("metadata", (metadata) => this.handleStreamMetadata(metadata)),
       player.on("discontinuity", () => this.handleDiscontinuity()),
+      // A gapless switch that failed keeps the old relay playing: re-open the
+      // one picked instead, as a switch did before renditions.
+      player.on("error", (error) => {
+        if (error.code !== "QUALITY_SWITCH_FAILED") return;
+        const stream = this.deps.streamPreferences.current;
+        if (this.loadedStreamId !== stream.id || this.playingQuality === stream.id) return;
+        void this.open(stream, this.isPlayingIntent);
+      }),
       // Native-timer readings while playing: they keep the audible clock
       // measured, and run JS at song boundaries even where JS timers are
       // frozen (Android in the background) — the stuck-refresh watchdog too.

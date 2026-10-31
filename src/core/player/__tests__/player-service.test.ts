@@ -468,6 +468,27 @@ describe("PlayerService on react-native-anything-player", () => {
     vi.useRealTimers();
   });
 
+  it("a switch that fails natively (the old relay plays on) re-opens the one picked", async () => {
+    const t = setup();
+    await t.service.setupPlayer();
+    await t.service.play();
+    t.player.setQuality("high");
+    t.player.setState("playing", true);
+    await t.service.changeStream(STREAMS[1]);
+    expect(t.player.load).toHaveBeenCalledTimes(1);
+    t.player.emit("error", { code: "QUALITY_SWITCH_FAILED" }, { fatal: false });
+    expect(t.player.load).toHaveBeenCalledTimes(2);
+    expect(t.player.load).toHaveBeenLastCalledWith(
+      expect.objectContaining({ uri: "https://stream.example/64" }),
+      { autoplay: true, quality: "low" },
+    );
+    // Other non-fatal errors, or a failure once the pick plays, re-open nothing.
+    t.player.setQuality("low");
+    t.player.emit("error", { code: "QUALITY_SWITCH_FAILED" }, { fatal: false });
+    t.player.emit("error", { code: "NETWORK_ERROR" }, { fatal: false });
+    expect(t.player.load).toHaveBeenCalledTimes(2);
+  });
+
   it("a rendition switch landing while playing re-places the song on the new relay", async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-10-05T05:00:00Z"));
