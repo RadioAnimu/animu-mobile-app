@@ -96,7 +96,12 @@ describe("player factory", () => {
     const file = new URL("../../../../rnap-catalog.json", import.meta.url);
     const fs = await import("node:fs");
     if (process.env.CATALOG_SEED_WRITE) fs.writeFileSync(file, text);
-    expect(JSON.parse(fs.readFileSync(file, "utf8"))).toEqual(JSON.parse(text));
+    const bundled = JSON.parse(fs.readFileSync(file, "utf8"));
+    expect(bundled).toEqual(JSON.parse(text));
+    // And RNAP takes it as the prebuild will (its setCatalog rules, at this pin).
+    const { createRequire } = await import("node:module");
+    const { catalogSeed } = createRequire(import.meta.url)("react-native-anything-player/plugin/catalogSeed");
+    expect(catalogSeed(bundled).items).toHaveLength(1);
   });
 
   it("creates the Airwave player with the app's options", async () => {

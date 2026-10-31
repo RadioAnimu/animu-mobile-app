@@ -193,8 +193,11 @@ car started is the one the app attaches to. Until the app first runs, the
 catalog is the one it bundles: `rnap-catalog.json` (RNAP's `catalog` option),
 so a fresh install answers "play Rádio Animu" and the car before it was ever
 opened. A unit test keeps that file equal to what the app publishes with the
-fallback relays; regenerate it with
-`CATALOG_SEED_WRITE=1 pnpm vitest run player-factory`.
+fallback relays (and that RNAP accepts it); regenerate it with
+`CATALOG_SEED_WRITE=1 pnpm vitest run player-factory`. Before the app first
+runs, plays send the neutral User-Agent (`animu-api`, no platform or model)
+and a dev build has no player diagnostics; the app's first publish replaces
+both.
 
 - Siri: `plugins/withIOSAppIntents.js` generates the App Intent (an audio intent
   that calls `RNAPVoice.play`) and the App Shortcuts. The localized phrases live
