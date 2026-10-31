@@ -544,6 +544,10 @@ export class PlayerService {
     this.deps.heard.useStream(stream.id, stream.bitrate);
     this.pushNowPlaying();
     this.emitPlayer();
+    // Another relay than the listener's pick (a switch that failed before a
+    // reload): back to the pick, without a gap.
+    const pick = this.deps.streamPreferences.current;
+    if (pick.id !== stream.id && this.loadedRenditionIds.includes(pick.id)) void this.retune(pick);
   }
 
   private publishCatalog(): void {

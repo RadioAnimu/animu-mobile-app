@@ -61,10 +61,11 @@ const playerOptions = (): Omit<PlayerOptions, "id"> => ({
 
 /**
  * One player per JavaScript runtime. A service created while the previous one
- * still holds it (Fast Refresh re-runs this module; a remount racing a
- * teardown) takes it over: a second `Player` with the same id is refused, and
- * one created right after a release could attach to the player being released.
- * Kept on the global object, which a re-run module does not reset.
+ * still holds it (Fast Refresh re-runs this module) takes it over: a second
+ * `Player` with the same id is refused. Kept on the global object, which a
+ * re-run module does not reset. A remount after a teardown creates a new one:
+ * it comes a user action later, long after the native release
+ * (react-native-anything-player#90 tracks a create racing a release).
  */
 const holder = globalThis as { __animuPlayer?: { player: Player; owner: object } | null };
 

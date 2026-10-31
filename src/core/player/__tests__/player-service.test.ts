@@ -697,15 +697,34 @@ describe("PlayerService on react-native-anything-player", () => {
         { id: "low", height: null, bitrate: 64_000, label: null, audioOnly: true },
       ],
     };
+    t.preferences.current = STREAMS[1]; // the catalog's quality: the listener's pick
     await t.service.setupPlayer();
     expect(playerStore.getSnapshot().isPlaying).toBe(true);
+    expect(t.player.selectQuality).not.toHaveBeenCalled();
     // The app's now-playing replaces the catalog's on the lock screen.
     expect(t.player.updateNowPlaying).toHaveBeenCalled();
-    t.preferences.current = STREAMS[1];
     await t.service.play();
     expect(t.player.load).not.toHaveBeenCalled();
     // Its renditions switch without a gap.
     await t.service.changeStream(STREAMS[0]);
+    expect(t.player.selectQuality).toHaveBeenLastCalledWith("high");
+    expect(t.player.load).not.toHaveBeenCalled();
+  });
+
+  it("an adopted relay other than the listener's pick switches back to it", async () => {
+    const t = setup();
+    t.player.status = {
+      ...t.player.status,
+      state: "playing",
+      playWhenReady: true,
+      quality: "low",
+      selectedQuality: "low",
+      qualities: [
+        { id: "high", height: null, bitrate: 192_000, label: null, audioOnly: true },
+        { id: "low", height: null, bitrate: 64_000, label: null, audioOnly: true },
+      ],
+    };
+    await t.service.setupPlayer(); // the pick is STREAMS[0] ("high")
     expect(t.player.selectQuality).toHaveBeenLastCalledWith("high");
     expect(t.player.load).not.toHaveBeenCalled();
   });
