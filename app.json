@@ -87,7 +87,7 @@
       ],
       "expo-asset",
       "expo-web-browser",
-      "react-native-anything-player",
+      ["react-native-anything-player", { "car": { "ios": false } }],
       "expo-apple-authentication",
       "expo-image",
       "@react-native-vector-icons/material-icons",

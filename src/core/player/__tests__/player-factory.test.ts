@@ -2,8 +2,10 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 // The factory wires real units around the native player — stub what reaches
 // native modules or the network.
-const { players, skew, prefetch } = vi.hoisted(() => ({
+const { players, skew, prefetch, catalog, streams } = vi.hoisted(() => ({
   prefetch: vi.fn(),
+  catalog: vi.fn(async (_items: unknown, _options: unknown) => {}),
+  streams: [] as { id: string; url: string; bitrate: number }[],
   players: [] as {
     options: unknown;
     listeners: Map<string, (...args: unknown[]) => void>;
@@ -14,6 +16,7 @@ const { players, skew, prefetch } = vi.hoisted(() => ({
 }));
 
 vi.mock("react-native-anything-player", () => ({
+  setCatalog: catalog,
   Player: class {
     listeners = new Map<string, (...args: unknown[]) => void>();
     setAudioSampling = vi.fn(() => true);
@@ -64,12 +67,14 @@ vi.mock("../../../api/client", () => ({
   setServerSkewListener: (listener: (skewMs: number, rttMs: number) => void) => {
     skew.listener = listener;
   },
-  animuApi: { getStreams: vi.fn(async () => []) },
+  animuApi: { getStreams: vi.fn(async () => streams) },
 }));
 
 const load = async () => {
   vi.resetModules();
   players.length = 0;
+  streams.length = 0;
+  catalog.mockClear();
   // The shared player outlives a module re-run (Fast Refresh): a fresh app per test.
   (globalThis as { __animuPlayer?: unknown }).__animuPlayer = null;
   return import("@/core/player/player-factory");
@@ -96,6 +101,32 @@ describe("player factory", () => {
     );
     // Server clock samples reach the heard-track clock (no throw, any value).
     skew.listener?.(30_000, 100);
+  });
+
+  it("publishes the station for voice and cars: the app's own source, the pick, one car tab", async () => {
+    const quiet = vi.spyOn(console, "error").mockImplementation(() => {});
+    const { createPlayerService } = await load();
+    const { streamSource } = await import("@/core/player/player-service");
+    streams.push(
+      { id: "320", url: "https://s.example/320", bitrate: 320 },
+      { id: "64", url: "https://s.example/64", bitrate: 64 },
+    );
+    await createPlayerService().setupPlayer();
+    expect(catalog).toHaveBeenCalledTimes(1);
+    const [[item], options] = catalog.mock.calls[0] as [Record<string, unknown>[], Record<string, unknown>];
+    expect(item).toMatchObject({
+      id: "animu",
+      title: "Rádio Animu",
+      kind: "station",
+      group: "Rádio Animu",
+      quality: "320",
+      source: streamSource(streams as never, streams[0] as never),
+    });
+    // A player native code creates behaves as the app's (the id is the catalog's own).
+    const { id, ...playerOptions } = players[0].options as Record<string, unknown>;
+    expect(id).toBe("animu");
+    expect(options).toEqual({ playerId: "animu", playerOptions });
+    quiet.mockRestore();
   });
 
   it("samples decoded audio through Airwave only once a visualizer listener reads windows", async () => {

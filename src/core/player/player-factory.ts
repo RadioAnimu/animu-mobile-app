@@ -98,7 +98,8 @@ const acquirePlayer = (owner: object): AudioPlayer => {
 };
 
 /**
- * The station for Siri, Google Assistant and cars: every relay as a
+ * The station for Siri, Google Assistant and cars (Android Auto; CarPlay waits
+ * for Apple's entitlement, see app.json): every relay as a
  * rendition (the source the app loads itself, so a request while it plays
  * goes on without a gap), starting at the listener's quality.
  */
@@ -111,6 +112,8 @@ const publishCatalog = async (streams: Stream[], current: Stream): Promise<void>
         title: "Rádio Animu",
         keywords: ["Animu", "Radio Animu", "Rádio Animu"],
         kind: "station",
+        // Cars list folders at the root: one tab, the station.
+        group: "Rádio Animu",
         artwork: CONFIG.DEFAULT_COVER,
         source: streamSource(streams, current),
         quality: current.id,
