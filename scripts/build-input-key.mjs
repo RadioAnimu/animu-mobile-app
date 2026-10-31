@@ -24,7 +24,7 @@ export function inputKey(mode, cwd = process.cwd(), runtime = `${process.platfor
     } finally { fs.closeSync(fd); }
   }
   for (const file of ['package.json', 'pnpm-lock.yaml', 'pnpm-workspace.yaml', '.npmrc', '.nvmrc', 'patches', 'packages/animu-api/package.json', 'packages/react-native-anything-player/package.json']) visit(file);
-  if (mode === 'native') for (const file of ['app.json', 'app.config.js', 'app.config.ts', 'plugins', 'assets', 'src/assets/fonts', 'packages/react-native-anything-player/app.plugin.js']) visit(file);
+  if (mode === 'native') for (const file of ['app.json', 'app.config.js', 'app.config.ts', 'plugins', 'assets', 'src/assets/fonts', 'packages/react-native-anything-player/app.plugin.js', 'packages/react-native-anything-player/plugin']) visit(file);
   return hash.digest('hex');
 }
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) console.log(inputKey(process.argv[2]));

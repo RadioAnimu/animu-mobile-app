@@ -21,5 +21,10 @@ test('installation/native keys invalidate for patches and toolchains, and native
     fs.mkdirSync(path.join(cwd, 'src/assets/fonts'), { recursive: true });
     fs.writeFileSync(path.join(cwd, 'src/assets/fonts/proximanova-reg.ttf'), 'font-bytes');
     assert.notEqual(withAssets, key('native')); assert.equal(dependencies, key('dependencies'));
+    const withFonts = key('native');
+    // The player's config plugin is app.plugin.js plus its plugin/ helpers.
+    fs.mkdirSync(path.join(cwd, 'packages/react-native-anything-player/plugin'), { recursive: true });
+    fs.writeFileSync(path.join(cwd, 'packages/react-native-anything-player/plugin/helpers.js'), 'mods');
+    assert.notEqual(withFonts, key('native')); assert.equal(dependencies, key('dependencies'));
   } finally { fs.rmSync(cwd, { recursive: true, force: true }); }
 });
