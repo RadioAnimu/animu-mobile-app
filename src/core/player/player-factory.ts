@@ -107,24 +107,28 @@ const acquirePlayer = (owner: object): AudioPlayer => {
  * rendition (the source the app loads itself, so a request while it plays
  * goes on without a gap), starting at the listener's quality.
  */
+export const catalogFor = (streams: Stream[], current: Stream) => ({
+  items: [
+    {
+      id: "animu",
+      title: "Rádio Animu",
+      keywords: ["Animu", "Radio Animu", "Rádio Animu"],
+      kind: "station" as const,
+      // Cars list folders at the root: one tab, the station.
+      group: "Rádio Animu",
+      artwork: CONFIG.DEFAULT_COVER,
+      source: streamSource(streams, current),
+      quality: current.id,
+    },
+  ],
+  playerId: PLAYER_ID,
+  playerOptions: playerOptions(),
+});
+
 const publishCatalog = async (streams: Stream[], current: Stream): Promise<void> => {
   if (!streams.some((stream) => stream.id === current.id)) return;
-  await setCatalog(
-    [
-      {
-        id: "animu",
-        title: "Rádio Animu",
-        keywords: ["Animu", "Radio Animu", "Rádio Animu"],
-        kind: "station",
-        // Cars list folders at the root: one tab, the station.
-        group: "Rádio Animu",
-        artwork: CONFIG.DEFAULT_COVER,
-        source: streamSource(streams, current),
-        quality: current.id,
-      },
-    ],
-    { playerId: PLAYER_ID, playerOptions: playerOptions() },
-  );
+  const { items, ...options } = catalogFor(streams, current);
+  await setCatalog(items, options);
 };
 
 export const createPlayerService = (onDestroyed?: () => void): PlayerService => {

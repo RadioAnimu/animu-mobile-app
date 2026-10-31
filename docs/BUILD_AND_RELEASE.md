@@ -189,7 +189,12 @@ the app is not running. The app stores the station with `setCatalog`: every
 relay as a rendition, at the listener's quality. It does this on setup and on
 each quality change (`publishCatalog` in `src/core/player/player-factory.ts`).
 The player has a fixed id (`animu`), so a player that Siri, the Assistant or a
-car started is the one the app attaches to.
+car started is the one the app attaches to. Until the app first runs, the
+catalog is the one it bundles: `rnap-catalog.json` (RNAP's `catalog` option),
+so a fresh install answers "play Rádio Animu" and the car before it was ever
+opened. A unit test keeps that file equal to what the app publishes with the
+fallback relays; regenerate it with
+`CATALOG_SEED_WRITE=1 pnpm vitest run player-factory`.
 
 - Siri: `plugins/withIOSAppIntents.js` generates the App Intent (an audio intent
   that calls `RNAPVoice.play`) and the App Shortcuts. The localized phrases live
