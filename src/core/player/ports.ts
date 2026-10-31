@@ -11,6 +11,7 @@ export type AudioPlayer = Pick<
   Player,
   | "status"
   | "load"
+  | "selectQuality"
   | "play"
   | "pause"
   | "on"

@@ -122,6 +122,10 @@ export class PlayerService {
   private pendingPlay = false;
   /** The stream the player has loaded (id), or null before the first play. */
   private loadedStreamId: string | null = null;
+  /** The streams loaded as renditions: a switch among them has no gap. */
+  private loadedRenditionIds: string[] = [];
+  /** The rendition playing (`status.quality`). */
+  private playingQuality: string | null = null;
   /** The next audible ICY title follows a (re)open: it is already partway. */
   private tuneIn = true;
   private lastPollAt = 0;
@@ -585,8 +589,25 @@ export class PlayerService {
     if (this.deps.streamPreferences.current.id === stream.id) return;
     await this.deps.streamPreferences.set(stream);
     // Re-tune only a loaded player; otherwise the next play() opens it.
-    if (this.loadedStreamId != null) await this.open(stream, this.isPlayingIntent);
+    if (this.loadedStreamId != null) await this.retune(stream);
     this.emitPlayer();
+  }
+
+  /**
+   * Switches a loaded player to `stream`: among the loaded renditions behind
+   * what is heard (the status reports when it lands), else by re-opening.
+   */
+  private async retune(stream: Stream): Promise<void> {
+    if (this.loadedRenditionIds.includes(stream.id)) {
+      this.loadedStreamId = stream.id;
+      try {
+        await this.deps.player.selectQuality(stream.id);
+        return;
+      } catch (error) {
+        console.warn("[PlayerService] selectQuality:", error);
+      }
+    }
+    await this.open(stream, this.isPlayingIntent);
   }
 
   /** Opens `stream` (a different relay buffers differently: re-lock the position). */
@@ -596,15 +617,28 @@ export class PlayerService {
     this.deps.heard.useStream(stream.id, stream.bitrate);
     this.deps.heard.reopened();
     this.deps.hearing.reopened();
+    // Every relay as a rendition of one source, so a later switch has no gap.
+    // A stream outside the fetched list (the fallback) plays on its own.
+    const renditions = this.streamOptions.some((option) => option.id === stream.id)
+      ? this.streamOptions
+      : [];
+    this.loadedRenditionIds = renditions.map((option) => option.id);
     try {
       await this.deps.player.load(
         {
           uri: stream.url,
+          ...(renditions.length > 0 && {
+            renditions: renditions.map((option) => ({
+              id: option.id,
+              uri: option.url,
+              bitrate: option.bitrate * 1_000,
+            })),
+          }),
           live: true,
           headers: { "User-Agent": CONFIG.USER_AGENT },
           metadata: this.getNowPlayingMetadata(),
         },
-        { autoplay },
+        { autoplay, ...(renditions.length > 0 && { quality: stream.id }) },
       );
     } catch (error) {
       // Recoverable failures keep reconnecting natively; the status tells the UI.
@@ -637,6 +671,7 @@ export class PlayerService {
     // reported is a tune-in.
     const reopening = status.state === "loading" || status.state === "reconnecting";
     if (reopening && !this.tuneIn) this.markReopened();
+    this.followQuality(status.quality);
     this.deps.heard.setRunning(playing);
     this.syncIntent();
     this.deps.hearing.setPlaying(playing);
@@ -687,6 +722,23 @@ export class PlayerService {
     if (raw) this.hearTitle(raw, Date.now());
     this.emitPlayer();
     this.emitProgress();
+  }
+
+  /**
+   * The rendition playing changed. A switch that lands while playing moves
+   * to another relay's fresh connection with no loading status and no
+   * `discontinuity`: its own buffer and connect burst, and media positions
+   * from zero. The song is placed again, as after a discontinuity. (Not
+   * playing, the switch is a re-open: the loading status re-places it.)
+   */
+  private followQuality(quality: string | null): void {
+    if (quality === this.playingQuality) return;
+    const switched = this.playingQuality != null;
+    this.playingQuality = quality;
+    const stream = this.streamOptions.find((option) => option.id === quality);
+    if (!stream) return;
+    this.deps.heard.useStream(stream.id, stream.bitrate);
+    if (switched && this.lastState === "playing") this.handleDiscontinuity();
   }
 
   /** An ICY title became audible (Airwave reports it when heard). */
