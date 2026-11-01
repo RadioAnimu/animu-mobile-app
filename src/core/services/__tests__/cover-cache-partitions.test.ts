@@ -41,6 +41,23 @@ describe("resolvePartitionCaps", () => {
     expect(caps.played).toBe(0);
   });
 
+  it("shrinks overrides that add up past the total, in proportion", () => {
+    const caps = resolvePartitionCaps(50 * MB, {
+      live: 50 * MB,
+      requested: 50 * MB,
+      played: 50 * MB,
+      search: 50 * MB,
+    })!;
+    expect(Object.values(caps)).toEqual([12.5 * MB, 12.5 * MB, 12.5 * MB, 12.5 * MB]);
+  });
+
+  it("fits an override that outlived a lowered limit", () => {
+    const caps = resolvePartitionCaps(100 * MB, { search: 200 * MB, live: 100 * MB })!;
+    expect(caps.search + caps.live + caps.requested + caps.played).toBeLessThanOrEqual(100 * MB);
+    expect(caps.search).toBe(2 * caps.live);
+    expect(caps.requested).toBe(0);
+  });
+
   it("clamps negative overrides to zero", () => {
     const caps = resolvePartitionCaps(1000, { live: -50 })!;
     expect(caps.live).toBe(0);

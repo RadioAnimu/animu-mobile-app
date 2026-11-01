@@ -43,7 +43,8 @@ const PARTITION_WEIGHTS: Record<CoverCacheCategory, number> = {
  * partitions take their absolute values off the top; whatever is left is
  * shared among the un-customized ones proportionally to the weights, so
  * a user who only overrides "search" still gets a coherent whole — the
- * total never grows beyond the number they typed.
+ * total never grows beyond the number they typed. Overrides that add up
+ * past it (or outlive a lowered limit) shrink in proportion to fit.
  *
  * `maxBytes <= 0` (unlimited) returns `null` — no caps, no trimming.
  */
@@ -53,37 +54,17 @@ export function resolvePartitionCaps(
 ): Record<CoverCacheCategory, number> | null {
   if (maxBytes <= 0) return null;
 
-  const caps: Record<CoverCacheCategory, number> = {
-    live: 0,
-    requested: 0,
-    played: 0,
-    search: 0,
-  };
-  let reserved = 0;
-  let uncappedWeight = 0;
+  const overrides = CATEGORY_ORDER.filter((key) => custom?.[key] != null);
+  const automatic = CATEGORY_ORDER.filter((key) => custom?.[key] == null);
+  const overrideOf = (key: CoverCacheCategory) => Math.max(0, custom?.[key] ?? 0);
+  const reserved = overrides.reduce((sum, key) => sum + overrideOf(key), 0);
+  const fit = reserved > maxBytes ? maxBytes / reserved : 1;
+  const leftover = Math.max(0, maxBytes - reserved);
+  const weight = automatic.reduce((sum, key) => sum + PARTITION_WEIGHTS[key], 0);
 
-  for (const key of CATEGORY_ORDER) {
-    const customBytes = custom?.[key];
-    if (customBytes == null) {
-      uncappedWeight += PARTITION_WEIGHTS[key];
-    } else {
-      const bytes = Math.max(0, customBytes);
-      caps[key] = bytes;
-      reserved += bytes;
-    }
-  }
-
-  if (uncappedWeight > 0) {
-    const leftover = Math.max(0, maxBytes - reserved);
-    for (const key of CATEGORY_ORDER) {
-      if (custom?.[key] == null) {
-        caps[key] = Math.round(
-          (leftover * PARTITION_WEIGHTS[key]) / uncappedWeight,
-        );
-      }
-    }
-  }
-
+  const caps: Record<CoverCacheCategory, number> = { live: 0, requested: 0, played: 0, search: 0 };
+  for (const key of overrides) caps[key] = Math.floor(overrideOf(key) * fit);
+  for (const key of automatic) caps[key] = Math.round((leftover * PARTITION_WEIGHTS[key]) / weight);
   return caps;
 }
 
