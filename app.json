@@ -113,7 +113,6 @@
       ],
       "./plugins/withAndroidReleaseResources",
       "./plugins/withAndroidLargeScreenOrientation",
-      "./plugins/withAndroidTV",
       "./plugins/withAndroidFocusRing",
       "./plugins/withAndroidR8Optimization"
     ],

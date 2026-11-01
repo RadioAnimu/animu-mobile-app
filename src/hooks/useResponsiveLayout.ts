@@ -31,7 +31,6 @@ export function useResponsiveLayout(): ResponsiveLayout {
         width,
         height,
         { top, right, bottom, left },
-        Platform.isTV,
         isIPadWindowed(width, height),
       ),
     [width, height, top, right, bottom, left],

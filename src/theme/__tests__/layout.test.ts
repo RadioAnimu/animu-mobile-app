@@ -38,7 +38,7 @@ describe("resolveLayout", () => {
   it("splits full-screen tablet landscape, square-ish landscape windows and TVs", () => {
     expect(resolveLayout(1180, 820)).toMatchObject({ windowClass: "expanded", split: true, short: false });
     expect(resolveLayout(800, 760).split).toBe(true);
-    expect(resolveLayout(960, 540, undefined, true)).toMatchObject({ split: true, tv: true });
+    expect(resolveLayout(960, 540)).toMatchObject({ split: true });
   });
 
   it("follows the window across the breakpoints", () => {
@@ -52,6 +52,6 @@ describe("resolveLayout", () => {
 
   it("leaves room for the iPadOS window controls only in a resizable window", () => {
     expect(resolveLayout(1180, 820).windowControlsInset).toBe(0);
-    expect(resolveLayout(375, 640, undefined, false, true).windowControlsInset).toBe(72);
+    expect(resolveLayout(375, 640, undefined, true).windowControlsInset).toBe(72);
   });
 });

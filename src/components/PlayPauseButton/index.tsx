@@ -17,8 +17,6 @@ type Status = "playing" | "paused" | "changing";
 interface Props {
   /** Size and placement of the glyph (the header's, the lyrics panel's). */
   style: StyleProp<ImageStyle>;
-  /** TV: the control the D-pad starts on. */
-  hasTVPreferredFocus?: boolean;
 }
 
 /**
@@ -26,7 +24,7 @@ interface Props {
  * lyrics side panel. Its own component: the re-entrancy guard and the
  * optimistic status are its business alone, not its host's.
  */
-export function PlayPauseButton({ style, hasTVPreferredFocus }: Readonly<Props>) {
+export function PlayPauseButton({ style }: Readonly<Props>) {
   const dict = useDict();
   const player = usePlayer();
   const [status, setStatus] = useState<Status>("playing");
@@ -42,10 +40,9 @@ export function PlayPauseButton({ style, hasTVPreferredFocus }: Readonly<Props>)
       }
       // "busy", not "disabled", while the toggle is in flight: on Android a
       // disabled accessibility state disables the native view, which drops
-      // D-pad focus (TV, keyboards) the moment playback starts. The
+      // keyboard / D-pad focus the moment playback starts. The
       // re-entrancy guard above is what actually blocks a second press.
       accessibilityState={{ busy: status === "changing" }}
-      hasTVPreferredFocus={hasTVPreferredFocus}
       onPress={async () => {
         if (changingRef.current) return;
         changingRef.current = true;

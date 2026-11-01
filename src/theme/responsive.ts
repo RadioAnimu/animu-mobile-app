@@ -1,4 +1,4 @@
-import { Dimensions, Platform } from "react-native";
+import { Dimensions } from "react-native";
 
 /**
  * Design reference: iPhone 15 Pro — 1179×2556 px @3x = 393×852 pt.
@@ -14,10 +14,9 @@ const DESIGN_WIDTH = 393;
  * phone layout into a billboard, so the factor is clamped here and the
  * extra room goes to layout (centered columns, side-by-side panes) instead.
  * At 1.2 a tablet's body copy lands on the platform's own (~17pt on iPad)
- * and the phone's fixed-width groups still fit a 375pt split-view window;
- * a TV is read from across the room, so it keeps a larger step.
+ * and the phone's fixed-width groups still fit a 375pt split-view window.
  */
-const MAX_SCALE = Platform.isTV ? 1.3 : 1.2;
+const MAX_SCALE = 1.2;
 
 /**
  * The factor is a property of the DEVICE, not of the window: it is taken

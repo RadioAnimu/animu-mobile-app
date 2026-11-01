@@ -15,14 +15,14 @@
 export const BREAKPOINT = {
   /** At or above: a tablet-class window (iPad split halves, small tablets). */
   MEDIUM: 600,
-  /** At or above: a full tablet / TV window. */
+  /** At or above: a full tablet window. */
   EXPANDED: 840,
 } as const;
 
 /**
  * Narrowest usable width (window minus the side safe areas) that lays the
  * player out in two panes: a landscape phone (≈734pt past the island) and
- * every landscape tablet / TV qualify; an iPad split-view half does not.
+ * every landscape tablet qualifies; an iPad split-view half does not.
  */
 export const SPLIT_MIN_WIDTH = 640;
 /** Below this height the portrait stack cannot fit a screenful (phone landscape). */
@@ -77,8 +77,6 @@ export interface ResponsiveLayout {
   split: boolean;
   /** A window too short for the portrait stack — trim vertical chrome. */
   short: boolean;
-  /** Running on a TV (D-pad focus, 10-foot viewing). */
-  tv: boolean;
   /**
    * Leading room top bars leave for the iPadOS window controls: zero
    * unless the app is in a resizable window (not full screen) on an iPad.
@@ -98,7 +96,6 @@ export function resolveLayout(
   width: number,
   height: number,
   insets: EdgeInsets = NO_INSETS,
-  tv = false,
   windowed = false,
 ): ResponsiveLayout {
   const usableWidth = width - insets.left - insets.right;
@@ -112,7 +109,6 @@ export function resolveLayout(
     landscape,
     split: landscape && usableWidth >= SPLIT_MIN_WIDTH,
     short: height < SHORT_MAX_HEIGHT,
-    tv,
     windowControlsInset: windowed ? WINDOW_CONTROLS_INSET : 0,
   };
 }

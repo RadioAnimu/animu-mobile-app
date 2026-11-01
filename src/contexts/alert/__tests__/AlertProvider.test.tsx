@@ -113,7 +113,7 @@ vi.mock("@/hooks/useResponsiveLayout", () => ({
     landscape: false,
     split: false,
     short: false,
-    tv: false, windowControlsInset: 0,
+    windowControlsInset: 0,
   }),
 }));
 const haptics = vi.hoisted(() => ({ error: vi.fn() }));

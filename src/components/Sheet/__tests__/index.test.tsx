@@ -55,7 +55,7 @@ const layout = vi.hoisted(() => ({
     landscape: false,
     split: false,
     short: false,
-    tv: false, windowControlsInset: 0,
+    windowControlsInset: 0,
   },
 }));
 
@@ -67,7 +67,7 @@ const setLayout = (width: number, height: number) => {
     landscape: width > height,
     split: width >= 560 && width > height * 1.2,
     short: height < 500,
-    tv: false, windowControlsInset: 0,
+    windowControlsInset: 0,
   } as ResponsiveLayout;
 };
 
@@ -100,7 +100,7 @@ describe("Sheet", () => {
       landscape: false,
       split: false,
       short: false,
-      tv: false, windowControlsInset: 0,
+      windowControlsInset: 0,
     } as ResponsiveLayout;
     insetsCtl.value = { top: 0, bottom: 0, left: 0, right: 0 };
   });

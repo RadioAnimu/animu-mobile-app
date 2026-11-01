@@ -72,8 +72,8 @@ vi.mock("@/screens/Lyrics/usePronunciation", () => ({
   }),
 }));
 vi.mock("@/components/PlayPauseButton", () => ({
-  PlayPauseButton: ({ hasTVPreferredFocus }: { hasTVPreferredFocus?: boolean }) => (
-    <button type="button" data-tv-focus={String(hasTVPreferredFocus ?? false)}>
+  PlayPauseButton: () => (
+    <button type="button">
       Play
     </button>
   ),
@@ -88,7 +88,7 @@ const PORTRAIT: ResponsiveLayout = {
   landscape: false,
   split: false,
   short: false,
-  tv: false, windowControlsInset: 0,
+  windowControlsInset: 0,
 };
 const TABLET_LANDSCAPE: ResponsiveLayout = {
   width: 1180,
@@ -98,7 +98,7 @@ const TABLET_LANDSCAPE: ResponsiveLayout = {
   landscape: true,
   split: true,
   short: false,
-  tv: false, windowControlsInset: 0,
+  windowControlsInset: 0,
 };
 /** 852×393 past the island's 59pt side insets: two panes, like every landscape window. */
 const PHONE_LANDSCAPE: ResponsiveLayout = {

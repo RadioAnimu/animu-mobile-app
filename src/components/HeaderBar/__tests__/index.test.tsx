@@ -23,7 +23,7 @@ const mocks = vi.hoisted(() => ({
   progress: {} as Record<string, unknown>,
   backgrounded: false,
   haptics: { tap: vi.fn() },
-  layout: { usableWidth: 393, tv: false, windowControlsInset: 0 },
+  layout: { usableWidth: 393, windowControlsInset: 0 },
 }));
 vi.mock("@/hooks/useResponsiveLayout", () => ({
   useResponsiveLayout: () => mocks.layout,
@@ -86,7 +86,7 @@ const pressRequest = () =>
 describe("HeaderBar", () => {
   beforeEach(() => {
     mocks.backgrounded = false;
-    mocks.layout = { usableWidth: 393, tv: false, windowControlsInset: 0 };
+    mocks.layout = { usableWidth: 393, windowControlsInset: 0 };
     mocks.progress = { progressMs: 0, progressAt: 0, progressRunning: false, showProgress: true, durationMs: 200_000 };
     setPlayer();
   });
@@ -121,14 +121,14 @@ describe("HeaderBar", () => {
     });
 
     it("sits inside the side safe areas, capped to the page column", () => {
-      mocks.layout = { usableWidth: 734, tv: false, windowControlsInset: 0 };
+      mocks.layout = { usableWidth: 734, windowControlsInset: 0 };
       render(<HeaderBar />);
       expect(rowWidth()).toBe(560);
       expect(playMargin()).toBe(47);
     });
 
     it("keeps a centered row centered when it already clears the window controls", () => {
-      mocks.layout = { usableWidth: 1180, tv: false, windowControlsInset: 72 };
+      mocks.layout = { usableWidth: 1180, windowControlsInset: 72 };
       render(<HeaderBar rowWidth={900} />);
       const container = screen.getByTestId("menu-slot").parentElement!.parentElement!;
       expect(JSON.parse(container.getAttribute("data-style")!).paddingLeft).toBe(0);
@@ -136,7 +136,7 @@ describe("HeaderBar", () => {
     });
 
     it("starts the row past the iPadOS window controls in a resizable window", () => {
-      mocks.layout = { usableWidth: 375, tv: false, windowControlsInset: 72 };
+      mocks.layout = { usableWidth: 375, windowControlsInset: 72 };
       render(<HeaderBar />);
       const container = screen.getByTestId("menu-slot").parentElement!.parentElement!;
       expect(JSON.parse(container.getAttribute("data-style")!).paddingLeft).toBe(72);
@@ -145,13 +145,13 @@ describe("HeaderBar", () => {
 
     it("takes the width the split layout gives it", () => {
       // A landscape phone: 734pt between the island insets, panes 686pt wide.
-      mocks.layout = { usableWidth: 734, tv: false, windowControlsInset: 0 };
+      mocks.layout = { usableWidth: 734, windowControlsInset: 0 };
       render(<HeaderBar rowWidth={686} />);
       expect(rowWidth()).toBe(686);
     });
 
     it("pulls the play button's margins in on a narrow window, down to a floor", () => {
-      mocks.layout = { usableWidth: 300, tv: false, windowControlsInset: 0 };
+      mocks.layout = { usableWidth: 300, windowControlsInset: 0 };
       const { unmount } = render(<HeaderBar />);
       expect(rowWidth()).toBe(300);
       expect(playMargin()).toBeCloseTo((47 * 300) / 360);
@@ -168,7 +168,7 @@ describe("HeaderBar", () => {
         .filter((label) => label !== "image");
 
     it("reads like the website player: menu and play left; stream, lyrics and requests right", () => {
-      mocks.layout = { usableWidth: 734, tv: false, windowControlsInset: 0 };
+      mocks.layout = { usableWidth: 734, windowControlsInset: 0 };
       render(<HeaderBar rowWidth={686} bar openLiveRequestModal={vi.fn()} />);
       expect(labelsIn("menu-slot")).toEqual(["Open menu", "Play"]);
       expect(labelsIn("note-slot")).toEqual(["bitrate-select", "Show lyrics", "Make request"]);

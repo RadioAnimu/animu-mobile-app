@@ -27,8 +27,8 @@ const FOCUS_RING =
   `  ${MARKER}\n` +
   "  // React Native draws no focus state: its views skip View.draw(), so the\n" +
   "  // platform's default focus highlight never shows, and TouchableOpacity\n" +
-  "  // drops focus events outside react-native-tvos. With a D-pad (Android TV,\n" +
-  "  // a keyboard on a tablet) the focused control gets a ring as its\n" +
+  "  // drops focus events outside react-native-tvos. With a keyboard or a\n" +
+  "  // D-pad on a tablet, the focused control gets a ring as its\n" +
   "  // foreground — brand green outside, white inside, so it reads on the\n" +
   "  // purple surfaces and the green pills alike — drawn a little outside the\n" +
   "  // control so small icons stay legible. Touch input never shows it.\n" +

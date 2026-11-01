@@ -27,7 +27,7 @@ const SECTION_ICON_SIZE = THEME.ICON.SECTION;
 /**
  * The drawer stays mounted while closed, parked off-screen by a transform
  * that Android's D-pad focus search does not see: its controls would be
- * focus targets beside the header's menu button (Android TV, a keyboard on a
+ * focus targets beside the header's menu button (a keyboard or D-pad on a
  * tablet). They are focusable — and accessible: Android makes every
  * accessible view focusable, and an off-screen menu has nothing to read —
  * only while the drawer is open, and opening it puts focus on the current

@@ -158,7 +158,7 @@ export function HeaderBar({ openLiveRequestModal, rowWidth, backdrop, bar = fals
   // The row follows the live window (rotation, split view, Android
   // multi-window), inside the side safe areas — the notch of a landscape
   // phone is not room for icons — keeping them aligned with the page column.
-  const { usableWidth, tv, windowControlsInset } = useResponsiveLayout();
+  const { usableWidth, windowControlsInset } = useResponsiveLayout();
   // In an iPadOS window the row must start past the window controls. A
   // centered row that already clears them stays centered over the page; one
   // that would reach under them (a narrow window's full-width row) gives up
@@ -246,7 +246,7 @@ export function HeaderBar({ openLiveRequestModal, rowWidth, backdrop, bar = fals
           <View style={[styles.row, styles.barRow, { width }]}>
             <View style={styles.barGroup} testID="menu-slot">
               {menuButton}
-              <PlayPauseButton style={styles.playBtn} hasTVPreferredFocus={tv} />
+              <PlayPauseButton style={styles.playBtn} />
             </View>
             {/* Live shows hang the request badge off the note's left: the
                 note steps aside from the mic to make room for it. */}
@@ -273,10 +273,7 @@ export function HeaderBar({ openLiveRequestModal, rowWidth, backdrop, bar = fals
                 />
               )}
             </View>
-            <PlayPauseButton
-              style={[styles.playBtn, { marginHorizontal: playMargin }]}
-              hasTVPreferredFocus={tv}
-            />
+            <PlayPauseButton style={[styles.playBtn, { marginHorizontal: playMargin }]} />
 
             {/* Fallback placement: away from a live badge the mic hangs off the
                 note's left, as before. Only one mic mounts at a time — the two

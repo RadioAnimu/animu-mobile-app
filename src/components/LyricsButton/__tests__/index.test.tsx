@@ -1,14 +1,11 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { Platform } from "react-native";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { LyricsButton } from "@/components/LyricsButton";
 
 const mocks = vi.hoisted(() => ({
   navigate: vi.fn(),
   restore: vi.fn(async () => {}),
-  install: vi.fn(async () => {}),
-  dictionary: "none" as string,
   availability: "available" as string,
 }));
 
@@ -17,15 +14,7 @@ vi.mock("@react-navigation/native", () => ({ useNavigation: () => ({ navigate: m
 vi.mock("@/components/KaraokeMicIcon", () => ({
   KaraokeMicIcon: ({ color }: { color: string }) => <i data-icon="karaoke-mic" data-color={color} />,
 }));
-vi.mock("@/core/japanese", () => ({
-  japaneseDictionary: {
-    restore: mocks.restore,
-    install: mocks.install,
-    get snapshot() {
-      return { install: mocks.dictionary };
-    },
-  },
-}));
+vi.mock("@/core/japanese", () => ({ japaneseDictionary: { restore: mocks.restore } }));
 vi.mock("@/hooks/useLyricsAvailability", () => ({ useLyricsAvailability: () => mocks.availability }));
 vi.mock("@/hooks/useDict", () => ({
   useDict: () => ({ A11Y_OPEN_LYRICS: "Show lyrics", LYRICS_MISSING: "No lyrics yet" }),
@@ -48,8 +37,6 @@ describe("LyricsButton", () => {
   afterEach(() => {
     cleanup();
     vi.unstubAllGlobals();
-    Object.assign(Platform, { isTV: false });
-    mocks.install.mockClear();
   });
 
   it("is a green microphone that opens the lyrics", () => {
@@ -82,30 +69,6 @@ describe("LyricsButton", () => {
     expect(mocks.restore).not.toHaveBeenCalled();
     idle();
     expect(mocks.restore).toHaveBeenCalled();
-  });
-
-  it("installs a missing dictionary at launch on a TV, and only there", async () => {
-    mocks.dictionary = "none";
-    render(<LyricsButton size={27} hitSlop={7} />);
-    idle();
-    await waitFor(() => expect(mocks.restore).toHaveBeenCalled());
-    await Promise.resolve();
-    expect(mocks.install).not.toHaveBeenCalled();
-    cleanup();
-
-    Object.assign(Platform, { isTV: true });
-    render(<LyricsButton size={27} hitSlop={7} />);
-    idle();
-    await waitFor(() => expect(mocks.install).toHaveBeenCalledTimes(1));
-
-    mocks.dictionary = "installed";
-    mocks.install.mockClear();
-    cleanup();
-    render(<LyricsButton size={27} hitSlop={7} />);
-    idle();
-    await Promise.resolve();
-    await Promise.resolve();
-    expect(mocks.install).not.toHaveBeenCalled();
   });
 
   it("cancels dictionary work when unmounted before the idle slot", () => {

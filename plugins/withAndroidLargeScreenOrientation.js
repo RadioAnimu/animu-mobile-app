@@ -2,7 +2,7 @@ const { AndroidConfig, withAndroidManifest } = require("expo/config-plugins");
 
 /**
  * The app follows the window on every device — phones rotate, tablets and
- * foldables rotate and resize freely, Android TV runs landscape — so the
+ * foldables rotate and resize freely — so the
  * main activity must not declare a screen orientation at all. Android 16
  * ignores the attribute on large screens anyway (sw >= 600dp) and Play flags
  * it, so it is stripped rather than left as `unspecified`.

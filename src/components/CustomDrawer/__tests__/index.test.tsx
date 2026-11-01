@@ -132,7 +132,6 @@ const PHONE: ResponsiveLayout = {
   landscape: false,
   split: false,
   short: false,
-  tv: false,
   windowControlsInset: 0,
 };
 
