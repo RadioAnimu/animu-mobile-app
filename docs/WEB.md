@@ -11,9 +11,11 @@ pnpm web          # dev server: http://localhost:8081
 pnpm build:web    # static export → dist/web (deploy the folder as is)
 ```
 
-The export is a single-page app (`web.output: "single"` in `app.json`): any
-static host works, with every unknown path served `index.html`. The fonts must
-be present locally first, as for a native build ([Development](DEVELOPMENT.md#fonts)).
+The export is a single-page app (`web.output: "single"` in `app.json`) with
+relative paths (`app.config.js`): any static host works, from any folder —
+unzip it at the root or at, say, `/teste/web/`. The app never changes the
+page's URL, so no rewrite rules are needed. The fonts must be present locally
+first, as for a native build ([Development](DEVELOPMENT.md#fonts)).
 
 ## What works today
 
