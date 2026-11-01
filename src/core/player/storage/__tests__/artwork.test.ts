@@ -13,7 +13,6 @@ vi.mock("react-native", () => ({ Platform: platform }));
 // The bundled png is stubbed too; both are hoisted above the imports.
 const assetMocks = vi.hoisted(() => ({
   fromModule: vi.fn(),
-  fromURI: vi.fn(),
 }));
 
 // expo-file-system reaches react-native too. `directDownload` backs
@@ -43,11 +42,18 @@ vi.mock("expo-file-system", () => {
     get size(): number {
       return files.get(this.name) ?? 0;
     }
+    /** Write order stands in for the modification time. */
+    get lastModified(): number {
+      return [...files.keys()].indexOf(this.name);
+    }
     set size(value: number) {
       files.set(this.name, value);
     }
     delete(): void {
       files.delete(this.name);
+    }
+    write(data: Uint8Array): void {
+      files.set(this.name, data.length);
     }
     rename(newName: string): void {
       if (files.has(newName)) throw new Error("FileAlreadyExists");
@@ -57,10 +63,22 @@ vi.mock("expo-file-system", () => {
     }
     static downloadFileAsync = fileSystemMocks.directDownload;
   }
-  return { File, Paths: { cache: "file://mock/cache" } };
+  class Directory {
+    list(): File[] {
+      return [...files.keys()].map((name) => new File(null, name));
+    }
+  }
+  return { Directory, File, Paths: { cache: "file://mock/cache" } };
 });
 
 vi.mock("expo-asset", () => ({ Asset: assetMocks }));
+
+// The fallback client (`expo/fetch`) — unavailable by default, like the direct one.
+const fetchMock = vi.hoisted(() => vi.fn());
+vi.mock("expo/fetch", () => ({ fetch: fetchMock }));
+const coverResponse = (bytes = 128) => new Response(new Uint8Array(bytes));
+/** A cover the resolver landed itself, by either client. */
+const COVER_FILE = /^file:\/\/mock\/cache\/animu-cover-[0-9a-f]+\.jpg$/;
 vi.mock("../../../../assets/default-cover.png", () => ({ default: 1234 }));
 // cover-image-cache (imported for the slash-normalized keys) reaches
 // expo-image at module scope.
@@ -111,17 +129,19 @@ describe("ArtworkResolver", () => {
   beforeEach(() => {
     fileSystemState.files.clear();
     assetMocks.fromModule.mockReset();
-    assetMocks.fromURI.mockReset();
     // Default: the direct download is unavailable → resolver uses the
-    // expo-asset fallback path (what the existing expectations target).
+    // fetch fallback (what most expectations target), itself failing unless
+    // a test serves a cover.
     fileSystemMocks.directDownload
       .mockReset()
       .mockRejectedValue(new Error("direct download disabled in test"));
+    fetchMock.mockReset().mockRejectedValue(new Error("fallback disabled in test"));
   });
 
   afterEach(() => {
     vi.useRealTimers();
     vi.restoreAllMocks();
+    vi.unstubAllGlobals();
   });
 
   describe("default cover", () => {
@@ -163,18 +183,13 @@ describe("ArtworkResolver", () => {
 
   describe("resolve()", () => {
     it("downloads a remote cover and resolves to the local file URI", async () => {
-      assetMocks.fromURI.mockReturnValueOnce({
-        localUri: "file://cache/cover.png",
-        downloadAsync: async () => ({ localUri: "file://cache/cover.png" }),
-      });
+      fetchMock.mockResolvedValueOnce(coverResponse());
 
       const resolver = new ArtworkResolver();
       const local = await resolver.resolve("https://images.test/cover.png");
 
-      expect(local).toBe("file://cache/cover.png");
-      expect(resolver.peek("https://images.test/cover.png")).toBe(
-        "file://cache/cover.png",
-      );
+      expect(local).toMatch(COVER_FILE);
+      expect(resolver.peek("https://images.test/cover.png")).toBe(local);
     });
 
     it("downloads directly to a deterministic cache file (no expo-asset machinery)", async () => {
@@ -197,7 +212,7 @@ describe("ArtworkResolver", () => {
       );
       expect(local).toBe(resolver.peek(url));
       expect(local).toMatch(/^file:\/\/mock\/cache\/animu-cover-[0-9a-f]+\.jpg$/);
-      expect(assetMocks.fromURI).not.toHaveBeenCalled();
+      expect(fetchMock).not.toHaveBeenCalled();
     });
 
     it.each([
@@ -214,14 +229,84 @@ describe("ArtworkResolver", () => {
       expect(await resolver.resolve(url)).toBe(`file://mock/cache/${filename}`);
     });
 
-    it("shares one download between concurrent callers", async () => {
-      const downloadAsync = vi.fn(async () => ({
-        localUri: "file://cache/cover.png",
-      }));
-      assetMocks.fromURI.mockReturnValueOnce({
-        localUri: null,
-        downloadAsync,
+    it("keeps the 64 newest downloaded covers, nothing else touched", async () => {
+      const files = fileSystemState.files;
+      for (let i = 0; i < 64; i++) files.set(`animu-cover-old${i}.jpg`, 10);
+      files.set("someone-else.png", 10);
+      files.set("animu-cover-busy.jpg.1-1.part", 10);
+      fileSystemMocks.directDownload.mockImplementation(
+        async (_url: string, file: { exists: boolean; size: number }) => {
+          file.exists = true;
+          file.size = 128;
+        },
+      );
+
+      const local = await new ArtworkResolver().resolve("https://images.test/new.png");
+
+      const covers = [...files.keys()].filter((name) => name.startsWith("animu-cover-") && !name.endsWith(".part"));
+      expect(covers).toHaveLength(64);
+      expect(files.has("animu-cover-old0.jpg")).toBe(false);
+      expect(local).toMatch(/animu-cover-[0-9a-f]+\.jpg$/);
+      expect(files.has("someone-else.png")).toBe(true);
+      expect(files.has("animu-cover-busy.jpg.1-1.part")).toBe(true);
+    });
+
+    it("a wipe keeps only the shown cover, even with a newer one prefetched", async () => {
+      fileSystemMocks.directDownload.mockImplementation(
+        async (_url: string, file: { exists: boolean; size: number }) => {
+          file.exists = true;
+          file.size = 128;
+        },
+      );
+      const resolver = new ArtworkResolver();
+      const shown = await resolver.resolve("https://images.test/heard.png");
+      await resolver.resolve("https://images.test/announced.png"); // newer file
+
+      resolver.pruneDownloads(0, shown);
+
+      expect(resolver.peek("https://images.test/heard.png")).toBe(shown);
+      expect(resolver.peek("https://images.test/announced.png")).toBeUndefined();
+      expect([...fileSystemState.files.keys()]).toEqual([shown.replace("file://mock/cache/", "")]);
+    });
+
+    it("after a wipe, re-fetches a shown cover the image cache held, and republishes it", async () => {
+      let imageCacheFull = true;
+      fetchMock.mockImplementation(async () => coverResponse());
+      const resolver = new ArtworkResolver({
+        findCachedCoverFile: async (url) =>
+          imageCacheFull && url.includes("heard") ? "file://image-cache/heard.jpg" : null,
       });
+      const republished: string[] = [];
+      resolver.onLateResolve = (url) => republished.push(url);
+      const heard = "https://images.test/heard.png";
+      expect(await resolver.resolve(heard)).toBe("file://image-cache/heard.jpg");
+      await resolver.resolve("https://images.test/other.png"); // a download, not shown
+
+      imageCacheFull = false; // the wipe emptied the image cache
+      resolver.afterCacheWipe(heard);
+
+      expect(resolver.peek("https://images.test/other.png")).toBeUndefined();
+      await vi.waitFor(() => expect(republished).toEqual([heard]));
+      expect(resolver.peek(heard)).toMatch(COVER_FILE);
+    });
+
+    it("after a wipe, keeps a shown cover it downloaded itself", async () => {
+      fetchMock.mockImplementation(async () => coverResponse());
+      const resolver = new ArtworkResolver();
+      const republished: string[] = [];
+      resolver.onLateResolve = (url) => republished.push(url);
+      const heard = "https://images.test/heard.png";
+      const shown = await resolver.resolve(heard);
+
+      resolver.afterCacheWipe(heard);
+
+      expect(resolver.peek(heard)).toBe(shown);
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+      expect(republished).toEqual([]);
+    });
+
+    it("shares one download between concurrent callers", async () => {
+      fetchMock.mockResolvedValueOnce(coverResponse());
 
       const resolver = new ArtworkResolver();
       const [a, b] = await Promise.all([
@@ -230,16 +315,11 @@ describe("ArtworkResolver", () => {
       ]);
 
       expect(a).toBe(b);
-      expect(downloadAsync).toHaveBeenCalledTimes(1);
+      expect(fetchMock).toHaveBeenCalledTimes(1);
     });
 
     it("degrades to the remote URL when the download fails", async () => {
-      assetMocks.fromURI.mockReturnValueOnce({
-        localUri: null,
-        downloadAsync: async () => {
-          throw new Error("offline");
-        },
-      });
+      fetchMock.mockRejectedValueOnce(new Error("offline"));
       const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
 
       const resolver = new ArtworkResolver();
@@ -293,10 +373,7 @@ describe("ArtworkResolver", () => {
             };
           }),
       );
-      assetMocks.fromURI.mockReturnValue({
-        localUri: null,
-        downloadAsync: () => new Promise(() => {}), // fallback hangs too
-      });
+      fetchMock.mockReturnValue(new Promise(() => {})); // fallback hangs too
       vi.spyOn(console, "warn").mockImplementation(() => {});
 
       const resolver = new ArtworkResolver();
@@ -315,6 +392,72 @@ describe("ArtworkResolver", () => {
 
       expect(resolver.peek(url)).toMatch(/^file:\/\/mock\/cache\/animu-cover-[0-9a-f]+\.jpg$/);
       expect(late).toEqual([url]);
+    });
+
+    it.each([
+      ["direct first", ["direct", "fallback"]],
+      ["fallback first", ["fallback", "direct"]],
+    ] as const)("lands one cover when both clients finish late (%s)", async (_label, order) => {
+      vi.useFakeTimers();
+      const finish: Record<"direct" | "fallback", () => void> = { direct: () => {}, fallback: () => {} };
+      fileSystemMocks.directDownload.mockImplementation(
+        (_url: string, file: { size: number }) =>
+          new Promise<void>((resolve) => {
+            finish.direct = () => {
+              file.size = 120540;
+              resolve();
+            };
+          }),
+      );
+      fetchMock.mockReturnValue(
+        new Promise((resolve) => {
+          finish.fallback = () => resolve(coverResponse(120540));
+        }),
+      );
+      vi.spyOn(console, "warn").mockImplementation(() => {});
+
+      const resolver = new ArtworkResolver();
+      const late: string[] = [];
+      resolver.onLateResolve = (lateUrl) => late.push(lateUrl);
+      const url = "https://images.test/cover.png";
+      const pending = resolver.resolve(url);
+      await vi.advanceTimersByTimeAsync(10_000); // both deadlines
+      await pending;
+      for (const client of order) {
+        finish[client]();
+        await vi.advanceTimersByTimeAsync(0);
+      }
+
+      expect([...fileSystemState.files.keys()]).toEqual([expect.stringMatching(/^animu-cover-[0-9a-f]+\.jpg$/)]);
+      expect(fileSystemState.files.values().next().value).toBe(120540);
+      expect(resolver.peek(url)).toMatch(COVER_FILE);
+      expect(late).toEqual([url]);
+    });
+
+    it("caps the folder for a download that lands after its deadline too", async () => {
+      vi.useFakeTimers();
+      for (let i = 0; i < 64; i++) fileSystemState.files.set(`animu-cover-old${i}.jpg`, 10);
+      let finish!: () => void;
+      fileSystemMocks.directDownload.mockImplementation(
+        (_url: string, file: { size: number }) =>
+          new Promise<void>((resolve) => {
+            finish = () => {
+              file.size = 120540;
+              resolve();
+            };
+          }),
+      );
+      fetchMock.mockReturnValue(new Promise(() => {}));
+      vi.spyOn(console, "warn").mockImplementation(() => {});
+
+      const pending = new ArtworkResolver().resolve("https://images.test/late.png");
+      await vi.advanceTimersByTimeAsync(10_000); // both deadlines
+      await pending;
+      finish();
+      await vi.advanceTimersByTimeAsync(0);
+
+      expect(fileSystemState.files.size).toBe(64); // no part file left behind
+      expect(fileSystemState.files.has("animu-cover-old0.jpg")).toBe(false);
     });
 
     it("does not announce a download that landed in time", async () => {
@@ -339,7 +482,7 @@ describe("ArtworkResolver", () => {
       expect(await resolver.resolve("file://already-local.png")).toBe(
         "file://already-local.png",
       );
-      expect(assetMocks.fromURI).not.toHaveBeenCalled();
+      expect(fetchMock).not.toHaveBeenCalled();
     });
   });
 
@@ -355,7 +498,7 @@ describe("ArtworkResolver", () => {
       expect(resolver.peek("https://images.test/cover.png")).toBe(
         "file://image-cache/same.png",
       );
-      expect(assetMocks.fromURI).not.toHaveBeenCalled();
+      expect(fetchMock).not.toHaveBeenCalled();
     });
 
     it("shares one cache probe between concurrent callers (no double probe)", async () => {
@@ -372,31 +515,25 @@ describe("ArtworkResolver", () => {
       expect(findCached).toHaveBeenCalledTimes(1);
       expect(a).toBe("file://image-cache/slow.png");
       expect(b).toBe("file://image-cache/slow.png");
-      expect(assetMocks.fromURI).not.toHaveBeenCalled();
+      expect(fetchMock).not.toHaveBeenCalled();
     });
 
     it("seeds the downloaded file back into the image cache", async () => {
       const onResolved = vi.fn(async () => {});
-      assetMocks.fromURI.mockReturnValueOnce({
-        localUri: "file://cache/cover.png",
-        downloadAsync: async () => ({ localUri: "file://cache/cover.png" }),
-      });
+      fetchMock.mockResolvedValueOnce(coverResponse());
 
       const resolver = new ArtworkResolver({ onResolved });
       await resolver.resolve("https://images.test/cover.png");
 
       expect(onResolved).toHaveBeenCalledWith(
-        "file://cache/cover.png",
+        expect.stringMatching(COVER_FILE),
         "https://images.test/cover.png",
       );
     });
 
     it("does not seed when the download degraded to the remote URL", async () => {
       const onResolved = vi.fn(async () => {});
-      assetMocks.fromURI.mockReturnValueOnce({
-        localUri: null,
-        downloadAsync: async () => ({ localUri: null }),
-      });
+      vi.spyOn(console, "warn").mockImplementation(() => {});
 
       const resolver = new ArtworkResolver({ onResolved });
       await resolver.resolve("https://images.test/cover.png");
@@ -405,18 +542,15 @@ describe("ArtworkResolver", () => {
     });
 
     it("a failed cache probe degrades to the download path", async () => {
-      assetMocks.fromURI.mockReturnValueOnce({
-        localUri: "file://cache/cover.png",
-        downloadAsync: async () => ({ localUri: "file://cache/cover.png" }),
-      });
+      fetchMock.mockResolvedValueOnce(coverResponse());
 
       const resolver = new ArtworkResolver({
         findCachedCoverFile: async () => null,
       });
       const local = await resolver.resolve("https://images.test/cover.png");
 
-      expect(local).toBe("file://cache/cover.png");
-      expect(assetMocks.fromURI).toHaveBeenCalledOnce();
+      expect(local).toMatch(COVER_FILE);
+      expect(fetchMock).toHaveBeenCalledOnce();
     });
   });
 
@@ -427,14 +561,12 @@ describe("ArtworkResolver", () => {
       const fullUrl = "https://images.test/trackImage1_large.jpg";
       const previewUrl = "https://images.test/trackImage1_tiny.jpg";
 
-      let releaseFull!: (value: { localUri: string }) => void;
-      assetMocks.fromURI.mockReturnValueOnce({
-        localUri: null,
-        downloadAsync: () =>
-          new Promise((resolve) => {
-            releaseFull = resolve;
-          }),
-      });
+      let releaseFull!: (value: Response) => void;
+      fetchMock.mockReturnValueOnce(
+        new Promise((resolve) => {
+          releaseFull = resolve;
+        }),
+      );
 
       const resolver = new ArtworkResolver({
         findCachedCoverFile: async (url) =>
@@ -458,10 +590,11 @@ describe("ArtworkResolver", () => {
       expect(resolver.peek(fullUrl)).toBe("file://image-cache/tiny.jpg");
 
       // The full lands and wins.
-      releaseFull({ localUri: "file://cache/full.jpg" });
-      expect(await prefetch).toBe("file://cache/full.jpg");
-      expect(await adoption).toBe("file://cache/full.jpg");
-      expect(resolver.peek(fullUrl)).toBe("file://cache/full.jpg");
+      releaseFull(coverResponse());
+      const full = await prefetch;
+      expect(full).toMatch(COVER_FILE);
+      expect(await adoption).toBe(full);
+      expect(resolver.peek(fullUrl)).toBe(full);
     });
 
     it("issues the preview and full downloads in parallel", async () => {
@@ -500,10 +633,7 @@ describe("ArtworkResolver", () => {
       const fullUrl = "https://images.test/trackImage1_large.jpg";
       const previewUrl = "https://images.test/trackImage1.jpg";
       // The full download fails (both the direct path and the fallback).
-      assetMocks.fromURI.mockReturnValue({
-        localUri: null,
-        downloadAsync: () => Promise.reject(new Error("deadline")),
-      });
+      fetchMock.mockRejectedValue(new Error("deadline"));
 
       const resolver = new ArtworkResolver({
         findCachedCoverFile: async (url) =>
@@ -530,10 +660,7 @@ describe("ArtworkResolver", () => {
     it("ignores a preview that lands after the full download already failed", async () => {
       const fullUrl = "https://images.test/trackImage1_large.jpg";
       const previewUrl = "https://images.test/trackImage1.jpg";
-      assetMocks.fromURI.mockReturnValue({
-        localUri: null,
-        downloadAsync: () => Promise.reject(new Error("deadline")),
-      });
+      fetchMock.mockRejectedValue(new Error("deadline"));
 
       let releasePreview!: (value: string) => void;
       const resolver = new ArtworkResolver({
@@ -560,10 +687,7 @@ describe("ArtworkResolver", () => {
 
   describe("apply()", () => {
     it("swaps the track artwork to the local file once resolved", async () => {
-      assetMocks.fromURI.mockReturnValueOnce({
-        localUri: "file://cache/cover.png",
-        downloadAsync: async () => ({ localUri: "file://cache/cover.png" }),
-      });
+      fetchMock.mockResolvedValueOnce(coverResponse());
 
       const resolver = new ArtworkResolver();
       const track = makeTrack();
@@ -574,7 +698,7 @@ describe("ArtworkResolver", () => {
       await resolver.resolve(track.artwork as string);
       const applied = resolver.apply(track);
       expect(applied).not.toBe(track);
-      expect(applied?.artwork).toBe("file://cache/cover.png");
+      expect(applied?.artwork).toMatch(COVER_FILE);
       // Everything else is preserved (same Date instance, shallow spread)
       expect(applied?.startTime).toBe(track.startTime);
     });
@@ -631,6 +755,6 @@ describe("ArtworkResolver on web", () => {
     expect(resolver.isRemote(url)).toBe(false);
     expect(await resolver.resolve(url)).toBe(url);
     expect(fileSystemMocks.directDownload).not.toHaveBeenCalled();
-    expect(assetMocks.fromURI).not.toHaveBeenCalled();
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 });

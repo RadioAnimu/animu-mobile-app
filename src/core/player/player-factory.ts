@@ -4,6 +4,7 @@ import type { AudioPlayer } from "@/core/player/ports";
 import { setServerSkewListener } from "@/api/client";
 import { animuService } from "@/core/services/animu.service";
 import { coverCacheRegistry } from "@/core/services/cover-cache-registry.service";
+import { coverDiskStorage } from "@/core/services/cover-disk-storage.service";
 import { listenStatsService } from "@/core/services/listen-stats.service";
 import { lyricsService } from "@/core/lyrics";
 import { userSettingsService } from "@/core/services/user-settings.service";
@@ -173,14 +174,20 @@ export const createPlayerService = (onDestroyed?: () => void): PlayerService => 
   const coverSeeder = new CoverCacheSeeder(coverDiskCache);
   const artwork = new ArtworkResolver({
     onResolved: (localUri, remoteUrl) => {
+      // Caching off keeps nothing: no attribution, no copy into the image cache.
+      if (!userSettingsService.getCurrentSettings().cacheEnabled) return Promise.resolve();
       // Attribute the download to the live surface while the remote URL is
       // still known (the UI renders the local file).
-      if (userSettingsService.getCurrentSettings().cacheEnabled) {
-        coverCacheRegistry.tag(remoteUrl, "live");
-      }
+      coverCacheRegistry.tag(remoteUrl, "live");
       return coverSeeder.seed(localUri, remoteUrl);
     },
     findCachedCoverFile: coverLookup.find.bind(coverLookup),
+  });
+  // A cover-cache wipe (the clean button, caching off, a quality change) also
+  // deletes the lock-screen downloads — all but the cover the media session
+  // shows, the heard track's — and the lookups into the wiped image cache.
+  const stopPruning = coverDiskStorage.subscribe(() => {
+    if (!coverDiskStorage.isClearing) artwork.afterCacheWipe(hearing.track?.artwork);
   });
   const sampler = new AudioSampler({
     isSamplingSupported: true,
@@ -200,7 +207,10 @@ export const createPlayerService = (onDestroyed?: () => void): PlayerService => 
     sampler,
     stats: listenStatsService,
     ticker: createTicker(),
-    onDestroyed,
+    onDestroyed: () => {
+      stopPruning();
+      onDestroyed?.();
+    },
     onTrackAnnounced: (track) => lyricsService().prefetch(track),
     publishCatalog,
     // A live song the station gave no length for: LRCLIB's, from the same

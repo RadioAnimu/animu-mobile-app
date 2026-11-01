@@ -1,6 +1,7 @@
 import { Asset } from "expo-asset";
 import { Platform } from "react-native";
-import { File, Paths } from "expo-file-system";
+import { Directory, File, Paths } from "expo-file-system";
+import { fetch } from "expo/fetch";
 import { artworkSizeRank, type Artworks } from "animu-api";
 import DEFAULT_COVER from "@/assets/default-cover.png";
 import { CONFIG, debugLog } from "@/utils/player.config";
@@ -38,6 +39,27 @@ export interface ArtworkResolverOptions {
 
 /** The bundled default cover's on-disk stand-in name space. */
 const COVER_FILE_PREFIX = "animu-cover-";
+/**
+ * Downloaded covers kept on disk (the lookup's own size): the OS never
+ * purges its cache directory on its own, so older ones are deleted.
+ */
+const MAX_COVER_FILES = 64;
+
+/** One of this resolver's downloads (not a `.part` in progress, not the image cache's). */
+const isCoverDownload = (fileUri: string) => {
+  const name = fileUri.slice(fileUri.lastIndexOf("/") + 1);
+  return name.startsWith(COVER_FILE_PREFIX) && !name.endsWith(".part");
+};
+
+/** The covers this resolver downloaded, newest first (in-progress `.part` files excluded). */
+function coverFiles(): File[] {
+  return new Directory(Paths.cache)
+    .list()
+    .filter((item): item is File => item instanceof File && isCoverDownload(item.uri))
+    .map((file) => ({ file, modified: file.lastModified ?? 0 }))
+    .sort((a, b) => b.modified - a.modified)
+    .map(({ file }) => file);
+}
 
 /** Deterministic cache-file name for a remote cover URL (djb2, hex). */
 function coverFileName(url: string): string {
@@ -57,7 +79,7 @@ function coverFileNameFor(key: string): string {
 }
 
 /**
- * Deadline for the direct download before the expo-asset fallback takes
+ * Deadline for the direct download before the fetch fallback takes
  * over. The CDN occasionally wedges new TCP connections for 10s+ while
  * established streams keep flowing — measured as a 10s default timeout
  * on `FileSystem.downloadFileAsync` followed by a near-immediate
@@ -75,19 +97,18 @@ const DOWNLOADS_COVERS = Platform.OS !== "web";
 let partFileSeq = 0;
 
 /**
- * Downloads `url` into the cache as `name`, but only ever exposes a complete
- * file under that name: the bytes land in a private `.part` file that is
- * renamed onto `name` once the transfer finished.
+ * Lands a cover in the cache as `name`, but only ever exposes a complete
+ * file under that name: `write` fills a private `.part` file that is renamed
+ * onto `name` once the transfer finished.
  *
- * `File.downloadFileAsync` writes straight into its destination, so the
- * final name used to exist — non-empty — for the whole transfer. A resolve
- * running meanwhile (the prefetch's download outliving its deadline, then the
- * adoption's resolve) took that half-written file as done, and the native
- * media session read it once and kept those bytes for the path: a broken
- * lock-screen cover until the app restarted, while the in-app view (decoding
- * later) looked fine.
+ * A download written straight into its destination made the final name
+ * exist — non-empty — for the whole transfer. A resolve running meanwhile
+ * (the prefetch's download outliving its deadline, then the adoption's
+ * resolve) took that half-written file as done, and the native media session
+ * read it once and kept those bytes for the path: a broken lock-screen cover
+ * until the app restarted, while the in-app view (decoding later) looked fine.
  */
-async function downloadComplete(url: string, name: string): Promise<File> {
+async function landComplete(name: string, write: (part: File) => Promise<unknown>): Promise<File> {
   const destination = new File(Paths.cache, name);
   // Unique per transfer: two downloads of one cover never share a part file.
   partFileSeq += 1;
@@ -96,7 +117,7 @@ async function downloadComplete(url: string, name: string): Promise<File> {
     `${name}.${Date.now().toString(36)}-${partFileSeq}.part`,
   );
   try {
-    await File.downloadFileAsync(url, part);
+    await write(part);
     if (destination.exists && destination.size > 0) {
       part.delete(); // A concurrent download already landed it.
     } else {
@@ -109,6 +130,23 @@ async function downloadComplete(url: string, name: string): Promise<File> {
   }
   return destination;
 }
+
+/** The download client: expo-file-system's native one. */
+const downloadComplete = (url: string, name: string) =>
+  landComplete(name, (part) => File.downloadFileAsync(url, part));
+
+/**
+ * The second client (`expo/fetch`, which keeps working in the background
+ * like the first), for when the first one's connection wedges:
+ * the CDN occasionally stalls a new connection on one client while another
+ * gets through at once. Lands the same file, so it is capped and wiped alike.
+ */
+const fetchComplete = (url: string, name: string) =>
+  landComplete(name, async (part) => {
+    const response = await fetch(url);
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    part.write(new Uint8Array(await response.arrayBuffer()));
+  });
 
 /** Rejects after `ms` — releases the caller without aborting the work. */
 function deadline<T>(promise: Promise<T>, ms: number): Promise<T> {
@@ -356,7 +394,7 @@ export class ArtworkResolver {
       });
   }
 
-  /** Cache hit → direct download → expo-asset fallback, for one URL. */
+  /** Cache hit → direct download → fetch fallback, for one URL. */
   private async pipeline(url: string, startedAt: number): Promise<string> {
     const cachedFile = await this.options?.findCachedCoverFile?.(url);
     if (cachedFile) {
@@ -375,6 +413,12 @@ export class ArtworkResolver {
     // pre-existing file short-circuits the network entirely.
     const name = coverFileName(url);
     const destination = new File(Paths.cache, name);
+    // Every landed download, in time or late, is adopted and keeps the
+    // folder capped.
+    const landed = (file: File) => {
+      this.adoptLate(url, file.uri);
+      this.pruneDownloads();
+    };
     try {
       if (!destination.exists || destination.size === 0) {
         // Raced against a short deadline: a wedged connection must not
@@ -383,10 +427,7 @@ export class ArtworkResolver {
         // underneath — if it lands later it fills the deterministic cache
         // file and is adopted then (see `adoptLate`).
         const direct = downloadComplete(url, name);
-        direct.then(
-          (file) => this.adoptLate(url, file.uri),
-          () => {}, // late failures are cache-only misses
-        );
+        direct.then(landed, () => {}); // late failures are cache-only misses
         await deadline(direct, DIRECT_DOWNLOAD_DEADLINE_MS);
       }
     } catch (error) {
@@ -394,28 +435,22 @@ export class ArtworkResolver {
         `[ArtDebug] resolver direct download failed (${url}):`,
         error,
       );
-      // Fall through to the original expo-asset path as a backup. The
-      // direct attempt is deadline-bounded above; without the same guard
-      // here a fallback that never settles would keep `resolve()` pending
-      // forever and latch its entry in `inFlight`, so that cover could never
-      // retry. The deadline releases the caller; the work itself is left to
-      // finish (or not) as a cache-only miss.
-      const fallback = Asset.fromURI(url).downloadAsync();
-      fallback.then(
-        (asset) => {
-          if (asset.localUri) this.adoptLate(url, asset.localUri);
-        },
-        () => {}, // late failures are cache-only misses
-      );
-      return deadline(fallback, DIRECT_DOWNLOAD_DEADLINE_MS).then((asset) => {
+      // Fall through to the second client as a backup. The direct attempt
+      // is deadline-bounded above; without the same guard here a fallback
+      // that never settles would keep `resolve()` pending forever and latch
+      // its entry in `inFlight`, so that cover could never retry. The
+      // deadline releases the caller; the work itself is left to finish (or
+      // not) as a cache-only miss.
+      const fallback = fetchComplete(url, name);
+      fallback.then(landed, () => {}); // late failures are cache-only misses
+      return deadline(fallback, DIRECT_DOWNLOAD_DEADLINE_MS).then((file) => {
         if (this.disposed) return url;
-        const local = asset.localUri ?? url;
         debugLog(
-          `[ArtDebug] resolve DOWNLOAD(expo-asset fallback) done after ${Date.now() - startedAt}ms url=${url} local=${local}`,
+          `[ArtDebug] resolve DOWNLOAD(fetch fallback) done after ${Date.now() - startedAt}ms url=${url} local=${file.uri}`,
         );
-        this.fileMap.track(url, local);
-        if (asset.localUri) void this.options?.onResolved?.(asset.localUri, url);
-        return local;
+        this.fileMap.track(url, file.uri);
+        void this.options?.onResolved?.(file.uri, url);
+        return file.uri;
       });
     }
     if (!destination.exists || destination.size === 0) {
@@ -429,6 +464,44 @@ export class ArtworkResolver {
     this.fileMap.track(url, local);
     void this.options?.onResolved?.(local, url);
     return local;
+  }
+
+  /**
+   * The cover cache was wiped: the image library deleted its files, so the
+   * lookups that pointed into it go, and the downloads are pruned but for
+   * the shown cover's. A shown cover that lived in the image cache is
+   * fetched again and republished ({@link onLateResolve}).
+   */
+  afterCacheWipe(shownUrl?: string): void {
+    if (!DOWNLOADS_COVERS || this.disposed) return;
+    this.fileMap.forgetWhere((fileUri) => !isCoverDownload(fileUri));
+    const shown = shownUrl ? this.fileMap.peek(shownUrl) : undefined;
+    this.pruneDownloads(0, shown);
+    if (shownUrl && !shown && this.isRemote(shownUrl)) {
+      void this.resolve(shownUrl)
+        .then(() => this.onLateResolve?.(shownUrl))
+        .catch(() => {});
+    }
+  }
+
+  /**
+   * Deletes downloaded covers past the newest `keep`, and the lookups that
+   * pointed at them — never `protect`, the file the media session shows
+   * (Android may read it again; it is not always the newest: the next
+   * song's cover is fetched before it is heard).
+   */
+  pruneDownloads(keep: number = MAX_COVER_FILES, protect?: string): void {
+    if (!DOWNLOADS_COVERS || this.disposed) return;
+    try {
+      for (const file of coverFiles().slice(keep)) {
+        const uri = file.uri;
+        if (uri === protect) continue;
+        file.delete();
+        this.fileMap.forgetWhere((fileUri) => fileUri === uri);
+      }
+    } catch (error) {
+      console.warn("[ArtworkResolver] cover cleanup failed:", error);
+    }
   }
 
   /**
