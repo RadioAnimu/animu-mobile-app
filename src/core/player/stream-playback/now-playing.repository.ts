@@ -178,14 +178,6 @@ export class NowPlayingRepository {
   /** Fired whenever merged data actually changed. Wired by the orchestrator. */
   onChange: (change: NowPlayingChange) => void = () => {};
   /**
-   * Wired by the orchestrator: a LIVE track change carries the station-side
-   * `startTime` plus the event arrival instant (`receivedAt`, the package's
-   * per-event `ts`) so the sync engine can anchor on it. The displayed
-   * metadata is NOT switched here — the audible resolver holds the previous
-   * track until the new one reaches the speaker.
-   */
-  onLiveTrackChange: (track: Track, receivedAt: Date) => void = () => {};
-  /**
    * Wired by the orchestrator: may the realtime stream keep running? Asked
    * before every SSE event is ingested (song, listeners, open). Answering
    * `false` drops the event untouched and suspends the repository (see
@@ -319,10 +311,6 @@ export class NowPlayingRepository {
   /** Whether to show real progress in the media session notification. */
   get showProgress(): boolean {
     return this.showProgressValue;
-  }
-
-  setShowProgress(value: boolean): void {
-    this.showProgressValue = value;
   }
 
   // ── Merge helpers (shared by the SSE push and the HTTP poll) ──
@@ -540,7 +528,6 @@ export class NowPlayingRepository {
         requestedChanged: false,
       });
     }
-    if (trackChanged && track) this.onLiveTrackChange(track, song.receivedAt);
     this.scheduleTrackEndRefresh();
   }
 
@@ -911,12 +898,11 @@ export class NowPlayingRepository {
   /**
    * Incrementally merges a history type into its list.
    *
-   * The station feeds are newest-first. Fresh (unknown) tracks are
-   * collected in payload order and prepended as a block, so the merged
-   * list stays newest-first for the UI. The walk stops at a known track
-   * older than a day — everything after is guaranteed older/known. Tracks
-   * already known stop nothing but add nothing (dedup by `raw`, first =
-   * newest occurrence wins for repeats within one payload).
+   * The feed's rows join the kept ones newest-first, one row per song
+   * (`raw`): a song played again moves up with its new start, instead of the
+   * old row staying put. The walk stops at the first feed row older than a
+   * day — everything after it is older still, and only an eviction could
+   * have dropped it.
    */
   async refreshHistory(type: HistoryType): Promise<void> {
     if (this.disposed || this.suspended) return;
@@ -932,30 +918,25 @@ export class NowPlayingRepository {
       const target =
         type === "requests" ? this.requestedTracks : this.playedTracks;
 
-      const fresh: Track[] = [];
-      for (const track of firstOccurrences(tracks)) {
-        // Stop the walk at anything older than a day. For KNOWN rows that is
-        // the original rule (everything after is guaranteed older/known);
-        // for UNKNOWN rows too — they can only be entries a previous
-        // MAX_HISTORY_TRACKS eviction dropped, and re-collecting them as
-        // "fresh" would prepend stale rows ABOVE genuinely newer ones,
-        // breaking the newest-first invariant on every refresh.
+      const recent: Track[] = [];
+      for (const track of tracks) {
         if (Date.now() - track.startTime.getTime() > DAY_MS) break;
-        const isKnown = target.some((t) => t.raw === track.raw);
-        if (!isKnown) fresh.push(track);
+        recent.push(track);
       }
-      if (fresh.length === 0) return;
+      const merged = firstOccurrences(
+        [...recent, ...target].sort((a, b) => b.startTime.getTime() - a.startTime.getTime()),
+      ).slice(0, MAX_HISTORY_TRACKS);
+      const unchanged =
+        merged.length === target.length &&
+        merged.every(
+          (track, i) => track.raw === target[i].raw && track.startTime.getTime() === target[i].startTime.getTime(),
+        );
+      if (unchanged) return;
 
       if (type === "requests") {
-        this.requestedTracks = [...fresh, ...this.requestedTracks].slice(
-          0,
-          MAX_HISTORY_TRACKS,
-        );
+        this.requestedTracks = merged;
       } else {
-        this.playedTracks = [...fresh, ...this.playedTracks].slice(
-          0,
-          MAX_HISTORY_TRACKS,
-        );
+        this.playedTracks = merged;
       }
 
       this.onChange({

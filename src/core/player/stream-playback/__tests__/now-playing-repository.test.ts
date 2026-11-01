@@ -725,6 +725,33 @@ describe("NowPlayingRepository", () => {
     expect(changes[0].playedChanged).toBe(true);
   });
 
+  it("moves a replayed song up with its new start", async () => {
+    const minutesAgo = (minutes: number) => new Date(Date.now() - minutes * 60_000);
+    const oldB = makeTrack({ id: "-2", raw: "B - Song", startTime: minutesAgo(30), duration: 0 });
+    const a = makeTrack({ id: "-1", raw: "A - Song", startTime: minutesAgo(20), duration: 0 });
+    const newB = makeTrack({ id: "-2", raw: "B - Song", startTime: minutesAgo(5), duration: 0 });
+
+    let playedFeed: Track[] = [a, oldB];
+    const { repository, changes } = makeRepository({
+      getTrackHistory: async (type) => (type === "played" ? playedFeed : []),
+    });
+    await repository.refreshHistory("played");
+    changes.length = 0;
+
+    playedFeed = [newB, a, oldB];
+    await repository.refreshHistory("played");
+
+    expect(repository.lastPlayedTracks.map((t) => [t.raw, t.startTime])).toEqual([
+      ["B - Song", newB.startTime],
+      ["A - Song", a.startTime],
+    ]);
+    expect(changes).toHaveLength(1);
+
+    // The same feed again changes nothing.
+    await repository.refreshHistory("played");
+    expect(changes).toHaveLength(1);
+  });
+
   it("dedupes repeated rows within one payload (first = newest wins)", async () => {
     const first = makeTrack({ id: "-1", raw: "Repeat - Song", duration: 0 });
     const second = makeTrack({
@@ -1044,8 +1071,6 @@ describe("NowPlayingRepository — live SSE ingestion", () => {
 
   it("ingests a song_change push immediately, without an HTTP round-trip", () => {
     const fixture = withLive();
-    const onLiveTrackChange = vi.fn();
-    fixture.repository.onLiveTrackChange = onLiveTrackChange;
 
     fixture.pushSong(makeTrack({ raw: "Live - Song" }), 12);
 
@@ -1060,17 +1085,11 @@ describe("NowPlayingRepository — live SSE ingestion", () => {
         requestedChanged: false,
       },
     ]);
-    expect(onLiveTrackChange).toHaveBeenCalledTimes(1);
-    const [anchorTrack, anchorAt] = onLiveTrackChange.mock.calls[0];
-    expect(anchorTrack.raw).toBe("Live - Song");
-    expect(anchorAt).toBeInstanceOf(Date);
     expect(fixture.getStreamMetadataSpy).not.toHaveBeenCalled();
   });
 
   it("tracks filler pushes but ignores the offline placeholder", () => {
     const fixture = withLive();
-    const onLiveTrackChange = vi.fn();
-    fixture.repository.onLiveTrackChange = onLiveTrackChange;
 
     // Filler (jingle/ident/transition) is still the on-air item — the UI
     // and media session must follow it, exactly like the HTTP poll did.
@@ -1088,7 +1107,6 @@ describe("NowPlayingRepository — live SSE ingestion", () => {
         requestedChanged: false,
       },
     ]);
-    expect(onLiveTrackChange).toHaveBeenCalledTimes(1);
   });
 
   it("recomputes the media-session progress flag on every live track change", () => {
@@ -1438,8 +1456,6 @@ describe("NowPlayingRepository — live SSE ingestion", () => {
       const fixture = withLive();
       let allowed = true;
       fixture.repository.shouldStayLive = () => allowed;
-      const onLiveTrackChange = vi.fn();
-      fixture.repository.onLiveTrackChange = onLiveTrackChange;
 
       fixture.pushSong(makeTrack({ raw: "Live - Song" }), 12);
       fixture.changes.length = 0;
@@ -1451,11 +1467,10 @@ describe("NowPlayingRepository — live SSE ingestion", () => {
 
       expect(fixture.unsubscribe).toHaveBeenCalledTimes(1);
       expect(fixture.repository.isSuspended).toBe(true);
-      // No state write, no onChange, no history fetch, no track hook.
+      // No state write, no onChange, no history fetch.
       expect(fixture.repository.currentTrack?.raw).toBe("Live - Song");
       expect(fixture.repository.listeners?.value).toBe(12);
       expect(fixture.changes).toEqual([]);
-      expect(onLiveTrackChange).toHaveBeenCalledTimes(1);
       expect(historyCalls(fixture, "played")).toHaveLength(playedBefore);
     });
 
