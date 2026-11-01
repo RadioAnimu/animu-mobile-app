@@ -5,6 +5,7 @@ import type { Lyrics } from "@/core/lyrics/types";
 import { lineLabel, type LineLabel, type PronunciationMode } from "@/core/lyrics/pronunciation";
 import { useJapaneseDictionary } from "@/hooks/useJapaneseDictionary";
 import { useSaveSettings } from "@/hooks/useSaveSettings";
+import { whenIdle } from "@/utils/idle";
 
 const isJapanese = (lyrics: Lyrics | null): boolean =>
   lyrics != null && lyrics.kind !== "instrumental" && lyrics.language === "ja";
@@ -113,14 +114,16 @@ export function usePronunciation(lyrics: Lyrics | null): Pronunciation {
   const installed = dictionary.install === "installed";
   const modes = modesFor(lyrics, installed);
   const mode = effectiveMode(settings.lyricsPronunciation, modes);
+  // Only the dictionary's labels wait for the reader: hiragana, or romaji the
+  // song has no human version of. Anything else never builds it (tens of MB).
+  const needsReader = installed && mode !== "off" && (mode === "hiragana" || !pairedRomaji(lyrics));
 
   useEffect(() => {
-    if (!installed) return undefined;
-    const task = requestIdleCallback(() => {
+    if (!needsReader) return undefined;
+    return whenIdle(() => {
       japaneseDictionary.loadReader().catch(() => {});
     });
-    return () => cancelIdleCallback(task);
-  }, [installed]);
+  }, [needsReader]);
 
   // The reader holds tens of MB: let go a while after the lyrics close
   // (reopening them soon reuses it).
@@ -145,8 +148,6 @@ export function usePronunciation(lyrics: Lyrics | null): Pronunciation {
   const current = read?.lyrics === lyrics && read.mode === mode && read.reader === reader;
   const labels = current ? read.labels : instant;
 
-  // Only the dictionary's labels wait for the reader.
-  const needsReader = installed && mode !== "off" && (mode === "hiragana" || !pairedRomaji(lyrics));
   return {
     labels,
     mode,
