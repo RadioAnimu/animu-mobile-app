@@ -17,7 +17,7 @@ vi.mock("react-native", async () =>
 // is in design points.
 const PHONE = resolveLayout(852, 393, { top: 0, right: 59, bottom: 21, left: 59 });
 const IPAD = resolveLayout(1180, 820, { top: 24, right: 0, bottom: 20, left: 0 });
-const TV = resolveLayout(960, 540, undefined, true);
+const SHORT_WIDE = resolveLayout(960, 540);
 
 const metrics = (
   layout: ReturnType<typeof resolveLayout>,
@@ -51,7 +51,8 @@ describe("resolveSplitMetrics (the website hero)", () => {
     const m = metrics(IPAD, 24, 20, 16);
     expect(m.contentWidth).toBe(1100);
     expect(m.coverSize).toBe(Math.floor(m.artWidth / ART_ASPECT));
-    expect(metrics(TV, 0, 0, 16).coverSize).toBe(270);
+    // 960×540: the page (hero and ticker) fits, the cover giving way.
+    expect(metrics(SHORT_WIDE, 0, 0, 16).coverSize).toBe(264);
   });
 
   it("never lets the cover outgrow its column, nor shrink past a floor", () => {

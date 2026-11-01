@@ -18,7 +18,7 @@ import {
   resolveStackedCover,
   splitContentWidth,
 } from "@/screens/Home/metrics";
-import { centeredContent, styles } from "@/screens/Home/styles";
+import { centeredContent, fillContent, styles } from "@/screens/Home/styles";
 import { useResponsiveLayout } from "@/hooks/useResponsiveLayout";
 import { useRouteReselect } from "@/hooks/useRouteReselect";
 import { useScrollEndPadding } from "@/hooks/useScrollEndPadding";
@@ -59,6 +59,12 @@ export const Home = () => {
     [split, layout, topInset, endPadding],
   );
 
+  // Landscape fills the screen (the strip at the bottom, the hero centered
+  // above it); a tablet's tall portrait window centers the stack; a
+  // portrait phone keeps it at the top.
+  const tallTablet = layout.windowClass !== "compact" ? centeredContent : undefined;
+  const contentStyle = split ? fillContent : tallTablet;
+
   // UI Handlers
   const handleOpenProgramModal = useCallback(() => {
     setIsModalVisible(true);
@@ -97,9 +103,7 @@ export const Home = () => {
       <ScrollView
         ref={scrollRef}
         alwaysBounceVertical={false}
-        contentContainerStyle={
-          split || layout.windowClass !== "compact" ? centeredContent : undefined
-        }
+        contentContainerStyle={contentStyle}
       >
         {splitMetrics ? (
           <SplitBody metrics={splitMetrics} handleOpenProgram={handleOpenProgramModal} />

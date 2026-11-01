@@ -127,16 +127,19 @@ describe("Home", () => {
       expect(JSON.parse(hero.getAttribute("data-style")!).flexDirection).toBe("row");
       const art = screen.getByRole("button", { name: BANNER.name });
       expect(art.querySelector("img")?.getAttribute("src")).toBe(BANNER.imageUrl);
-      // Art first (left), then listeners, cover and countdown.
+      // Art first (left), the program and DJ centered under it; then
+      // listeners, cover and countdown.
       expect(hero.firstElementChild!.contains(art)).toBe(true);
+      expect(hero.firstElementChild!.contains(screen.getByTestId("program"))).toBe(true);
       for (const id of ["listeners", "cover", "time"]) {
         expect(hero.lastElementChild!.contains(screen.getByTestId(id))).toBe(true);
       }
       // No logo: the oscilloscope runs behind the header (mocked here) instead.
       expect(screen.queryByTestId("logo")).toBeNull();
       // The bitrate pills stay in portrait.
-      expect(order()).toEqual(["listeners", "cover", "time", "live", "program"]);
-      expect(content()).toEqual({ flexGrow: 1, justifyContent: "center" });
+      expect(order()).toEqual(["program", "listeners", "cover", "time", "live"]);
+      // The page fills the screen: the hero centered, the strip at the bottom.
+      expect(content()).toEqual({ flexGrow: 1 });
     });
 
     it("aligns the header's row with the hero", () => {

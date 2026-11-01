@@ -36,8 +36,8 @@ const BITRATE_ROW = scale(49);
 /** The song ticker's three lines as rendered. */
 const TICKER_ROW = scale(84);
 
-/** Under the hero: the song ticker and the program, with their gaps. */
-const BELOW_HERO = RHYTHM.TIME_BOTTOM + TICKER_ROW + RHYTHM.LIVE + PROGRAM_ROW + RHYTHM.PROGRAM;
+/** Under the hero: its bottom gap and the song ticker (the program sits under the art). */
+const BELOW_HERO = RHYTHM.TIME_BOTTOM + TICKER_ROW;
 /** The smallest cover worth fitting the whole page for; below it, the page scrolls. */
 const PAGE_FIT_MIN_COVER = scale(200);
 

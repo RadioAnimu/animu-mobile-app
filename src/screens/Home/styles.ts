@@ -55,18 +55,28 @@ export const splitStyles = StyleSheet.create({
   // The hero keeps the player's own rhythm from the header: the same gap
   // above it as under its countdown, as between the cover and countdown.
   page: {
+    flexGrow: 1,
     alignItems: "center",
-    paddingTop: RHYTHM.TIME_BOTTOM,
+  },
+  /** The free height above the strip, the hero centered in it. */
+  heroArea: {
+    flexGrow: 1,
+    justifyContent: "center",
+    paddingVertical: RHYTHM.TIME_BOTTOM,
   },
   /** The art and the cover block side by side, centered as one. */
   hero: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginBottom: RHYTHM.TIME_BOTTOM,
   },
   coverColumn: {
     alignItems: "center",
+  },
+  /** The program's art with the program and DJ centered under it. */
+  programColumn: {
+    alignItems: "center",
+    gap: RHYTHM.PROGRAM,
   },
   listenersWrapper: {
     marginBottom: RHYTHM.LISTENERS,
@@ -80,14 +90,14 @@ export const splitStyles = StyleSheet.create({
     marginTop: RHYTHM.TIME_TOP,
   },
   // The ticker is full-bleed, as in portrait.
+  // At the bottom of the screen, full-bleed, as in portrait.
   liveWrapper: {
     alignSelf: "stretch",
-    marginBottom: RHYTHM.LIVE,
-  },
-  programWrapper: {
-    marginBottom: RHYTHM.PROGRAM,
   },
 });
+
+/** Content container of the scroll view when the page fills its height. */
+export const fillContent = StyleSheet.create({ content: { flexGrow: 1 } }).content;
 
 /** Content container of the scroll view when the block is centered in it. */
 export const centeredContent = StyleSheet.create({
