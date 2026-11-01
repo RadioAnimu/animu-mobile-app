@@ -15,7 +15,7 @@ vi.mock("@/contexts/alert/AlertProvider", () => ({
   useAlert: () => ({ toast }),
 }));
 vi.mock("@/hooks/useDict", () => ({
-  useDict: () => ({ TEXT_COPIED: "copied" }),
+  useDict: () => ({ TEXT_COPIED: "copied", TEXT_COPY_FAILED: "failed" }),
 }));
 
 afterEach(() => {
@@ -24,12 +24,22 @@ afterEach(() => {
 });
 
 describe("useCopyToClipboard", () => {
-  it("copies the text and shows the copied toast", () => {
+  it("shows the copied toast once the clipboard took the text", async () => {
     const { result } = renderHook(() => useCopyToClipboard());
 
-    act(() => result.current("hello"));
+    await act(async () => result.current("hello"));
 
     expect(setStringAsync).toHaveBeenCalledWith("hello");
     expect(toast).toHaveBeenCalledWith("copied");
+  });
+
+  it("says so when the clipboard refuses (a browser can)", async () => {
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+    setStringAsync.mockResolvedValueOnce(false);
+    const { result } = renderHook(() => useCopyToClipboard());
+
+    await act(async () => result.current("hello", "details copied"));
+
+    expect(toast).toHaveBeenCalledExactlyOnceWith("failed", "error");
   });
 });

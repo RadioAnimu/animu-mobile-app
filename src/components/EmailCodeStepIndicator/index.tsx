@@ -39,8 +39,7 @@ export function EmailCodeStepIndicator({
       <View
         style={styles.segments}
         pointerEvents="none"
-        accessibilityElementsHidden
-        importantForAccessibility="no-hide-descendants"
+        aria-hidden
       >
         {STEPS.map((name, index) => (
           <View

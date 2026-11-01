@@ -69,7 +69,6 @@ function Touchable({
   style,
   onLayout,
   focusable,
-  hasTVPreferredFocus,
   ...props
 }: AnyProps) {
   const ref = useLayoutHandler(onLayout);
@@ -79,9 +78,8 @@ function Touchable({
       ref,
       ...a11yProps({ ...props, disabled }),
       "data-style": JSON.stringify(flattenStyle(style)),
-      // D-pad / keyboard focus props, surfaced only when set.
+      // Keyboard focus, surfaced only when set.
       ...(focusable === undefined ? {} : { "data-focusable": String(focusable) }),
-      ...(hasTVPreferredFocus ? { "data-tv-preferred-focus": "true" } : {}),
       onClick: disabled ? undefined : onPress,
     },
     children,

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
-import { Alert, Text, View } from "react-native";
+import { Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { AnimuApiError } from "animu-api";
@@ -23,6 +23,7 @@ import { styles } from "@/screens/Account/styles";
 import { RequestsStatus } from "@/screens/Account/RequestsStatus";
 import { LinkedAccounts } from "@/screens/Account/LinkedAccounts";
 import { ProfileCard } from "@/screens/Account/ProfileCard";
+import { confirmDestructive } from "@/utils/confirm";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Account">;
 
@@ -108,25 +109,20 @@ export function Account({ navigation }: Readonly<Props>) {
     });
 
   const confirmDelete = () => {
-    Alert.alert(
-      dict.ACCOUNT_DELETE_CONFIRM_TITLE,
-      dict.ACCOUNT_DELETE_CONFIRM_MSG,
-      [
-        { text: dict.ACCOUNT_CANCEL, style: "cancel" },
-        {
-          text: dict.ACCOUNT_DELETE,
-          style: "destructive",
-          onPress: () => {
-            haptics.warning();
-            void handle("delete", async () => {
-              await deleteAccount();
-              leavingRef.current = true;
-              navigation.navigate("Main", { screen: "Home" });
-            });
-          },
-        },
-      ],
-    );
+    confirmDestructive({
+      title: dict.ACCOUNT_DELETE_CONFIRM_TITLE,
+      message: dict.ACCOUNT_DELETE_CONFIRM_MSG,
+      cancel: dict.ACCOUNT_CANCEL,
+      confirm: dict.ACCOUNT_DELETE,
+      onConfirm: () => {
+        haptics.warning();
+        void handle("delete", async () => {
+          await deleteAccount();
+          leavingRef.current = true;
+          navigation.navigate("Main", { screen: "Home" });
+        });
+      },
+    });
   };
 
   const confirmUnlink = (name: string) => {
@@ -137,24 +133,19 @@ export function Account({ navigation }: Readonly<Props>) {
       name === "discord" && profile?.user.verified
         ? `\n\n${dict.ACCOUNT_UNLINK_DISCORD_WARNING}`
         : "";
-    Alert.alert(
-      interpolate(dict.ACCOUNT_UNLINK_CONFIRM_TITLE, { provider }),
-      interpolate(dict.ACCOUNT_UNLINK_CONFIRM_MSG, { provider }) + warning,
-      [
-        { text: dict.ACCOUNT_CANCEL, style: "cancel" },
-        {
-          text: dict.ACCOUNT_UNLINK,
-          style: "destructive",
-          onPress: () => {
-            void handle(`link-${name}`, async () => {
-              await unlinkProvider(name);
-              haptics.success();
-              toast(dict.ACCOUNT_UNLINK_SUCCESS);
-            });
-          },
-        },
-      ],
-    );
+    confirmDestructive({
+      title: interpolate(dict.ACCOUNT_UNLINK_CONFIRM_TITLE, { provider }),
+      message: interpolate(dict.ACCOUNT_UNLINK_CONFIRM_MSG, { provider }) + warning,
+      cancel: dict.ACCOUNT_CANCEL,
+      confirm: dict.ACCOUNT_UNLINK,
+      onConfirm: () => {
+        void handle(`link-${name}`, async () => {
+          await unlinkProvider(name);
+          haptics.success();
+          toast(dict.ACCOUNT_UNLINK_SUCCESS);
+        });
+      },
+    });
   };
 
   const renderHeader = () => (

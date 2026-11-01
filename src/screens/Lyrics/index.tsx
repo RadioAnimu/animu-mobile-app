@@ -21,7 +21,7 @@ import { LyricsBody } from "@/screens/Lyrics/LyricsBody";
 import { LyricsCloseHandle } from "@/screens/Lyrics/LyricsCloseHandle";
 import { LyricsHeader } from "@/screens/Lyrics/LyricsHeader";
 import { PronunciationMenu } from "@/screens/Lyrics/PronunciationMenu";
-import { paneLayout, TWO_PANE_MIN_WIDTH } from "@/screens/Lyrics/geometry";
+import { paneLayout } from "@/screens/Lyrics/geometry";
 import { CLOSE_HANDLE_HEIGHT, LYRICS_COLUMN_MAX, styles } from "@/screens/Lyrics/styles";
 import { usePronunciation } from "@/screens/Lyrics/usePronunciation";
 import { THEME } from "@/theme";
@@ -71,8 +71,8 @@ export function Lyrics({ navigation }: Readonly<Props>) {
   const title = track?.title ?? "";
   const subtitle = syncing ? `${dict.SYNCHRONIZING}…` : (track?.artist ?? "");
 
-  // Every landscape window puts the artwork beside the lyrics.
-  const twoPane = layout.split && layout.usableWidth >= TWO_PANE_MIN_WIDTH;
+  // A wide landscape window (see `split`) puts the artwork beside the lyrics.
+  const twoPane = layout.split;
   const { artworkWidth, lyricsWidth, sideMargin } = paneLayout(layout.usableWidth, twoPane, LYRICS_COLUMN_MAX);
   // The menu sits in the lyrics pane's bottom-right corner, never wider than
   // that pane minus its margins.

@@ -30,8 +30,7 @@ const SECTION_ICON_SIZE = THEME.ICON.SECTION;
  * focus targets beside the header's menu button (a keyboard or D-pad on a
  * tablet). They are focusable — and accessible: Android makes every
  * accessible view focusable, and an off-screen menu has nothing to read —
- * only while the drawer is open, and opening it puts focus on the current
- * destination.
+ * only while the drawer is open.
  */
 const useDrawerOpen = () => useDrawerStatus() === "open";
 /** The drawer logo's size in a short (landscape phone) window. */
@@ -132,7 +131,6 @@ function NavItems({
             key={route.key}
             accessible={open}
             focusable={open}
-            hasTVPreferredFocus={open && focused}
             accessibilityRole="button"
             accessibilityLabel={label}
             accessibilityState={{ selected: focused, disabled: locked }}

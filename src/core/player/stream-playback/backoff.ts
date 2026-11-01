@@ -31,11 +31,6 @@ export class BackoffScheduler {
     return this.timerId != null;
   }
 
-  /** Number of consecutive attempts so far (incremented by `schedule`). */
-  get attemptCount(): number {
-    return this.attempts;
-  }
-
   /**
    * Schedules `action` after the current backoff delay and bumps the
    * attempt counter. Returns the delay used (handy for logging).

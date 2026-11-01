@@ -14,7 +14,6 @@ import {
   AUTH_REDIRECT_URI,
   DEFAULT_PROVIDERS,
   getProviderConfig,
-  redirectUriForProvider,
 } from "@/constants/auth";
 import type { User } from "@/core/domain/user";
 import { SecureSessionStore } from "@/core/auth/adapters/secure-session.adapter";
@@ -168,22 +167,7 @@ export class AuthFacade {
       }
       // No native Apple here (e.g. Android) — fall through to the server flow.
     }
-    if (config.mode === "server") {
-      return this.loginWithMobileProvider(provider);
-    }
-
-    const oauth = await this.oauth.authorize(provider);
-    const session = await this.exchangeOrEmailTaken(provider, () =>
-      this.api.exchangeToken({
-        provider,
-        code: oauth.code,
-        redirectUri: oauth.omitRedirectUri
-          ? undefined
-          : redirectUriForProvider(provider),
-        codeVerifier: oauth.codeVerifier,
-      }),
-    );
-    return this.adopt(session);
+    return this.loginWithMobileProvider(provider);
   }
 
   /** Runs a sign-in token exchange, naming the email-taken refusal. */
@@ -342,7 +326,7 @@ export class AuthFacade {
 
   private async runLink(provider: string): Promise<AuthLinkResult | void> {
     const config = getProviderConfig(provider);
-    if (!config || config.linkable === false) {
+    if (!config) {
       throw new Error(`Provider "${provider}" cannot be linked from the app`);
     }
 
@@ -358,20 +342,7 @@ export class AuthFacade {
         });
       }
     }
-    if (config.mode === "server") {
-      return this.linkWithMobileProvider(provider);
-    }
-
-    const oauth = await this.oauth.authorize(provider);
-    return this.api.linkProvider({
-      provider,
-      code: oauth.code,
-      redirectUri: oauth.omitRedirectUri
-        ? undefined
-        : redirectUriForProvider(provider),
-      codeVerifier: oauth.codeVerifier,
-      user: oauth.user,
-    });
+    return this.linkWithMobileProvider(provider);
   }
 
   /**

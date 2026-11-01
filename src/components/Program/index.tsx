@@ -24,8 +24,7 @@ export const Program = React.memo(function Program({ handleClick }: Props) {
     return (
       <View
         style={[styles.container, styles.placeholder]}
-        accessibilityElementsHidden
-        importantForAccessibility="no-hide-descendants"
+        aria-hidden
       >
         <Text maxFontSizeMultiplier={THEME.FONT_SCALE.CHROME} style={styles.title}>
           –

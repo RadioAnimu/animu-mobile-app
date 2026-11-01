@@ -46,6 +46,17 @@
         "android.permission.USE_FINGERPRINT"
       ]
     },
+    "web": {
+      "name": "Rádio Animu",
+      "shortName": "Animu",
+      "description": "A rádio mais moe do Brasil",
+      "lang": "pt-BR",
+      "bundler": "metro",
+      "output": "single",
+      "favicon": "./assets/icon-ios.png",
+      "themeColor": "#270052",
+      "backgroundColor": "#270052"
+    },
     "plugins": [
       [
         "expo-splash-screen",
@@ -113,7 +124,6 @@
       ],
       "./plugins/withAndroidReleaseResources",
       "./plugins/withAndroidLargeScreenOrientation",
-      "./plugins/withAndroidFocusRing",
       "./plugins/withAndroidR8Optimization"
     ],
     "extra": {

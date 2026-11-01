@@ -201,6 +201,16 @@ describe("RequestBottomSheet", () => {
     expect(screen.getByLabelText("Try again")).toBeTruthy();
   });
 
+  it("leaves a duplicate submit's outcome to the first one", async () => {
+    const props = setup(vi.fn().mockResolvedValue(null));
+
+    fireEvent.click(screen.getByLabelText("Send"));
+    await waitFor(() => expect(props.onSubmit).toHaveBeenCalled());
+
+    expect(screen.queryByLabelText("Try again")).toBeNull();
+    expect(props.onClose).not.toHaveBeenCalled();
+  });
+
   it("falls back to the generic message when the submit throws", async () => {
     vi.spyOn(console, "warn").mockImplementation(() => {});
     setup(vi.fn().mockRejectedValue(new Error("boom")));

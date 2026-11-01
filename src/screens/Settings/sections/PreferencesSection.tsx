@@ -6,7 +6,7 @@ import { Select, type SelectOption } from "@/components/Select";
 import { useUserSettings } from "@/contexts/user/UserSettingsProvider";
 import { useDict } from "@/hooks/useDict";
 import { useSaveSettings } from "@/hooks/useSaveSettings";
-import { LANGS_KEY_VALUE_PAIRS } from "@/i18n";
+import { LANGUAGE_LABELS } from "@/constants/languages";
 import { RowDivider } from "@/components/ListRow";
 import { SettingsRow } from "@/screens/Settings/rows";
 import { styles } from "@/screens/Settings/styles";
@@ -18,14 +18,14 @@ export function PreferencesSection() {
   const dict = useDict();
 
   const languageOptions = useMemo<
-    SelectOption<keyof typeof LANGS_KEY_VALUE_PAIRS>[]
+    SelectOption<keyof typeof LANGUAGE_LABELS>[]
   >(
     () =>
       (
         Object.keys(
-          LANGS_KEY_VALUE_PAIRS,
-        ) as (keyof typeof LANGS_KEY_VALUE_PAIRS)[]
-      ).map((key) => ({ key, label: LANGS_KEY_VALUE_PAIRS[key] })),
+          LANGUAGE_LABELS,
+        ) as (keyof typeof LANGUAGE_LABELS)[]
+      ).map((key) => ({ key, label: LANGUAGE_LABELS[key] })),
     [],
   );
 

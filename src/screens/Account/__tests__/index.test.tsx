@@ -48,7 +48,6 @@ vi.mock("@/core/auth", async () => import("@/core/auth/errors"));
 vi.mock("@/utils/haptics", () => ({ haptics: mocks.haptics }));
 vi.mock("@/constants/auth", () => ({
   isProviderConfigured: () => true,
-  isProviderLinkable: () => true,
 }));
 vi.mock("@/hooks/useScrollEndPadding", () => ({
   useScrollEndPadding: () => 0,

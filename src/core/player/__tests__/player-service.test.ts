@@ -30,6 +30,7 @@ vi.mock("expo-asset", () => ({
   },
 }));
 vi.mock("expo-file-system", () => ({ File: vi.fn(), Paths: { cache: "file://mock/cache" } }));
+vi.mock("expo/fetch", () => ({ fetch: vi.fn() }));
 vi.mock("expo-image", () => ({
   Image: { getCachePathAsync: vi.fn(), writeToCacheAsync: vi.fn() },
 }));
@@ -126,8 +127,6 @@ const setup = (extra: Partial<PlayerServiceDependencies> = {}) => {
     setForeground: vi.fn(),
     setPlaying: vi.fn(),
     subscribeWindows: vi.fn(() => () => {}),
-    reportAppliedDelay: vi.fn(),
-    setSyncTrim: vi.fn(),
     dispose: vi.fn(),
   };
   const stats = {
@@ -890,10 +889,6 @@ describe("PlayerService on react-native-anything-player", () => {
     const listener = vi.fn();
     t.service.subscribeVisualizerWindows(listener);
     expect(t.sampler.subscribeWindows).toHaveBeenCalledWith(listener);
-    t.service.reportVisualizerDelay(120);
-    expect(t.sampler.reportAppliedDelay).toHaveBeenCalledWith(120);
-    t.service.setVisualizerSyncTrim(-40);
-    expect(t.sampler.setSyncTrim).toHaveBeenCalledWith(-40);
     await t.service.refreshHistory("played" as never);
     expect(t.repository.refreshHistory).toHaveBeenCalledWith("played");
     expect(t.service.isReady).toBe(true);

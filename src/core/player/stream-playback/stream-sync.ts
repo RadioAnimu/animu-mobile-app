@@ -1,4 +1,3 @@
-import { getTrackProgress, type Track } from "@/core/domain/track";
 import { MEDIA_ALIGN_MS } from "@/core/player/stream-playback/heard-track";
 
 /**
@@ -121,34 +120,17 @@ interface ClockLock {
 }
 
 /**
- * Arrival anchor for an SSE `song_change`: the station-side start epoch and
- * the client arrival epoch (the package's per-event `ts` / `receivedAt`).
- *
- * The two clocks are independent (a device can be minutes off), so the
- * anchor is never used as a raw clock delta. It marks the instant a new
- * track reached the station, which is what forces the next native offset
- * reading to re-lock — the decoder has just swapped content and its buffer
- * depth is the least trustworthy right then.
- */
-export interface SyncAnchor {
-  /** Station-side epoch ms of the track's start (`track.startTime`). */
-  startTimeMs: number;
-  /** Client arrival epoch ms of the event that announced it (`ts`). */
-  receivedAtMs: number;
-}
-
-/**
  * The stream sync engine — the UI's answer to "what is the listener hearing
  * right now?".
  *
  * The station's `startTime`/`duration` describe the broadcast at its live
  * point, but the audio is buffered on the way to the speaker (network jitter
  * + codec + decoder + output), so a UI clocked off `Date.now()` runs ahead by
- * that whole stack. `expo-audio` measures the gap for us as
- * `currentOffsetFromLive` (iOS from `AVPlayerItem.currentDate()`, Android
- * from ExoPlayer), with a patched `bufferedAhead` fallback for live
- * ICY/progressive streams that expose no measurable live window. This engine
- * turns either into an **audible station clock**:
+ * that whole stack. The player measures the gap as its live offset (iOS
+ * from `AVPlayerItem.currentDate()`, Android from ExoPlayer), with the
+ * forward buffer as the fallback for live ICY/progressive streams that expose
+ * no measurable live window. This engine turns either into an **audible
+ * station clock**:
  *
  * ```
  * audibleNow = Date.now() - delayMs
@@ -183,10 +165,6 @@ export class StreamSyncEngine {
   private delayMs = 0;
   /** Whether a native measurement has ever landed (distinguishes 0 from unknown). */
   private measured = false;
-  /** Forces the next native reading to snap (set by a fresh SSE anchor). */
-  private recalibrate = false;
-  /** Most recent SSE arrival anchor; diagnostics only. */
-  private lastAnchorValue: SyncAnchor | null = null;
   /**
    * Server clock minus device clock (ms). Corrects a grossly wrong device
    * time so the station-timeline comparison still holds. See
@@ -215,13 +193,6 @@ export class StreamSyncEngine {
    * non-live) clears it.
    */
   private settledLatch = false;
-  /**
-   * When a finite reading last landed (0 = never). Lets callers decide whether
-   * the retained estimate is stale (a long pause / background gap advanced the
-   * relay while we were not measuring) and should be re-synced rather than
-   * trusted.
-   */
-  private lastMeasuredAtMs = 0;
   /** The locked clock, from the moment the estimate settled (`null` before). */
   private lock: ClockLock | null = null;
   /** Whether audio is flowing (the locked clock advances only while it is). */
@@ -258,11 +229,9 @@ export class StreamSyncEngine {
       if (this.nonLiveFrames >= SUSTAINED_NON_LIVE_FRAMES) {
         this.delayMs = 0;
         this.measured = false;
-        this.recalibrate = false;
         this.measuredSinceMs = 0;
         this.delayChangedAtMs = 0;
         this.settledLatch = false;
-        this.lastMeasuredAtMs = 0;
         this.unlock();
       }
       // Live (or in a brief teardown gap): keep the last known delay.
@@ -274,7 +243,6 @@ export class StreamSyncEngine {
     const wasMeasured = this.measured;
     const measured = Math.min(MAX_DELAY_MS, rawOffset * 1000);
     const snap =
-      this.recalibrate ||
       !this.measured ||
       Math.abs(measured - this.delayMs) > SNAP_THRESHOLD_MS;
     if (snap) {
@@ -288,7 +256,6 @@ export class StreamSyncEngine {
         this.delayMs * FALL_SMOOTHING + measured * (1 - FALL_SMOOTHING);
     }
     this.measured = true;
-    this.recalibrate = false;
 
     const now = Date.now();
     if (!wasMeasured) {
@@ -299,7 +266,6 @@ export class StreamSyncEngine {
     } else {
       // Delay moved less than the settle epsilon: it stays "settled".
     }
-    this.lastMeasuredAtMs = now;
     this.refreshLock(now);
     this.checkLockBehind(measured, now);
   }
@@ -397,37 +363,14 @@ export class StreamSyncEngine {
     return true;
   }
 
-  /**
-   * Records an SSE `song_change` arrival (station `startTime` + client `ts`)
-   * and arms a re-lock so the next native offset is trusted verbatim.
-   */
-  updateFromAnchor(anchor: SyncAnchor): void {
-    this.lastAnchorValue = anchor;
-    this.recalibrate = true;
-  }
-
-  /**
-   * Forces the next native offset reading to snap instead of ease. For events
-   * that change the buffer depth without announcing a new track — a network
-   * handoff, a stall recovery, an audio-route change — where the running
-   * estimate is known to be stale and a slow filter would leave the UI
-   * visibly out of sync for seconds.
-   */
-  requestRelock(): void {
-    this.recalibrate = true;
-  }
-
   /** Clears the estimate and the lock (new stream, reconnect, teardown). */
   reset(): void {
     this.delayMs = 0;
     this.measured = false;
-    this.recalibrate = false;
     this.nonLiveFrames = 0;
-    this.lastAnchorValue = null;
     this.measuredSinceMs = 0;
     this.delayChangedAtMs = 0;
     this.settledLatch = false;
-    this.lastMeasuredAtMs = 0;
     this.unlock();
   }
 
@@ -550,60 +493,4 @@ export class StreamSyncEngine {
   get hasMeasurement(): boolean {
     return this.measured;
   }
-
-  /**
-   * Whether the retained estimate is older than `maxAgeMs`. A long pause or
-   * background gap means the clock was not re-measured while the relay's live
-   * edge advanced, so callers re-sync (reset + re-acquire) instead of trusting
-   * it — a stale lag can be seconds off after the source is re-opened.
-   */
-  isStale(maxAgeMs: number, at: number = Date.now()): boolean {
-    return (
-      this.measured &&
-      this.lastMeasuredAtMs > 0 &&
-      at - this.lastMeasuredAtMs > maxAgeMs
-    );
-  }
-
-  /** Last SSE arrival anchor, when one was seen. */
-  get lastAnchor(): SyncAnchor | null {
-    return this.lastAnchorValue;
-  }
-}
-
-/** Progress of a track on the listener's timeline. */
-export interface SyncedProgress {
-  /**
-   * Elapsed ms, or `null` when there is nothing to show — the track has no
-   * usable duration, or it has already ended.
-   */
-  elapsedMs: number | null;
-  /**
-   * The announced track has not reached the speaker yet (its `startTime` is
-   * still ahead of the audible clock). The previous track is what the speaker
-   * is finishing, so callers carry its bar forward rather than clearing it.
-   */
-  pending: boolean;
-}
-
-/**
- * Progress for the track the listener is *hearing*, resolved against the
- * sync engine's audible clock. Split out from `getTrackProgress` so callers
- * can tell "not started yet" from "ended" — the package helper collapses
- * both to `null`, which would blank the seek bar for the whole delay window
- * after every song change.
- */
-export function getSyncedTrackProgress(
-  track: Track | null | undefined,
-  nowMs: number,
-): SyncedProgress {
-  if (!track) return { elapsedMs: null, pending: false };
-
-  const start = track.startTime?.getTime();
-  if (start == null || !Number.isFinite(start)) {
-    return { elapsedMs: null, pending: false };
-  }
-  if (nowMs < start) return { elapsedMs: null, pending: true };
-
-  return { elapsedMs: getTrackProgress(track, nowMs), pending: false };
 }

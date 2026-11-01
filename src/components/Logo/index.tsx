@@ -1,4 +1,4 @@
-import { Image as RNImage } from "react-native";
+import { Asset } from "expo-asset";
 import { Image } from "expo-image";
 import { IMGS } from "@/i18n";
 import { useUserSettings } from "@/contexts/user/UserSettingsProvider";
@@ -22,7 +22,9 @@ export function Logo({ size, img }: Readonly<Props>) {
   // Unlike RN's Image, expo-image does not derive an intrinsic layout size from
   // the source, so an image with only a height collapses to zero width. Derive
   // the width from the source's aspect ratio.
-  const resolved = RNImage.resolveAssetSource(source);
+  // expo-asset knows a bundled image's dimensions on every platform
+  // (react-native-web has no `Image.resolveAssetSource`).
+  const resolved = Asset.fromModule(source);
   const aspectRatio =
     resolved?.width && resolved?.height
       ? resolved.width / resolved.height

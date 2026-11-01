@@ -3,10 +3,10 @@ import { ValidationError } from "animu-api";
 import type { RequestSubmitResult } from "@/core/domain/request-result";
 
 /**
- * Shared re-entrancy latch for the two request flows (live + music). The
- * UI's idle check reads a closure, so double-tap / Enter-before-re-render
- * can reach the service twice inside one commit — both callers must share
- * this guard so a duplicate POST is refused (`IN_PROGRESS`) instead of
+ * Re-entrancy latch for a request flow (each service, live and music, holds
+ * one). The UI's idle check reads a closure, so double-tap /
+ * Enter-before-re-render can reach the service twice inside one commit —
+ * the guard refuses the duplicate POST (`IN_PROGRESS`) instead of
  * spending the user's server-side request window (the cooldown is
  * server-counted: a duplicate POST would surface as a PEDIBLOCK).
  *

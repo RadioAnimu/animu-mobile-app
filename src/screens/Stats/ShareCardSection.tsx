@@ -1,9 +1,5 @@
 import React, { useCallback, useRef, useState } from "react";
 import { Icon } from "@/components/Icon";
-import * as MediaLibrary from "expo-media-library";
-import { canSaveToPhotoLibrary } from "@/utils/mediaLibrary";
-import * as Sharing from "expo-sharing";
-import { File } from "expo-file-system";
 import { captureRef } from "react-native-view-shot";
 import { Image, type ImageSource } from "expo-image";
 import {
@@ -25,6 +21,7 @@ import { useAuth } from "@/contexts/auth/AuthProvider";
 import { IMGS } from "@/i18n";
 import { useDict } from "@/hooks/useDict";
 import { useUserSettings } from "@/contexts/user/UserSettingsProvider";
+import { CARD_RESULT, CARD_SAVE_ACTION, discardCard, saveCard, shareCard } from "@/screens/Stats/card-file";
 import { captureSize } from "@/screens/Stats/capture";
 import { cardThemeFromAccent } from "@/screens/Stats/card-theme";
 import { ShareCard } from "@/screens/Stats/ShareCard";
@@ -80,21 +77,12 @@ export function ShareCardSection({
       // Lossless: flat text, hairlines and the logo stay crisp instead of
       // picking up JPEG ringing.
       format: "png",
-      result: "tmpfile",
+      result: CARD_RESULT,
       // Explicit output size: at least feed resolution on every density.
       ...(width > 0 && height > 0
         ? captureSize(width, height, PixelRatio.get(), Platform.OS)
         : {}),
     });
-  }, []);
-
-  /** Best-effort delete of the raster's temp file once consumers are done. */
-  const discardTmpFile = useCallback((uri: string) => {
-    try {
-      new File(uri.startsWith("file://") ? uri : `file://${uri}`).delete();
-    } catch {
-      // The OS clears tmp anyway — a failed unlink must not fail the action.
-    }
   }, []);
 
   const run = useCallback(
@@ -103,27 +91,16 @@ export function ShareCardSection({
       setBusy(kind);
       try {
         const uri = await captureCard();
-        if (kind === "share") {
-          if (!(await Sharing.isAvailableAsync())) {
-            toast(dict.STATS_CARD_FAILED);
-            return;
-          }
-          await Sharing.shareAsync(uri, {
-            mimeType: "image/png",
-            dialogTitle: dict.STATS_CARD_SHARE,
-          });
-        } else {
-          if (!(await canSaveToPhotoLibrary())) {
-            toast(dict.STATS_CARD_FAILED);
-            return;
-          }
-          await MediaLibrary.Asset.create(uri);
-          toast(dict.STATS_CARD_SAVED);
+        const delivered = kind === "share" ? await shareCard(uri, dict.STATS_CARD_SHARE) : await saveCard(uri);
+        if (!delivered) {
+          toast(dict.STATS_CARD_FAILED);
+          return;
         }
+        if (kind === "download") toast(dict.STATS_CARD_SAVED);
         // The consumer (share sheet / gallery) has the bytes now — the
         // raster's temp file has no further use. Repeated shares otherwise
         // accumulate tmp files until the OS housekeeping runs.
-        discardTmpFile(uri);
+        discardCard(uri);
       } catch (error) {
         console.warn("[ShareCard] failed:", error);
         toast(dict.STATS_CARD_FAILED);
@@ -131,7 +108,7 @@ export function ShareCardSection({
         setBusy(null);
       }
     },
-    [captureCard, discardTmpFile, dict, toast],
+    [captureCard, dict, toast],
   );
 
   if (!user) {
@@ -170,10 +147,6 @@ export function ShareCardSection({
   // when both exist.
   const name = profile?.user.username || user.username;
   const handle = profile?.user.handle || user.nickname || null;
-  // One floating action on iOS (the share sheet already offers "Save
-  // Image"); Android's sheet can't guarantee a save, so it also gets a
-  // direct download.
-  const androidDownload = Platform.OS === "android";
   const bannerSource = resolveMediaSource(
     media.banner,
     banner?.url,
@@ -222,7 +195,7 @@ export function ShareCardSection({
             bannerSource={bannerSource}
             accentColor={accentColor}
             logoSource={IMGS[settings.selectedLanguage].LOGO}
-            actionsInset={androidDownload ? scale(104) : scale(56)}
+            actionsInset={CARD_SAVE_ACTION ? scale(104) : scale(56)}
             snap={snap}
             dict={dict}
           />
@@ -235,12 +208,12 @@ export function ShareCardSection({
           <CardActionButton
             icon="share"
             label={dict.STATS_CARD_SHARE}
-            backdrop={backdropAt(androidDownload ? 1 : 0)}
+            backdrop={backdropAt(CARD_SAVE_ACTION ? 1 : 0)}
             busy={busy === "share"}
             disabled={busy != null}
             onPress={() => void run("share")}
           />
-          {androidDownload && (
+          {CARD_SAVE_ACTION && (
             <CardActionButton
               icon="download"
               label={dict.STATS_CARD_DOWNLOAD}

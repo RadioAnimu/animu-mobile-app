@@ -1,4 +1,4 @@
-import { Alert, View } from "react-native";
+import { View } from "react-native";
 
 import { RowDivider } from "@/components/ListRow";
 import { SectionTitle } from "@/components/SectionTitle";
@@ -12,6 +12,7 @@ import { SettingsRow, ValueRow } from "@/screens/Settings/rows";
 import { styles } from "@/screens/Settings/styles";
 import { dictionarySize, dictionaryStoredSize } from "@/screens/Settings/sections/dictionary-size";
 import { haptics } from "@/utils/haptics";
+import { confirmDestructive } from "@/utils/confirm";
 
 interface DictionaryCopy {
   /** Status line under the description: the outcome (installed, failed,
@@ -64,19 +65,17 @@ export function ExperimentalSection() {
   const dictionary = useJapaneseDictionary();
   const copy = copyOf(dictionary, dict);
 
-
   const confirm = (title: string, message: string, act: string, run: () => Promise<void>) => {
     haptics.warning();
-    Alert.alert(title, message, [
-      { text: dict.ACCOUNT_CANCEL, style: "cancel" },
-      {
-        text: act,
-        style: "destructive",
-        onPress: () => {
-          run().catch(() => {});
-        },
+    confirmDestructive({
+      title,
+      message,
+      cancel: dict.ACCOUNT_CANCEL,
+      confirm: act,
+      onConfirm: () => {
+        run().catch(() => {});
       },
-    ]);
+    });
   };
 
   const onPress = () => {

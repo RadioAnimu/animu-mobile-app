@@ -15,8 +15,7 @@ export type IconName = Props["name"];
 export function Icon(props: Props) {
   return (
     <MaterialIcons
-      accessibilityElementsHidden
-      importantForAccessibility="no"
+      aria-hidden
       {...props}
     />
   );

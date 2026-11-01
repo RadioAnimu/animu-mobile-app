@@ -3,7 +3,6 @@ import { Icon } from "@/components/Icon";
 import type { AuthAccountEmail, LinkedProvider } from "animu-api";
 import {
   ActivityIndicator,
-  Alert,
   Animated,
   Text,
   TouchableOpacity,
@@ -39,6 +38,7 @@ import { ProviderIcon } from "@/components/ProviderIcon";
 import { useResendCooldown } from "@/hooks/useResendCooldown";
 import { isAppleRelayEmail } from "@/components/AccountEmails/relay-email";
 import { styles } from "@/components/AccountEmails/styles";
+import { confirmDestructive } from "@/utils/confirm";
 
 /** The extra Animu Connect address rides `source: "animu"` (the provider
  * rows carry their own sources) — one predicate so both reads stay in step. */
@@ -482,34 +482,29 @@ export function AccountEmails() {
   };
 
   const confirmRemove = (target: AuthAccountEmail) => {
-    Alert.alert(
-      dict.ACCOUNT_EMAIL_REMOVE_CONFIRM_TITLE,
-      interpolate(dict.ACCOUNT_EMAIL_REMOVE_CONFIRM_MSG, {
+    confirmDestructive({
+      title: dict.ACCOUNT_EMAIL_REMOVE_CONFIRM_TITLE,
+      message: interpolate(dict.ACCOUNT_EMAIL_REMOVE_CONFIRM_MSG, {
         email: target.email,
       }),
-      [
-        { text: dict.ACCOUNT_CANCEL, style: "cancel" },
-        {
-          text: dict.ACCOUNT_EMAIL_REMOVE,
-          style: "destructive",
-          onPress: () => {
-            void (async () => {
-              setRemoving(true);
-              try {
-                await removeEmail(target.id);
-                haptics.success();
-                toast(dict.ACCOUNT_EMAIL_REMOVED);
-              } catch (err) {
-                console.error("[AccountEmails] Remove email failed:", err);
-                showError(dict.ACCOUNT_ACTION_FAILED);
-              } finally {
-                setRemoving(false);
-              }
-            })();
-          },
-        },
-      ],
-    );
+      cancel: dict.ACCOUNT_CANCEL,
+      confirm: dict.ACCOUNT_EMAIL_REMOVE,
+      onConfirm: () => {
+        void (async () => {
+          setRemoving(true);
+          try {
+            await removeEmail(target.id);
+            haptics.success();
+            toast(dict.ACCOUNT_EMAIL_REMOVED);
+          } catch (err) {
+            console.error("[AccountEmails] Remove email failed:", err);
+            showError(dict.ACCOUNT_ACTION_FAILED);
+          } finally {
+            setRemoving(false);
+          }
+        })();
+      },
+    });
   };
 
   // The empty list is the only case with nothing to show above the notice.

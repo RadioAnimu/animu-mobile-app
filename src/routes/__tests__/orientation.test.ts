@@ -76,6 +76,16 @@ describe("phone orientation policy", () => {
     expect(mocks.unlockAsync).toHaveBeenCalledTimes(2);
   });
 
+  it("leaves a browser tab free: only a fullscreen document could lock", async () => {
+    mocks.platform.OS = "web";
+    const { applyOrientationPolicy, refreshOrientationPolicy } = await load();
+    applyOrientationPolicy("Settings");
+    refreshOrientationPolicy();
+    await flush();
+    expect(mocks.lockAsync).not.toHaveBeenCalled();
+    expect(mocks.unlockAsync).not.toHaveBeenCalled();
+  });
+
   it("ends a burst of navigation on the latest route's lock", async () => {
     const { applyOrientationPolicy } = await load();
     applyOrientationPolicy("Settings");

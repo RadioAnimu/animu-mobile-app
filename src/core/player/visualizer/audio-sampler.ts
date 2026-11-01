@@ -1,4 +1,3 @@
-import { CONFIG, debugLog } from "@/utils/player.config";
 import type { AudioSample } from "react-native-anything-player";
 import type {
   SamplingTransport,
@@ -31,9 +30,6 @@ const MIN_NATIVE_INTERVAL_MS = 8;
 const MAX_NATIVE_INTERVAL_MS = 80;
 const MAX_OUTPUT_LATENCY_MS = 600;
 const OUTPUT_LATENCY_SMOOTH = 0.85;
-/** Bounds of the auto-calibrated residual delay correction. */
-const SYNC_TRIM_LIMIT_MS = 150;
-const SYNC_CALIBRATION_STEP = 0.08;
 /** Draw gain: quiet passages are lifted toward this RMS (soft-clipped). */
 const DRAW_TARGET_RMS = 0.42;
 const DRAW_MAX_GAIN = 3;
@@ -45,14 +41,7 @@ function median(values: number[]): number {
   return sorted.length % 2 === 1 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
 }
 
-// `performance` is guarded for environments that lack it (diagnostics only):
-// a ReferenceError inside the handler would kill the whole feed.
-const perfNow = (): number => (typeof performance !== "undefined" ? performance.now() : 0);
-
 export class AudioSampler implements VisualizerSampler {
-  private diagnostic = { start: 0, last: 0, nativeLast: 0, count: 0,
-    arrivalGapMaxMs: 0, nativeGapMaxMs: 0, eventAgeMaxMs: 0,
-    burstEvents: 0, handleMaxMs: 0 };
   private enabled = false;
   private foreground = true;
   private playing = false;
@@ -64,8 +53,6 @@ export class AudioSampler implements VisualizerSampler {
   private intervalMs = DEFAULT_NATIVE_INTERVAL_MS;
   private readonly deltas: number[] = [];
   private outputLatencyMs = -1;
-  private syncTrimMs = 0;
-  private manualTrimMs = 0;
 
   constructor(private readonly transport: SamplingTransport) {}
 
@@ -102,32 +89,10 @@ export class AudioSampler implements VisualizerSampler {
     // First listener (or the first back from zero) turns sampling on; the
     // final one turns it off, so native sampling only runs for a viewer.
     this.apply();
-    debugLog("[ScopeDiag] listener-add", { at: Date.now(), listeners: this.listeners.size });
     return () => {
       this.listeners.delete(listener);
       this.apply();
-      debugLog("[ScopeDiag] listener-remove", { at: Date.now(), listeners: this.listeners.size });
     };
-  }
-
-  /**
-   * Feedback from the visualizer: the delay it actually applied for a window.
-   * A persistent difference is residual error; move the correction toward it
-   * (bounded and slow).
-   */
-  reportAppliedDelay(appliedMs: number): void {
-    if (!Number.isFinite(appliedMs)) return;
-    const error = appliedMs - this.appliedDelayMs();
-    if (Math.abs(error) < 4) return;
-    this.syncTrimMs = Math.min(
-      SYNC_TRIM_LIMIT_MS,
-      Math.max(-SYNC_TRIM_LIMIT_MS, this.syncTrimMs + error * SYNC_CALIBRATION_STEP),
-    );
-  }
-
-  /** Manual sync bias (ms); positive makes the trace later than the audio. */
-  setSyncTrim(trimMs: number): void {
-    this.manualTrimMs = Number.isFinite(trimMs) ? trimMs : 0;
   }
 
   dispose(): void {
@@ -139,8 +104,6 @@ export class AudioSampler implements VisualizerSampler {
   /** Reconciles the native sampling gate with the flags (only acts on change). */
   private apply(): void {
     if (this.isActive === (this.subscription != null)) return;
-    debugLog("[ScopeDiag] sampling-gate", { at: Date.now(), active: this.isActive,
-      listeners: this.listeners.size });
     if (this.isActive) {
       this.subscription = this.transport.onSample((sample) => this.handle(sample));
       this.transport.setSamplingEnabled(true);
@@ -154,10 +117,6 @@ export class AudioSampler implements VisualizerSampler {
 
   private handle(sample: AudioSample): void {
     if (!this.isActive || sample.waveform.length === 0) return;
-    // `performance` is guarded for engines that lack it (diagnostics only):
-    // a ReferenceError inside the handler would kill the whole feed.
-    const diagnosticAt = CONFIG.DEBUG ? perfNow() : 0;
-    if (CONFIG.DEBUG) this.diagnosticArrival(sample, diagnosticAt);
     this.trackCadence(Date.now());
     this.trackLatency(sample.outputLatency);
     const target = sample.waveform;
@@ -168,39 +127,10 @@ export class AudioSampler implements VisualizerSampler {
       nativeIntervalMs: this.intervalMs,
       windowMs: sample.duration > 0 ? sample.duration * 1000 : this.intervalMs,
       level: sample.level,
-      outputLatencyMs: this.appliedDelayMs(),
+      outputLatencyMs: Math.max(0, this.outputLatencyMs),
     };
     this.previousWave = target;
     this.listeners.forEach((listener) => listener(window));
-    if (CONFIG.DEBUG) this.diagnosticHandled(sample, diagnosticAt);
-  }
-
-  /** Logging helpers only; the sampler cadence and payload stay unchanged. */
-  private diagnosticArrival(sample: AudioSample, diagnosticAt: number): void {
-    const d = this.diagnostic;
-    if (!d.start) d.start = diagnosticAt;
-    const gap = d.last ? diagnosticAt - d.last : 0;
-    d.arrivalGapMaxMs = Math.max(d.arrivalGapMaxMs, gap);
-    d.nativeGapMaxMs = Math.max(d.nativeGapMaxMs, d.nativeLast ? sample.timestamp - d.nativeLast : 0);
-    d.eventAgeMaxMs = Math.max(d.eventAgeMaxMs, Date.now() - sample.timestamp);
-    if (gap > 0 && gap < 4) d.burstEvents++;
-    d.last = diagnosticAt;
-    d.nativeLast = sample.timestamp;
-    d.count++;
-  }
-
-  private diagnosticHandled(sample: AudioSample, diagnosticAt: number): void {
-    const d = this.diagnostic;
-    d.handleMaxMs = Math.max(d.handleMaxMs, perfNow() - diagnosticAt);
-    if (diagnosticAt - d.start >= 5000) {
-      debugLog("[ScopeDiag] sampler", { at: Date.now(), ...d,
-        elapsedMs: diagnosticAt - d.start, listeners: this.listeners.size,
-        intervalMs: this.intervalMs, pcmDurationMs: sample.duration * 1000, outputLatencyMs: this.outputLatencyMs,
-        syncTrimMs: this.syncTrimMs, appliedDelayMs: this.appliedDelayMs() });
-      this.diagnostic = { start: diagnosticAt, last: diagnosticAt, nativeLast: sample.timestamp,
-        count: 0, arrivalGapMaxMs: 0, nativeGapMaxMs: 0, eventAgeMaxMs: 0,
-        burstEvents: 0, handleMaxMs: 0 };
-    }
   }
 
   private trackCadence(now: number): void {
@@ -225,10 +155,6 @@ export class AudioSampler implements VisualizerSampler {
       this.outputLatencyMs < 0
         ? measured
         : this.outputLatencyMs * OUTPUT_LATENCY_SMOOTH + measured * (1 - OUTPUT_LATENCY_SMOOTH);
-  }
-
-  private appliedDelayMs(): number {
-    return Math.max(0, Math.max(0, this.outputLatencyMs) + this.syncTrimMs + this.manualTrimMs);
   }
 
   /** Lifts quiet passages toward a readable trace (soft-clipped, in place). */

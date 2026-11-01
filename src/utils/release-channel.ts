@@ -9,10 +9,12 @@ export type ReleaseChannel =
   | "simulator"
   | "enterprise"
   | "play"
+  | "web"
   | "unknown";
 
 /** Best-effort distribution channel; one native read per call. */
 export async function resolveReleaseChannel(): Promise<ReleaseChannel> {
+  if (Platform.OS === "web") return "web";
   if (Platform.OS === "ios") {
     try {
       const type = await Application.getIosApplicationReleaseTypeAsync();

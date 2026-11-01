@@ -322,6 +322,7 @@ const DICT: Dict = {
   ABOUT_RELEASE_ADHOC: "Distribuição ad hoc",
   ABOUT_RELEASE_DEVELOPMENT: "Desenvolvimento",
   ABOUT_RELEASE_SIMULATOR: "Simulador",
+  ABOUT_RELEASE_WEB: "Web",
   ABOUT_RELEASE_ENTERPRISE: "Enterprise",
   ABOUT_RELEASE_PLAY: "Google Play",
   ABOUT_RELEASE_UNKNOWN: "Desconhecida",
@@ -338,7 +339,7 @@ const DICT: Dict = {
 
   ABOUT_COPY_DETAILS: "Copiar informações",
   ABOUT_COPIED: "Copiado",
-  ABOUT_COPY_FAILED: "Não foi possível copiar.",
+  TEXT_COPY_FAILED: "Não foi possível copiar.",
   ABOUT_OPEN_ERROR: "Não foi possível abrir o link.",
   ABOUT_OPENS_BROWSER: "Abre no navegador",
   ABOUT_OPENS_IN_APP: "Abre no app",

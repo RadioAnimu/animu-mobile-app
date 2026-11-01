@@ -17,34 +17,18 @@ import {
 import type {
   AuthApiPort,
   OAuthPort,
-  OAuthResult,
   SessionStorePort,
   StoredSession,
 } from "@/core/auth/ports";
 
 // The real constants module loads `react-native` + `expo-auth-session`, which
 // this vitest setup cannot transform (Flow source). The facade only consumes
-// provider metadata from it, so we inject a controlled provider map and can
-// then exercise every branch — server, native Apple, app-driven and
-// non-linkable — deterministically.
+// provider metadata from it, so we inject a controlled provider map.
 const { PROVIDERS } = vi.hoisted(() => ({
   PROVIDERS: {
-    discord: { name: "discord", label: "Discord", mode: "server", linkable: true },
-    apple: {
-      name: "apple",
-      label: "Apple",
-      mode: "server",
-      native: "apple",
-      linkable: true,
-    },
-    legacy: { name: "legacy", label: "Legacy", mode: "app", linkable: true },
-    restricted: {
-      name: "restricted",
-      label: "Restricted",
-      mode: "server",
-      linkable: false,
-    },
-  } as Record<string, { name: string; label: string; mode: string; native?: string; linkable?: boolean; redirectUri?: string }>,
+    discord: { name: "discord", label: "Discord" },
+    apple: { name: "apple", label: "Apple", native: "apple" },
+  } as Record<string, { name: string; label: string; native?: string }>,
 }));
 
 vi.mock("@/constants/auth", () => ({
@@ -55,8 +39,6 @@ vi.mock("@/constants/auth", () => ({
     { name: "apple", label: "Apple" },
   ],
   getProviderConfig: (name: string) => PROVIDERS[name],
-  redirectUriForProvider: (name: string) =>
-    PROVIDERS[name]?.redirectUri ?? "animuapp://redirect",
 }));
 
 // The module builds a production singleton from the Expo-backed adapters at
@@ -151,7 +133,6 @@ const makeApi = (over: Record<string, unknown> = {}): ApiFake => {
 
 const makeOAuth = (over: Record<string, unknown> = {}): OAuthFake =>
   ({
-    authorize: vi.fn(),
     openSession: vi.fn(async () => null),
     authorizeAppleNative: vi.fn(async () => null),
     ...over,
@@ -514,26 +495,6 @@ describe("AuthFacade.loginWithProvider", () => {
       expect((failure as ProviderEmailTaken).provider).toBe("apple");
     });
 
-    it("maps the app-driven exchange refusal too", async () => {
-      const { facade } = build({
-        oauth: makeOAuth({ authorize: vi.fn(async () => ({ code: "c" })) }),
-        api: makeApi({
-          exchangeToken: vi.fn(async () => {
-            throw new AnimuApiError(
-              "email already taken",
-              401,
-              {},
-              "token_exchange_failed",
-            );
-          }),
-        }),
-      });
-
-      await expect(facade.loginWithProvider("legacy")).rejects.toBeInstanceOf(
-        ProviderEmailTaken,
-      );
-    });
-
     it.each([
       new AnimuApiError("invalid identity token", 401, {}, "token_exchange_failed"),
       new AnimuApiError("email already taken", 400, {}, "invalid_request"),
@@ -576,46 +537,6 @@ describe("AuthFacade.loginWithProvider", () => {
     });
   });
 
-  it("runs the app-driven OAuth redirect for non-server providers", async () => {
-    const oauthResult: OAuthResult = {
-      code: "code-1",
-      codeVerifier: "verifier-1",
-    };
-    const { api, facade } = build({
-      oauth: makeOAuth({ authorize: vi.fn(async () => oauthResult) }),
-      api: makeApi({ exchangeToken: vi.fn(async () => session()) }),
-    });
-
-    await facade.loginWithProvider("legacy");
-
-    expect(api.exchangeToken).toHaveBeenCalledWith({
-      provider: "legacy",
-      code: "code-1",
-      redirectUri: "animuapp://redirect",
-      codeVerifier: "verifier-1",
-    });
-  });
-
-  it("omits the redirect URI when the provider says so", async () => {
-    const { api, facade } = build({
-      oauth: makeOAuth({
-        authorize: vi.fn(async () => ({
-          code: "code-1",
-          omitRedirectUri: true,
-        })),
-      }),
-      api: makeApi({ exchangeToken: vi.fn(async () => session()) }),
-    });
-
-    await facade.loginWithProvider("legacy");
-
-    expect(api.exchangeToken).toHaveBeenCalledWith({
-      provider: "legacy",
-      code: "code-1",
-      redirectUri: undefined,
-      codeVerifier: undefined,
-    });
-  });
 });
 
 describe("AuthFacade.resumeServerAuth", () => {
@@ -769,7 +690,7 @@ describe("AuthFacade.linkProvider", () => {
   it("rejects a provider that cannot be linked", async () => {
     const { facade } = build();
 
-    await expect(facade.linkProvider("restricted")).rejects.toThrow(
+    await expect(facade.linkProvider("unknown")).rejects.toThrow(
       /cannot be linked/,
     );
   });

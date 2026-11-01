@@ -35,7 +35,7 @@ vi.mock("expo-image", () => ({
 
 vi.mock("react-native", () => ({
   Dimensions: { get: () => ({ width: 390, height: 844 }) },
-  Platform: { isTV: false },
+  Platform: {},
   StyleSheet: { create: (styles: object) => styles },
   View: ({ children }: { children?: unknown }) => children,
 }));
@@ -61,22 +61,20 @@ describe("Cover bounded retry", () => {
     vi.stubGlobal("__DEV__", false);
   });
 
-  it("stops retrying a dead URL after MAX_FAILURES", () => {
+  it("stops retrying a dead URL after two retries", () => {
     render(<Cover cover={COVER} />);
-
-    // Failure #1 → fallback (the bundled asset) shows and LOADS.
+    expect(REMOTE_ATTEMPTS()).toBe(1);
+    for (let retry = 1; retry <= 2; retry += 1) {
+      act(() => lastProps?.onError?.());
+      // The fallback (bundled asset) shows and loads — that must not reset the count.
+      act(() => lastProps?.onLoad?.(LOADED(240, 240)));
+      act(() => vi.advanceTimersByTime(3000));
+      expect(REMOTE_ATTEMPTS()).toBe(1 + retry);
+    }
     act(() => lastProps?.onError?.());
-    act(() => lastProps?.onLoad?.(LOADED(240, 240))); // fallback onLoad — must NOT reset the counter
-
-    // Retry after the 3s delay; failure #2 must exhaust the bound.
-    act(() => vi.advanceTimersByTime(3000));
-    expect(REMOTE_ATTEMPTS()).toBe(2);
-    act(() => lastProps?.onError?.());
-    expect((lastProps?.source as { uri?: string })?.uri).toBeUndefined();
-
     // Let it run long: no further reloads, fallback stays.
     act(() => vi.advanceTimersByTime(120_000));
-    expect(REMOTE_ATTEMPTS()).toBe(2);
+    expect(REMOTE_ATTEMPTS()).toBe(3);
     expect((lastProps?.source as { uri?: string })?.uri).toBeUndefined();
   });
 

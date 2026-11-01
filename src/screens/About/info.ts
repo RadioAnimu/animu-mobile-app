@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
 import * as Application from "expo-application";
+import { APP_VERSION } from "@/utils/app-version";
 
 import { resolveReleaseChannel, type ReleaseChannel } from "@/utils/release-channel";
 
 export interface AppInfo {
-  /** Native app version, e.g. "2.2.0". */
+  /** App version, e.g. "2.2.0": the native one, the app config's on the web. */
   appVersion: string | null;
   /** Native build number / version code. */
   buildVersion: string | null;
@@ -34,7 +35,7 @@ export function useAppInfo(): AppInfo {
   }, []);
 
   return {
-    appVersion: Application.nativeApplicationVersion,
+    appVersion: APP_VERSION,
     buildVersion: Application.nativeBuildVersion,
     release,
     applicationId: Application.applicationId,

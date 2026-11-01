@@ -316,7 +316,7 @@ describe("CustomDrawerContent", () => {
   });
 });
 
-describe("CustomDrawerContent — D-pad focus", () => {
+describe("CustomDrawerContent — keyboard focus", () => {
   afterEach(() => {
     drawerStatus.value = "open";
   });
@@ -327,16 +327,12 @@ describe("CustomDrawerContent — D-pad focus", () => {
     const focusables = container.querySelectorAll("[data-focusable]");
     expect(focusables.length).toBeGreaterThan(0);
     focusables.forEach((node) => expect(node.getAttribute("data-focusable")).toBe("false"));
-    expect(container.querySelector("[data-tv-preferred-focus]")).toBeNull();
   });
 
-  it("opens with focus on the current destination", () => {
+  it("takes its controls into focus once open", () => {
     const { container } = render(<CustomDrawerContent {...makeProps()} />);
     container
       .querySelectorAll("[data-focusable]")
       .forEach((node) => expect(node.getAttribute("data-focusable")).toBe("true"));
-    const preferred = container.querySelectorAll("[data-tv-preferred-focus]");
-    expect(preferred).toHaveLength(1);
-    expect(preferred[0].getAttribute("aria-selected")).toBe("true");
   });
 });

@@ -10,7 +10,7 @@ const { openBrowserAsync, openURL } = vi.hoisted(() => ({
 // The theme measures Dimensions at module load; a plain stub keeps this node-run.
 vi.mock("react-native", () => ({
   Dimensions: { get: () => ({ width: 393, height: 852 }) },
-  Platform: { OS: "ios", isTV: false },
+  Platform: { OS: "ios" },
 }));
 vi.mock("expo-web-browser", () => ({ openBrowserAsync }));
 vi.mock("expo-linking", () => ({ openURL }));

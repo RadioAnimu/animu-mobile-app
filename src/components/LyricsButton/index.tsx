@@ -9,6 +9,7 @@ import { useLyricsAvailability } from "@/hooks/useLyricsAvailability";
 import type { RootStackParamList } from "@/routes/app.routes";
 import { THEME } from "@/theme";
 import { haptics } from "@/utils/haptics";
+import { whenIdle } from "@/utils/idle";
 
 interface Props {
   /** The header's icon size. */
@@ -32,12 +33,13 @@ export function LyricsButton({ size, hitSlop, style }: Readonly<Props>) {
   // At launch, once the player has settled: adopt the Japanese dictionary,
   // or delete an install the app was killed in (no dead files until Settings
   // or the lyrics happen to open).
-  useEffect(() => {
-    const task = requestIdleCallback(() => {
-      japaneseDictionary.restore().catch(() => {});
-    });
-    return () => cancelIdleCallback(task);
-  }, []);
+  useEffect(
+    () =>
+      whenIdle(() => {
+        japaneseDictionary.restore().catch(() => {});
+      }),
+    [],
+  );
 
   return (
     <TouchableOpacity

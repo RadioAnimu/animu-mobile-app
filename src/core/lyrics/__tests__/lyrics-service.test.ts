@@ -48,8 +48,6 @@ class MemoryCache implements LyricsCache {
   write = vi.fn(async (key: string, entry: CachedLookup) => {
     this.entries.set(key, entry);
   });
-  size = vi.fn(async () => 0);
-  clear = vi.fn(async () => this.entries.clear());
 }
 
 const deferred = <T>() => {
@@ -269,13 +267,6 @@ describe("LyricsService", () => {
     expect(await service.lyricsFor(track({ raw: "Rádio Animu - jingle", artist: "Rádio Animu" }))).toBeNull();
   });
 
-  it("forgets everything on clear", async () => {
-    provider.get.mockResolvedValue(candidate());
-    service.show(track());
-    await flush();
-    await service.clear();
-    expect(cache.clear).toHaveBeenCalled();
-  });
 });
 
 describe("query terms", () => {

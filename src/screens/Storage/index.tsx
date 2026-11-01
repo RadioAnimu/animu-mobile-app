@@ -15,7 +15,7 @@ import { useCoverDiskClearing, useFreedCoverToast } from "@/hooks/useCoverDisk";
 import { useDict } from "@/hooks/useDict";
 import { useSaveSettings } from "@/hooks/useSaveSettings";
 import { useScrollEndPadding } from "@/hooks/useScrollEndPadding";
-import { maxSelectableLimitBytes } from "@/core/services/device-storage.service";
+import { maxSelectableLimitBytes } from "@/core/services/disk-capacity";
 import type { CoverCacheCategory } from "@/core/services/cover-cache-registry.service";
 import {
   CATEGORY_ORDER,

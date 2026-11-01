@@ -295,8 +295,7 @@ export function HeaderBar({ openLiveRequestModal, rowWidth, backdrop, bar = fals
           dropping its height used to nudge the whole player up and down. */}
       <View
         style={styles.progressSlot}
-        accessibilityElementsHidden
-        importantForAccessibility="no-hide-descendants"
+        aria-hidden
       >
         {showProgress && (
           <Animated.View

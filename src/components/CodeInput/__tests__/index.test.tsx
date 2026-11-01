@@ -3,7 +3,7 @@ import { act, cleanup, fireEvent, render, screen } from "@testing-library/react"
 import { Animated } from "react-native";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { CODE_LENGTH, CodeInput } from "@/components/CodeInput";
+import { CodeInput } from "@/components/CodeInput";
 
 vi.mock("react-native", async () =>
   (await import("@/__tests__/react-native-mock")).createReactNativeMock(),
@@ -41,7 +41,6 @@ describe("CodeInput", () => {
   it("ignores non-digits and anything past the code length", () => {
     const { input } = setup({ value: "1a2b3c4d5" });
     expect(input.value).toBe("1234");
-    expect(CODE_LENGTH).toBe(4);
     expect(screen.queryByText("5")).toBeNull();
   });
 
@@ -84,13 +83,6 @@ describe("CodeInput", () => {
 
     fireEvent.blur(input);
     expect(loop.stop).toHaveBeenCalledTimes(1);
-  });
-
-  it("does not blink while not editable", () => {
-    const { input } = setup({ editable: false });
-    expect(input.disabled).toBe(true);
-    fireEvent.focus(input);
-    expect(Animated.loop).not.toHaveBeenCalled();
   });
 
   it("stays editable while busy, ignoring typing so focus survives a verify", () => {
@@ -142,12 +134,6 @@ describe("CodeInput", () => {
 
     fireEvent.click(screen.getByText("1"));
     expect(document.activeElement).toBe(input);
-  });
-
-  it("does not focus from a tap on the boxes while not editable", () => {
-    const { input } = setup({ value: "1", editable: false });
-    fireEvent.click(screen.getByText("1"));
-    expect(document.activeElement).not.toBe(input);
   });
 
   it("re-renders boxes when the value prop changes", () => {

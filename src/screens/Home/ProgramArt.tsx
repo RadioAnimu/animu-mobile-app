@@ -26,8 +26,7 @@ export const ProgramArt = React.memo(function ProgramArt({ width, handleClick }:
     return (
       <View
         style={[frame, { alignItems: "center", justifyContent: "center" }]}
-        accessibilityElementsHidden
-        importantForAccessibility="no-hide-descendants"
+        aria-hidden
       >
         <Logo size={frame.height * 0.6} />
       </View>

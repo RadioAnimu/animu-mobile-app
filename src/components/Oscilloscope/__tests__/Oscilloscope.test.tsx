@@ -70,13 +70,11 @@ vi.mock("@react-navigation/native", () => ({
   useIsFocused: () => mocks.focused,
 }));
 
-const reportVisualizerDelay = vi.fn();
 
 const setPlayer = (overrides: Record<string, unknown> = {}) => {
   mocks.player = {
     isPlaying: true,
     visualizerSupported: true,
-    reportVisualizerDelay,
     subscribeVisualizerWindows: (listener: (window: object) => void) => {
       mocks.listener = listener;
       return mocks.unsubscribe;
@@ -243,7 +241,6 @@ describe("Oscilloscope (Android)", () => {
       message({ type: "other", delay: 5 });
       message(null);
       act(() => webview.onMessage!({ nativeEvent: { data: "not json" } }));
-      expect(reportVisualizerDelay).not.toHaveBeenCalled();
       expect(sent()).toEqual([]);
     });
   });

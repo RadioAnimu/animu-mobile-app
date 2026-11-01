@@ -277,7 +277,7 @@ function Interlude({
     };
   });
   return (
-    <Animated.View style={[styles.dots, group]} accessibilityElementsHidden importantForAccessibility="no">
+    <Animated.View style={[styles.dots, group]} aria-hidden>
       {[0, 1, 2].map((dot) => (
         <Dot key={dot} dot={dot} startMs={startMs} span={span} position={position} />
       ))}

@@ -24,7 +24,8 @@ interface Props {
   track?: MusicRequest;
   user: User | null;
   onClose: () => void;
-  onSubmit: (message: string) => Promise<{ success: boolean; message: string }>;
+  /** `null`: a duplicate submit, the first one owns the outcome. */
+  onSubmit: (message: string) => Promise<{ success: boolean; message: string } | null>;
   onRequestSuccess: (trackId: string) => void;
 }
 
@@ -99,6 +100,7 @@ export function RequestBottomSheet({
     setStatus("submitting");
     try {
       const result = await onSubmit(message);
+      if (!result) return;
       if (result.success) {
         haptics.success();
         layoutEase();

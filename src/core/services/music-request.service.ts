@@ -15,7 +15,7 @@ import {
 } from "@/core/services/listen-stats.service";
 
 class MusicRequestService {
-  /** Shared double-submit latch (see `RequestSubmitGuard`). */
+  /** Double-submit latch (see `RequestSubmitGuard`). */
   private readonly guard = new RequestSubmitGuard();
 
   /**

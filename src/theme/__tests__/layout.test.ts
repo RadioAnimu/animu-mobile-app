@@ -35,7 +35,7 @@ describe("resolveLayout", () => {
     expect(resolveLayout(320, 1024)).toMatchObject({ windowClass: "compact", split: false });
   });
 
-  it("splits full-screen tablet landscape, square-ish landscape windows and TVs", () => {
+  it("splits full-screen tablet landscape and square-ish landscape windows", () => {
     expect(resolveLayout(1180, 820)).toMatchObject({ windowClass: "expanded", split: true, short: false });
     expect(resolveLayout(800, 760).split).toBe(true);
     expect(resolveLayout(960, 540)).toMatchObject({ split: true });

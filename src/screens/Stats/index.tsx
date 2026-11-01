@@ -5,7 +5,6 @@ import { ScrollView, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { AppRefreshControl } from "@/components/AppRefreshControl";
-import { Icon } from "@/components/Icon";
 import { ScreenHeader } from "@/components/ScreenHeader";
 import {
   listenStatsService,
@@ -19,8 +18,8 @@ import type { RootStackParamList } from "@/routes/app.routes";
 import { ShareCardSection } from "@/screens/Stats/ShareCardSection";
 import { StatsContent } from "@/screens/Stats/StatsContent";
 import { styles } from "@/screens/Stats/styles";
-import { THEME } from "@/theme";
 import { haptics } from "@/utils/haptics";
+import { Notice } from "@/components/Notice";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Stats">;
 
@@ -117,16 +116,11 @@ export function Stats({ navigation }: Readonly<Props>) {
         {/* Where the numbers live differs by sign-in state: signed out,
             listening still records but the card is locked; signed in, the
             stats still never reach the account. */}
-        <View style={styles.notice}>
-          <Icon
-            name={user ? "smartphone" : "person-outline"}
-            size={THEME.ICON.SM}
-            color={THEME.COLORS.TEXT_SOFT}
-          />
-          <Text style={styles.noticeText}>
-            {user ? dict.STATS_NOTICE_SIGNED_IN : dict.STATS_NOTICE_SIGNED_OUT}
-          </Text>
-        </View>
+        <Notice
+          icon={user ? "smartphone" : "person-outline"}
+          text={user ? dict.STATS_NOTICE_SIGNED_IN : dict.STATS_NOTICE_SIGNED_OUT}
+          style={styles.notice}
+        />
         {hasData && snap ? (
           <StatsContent
             snap={snap}

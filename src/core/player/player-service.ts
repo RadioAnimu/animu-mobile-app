@@ -394,14 +394,6 @@ export class PlayerService {
     return this.deps.sampler.subscribeWindows(listener);
   }
 
-  reportVisualizerDelay(appliedMs: number): void {
-    this.deps.sampler.reportAppliedDelay?.(appliedMs);
-  }
-
-  setVisualizerSyncTrim(trimMs: number): void {
-    this.deps.sampler.setSyncTrim?.(trimMs);
-  }
-
   // ── Lifecycle ──
 
   /**

@@ -76,6 +76,10 @@ trustPolicyExclude:
   # Expo maintainer, npm registry signatures present; only the 58.x line
   # carries trusted-publisher provenance.
   - expo-screen-orientation@57.0.3
+  # Added for the web target: the SDK 57 release (October 14, the sdk-57 tag),
+  # Expo maintainer, npm registry signatures present; only the 58.x line
+  # carries trusted-publisher provenance.
+  - "@expo/metro-runtime@57.0.17"
   - babel-preset-expo@57.0.16
   - "@expo/cli@57.0.32"
   - "@expo/fingerprint@0.20.14"
@@ -92,7 +96,10 @@ trustPolicyExclude:
   - semver@6.3.1
   - semver@7.8.5
   - eslint-import-resolver-typescript@3.10.1
-  - ua-parser-js@0.7.41
+  # 1.0.41 added for the web target (react-native-web → fbjs): the 1.x line's
+  # last release, published by the author minutes after 0.7.41, npm registry
+  # signatures present; only the 2.x line carries trusted-publisher provenance.
+  - "ua-parser-js@0.7.41 || 1.0.41"
 
 # Audit exceptions are scoped to exact resolved build-tool paths by
 # scripts/dependency-audit.mjs; the raw findings remain visible in CI.

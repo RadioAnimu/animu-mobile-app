@@ -39,8 +39,7 @@ export const Live = React.memo(function Live() {
         <LiveLabel />
         <View
           style={styles.info}
-          accessibilityElementsHidden
-          importantForAccessibility="no-hide-descendants"
+          aria-hidden
         >
           {(["title", "artist", "song"] as const).map((line) => (
             <Text

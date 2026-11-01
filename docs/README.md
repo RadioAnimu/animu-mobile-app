@@ -10,6 +10,7 @@ this folder holds the detail.
 | [Architecture](ARCHITECTURE.md) | Layered design, the player core, state stores and key engineering decisions |
 | [Development](DEVELOPMENT.md) | Prerequisites, install, scripts, tests, path aliases, patches and fonts |
 | [Build & Release](BUILD_AND_RELEASE.md) | EAS profiles, versioning, over-the-air updates and voice assistants |
+| [Web](WEB.md) | Running and building the browser version, the CORS the server must allow, platform differences |
 | [AltStore](ALTSTORE.md) | Self-hosted iOS distribution source and GitHub Pages |
 | [API Surface](API_SURFACE.md) | Station endpoints and how the `animu-api` submodule is consumed |
 | [Store Submission](STORE_SUBMISSION.md) | Master checklist, data inventory and privacy-policy edits |

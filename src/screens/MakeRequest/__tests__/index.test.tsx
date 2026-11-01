@@ -447,6 +447,16 @@ describe("MakeRequest screen", () => {
       ).toBe("false");
     });
 
+    it("a refresh that succeeds after a failed one takes the banner down", async () => {
+      await search("guren");
+      mocks.service.searchTracksByTitle.mockRejectedValueOnce(new Error("offline"));
+      await act(async () => void fireEvent.click(screen.getByText("refresh")));
+      expect(screen.getByText("Retry")).toBeTruthy();
+
+      await act(async () => void fireEvent.click(screen.getByText("refresh")));
+      expect(screen.queryByText("Retry")).toBeNull();
+    });
+
     it("pull-to-refresh re-runs the current query", async () => {
       await search("guren");
       mocks.service.searchTracksByTitle.mockResolvedValue(page(["Fresh"]));

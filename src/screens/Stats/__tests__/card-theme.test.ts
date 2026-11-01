@@ -4,7 +4,7 @@ import { cardThemeFromAccent, hexLuminance } from "@/screens/Stats/card-theme";
 
 vi.mock("react-native", () => ({
   Dimensions: { get: () => ({ width: 393, height: 852 }) },
-  Platform: { OS: "ios", isTV: false },
+  Platform: { OS: "ios" },
   PixelRatio: { getFontScale: () => 1 },
 }));
 

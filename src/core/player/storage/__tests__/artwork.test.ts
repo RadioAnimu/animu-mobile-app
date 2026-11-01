@@ -5,6 +5,10 @@ import {
 } from "@/core/player/storage/artwork";
 import type { Track } from "@/core/domain/track";
 
+// Only `Platform` is read: the web build skips cover downloads.
+const platform = vi.hoisted(() => ({ OS: "ios" }));
+vi.mock("react-native", () => ({ Platform: platform }));
+
 // expo-asset reaches react-native (unparseable in node) — mock it entirely.
 // The bundled png is stubbed too; both are hoisted above the imports.
 const assetMocks = vi.hoisted(() => ({
@@ -608,5 +612,25 @@ describe("ArtworkResolver", () => {
 
     expect(resolver.defaultCover).toBe("file://bundled.png");
     expect(resolver.peek("https://images.test/cover.png")).toBeUndefined();
+  });
+});
+
+describe("ArtworkResolver on web", () => {
+  afterEach(() => {
+    platform.OS = "ios";
+    vi.resetModules();
+  });
+
+  it("hands covers to the browser by URL, downloading nothing", async () => {
+    platform.OS = "web";
+    vi.resetModules();
+    const { ArtworkResolver: WebResolver } = await import("@/core/player/storage/artwork");
+    const resolver = new WebResolver();
+    const url = "https://images.test/cover.png";
+
+    expect(resolver.isRemote(url)).toBe(false);
+    expect(await resolver.resolve(url)).toBe(url);
+    expect(fileSystemMocks.directDownload).not.toHaveBeenCalled();
+    expect(assetMocks.fromURI).not.toHaveBeenCalled();
   });
 });

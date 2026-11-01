@@ -41,7 +41,6 @@ vi.mock("@/components/MaskedValue", () => ({
 // "soon" is not configured at all (must not render).
 vi.mock("@/constants/auth", () => ({
   isProviderConfigured: (name: string) => name !== "soon",
-  isProviderLinkable: (name: string) => name === "google" || name === "discord",
 }));
 
 const provider = (name: string, label: string): ProviderInfo =>
@@ -90,8 +89,6 @@ describe("LinkedAccounts", () => {
   it("shows 'Not linked' and a link button only for linkable providers", () => {
     const { onLink } = setup();
     expect(screen.getAllByText("Not linked")).toHaveLength(3);
-    // Apple is configured but not linkable: no action at all.
-    expect(screen.queryByRole("button", { name: "Link Apple" })).toBeNull();
 
     fireEvent.click(screen.getByRole("button", { name: "Link Google" }));
     expect(onLink).toHaveBeenCalledExactlyOnceWith("google");
@@ -147,8 +144,10 @@ describe("LinkedAccounts", () => {
     fireEvent.click(unlink);
     expect(onUnlink).not.toHaveBeenCalled();
 
-    // Discord is the spinner row; Apple isn't linkable. No link button left.
-    expect(screen.queryByRole("button", { name: /^Link / })).toBeNull();
+    // Discord is the spinner row; Apple's link waits too.
+    const link = screen.getByRole("button", { name: "Link Apple" });
+    expect(link.getAttribute("aria-disabled")).toBe("true");
+    fireEvent.click(link);
     expect(onLink).not.toHaveBeenCalled();
   });
 

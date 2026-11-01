@@ -1,12 +1,5 @@
 import { Paths } from "expo-file-system";
-import { MB } from "@/utils/format";
-
-/** Device-wide internal-storage figures, in bytes. */
-export interface DiskCapacity {
-  totalBytes: number;
-  availableBytes: number;
-  usedBytes: number;
-}
+import type { DiskCapacity } from "@/core/services/disk-capacity";
 
 /**
  * Reads the device's internal storage synchronously (native props, no
@@ -33,9 +26,4 @@ export function readDiskCapacity(): DiskCapacity {
     availableBytes,
     usedBytes: Math.max(0, totalBytes - availableBytes),
   };
-}
-
-/** Largest limit the device can currently hold, in whole MB (≥ 1). */
-export function maxSelectableLimitBytes(availableBytes: number): number {
-  return Math.max(1, Math.floor(Math.max(0, availableBytes) / MB)) * MB;
 }

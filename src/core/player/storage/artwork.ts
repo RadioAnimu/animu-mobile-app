@@ -1,4 +1,5 @@
 import { Asset } from "expo-asset";
+import { Platform } from "react-native";
 import { File, Paths } from "expo-file-system";
 import { artworkSizeRank, type Artworks } from "animu-api";
 import DEFAULT_COVER from "@/assets/default-cover.png";
@@ -64,6 +65,12 @@ function coverFileNameFor(key: string): string {
  * to the fallback at the first stall instead of waiting through it.
  */
 const DIRECT_DOWNLOAD_DEADLINE_MS = 5_000;
+
+/**
+ * The native media sessions show local files only; the browser's loads the
+ * cover by URL (and the HTTP cache keeps it), so on web nothing is downloaded.
+ */
+const DOWNLOADS_COVERS = Platform.OS !== "web";
 
 let partFileSeq = 0;
 
@@ -215,7 +222,7 @@ export class ArtworkResolver {
    * through untouched, so callers should skip the download/re-push dance.
    */
   isRemote(url: string): boolean {
-    return /^https?:/i.test(url);
+    return DOWNLOADS_COVERS && /^https?:/i.test(url);
   }
 
   /** Local URI for a previously resolved remote URL (sync lookup). */

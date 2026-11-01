@@ -41,7 +41,7 @@ export function LiveRequestModal({ visible, handleClose }: Readonly<Props>) {
   const { chip, showChip, clearChip } = useChip();
   const defaultName = user?.nickname || user?.username || "";
 
-  const { formData, setters, setField, reset } = useLiveRequestForm({
+  const { formData, setField, reset } = useLiveRequestForm({
     name: defaultName,
   });
 
@@ -68,7 +68,7 @@ export function LiveRequestModal({ visible, handleClose }: Readonly<Props>) {
         setAttempted(false);
         setDraftOwner(user?.id);
       }
-      if (fresh || !formData.name) setters.setName(defaultName);
+      if (fresh || !formData.name) setField("name", defaultName);
       setStatus("idle");
     }
   }

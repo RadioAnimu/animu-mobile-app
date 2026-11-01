@@ -6,6 +6,8 @@
     "start": "expo start --dev-client",
     "android": "expo run:android",
     "ios": "expo run:ios",
+    "web": "expo start --web",
+    "build:web": "expo export --platform web --output-dir dist/web",
     "install:apk": "node scripts/install-apk.mjs",
     "lint": "expo lint . -- --max-warnings 0",
     "typecheck": "tsc --noEmit",
@@ -29,6 +31,7 @@
     "check:secrets": "node scripts/check-secrets.mjs"
   },
   "dependencies": {
+    "@expo/metro-runtime": "~57.0.17",
     "@react-native-async-storage/async-storage": "2.2.0",
     "@react-native-vector-icons/material-icons": "^13.1.4",
     "@react-navigation/drawer": "^7.14.3",
@@ -59,6 +62,7 @@
     "expo-system-ui": "~57.0.4",
     "expo-web-browser": "~57.0.3",
     "fflate": "0.8.3",
+    "html2canvas-pro": "~2.5.3",
     "kuromoji": "0.1.2",
     "react": "19.2.3",
     "react-freeze": "^1.0.4",
@@ -71,6 +75,7 @@
     "react-native-screens": "~4.26.2",
     "react-native-svg": "15.15.4",
     "react-native-view-shot": "6.1.1",
+    "react-native-web": "^0.21.4",
     "react-native-webview": "^14.0.1",
     "react-native-worklets": "0.10.1",
     "wanakana": "5.3.1"

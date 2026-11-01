@@ -1,7 +1,5 @@
-import * as Application from "expo-application";
 import { Platform, View } from "react-native";
 
-import { version } from "@app/package.json";
 import { API } from "@/api";
 import { useAlert } from "@/contexts/alert/AlertProvider";
 import { RowDivider } from "@/components/ListRow";
@@ -12,14 +10,12 @@ import { haptics } from "@/utils/haptics";
 import { useStoreReview } from "@/hooks/useStoreReview";
 import { InfoRow, LinkRow, ValueRow } from "@/screens/Settings/rows";
 import { styles } from "@/screens/Settings/styles";
+import { APP_VERSION } from "@/utils/app-version";
 import { openExternal, openInAppBrowser } from "@/utils/browser";
 
 interface Props {
   onOpenAbout: () => void;
 }
-
-/** The installed build's version; package.json only when the native one is unknown. */
-const APP_VERSION = Application.nativeApplicationVersion ?? version;
 
 /**
  * Help & info: the store review row (matched to where the app came from),
@@ -32,6 +28,8 @@ export function HelpSection({ onOpenAbout }: Readonly<Props>) {
   const { toast } = useAlert();
   const review = useStoreReview();
   const isIOS = Platform.OS === "ios";
+  // A browser has no store page and no voice assistant integration.
+  const native = Platform.OS !== "web";
 
   /** Only once the store resolved — a pre-resolution tap has nothing to say,
       and the strings read whole instead of holding a `{store}` token. */
@@ -67,29 +65,33 @@ export function HelpSection({ onOpenAbout }: Readonly<Props>) {
     <>
       <SectionTitle title={dict.SETTINGS_HELP_TITLE} icon="help-outline" />
       <View style={styles.group}>
-        <LinkRow
-          icon="star-rate"
-          label={dict.SETTINGS_RATE_APP}
-          description={rateCopy.description}
-          hint={rateCopy.hint}
-          dimmed={review.name != null && !review.url}
-          onPress={openRateRow}
-        />
-        <RowDivider />
-        <InfoRow
-          icon="record-voice-over"
-          label={dict.SETTINGS_ASSISTANT_TITLE}
-          description={
-            isIOS
-              ? dict.SETTINGS_ASSISTANT_HINT_IOS
-              : dict.SETTINGS_ASSISTANT_HINT_ANDROID
-          }
-        />
-        <RowDivider />
+        {native && (
+          <>
+            <LinkRow
+              icon="star-rate"
+              label={dict.SETTINGS_RATE_APP}
+              description={rateCopy.description}
+              hint={rateCopy.hint}
+              dimmed={review.name != null && !review.url}
+              onPress={openRateRow}
+            />
+            <RowDivider />
+            <InfoRow
+              icon="record-voice-over"
+              label={dict.SETTINGS_ASSISTANT_TITLE}
+              description={
+                isIOS
+                  ? dict.SETTINGS_ASSISTANT_HINT_IOS
+                  : dict.SETTINGS_ASSISTANT_HINT_ANDROID
+              }
+            />
+            <RowDivider />
+          </>
+        )}
         <ValueRow
           icon="info"
           label={dict.SETTINGS_ABOUT_ROW}
-          value={`v${APP_VERSION}`}
+          value={APP_VERSION ? `v${APP_VERSION}` : ""}
           onPress={onOpenAbout}
         />
         <RowDivider />

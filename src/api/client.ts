@@ -1,5 +1,7 @@
 import { AnimuApi, type ArtworkQuality } from "animu-api";
 import { fetch as expoFetch } from "expo/fetch";
+import { Platform } from "react-native";
+import { asSimpleRequest } from "@/api/browser-request";
 import { serverSkewFromDate } from "@/api/server-skew";
 import { CONFIG } from "@/utils/player.config";
 import { CLIENT_INFO } from "@/utils/client-context";
@@ -25,11 +27,13 @@ const DATE_HEADER_FLOOR_BIAS_MS = 500;
 
 /**
  * `expo/fetch` wrapped to feed every response's `date` header to the sync
- * engine's clock correction. Everything else is passed through untouched.
+ * engine's clock correction (a browser hides `date` on cross-origin
+ * responses, so the web build has none). In a browser the request is also
+ * kept CORS-simple where it can be (see {@link asSimpleRequest}).
  */
-const clockAwareFetch: typeof expoFetch = async (...args) => {
+const clockAwareFetch: typeof expoFetch = async (input, init) => {
   const sentAtMs = Date.now();
-  const response = await expoFetch(...args);
+  const response = await expoFetch(input, Platform.OS === "web" ? asSimpleRequest(init) : init);
   const receivedAtMs = Date.now();
   const skew = serverSkewFromDate(
     response.headers.get("date"),

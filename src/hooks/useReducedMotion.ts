@@ -1,5 +1,7 @@
-import { useEffect, useState } from "react";
 import { AccessibilityInfo } from "react-native";
+import { useAccessibilitySetting } from "@/hooks/useAccessibilitySetting";
+
+const read = () => AccessibilityInfo.isReduceMotionEnabled();
 
 /**
  * Live "Reduce Motion" (iOS) / "Remove animations" (Android) preference.
@@ -9,24 +11,5 @@ import { AccessibilityInfo } from "react-native";
  * spinner, a progress bar — keeps running.
  */
 export function useReducedMotion(): boolean {
-  const [reduced, setReduced] = useState(false);
-
-  useEffect(() => {
-    let alive = true;
-    AccessibilityInfo.isReduceMotionEnabled()
-      .then((value) => {
-        if (alive) setReduced(value);
-      })
-      .catch(() => {});
-    const subscription = AccessibilityInfo.addEventListener(
-      "reduceMotionChanged",
-      setReduced,
-    );
-    return () => {
-      alive = false;
-      subscription.remove();
-    };
-  }, []);
-
-  return reduced;
+  return useAccessibilitySetting(read, "reduceMotionChanged");
 }

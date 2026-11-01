@@ -1,5 +1,5 @@
 import { Icon } from "@/components/Icon";
-import { Alert, Text, TouchableOpacity, View } from "react-native";
+import { Text, TouchableOpacity, View } from "react-native";
 
 import { useUserSettings } from "@/contexts/user/UserSettingsProvider";
 import {
@@ -20,6 +20,7 @@ import {
 import { useDict } from "@/hooks/useDict";
 import { haptics } from "@/utils/haptics";
 import { styles } from "@/components/CoverStorageCard/styles";
+import { confirmDestructive } from "@/utils/confirm";
 
 function LegendRow({
   slice,
@@ -159,20 +160,15 @@ function CleanButton({
 
   const confirm = () => {
     haptics.warning();
-    Alert.alert(
-      dict.STORAGE_CLEAR_CONFIRM_TITLE,
-      dict.STORAGE_CLEAR_CONFIRM_MSG,
-      [
-        { text: dict.ACCOUNT_CANCEL, style: "cancel" },
-        {
-          text: dict.STORAGE_CLEAR_CONFIRM,
-          style: "destructive",
-          onPress: () => {
-            void onClean();
-          },
-        },
-      ],
-    );
+    confirmDestructive({
+      title: dict.STORAGE_CLEAR_CONFIRM_TITLE,
+      message: dict.STORAGE_CLEAR_CONFIRM_MSG,
+      cancel: dict.ACCOUNT_CANCEL,
+      confirm: dict.STORAGE_CLEAR_CONFIRM,
+      onConfirm: () => {
+        void onClean();
+      },
+    });
   };
 
   const disabled = clearing || !hasData;

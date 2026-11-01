@@ -29,7 +29,7 @@ const SONARJS_DISABLED = new Set([
 ]);
 
 module.exports = defineConfig([
-  { ignores: ["packages/**"] },
+  { ignores: ["packages/**", "dist/**"] },
   expoConfig,
   {
     ignores: [

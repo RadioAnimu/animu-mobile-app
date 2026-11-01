@@ -15,6 +15,7 @@ This repository is the official mobile application: a real-time internet-radio c
 
 - **Android** — [Google Play Store](https://play.google.com/store/apps/details?id=com.nessjs.animu) (`com.nessjs.animu`)
 - **iOS** — in development · sideload via the [AltStore source](docs/ALTSTORE.md)
+- **Web** — in development · see [Web](docs/WEB.md)
 - **Website** — [animu.moe](https://www.animu.moe) · [animu.com.br](https://www.animu.com.br)
 
 <p align="center">
@@ -96,6 +97,7 @@ access to `animu.moe`. The
 | [Architecture](docs/ARCHITECTURE.md) | Layers, player core, stores, key decisions |
 | [Development](docs/DEVELOPMENT.md) | Setup, scripts, tests, aliases, patches, fonts |
 | [Build & Release](docs/BUILD_AND_RELEASE.md) | EAS profiles, versioning, voice assistants |
+| [Web](docs/WEB.md) | Browser build, required CORS, platform differences |
 | [API Surface](docs/API_SURFACE.md) | Station endpoints and the `animu-api` submodule |
 | [AltStore](docs/ALTSTORE.md) | Self-hosted iOS distribution |
 | [Store Submission](docs/STORE_SUBMISSION.md) | Master checklist and data inventory |

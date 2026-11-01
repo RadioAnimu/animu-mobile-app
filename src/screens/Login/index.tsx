@@ -49,7 +49,7 @@ import { interpolate } from "@/utils/format";
 import type { RootStackParamList } from "@/routes/app.routes";
 import { THEME } from "@/theme";
 import { MOTION } from "@/theme/motion";
-import { AuthNotice } from "@/screens/Login/AuthNotice";
+import { Notice } from "@/components/Notice";
 import { ProviderButton } from "@/screens/Login/ProviderButton";
 import { HERO_LOGO_HEIGHT, styles } from "@/screens/Login/styles";
 
@@ -193,7 +193,7 @@ function MethodStep({
           ))}
         </View>
 
-        <AuthNotice
+        <Notice
           icon="info-outline"
           text={dict.LOGIN_REQUESTS_NOTICE}
           style={styles.noticeSlot}
@@ -273,7 +273,7 @@ function ConnectStep({
 
         <Animated.View style={[styles.connectBody, { opacity: bodyOpacity }]}>
           {!onCodeStep && (
-            <AuthNotice
+            <Notice
               icon="info-outline"
               text={dict.LOGIN_ANIMU_CONNECT_HINT}
               style={styles.noticeAboveField}

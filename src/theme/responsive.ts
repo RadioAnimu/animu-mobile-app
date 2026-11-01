@@ -10,7 +10,7 @@ import { Dimensions } from "react-native";
 const DESIGN_WIDTH = 393;
 
 /**
- * Tablets and TVs are far wider than a phone. Scaling 1:1 would turn the
+ * Tablets are far wider than a phone. Scaling 1:1 would turn the
  * phone layout into a billboard, so the factor is clamped here and the
  * extra room goes to layout (centered columns, side-by-side panes) instead.
  * At 1.2 a tablet's body copy lands on the platform's own (~17pt on iPad)
@@ -31,7 +31,7 @@ const MAX_SCALE = 1.2;
 const screen = Dimensions.get("screen");
 const shortSide = Math.min(screen.width, screen.height);
 
-/** Uniform scale factor, clamped for tablets and TVs. */
+/** Uniform scale factor, clamped for tablets. */
 const ratio = Math.min(shortSide / DESIGN_WIDTH, MAX_SCALE);
 
 /**

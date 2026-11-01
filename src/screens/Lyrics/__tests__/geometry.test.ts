@@ -1,9 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   ANCHOR_MAX_RATIO,
-  ARTWORK_PANE_RATIO,
   EDGE_FADE_MAX_RATIO,
-  TWO_PANE_MIN_WIDTH,
   artworkPaneWidth,
   paneLayout,
   lyricGeometry,
@@ -40,20 +38,7 @@ describe("lyricGeometry", () => {
 });
 
 describe("two-pane geometry", () => {
-  it("gives every landscape window two panes, phones included", () => {
-    expect(TWO_PANE_MIN_WIDTH).toBe(600);
-    // 852×393 with 59pt side insets: 734 usable; an iPhone SE: 667.
-    expect(734).toBeGreaterThanOrEqual(TWO_PANE_MIN_WIDTH);
-    expect(667).toBeGreaterThanOrEqual(TWO_PANE_MIN_WIDTH);
-    // A portrait phone or an iPad split-view half stays single-pane.
-    expect(393).toBeLessThan(TWO_PANE_MIN_WIDTH);
-    // Landscape tablets and TVs.
-    expect(1180).toBeGreaterThanOrEqual(TWO_PANE_MIN_WIDTH);
-    expect(960).toBeGreaterThanOrEqual(TWO_PANE_MIN_WIDTH);
-  });
-
   it("gives the artwork panel 38% of the usable width", () => {
-    expect(ARTWORK_PANE_RATIO).toBeCloseTo(0.38);
     expect(artworkPaneWidth(1180)).toBe(448);
     expect(artworkPaneWidth(960)).toBe(365);
   });

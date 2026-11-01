@@ -150,25 +150,6 @@ export const styles = StyleSheet.create({
     fontSize: THEME.FONT_SIZE.BODY,
     color: THEME.COLORS.TEXT_SOFT,
   },
-  roundButton: {
-    width: scale(36),
-    height: scale(36),
-    borderRadius: THEME.RADIUS.CIRCLE,
-    backgroundColor: "rgba(255, 255, 255, 0.14)",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  roundButtonOn: {
-    backgroundColor: THEME.COLORS.TEXT,
-  },
-  pronunciationGlyph: {
-    fontFamily: THEME.FONT_FAMILY.BOLD,
-    fontSize: THEME.FONT_SIZE.LABEL,
-    color: THEME.COLORS.TEXT,
-  },
-  pronunciationGlyphOn: {
-    color: THEME.COLORS.TEXT_ON_LIGHT,
-  },
   body: {
     flex: 1,
     overflow: "hidden",
@@ -299,36 +280,5 @@ export const styles = StyleSheet.create({
     fontFamily: THEME.FONT_FAMILY.BOLD,
     fontSize: THEME.FONT_SIZE.BODY,
     color: THEME.COLORS.TEXT_ON_LIGHT,
-  },
-  prompt: {
-    marginHorizontal: THEME.SPACE.XL,
-    marginBottom: THEME.SPACE.MD,
-    padding: THEME.SPACE.LG,
-    borderRadius: THEME.RADIUS.CARD,
-    backgroundColor: "rgba(255, 255, 255, 0.12)",
-    gap: THEME.SPACE.XS,
-  },
-  promptTitle: {
-    fontFamily: THEME.FONT_FAMILY.BOLD,
-    fontSize: THEME.FONT_SIZE.LIST,
-    color: THEME.COLORS.TEXT,
-  },
-  promptText: {
-    fontFamily: THEME.FONT_FAMILY.REGULAR,
-    fontSize: THEME.FONT_SIZE.LABEL,
-    lineHeight: THEME.LINE_HEIGHT.BODY,
-    color: THEME.COLORS.TEXT_SOFT,
-  },
-  promptButton: {
-    marginTop: 0,
-  },
-  promptButtonBusy: {
-    opacity: THEME.OPACITY.DISABLED,
-  },
-  promptActions: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    marginTop: THEME.SPACE.SM,
   },
 });

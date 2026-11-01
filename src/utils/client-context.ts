@@ -4,6 +4,7 @@ import * as Device from "expo-device";
 import { getLocales } from "expo-localization";
 import Constants from "expo-constants";
 import { clientUserAgent, type ClientInfo } from "animu-api";
+import { APP_VERSION } from "@/utils/app-version";
 import { setUserAgent } from "@/utils/player.config";
 
 /**
@@ -52,8 +53,7 @@ const model = Device.modelName ?? Device.modelId ?? Device.brand ?? undefined;
 
 const deviceType = resolveDeviceType(platform);
 
-const appVersion =
-  Application.nativeApplicationVersion ?? Constants.expoConfig?.version ?? "0.0.0";
+const appVersion = APP_VERSION ?? "0.0.0";
 const appBuild =
   Application.nativeBuildVersion ??
   String(

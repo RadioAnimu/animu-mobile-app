@@ -8,7 +8,6 @@ import {
   RowDivider,
 } from "@/components/ListRow";
 import { SectionTitle } from "@/components/SectionTitle";
-import { isProviderLinkable } from "@/constants/auth";
 import type { AuthProfile } from "@/core/domain/user";
 import { useDict } from "@/hooks/useDict";
 import { THEME } from "@/theme";
@@ -69,8 +68,7 @@ function Checklist({
   onRefresh,
 }: Readonly<ChecklistProps>) {
   const dict = useDict();
-  // Hidden, not disabled, where Discord can't be linked from this build.
-  const canLink = !discordLinked && isProviderLinkable("discord");
+  const canLink = !discordLinked;
 
   return (
     <>

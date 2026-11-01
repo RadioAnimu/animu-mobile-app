@@ -25,7 +25,7 @@ vi.mock("react-native", () => {
   };
   return {
     Dimensions: { get: () => ({ width: 390, height: 844 }) },
-    Platform: { OS: "ios", isTV: false, select: (spec: Record<string, unknown>) => spec.ios ?? spec.default },
+    Platform: { OS: "ios", select: (spec: Record<string, unknown>) => spec.ios ?? spec.default },
     StyleSheet: { create: (styles: object) => styles },
     // Like the real Modal: nothing is mounted while not visible.
     Modal: ({ visible, children }: { visible: boolean; children: React.ReactNode }) =>

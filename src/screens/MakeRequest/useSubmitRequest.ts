@@ -29,7 +29,7 @@ export function useSubmitRequest({
   );
 
   const handleSubmitRequest = useCallback(
-    async (message: string): Promise<{ success: boolean; message: string }> => {
+    async (message: string): Promise<{ success: boolean; message: string } | null> => {
       if (blockedMessage || !user?.sessionToken) {
         return {
           success: false,
@@ -53,6 +53,10 @@ export function useSubmitRequest({
         anime: selectedTrack.anime,
         artwork: selectedTrack.artwork,
       });
+
+      // A duplicate tap reached the service while the first submit runs:
+      // that one owns the outcome.
+      if (result.error === "IN_PROGRESS") return null;
 
       if (!result.success) {
         return {

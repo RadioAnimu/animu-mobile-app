@@ -27,7 +27,4 @@ export interface CachedLookup {
 export interface LyricsCache {
   read(key: string): Promise<CachedLookup | null>;
   write(key: string, entry: CachedLookup): Promise<void>;
-  /** Bytes on disk (Storage screen). */
-  size(): Promise<number>;
-  clear(): Promise<void>;
 }

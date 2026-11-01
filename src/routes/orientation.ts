@@ -56,6 +56,9 @@ async function settle(retry: boolean): Promise<void> {
 }
 
 function enqueue(retry: boolean): void {
+  // A browser tab can't lock its orientation (only a fullscreen document
+  // can): on the web the app follows the device everywhere.
+  if (Platform.OS === "web") return;
   queue = queue.then(() => settle(retry));
 }
 

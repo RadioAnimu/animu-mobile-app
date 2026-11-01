@@ -4,15 +4,6 @@
  * theme — so they can be unit-tested and reused by the worklets.
  */
 
-/**
- * Narrowest usable width (window minus the side safe areas) that gives the
- * lyrics enough room for two panes. Every landscape window qualifies, phones
- * included — 852×393 past its 59pt insets leaves 734pt, an iPhone SE 667pt —
- * as do tablets and TVs; a portrait window or an iPad split-view half keeps
- * the single column.
- */
-export const TWO_PANE_MIN_WIDTH = 600;
-
 /** Share of the usable width the artwork panel takes when there are two panes. */
 export const ARTWORK_PANE_RATIO = 0.38;
 

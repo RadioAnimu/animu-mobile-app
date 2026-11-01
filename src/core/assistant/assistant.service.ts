@@ -2,14 +2,12 @@ import { Linking as RNLinking } from "react-native";
 import * as ExpoLinking from "expo-linking";
 
 /**
- * Actions the phone assistants (Siri App Shortcuts / Google App Actions) can
- * ask the app to perform by opening a deep link.
+ * Actions a deep link can ask the app to perform:
  *
  *   animuapp://assistant/play
  *
- * The native side (see `plugins/withIOSAppIntents.js` and
- * `plugins/withAndroidAppActions.js`) always forwards to this one route, so a
- * new assistant phrase only needs a UI tweak there — the JS contract stays.
+ * Siri, Google Assistant and cars play natively through the voice catalog;
+ * this route serves links opened from elsewhere (a user's own shortcut).
  */
 export type AssistantAction = "play";
 

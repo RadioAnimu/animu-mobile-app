@@ -322,6 +322,7 @@ const DICT: Dict = {
   ABOUT_RELEASE_ADHOC: "アドホック配布",
   ABOUT_RELEASE_DEVELOPMENT: "開発",
   ABOUT_RELEASE_SIMULATOR: "シミュレータ",
+  ABOUT_RELEASE_WEB: "ウェブ",
   ABOUT_RELEASE_ENTERPRISE: "Enterprise",
   ABOUT_RELEASE_PLAY: "Google Play",
   ABOUT_RELEASE_UNKNOWN: "不明",
@@ -338,7 +339,7 @@ const DICT: Dict = {
 
   ABOUT_COPY_DETAILS: "情報をコピー",
   ABOUT_COPIED: "コピーしました",
-  ABOUT_COPY_FAILED: "コピーできませんでした",
+  TEXT_COPY_FAILED: "コピーできませんでした",
   ABOUT_OPEN_ERROR: "リンクを開けませんでした。",
   ABOUT_OPENS_BROWSER: "ブラウザで開きます",
   ABOUT_OPENS_IN_APP: "アプリ内で開きます",

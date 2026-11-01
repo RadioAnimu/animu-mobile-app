@@ -17,7 +17,6 @@ export const IMGS = {
   JN: IMGS_JP,
 };
 
-export { LANGUAGE_LABELS as LANGS_KEY_VALUE_PAIRS } from "@/constants/languages";
 
 export type LanguageKey = keyof typeof DICT;
 

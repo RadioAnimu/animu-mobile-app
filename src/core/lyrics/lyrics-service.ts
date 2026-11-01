@@ -136,12 +136,6 @@ export class LyricsService {
     this.deps.store.setSnapshot(LYRICS_IDLE);
   }
 
-  /** Forgets every lookup (Storage → clear). */
-  async clear(): Promise<void> {
-    this.memory.clear();
-    await this.deps.cache.clear();
-  }
-
   private async load(key: string, track: Track, force: boolean): Promise<void> {
     const remembered = this.memory.get(key);
     if (remembered !== undefined && !force) {

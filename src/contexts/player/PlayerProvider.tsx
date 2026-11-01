@@ -55,11 +55,6 @@ type PlayerContextType = PlayerSnapshot & {
     listener: (window: VisualizerWindow) => void,
   ) => () => void;
   /**
-   * Reports the delay (ms) the visualizer actually applied for the last
-   * window, so the native sampler can auto-calibrate its sync offset.
-   */
-  reportVisualizerDelay: (appliedMs: number) => void;
-  /**
    * Hot-path read of the heard song's position (see
    * `PlayerService.heardPosition`) — sampled by the lyrics clock, which
    * animates between samples itself.
@@ -83,7 +78,6 @@ const PlayerContext = createContext<PlayerContextType>({
   defaultArtwork: "",
   visualizerSupported: false,
   subscribeVisualizerWindows: () => () => {},
-  reportVisualizerDelay: () => {},
   readHeardPosition: () => null,
   isPlaying: false,
   playbackState: "idle",
@@ -159,9 +153,9 @@ export const PlayerProvider: React.FC<{
       });
     };
 
-    // Phone assistants (Siri / Google) deep-link into playback. Subscribe
-    // BEFORE bootstrap: a deep-link "url" event that arrives while the player
-    // is still booting would otherwise fire with no listener attached.
+    // An `animuapp://assistant/play` link starts playback. Subscribe BEFORE
+    // bootstrap: a deep-link "url" event that arrives while the player is
+    // still booting would otherwise fire with no listener attached.
     unsubscribeAssistant = subscribeAssistantActions((action) => {
       if (action !== "play") return;
       if (playerServiceInstance.isReady) {
@@ -220,12 +214,6 @@ export const PlayerProvider: React.FC<{
     if (playerSnapshot.isInitialized) hideSplashOnce();
   }, [playerSnapshot.isInitialized]);
 
-  // The 1 Hz JS heartbeat driver is owned by the service (see
-  // `PlayerService.updateHeartbeatDriver`): it runs while the app is visible
-  // or audio is wanted. Gating it here on the store's `isPlaying` missed
-  // plays started from the lock screen while hidden (store emissions are
-  // frozen in the background), leaving the silent-stall detector clockless.
-
   // ─── Action wrappers — delegate to the service (which auto-emits) ───
 
   const play = useCallback(async () => {
@@ -280,12 +268,6 @@ export const PlayerProvider: React.FC<{
     [playerServiceInstance],
   );
 
-  const reportVisualizerDelay = useCallback(
-    (appliedMs: number) =>
-      playerServiceInstance.reportVisualizerDelay(appliedMs),
-    [playerServiceInstance],
-  );
-
   const readHeardPosition = useCallback(
     () => playerServiceInstance.heardPosition(),
     [playerServiceInstance],
@@ -306,7 +288,6 @@ export const PlayerProvider: React.FC<{
       // player exists (created on first play).
       visualizerSupported: playerServiceInstance.isVisualizerSupported,
       subscribeVisualizerWindows,
-      reportVisualizerDelay,
       readHeardPosition,
     }),
     [
@@ -318,7 +299,6 @@ export const PlayerProvider: React.FC<{
       refreshHistory,
       playerServiceInstance,
       subscribeVisualizerWindows,
-      reportVisualizerDelay,
       readHeardPosition,
     ],
   );

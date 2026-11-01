@@ -63,8 +63,7 @@ export const Listeners = React.memo(function Listeners() {
             accessibilityLabel: `${count} ${label}`,
           }
         : {
-            accessibilityElementsHidden: true,
-            importantForAccessibility: "no-hide-descendants" as const,
+            "aria-hidden": true,
           })}
       style={[
         styles.container,

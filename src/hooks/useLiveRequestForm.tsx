@@ -1,75 +1,21 @@
 import { useState } from "react";
-import { LiveRequest, validateLiveRequest } from "@/core/domain/live-request";
+import type { LiveRequest } from "@/core/domain/live-request";
+
+/** Every field as text, the optional message included. */
+type LiveRequestForm = Required<LiveRequest>;
+
+const EMPTY: LiveRequestForm = { name: "", city: "", artist: "", music: "", anime: "", request: "" };
 
 export function useLiveRequestForm(initialData?: Partial<LiveRequest>) {
-  const [name, setName] = useState(initialData?.name || "");
-  const [city, setCity] = useState(initialData?.city || "");
-  const [artist, setArtist] = useState(initialData?.artist || "");
-  const [music, setMusic] = useState(initialData?.music || "");
-  const [anime, setAnime] = useState(initialData?.anime || "");
-  const [request, setRequest] = useState(initialData?.request || "");
+  const [formData, setFormData] = useState<LiveRequestForm>(() => ({ ...EMPTY, ...initialData }));
 
-  const setField = (field: keyof LiveRequest, text: string) => {
-    const setter = {
-      name: setName,
-      city: setCity,
-      artist: setArtist,
-      music: setMusic,
-      anime: setAnime,
-      request: setRequest,
-    }[field];
-    setter(text);
-  };
+  const setField = (field: keyof LiveRequest, text: string) =>
+    setFormData((data) => ({ ...data, [field]: text }));
 
-  const reset = () => {
-    setName("");
-    setCity("");
-    setArtist("");
-    setMusic("");
-    setAnime("");
-    setRequest("");
-  };
+  const reset = () => setFormData(EMPTY);
 
-  const getFormData = (): LiveRequest => ({
-    name,
-    city,
-    artist,
-    music,
-    anime,
-    request,
-  });
-
-  const isFormValid = (): boolean => {
-    return isFormDataValid(getFormData());
-  };
-
-  return {
-    formData: {
-      name,
-      city,
-      artist,
-      music,
-      anime,
-      request,
-    },
-    setters: {
-      setName,
-      setCity,
-      setArtist,
-      setMusic,
-      setAnime,
-      setRequest,
-    },
-    setField,
-    isFormValid,
-    isFormDataValid,
-    reset,
-    getFormData,
-  };
+  return { formData, setField, reset };
 }
-
-const isFormDataValid = (formData: LiveRequest): boolean =>
-  validateLiveRequest(formData).success;
 
 /** Required live-form fields, in on-screen order (first invalid gets focus). */
 const LIVE_REQUIRED_FIELDS = [

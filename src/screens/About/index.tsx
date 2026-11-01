@@ -3,7 +3,6 @@ import { useCallback, useState } from "react";
 import { Icon } from "@/components/Icon";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { Image } from "expo-image";
-import * as Clipboard from "expo-clipboard";
 import { Platform, ScrollView, Text, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -19,6 +18,7 @@ import { useDict } from "@/hooks/useDict";
 import type { Dict } from "@/i18n";
 import { useStackedRows } from "@/hooks/useStackedRows";
 import { useScrollEndPadding } from "@/hooks/useScrollEndPadding";
+import { useCopyToClipboard } from "@/hooks/useCopyToClipboard";
 import type { RootStackParamList } from "@/routes/app.routes";
 import { haptics } from "@/utils/haptics";
 import { openExternal, openInAppBrowser } from "@/utils/browser";
@@ -40,6 +40,13 @@ type Props = NativeStackScreenProps<RootStackParamList, "About">;
 type IconName = ComponentProps<typeof Icon>["name"];
 
 const APP_NAME = "Rádio Animu";
+/** The platform, with its version where it has one (a browser reports none). */
+const PLATFORM_LABEL = [
+  { ios: "iOS", android: "Android", web: "Web" }[Platform.OS as string] ?? Platform.OS,
+  Platform.OS === "web" ? undefined : Platform.Version,
+]
+  .filter(Boolean)
+  .join(" ");
 const MAINTAINER = "Ricardo Freitas (Ness)";
 
 interface DetailRowProps {
@@ -257,6 +264,7 @@ export function About({ navigation }: Readonly<Props>) {
   const endPadding = useScrollEndPadding();
   const info = useAppInfo();
   const { toast } = useAlert();
+  const copy = useCopyToClipboard();
 
   /** Same as the module helpers but user-visible: a toast on failure,
       whichever route the link takes — in-app or the system browser. */
@@ -277,6 +285,7 @@ export function About({ navigation }: Readonly<Props>) {
           "ad-hoc": dict.ABOUT_RELEASE_ADHOC,
           development: dict.ABOUT_RELEASE_DEVELOPMENT,
           simulator: dict.ABOUT_RELEASE_SIMULATOR,
+          web: dict.ABOUT_RELEASE_WEB,
           enterprise: dict.ABOUT_RELEASE_ENTERPRISE,
           play: dict.ABOUT_RELEASE_PLAY,
           unknown: dict.ABOUT_RELEASE_UNKNOWN,
@@ -293,21 +302,12 @@ export function About({ navigation }: Readonly<Props>) {
     `${APP_NAME} ${versionLabel}`,
     releaseLabel,
     info.applicationId,
-    `${Platform.OS === "ios" ? "iOS" : "Android"} ${Platform.Version}`,
+    PLATFORM_LABEL,
   ]
     .filter(Boolean)
     .join(" · ");
 
-  // "Copied" only once the clipboard actually took it.
-  const copyDetails = () => {
-    haptics.select();
-    Clipboard.setStringAsync(details)
-      .then(() => toast(dict.ABOUT_COPIED))
-      .catch((error) => {
-        console.warn("[About] copy failed:", error);
-        toast(dict.ABOUT_COPY_FAILED, "error");
-      });
-  };
+  const copyDetails = () => copy(details, dict.ABOUT_COPIED);
 
   return (
     <SafeAreaView style={styles.container} edges={[]}>
