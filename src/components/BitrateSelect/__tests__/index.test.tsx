@@ -24,6 +24,7 @@ vi.mock("react-native", async () => {
       }));
       return <Plain {...props} />;
     }),
+    ScrollView: ({ children }: { children?: React.ReactNode }) => <>{children}</>,
     Modal: ({ visible, children }: { visible: boolean; children?: React.ReactNode }) =>
       visible ? <section data-testid="popover">{children}</section> : null,
   };
@@ -74,11 +75,13 @@ describe("BitrateSelect", () => {
       "64 KBPS (AAC+)",
     ]);
     expect(options[0].getAttribute("aria-checked")).toBe("true");
-    // Under the pill, its right edge on the pill's: 393 − (600 + 150).
+    // Under the pill (y 20 + h 30 + gap), held inside the 393pt window even
+    // though the measured pill sits past its edge.
     const list = screen.getByRole("radiogroup");
     const style = JSON.parse(list.getAttribute("data-style")!);
     expect(style.top).toBeGreaterThan(50);
-    expect(style.right).toBe(393 - 750);
+    expect(style.right).toBeGreaterThan(0);
+    expect(style.maxHeight).toBeLessThan(852 - style.top);
   });
 
   it("switches the stream and folds the list; the playing one changes nothing", () => {

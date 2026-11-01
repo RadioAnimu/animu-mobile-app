@@ -1,5 +1,5 @@
-import { useRef, useState } from "react";
-import { Modal, Pressable, StyleSheet, Text, TouchableOpacity, useWindowDimensions, View } from "react-native";
+import { useEffect, useRef, useState } from "react";
+import { Modal, Pressable, ScrollView, StyleSheet, Text, TouchableOpacity, useWindowDimensions, View } from "react-native";
 import { Icon } from "@/components/Icon";
 import { styles } from "@/components/BitrateSelect/styles";
 import { usePlayer } from "@/contexts/player/PlayerProvider";
@@ -11,6 +11,23 @@ import { haptics } from "@/utils/haptics";
 
 /** "320 KBPS (MP3)", as the website player names its streams. */
 const streamLabel = (stream: Stream): string => `${stream.bitrate} KBPS (${stream.category})`;
+
+/** Room the list keeps from the window's edges. */
+const EDGE = THEME.SPACE.SM;
+
+/**
+ * Where the list floats: under the pill, its right edge on the pill's, held
+ * inside the window — scrolling when the window is too short for it.
+ */
+function listFrame(anchor: Anchor, window: { width: number; height: number }) {
+  const top = anchor.y + anchor.height + THEME.SPACE.XS;
+  return {
+    top,
+    right: Math.max(EDGE, window.width - anchor.x - anchor.width),
+    minWidth: anchor.width,
+    maxHeight: Math.max(0, window.height - top - EDGE),
+  };
+}
 
 interface Anchor {
   x: number;
@@ -32,7 +49,15 @@ export function BitrateSelect() {
   const pill = useRef<View>(null);
   const [anchor, setAnchor] = useState<Anchor | null>(null);
   const streams = streamOptions ?? [];
-  const current = streams.find((stream) => stream.url === currentStream?.url);
+  // The playing stream names the pill even if the list no longer holds it.
+  const current = streams.find((stream) => stream.url === currentStream?.url) ?? currentStream ?? undefined;
+
+  // The list hangs from where the pill was when it opened: a rotation or a
+  // resized window moves the pill, so the list closes rather than float
+  // detached.
+  useEffect(() => {
+    setAnchor(null);
+  }, [window.width, window.height]);
 
   const close = () => setAnchor(null);
   const open = () => {
@@ -82,39 +107,34 @@ export function BitrateSelect() {
         {anchor ? (
           <View
             accessibilityRole="radiogroup"
-            style={[
-              styles.list,
-              {
-                top: anchor.y + anchor.height + THEME.SPACE.XS,
-                right: window.width - anchor.x - anchor.width,
-                minWidth: anchor.width,
-              },
-            ]}
+            style={[styles.list, listFrame(anchor, window)]}
           >
-            {streams.map((stream, index) => {
-              const selected = stream.url === current?.url;
-              return (
-                <View key={stream.url}>
-                  {index > 0 ? <View style={styles.separator} /> : null}
-                  <TouchableOpacity
-                    accessibilityRole="radio"
-                    accessibilityLabel={streamLabel(stream)}
-                    accessibilityState={{ checked: selected }}
-                    activeOpacity={THEME.OPACITY.PRESSED}
-                    onPress={() => choose(stream)}
-                    style={styles.option}
-                  >
-                    <Text
-                      maxFontSizeMultiplier={THEME.FONT_SCALE.CONTENT}
-                      style={[styles.optionLabel, selected && styles.optionLabelSelected]}
+            <ScrollView bounces={false}>
+              {streams.map((stream, index) => {
+                const selected = stream.url === current?.url;
+                return (
+                  <View key={stream.url}>
+                    {index > 0 ? <View style={styles.separator} /> : null}
+                    <TouchableOpacity
+                      accessibilityRole="radio"
+                      accessibilityLabel={streamLabel(stream)}
+                      accessibilityState={{ checked: selected }}
+                      activeOpacity={THEME.OPACITY.PRESSED}
+                      onPress={() => choose(stream)}
+                      style={styles.option}
                     >
-                      {streamLabel(stream)}
-                    </Text>
-                    {selected ? <Icon name="check" size={THEME.ICON.MD} color={THEME.COLORS.BRAND} /> : null}
-                  </TouchableOpacity>
-                </View>
-              );
-            })}
+                      <Text
+                        maxFontSizeMultiplier={THEME.FONT_SCALE.CONTENT}
+                        style={[styles.optionLabel, selected && styles.optionLabelSelected]}
+                      >
+                        {streamLabel(stream)}
+                      </Text>
+                      {selected ? <Icon name="check" size={THEME.ICON.MD} color={THEME.COLORS.BRAND} /> : null}
+                    </TouchableOpacity>
+                  </View>
+                );
+              })}
+            </ScrollView>
           </View>
         ) : null}
       </Modal>

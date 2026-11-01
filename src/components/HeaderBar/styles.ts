@@ -102,6 +102,10 @@ export const styles = StyleSheet.create({
   barRow: {
     justifyContent: "space-between",
   },
+  /** In the bar the play button sits at the group's gap, not the portrait margins. */
+  playInBar: {
+    marginHorizontal: 0,
+  },
   barGroup: {
     flexDirection: "row",
     alignItems: "center",

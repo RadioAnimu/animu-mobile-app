@@ -246,7 +246,7 @@ export function HeaderBar({ openLiveRequestModal, rowWidth, backdrop, bar = fals
           <View style={[styles.row, styles.barRow, { width }]}>
             <View style={styles.barGroup} testID="menu-slot">
               {menuButton}
-              <PlayPauseButton style={styles.playBtn} />
+              <PlayPauseButton style={[styles.playBtn, styles.playInBar]} />
             </View>
             {/* Live shows hang the request badge off the note's left: the
                 note steps aside from the mic to make room for it. */}
