@@ -301,7 +301,7 @@ const compareKeys = (a: string, b: string): number => {
 const streakStart = (active: Set<string>): string | null => {
   const today = dayKeyOf(Date.now());
   if (active.has(today)) return today;
-  const yesterday = dayKeyOf(Date.now() - 86_400_000);
+  const yesterday = prevDayKey(today);
   return active.has(yesterday) ? yesterday : null;
 };
 
@@ -604,16 +604,14 @@ export class ListenStatsService {
     let max = 1;
     let run = 1;
     const sorted = [...active].sort(compareKeys);
+    // Day steps go through calendar dates, not 24 h spans: a DST day is 23 or
+    // 25 hours long.
     for (let i = 1; i < sorted.length; i++) {
-      const diff =
-        (parseDayKey(sorted[i]) - parseDayKey(sorted[i - 1])) / 86_400_000;
-      // A missing day breaks the streak; DST offsets never reach a full day.
-      run = diff > 0 && diff < 2 ? run + 1 : 1;
+      run = prevDayKey(sorted[i]) === sorted[i - 1] ? run + 1 : 1;
       if (run > max) max = run;
     }
     // Current streak: walk back from today (or yesterday, if today hasn't
-    // counted yet). Day steps go through calendar dates, not raw 24h
-    // subtraction, so DST shifts can't loop or skip a day.
+    // counted yet).
     let cursor = streakStart(active);
     let current = 0;
     while (cursor != null && active.has(cursor)) {
@@ -654,16 +652,18 @@ export class ListenStatsService {
     await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(this.blob));
   }
 
-  /** Clears all stats (destructive — used by a future reset action). */
+  /**
+   * Clears all stats (the Stats screen's reset). Playing through it keeps
+   * recording: the open session restarts from now, and its time counts.
+   */
   async reset(): Promise<void> {
     this.blob = {
       version: SCHEMA_VERSION,
       days: {},
       topRequests: {},
     };
-    this.segmentStart = null;
+    if (this.segmentStart != null) this.segmentStart = Date.now();
     this.currentSessionMs = 0;
-    this.inSession = false;
     this.lastTrackKey = null;
     this.lastTrackHeardAt = 0;
     try {
