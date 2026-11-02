@@ -3,6 +3,7 @@ import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-li
 import { Animated } from "react-native";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import type { MockAnimation } from "@/__tests__/react-native-mock";
 import { HeaderBar } from "@/components/HeaderBar";
 
 vi.mock("react-native", async () =>
@@ -80,6 +81,12 @@ const setPlayer = (overrides: Record<string, unknown> = {}) => {
   };
 };
 
+/** A style array entry as serialized: conditional entries may be `false`/`null`. */
+type StyleEntry = { marginHorizontal?: number } | false | null;
+
+const parseStyle = (element: Element) =>
+  JSON.parse(element.getAttribute("data-style")!) as Record<string, unknown>;
+
 const pressRequest = () =>
   fireEvent.click(screen.getByRole("button", { name: "Make request" }));
 
@@ -99,20 +106,26 @@ describe("HeaderBar", () => {
 
   describe("row width", () => {
     const rowWidth = () =>
-      JSON.parse(
-        screen.getByTestId("menu-slot").parentElement!.getAttribute("data-style")!,
+      (
+        JSON.parse(
+          screen.getByTestId("menu-slot").parentElement!.getAttribute("data-style")!,
+        ) as { width?: number }
       ).width;
     /** Side margin of the play button (the last style entry wins, as in RN). */
     const playMargin = () =>
-      JSON.parse(
-        within(screen.getByRole("button", { name: "Play" }))
-          .getByTestId("image")
-          .getAttribute("data-style")!,
+      (
+        JSON.parse(
+          within(screen.getByRole("button", { name: "Play" }))
+            .getByTestId("image")
+            .getAttribute("data-style")!,
+        ) as (StyleEntry | StyleEntry[])[]
       )
         .flat()
         .reverse()
-        .find((entry: { marginHorizontal?: number }) => entry?.marginHorizontal !== undefined)
-        .marginHorizontal;
+        .find(
+          (entry): entry is { marginHorizontal: number } =>
+            !!entry && entry.marginHorizontal !== undefined,
+        )?.marginHorizontal;
 
     it("spans a phone in portrait with the designed play button margins", () => {
       render(<HeaderBar />);
@@ -131,7 +144,7 @@ describe("HeaderBar", () => {
       mocks.layout = { usableWidth: 1180, windowControlsInset: 72 };
       render(<HeaderBar rowWidth={900} />);
       const container = screen.getByTestId("menu-slot").parentElement!.parentElement!;
-      expect(JSON.parse(container.getAttribute("data-style")!).paddingLeft).toBe(0);
+      expect(parseStyle(container).paddingLeft).toBe(0);
       expect(rowWidth()).toBe(900);
     });
 
@@ -139,8 +152,8 @@ describe("HeaderBar", () => {
       mocks.layout = { usableWidth: 375, windowControlsInset: 72 };
       render(<HeaderBar />);
       const container = screen.getByTestId("menu-slot").parentElement!.parentElement!;
-      expect(JSON.parse(container.getAttribute("data-style")!).paddingLeft).toBe(72);
-      expect(JSON.parse(screen.getByTestId("menu-slot").parentElement!.getAttribute("data-style")!).width).toBe(303);
+      expect(parseStyle(container).paddingLeft).toBe(72);
+      expect(parseStyle(screen.getByTestId("menu-slot").parentElement!).width).toBe(303);
     });
 
     it("takes the width the split layout gives it", () => {
@@ -328,7 +341,7 @@ describe("HeaderBar", () => {
       const { rerender } = render(<HeaderBar />);
       rerender(<HeaderBar />);
       expect(runs()).toHaveLength(1);
-      const first = vi.mocked(Animated.timing).mock.results[0].value;
+      const first = vi.mocked(Animated.timing).mock.results[0].value as MockAnimation;
       mocks.progress = { progressMs: 1_200, progressAt: NOW, progressRunning: true, showProgress: true, durationMs: 200_000 };
       rerender(<HeaderBar />);
       expect(first.stop).toHaveBeenCalledTimes(1);
@@ -362,7 +375,7 @@ describe("HeaderBar", () => {
     it("stops the pulse on unmount", () => {
       setPlayer(live);
       const { unmount } = render(<HeaderBar openLiveRequestModal={vi.fn()} />);
-      const loop = vi.mocked(Animated.loop).mock.results[0].value;
+      const loop = vi.mocked(Animated.loop).mock.results[0].value as MockAnimation;
       unmount();
       expect(loop.stop).toHaveBeenCalledTimes(1);
     });

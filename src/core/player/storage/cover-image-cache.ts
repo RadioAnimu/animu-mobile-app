@@ -81,11 +81,9 @@ export class CachedCoverLookup {
     const siblings = deriveArtworkVariants(url);
     if (siblings) {
       for (const size of RANK_ORDER) {
-        if (
-          siblings[size] &&
-          ARTWORK_SIZE_RANK[artworkSizeRank(siblings[size]!)] >= needed
-        ) {
-          candidates.push(...artworkKeyVariants(siblings[size] as string));
+        const sibling = siblings[size];
+        if (sibling && ARTWORK_SIZE_RANK[artworkSizeRank(sibling)] >= needed) {
+          candidates.push(...artworkKeyVariants(sibling));
         }
       }
     }
@@ -100,7 +98,7 @@ export class CachedCoverLookup {
   private getCachePath(cacheKey: string): Promise<string | null> {
     return this.diskCache
       .getCachePath(cacheKey)
-      .catch((error) => {
+      .catch((error: unknown) => {
         console.warn("[CoverImageCache] cache probe failed:", error);
         return null;
       });
@@ -113,7 +111,7 @@ export class CoverCacheSeeder {
 
   async seed(localUri: string, remoteUrl: string): Promise<void> {
     try {
-      if (!localUri?.startsWith?.("file://")) return;
+      if (!localUri.startsWith("file://")) return;
       // Never overwrite an entry that another load already cached. On
       // Android the write goes through Glide's delete-before-write disk
       // cache, so seeding over an entry the in-app `Cover` is displaying or

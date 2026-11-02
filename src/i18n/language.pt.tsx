@@ -373,7 +373,7 @@ const DICT: Dict = {
     "Defina um limite de tamanho para personalizar as partições",
   STORAGE_FREED: "Liberado {freed}",
   TRACK_REQUEST: "MÚSICA PEDIDA",
-  INFO_REQUEST: `Oii! Sou a Haruka, a DJ da mais moe do Brasil!${"\n"}Vi que já fez a sua escolha!${"\n"}Mas antes não quer deixar um recadinho para mim ou para nossa equipe? Este recado será entregue no chat principal do nosso servidor discord para todo mundo ver${"\n"}💜 Você não precisa deixar recado se não quiser.`,
+  INFO_REQUEST: `Oii! Sou a Haruka, a DJ da mais moe do Brasil!\nVi que já fez a sua escolha!\nMas antes não quer deixar um recadinho para mim ou para nossa equipe? Este recado será entregue no chat principal do nosso servidor discord para todo mundo ver\n💜 Você não precisa deixar recado se não quiser.`,
   SEND_REQUEST_BUTTON_TEXT: "Enviar",
   SEND_REQUEST_PLACEHOLDER: "Deixe seu recado aqui",
   SELECT_ERROR: "Erro ao selecionar a música",
@@ -638,6 +638,7 @@ const LiveRequestsDisabled = (props: SvgProps) => {
   );
 };
 
+// Metro resolves a bundled image import to its asset id.
 const IMGS = {
   LIVE_LABEL: OnAirLabel,
   LOGO: logo,

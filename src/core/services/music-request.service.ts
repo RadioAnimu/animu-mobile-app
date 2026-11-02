@@ -79,7 +79,7 @@ export const getSubmissionErrorMessage = (
 
   // Server sends raw lowercase spellings (`erro: "harublock"`); the package
   // normalizes known blocks to uppercased codes — match both.
-  switch (error?.toUpperCase()) {
+  switch ((error ?? "").toUpperCase()) {
     case "PEDIBLOCK":
       return detail
         ? interpolate(t.REQUEST_ERROR_PEDIBLOCK, {

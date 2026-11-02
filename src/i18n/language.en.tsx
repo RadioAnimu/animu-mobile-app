@@ -369,7 +369,7 @@ const DICT = {
   STORAGE_PARTITION_NEEDS_LIMIT: "Set a size limit to customize the partitions",
   STORAGE_FREED: "Freed {freed}",
   TRACK_REQUEST: "REQUESTED SONG",
-  INFO_REQUEST: `Hi! I'm Haruka, the DJ of the most moe in Brazil!${"\n"}I see you've made your choice!${"\n"}But before that, would you like to leave a message for me or for our team? This message will be delivered in the main chat of our Discord server for everyone to see${"\n"}💜 You don't have to leave a message if you don't want to.`,
+  INFO_REQUEST: `Hi! I'm Haruka, the DJ of the most moe in Brazil!\nI see you've made your choice!\nBut before that, would you like to leave a message for me or for our team? This message will be delivered in the main chat of our Discord server for everyone to see\n💜 You don't have to leave a message if you don't want to.`,
   SEND_REQUEST_BUTTON_TEXT: "Send",
   SEND_REQUEST_PLACEHOLDER: "Leave your message here",
   SELECT_ERROR: "Error selecting the song",
@@ -629,6 +629,7 @@ const LiveRequestsDisabled = (props: SvgProps) => {
   );
 };
 
+// Metro resolves a bundled image import to its asset id.
 const IMGS = {
   LIVE_LABEL: OnAirLabel,
   LOGO: logo,

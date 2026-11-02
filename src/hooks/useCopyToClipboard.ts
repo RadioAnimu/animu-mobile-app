@@ -18,7 +18,7 @@ export function useCopyToClipboard() {
       haptics.select();
       Clipboard.setStringAsync(text)
         .then((copied) => {
-          if (copied === false) throw new Error("clipboard refused the text");
+          if (!copied) throw new Error("clipboard refused the text");
           toast(copiedMessage);
         })
         .catch((error: unknown) => {

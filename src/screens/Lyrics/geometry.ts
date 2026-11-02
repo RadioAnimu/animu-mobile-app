@@ -5,7 +5,7 @@
  */
 
 /** Share of the usable width the artwork panel takes when there are two panes. */
-export const ARTWORK_PANE_RATIO = 0.38;
+const ARTWORK_PANE_RATIO = 0.38;
 
 /**
  * Most of a short lyrics viewport the lit line may spend above itself: the

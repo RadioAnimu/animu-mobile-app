@@ -21,7 +21,7 @@ vi.mock("@/utils/haptics", () => ({ haptics: { tap: vi.fn(), warning: vi.fn(), s
 vi.mock("@/hooks/useDict", () => ({
   useDict: () =>
     new Proxy(mocks.dict, {
-      get: (target, key) => target[String(key as string)] ?? String(key),
+      get: (target, key) => target[String(key)] ?? String(key),
     }),
 }));
 vi.mock("@/contexts/alert/AlertProvider", () => ({
@@ -88,7 +88,7 @@ describe("HelpSection", () => {
     storeReview({ store: "app-store", name: "App Store", url: null });
     render(<HelpSection onOpenAbout={mocks.onOpenAbout} />);
     const rate = screen.getByRole("link", { name: /SETTINGS_RATE_APP/ });
-    expect(JSON.parse((rate as HTMLElement).dataset.style!)).toMatchObject({
+    expect(JSON.parse(rate.dataset.style!)).toMatchObject({
       opacity: 0.5,
     });
 

@@ -152,12 +152,12 @@ export function RequestBottomSheet({
           value={message}
           onChangeText={handleChangeMessage}
           busy={isSubmitting}
-          onSubmitEditing={handleSubmit}
+          onSubmitEditing={() => void handleSubmit()}
         />
         <RequestSubmitButton
           submitting={isSubmitting}
           failed={isError}
-          onPress={handleSubmit}
+          onPress={() => void handleSubmit()}
         />
       </KeyboardScrollView>
     </Sheet>

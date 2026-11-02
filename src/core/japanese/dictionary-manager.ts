@@ -14,11 +14,11 @@ import type { gunzipTrimmed } from "@/core/japanese/unpack";
 import { debugLog } from "@/utils/player.config";
 
 /** `none` → `downloading` (download + unpack) → `installed`, or `error` (retryable). */
-export type DictionaryInstall = "none" | "downloading" | "installed" | "error";
+type DictionaryInstall = "none" | "downloading" | "installed" | "error";
 /** The in-memory tokenizer, built while lyrics need it. */
-export type ReaderStatus = "idle" | "loading" | "ready" | "error";
+type ReaderStatus = "idle" | "loading" | "ready" | "error";
 /** Why the last install failed: the device is full, or the network gave up. */
-export type InstallFailure = "space" | "network";
+type InstallFailure = "space" | "network";
 
 export type JapaneseDictionarySnapshot = {
   install: DictionaryInstall;
@@ -91,6 +91,11 @@ class Cancelled extends Error {
   constructor() {
     super("dictionary install cancelled");
   }
+}
+
+/** Re-reads `signal` on every call, so an abort during an `await` is seen. */
+function throwIfCancelled(signal: AbortSignal): void {
+  if (signal.aborted) throw new Cancelled();
 }
 
 class NoSpace extends Error {
@@ -265,7 +270,7 @@ export class JapaneseDictionary {
     const file = DICTIONARY_FILES[name];
     await this.downloadVerified(name, report, signal);
     const unpacked = await this.unpack(await this.deps.storage.readDownload(name), file.unpacked, (unpackedBytes) => {
-      if (signal.aborted) throw new Cancelled();
+      throwIfCancelled(signal);
       report(file.bytes + unpackedBytes);
     });
     if (unpacked.length !== file.stored) throw new Error(`${name}: unexpected content`);
@@ -312,14 +317,14 @@ export class JapaneseDictionary {
   ): Promise<{ verified: true } | { verified: false; error: unknown }> {
     let lastError: unknown = null;
     for (const mirror of [...mirrors]) {
-      if (signal.aborted) throw new Cancelled();
+      throwIfCancelled(signal);
       try {
         await this.transfer(`${mirror}${name}`, name, report, signal);
         if (await this.isVerified(name)) return { verified: true };
         mirrors.splice(mirrors.indexOf(mirror), 1);
         lastError = new Error(`${name}: checksum mismatch from ${mirror}`);
       } catch (error) {
-        if (signal.aborted) throw new Cancelled();
+        throwIfCancelled(signal);
         lastError = error;
       }
       await this.deps.storage.removeDownload(name).catch(() => {});

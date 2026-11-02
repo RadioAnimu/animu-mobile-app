@@ -2,8 +2,8 @@ import { Gesture } from "react-native-gesture-handler";
 import { scheduleOnRN } from "react-native-worklets";
 
 /** A downward swipe on the lyrics' head this long (or this fast) closes it. */
-export const CLOSE_DISTANCE = 80;
-export const CLOSE_VELOCITY = 800;
+const CLOSE_DISTANCE = 80;
+const CLOSE_VELOCITY = 800;
 
 /**
  * The lyrics sheet's dismiss gesture: a deliberate pull down on its head.

@@ -12,7 +12,7 @@ vi.mock("react-native", async () =>
 );
 
 const webview = vi.hoisted(() => ({
-  postMessage: vi.fn(),
+  postMessage: vi.fn<(message: string) => void>(),
   onMessage: null as null | ((event: { nativeEvent: { data: string } }) => void),
   onRenderProcessGone: null as null | (() => void),
   html: "",
@@ -50,7 +50,7 @@ const mocks = vi.hoisted(() => ({
   listener: null as null | ((window: object) => void),
   unsubscribe: vi.fn(),
   /** Re-renders the (memoized, prop-less) component after a mock change. */
-  forceRender: () => undefined as void,
+  forceRender: (): void => undefined,
 }));
 
 vi.mock("@/contexts/app-state/AppStateProvider", () => ({
@@ -83,7 +83,9 @@ const setPlayer = (overrides: Record<string, unknown> = {}) => {
   };
 };
 
-const sent = () => webview.postMessage.mock.calls.map(([json]) => JSON.parse(json));
+const sent = () => webview.postMessage.mock.calls.map(
+    ([json]) => JSON.parse(json) as Record<string, unknown>,
+  );
 const message = (payload: unknown) =>
   act(() => webview.onMessage!({ nativeEvent: { data: JSON.stringify(payload) } }));
 

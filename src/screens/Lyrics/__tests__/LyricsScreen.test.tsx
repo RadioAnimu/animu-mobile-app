@@ -44,7 +44,7 @@ vi.mock("@/contexts/player/PlayerProvider", () => ({
   }),
 }));
 vi.mock("@/hooks/useDict", () => ({
-  useDict: () => new Proxy({} as Record<string, string>, { get: (_target, key) => String(key) }),
+  useDict: () => new Proxy({}, { get: (_target, key) => String(key) }),
 }));
 vi.mock("@/hooks/useLyrics", () => ({ useLyrics: () => ({ status: "ready", lyrics: null, retry: vi.fn() }) }));
 vi.mock("@/hooks/useHeardPosition", () => ({

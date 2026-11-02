@@ -370,7 +370,7 @@ const DICT: Dict = {
   STORAGE_PARTITION_NEEDS_LIMIT: "個別設定には上限の設定が必要です",
   STORAGE_FREED: "{freed} を解放しました",
   TRACK_REQUEST: "リクエスト曲",
-  INFO_REQUEST: `こんにちは！私は春香、ブラジルで最も萌えのラジオのDJだよ！${"\n"}もう選曲はバッチリかな？${"\n"}その前に、私やチームのみんなにメッセージを残してみない？君からのメッセージは、みんなが見れるようにディスコードのメインチャットに流すね！${"\n"}💜 メッセージを残したくない場合は、無理しなくて大丈夫だよ。`,
+  INFO_REQUEST: `こんにちは！私は春香、ブラジルで最も萌えのラジオのDJだよ！\nもう選曲はバッチリかな？\nその前に、私やチームのみんなにメッセージを残してみない？君からのメッセージは、みんなが見れるようにディスコードのメインチャットに流すね！\n💜 メッセージを残したくない場合は、無理しなくて大丈夫だよ。`,
   SEND_REQUEST_BUTTON_TEXT: "リクエストを送る",
   SEND_REQUEST_PLACEHOLDER: "ここにメッセージを書いてね",
   SELECT_ERROR: "選曲に失敗しちゃった",
@@ -635,6 +635,7 @@ const LiveRequestsDisabled = (props: SvgProps) => {
   );
 };
 
+// Metro resolves a bundled image import to its asset id.
 const IMGS = {
   LOGO: logo,
   LAST_REQUEST: lastRequested,

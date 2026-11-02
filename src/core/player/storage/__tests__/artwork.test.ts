@@ -120,7 +120,7 @@ describe("pickPreviewArtwork", () => {
       pickPreviewArtwork("https://cdn.test/trackImage1_medium.jpg", {
         medium: "https://cdn.test/trackImage1_medium.jpg",
         large: "https://cdn.test/trackImage1_large.jpg",
-      } as never),
+      }),
     ).toBeNull();
   });
 });
@@ -695,7 +695,7 @@ describe("ArtworkResolver", () => {
       // Before the download: the track passes through untouched
       expect(resolver.apply(track)).toBe(track);
 
-      await resolver.resolve(track.artwork as string);
+      await resolver.resolve(track.artwork);
       const applied = resolver.apply(track);
       expect(applied).not.toBe(track);
       expect(applied?.artwork).toMatch(COVER_FILE);

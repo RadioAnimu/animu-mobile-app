@@ -14,35 +14,89 @@
 import * as React from "react";
 import { vi } from "vitest";
 
-type AnyProps = Record<string, any>;
-type LayoutCapable = HTMLElement & { __onLayout?: (event: unknown) => void };
+type Style = Record<string, unknown>;
+type LayoutHandler = (event: unknown) => void;
+type LayoutCapable = HTMLElement & { __onLayout?: LayoutHandler };
 
-const flattenStyle = (style: unknown): AnyProps => {
+/** The accessibility and identity props every host forwards to the DOM. */
+interface A11yProps {
+  accessibilityRole?: string;
+  accessibilityLabel?: string;
+  accessibilityState?: {
+    expanded?: boolean;
+    selected?: boolean;
+    checked?: boolean;
+    busy?: boolean;
+    disabled?: boolean;
+  };
+  accessibilityValue?: { text?: string };
+  disabled?: boolean;
+  testID?: string;
+}
+
+interface HostProps extends A11yProps {
+  children?: React.ReactNode;
+  style?: unknown;
+  onLayout?: LayoutHandler;
+  /** Accepted (React 19 passes it as a prop) but not attached. */
+  ref?: React.Ref<unknown>;
+}
+
+interface TouchableProps extends HostProps {
+  onPress?: (event: unknown) => void;
+  focusable?: boolean;
+}
+
+interface PressableProps extends Omit<TouchableProps, "style"> {
+  style?: unknown;
+}
+
+interface TextInputProps extends A11yProps {
+  value?: string;
+  onChangeText?: (text: string) => void;
+  onFocus?: React.FocusEventHandler<HTMLInputElement>;
+  onBlur?: React.FocusEventHandler<HTMLInputElement>;
+  onSubmitEditing?: () => void;
+  editable?: boolean;
+  style?: unknown;
+  maxLength?: number;
+  autoFocus?: boolean;
+}
+
+interface FlatListProps {
+  data: readonly unknown[];
+  renderItem: (info: { item: unknown; index: number }) => React.ReactNode;
+  keyExtractor?: (item: unknown, index: number) => React.Key;
+  ListHeaderComponent?: React.ReactNode;
+  ListFooterComponent?: React.ReactNode;
+}
+
+const flattenStyle = (style: unknown): Style => {
   if (Array.isArray(style)) {
-    return style.reduce<AnyProps>(
+    return style.reduce<Style>(
       (acc, entry) => ({ ...acc, ...flattenStyle(entry) }),
       {},
     );
   }
-  return style && typeof style === "object" ? (style as AnyProps) : {};
+  return style && typeof style === "object" ? (style as Style) : {};
 };
 
-function a11yProps(props: AnyProps): AnyProps {
-  const state = (props.accessibilityState ?? {}) as AnyProps;
+function a11yProps(props: A11yProps) {
+  const state = props.accessibilityState ?? {};
   return {
     role: props.accessibilityRole,
     "aria-label": props.accessibilityLabel,
     "aria-expanded": state.expanded,
     "aria-selected": state.selected,
     "aria-checked": state.checked,
-    "aria-valuetext": (props.accessibilityValue as AnyProps | undefined)?.text,
+    "aria-valuetext": props.accessibilityValue?.text,
     "aria-busy": state.busy,
     "aria-disabled": props.disabled || state.disabled || undefined,
     "data-testid": props.testID,
   };
 }
 
-function useLayoutHandler(onLayout: AnyProps["onLayout"]) {
+function useLayoutHandler(onLayout: LayoutHandler | undefined) {
   const ref = React.useRef<LayoutCapable | null>(null);
   React.useEffect(() => {
     if (ref.current) ref.current.__onLayout = onLayout;
@@ -51,7 +105,7 @@ function useLayoutHandler(onLayout: AnyProps["onLayout"]) {
 }
 
 const host = (tag: string) => {
-  const Component = ({ children, style, onLayout, ...props }: AnyProps) => {
+  const Component = ({ children, style, onLayout, ...props }: HostProps) => {
     const ref = useLayoutHandler(onLayout);
     return React.createElement(
       tag,
@@ -70,7 +124,7 @@ function Touchable({
   onLayout,
   focusable,
   ...props
-}: AnyProps) {
+}: TouchableProps) {
   const ref = useLayoutHandler(onLayout);
   return React.createElement(
     "div",
@@ -86,14 +140,17 @@ function Touchable({
   );
 }
 
-function Pressable({ children, style, ...props }: AnyProps) {
-  const resolvedStyle = typeof style === "function" ? style({ pressed: false }) : style;
+function Pressable({ children, style, ...props }: PressableProps) {
+  const resolvedStyle =
+    typeof style === "function"
+      ? (style as (state: { pressed: boolean }) => unknown)({ pressed: false })
+      : style;
   return Touchable({ ...props, style: resolvedStyle, children });
 }
 
 const TextInput = React.forwardRef<
   { focus: () => void; isFocused: () => boolean },
-  AnyProps
+  TextInputProps
 >(
   function TextInput(
     {
@@ -137,26 +194,26 @@ const TextInput = React.forwardRef<
 );
 
 /** Renders every item (no virtualization), with the header and footer. */
-function FlatList({ data, renderItem, keyExtractor, ListHeaderComponent, ListFooterComponent }: AnyProps) {
+function FlatList({ data, renderItem, keyExtractor, ListHeaderComponent, ListFooterComponent }: FlatListProps) {
   return React.createElement(
     "div",
     null,
     ListHeaderComponent ?? null,
-    (data as unknown[]).map((item, index) =>
+    data.map((item, index) =>
       React.createElement(React.Fragment, { key: keyExtractor ? keyExtractor(item, index) : index }, renderItem({ item, index })),
     ),
     ListFooterComponent ?? null,
   );
 }
 
-function ActivityIndicator({ testID }: AnyProps) {
+function ActivityIndicator({ testID }: { testID?: string }) {
   return React.createElement("div", {
     role: "progressbar",
     "data-testid": testID,
   });
 }
 
-function Image({ source, testID }: AnyProps) {
+function Image({ source, testID }: { source?: unknown; testID?: string }) {
   return React.createElement("img", {
     alt: "",
     "data-testid": testID,
@@ -178,6 +235,9 @@ const animation = () => {
   const handle = { start: vi.fn(), stop: vi.fn(), reset: vi.fn() };
   return handle;
 };
+
+/** What every mocked `Animated` factory (timing, loop, ...) returns. */
+export type MockAnimation = ReturnType<typeof animation>;
 
 export function createReactNativeMock() {
   return {
@@ -239,7 +299,10 @@ export function createReactNativeMock() {
       configureNext: vi.fn(),
       Types: { easeInEaseOut: "easeInEaseOut", keyboard: "keyboard" },
     },
-    Platform: { OS: "android", select: (spec: AnyProps) => spec.android ?? spec.default },
+    Platform: {
+      OS: "android",
+      select: <T,>(spec: { android?: T; default?: T }) => spec.android ?? spec.default,
+    },
     Dimensions: { get: () => ({ width: 393, height: 852 }) },
     PixelRatio: { getFontScale: () => 1, get: () => 1 },
     useWindowDimensions: () => ({ width: 393, height: 852, fontScale: 1 }),

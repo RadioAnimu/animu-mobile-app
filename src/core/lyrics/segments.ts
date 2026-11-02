@@ -48,7 +48,7 @@ const CLOSING = /[、。，．！？!?,.」』）)〜~…:;"'”’]/;
 function reads(piece: string, word: string): boolean {
   const letters = word.toLowerCase().replace(/[^a-z0-9]/g, "");
   if (!letters) return false;
-  const core = [...piece].filter((char) => !PUNCTUATION.test(char)).join("");
+  const core = Array.from(piece).filter((char) => !PUNCTUATION.test(char)).join("");
   if (!core) return false;
   // English inside a Japanese line reads as itself (I'll ↔ I'll).
   if (LATIN.test(core)) return core.toLowerCase() === letters;
@@ -74,7 +74,7 @@ const WORD_CHAR = /[\p{L}\p{N}]/u;
 
 /** A word without the punctuation around it; it may end in an apostrophe. */
 function trimWord(word: string): string {
-  const chars = [...word];
+  const chars = Array.from(word);
   let from = 0;
   let to = chars.length;
   while (from < to && !WORD_CHAR.test(chars[from])) from += 1;
@@ -105,7 +105,7 @@ export function alignRomaji(text: string, romaji: string): LabelSegment[] | null
   const words = romajiWords(romaji);
   if (words.length === 0) return null;
   // Full-width digits and Latin compare as their half-width selves (same length).
-  const shown = [...text];
+  const shown = Array.from(text);
   const chars = shown.map((char) => (/[０-９Ａ-Ｚａ-ｚ]/.test(char) ? char.normalize("NFKC") : char));
 
   const spaceAt = (at: number) => at < chars.length && /\s/.test(chars[at]);

@@ -50,7 +50,8 @@ export const fitGrid = (
  */
 export const buildWeeks = (
   weeks: number,
-  days: Record<string, ListenDay>,
+  /** Only the days that were listened to have an entry. */
+  days: Partial<Record<string, ListenDay>>,
   todayKey: string,
 ): { columns: Cell[][]; months: { index: number; month: number }[] } => {
   const today = dayKeyToDate(todayKey);

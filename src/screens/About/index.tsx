@@ -270,7 +270,7 @@ export function About({ navigation }: Readonly<Props>) {
       whichever route the link takes — in-app or the system browser. */
   const openLink = useCallback(
     (opener: (url: string) => Promise<void>, url: string) => {
-      void opener(url).catch((error) => {
+      void opener(url).catch((error: unknown) => {
         console.warn("[About] openURL failed:", error);
         toast(dict.ABOUT_OPEN_ERROR, "error");
       });

@@ -13,4 +13,4 @@
 export { lyricsService } from "@/core/lyrics/lyrics-factory";
 export { LyricsService } from "@/core/lyrics/lyrics-service";
 export { lyricsStore, type LyricsSnapshot, type LyricsStatus } from "@/core/lyrics/store";
-export type { Lyrics, LyricEntry, LyricLine, LyricWord, LyricInterlude, LyricsLanguage } from "@/core/lyrics/types";
+export type { Lyrics, LyricEntry, LyricLine, LyricWord } from "@/core/lyrics/types";

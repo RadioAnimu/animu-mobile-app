@@ -20,7 +20,7 @@ vi.mock("react-native-safe-area-context", () => ({
 vi.mock("react-native-worklets", () => ({ scheduleOnRN: vi.fn() }));
 vi.mock("@/components/Cover", () => ({ Cover: () => <i data-cover /> }));
 vi.mock("@/hooks/useDict", () => ({
-  useDict: () => new Proxy({} as Record<string, string>, { get: (_target, key) => String(key) }),
+  useDict: () => new Proxy({}, { get: (_target, key) => String(key) }),
 }));
 
 const mocks = vi.hoisted(() => ({
@@ -49,6 +49,12 @@ const renderAt = (windowControlsInset: number) => {
   );
 };
 
+/** The head button's style, as the mocked view serializes it on `data-style`. */
+const headStyle = () =>
+  JSON.parse(
+    screen.getByRole("button", { name: "Our Carol, Roselia" }).getAttribute("data-style")!,
+  ) as { paddingLeft?: number; paddingHorizontal?: number };
+
 describe("LyricsHeader", () => {
   afterEach(cleanup);
 
@@ -69,9 +75,7 @@ describe("LyricsHeader", () => {
   describe("window controls", () => {
     it("keeps the head's designed padding on a phone", () => {
       renderAt(0);
-      const style = JSON.parse(
-        screen.getByRole("button", { name: "Our Carol, Roselia" }).getAttribute("data-style")!,
-      );
+      const style = headStyle();
       // No inline override: only the stylesheet's horizontal padding remains.
       expect(style.paddingLeft).toBeUndefined();
       expect(style.paddingHorizontal).toBe(THEME.SPACE.XXL);
@@ -79,11 +83,7 @@ describe("LyricsHeader", () => {
 
     it("steps the cover past the iPadOS window controls in a resizable window", () => {
       renderAt(72);
-      expect(
-        JSON.parse(
-          screen.getByRole("button", { name: "Our Carol, Roselia" }).getAttribute("data-style")!,
-        ).paddingLeft,
-      ).toBe(THEME.SPACE.XXL + 72);
+      expect(headStyle().paddingLeft).toBe(THEME.SPACE.XXL + 72);
     });
   });
 });

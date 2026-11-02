@@ -36,7 +36,7 @@ export function useProfileMedia(
   const sessionToken = user?.sessionToken ?? null;
   const avatarUrl = user?.avatarUrl ?? null;
   const profileLoaded = profile != null;
-  const bannerUrl = profile?.banner?.url ?? null;
+  const bannerUrl = profile?.banner.url ?? null;
 
   useEffect(() => {
     setMedia(

@@ -10,7 +10,10 @@ import { THEME } from "@/theme";
 const animated = vi.hoisted(() => {
   const timing = vi.fn(() => ({ stop: vi.fn() }));
   const delay = vi.fn(() => ({ stop: vi.fn() }));
-  const sequence = vi.fn(() => ({ start: vi.fn(), stop: vi.fn() }));
+  const sequence = vi.fn(() => ({
+    start: vi.fn<(callback?: (result: { finished: boolean }) => void) => void>(),
+    stop: vi.fn(),
+  }));
   class Value {
     value = 0;
     setValue(next: number) {
@@ -158,8 +161,10 @@ describe("Toast", () => {
     );
 
     // The mocked sequence holds the start callback; finishing it must dismiss.
-    const start = animated.sequence.mock.results.at(-1)?.value.start;
-    act(() => start?.mock.calls[0]?.[0]?.({ finished: true }));
+    const sequence = animated.sequence.mock.results.at(-1)?.value as
+      | ReturnType<typeof animated.sequence>
+      | undefined;
+    act(() => sequence?.start.mock.calls.at(0)?.[0]?.({ finished: true }));
 
     expect(onDone).toHaveBeenCalledTimes(1);
   });
@@ -168,7 +173,7 @@ describe("Toast", () => {
     const { container } = render(<Toast message="Copied" />);
     const style = JSON.parse(
       (container.firstChild as HTMLElement).dataset.style ?? "{}",
-    );
+    ) as Record<string, unknown>;
     expect(style.maxWidth).toBeCloseTo(393 * 0.86);
     expect(style.marginLeft).toBe(0);
   });
@@ -178,7 +183,7 @@ describe("Toast", () => {
     const { container } = render(<Toast message="Copied" />);
     const style = JSON.parse(
       (container.firstChild as HTMLElement).dataset.style ?? "{}",
-    );
+    ) as Record<string, unknown>;
     expect(style.maxWidth).toBe(THEME.LAYOUT.CONTENT_MAX_WIDTH);
   });
 
@@ -188,7 +193,7 @@ describe("Toast", () => {
     const { container } = render(<Toast message="Copied" />);
     const style = JSON.parse(
       (container.firstChild as HTMLElement).dataset.style ?? "{}",
-    );
+    ) as Record<string, unknown>;
     expect(style.maxWidth).toBe(THEME.LAYOUT.CONTENT_MAX_WIDTH - 47);
     expect(style.marginLeft).toBe(47);
     expect(style.marginRight).toBe(0);

@@ -235,12 +235,13 @@ export class ArtworkResolver {
    * the metro server. Idempotent — safe to call from every setup path.
    */
   init(): Promise<void> {
-    this.initPromise ??= Asset.fromModule(DEFAULT_COVER)
+    // `*.png` modules are untyped (an asset id on native, a URL on web).
+    this.initPromise ??= Asset.fromModule(DEFAULT_COVER as Parameters<typeof Asset.fromModule>[0])
       .downloadAsync()
       .then((asset) => {
         if (asset.localUri) this.defaultCoverValue = asset.localUri;
       })
-      .catch((error) => {
+      .catch((error: unknown) => {
         console.warn(
           "[ArtworkResolver] bundled default cover unavailable, keeping remote fallback:",
           error,
@@ -332,7 +333,7 @@ export class ArtworkResolver {
     debugLog(`[ArtDebug] resolve START ${url}`);
 
     const promise = this.pipeline(url, startedAt)
-      .catch((error) => {
+      .catch((error: unknown) => {
         console.warn(
           `[ArtDebug] resolve FAILED after ${Date.now() - startedAt}ms (${url}):`,
           error,
@@ -396,7 +397,7 @@ export class ArtworkResolver {
 
   /** Cache hit → direct download → fetch fallback, for one URL. */
   private async pipeline(url: string, startedAt: number): Promise<string> {
-    const cachedFile = await this.options?.findCachedCoverFile?.(url);
+    const cachedFile = await this.options.findCachedCoverFile?.(url);
     if (cachedFile) {
       debugLog(
         `[ArtDebug] resolve EXPO-IMAGE CACHE HIT after ${Date.now() - startedAt}ms url=${url} file=${cachedFile}`,
@@ -449,7 +450,7 @@ export class ArtworkResolver {
           `[ArtDebug] resolve DOWNLOAD(fetch fallback) done after ${Date.now() - startedAt}ms url=${url} local=${file.uri}`,
         );
         this.fileMap.track(url, file.uri);
-        void this.options?.onResolved?.(file.uri, url);
+        void this.options.onResolved?.(file.uri, url);
         return file.uri;
       });
     }
@@ -462,7 +463,7 @@ export class ArtworkResolver {
       `[ArtDebug] resolve DOWNLOAD done after ${Date.now() - startedAt}ms size=${destination.size} url=${url} local=${local}`,
     );
     this.fileMap.track(url, local);
-    void this.options?.onResolved?.(local, url);
+    void this.options.onResolved?.(local, url);
     return local;
   }
 
@@ -520,7 +521,7 @@ export class ArtworkResolver {
     this.previewFor.delete(url);
     if (this.inFlight.has(url)) return;
     debugLog(`[ArtDebug] resolve LATE landing url=${url} local=${local}`);
-    void this.options?.onResolved?.(local, url);
+    void this.options.onResolved?.(local, url);
     this.onLateResolve?.(url);
   }
 

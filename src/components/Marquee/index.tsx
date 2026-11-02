@@ -143,7 +143,7 @@ export function MarqueeGroup({
   // when nothing overflows (nothing to scroll).
   const measured = [...records.values()];
   const allMeasured = records.size > 0 && measured.every((d) => d !== null);
-  const longest = allMeasured ? Math.max(0, ...(measured as number[])) : 0;
+  const longest = allMeasured ? Math.max(0, ...measured) : 0;
   const cycle = longest > 0 ? longest + delay : null;
 
   // Hidden app: stop the clock entirely (every line back to rest). Native

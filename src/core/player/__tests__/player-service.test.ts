@@ -1,8 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type {
-  NowPlayingMetadata as AirwaveNowPlaying,
-  PlaybackState,
-} from "react-native-anything-player";
+import type { PlaybackState } from "react-native-anything-player";
 import { PlayerService, type PlayerServiceDependencies } from "@/core/player/player-service";
 import { AudibleTrackResolver } from "@/core/player/stream-playback/audible-track";
 import {
@@ -200,7 +197,7 @@ const setup = (extra: Partial<PlayerServiceDependencies> = {}) => {
 const heardProgress = () => elapsedAt(progressStore.getSnapshot(), undefined, Date.now());
 
 const lastNowPlaying = (player: FakePlayer) =>
-  player.updateNowPlaying.mock.calls.at(-1)?.[0] as AirwaveNowPlaying | undefined;
+  player.updateNowPlaying.mock.calls.at(-1)?.[0];
 
 describe("PlayerService on react-native-anything-player", () => {
   beforeEach(() => {
@@ -232,7 +229,7 @@ describe("PlayerService on react-native-anything-player", () => {
     const republished = t.player.updateNowPlaying.mock.invocationCallOrder.filter((order) => order > loaded);
     expect(republished.length).toBeGreaterThan(0);
     expect(t.player.updateNowPlaying).toHaveBeenLastCalledWith(
-      expect.objectContaining({ title: expect.any(String), artwork: expect.any(String) }),
+      expect.objectContaining({ title: expect.any(String) as unknown, artwork: expect.any(String) as unknown }),
     );
   });
 
@@ -245,7 +242,7 @@ describe("PlayerService on react-native-anything-player", () => {
     expect(source).toMatchObject({
       uri: "https://stream.example/192",
       live: true,
-      headers: { "User-Agent": expect.any(String) },
+      headers: { "User-Agent": expect.any(String) as unknown },
     });
     expect(options).toEqual({ autoplay: true, quality: "high" });
     t.player.setState("playing", true);
@@ -586,7 +583,7 @@ describe("PlayerService on react-native-anything-player", () => {
     await t.service.play();
     t.player.setState("playing", true);
     // The resolver now has the file: `apply` swaps it in.
-    t.artwork.apply = (tr) => (tr ? ({ ...tr, artwork: "file://cache/song-a.jpg" } as Track) : tr);
+    t.artwork.apply = (tr) => (tr ? { ...tr, artwork: "file://cache/song-a.jpg" } : tr);
     t.player.hear("Song A");
     await Promise.resolve();
     await Promise.resolve();
@@ -608,12 +605,12 @@ describe("PlayerService on react-native-anything-player", () => {
     t.player.hear("Song A");
     expect(lastNowPlaying(t.player)?.artwork).toBe("file://default.png");
     // The shared cover cache finishes the one download: the file is published.
-    t.artwork.apply = (tr) => (tr ? ({ ...tr, artwork: "file://cache/a.jpg" } as Track) : tr);
+    t.artwork.apply = (tr) => (tr ? { ...tr, artwork: "file://cache/a.jpg" } : tr);
     finish("file://cache/a.jpg");
     await Promise.resolve();
     await Promise.resolve();
     expect(lastNowPlaying(t.player)?.artwork).toBe("file://cache/a.jpg");
-    expect(t.player.updateNowPlaying.mock.calls.every(([m]) => !String(m.artwork).startsWith("http"))).toBe(true);
+    expect(t.player.updateNowPlaying.mock.calls.every(([m]) => typeof m.artwork !== "string" || !m.artwork.startsWith("http"))).toBe(true);
   });
 
   it("publishes a cover whose download landed after its resolve gave up", async () => {
@@ -627,7 +624,7 @@ describe("PlayerService on react-native-anything-player", () => {
     expect(lastNowPlaying(t.player)?.artwork).toBe("file://default.png");
 
     // The download lands later; the resolver now maps the file.
-    t.artwork.apply = (tr) => (tr ? ({ ...tr, artwork: "file://cache/a.jpg" } as Track) : tr);
+    t.artwork.apply = (tr) => (tr ? { ...tr, artwork: "file://cache/a.jpg" } : tr);
     t.artwork.onLateResolve?.("https://example.test/elsewhere.jpg"); // not the shown song
     expect(lastNowPlaying(t.player)?.artwork).toBe("file://default.png");
     t.artwork.onLateResolve?.(t.hearing.track?.artwork ?? "");
@@ -889,7 +886,7 @@ describe("PlayerService on react-native-anything-player", () => {
     const listener = vi.fn();
     t.service.subscribeVisualizerWindows(listener);
     expect(t.sampler.subscribeWindows).toHaveBeenCalledWith(listener);
-    await t.service.refreshHistory("played" as never);
+    await t.service.refreshHistory("played");
     expect(t.repository.refreshHistory).toHaveBeenCalledWith("played");
     expect(t.service.isReady).toBe(true);
   });

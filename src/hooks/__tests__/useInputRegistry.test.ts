@@ -11,16 +11,20 @@ vi.mock("react-native-keyboard-controller", () => ({
 
 afterEach(cleanup);
 
-const fakeInput = () =>
-  ({ focus: vi.fn(), isFocused: () => false }) as unknown as TextInput;
+/** A fake input plus its `focus` spy (kept apart: `TextInput.focus` is a method). */
+const fakeInput = () => {
+  const focus = vi.fn();
+  const input = { focus, isFocused: () => false } as unknown as TextInput;
+  return { input, focus };
+};
 
 describe("useInputRegistry", () => {
   it("focuses the input registered under a key", () => {
     const { result } = renderHook(() => useInputRegistry<"a" | "b">());
     const a = fakeInput();
     const b = fakeInput();
-    result.current.register("a", a);
-    result.current.register("b", b);
+    result.current.register("a", a.input);
+    result.current.register("b", b.input);
 
     result.current.focus("b");
 
@@ -31,7 +35,7 @@ describe("useInputRegistry", () => {
   it("ignores keys that were never registered or were unmounted", () => {
     const { result } = renderHook(() => useInputRegistry<"a" | "b">());
     const a = fakeInput();
-    result.current.register("a", a);
+    result.current.register("a", a.input);
     result.current.register("a", null);
 
     expect(() => result.current.focus("a")).not.toThrow();

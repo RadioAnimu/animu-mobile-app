@@ -14,21 +14,20 @@ import { kanaRomanizer } from "@/core/lyrics/text";
 import type { LyricsCandidate } from "@/core/lyrics/types";
 import type { Track } from "@/core/domain/track";
 
-const track = (overrides: Partial<Track> = {}): Track =>
-  ({
-    id: "1",
-    raw: "LiSA - Gurenge | Kimetsu no Yaiba",
-    title: "Gurenge",
-    artist: "LiSA",
-    anime: "Kimetsu no Yaiba",
-    artworks: {},
-    artwork: "",
-    duration: 235_000,
-    isRequest: false,
-    startTime: new Date(0),
-    playlistName: "",
-    ...overrides,
-  }) as Track;
+const track = (overrides: Partial<Track> = {}): Track => ({
+  id: "1",
+  raw: "LiSA - Gurenge | Kimetsu no Yaiba",
+  title: "Gurenge",
+  artist: "LiSA",
+  anime: "Kimetsu no Yaiba",
+  artworks: {},
+  artwork: "",
+  duration: 235_000,
+  isRequest: false,
+  startTime: new Date(0),
+  playlistName: "",
+  ...overrides,
+});
 
 const candidate = (overrides: Partial<LyricsCandidate> = {}): LyricsCandidate => ({
   id: 7,

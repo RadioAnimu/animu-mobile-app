@@ -47,14 +47,14 @@ export class CoverCacheRegistry {
     this.loaded ??= AsyncStorage.getItem(REGISTRY_KEY)
       .then((raw) => {
         if (!raw) return;
-        const parsed = JSON.parse(raw) as RegistryShape;
+        const parsed = JSON.parse(raw) as Partial<RegistryShape>;
         for (const [url, entry] of Object.entries(parsed.entries ?? {})) {
           // A tag that fired while this AsyncStorage read was still in
           // flight is newer than the stored state — never clobber it.
           if (!this.entries.has(url)) this.entries.set(url, entry);
         }
       })
-      .catch((error) => {
+      .catch((error: unknown) => {
         console.warn("[CoverCacheRegistry] load failed:", error);
       });
     return this.loaded;
@@ -81,7 +81,7 @@ export class CoverCacheRegistry {
   tag(url: string, category: CoverCacheCategory): void {
     if (this.clearing) return;
     if (!url || !/^https?:/i.test(url)) return;
-    if (!this.loaded) this.load();
+    if (!this.loaded) void this.load();
 
     const existing = this.entries.get(url);
     const identical = existing?.category === category;
@@ -159,7 +159,7 @@ export class CoverCacheRegistry {
   /** Chains persists so concurrent writes can't write stale snapshots (last queued write wins). */
   private chainPersist(): Promise<void> {
     this.persistChain = this.persistChain.then(() => this.persist()).catch(
-      (error) => {
+      (error: unknown) => {
         console.warn("[CoverCacheRegistry] persist chain failed:", error);
       },
     );

@@ -35,9 +35,9 @@ export function prefetchArtwork(
   // No link → skip the pointless attempt; the adoption path retries once
   // connectivity (and the track) is live again.
   if (!deps.isOnline()) return;
-  const preview = pickPreviewArtwork(url, track?.artworks);
+  const preview = pickPreviewArtwork(url, track.artworks);
   debugLog(
-    `[ArtDebug] prefetch START "${track?.title ?? "?"}" artwork=${url} preview=${preview ?? "none"}`,
+    `[ArtDebug] prefetch START "${track.title}" artwork=${url} preview=${preview ?? "none"}`,
   );
   void Promise.all([
     deps.artwork.resolve(url),
@@ -45,7 +45,7 @@ export function prefetchArtwork(
   ])
     .then(([resolved]) => {
       debugLog(
-        `[ArtDebug] prefetch READY "${track?.title ?? "?"}" → ${resolved}`,
+        `[ArtDebug] prefetch READY "${track.title}" → ${resolved}`,
       );
     })
     .catch(() => {

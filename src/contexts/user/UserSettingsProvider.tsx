@@ -69,7 +69,7 @@ export const UserSettingsProvider: React.FC<{ children: React.ReactNode }> = ({
       const initialSettings = await userSettingsService.initialize();
       applySettings(initialSettings);
     })();
-    updateChainRef.current = run.catch((error) => {
+    updateChainRef.current = run.catch((error: unknown) => {
       console.error("Settings initialization failed:", error);
     });
   }, []);
@@ -107,7 +107,7 @@ export const UserSettingsProvider: React.FC<{ children: React.ReactNode }> = ({
       const cacheTurningOff =
         previous.cacheEnabled && !updatedSettings.cacheEnabled;
       if (cacheTurningOff) {
-        await coverDiskStorage.clearAll().catch((error) => {
+        await coverDiskStorage.clearAll().catch((error: unknown) => {
           console.warn("[UserSettings] cache wipe on disable failed:", error);
         });
       }
@@ -129,7 +129,7 @@ export const UserSettingsProvider: React.FC<{ children: React.ReactNode }> = ({
             updatedSettings.coverCacheLimitBytes,
             updatedSettings.coverCachePartitionBytes,
           )
-          .catch((error) => {
+          .catch((error: unknown) => {
             console.warn("[UserSettings] cache trim on limit change failed:", error);
           });
       }
@@ -140,7 +140,7 @@ export const UserSettingsProvider: React.FC<{ children: React.ReactNode }> = ({
       // Full clearAll — the exact "clear cached covers" path. Non-fatal:
       // the new tier still applies and surfaces re-download what they miss.
       if (previous.liveQualityCover !== updatedSettings.liveQualityCover) {
-        await coverDiskStorage.clearAll().catch((error) => {
+        await coverDiskStorage.clearAll().catch((error: unknown) => {
           console.warn("[UserSettings] cache wipe on quality change failed:", error);
         });
       }
@@ -148,7 +148,7 @@ export const UserSettingsProvider: React.FC<{ children: React.ReactNode }> = ({
       applySettings(updatedSettings);
       return true;
     });
-    updateChainRef.current = run.catch((error) => {
+    updateChainRef.current = run.catch((error: unknown) => {
       console.error("Settings update chain failed:", error);
     });
     return run.catch(() => false);

@@ -319,7 +319,7 @@ export class NowPlayingRepository {
   private trackIdentityChanged(track: Track): boolean {
     return (
       this.currentTrackValue?.raw !== track.raw ||
-      this.currentTrackValue?.artwork !== track.artwork
+      this.currentTrackValue.artwork !== track.artwork
     );
   }
 
@@ -332,9 +332,9 @@ export class NowPlayingRepository {
   private programIdentityChanged(program: Program): boolean {
     return (
       this.currentProgramValue?.name !== program.name ||
-      this.currentProgramValue?.dj !== program.dj ||
-      this.currentProgramValue?.isLive !== program.isLive ||
-      this.currentProgramValue?.acceptingRequests !== program.acceptingRequests
+      this.currentProgramValue.dj !== program.dj ||
+      this.currentProgramValue.isLive !== program.isLive ||
+      this.currentProgramValue.acceptingRequests !== program.acceptingRequests
     );
   }
 
@@ -835,7 +835,7 @@ export class NowPlayingRepository {
       newRequestedTracks != null &&
       newRequestedTracks.length > 0 &&
       newRequestedTracks[0].raw !== (this.requestedTracks[0]?.raw || "");
-    if (requestedChanged && newRequestedTracks) {
+    if (requestedChanged) {
       this.requestedTracks = newRequestedTracks;
     }
 
@@ -913,7 +913,7 @@ export class NowPlayingRepository {
         this.options.getDefaultCover(),
       );
       if (type === "played") this.playedStale = false;
-      if (!tracks || tracks.length === 0) return;
+      if (tracks.length === 0) return;
 
       const target =
         type === "requests" ? this.requestedTracks : this.playedTracks;

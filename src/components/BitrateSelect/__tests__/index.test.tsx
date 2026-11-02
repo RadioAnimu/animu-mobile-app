@@ -78,7 +78,11 @@ describe("BitrateSelect", () => {
     // Under the pill (y 20 + h 30 + gap), held inside the 393pt window even
     // though the measured pill sits past its edge.
     const list = screen.getByRole("radiogroup");
-    const style = JSON.parse(list.getAttribute("data-style")!);
+    const style = JSON.parse(list.getAttribute("data-style")!) as {
+      top: number;
+      right: number;
+      maxHeight: number;
+    };
     expect(style.top).toBeGreaterThan(50);
     expect(style.right).toBeGreaterThan(0);
     expect(style.maxHeight).toBeLessThan(852 - style.top);

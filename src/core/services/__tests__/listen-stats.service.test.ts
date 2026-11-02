@@ -374,7 +374,7 @@ describe("listenStatsService stored-data sanitizing", () => {
             sessions: "many",
             tracks: -3,
             firstAt: "noon",
-            hours: [5, "x", -1, null, ...Array(40).fill(7)],
+            hours: [5, "x", -1, null, ...Array<number>(40).fill(7)],
           }),
           "not-a-day": storedDay(),
           "2024-1-1": storedDay(),
@@ -533,7 +533,8 @@ describe("listenStatsService streak anchoring", () => {
 });
 
 describe("listenStatsService streaks across DST", () => {
-  const zone = process.env.TZ;
+  // The env typings merge to `any` under the type-aware linter.
+  const zone = process.env.TZ as string | undefined;
   beforeEach(() => {
     memory.clear();
     process.env.TZ = "Europe/Lisbon";
@@ -600,8 +601,10 @@ describe("listenStatsService persistence scheduling", () => {
     await vi.advanceTimersByTimeAsync(2_000);
 
     expect(AsyncStorage.setItem).toHaveBeenCalledTimes(1);
-    const saved = JSON.parse(memory.get("listenStats") ?? "{}");
-    const day = Object.values<{ shouts: number; submitted: number }>(saved.days)[0];
+    const saved = JSON.parse(memory.get("listenStats") ?? "{}") as {
+      days: Record<string, { shouts: number; submitted: number }>;
+    };
+    const day = Object.values(saved.days)[0];
     expect(day.shouts).toBe(2);
     expect(day.submitted).toBe(1);
 

@@ -56,7 +56,8 @@ const layout = vi.hoisted(() => ({
     split: false,
     short: false,
     windowControlsInset: 0,
-  },
+    // The sheet never reads `usableWidth`.
+  } as Omit<ResponsiveLayout, "usableWidth">,
 }));
 
 const setLayout = (width: number, height: number) => {
@@ -68,7 +69,7 @@ const setLayout = (width: number, height: number) => {
     split: width >= 560 && width > height * 1.2,
     short: height < 500,
     windowControlsInset: 0,
-  } as ResponsiveLayout;
+  };
 };
 
 /** The sheet surface is the one view that carries the sheet's corner radius. */
@@ -78,17 +79,17 @@ const sheetStyle = (): Record<string, unknown> => {
       "borderTopLeftRadius" in JSON.parse(candidate.dataset.style ?? "{}"),
   );
   if (!el) throw new Error("no sheet element rendered");
-  return JSON.parse(el.dataset.style ?? "{}");
+  return JSON.parse(el.dataset.style ?? "{}") as Record<string, unknown>;
 };
 
 /** The content column: the one view that pads past the notch insets. */
 const contentStyle = (): Record<string, unknown> => {
   const el = [...document.querySelectorAll<HTMLElement>("[data-style]")].find((candidate) => {
-    const style = JSON.parse(candidate.dataset.style ?? "{}");
+    const style = JSON.parse(candidate.dataset.style ?? "{}") as Record<string, unknown>;
     return "paddingLeft" in style && "maxWidth" in style;
   });
   if (!el) throw new Error("no sheet content rendered");
-  return JSON.parse(el.dataset.style ?? "{}");
+  return JSON.parse(el.dataset.style ?? "{}") as Record<string, unknown>;
 };
 
 describe("Sheet", () => {
@@ -101,7 +102,7 @@ describe("Sheet", () => {
       split: false,
       short: false,
       windowControlsInset: 0,
-    } as ResponsiveLayout;
+    };
     insetsCtl.value = { top: 0, bottom: 0, left: 0, right: 0 };
   });
   afterEach(cleanup);

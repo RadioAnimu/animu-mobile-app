@@ -31,7 +31,7 @@ vi.mock("@/components/Avatar", () => ({ Avatar: () => null }));
 vi.mock("@/utils/haptics", () => ({ haptics: { tap: vi.fn(), warning: vi.fn(), select: vi.fn() } }));
 vi.mock("@/hooks/useDict", () => ({
   useDict: () =>
-    new Proxy({} as Record<string, string>, { get: (_target, key) => String(key) }),
+    new Proxy({}, { get: (_target, key) => String(key) }),
 }));
 
 const dictionaryRow = () => screen.getByRole("button", { name: /SETTINGS_JP_DICTIONARY_ROW/ });

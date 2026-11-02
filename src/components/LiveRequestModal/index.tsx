@@ -199,7 +199,7 @@ export function LiveRequestModal({ visible, handleClose }: Readonly<Props>) {
         <RequestSubmitButton
           submitting={isSubmitting}
           failed={isError}
-          onPress={handleSubmit}
+          onPress={() => void handleSubmit()}
         />
       </KeyboardScrollView>
     </Sheet>

@@ -104,7 +104,14 @@ const mocks = vi.hoisted(() => ({
   user: null as null | { sessionToken: string },
   profile: null as null | { user: { verified: boolean } },
   settings: { selectedLanguage: "PT" },
-  showError: vi.fn(),
+  showError:
+    vi.fn<
+      (
+        message: string,
+        variant?: string,
+        options?: { action?: { label: string; onPress: () => void } },
+      ) => void
+    >(),
   recent: {
     recent: [] as {
       query: string;
@@ -636,9 +643,7 @@ describe("MakeRequest screen", () => {
     });
 
     /** The action handed to the last toast. */
-    const toastAction = () =>
-      mocks.showError.mock.lastCall?.[2]?.action as
-        { label: string; onPress: () => void } | undefined;
+    const toastAction = () => mocks.showError.mock.lastCall?.[2]?.action;
 
     it("removing one leaves the rest alone, with an Undo", () => {
       render(<MakeRequest />);

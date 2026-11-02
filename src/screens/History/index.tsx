@@ -186,7 +186,7 @@ export function History({ route }: Readonly<Props>) {
             refreshControl={
               <AppRefreshControl
                 refreshing={refreshing}
-                onRefresh={onRefresh}
+                onRefresh={() => void onRefresh()}
               />
             }
           />

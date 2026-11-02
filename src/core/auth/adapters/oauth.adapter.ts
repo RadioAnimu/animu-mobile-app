@@ -27,7 +27,11 @@ export class OAuthAdapter implements OAuthPort {
   async openSession(url: string, redirectUri: string): Promise<string | null> {
     const result = await WebBrowser.openAuthSessionAsync(url, redirectUri);
     if (result.type === "success") return result.url;
-    if (result.type === "cancel" || result.type === "dismiss") return null;
+    if (
+      result.type === WebBrowser.WebBrowserResultType.CANCEL ||
+      result.type === WebBrowser.WebBrowserResultType.DISMISS
+    )
+      return null;
     throw new Error(`Browser session ended unexpectedly (${result.type})`);
   }
 

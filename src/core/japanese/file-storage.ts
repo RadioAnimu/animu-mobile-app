@@ -5,6 +5,8 @@ import type { DictionaryFileName } from "@/core/japanese/dictionary";
 const VERSION_FILE = "version.txt";
 /** `base.dat.gz` downloaded → `base.dat` stored, unpacked. */
 const storedName = (name: DictionaryFileName) => name.replace(/\.gz$/, "");
+/** Typed as a number, but iOS answers `null` when it cannot stat the volume. */
+const availableDiskSpace = (): number | null => Paths.availableDiskSpace;
 
 /**
  * The dictionary lives in the documents directory (not the cache): the OS
@@ -89,7 +91,7 @@ export class DictionaryFileStorage implements DictionaryStorage {
 
   freeBytes(): number {
     try {
-      return Paths.availableDiskSpace ?? 0;
+      return availableDiskSpace() ?? 0;
     } catch {
       // Unknown: let the install try (a full disk then fails the write).
       return Number.POSITIVE_INFINITY;

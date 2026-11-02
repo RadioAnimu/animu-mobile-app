@@ -77,7 +77,10 @@ const order = () =>
     .map((el) => el.getAttribute("data-testid"))
     .filter((id) => id !== "scroll" && id !== "header");
 
-const content = () => JSON.parse(screen.getByTestId("scroll").getAttribute("data-content")!);
+const content = (): unknown => JSON.parse(screen.getByTestId("scroll").getAttribute("data-content")!);
+/** The style a mocked view serializes on `data-style`. */
+const styleOf = (el: Element) =>
+  JSON.parse(el.getAttribute("data-style")!) as { flexDirection?: string; width?: number };
 const BANNER = { name: "Hora do Anime", imageUrl: "https://cdn.animu.test/banner.jpg" };
 
 describe("Home", () => {
@@ -124,7 +127,7 @@ describe("Home", () => {
       setWindow(1180, 820, IPAD_INSETS);
       render(<Home />);
       const hero = heroOf();
-      expect(JSON.parse(hero.getAttribute("data-style")!).flexDirection).toBe("row");
+      expect(styleOf(hero).flexDirection).toBe("row");
       const art = screen.getByRole("button", { name: BANNER.name });
       expect(art.querySelector("img")?.getAttribute("src")).toBe(BANNER.imageUrl);
       // Art first (left), the program and DJ centered under it; then
@@ -145,7 +148,7 @@ describe("Home", () => {
     it("aligns the header's row with the hero", () => {
       setWindow(1180, 820, IPAD_INSETS);
       render(<Home />);
-      const heroWidth = JSON.parse(heroOf().getAttribute("data-style")!).width;
+      const heroWidth = styleOf(heroOf()).width;
       expect(Number(screen.getByTestId("header").getAttribute("data-row-width"))).toBe(heroWidth);
     });
 

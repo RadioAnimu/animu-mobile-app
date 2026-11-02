@@ -68,21 +68,27 @@ describe("Cover bounded retry", () => {
       act(() => lastProps?.onError?.());
       // The fallback (bundled asset) shows and loads — that must not reset the count.
       act(() => lastProps?.onLoad?.(LOADED(240, 240)));
-      act(() => vi.advanceTimersByTime(3000));
+      act(() => {
+        vi.advanceTimersByTime(3000);
+      });
       expect(REMOTE_ATTEMPTS()).toBe(1 + retry);
     }
     act(() => lastProps?.onError?.());
     // Let it run long: no further reloads, fallback stays.
-    act(() => vi.advanceTimersByTime(120_000));
+    act(() => {
+      vi.advanceTimersByTime(120_000);
+    });
     expect(REMOTE_ATTEMPTS()).toBe(3);
-    expect((lastProps?.source as { uri?: string })?.uri).toBeUndefined();
+    expect((lastProps?.source as { uri?: string } | undefined)?.uri).toBeUndefined();
   });
 
   it("still self-heals a single transient failure", () => {
     render(<Cover cover={COVER} />);
 
     act(() => lastProps?.onError?.());
-    act(() => vi.advanceTimersByTime(3000));
+    act(() => {
+      vi.advanceTimersByTime(3000);
+    });
     expect(REMOTE_ATTEMPTS()).toBe(2); // failure #1 → retry reloads
 
     // The retry succeeds: state is clean again for any future failure.

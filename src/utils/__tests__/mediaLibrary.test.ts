@@ -1,9 +1,9 @@
 import { beforeEach, expect, it, vi } from "vitest";
 import { canSaveToPhotoLibrary } from "@/utils/mediaLibrary";
-const { platform, request } = vi.hoisted(() => ({
-  platform: { OS: "android", Version: 36 as number | string },
-  request: vi.fn(),
-}));
+const { platform, request } = vi.hoisted(() => {
+  const platform: { OS: string; Version: number | string } = { OS: "android", Version: 36 };
+  return { platform, request: vi.fn() };
+});
 vi.mock("react-native", () => ({ Platform: platform }));
 vi.mock("expo-media-library", () => ({ requestPermissionsAsync: request }));
 beforeEach(() => { platform.OS = "android"; platform.Version = 36; request.mockReset(); });

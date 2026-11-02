@@ -231,9 +231,9 @@ export function MakeRequest() {
               emptyLabel: dict.REQUEST_SEARCH_EMPTY,
               countLabel,
               refreshing,
-              onRefresh: refresh,
+              onRefresh: () => void refresh(),
               loadingMore,
-              onEndReached: loadMore,
+              onEndReached: () => void loadMore(),
               bottomPadding,
             }}
           />

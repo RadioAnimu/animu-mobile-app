@@ -26,7 +26,7 @@ export function Logo({ size, img }: Readonly<Props>) {
   // (react-native-web has no `Image.resolveAssetSource`).
   const resolved = Asset.fromModule(source);
   const aspectRatio =
-    resolved?.width && resolved?.height
+    resolved.width && resolved.height
       ? resolved.width / resolved.height
       : FALLBACK_ASPECT_RATIO;
 

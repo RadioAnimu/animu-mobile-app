@@ -3,6 +3,7 @@ import { act, cleanup, fireEvent, render, screen } from "@testing-library/react"
 import { Animated } from "react-native";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import type { MockAnimation } from "@/__tests__/react-native-mock";
 import { CodeInput } from "@/components/CodeInput";
 
 vi.mock("react-native", async () =>
@@ -77,7 +78,7 @@ describe("CodeInput", () => {
 
     fireEvent.focus(input);
     expect(Animated.loop).toHaveBeenCalledTimes(1);
-    const loop = vi.mocked(Animated.loop).mock.results[0].value;
+    const loop = vi.mocked(Animated.loop).mock.results[0].value as MockAnimation;
     expect(loop.start).toHaveBeenCalledTimes(1);
     expect(loop.stop).not.toHaveBeenCalled();
 

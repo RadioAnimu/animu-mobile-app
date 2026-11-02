@@ -108,7 +108,7 @@ export function EmailCodeFields({
             placeholderTextColor={THEME.COLORS.TEXT_DIM}
             onFocus={() => setFocused(true)}
             onBlur={() => setFocused(false)}
-            onSubmitEditing={flow.sendCode}
+            onSubmitEditing={() => void flow.sendCode()}
           />
           {canClear && (
             <TouchableOpacity

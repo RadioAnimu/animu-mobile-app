@@ -13,18 +13,22 @@ import { vi } from "vitest";
 
 import { createReactNativeMock } from "@/__tests__/react-native-mock";
 
+type KeyboardMockProps = Parameters<
+  ReturnType<typeof createReactNativeMock>["View"]
+>[0];
+
 export function createKeyboardControllerMock() {
   const { ScrollView } = createReactNativeMock();
   const KeyboardAwareScrollView = React.forwardRef(
     function KeyboardAwareScrollView(
-      { children, ...props }: Record<string, any>,
+      { children, ...props }: KeyboardMockProps,
       ref,
     ) {
       return React.createElement(ScrollView, { ...props, ref }, children);
     },
   );
   const { View } = createReactNativeMock();
-  const KeyboardStickyView = ({ children, offset: _offset, ...props }: Record<string, any>) =>
+  const KeyboardStickyView = ({ children, offset: _offset, ...props }: KeyboardMockProps & { offset?: unknown }) =>
     React.createElement(View, props, children);
   return {
     KeyboardStickyView,

@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi, type Mock } from "vitest";
 import {
   AnimuApiError,
   type ArtworkQuality,
@@ -1021,14 +1021,15 @@ describe("NowPlayingRepository — live SSE ingestion", () => {
     pushListeners: (value: number) => void;
     pushOpen: () => void;
     pushError: () => void;
-    getStreamMetadataSpy: ReturnType<typeof vi.fn>;
-    unsubscribe: ReturnType<typeof vi.fn>;
+    getStreamMetadataSpy: Mock<NowPlayingFetchers["getStreamMetadata"]>;
+    unsubscribe: Mock<() => void>;
   }
 
   const withLive = (): LiveFixture => {
-    let captured: LiveHandlers | null = null;
-    const unsubscribe = vi.fn();
-    const getStreamMetadataSpy = vi.fn(async () => ({
+    // Assigned by the subscribe callback, which control flow cannot see.
+    let captured = null as LiveHandlers | null;
+    const unsubscribe = vi.fn<() => void>();
+    const getStreamMetadataSpy = vi.fn<NowPlayingFetchers["getStreamMetadata"]>(async () => ({
       track: makeTrack({ raw: "Http - Fallback", duration: 300_000 }),
       listeners: { value: 77 },
     }));
@@ -1416,9 +1417,7 @@ describe("NowPlayingRepository — live SSE ingestion", () => {
         release = resolve;
       },
     );
-    repository["options"].fetchers.getStreamMetadata = vi.fn(
-      () => gate,
-    ) as unknown as NowPlayingFetchers["getStreamMetadata"];
+    repository["options"].fetchers.getStreamMetadata = vi.fn(() => gate);
 
     // Poll starts on a quiet stream → HTTP metadata leg runs (hangs on gate)
     const poll = repository.refresh();
@@ -1483,9 +1482,10 @@ describe("NowPlayingRepository — live SSE ingestion", () => {
         fixture.pushSong(makeTrack({ raw: "Live - Song", startTime: new Date() }), 12);
         // A failing poll arms the retry backoff next to the track-end timer.
         const fetchers = fixture.repository["options"].fetchers;
-        fetchers.getCurrentProgram = vi.fn(async () => {
+        const getCurrentProgram = vi.fn(async (): Promise<Program> => {
           throw new Error("offline");
         });
+        fetchers.getCurrentProgram = getCurrentProgram;
         await fixture.repository.refresh();
         expect(fixture.timer.scheduled).toHaveLength(2);
 
@@ -1496,7 +1496,7 @@ describe("NowPlayingRepository — live SSE ingestion", () => {
         // Nothing comes back by itself, not even for a very late tick.
         fixture.timer.advance(60 * 60_000);
         expect(fixture.timer.scheduled).toEqual([]);
-        expect(fetchers.getCurrentProgram).toHaveBeenCalledTimes(1);
+        expect(getCurrentProgram).toHaveBeenCalledTimes(1);
       } finally {
         error.mockRestore();
       }
@@ -1528,20 +1528,23 @@ describe("NowPlayingRepository — live SSE ingestion", () => {
       const { repository } = fixture;
       const fetchers = repository["options"].fetchers;
       const releases: ((program: Program) => void)[] = [];
-      fetchers.getCurrentProgram = vi.fn(
+      const getCurrentProgram = vi.fn(
         () => new Promise<Program>((resolve) => releases.push(resolve)),
       );
+      fetchers.getCurrentProgram = getCurrentProgram;
+      const abortInFlightRequests = vi.fn();
+      fetchers.abortInFlightRequests = abortInFlightRequests;
       const stale = repository.refresh();
       await tick();
 
       repository.setLiveStreamActive(false);
-      expect(fetchers.abortInFlightRequests).toHaveBeenCalledTimes(1);
+      expect(abortInFlightRequests).toHaveBeenCalledTimes(1);
       repository.setLiveStreamActive(true);
 
       // The resume's own refresh is not swallowed by the old run's latch.
       const fresh = repository.refresh();
       await tick();
-      expect(fetchers.getCurrentProgram).toHaveBeenCalledTimes(2);
+      expect(getCurrentProgram).toHaveBeenCalledTimes(2);
 
       releases[1](makeProgram({ name: "Fresh show" }));
       await fresh;
@@ -1575,7 +1578,8 @@ describe("NowPlayingRepository — live SSE ingestion", () => {
 
     it("refresh() and the history fetch are no-ops until the stream is switched back on", async () => {
       const subscribe = vi.fn((..._args: unknown[]) => () => {});
-      const fixture = makeRepository({ subscribeLive: subscribe as never });
+      const getCurrentProgram = vi.fn(async () => makeProgram());
+      const fixture = makeRepository({ subscribeLive: subscribe, getCurrentProgram });
       const { repository } = fixture;
       repository.startLive();
       repository.setLiveStreamActive(false);
@@ -1585,7 +1589,7 @@ describe("NowPlayingRepository — live SSE ingestion", () => {
 
       expect(await repository.refresh()).toBe(false);
       await repository.refreshHistory("played");
-      expect(fixture.repository["options"].fetchers.getCurrentProgram).not.toHaveBeenCalled();
+      expect(getCurrentProgram).not.toHaveBeenCalled();
       expect(historyCalls(fixture, "played")).toEqual([]);
 
       repository.setLiveStreamActive(true);

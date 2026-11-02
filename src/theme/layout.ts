@@ -12,7 +12,7 @@
  */
 
 /** Width classes, in window points (Material / Apple size-class aligned). */
-export const BREAKPOINT = {
+const BREAKPOINT = {
   /** At or above: a tablet-class window (iPad split halves, small tablets). */
   MEDIUM: 600,
   /** At or above: a full tablet window. */
@@ -24,7 +24,7 @@ export const BREAKPOINT = {
  * player out in two panes: a landscape phone (≈734pt past the island) and
  * every landscape tablet qualifies; an iPad split-view half does not.
  */
-export const SPLIT_MIN_WIDTH = 640;
+const SPLIT_MIN_WIDTH = 640;
 /** Below this height the portrait stack cannot fit a screenful (phone landscape). */
 const SHORT_MAX_HEIGHT = 500;
 
@@ -47,11 +47,11 @@ export const ALL_ORIENTATIONS: ("portrait" | "portrait-upside-down" | "landscape
  * area. Top bars inset their leading items by this much there (measured
  * on iPadOS 26: the controls span ~20–62pt from the window's leading edge).
  */
-export const WINDOW_CONTROLS_INSET = 72;
+const WINDOW_CONTROLS_INSET = 72;
 /** How far below the window's top those controls reach (~42pt measured). */
 export const WINDOW_CONTROLS_HEIGHT = 48;
 
-export type WindowClass = "compact" | "medium" | "expanded";
+type WindowClass = "compact" | "medium" | "expanded";
 
 export interface EdgeInsets {
   top: number;

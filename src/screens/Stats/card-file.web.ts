@@ -14,7 +14,8 @@ async function pngFile(uri: string): Promise<File> {
 /** Shares the PNG through the Web Share API, or downloads it where the browser can't share files. */
 export async function shareCard(uri: string, title: string): Promise<boolean> {
   const file = await pngFile(uri);
-  if (!navigator.canShare?.({ files: [file] })) return saveCard(uri);
+  // Browsers without file sharing (Firefox desktop) lack `canShare` entirely.
+  if (!("canShare" in navigator) || !navigator.canShare({ files: [file] })) return saveCard(uri);
   try {
     await navigator.share({ files: [file], title });
   } catch (error) {

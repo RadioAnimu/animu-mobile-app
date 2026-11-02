@@ -20,7 +20,7 @@ export function ChooseBitrateSection() {
           handleChangeStream={() => {
             // A selection tick only when the choice actually changes.
             if (item.url !== currentStream?.url) haptics.select();
-            changeStream(item);
+            void changeStream(item);
           }}
           selected={item.url === currentStream?.url}
           category={item.category}

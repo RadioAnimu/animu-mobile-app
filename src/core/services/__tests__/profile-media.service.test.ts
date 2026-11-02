@@ -77,7 +77,9 @@ vi.mock("expo-file-system", () => {
 
 const AVATAR_URL = `${ENDPOINTS.auth}/me/avatar.php`;
 const names = () =>
-  [...fs.files.keys()].map((key) => key.split("/").pop()).sort();
+  [...fs.files.keys()]
+    .map((key) => key.split("/").pop() ?? "")
+    .sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
 
 beforeEach(() => {
   fs.files.clear();

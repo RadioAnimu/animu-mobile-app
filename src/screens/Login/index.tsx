@@ -101,7 +101,7 @@ function LegalLine({ dict }: Readonly<{ dict: Dict }>) {
       <Text
         accessibilityRole="link"
         onPress={() => {
-          void openInAppBrowser(API.PRIVACY_URL).catch((error) =>
+          void openInAppBrowser(API.PRIVACY_URL).catch((error: unknown) =>
             console.warn("[Login] failed to open the privacy policy:", error),
           );
         }}
@@ -509,7 +509,7 @@ export function Login({ navigation }: Readonly<Props>) {
               busyProvider={busyProvider}
               authenticating={isAuthenticating}
               error={error}
-              onProvider={handleProvider}
+              onProvider={(provider) => void handleProvider(provider)}
               onConnect={openConnect}
             />
           ) : (

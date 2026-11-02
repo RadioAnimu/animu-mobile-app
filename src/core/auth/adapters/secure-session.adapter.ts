@@ -33,7 +33,7 @@ function parseUser(raw: string | null): User | null {
 function parseBlob(raw: string | null): StoredSession | null {
   if (!raw) return null;
   try {
-    const parsed = JSON.parse(raw) as StoredSession;
+    const parsed = JSON.parse(raw) as StoredSession | null;
     return parsed?.sessionToken ? parsed : null;
   } catch {
     return null;

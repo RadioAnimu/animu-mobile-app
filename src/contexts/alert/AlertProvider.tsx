@@ -8,7 +8,7 @@ import React, {
   useEffect,
   useMemo,
 } from "react";
-import { Image, type ImageSource } from "expo-image";
+import { Image } from "expo-image";
 import { Animated, Modal, Text, TouchableOpacity, View } from "react-native";
 import { Icon } from "@/components/Icon";
 import HarukaError from "@/assets/error_haruka.webp";
@@ -49,7 +49,7 @@ interface ToastState {
   seed: number;
 }
 
-export interface ToastAction {
+interface ToastAction {
   label: string;
   onPress: () => void;
 }
@@ -151,8 +151,8 @@ export const AlertProvider: React.FC<{ children: ReactNode }> = ({
   const { mounted, progress } = usePresence(visible);
   const reduceMotion = useReducedMotion();
 
-  const haruka: ImageSource =
-    shown?.type === "success" ? HarukaSuccess : HarukaError;
+  // Metro resolves a bundled image import to its asset id.
+  const haruka = (shown?.type === "success" ? HarukaSuccess : HarukaError);
 
   const handleClose = () => {
     clearAlert();

@@ -62,7 +62,7 @@ export function subscribeAssistantActions(
       const action = parseAssistantUrl(url);
       if (action) handler(action);
     })
-    .catch((error) => {
+    .catch((error: unknown) => {
       console.warn("[Assistant] getInitialURL failed:", error);
     });
 

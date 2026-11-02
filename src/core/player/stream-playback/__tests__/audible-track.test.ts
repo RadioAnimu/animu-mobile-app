@@ -6,21 +6,20 @@ import {
   type FakeTimer,
 } from "@/core/player/__tests__/fake-timer";
 
-const makeTrack = (overrides: Partial<Track> = {}): Track =>
-  ({
-    id: "1",
-    raw: "Artist - Title",
-    title: "Title",
-    artist: "Artist",
-    anime: "Anime",
-    artworks: {},
-    artwork: "cover.jpg",
-    duration: 60_000,
-    isRequest: false,
-    startTime: new Date(1_000_000),
-    playlistName: "",
-    ...overrides,
-  }) as Track;
+const makeTrack = (overrides: Partial<Track> = {}): Track => ({
+  id: "1",
+  raw: "Artist - Title",
+  title: "Title",
+  artist: "Artist",
+  anime: "Anime",
+  artworks: {},
+  artwork: "cover.jpg",
+  duration: 60_000,
+  isRequest: false,
+  startTime: new Date(1_000_000),
+  playlistName: "",
+  ...overrides,
+});
 
 interface Fixture {
   resolver: AudibleTrackResolver;

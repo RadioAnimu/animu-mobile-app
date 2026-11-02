@@ -11,8 +11,6 @@ import {
   type CoverCachePartitions,
 } from "@/core/services/cover-cache-partitions";
 
-export type { CoverCachePartitions };
-
 /**
  * Grace window for a freshly-tagged URL whose bytes are still seeding into
  * the image cache (the resolver's `writeCache` races this measure). Absent
@@ -21,7 +19,7 @@ export type { CoverCachePartitions };
  */
 const SEED_GRACE_MS = 60_000;
 
-export type CoverStorageKey = CoverCacheCategory;
+type CoverStorageKey = CoverCacheCategory;
 
 export interface CoverStorageSlice {
   key: CoverStorageKey;
@@ -106,7 +104,7 @@ async function deleteCachedFile(url: string): Promise<boolean> {
  * byte trim: the ring is the registry's recency order — oldest displayed
  * covers are deleted (and deregistered) until the measured total fits.
  */
-export class CoverDiskStorage {
+class CoverDiskStorage {
   /** Shared wipe-in-progress flag — the Settings toggle and the storage
       card's clean button both disable themselves while any wipe runs
       (the clean button AND the automatic wipe on cache-off come through

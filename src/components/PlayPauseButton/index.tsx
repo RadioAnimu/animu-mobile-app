@@ -31,6 +31,32 @@ export function PlayPauseButton({ style }: Readonly<Props>) {
   /** Re-entrancy guard: two taps in one frame must not toggle twice. */
   const changingRef = useRef(false);
 
+  const toggle = async () => {
+    if (changingRef.current) return;
+    changingRef.current = true;
+    setStatus("changing");
+    haptics.tap();
+    // Capture the pre-toggle truth: after the await the render
+    // closure's `player.isPlaying` is stale (the store moved, this
+    // render did not), so re-reading it would report the WRONG
+    // state. On failure revert to that same truth; the provider
+    // already logs, the catch is the defensive backstop.
+    const wasPlaying = player.isPlaying;
+    try {
+      if (wasPlaying) {
+        await player.pause();
+      } else {
+        await player.play();
+      }
+      setStatus(wasPlaying ? "paused" : "playing");
+    } catch (error) {
+      console.warn("[PlayPauseButton] play/pause failed:", error);
+      setStatus(wasPlaying ? "playing" : "paused");
+    } finally {
+      changingRef.current = false;
+    }
+  };
+
   return (
     <TouchableOpacity
       activeOpacity={THEME.OPACITY.PRESSED}
@@ -43,31 +69,7 @@ export function PlayPauseButton({ style }: Readonly<Props>) {
       // keyboard / D-pad focus the moment playback starts. The
       // re-entrancy guard above is what actually blocks a second press.
       accessibilityState={{ busy: status === "changing" }}
-      onPress={async () => {
-        if (changingRef.current) return;
-        changingRef.current = true;
-        setStatus("changing");
-        haptics.tap();
-        // Capture the pre-toggle truth: after the await the render
-        // closure's `player.isPlaying` is stale (the store moved, this
-        // render did not), so re-reading it would report the WRONG
-        // state. On failure revert to that same truth; the provider
-        // already logs, the catch is the defensive backstop.
-        const wasPlaying = player.isPlaying;
-        try {
-          if (wasPlaying) {
-            await player.pause();
-          } else {
-            await player.play();
-          }
-          setStatus(wasPlaying ? "paused" : "playing");
-        } catch (error) {
-          console.warn("[PlayPauseButton] play/pause failed:", error);
-          setStatus(wasPlaying ? "playing" : "paused");
-        } finally {
-          changingRef.current = false;
-        }
-      }}
+      onPress={() => void toggle()}
     >
       <Image
         contentFit="contain"

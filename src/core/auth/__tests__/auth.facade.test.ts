@@ -76,15 +76,14 @@ const session = (over: Partial<AuthSession> = {}): AuthSession => ({
   ...over,
 });
 
-const profile = (user = authUser()): AuthProfile =>
-  ({
-    user,
-    banner: { url: null, color: null },
-    linkedProviders: [],
-    availableProviders: [],
-    session: { sessionId: "s", loginProvider: "discord", lastActivity: 0 },
-    links: { avatar: "", browserLogin: "" },
-  }) as AuthProfile;
+const profile = (user = authUser()): AuthProfile => ({
+  user,
+  banner: { url: null, color: null },
+  linkedProviders: [],
+  availableProviders: [],
+  session: { sessionId: "s", loginProvider: "discord", lastActivity: 0 },
+  links: { avatar: "", browserLogin: "" },
+});
 
 // ─── Fakes ───
 
@@ -128,36 +127,34 @@ const makeApi = (over: Record<string, unknown> = {}): ApiFake => {
     logout: vi.fn(async () => {}),
     deleteAccount: vi.fn(async () => {}),
     ...over,
-  } as unknown as ApiFake;
+  };
 };
 
-const makeOAuth = (over: Record<string, unknown> = {}): OAuthFake =>
-  ({
-    openSession: vi.fn(async () => null),
-    authorizeAppleNative: vi.fn(async () => null),
-    ...over,
-  }) as unknown as OAuthFake;
+const makeOAuth = (over: Record<string, unknown> = {}): OAuthFake => ({
+  openSession: vi.fn(async () => null),
+  authorizeAppleNative: vi.fn(async () => null),
+  ...over,
+});
 
-const makeStore = (over: Record<string, unknown> = {}): StoreFake =>
-  ({
-    load: vi.fn(async () => null),
-    save: vi.fn(async () => {}),
-    clear: vi.fn(async () => {}),
-    // Marker state modeled with the same semantics as SecureSessionStore
-    // (fresh marker adopts; after discard, nothing adopts).
-    markServerAuthPending: vi.fn(() => {
-      pendingServerAuthAt = Date.now();
-    }),
-    discardServerAuthPending: vi.fn(() => {
-      pendingServerAuthAt = null;
-    }),
-    takeServerAuthPending: vi.fn(() => {
-      const fresh = pendingServerAuthAt != null;
-      pendingServerAuthAt = null;
-      return fresh;
-    }),
-    ...over,
-  }) as unknown as StoreFake;
+const makeStore = (over: Record<string, unknown> = {}): StoreFake => ({
+  load: vi.fn(async () => null),
+  save: vi.fn(async () => {}),
+  clear: vi.fn(async () => {}),
+  // Marker state modeled with the same semantics as SecureSessionStore
+  // (fresh marker adopts; after discard, nothing adopts).
+  markServerAuthPending: vi.fn(() => {
+    pendingServerAuthAt = Date.now();
+  }),
+  discardServerAuthPending: vi.fn(() => {
+    pendingServerAuthAt = null;
+  }),
+  takeServerAuthPending: vi.fn(() => {
+    const fresh = pendingServerAuthAt != null;
+    pendingServerAuthAt = null;
+    return fresh;
+  }),
+  ...over,
+});
 
 const build = (
   deps: { api?: ApiFake; oauth?: OAuthFake; store?: StoreFake } = {},
@@ -169,11 +166,7 @@ const build = (
     api,
     oauth,
     store,
-    facade: new AuthFacade(
-      api as unknown as AuthApiPort,
-      oauth as unknown as OAuthPort,
-      store as unknown as SessionStorePort,
-    ),
+    facade: new AuthFacade(api, oauth, store),
   };
 };
 
@@ -436,7 +429,7 @@ describe("AuthFacade.loginWithProvider", () => {
     it("names the provider when the server bounce refuses the email", async () => {
       const { api, facade } = failedBounce("oauth", "email already taken");
 
-      const failure = await facade.loginWithProvider("discord").catch((e) => e);
+      const failure = await facade.loginWithProvider("discord").catch((e: unknown) => e);
 
       expect(failure).toBeInstanceOf(ProviderEmailTaken);
       expect((failure as ProviderEmailTaken).provider).toBe("discord");
@@ -457,7 +450,7 @@ describe("AuthFacade.loginWithProvider", () => {
     it("keeps any other oauth failure generic", async () => {
       const { facade } = failedBounce("oauth", "provider said no");
 
-      const failure = await facade.loginWithProvider("discord").catch((e) => e);
+      const failure = await facade.loginWithProvider("discord").catch((e: unknown) => e);
 
       expect(failure).not.toBeInstanceOf(ProviderEmailTaken);
       expect((failure as Error).message).toBe("oauth: provider said no");
@@ -466,7 +459,7 @@ describe("AuthFacade.loginWithProvider", () => {
     it("keeps an expired/used state generic, whatever its message", async () => {
       const { facade } = failedBounce("state", "email already taken");
 
-      const failure = await facade.loginWithProvider("discord").catch((e) => e);
+      const failure = await facade.loginWithProvider("discord").catch((e: unknown) => e);
 
       expect(failure).not.toBeInstanceOf(ProviderEmailTaken);
       expect((failure as Error).message).toBe("state: email already taken");
@@ -489,7 +482,7 @@ describe("AuthFacade.loginWithProvider", () => {
         }),
       });
 
-      const failure = await facade.loginWithProvider("apple").catch((e) => e);
+      const failure = await facade.loginWithProvider("apple").catch((e: unknown) => e);
 
       expect(failure).toBeInstanceOf(ProviderEmailTaken);
       expect((failure as ProviderEmailTaken).provider).toBe("apple");
@@ -530,7 +523,7 @@ describe("AuthFacade.loginWithProvider", () => {
 
       const failure = await facade
         .resumeServerAuth("animuapp://redirect?error=oauth&msg=email%20already%20taken")
-        .catch((e) => e);
+        .catch((e: unknown) => e);
 
       expect(failure).toBeInstanceOf(ProviderEmailTaken);
       expect((failure as ProviderEmailTaken).provider).toBeUndefined();
@@ -763,7 +756,7 @@ describe("AuthFacade.linkProvider", () => {
       oauth: makeOAuth({ openSession: vi.fn(async () => "animuapp://redirect") }),
     });
 
-    const failure = await facade.linkProvider("discord").catch((e) => e);
+    const failure = await facade.linkProvider("discord").catch((e: unknown) => e);
     expect(failure).toBeInstanceOf(ProviderLinkConflict);
     expect((failure as ProviderLinkConflict).provider).toBe("discord");
   });
@@ -781,7 +774,7 @@ describe("AuthFacade.linkProvider", () => {
       }),
     });
 
-    const failure = await facade.linkProvider("apple").catch((e) => e);
+    const failure = await facade.linkProvider("apple").catch((e: unknown) => e);
     expect(failure).toBeInstanceOf(ProviderLinkConflict);
     expect((failure as ProviderLinkConflict).provider).toBe("apple");
   });

@@ -171,7 +171,7 @@ describe("CustomDrawerContent", () => {
     const headerStyle = () =>
       JSON.parse(
         screen.getByRole("button", { name: "Animu" }).parentElement!.getAttribute("data-style")!,
-      );
+      ) as Record<string, unknown>;
 
     it("keeps the header's designed margin on a phone", () => {
       render(<CustomDrawerContent {...makeProps()} />);

@@ -94,7 +94,7 @@ export interface RequestedSong {
 }
 
 /** One ranked request in a snapshot. */
-export interface RankedRequest {
+interface RankedRequest {
   /** `""` for requests recorded before titles were stored. */
   title: string;
   artist: string;
@@ -183,14 +183,14 @@ export interface ListenStatsSnapshot {
 }
 
 const parseDayKey = (key: string): number => {
-  const [y, m, d] = key.split("-").map(Number);
-  return new Date(y, (m ?? 1) - 1, d ?? 1).getTime();
+  const [y, m = 1, d = 1] = key.split("-").map(Number);
+  return new Date(y, m - 1, d).getTime();
 };
 
 /** The day key immediately before `key` (calendar-correct across DST). */
 const prevDayKey = (key: string): string => {
-  const [y, m, d] = key.split("-").map(Number);
-  return dayKeyOf(new Date(y, (m ?? 1) - 1, (d ?? 1) - 1).getTime());
+  const [y, m = 1, d = 1] = key.split("-").map(Number);
+  return dayKeyOf(new Date(y, m - 1, d - 1).getTime());
 };
 
 const sanitizeDay = (value: unknown): ListenDay | null => {
@@ -373,7 +373,7 @@ export class ListenStatsService {
   }
 
   private ensureDay(day: string): ListenDay {
-    let existing = this.blob.days[day];
+    let existing = this.blob.days[day] as ListenDay | undefined;
     if (!existing) {
       existing = EMPTY_DAY();
       this.blob.days[day] = existing;
@@ -399,7 +399,7 @@ export class ListenStatsService {
       if (!this.dirty) return;
       this.dirty = false;
       const json = JSON.stringify(this.blob);
-      AsyncStorage.setItem(STORAGE_KEY, json).catch((error) => {
+      AsyncStorage.setItem(STORAGE_KEY, json).catch((error: unknown) => {
         console.warn("[ListenStats] save failed:", error);
       });
     }, delayMs);

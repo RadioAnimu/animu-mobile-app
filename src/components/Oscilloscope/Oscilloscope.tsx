@@ -491,7 +491,9 @@ export const Oscilloscope = React.memo(function Oscilloscope({
     (event: { nativeEvent: { data: string } }) => {
       // The embedded page's readiness announcement.
       try {
-        const payload = JSON.parse(event.nativeEvent.data);
+        const payload = JSON.parse(event.nativeEvent.data) as {
+          type?: unknown;
+        } | null;
         if (payload?.type === "ready") {
           pageReadyRef.current = true;
         }

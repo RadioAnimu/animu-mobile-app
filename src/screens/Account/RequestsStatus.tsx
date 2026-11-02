@@ -107,7 +107,7 @@ function Checklist({
             label={dict.ACCOUNT_REQUESTS_2FA_HELP}
             description={dict.ACCOUNT_REQUESTS_2FA_HELP_DESC}
             onPress={() => {
-              void openInAppBrowser(DISCORD_2FA_HELP_URL).catch((error) =>
+              void openInAppBrowser(DISCORD_2FA_HELP_URL).catch((error: unknown) =>
                 console.warn(
                   "[Account] failed to open Discord's 2FA help:",
                   error,

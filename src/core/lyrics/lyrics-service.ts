@@ -186,7 +186,7 @@ export class LyricsService {
       if (complete || result.kind === "match") {
         await this.deps.cache
           .write(key, { savedAt: this.now(), result })
-          .catch((error) => console.warn("[LyricsService] cache write failed:", error));
+          .catch((error: unknown) => console.warn("[LyricsService] cache write failed:", error));
       }
     }
     const lyrics = toLyrics(result);

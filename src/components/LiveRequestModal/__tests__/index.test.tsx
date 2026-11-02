@@ -110,7 +110,7 @@ describe("LiveRequestModal", () => {
   it("prefills the nickname from the signed-in user", () => {
     render(<LiveRequestModal visible handleClose={vi.fn()} />);
 
-    expect((screen.getByLabelText("Nickname") as HTMLInputElement).value).toBe(
+    expect(screen.getByLabelText<HTMLInputElement>("Nickname").value).toBe(
       "Haru",
     );
   });
@@ -166,7 +166,7 @@ describe("LiveRequestModal", () => {
 
     expect(chip.getAttribute("data-variant")).toBe("error");
     expect(mocks.haptics.error).toHaveBeenCalled();
-    expect((screen.getByLabelText("Music") as HTMLInputElement).value).toBe(
+    expect(screen.getByLabelText<HTMLInputElement>("Music").value).toBe(
       "Unravel",
     );
     expect(screen.getByLabelText("Try again")).toBeTruthy();
@@ -219,7 +219,7 @@ describe("LiveRequestModal", () => {
     rerender(<LiveRequestModal visible={false} handleClose={vi.fn()} />);
     rerender(<LiveRequestModal visible handleClose={vi.fn()} />);
 
-    expect((screen.getByLabelText("City") as HTMLInputElement).value).toBe(
+    expect(screen.getByLabelText<HTMLInputElement>("City").value).toBe(
       "Lisbon",
     );
   });
@@ -236,8 +236,8 @@ describe("LiveRequestModal", () => {
     rerender(<LiveRequestModal visible={false} handleClose={vi.fn()} />);
     rerender(<LiveRequestModal visible handleClose={vi.fn()} />);
 
-    expect((screen.getByLabelText("City") as HTMLInputElement).value).toBe("");
-    expect((screen.getByLabelText("Nickname") as HTMLInputElement).value).toBe(
+    expect(screen.getByLabelText<HTMLInputElement>("City").value).toBe("");
+    expect(screen.getByLabelText<HTMLInputElement>("Nickname").value).toBe(
       "Haru",
     );
     await act(async () => {});
@@ -253,8 +253,8 @@ describe("LiveRequestModal", () => {
     mocks.user = { id: "u2", nickname: "Yuki", username: "yuki" };
     rerender(<LiveRequestModal visible handleClose={vi.fn()} />);
 
-    expect((screen.getByLabelText("City") as HTMLInputElement).value).toBe("");
-    expect((screen.getByLabelText("Nickname") as HTMLInputElement).value).toBe(
+    expect(screen.getByLabelText<HTMLInputElement>("City").value).toBe("");
+    expect(screen.getByLabelText<HTMLInputElement>("Nickname").value).toBe(
       "Yuki",
     );
   });

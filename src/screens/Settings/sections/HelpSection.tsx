@@ -55,7 +55,7 @@ export function HelpSection({ onOpenAbout }: Readonly<Props>) {
       );
       return;
     }
-    openExternal(review.url).catch((error) => {
+    openExternal(review.url).catch((error: unknown) => {
       console.warn("[Settings] store review link failed:", error);
       toast(dict.SETTINGS_RATE_OPEN_ERROR, "error");
     });
@@ -99,7 +99,7 @@ export function HelpSection({ onOpenAbout }: Readonly<Props>) {
           icon="privacy-tip"
           label={dict.SETTINGS_PRIVACY_POLICY}
           onPress={() => {
-            openInAppBrowser(API.PRIVACY_URL).catch((error) =>
+            openInAppBrowser(API.PRIVACY_URL).catch((error: unknown) =>
               console.warn("[Settings] privacy policy link failed:", error),
             );
           }}

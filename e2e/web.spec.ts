@@ -10,7 +10,7 @@ async function scopeRows(page: Page): Promise<number> {
     let rows = 0;
     for (let y = 0; y < canvas.height; y++) {
       for (let x = 0; x < canvas.width; x++) {
-        if (data[(y * canvas.width + x) * 4 + 3]! > 0) {
+        if (data[(y * canvas.width + x) * 4 + 3] > 0) {
           rows++;
           break;
         }

@@ -46,7 +46,7 @@ export function normalize(input: string, romanize: Romanizer = kanaRomanizer): s
 }
 
 /** Letters and digits only: `shin jidai` and `shinjidai` compare equal. */
-export function compact(normalized: string): string {
+function compact(normalized: string): string {
   return normalized.replace(/\s+/g, "");
 }
 

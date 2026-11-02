@@ -195,7 +195,7 @@ describe("RequestBottomSheet", () => {
 
     expect(chip.getAttribute("data-variant")).toBe("error");
     expect(props.onRequestSuccess).not.toHaveBeenCalled();
-    expect((screen.getByLabelText("Message") as HTMLInputElement).value).toBe(
+    expect(screen.getByLabelText<HTMLInputElement>("Message").value).toBe(
       "hi!",
     );
     expect(screen.getByLabelText("Try again")).toBeTruthy();

@@ -28,6 +28,7 @@ function visibleTotal(
       return { text: "—", spoken: dict.SETTINGS_STATS_EMPTY };
     case "failed":
       return { text: dict.SETTINGS_VALUE_FAILED };
+    case "loading":
     default:
       return { text: dict.SETTINGS_VALUE_LOADING };
   }
@@ -65,7 +66,7 @@ export function ListenStatsSection({ onPress }: Readonly<Props>) {
               : { status: "empty" },
           );
         })
-        .catch((error) => {
+        .catch((error: unknown) => {
           console.warn("[ListenStats] settings row read failed:", error);
           if (alive) setTotal({ status: "failed" });
         });

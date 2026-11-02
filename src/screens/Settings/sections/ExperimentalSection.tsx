@@ -47,6 +47,7 @@ function copyOf(dictionary: JapaneseDictionarySnapshot, dict: Dict): DictionaryC
             : dict.SETTINGS_JP_DICTIONARY_FAILED,
         action: dict.SETTINGS_JP_DICTIONARY_RETRY,
       };
+    case "none":
     default:
       return { status: dictionarySize(dict), action: dict.SETTINGS_JP_DICTIONARY_DOWNLOAD };
   }

@@ -6,7 +6,7 @@ import {
   useDrawerStatus,
 } from "@react-navigation/drawer";
 import { CommonActions, DrawerActions } from "@react-navigation/native";
-import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { StyleSheet, Text, TouchableOpacity, View, type ViewStyle } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Avatar } from "@/components/Avatar";
 import { Logo } from "@/components/Logo";
@@ -96,7 +96,10 @@ function NavItems({
     <View>
       {state.routes.map((route) => {
         const { options } = descriptors[route.key];
-        const itemStyle = StyleSheet.flatten(options.drawerItemStyle);
+        // `flatten` returns undefined for an unset style, despite its type.
+        const itemStyle = StyleSheet.flatten(options.drawerItemStyle) as
+          | ViewStyle
+          | undefined;
         if (itemStyle?.display === "none") return null;
 
         const focused = state.routes[state.index]?.key === route.key;

@@ -28,7 +28,7 @@ describe("WebStore", () => {
     const entries = await store.list();
     expect(entries.map((entry) => entry.name).sort()).toEqual(["a b/ç.json", "b"]);
     expect(entries.every((entry) => entry.savedAt > 0)).toBe(true);
-    expect(entries.map((entry) => entry.bytes).sort()).toEqual([2, 3]);
+    expect(entries.map((entry) => entry.bytes).sort((a, b) => a - b)).toEqual([2, 3]);
   });
 
   it("removes one entry or the whole namespace, leaving others alone", async () => {

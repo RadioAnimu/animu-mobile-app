@@ -179,7 +179,7 @@ describe("Login screen", () => {
     mocks.auth.loginWithEmailCode.mockResolvedValue(undefined);
     mocks.navigation.canGoBack.mockReturnValue(true);
     mocks.hardwareBack = null;
-    vi.mocked(BackHandler.addEventListener).mockImplementation(
+    vi.mocked(BackHandler).addEventListener.mockImplementation(
       (_event, handler) => {
         mocks.hardwareBack = handler as () => boolean;
         return { remove: vi.fn() };

@@ -8,7 +8,9 @@ let estimate: DiskCapacity | null = null;
 /** Asks the browser again; storage work calls it so the next read is current. */
 export async function refreshDiskCapacity(): Promise<void> {
   try {
-    const { quota, usage } = (await navigator.storage?.estimate?.()) ?? {};
+    // Missing outside secure contexts and in older browsers.
+    const storage = navigator.storage as Partial<StorageManager> | undefined;
+    const { quota, usage } = (await storage?.estimate?.()) ?? {};
     if (typeof quota !== "number" || typeof usage !== "number") return;
     const totalBytes = Math.max(0, quota);
     const usedBytes = Math.min(Math.max(0, usage), totalBytes);

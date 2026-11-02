@@ -140,7 +140,7 @@ export function usePronunciation(lyrics: Lyrics | null): Pronunciation {
       .then((labels) => {
         if (!cancelled) setRead({ lyrics, mode, reader, labels });
       })
-      .catch((error) => console.warn("[Lyrics] pronunciation:", error));
+      .catch((error: unknown) => console.warn("[Lyrics] pronunciation:", error));
     return () => {
       cancelled = true;
     };

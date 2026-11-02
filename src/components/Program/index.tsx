@@ -58,7 +58,7 @@ export const Program = React.memo(function Program({ handleClick }: Props) {
         maxFontSizeMultiplier={THEME.FONT_SCALE.CHROME}
         style={[styles.title, styles.green]}
       >
-        {program?.name}
+        {program.name}
       </Text>
       <Text
         maxFontSizeMultiplier={THEME.FONT_SCALE.CHROME}
@@ -75,7 +75,7 @@ export const Program = React.memo(function Program({ handleClick }: Props) {
           maxFontSizeMultiplier={THEME.FONT_SCALE.CHROME}
           style={styles.green}
         >
-          {program?.dj}
+          {program.dj}
         </Text>
       </Text>
     </TouchableOpacity>

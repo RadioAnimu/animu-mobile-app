@@ -33,8 +33,7 @@ vi.mock("expo-application", () => ({
   getIosApplicationReleaseTypeAsync: mocks.getIosApplicationReleaseTypeAsync,
 }));
 
-const storeReview = async () =>
-  (await import("@/hooks/useStoreReview")) as typeof import("@/hooks/useStoreReview");
+const storeReview = () => import("@/hooks/useStoreReview");
 
 const RESPONSE = (payload: unknown, ok = true) =>
   ({ ok, json: async () => payload }) as Response;

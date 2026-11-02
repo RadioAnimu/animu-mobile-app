@@ -43,8 +43,7 @@ vi.mock("@/constants/auth", () => ({
   isProviderConfigured: (name: string) => name !== "soon",
 }));
 
-const provider = (name: string, label: string): ProviderInfo =>
-  ({ name, label }) as ProviderInfo;
+const provider = (name: string, label: string): ProviderInfo => ({ name, label });
 
 const PROVIDERS = [
   provider("google", "Google"),

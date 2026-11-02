@@ -29,6 +29,7 @@ export async function resolveReleaseChannel(): Promise<ReleaseChannel> {
           return "simulator";
         case Application.ApplicationReleaseType.ENTERPRISE:
           return "enterprise";
+        case Application.ApplicationReleaseType.UNKNOWN:
         default:
           return "unknown";
       }

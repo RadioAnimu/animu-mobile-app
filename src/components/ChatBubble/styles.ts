@@ -2,7 +2,7 @@ import { StyleSheet } from "react-native";
 import { THEME } from "@/theme";
 import { scale } from "@/theme/responsive";
 
-export const TAIL = scale(9);
+const TAIL = scale(9);
 const TAIL_OFFSET = scale(14);
 
 export const styles = StyleSheet.create({

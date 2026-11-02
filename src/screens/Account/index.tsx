@@ -214,7 +214,7 @@ export function Account({ navigation }: Readonly<Props>) {
           linkedProviders={linkedProviders}
           canUnlink={canUnlink}
           busy={busy}
-          onLink={link}
+          onLink={(provider) => void link(provider)}
           onUnlink={confirmUnlink}
         />
 

@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, type MockInstance, vi } from "vitest";
 
 import ErrorBoundary from "@/components/ErrorBoundary";
 import { PlayerProvider } from "@/contexts/player/PlayerProvider";
@@ -60,7 +60,7 @@ function fakeService(setupPlayer: () => Promise<void>) {
 }
 
 describe("PlayerProvider initialization failure", () => {
-  let errorSpy: ReturnType<typeof vi.spyOn>;
+  let errorSpy: MockInstance<typeof console.error>;
 
   beforeEach(() => {
     services.length = 0;
