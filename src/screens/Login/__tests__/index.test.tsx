@@ -483,7 +483,10 @@ describe("Login screen", () => {
       expect(announce).not.toHaveBeenCalled();
 
       await sendCodeFromEmailStep("me@example.com");
-      expect(announce).toHaveBeenCalledTimes(1);
+      // The code step renders after the async send, and the announcement is
+      // its passive effect: on a slow runner the step can be in the DOM before
+      // the effect has run, so wait for the announcement itself.
+      await waitFor(() => expect(announce).toHaveBeenCalledTimes(1));
       expect(announce).toHaveBeenLastCalledWith(
         "Step 2 of 2. Enter the 4-digit code.",
       );
@@ -505,6 +508,9 @@ describe("Login screen", () => {
       // Verifying resets the form as the screen closes: not a step to read out.
       fireEvent.click(screen.getByRole("button", { name: "Send code" }));
       await waitFor(() => screen.getByRole("textbox", { name: "Code" }));
+      // Let this step's own announcement land before clearing, so it can't
+      // arrive late and be mistaken for one on verify.
+      await waitFor(() => expect(announce).toHaveBeenCalledTimes(3));
       announce.mockClear();
       fireEvent.change(screen.getByRole("textbox", { name: "Code" }), {
         target: { value: "1234" },
@@ -519,7 +525,8 @@ describe("Login screen", () => {
       openConnect();
       timing.mockClear();
       await sendCodeFromEmailStep("me@example.com");
-      expect(timing).toHaveBeenCalledTimes(1);
+      // The fade starts in an effect of the step's render; wait for it.
+      await waitFor(() => expect(timing).toHaveBeenCalledTimes(1));
       expect(timing.mock.calls[0][1]).toMatchObject({
         toValue: 1,
         duration: 110,
