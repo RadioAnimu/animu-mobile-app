@@ -33,7 +33,7 @@ import { styles } from "@/screens/Storage/styles";
 type Props = NativeStackScreenProps<RootStackParamList, "Storage">;
 type IconName = NonNullable<ComponentProps<typeof Select>["icon"]>;
 
-/** Fixed-byte tiers, uncapped first (the default). */
+/** Fixed-byte tiers, uncapped first. */
 const LIMIT_TIERS = [0, 50 * MB, 100 * MB, 250 * MB, 500 * MB, 1024 * MB];
 
 /** Per-partition tiers for the Advanced editor. */

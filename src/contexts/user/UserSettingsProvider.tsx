@@ -71,15 +71,18 @@ export const UserSettingsProvider: React.FC<{ children: React.ReactNode }> = ({
       const initialSettings = await userSettingsService.initialize();
       applySettings(initialSettings);
       // The limit is otherwise only enforced from Settings: hold it on every
-      // launch too, once the app is idle.
-      const { cacheEnabled, coverCacheLimitBytes, coverCachePartitionBytes } = initialSettings;
-      if (cacheEnabled && coverCacheLimitBytes > 0) {
-        cancelTrim = whenIdle(() => {
-          coverDiskStorage.trim(coverCacheLimitBytes, coverCachePartitionBytes).catch((error: unknown) => {
-            console.warn("[UserSettings] launch cache trim failed:", error);
-          });
+      // launch too, once the app is idle. Queued like an update, it trims to
+      // the settings in effect by then (a limit raised meanwhile wins).
+      cancelTrim = whenIdle(() => {
+        const trim = (updateChainRef.current ?? Promise.resolve()).then(async () => {
+          const { cacheEnabled, coverCacheLimitBytes, coverCachePartitionBytes } = settingsRef.current;
+          if (!cacheEnabled || coverCacheLimitBytes <= 0) return;
+          await coverDiskStorage.trim(coverCacheLimitBytes, coverCachePartitionBytes);
         });
-      }
+        updateChainRef.current = trim.catch((error: unknown) => {
+          console.warn("[UserSettings] launch cache trim failed:", error);
+        });
+      });
     })();
     updateChainRef.current = run.catch((error: unknown) => {
       console.error("Settings initialization failed:", error);
