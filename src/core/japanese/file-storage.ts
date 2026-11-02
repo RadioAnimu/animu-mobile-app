@@ -41,7 +41,9 @@ export class DictionaryFileStorage implements DictionaryStorage {
     const target = this.file(name);
     if (target.exists) target.delete();
     const task = File.createDownloadTask(url, target, {
-      onProgress: ({ bytesWritten }: { bytesWritten: number }) => onBytes(bytesWritten),
+      // Native 64-bit counts arrive as a BigInt (the type says number): adding
+      // one to a number throws, so convert at the edge.
+      onProgress: ({ bytesWritten }: { bytesWritten: number | bigint }) => onBytes(Number(bytesWritten)),
       signal,
     });
     try {
