@@ -21,6 +21,7 @@
     "eas-build-pre-install": "node scripts/fetch-fonts.mjs",
     "splash": "node scripts/generate-splash.mjs",
     "test": "vitest run",
+    "test:web": "pnpm build:web && playwright test",
     "test:coverage": "vitest run --coverage",
     "doctor": "react-doctor",
     "doctor:gate": "node scripts/react-doctor-gate.mjs",
@@ -83,6 +84,7 @@
   "devDependencies": {
     "@babel/core": "^7.29.7",
     "@napi-rs/canvas": "^1.0.11",
+    "@playwright/test": "^1.64.1",
     "@testing-library/dom": "^10.4.2",
     "@testing-library/react": "^16.3.3",
     "@types/react": "~19.2.18",

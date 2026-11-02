@@ -52,6 +52,7 @@ pnpm run ios        # build & run on iOS
 | `pnpm run start` | Expo dev client |
 | `pnpm run android` / `pnpm run ios` | Native build & run |
 | `pnpm test` | Vitest (player core, services, domain, hooks, plugins) |
+| `pnpm run test:web` | Build the web export and run the Playwright tests in `e2e/` (Chromium and WebKit, against the live station; `npx playwright install chromium webkit` once) |
 | `pnpm run lint` | `expo lint` (flat ESLint config) |
 | `pnpm run build:api` | Build the `animu-api` submodule |
 | `pnpm run fonts` | Fetch the Proxima Nova fonts (`scripts/fetch-fonts.mjs`) |

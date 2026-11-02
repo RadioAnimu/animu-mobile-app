@@ -1,6 +1,11 @@
 # Dependencies
 node_modules/
 
+# Playwright (`pnpm test:web`)
+test-results/
+playwright-report/
+playwright-junit.xml
+
 # Expo
 .expo/
 dist/
