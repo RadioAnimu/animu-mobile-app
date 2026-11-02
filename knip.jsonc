@@ -1,0 +1,25 @@
+{
+  "$schema": "https://unpkg.com/knip@6/schema.json",
+  "workspaces": {
+    ".": {
+      "entry": ["plugins/*.js", "scripts/*.{mjs,sh}"],
+      "project": ["**/*.{js,mjs,cjs,ts,tsx,mts}"],
+      // Both libraries are submodules with their own checks (check:animu-api,
+      // check:player); the app only consumes their builds.
+      "ignore": ["packages/**"],
+      "ignoreDependencies": [
+        // Knip's Expo plugin assumes OTA updates unless `updates.enabled` is
+        // false; the app ships no expo-updates.
+        "expo-updates",
+        // Required straight from @expo/config-plugins' and
+        // @react-navigation/native's own copies: a separately listed version
+        // would be a second, mismatched instance.
+        "xcode",
+        "@react-navigation/core"
+      ],
+      // install:apk drives the developer's Android SDK.
+      "ignoreBinaries": ["adb"]
+    }
+  },
+  "ignoreWorkspaces": ["packages/animu-api"]
+}

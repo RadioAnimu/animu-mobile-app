@@ -80,7 +80,7 @@ git clone --recurse-submodules https://github.com/RadioAnimu/animu-mobile-app.gi
 pnpm install
 pnpm run android   # or: pnpm run ios
 pnpm test          # vitest
-pnpm run lint      # expo lint
+pnpm run lint      # ESLint, oxlint type-aware (tsgolint), knip + sherif
 ```
 
 Requires Node 20+, pnpm (`corepack enable`) and a device/emulator with network
