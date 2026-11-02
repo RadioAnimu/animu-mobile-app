@@ -9,6 +9,7 @@ listed below.
 ```bash
 pnpm web          # dev server: http://localhost:8081
 pnpm build:web    # static export → dist/web (deploy the folder as is)
+pnpm test:web     # the export in Chromium and WebKit (Playwright, e2e/)
 ```
 
 The export is a single-page app (`web.output: "single"` in `app.json`) with
@@ -31,16 +32,13 @@ Checked from `https://animu.moe` on 2026-11-01:
 | Endpoint | Used for | Status |
 | --- | --- | --- |
 | `api.animu.moe` (incl. `/tungtungtung/`) | live metadata | ✅ |
-| `stream.animu.moe/{320,192,64}` | audio + ICY metadata | ✅ (allows `Icy-MetaData`) |
+| `stream.animu.moe/{320,192,64}` | audio + ICY metadata | ✅ (allows `Icy-MetaData`, not `User-Agent`: the web build sends none) |
 | `www.animu.moe/teste/locutor.php` | program | ✅ `*` |
 | `www.animu.moe/teste/requestSearchTest.php`, `…/sistemaPedidos/pedirquatro.php` | request search / submit | ✅ `*` |
-| `www.animu.moe/teste/exchange-token.php` | login token exchange | ✅ `*` |
 | `lrclib.net`, `cdn.jsdelivr.net`, `unpkg.com` | lyrics, Japanese dictionary | ✅ `*` |
 | `www.animu.moe/teste/ultimasmusicas_json.php` | Últimas Tocadas | ❌ allows only `https://animu.com.br` |
 | `www.animu.moe/teste/ultimospedidos_json.php` | Últimas Pedidas | ❌ allows only `https://animu.com.br` |
-| `www.animu.moe/teste/chatIsThisReal.php` | session check | ❌ no CORS |
-| `www.animu.moe/teste/byeChat.php` | logout | ❌ no CORS |
-| `www.animu.moe/teste/login_system_project/…` | sign-in, profile, avatar | ❌ no CORS |
+| `www.animu.moe/teste/login_system_project/api/v5/…` | sign-in, profile, avatar | ⚠️ `*` CORS, but writes from another origin get `403 forbidden_origin` (see [Sign-in](#sign-in)) |
 | `stream.animu.moe/?json=1` | stream list | ❌ no CORS (the app falls back to its built-in list) |
 
 For each ❌ endpoint the server needs, for the web app's origin:
@@ -63,18 +61,27 @@ and LRCLIB gets its client name in `Lrclib-Client` instead of `User-Agent`.
 
 ## Sign-in
 
-Not available on the web yet. Every provider runs a server-side flow
-(`/mobile/<provider>-start.php`) that ends by redirecting the session token to
-`animuapp://redirect`, which a browser can't receive. Web sign-in needs:
+Not available on the web yet. What blocks it (checked 2026-11-01):
 
-1. the `*-start.php` scripts to accept a return URL on the web app's origin
-   (allow-listed, e.g. `https://animu.moe/redirect`) and redirect the token
-   there instead of the app scheme;
-2. CORS on the login system (table above);
-3. a decision on where the browser keeps the session: the native app keeps
-   the token in the Keychain / Keystore and never in plain storage, which a
-   browser has no equivalent of. An `HttpOnly` cookie set by the server is
-   the safe option; until then nothing is persisted.
+- **Server, providers.** `/mobile/<provider>-start.php` ends by redirecting
+  `animuapp://redirect?token=<session id>`, a URL a browser can't receive.
+  There is no return-URL parameter.
+- **Server, writes.** The v5 API already sends `Access-Control-Allow-Origin: *`,
+  but its CSRF guard answers `403 forbidden_origin` to any POST from another
+  origin without `X-Session-Id`: email-code sign-in from `animu.moe` fails.
+  From `www.animu.moe` itself it passes.
+- **App, session.** The token is kept with `expo-secure-store`, which has no
+  web implementation: saving it throws, so even a successful sign-in fails.
+- **App, images.** The avatar and banner are fetched with `X-Session-Id`,
+  which an `<img>` can't send.
+
+The plan for the server: `*-start.php` accepts an allow-listed `return_to` and
+a PKCE `code_challenge`; the callback redirects to
+`<return_to>#code=<one-time code>` (never the token in a URL); a new
+`api/v5/auth/web-exchange.php` swaps the code and verifier for the session,
+once; the CSRF guard and CORS allow the web origins by name. The native
+`animuapp://redirect` flow stays as it is. The app then needs a web session
+store, the `#code=` callback, and blob-URL avatars.
 
 ## Platform differences
 
@@ -83,7 +90,8 @@ Not available on the web yet. Every provider runs a server-side flow
 | Files (`expo-file-system`): lyrics cache, Japanese dictionary | Cache Storage (`src/utils/web-store.ts`); the dictionary download is verified with a JS MD5 |
 | Cover cache with size limits (Storage screen) | the browser's HTTP cache — the Storage screen reads 0 MB |
 | Lock-screen artwork downloaded to a file | the browser's media session loads covers by URL |
-| Oscilloscope in a WebView | the same page in a sandboxed `srcdoc` iframe |
+| Oscilloscope in a WebView | the same page in a sandboxed `srcdoc` iframe; in Safari (where Web Audio reads a playing element as silence) the player decodes the stream's own bytes for it |
+| Lyrics backdrop: the cover blurred by the image view | the cover blurred once into a small canvas (a CSS `blur()` redrawn every frame ran at ~8 fps in Safari) |
 | Share card: share sheet, save to photos | Web Share API with the PNG where the browser can share files, else a download |
 | Phones lock to portrait off the player | no lock (a browser tab can't lock its orientation) |
 | Fonts embedded by the `expo-font` config plugin | loaded at startup (`src/theme/fonts.web.ts`) |
