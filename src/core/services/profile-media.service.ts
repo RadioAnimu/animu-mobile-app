@@ -108,7 +108,7 @@ async function runSync(
     if (target.exists) {
       safeDelete(pending);
     } else {
-      pending.move(target);
+      await pending.move(target);
     }
     for (const stale of filesFor(kind, userId)) {
       if (stale.uri !== target.uri) safeDelete(stale);
