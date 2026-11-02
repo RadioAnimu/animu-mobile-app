@@ -1,6 +1,5 @@
 import { useEffect, useMemo } from "react";
 import { StyleSheet, View, useWindowDimensions, type ViewStyle } from "react-native";
-import { Image } from "expo-image";
 import Animated, {
   cancelAnimation,
   Easing,
@@ -10,6 +9,7 @@ import Animated, {
   withRepeat,
   withTiming,
 } from "react-native-reanimated";
+import { BlurredCover } from "@/screens/Lyrics/BlurredCover";
 
 /** One full turn of the color field (ms): slow enough to read as drift. */
 const TURN_MS = 48_000;
@@ -102,22 +102,10 @@ export function LyricsBackground({
       {cover ? (
         <>
           <Animated.View style={[StyleSheet.absoluteFill, back]}>
-            <Image
-              source={cover}
-              style={StyleSheet.absoluteFill}
-              blurRadius={BACK_BLUR + extraBlur}
-              contentFit="cover"
-              transition={transition}
-            />
+            <BlurredCover cover={cover} blurRadius={BACK_BLUR + extraBlur} transition={transition} />
           </Animated.View>
           <Animated.View style={[StyleSheet.absoluteFill, { opacity: 0.7 }, front]}>
-            <Image
-              source={cover}
-              style={StyleSheet.absoluteFill}
-              blurRadius={FRONT_BLUR + extraBlur}
-              contentFit="cover"
-              transition={transition}
-            />
+            <BlurredCover cover={cover} blurRadius={FRONT_BLUR + extraBlur} transition={transition} />
           </Animated.View>
         </>
       ) : null}
