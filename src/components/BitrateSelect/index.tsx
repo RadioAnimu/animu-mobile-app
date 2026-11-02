@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Modal, Pressable, ScrollView, StyleSheet, Text, TouchableOpacity, useWindowDimensions, View } from "react-native";
+import { Modal, Pressable, ScrollView, StyleSheet, Text, TouchableOpacity, useWindowDimensions, View, type ViewInstance } from "react-native";
 import { Icon } from "@/components/Icon";
 import { styles } from "@/components/BitrateSelect/styles";
 import { usePlayer } from "@/contexts/player/PlayerProvider";
@@ -46,7 +46,7 @@ export function BitrateSelect() {
   const { changeStream, currentStream, streamOptions } = usePlayer();
   const dict = useDict();
   const window = useWindowDimensions();
-  const pill = useRef<View>(null);
+  const pill = useRef<ViewInstance>(null);
   const [anchor, setAnchor] = useState<Anchor | null>(null);
   const streams = streamOptions ?? [];
   // The playing stream names the pill even if the list no longer holds it.

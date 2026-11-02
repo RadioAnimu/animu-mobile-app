@@ -1,5 +1,10 @@
 import { Easing } from "react-native";
 
+// RN declares Easing's curves as methods, but none reads `this`: they are
+// plain functions, safe to hand to an animation. Taken off the object once.
+// oxlint-disable-next-line typescript/unbound-method -- see above
+const { cubic, ease, linear } = Easing;
+
 /**
  * The app's motion system. Every transition picks one of these durations so
  * the whole UI moves at one tempo; the smallest step that still reads as
@@ -24,9 +29,13 @@ export const MOTION = {
   },
   /** Elements arriving decelerate into place; leaving ones accelerate out. */
   EASING: {
-    ENTER: Easing.out(Easing.cubic),
-    EXIT: Easing.in(Easing.cubic),
-    STANDARD: Easing.inOut(Easing.cubic),
+    ENTER: Easing.out(cubic),
+    EXIT: Easing.in(cubic),
+    STANDARD: Easing.inOut(cubic),
+    /** Constant speed: a bar or scroll tracking real time. */
+    LINEAR: linear,
+    /** The gentle in-and-out of a pulse or blink. */
+    PULSE: Easing.inOut(ease),
   },
   /** Small entrance offset (pt) for content that rises into place. */
   RISE: 12,

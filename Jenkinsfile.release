@@ -77,7 +77,7 @@ pipeline {
     GRADLE_OPTS = '-Dorg.gradle.parallel=true -Dorg.gradle.caching=true'
     ANDROID_HOME = '/home/rmotafreitas/Android/Sdk'
     ANDROID_SDK_ROOT = '/home/rmotafreitas/Android/Sdk'
-    // Match the EAS SDK 57 Android toolchain (JDK 17, not the host's JDK 21).
+    // Match the EAS SDK 58 Android toolchain (JDK 17, not the host's JDK 21).
     JAVA_HOME = '/home/rmotafreitas/.sdkman/candidates/java/17.0.20-tem'
     // Jenkins user for the CI-status lookup (token supplied per-stage).
     JENKINS_USER = 'rmotafreitas'

@@ -1,6 +1,6 @@
 import { Icon } from "@/components/Icon";
 import { useState } from "react";
-import { TextInput, TouchableOpacity, View } from "react-native";
+import { TextInput, TouchableOpacity, View, type TextInputInstance } from "react-native";
 
 import type { Dict } from "@/i18n";
 import { THEME } from "@/theme";
@@ -21,7 +21,7 @@ export function SearchBar({
   onClear,
   onFocusChange,
 }: Readonly<{
-  inputRef: React.RefObject<TextInput | null>;
+  inputRef: React.RefObject<TextInputInstance | null>;
   dict: Dict;
   query: string;
   onChangeText: (query: string) => void;

@@ -1,5 +1,5 @@
 import { useCallback, useRef } from "react";
-import type { TextInput } from "react-native";
+import type { TextInputInstance } from "react-native";
 
 import { focusWithKeyboard } from "@/utils/keyboard";
 
@@ -9,9 +9,9 @@ import { focusWithKeyboard } from "@/utils/keyboard";
  * event handlers only, never during render.
  */
 export function useInputRegistry<K extends string>() {
-  const inputs = useRef<Partial<Record<K, TextInput | null>>>({});
+  const inputs = useRef<Partial<Record<K, TextInputInstance | null>>>({});
 
-  const register = useCallback((key: K, node: TextInput | null) => {
+  const register = useCallback((key: K, node: TextInputInstance | null) => {
     inputs.current[key] = node;
   }, []);
 

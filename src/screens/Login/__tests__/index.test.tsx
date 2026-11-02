@@ -476,7 +476,7 @@ describe("Login screen", () => {
     });
 
     it("announces each real step change once, never on resend or a verify success", async () => {
-      const announce = vi.mocked(AccessibilityInfo.announceForAccessibility);
+      const announce = vi.spyOn(AccessibilityInfo, "announceForAccessibility");
       announce.mockClear();
       render(<Login navigation={NAV} route={undefined as never} />);
       openConnect();

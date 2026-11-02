@@ -1,6 +1,6 @@
 import { TouchableOpacity, View } from "react-native";
 import { GestureDetector } from "react-native-gesture-handler";
-import { closeGesture } from "@/screens/Lyrics/closeGesture";
+import { useCloseGesture } from "@/screens/Lyrics/closeGesture";
 import { styles } from "@/screens/Lyrics/styles";
 import { useDict } from "@/hooks/useDict";
 import { THEME } from "@/theme";
@@ -16,9 +16,10 @@ interface Props {
  */
 export function LyricsCloseHandle({ onClose }: Readonly<Props>) {
   const dict = useDict();
+  const closeGesture = useCloseGesture(onClose);
 
   return (
-    <GestureDetector gesture={closeGesture(onClose)}>
+    <GestureDetector gesture={closeGesture}>
       <View style={styles.closeHandle}>
         <TouchableOpacity
           accessibilityRole="button"

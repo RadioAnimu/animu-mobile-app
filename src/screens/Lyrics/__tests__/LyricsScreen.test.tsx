@@ -22,14 +22,13 @@ vi.mock("react-native-reanimated", async () => {
     useSharedValue: () => ({ get: () => 0, set: () => {} }),
   };
 });
-vi.mock("react-native-gesture-handler", () => {
-  const pan = { activeOffsetY: () => pan, onEnd: () => pan };
-  return {
-    GestureHandlerRootView: ({ children }: { children: ReactNode }) => <>{children}</>,
-    Gesture: { Pan: () => pan },
-    GestureDetector: ({ children }: { children: ReactNode }) => <>{children}</>,
-  };
-});
+vi.mock("react-native-gesture-handler", () => ({
+  GestureHandlerRootView: ({ children }: { children: ReactNode }) => <>{children}</>,
+  usePanGesture: () => ({}),
+  useTapGesture: () => ({}),
+  useCompetingGestures: () => ({}),
+  GestureDetector: ({ children }: { children: ReactNode }) => <>{children}</>,
+}));
 vi.mock("react-native-safe-area-context", () => ({
   useSafeAreaInsets: () => mocks.insets.current,
 }));

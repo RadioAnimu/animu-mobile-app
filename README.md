@@ -3,8 +3,8 @@
 > The official mobile client for [Rádio Animu](https://www.animu.moe) — Brazil's most moe radio.
 
 [![Version](https://img.shields.io/badge/version-3.0.0-8A2BE2)](https://github.com/RadioAnimu/animu-mobile-app/releases)
-[![React Native](https://img.shields.io/badge/React_Native-0.86-blue)](https://reactnative.dev)
-[![Expo SDK](https://img.shields.io/badge/Expo_SDK-57-000000)](https://expo.dev)
+[![React Native](https://img.shields.io/badge/React_Native-0.88-blue)](https://reactnative.dev)
+[![Expo SDK](https://img.shields.io/badge/Expo_SDK-58-000000)](https://expo.dev)
 [![TypeScript](https://img.shields.io/badge/TypeScript-6.0-3178C6)](https://www.typescriptlang.org)
 [![Platform](https://img.shields.io/badge/platform-Android%20%7C%20iOS-3DDC84)](https://play.google.com/store/apps/details?id=com.nessjs.animu)
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
@@ -67,7 +67,7 @@ Read the full, screen-by-screen breakdown in **[Features](docs/FEATURES.md)**.
 
 ## Tech stack
 
-React Native 0.86 (New Architecture) · React 19 · Expo SDK 57 · TypeScript 6
+React Native 0.88 (New Architecture) · React 19 · Expo SDK 58 · TypeScript 6
 (strict) · React Navigation 7 (drawer + native stack) · `react-native-anything-player`
 (native player) · `expo/fetch` · `react-native-webview` (visualizer)
 · custom `useSyncExternalStore` stores · Vitest.
@@ -83,7 +83,7 @@ pnpm test          # vitest
 pnpm run lint      # ESLint, oxlint type-aware (tsgolint), knip + sherif
 ```
 
-Requires Node 20+, pnpm (`corepack enable`) and a device/emulator with network
+Requires Node 22.13+, pnpm (`corepack enable`) and a device/emulator with network
 access to `animu.moe`. The
 **Proxima Nova** fonts are not committed — see
 [Development](docs/DEVELOPMENT.md#fonts).

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ScrollView, View } from "react-native";
+import { ScrollView, View, type ScrollViewInstance } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 
 // Components
@@ -30,7 +30,7 @@ export const Home = () => {
     useState(false);
 
   // Re-tapping the drawer's active item scrolls this page back to the top.
-  const scrollRef = useRef<ScrollView | null>(null);
+  const scrollRef = useRef<ScrollViewInstance | null>(null);
   useRouteReselect("Home", () =>
     scrollRef.current?.scrollTo({ y: 0, animated: true }),
   );

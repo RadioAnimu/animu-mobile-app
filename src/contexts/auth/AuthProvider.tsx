@@ -147,7 +147,7 @@ async function runAuthBootstrap(
     // marker proves the user started that flow (spoofed links and
     // SDK intents are ignored), and it still falls back to the cached
     // session otherwise.
-    const launchUrl = await Linking.getInitialURL().catch(() => null);
+    const launchUrl = (await Linking.getInitialURL().catch(() => null)) ?? null;
     const resumedUser = await resumeLaunchFlow(launchUrl);
     const activeUser = resumedUser ?? storedUser;
 

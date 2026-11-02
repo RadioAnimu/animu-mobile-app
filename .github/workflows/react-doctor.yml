@@ -47,4 +47,4 @@ jobs:
           scope: full
           # The CLI version the lockfile resolves (checked by test:tooling):
           # without an install step the action would otherwise fetch "latest".
-          version: "0.9.17"
+          version: "0.9.18"

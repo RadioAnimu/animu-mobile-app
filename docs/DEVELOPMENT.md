@@ -5,10 +5,9 @@ project-specific gotchas.
 
 ## Prerequisites
 
-- **Node.js 20+** (CI uses Node 22).
+- **Node.js 22.13+** (Expo SDK 58's minimum; CI uses Node 22).
 - **pnpm** — the project uses pnpm. Enable it via `corepack enable` (the pinned
-  version is in `package.json` → `packageManager`), or install
-  `pnpm@9` directly.
+  version is in `package.json` → `packageManager`).
 - [Expo CLI](https://docs.expo.dev/more/create-expo/) and an Expo account (for EAS).
 - **Android Studio** / **Xcode** toolchains for native builds.
 - A device or emulator. The app targets a live station backend, so most features

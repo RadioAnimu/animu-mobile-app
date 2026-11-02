@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Animated, Easing } from "react-native";
+import { Animated } from "react-native";
 
 import { MOTION } from "@/theme/motion";
 
@@ -25,13 +25,13 @@ export function useBlink(active: boolean) {
         Animated.timing(blink, {
           toValue: BLINK_MIN,
           duration: MOTION.BLINK,
-          easing: Easing.inOut(Easing.ease),
+          easing: MOTION.EASING.PULSE,
           useNativeDriver: true,
         }),
         Animated.timing(blink, {
           toValue: 1,
           duration: MOTION.BLINK,
-          easing: Easing.inOut(Easing.ease),
+          easing: MOTION.EASING.PULSE,
           useNativeDriver: true,
         }),
       ]),

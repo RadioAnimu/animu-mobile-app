@@ -46,7 +46,7 @@ export function PlainLyrics({ lines, labels, notice, footer }: Readonly<Props>) 
       data={rows}
       keyExtractor={(row) => row.key}
       contentContainerStyle={[styles.column, styles.plainContent]}
-      ListHeaderComponent={notice ? <Text style={styles.notice}>{notice}</Text> : null}
+      ListHeaderComponent={notice ? <Text style={styles.notice}>{notice}</Text> : undefined}
       ListFooterComponent={<>{footer}</>}
       renderItem={renderRow}
     />

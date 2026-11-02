@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Animated, Pressable, Text, TextInput, View } from "react-native";
+import { Animated, Pressable, Text, TextInput, View, type TextInputInstance } from "react-native";
 
 import { styles } from "@/components/CodeInput/styles";
 import { useFocusOnMount } from "@/hooks/useFocusOnMount";
@@ -50,7 +50,7 @@ export function CodeInput({
   accessibilityLabel,
 }: Readonly<Props>) {
   const [focused, setFocused] = useState(false);
-  const inputRef = useRef<TextInput | null>(null);
+  const inputRef = useRef<TextInputInstance | null>(null);
   const [caret] = useState(() => new Animated.Value(1));
   const active = !busy;
 

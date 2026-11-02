@@ -1,5 +1,5 @@
 import { useState } from "react";
-import type { TextInput } from "react-native";
+import type { TextInputInstance } from "react-native";
 
 import { FormField } from "@/components/FormField";
 import { RequestSubmitButton } from "@/components/RequestSubmitButton";
@@ -138,7 +138,7 @@ export function LiveRequestModal({ visible, handleClose }: Readonly<Props>) {
     onChangeText: (text: string) => handleChange(field, text),
     error: fieldError(field),
     busy: isSubmitting,
-    inputRef: (node: TextInput | null) => registerInput(field, node),
+    inputRef: (node: TextInputInstance | null) => registerInput(field, node),
     maxLength: field === "request" ? LIVE_MESSAGE_MAX : LIVE_FIELD_MAX,
     ...(next && {
       returnKeyType: "next" as const,

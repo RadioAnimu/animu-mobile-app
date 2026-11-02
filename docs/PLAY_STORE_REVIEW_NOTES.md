@@ -83,7 +83,7 @@ content. Re-rate only if the questionnaire answers change.
 
 | Item | Status |
 | --- | --- |
-| Target API level | `compileSdk`/`targetSdk` **36** ✅ |
+| Target API level | `targetSdk` **36** (`compileSdk` 37) ✅ |
 | Foreground service type | `FOREGROUND_SERVICE_MEDIA_PLAYBACK` + `foregroundServiceType="mediaPlayback"` (from `react-native-anything-player`) ✅ |
 | Permission forms | Normal network/playback permissions; legacy write permission only on API ≤28; assess the media-playback FGS declaration in Play Console ✅ |
 | `RECORD_AUDIO` | Blocked ✅ |

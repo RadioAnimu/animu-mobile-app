@@ -145,7 +145,7 @@ const fetchComplete = (url: string, name: string) =>
   landComplete(name, async (part) => {
     const response = await fetch(url);
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    part.write(new Uint8Array(await response.arrayBuffer()));
+    await part.write(new Uint8Array(await response.arrayBuffer()));
   });
 
 /** Rejects after `ms` — releases the caller without aborting the work. */

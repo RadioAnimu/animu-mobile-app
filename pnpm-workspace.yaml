@@ -18,25 +18,19 @@ minimumReleaseAge: 4320
 # ...which is what this exclusion is for: the Expo/RN packages we track
 # deliberately (and bump together with the SDK) skip the 3-day wait.
 minimumReleaseAgeExclude:
-  # Exact internal versions from the reviewed SDK 57 patch releases
-  # (October 6, 12, 14 and 15).
-  - "@expo/config-plugins@57.0.10"
-  - "@expo/config@57.0.10"
-  - "@expo/metro-config@57.0.13"
-  - "@expo/image-utils@0.11.6"
-  - "@expo/metro-file-map@57.0.4"
-  - "@expo/require-utils@57.0.6"
-  - "@expo/router-server@57.0.13"
-  - "@expo/cli@57.0.31"
-  - "@expo/prebuild-config@57.0.19"
-  - "@expo/fingerprint@0.20.14"
-  - "@expo/inline-modules@0.1.8"
-  - "@expo/local-build-cache-provider@57.0.9"
-  - babel-preset-expo@57.0.16
-  # Reviewed security fix for GHSA-68fv-2mgg-jv7q, published October 5.
-  - source-map-js@1.2.2
-  # Patched GHSA-pqg4-j6r4-53mv; registry signature and upstream release reviewed.
-  - shell-quote@1.11.0
+  # Expo SDK 58's internal packages (expo 58.0.22, October 31) published
+  # inside the 3-day window: exact versions from the reviewed SDK release.
+  - "@expo/prebuild-config@58.0.18"
+  - "@expo/router-server@58.0.20"
+  - "@expo/metro-config@58.0.20"
+  - "@expo/config@58.0.10"
+  - "babel-preset-expo@58.0.23"
+  - "@expo/cli@58.1.18"
+  - "@expo/schema-utils@58.0.3"
+  - "@expo/fingerprint@0.21.8"
+  - "@expo/log-box@58.0.14"
+  - "@expo/local-build-cache-provider@58.0.10"
+  - "@expo/metro-runtime@58.0.16"
   - expo
   - expo-*
   - react
@@ -53,46 +47,8 @@ minimumReleaseAgeExclude:
 # releases carried provenance attestations that the resolved versions don't.
 trustPolicy: no-downgrade
 trustPolicyExclude:
-  # SDK 57 patch releases (October 6, 12, 14, 15 and 21): npm registry
-  # signatures verified, published by the same Expo maintainer, source at
-  # expo/expo commits 50ac74f1ab56, 58da4edafcb0, 0607af7a70d0, 396da4641605
-  # and c5a313cb64de. These versions lack trusted-publisher evidence; keep
-  # exceptions exact (one entry per package: pnpm applies the first match).
-  - expo@57.0.31
-  - expo-asset@57.0.20
-  - expo-auth-session@57.0.16
-  - expo-constants@57.0.22
-  - expo-crypto@57.0.4
-  - expo-dev-client@57.0.20
-  - expo-dev-launcher@57.0.21
-  - expo-dev-menu@57.0.20
-  - expo-linking@57.0.13
-  - expo-modules-autolinking@57.0.16
-  - expo-modules-core@57.0.24
-  - expo-modules-jsi@57.1.3
-  - expo-sharing@57.0.24
-  - expo-splash-screen@57.0.10
-  # Added for the phone rotation policy: the SDK 57 release (October 12), same
-  # Expo maintainer, npm registry signatures present; only the 58.x line
-  # carries trusted-publisher provenance.
-  - expo-screen-orientation@57.0.3
-  # Added for the web target: the SDK 57 release (October 14, the sdk-57 tag),
-  # Expo maintainer, npm registry signatures present; only the 58.x line
-  # carries trusted-publisher provenance.
-  - "@expo/metro-runtime@57.0.17"
-  - babel-preset-expo@57.0.16
-  - "@expo/cli@57.0.32"
-  - "@expo/fingerprint@0.20.14"
-  - "@expo/inline-modules@0.1.8"
-  - "@expo/local-build-cache-provider@57.0.9"
-  - "@expo/prebuild-config@57.0.19"
-  - "@expo/config-plugins@57.0.11"
-  - "@expo/config@57.0.10"
-  - "@expo/metro-config@57.0.13"
-  - "@expo/image-utils@0.11.6"
-  - "@expo/metro-file-map@57.0.4"
-  - "@expo/require-utils@57.0.6"
-  - "@expo/router-server@57.0.14"
+  # Long-lived transitive packages (keep exceptions exact, one entry per
+  # package: pnpm applies the first match).
   - semver@6.3.1
   - semver@7.8.5
   - eslint-import-resolver-typescript@3.10.1

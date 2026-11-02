@@ -12,7 +12,7 @@ vi.mock("react-native", async () =>
 describe("useStepFade", () => {
   beforeEach(() => {
     vi.mocked(Animated.timing).mockClear();
-    vi.mocked(AccessibilityInfo.isReduceMotionEnabled).mockResolvedValue(false);
+    vi.mocked(AccessibilityInfo).isReduceMotionEnabled.mockResolvedValue(false);
   });
 
   it("stays opaque and silent on the first render", () => {
@@ -39,7 +39,7 @@ describe("useStepFade", () => {
   });
 
   it("switches immediately with Reduce Motion on", async () => {
-    vi.mocked(AccessibilityInfo.isReduceMotionEnabled).mockResolvedValue(true);
+    vi.mocked(AccessibilityInfo).isReduceMotionEnabled.mockResolvedValue(true);
     const { result, rerender } = renderHook(({ step }) => useStepFade(step), {
       initialProps: { step: "email" },
     });

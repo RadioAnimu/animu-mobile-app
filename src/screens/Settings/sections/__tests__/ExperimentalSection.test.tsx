@@ -80,7 +80,7 @@ describe("ExperimentalSection", () => {
     mocks.snapshot = { install: "downloading", progress: 0.3, reader: "idle", failure: null };
     render(<ExperimentalSection />);
     fireEvent.click(dictionaryRow());
-    const [title, , buttons] = vi.mocked(Alert.alert).mock.calls.at(-1)!;
+    const [title, , buttons] = vi.mocked(Alert).alert.mock.calls.at(-1)!;
     expect(title).toBe("SETTINGS_JP_DICTIONARY_STOP_TITLE");
     expect(buttons?.find((button) => button.style === "cancel")?.text).toBe("ACCOUNT_CANCEL");
     buttons?.find((button) => button.style === "destructive")?.onPress?.();
@@ -106,7 +106,7 @@ describe("ExperimentalSection", () => {
     expect(dictionaryRow().getAttribute("aria-label")).toContain("SETTINGS_JP_DICTIONARY_INSTALLED");
     fireEvent.click(dictionaryRow());
     expect(mocks.install).not.toHaveBeenCalled();
-    const [, , buttons] = vi.mocked(Alert.alert).mock.calls.at(-1)!;
+    const [, , buttons] = vi.mocked(Alert).alert.mock.calls.at(-1)!;
     expect(buttons?.find((button) => button.style === "cancel")?.text).toBe("ACCOUNT_CANCEL");
     buttons?.find((button) => button.style === "destructive")?.onPress?.();
     expect(mocks.remove).toHaveBeenCalled();

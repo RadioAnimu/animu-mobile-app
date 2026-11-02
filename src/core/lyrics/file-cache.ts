@@ -17,7 +17,7 @@ export class LyricsFileCache implements LyricsCache {
 
   async write(key: string, entry: CachedLookup): Promise<void> {
     if (!this.dir.exists) this.dir.create({ idempotent: true, intermediates: true });
-    new File(this.dir, fileNameOf(key)).write(encodeEntry(key, entry));
+    await new File(this.dir, fileNameOf(key)).write(encodeEntry(key, entry));
     this.trim();
   }
 

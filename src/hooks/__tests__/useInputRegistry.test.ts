@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, renderHook } from "@testing-library/react";
-import type { TextInput } from "react-native";
+import type { TextInputInstance } from "react-native";
 
 import { useInputRegistry } from "@/hooks/useInputRegistry";
 
@@ -14,7 +14,7 @@ afterEach(cleanup);
 /** A fake input plus its `focus` spy (kept apart: `TextInput.focus` is a method). */
 const fakeInput = () => {
   const focus = vi.fn();
-  const input = { focus, isFocused: () => false } as unknown as TextInput;
+  const input = { focus, isFocused: () => false } as unknown as TextInputInstance;
   return { input, focus };
 };
 

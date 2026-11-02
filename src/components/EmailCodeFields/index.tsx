@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Icon } from "@/components/Icon";
-import { Text, TextInput, TouchableOpacity, View } from "react-native";
+import { Text, TextInput, TouchableOpacity, View, type TextInputInstance } from "react-native";
 
 import { CodeInput, CODE_LENGTH } from "@/components/CodeInput";
 import { EmailCodeEmailRow } from "@/components/EmailCodeEmailRow";
@@ -44,7 +44,7 @@ export function EmailCodeFields({
   const dict = useDict();
   const autoSubmitted = useRef(false);
   const [focused, setFocused] = useState(false);
-  const emailRef = useRef<TextInput | null>(null);
+  const emailRef = useRef<TextInputInstance | null>(null);
 
   const onCodeStep = flow.step === "code";
   const { code, busy, verify } = flow;

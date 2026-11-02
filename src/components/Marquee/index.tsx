@@ -9,7 +9,6 @@ import React, {
 } from "react";
 import {
   Animated,
-  Easing,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -22,6 +21,7 @@ import {
 import { useIsBackgrounded } from "@/contexts/app-state/AppStateProvider";
 import { scale } from "@/theme/responsive";
 import { THEME } from "@/theme";
+import { MOTION } from "@/theme/motion";
 
 type MarqueeProps = {
   text: string;
@@ -75,7 +75,7 @@ function useCycleClock(cycle: number | null, running: boolean) {
       current = Animated.timing(clock, {
         toValue: cycle,
         duration: cycle,
-        easing: Easing.linear,
+        easing: MOTION.EASING.LINEAR,
         useNativeDriver: true,
       });
       current.start(({ finished }) => {

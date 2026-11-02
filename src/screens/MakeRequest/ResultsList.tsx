@@ -75,10 +75,10 @@ export function ResultsList({
           <Text style={styles.resultsCount} accessibilityRole="header">
             {countLabel}
           </Text>
-        ) : null
+        ) : undefined
       }
       ListEmptyComponent={
-        showEmpty ? <Text style={styles.emptyText}>{emptyLabel}</Text> : null
+        showEmpty ? <Text style={styles.emptyText}>{emptyLabel}</Text> : undefined
       }
       refreshControl={
         <AppRefreshControl refreshing={refreshing} onRefresh={onRefresh} />
@@ -89,7 +89,7 @@ export function ResultsList({
             color={THEME.COLORS.SPINNER}
             style={styles.loadMoreSpinner}
           />
-        ) : null
+        ) : undefined
       }
       // Endless scroll: fetch the next page as the user nears the end. The
       // handler is re-entrancy-guarded and a no-op when there is no next page.

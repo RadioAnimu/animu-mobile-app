@@ -3,7 +3,7 @@ import { GestureDetector } from "react-native-gesture-handler";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Cover } from "@/components/Cover";
 import { useDict } from "@/hooks/useDict";
-import { closeGesture } from "@/screens/Lyrics/closeGesture";
+import { useCloseGesture } from "@/screens/Lyrics/closeGesture";
 import { styles } from "@/screens/Lyrics/styles";
 import { THEME } from "@/theme";
 import { useResponsiveLayout } from "@/hooks/useResponsiveLayout";
@@ -29,9 +29,10 @@ export function LyricsHeader({ cover, title, subtitle, short = false, onClose }:
   // In an iPadOS window the system's window controls sit over the leading
   // corner, right where the cover thumbnail (a close target) would be.
   const { windowControlsInset } = useResponsiveLayout();
+  const closeGesture = useCloseGesture(onClose);
 
   return (
-    <GestureDetector gesture={closeGesture(onClose)}>
+    <GestureDetector gesture={closeGesture}>
       <View style={{ paddingTop: insets.top + THEME.SPACE.XS }}>
         <TouchableOpacity
           accessibilityRole="button"

@@ -7,13 +7,10 @@ import { THEME } from "@/theme";
 import type { ResponsiveLayout } from "@/theme/layout";
 
 vi.mock("react-native", async () => (await import("@/__tests__/react-native-mock")).createReactNativeMock());
-vi.mock("react-native-gesture-handler", () => {
-  const pan = { activeOffsetY: () => pan, onEnd: () => pan };
-  return {
-    Gesture: { Pan: () => pan },
-    GestureDetector: ({ children }: { children: ReactNode }) => <>{children}</>,
-  };
-});
+vi.mock("react-native-gesture-handler", () => ({
+  usePanGesture: () => ({}),
+  GestureDetector: ({ children }: { children: ReactNode }) => <>{children}</>,
+}));
 vi.mock("react-native-safe-area-context", () => ({
   useSafeAreaInsets: () => ({ top: 0, right: 0, bottom: 0, left: 0 }),
 }));

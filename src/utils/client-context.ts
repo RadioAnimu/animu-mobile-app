@@ -49,9 +49,7 @@ const os = resolveOsName(platform);
 const osVersion = String(Device.osVersion ?? Platform.Version);
 
 /** Friendly model ("iPhone 17 Pro Max", "moto g7"), with sane fallbacks. */
-// expo-device types `modelId` as `any`; it is a string on iOS, null elsewhere.
-const model =
-  Device.modelName ?? (Device.modelId as string | null) ?? Device.brand ?? undefined;
+const model = Device.modelName ?? Device.modelId ?? Device.brand ?? undefined;
 
 const deviceType = resolveDeviceType(platform);
 

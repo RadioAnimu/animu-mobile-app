@@ -29,7 +29,7 @@ vi.mock("@/contexts/alert/AlertProvider", () => ({
 const confirmReset = async () => {
   render(<ResetSection />);
   fireEvent.click(screen.getByRole("button", { name: /SETTINGS_RESET_ROW/ }));
-  const [, , buttons] = vi.mocked(Alert.alert).mock.calls.at(-1)!;
+  const [, , buttons] = vi.mocked(Alert).alert.mock.calls.at(-1)!;
   buttons?.find((button) => button.style === "destructive")?.onPress?.();
   await vi.waitFor(() => expect(mocks.resetSettings).toHaveBeenCalled());
 };

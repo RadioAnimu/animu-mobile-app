@@ -7,6 +7,9 @@ import { EmailCodeEmailRow } from "@/components/EmailCodeEmailRow";
 vi.mock("react-native", async () =>
   (await import("@/__tests__/react-native-mock")).createReactNativeMock(),
 );
+vi.mock("@react-native-vector-icons/material-icons/static", async () =>
+  (await import("@/__tests__/react-native-mock")).createIconMock(),
+);
 vi.mock("@/hooks/useDict", () => ({
   useDict: () => ({
     EMAIL_CODE_CHANGE: "Change",

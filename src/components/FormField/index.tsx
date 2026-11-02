@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   View,
   type TextInputProps,
+  type TextInputInstance,
 } from "react-native";
 
 import { useDict } from "@/hooks/useDict";
@@ -40,7 +41,7 @@ interface Props
    * would blur it and dismiss the keyboard).
    */
   busy?: boolean;
-  inputRef?: Ref<TextInput>;
+  inputRef?: Ref<TextInputInstance>;
 }
 
 /** The counter only appears once the limit is within reach. */

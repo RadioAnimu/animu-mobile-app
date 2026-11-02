@@ -1,5 +1,5 @@
 import { KeyboardController } from "react-native-keyboard-controller";
-import type { TextInput } from "react-native";
+import type { TextInputInstance } from "react-native";
 import { describe, expect, it, vi } from "vitest";
 
 import { dismissKeyboard, focusWithKeyboard } from "@/utils/keyboard";
@@ -12,7 +12,7 @@ vi.mock("react-native-keyboard-controller", () => ({
 }));
 
 const field = (focused: boolean) =>
-  ({ isFocused: () => focused, focus: vi.fn() }) as unknown as TextInput & {
+  ({ isFocused: () => focused, focus: vi.fn() }) as unknown as TextInputInstance & {
     focus: ReturnType<typeof vi.fn>;
   };
 

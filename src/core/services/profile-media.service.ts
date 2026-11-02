@@ -101,7 +101,7 @@ async function runSync(
       headers:
         authed && sessionToken ? { "X-Session-Id": sessionToken } : undefined,
     });
-    const { md5 } = pending.info({ md5: true });
+    const md5 = await pending.digest("MD5");
     if (!md5) throw new Error("no hash for downloaded media");
 
     const target = new File(mediaDir(), `${prefix(kind, userId)}${md5}`);

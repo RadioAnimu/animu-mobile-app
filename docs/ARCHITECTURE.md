@@ -384,8 +384,8 @@ keeps using relative requires.
 
 | Concern | Choice |
 | --- | --- |
-| Runtime | React Native 0.86.3 · React 19.2.3 (New Architecture) |
-| Build tooling | Expo SDK 57 · EAS Build · Expo dev client |
+| Runtime | React Native 0.88.1 · React 19.3.0 (New Architecture) |
+| Build tooling | Expo SDK 58 · EAS Build · Expo dev client |
 | Language | TypeScript 6.0 (strict) |
 | Navigation | React Navigation 7 — a **native stack** (`@react-navigation/native-stack`) whose root is the **drawer** (`@react-navigation/drawer`: Player, history, Make Request); Settings, Stats, Storage, Login, Account and About push on the stack (platform push/pop, iOS swipe-back, Android predictive back; cross-fade with Reduce Motion) |
 | Audio | `react-native-anything-player` (native engine, recovery, focus/interruptions, media session, ICY at audible time, decoded-audio sampling) — vendored tarball in `vendor/` |

@@ -53,8 +53,8 @@ vi.mock("expo-file-system", () => {
     delete() {
       fs.files.delete(this.uri);
     }
-    info() {
-      return { md5: fs.files.get(this.uri) };
+    async digest(_algorithm: "MD5") {
+      return fs.files.get(this.uri) as string;
     }
     move(target: File) {
       fs.files.set(target.uri, fs.files.get(this.uri) as string);

@@ -26,7 +26,9 @@ export class DictionaryFileStorage implements DictionaryStorage {
 
   async statDownload(name: DictionaryFileName) {
     const file = this.file(name);
-    return file.exists ? { bytes: file.size, md5: file.md5 } : null;
+    if (!file.exists) return null;
+    // An unreadable file has no hash (a mismatch), as with the old `md5` getter.
+    return { bytes: file.size, md5: await file.digest("MD5").catch(() => null) };
   }
 
   async download(
@@ -68,7 +70,7 @@ export class DictionaryFileStorage implements DictionaryStorage {
     this.ensureDir();
     const file = this.file(storedName(name));
     if (file.exists) file.delete();
-    file.write(bytes);
+    await file.write(bytes);
   }
 
   async readStored(name: DictionaryFileName): Promise<Uint8Array> {
@@ -82,7 +84,7 @@ export class DictionaryFileStorage implements DictionaryStorage {
 
   async writeVersion(version: string): Promise<void> {
     this.ensureDir();
-    this.file(VERSION_FILE).write(version);
+    await this.file(VERSION_FILE).write(version);
   }
 
   async removeAll(): Promise<void> {

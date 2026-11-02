@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { FlatList, Text, View, type LayoutChangeEvent, type ListRenderItem } from "react-native";
-import { Gesture, GestureDetector } from "react-native-gesture-handler";
+import { GestureDetector, useCompetingGestures, usePanGesture, useTapGesture } from "react-native-gesture-handler";
 import Animated, {
   cancelAnimation,
   useAnimatedReaction,
@@ -195,36 +195,37 @@ export function SyncedLyrics({ entries, labels, position, known, reduceMotion, f
 
   useEffect(() => () => resume.cancel(), [resume]);
 
-  const gesture = useMemo(() => {
-    const bounds = () => {
-      "worklet";
-      const anchorY = anchor.get();
-      return { min: -anchorY, max: Math.max(-anchorY, contentHeight.get() - anchorY) };
-    };
-    const pan = Gesture.Pan()
-      .activeOffsetY([-10, 10])
-      .onStart(() => {
-        if (!browsing.get()) manual.set(follow.get().y);
-        cancelAnimation(manual);
-        dragStart.set(manual.get());
-        browsing.set(true);
-        scheduleOnRN(holdResume);
-        scheduleOnRN(setBrowsingNow, true);
-      })
-      .onUpdate((event) => {
-        const { min, max } = bounds();
-        manual.set(Math.min(max, Math.max(min, dragStart.get() - event.translationY)));
-      })
-      .onEnd((event) => {
-        const { min, max } = bounds();
-        manual.set(withDecay({ velocity: -event.velocityY, clamp: [min, max] }));
-        scheduleOnRN(scheduleResume);
-      });
-    const tap = Gesture.Tap().onEnd(() => {
+  const bounds = () => {
+    "worklet";
+    const anchorY = anchor.get();
+    return { min: -anchorY, max: Math.max(-anchorY, contentHeight.get() - anchorY) };
+  };
+  const pan = usePanGesture({
+    activeOffsetY: [-10, 10],
+    onActivate: () => {
+      if (!browsing.get()) manual.set(follow.get().y);
+      cancelAnimation(manual);
+      dragStart.set(manual.get());
+      browsing.set(true);
+      scheduleOnRN(holdResume);
+      scheduleOnRN(setBrowsingNow, true);
+    },
+    onUpdate: (event) => {
+      const { min, max } = bounds();
+      manual.set(Math.min(max, Math.max(min, dragStart.get() - event.translationY)));
+    },
+    onDeactivate: (event) => {
+      const { min, max } = bounds();
+      manual.set(withDecay({ velocity: -event.velocityY, clamp: [min, max] }));
+      scheduleOnRN(scheduleResume);
+    },
+  });
+  const tap = useTapGesture({
+    onDeactivate: () => {
       if (browsing.get()) scheduleOnRN(resumeFollow);
-    });
-    return Gesture.Race(pan, tap);
-  }, [anchor, browsing, contentHeight, dragStart, follow, holdResume, manual, resumeFollow, scheduleResume]);
+    },
+  });
+  const gesture = useCompetingGestures(pan, tap);
 
   // VoiceOver / TalkBack: a plain list the reader can walk, current line marked.
   if (screenReader) {

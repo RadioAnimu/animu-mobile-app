@@ -1,7 +1,7 @@
 import type { DrawerNavigationProp } from "@react-navigation/drawer";
 import { useNavigation } from "@react-navigation/native";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { FlatList, Text, TextInput, View } from "react-native";
+import { FlatList, Text, View, type TextInputInstance } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 // Components
@@ -66,7 +66,7 @@ export function MakeRequest() {
 
   /** Scroll position of the results list — reset when a fresh search lands. */
   const listRef = useRef<FlatList<MusicRequest> | null>(null);
-  const inputRef = useRef<TextInput | null>(null);
+  const inputRef = useRef<TextInputInstance | null>(null);
 
   // The lists run under the home indicator / nav bar and pad past it; the
   // keyboard-aware lists add the keyboard's room themselves.

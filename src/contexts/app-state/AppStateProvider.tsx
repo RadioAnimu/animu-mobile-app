@@ -20,13 +20,21 @@ import { AppState, type AppStateStatus } from "react-native";
  * events (Control Center, notification shade) where the UI is still visible.
  */
 const AppBackgroundContext = createContext(false);
+
+const KNOWN_STATUSES: ReadonlySet<string> = new Set<AppStateStatus>(["active", "background", "inactive", "extension"]);
+
+/** RN types the launch state as any string, or none yet. */
+function isKnownStatus(state: string | null | undefined): state is AppStateStatus {
+  return state != null && KNOWN_STATUSES.has(state);
+}
 const AppStatusContext = createContext<AppStateStatus>("active");
 
 export const AppStateProvider: React.FC<{ children: ReactNode }> = ({
   children,
 }) => {
+  // Before RN reports a state (or while it is "unknown"), the app is in front.
   const [state, setState] = useState<AppStateStatus>(() =>
-    AppState.currentState === "unknown" ? "active" : AppState.currentState,
+    isKnownStatus(AppState.currentState) ? AppState.currentState : "active",
   );
 
   useEffect(() => {

@@ -52,8 +52,12 @@ vi.mock("expo-file-system", () => {
     delete(): void {
       files.delete(this.name);
     }
-    write(data: Uint8Array): void {
-      files.set(this.name, data.length);
+    /** Async since SDK 58: the bytes land after the call returns. */
+    async write(data: Uint8Array): Promise<void> {
+      const name = this.name; // the path the write was started on
+      // Native I/O outlasts the caller's own awaits: land several ticks later.
+      for (let tick = 0; tick < 10; tick++) await Promise.resolve();
+      files.set(name, data.length);
     }
     rename(newName: string): void {
       if (files.has(newName)) throw new Error("FileAlreadyExists");
@@ -190,6 +194,11 @@ describe("ArtworkResolver", () => {
 
       expect(local).toMatch(COVER_FILE);
       expect(resolver.peek("https://images.test/cover.png")).toBe(local);
+      // The part file is renamed only once its bytes are written: no empty
+      // cover, no stray part file.
+      expect([...fileSystemState.files.entries()]).toEqual([
+        [expect.stringMatching(/^animu-cover-[0-9a-f]+\.jpg$/), 128],
+      ]);
     });
 
     it("downloads directly to a deterministic cache file (no expo-asset machinery)", async () => {

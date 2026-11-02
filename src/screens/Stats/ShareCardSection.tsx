@@ -10,6 +10,7 @@ import {
   Text,
   TouchableOpacity,
   View,
+  type ViewInstance,
 } from "react-native";
 
 import { PrimaryButton } from "@/components/PrimaryButton";
@@ -61,7 +62,7 @@ export function ShareCardSection({
   const { settings } = useUserSettings();
   const { media } = useAuth();
   const { toast } = useAlert();
-  const cardRef = useRef<View | null>(null);
+  const cardRef = useRef<ViewInstance | null>(null);
   const cardSize = useRef<{ width: number; height: number } | null>(null);
   // Mirrors `cardSize` for rendering: the frosted buttons crop the banner
   // at the card's own size.

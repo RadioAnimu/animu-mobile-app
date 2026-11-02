@@ -156,7 +156,7 @@ const renderAccount = () => render(<Account navigation={NAV} route={{} as never}
 
 /** The confirm dialog's [title, message, buttons] from the last Alert.alert. */
 const lastAlert = () =>
-  vi.mocked(Alert.alert).mock.calls.at(-1) as unknown as [
+  vi.mocked(Alert).alert.mock.calls.at(-1) as unknown as [
     string,
     string,
     { text: string; onPress?: () => void }[],

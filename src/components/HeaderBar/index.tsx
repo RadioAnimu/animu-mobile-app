@@ -2,7 +2,7 @@ import { useNavigation } from "@react-navigation/native";
 import type { DrawerNavigationProp } from "@react-navigation/drawer";
 import { type ReactNode, useEffect, useState } from "react";
 import { Image } from "expo-image";
-import { Animated, Easing, TouchableOpacity, View } from "react-native";
+import { Animated, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import menuIcon from "@/assets/icons/menu.webp";
 import noteIcon from "@/assets/icons/note.webp";
@@ -16,6 +16,7 @@ import {
   playButtonMargin,
   styles,
 } from "@/components/HeaderBar/styles";
+import { MOTION } from "@/theme/motion";
 import { contentWidth } from "@/theme/responsive";
 import { BitrateSelect } from "@/components/BitrateSelect";
 import { LyricsButton } from "@/components/LyricsButton";
@@ -85,13 +86,13 @@ function useLiveBadgePulse(shown: boolean, backgrounded: boolean) {
         Animated.timing(animation, {
           toValue: PULSE_OPACITY,
           duration: PULSE_DURATION,
-          easing: Easing.linear,
+          easing: MOTION.EASING.LINEAR,
           useNativeDriver: true,
         }),
         Animated.timing(animation, {
           toValue: 0,
           duration: PULSE_DURATION,
-          easing: Easing.linear,
+          easing: MOTION.EASING.LINEAR,
           useNativeDriver: true,
         }),
       ]),
@@ -301,7 +302,7 @@ function HeaderProgress() {
     const run = Animated.timing(progressAnim, {
       toValue: 1,
       duration: duration - elapsed,
-      easing: Easing.linear,
+      easing: MOTION.EASING.LINEAR,
       useNativeDriver: true,
     });
     run.start();

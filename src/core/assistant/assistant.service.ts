@@ -59,7 +59,7 @@ export function subscribeAssistantActions(
   void RNLinking.getInitialURL()
     .then((url) => {
       if (cancelled) return;
-      const action = parseAssistantUrl(url);
+      const action = parseAssistantUrl(url ?? null);
       if (action) handler(action);
     })
     .catch((error: unknown) => {
