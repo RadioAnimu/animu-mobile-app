@@ -79,6 +79,26 @@ describe("UserSettingsProvider", () => {
     expect(mocks.setVisualizerEnabled).toHaveBeenCalledWith(true);
   });
 
+  it("trims the cover cache to its limit once at launch", async () => {
+    renderHook(() => useUserSettings(), { wrapper });
+    await waitFor(() =>
+      expect(mocks.trim).toHaveBeenCalledWith(DEFAULT_USER_SETTINGS.coverCacheLimitBytes, null),
+    );
+    expect(mocks.trim).toHaveBeenCalledTimes(1);
+  });
+
+  it("skips the launch trim when the cache is uncapped or off", async () => {
+    mocks.initialize.mockResolvedValueOnce({ ...DEFAULT_USER_SETTINGS, coverCacheLimitBytes: 0 });
+    const { result, unmount } = renderHook(() => useUserSettings(), { wrapper });
+    await waitFor(() => expect(result.current.settings.coverCacheLimitBytes).toBe(0));
+    unmount();
+    mocks.initialize.mockResolvedValueOnce({ ...DEFAULT_USER_SETTINGS, cacheEnabled: false });
+    const second = renderHook(() => useUserSettings(), { wrapper });
+    await waitFor(() => expect(second.result.current.settings.cacheEnabled).toBe(false));
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    expect(mocks.trim).not.toHaveBeenCalled();
+  });
+
   it("merges a partial update, persists it, and applies it", async () => {
     const { result } = renderHook(() => useUserSettings(), { wrapper });
     await waitFor(() => expect(result.current.settings.hapticsEnabled).toBe(false));

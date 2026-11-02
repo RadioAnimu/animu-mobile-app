@@ -12,6 +12,7 @@ import { userSettingsService } from "@/core/services/user-settings.service";
 import { coverDiskStorage } from "@/core/services/cover-disk-storage.service";
 import { playerService } from "@/core/player";
 import { DEFAULT_USER_SETTINGS } from "@/constants/settings";
+import { whenIdle } from "@/utils/idle";
 
 type UserSettingsContextType = {
   settings: UserSettings;
@@ -65,13 +66,25 @@ export const UserSettingsProvider: React.FC<{ children: React.ReactNode }> = ({
   // + change, then the load's late `applySettings` would clobber the UI while
   // disk kept the change (or vice versa).
   useEffect(() => {
+    let cancelTrim: (() => void) | null = null;
     const run = (async () => {
       const initialSettings = await userSettingsService.initialize();
       applySettings(initialSettings);
+      // The limit is otherwise only enforced from Settings: hold it on every
+      // launch too, once the app is idle.
+      const { cacheEnabled, coverCacheLimitBytes, coverCachePartitionBytes } = initialSettings;
+      if (cacheEnabled && coverCacheLimitBytes > 0) {
+        cancelTrim = whenIdle(() => {
+          coverDiskStorage.trim(coverCacheLimitBytes, coverCachePartitionBytes).catch((error: unknown) => {
+            console.warn("[UserSettings] launch cache trim failed:", error);
+          });
+        });
+      }
     })();
     updateChainRef.current = run.catch((error: unknown) => {
       console.error("Settings initialization failed:", error);
     });
+    return () => cancelTrim?.();
   }, []);
 
   const updateSettings = useCallback(async (newSettings: Partial<UserSettings>) => {

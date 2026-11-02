@@ -1,4 +1,5 @@
 import { UserSettings } from "@/@types/user-settings";
+import { MB } from "@/utils/format";
 
 export const DEFAULT_USER_SETTINGS: UserSettings = {
   // `medium` (~60KB) instead of `high`: `_large` covers can hit multi-MB,
@@ -10,9 +11,12 @@ export const DEFAULT_USER_SETTINGS: UserSettings = {
   coversInRequestSearch: true,
   selectedLanguage: "PT",
   cacheEnabled: true,
-  coverCacheLimitBytes: 0,
+  // Capped by default: uncapped, the image cache kept every cover heard
+  // (Android stops only at Glide's 250 MB, iOS at a week's age).
+  coverCacheLimitBytes: 100 * MB,
   coverCachePartitionBytes: null,
   visualizerHz: 60,
   hapticsEnabled: true,
   lyricsPronunciation: "romaji",
+  settingsVersion: 2,
 };
