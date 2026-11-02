@@ -19,6 +19,7 @@ const TABLET_MIN_SHORT_SIDE = 600;
  */
 export function isPhone(): boolean {
   if (Platform.OS === "ios" && Platform.isPad) return false;
+  // react-doctor-disable-next-line rn-no-dimensions-get -- the physical screen, read fresh each time the policy settles.
   const { width, height } = Dimensions.get("screen");
   return Math.min(width, height) < TABLET_MIN_SHORT_SIDE;
 }

@@ -24,6 +24,7 @@ export function Routes() {
   // A foldable crossing the phone / tablet line, or a return to the app,
   // re-checks it for the screen as it is now.
   useEffect(() => {
+    // react-doctor-disable-next-line rn-no-dimensions-get -- addEventListener is current API (it returns the subscription); only removeEventListener was removed.
     const resized = Dimensions.addEventListener("change", refreshOrientationPolicy);
     const resumed = AppState.addEventListener("change", (state) => {
       if (state === "active") refreshOrientationPolicy();

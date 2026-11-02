@@ -60,58 +60,14 @@ const PULSE_DURATION = 1750;
 const PULSE_TRAVEL = 50;
 const PULSE_BOB = PULSE_TRAVEL * 2 * PULSE_OPACITY;
 
-export function HeaderBar({ openLiveRequestModal, rowWidth, backdrop, bar = false }: Readonly<Props>) {
-  const navigation =
-    useNavigation<DrawerNavigationProp<DrawerParamList>>();
-  const insets = useSafeAreaInsets();
-  const dict = useDict();
-  const player = usePlayer();
-  const isBackgrounded = useIsBackgrounded();
-  const reduceMotion = useReducedMotion();
-  const { currentProgram } = player;
-  const progress = useTrackProgress();
-  const { progressMs, progressAt, progressRunning, showProgress } = progress;
-  const duration = progress.durationMs;
-  // The bar spawns AT the live ratio (cold start, screen switch, thaw after
-  // a background freeze) — no first frame at 0 that then snaps forward.
-  const [progressAnim] = useState(() =>
-    new Animated.Value(
-      progressRatio(elapsedAt(progress, duration, Date.now()), duration),
-    ),
-  );
-  /** Still locking the audible clock — the bar is a guess until then. */
-  const syncing = player.syncing;
-
+/**
+ * The live-request badge's bob: an endless loop while the badge is shown and
+ * the app visible, parked at rest otherwise (and under Reduce Motion).
+ */
+function useLiveBadgePulse(shown: boolean, backgrounded: boolean) {
   const [animation] = useState(() => new Animated.Value(0));
-
-  // Pulse the bar while the audible clock is still being measured, so a
-  // wrong/empty position reads as "working on it" instead of broken. Stops
-  // (and resets to full opacity) the moment sync lands or the app hides.
-  const syncBlink = useBlink(syncing && showProgress && !isBackgrounded);
-
-  // The position is a real-time anchor, so the bar runs optimistically: placed
-  // at the live ratio, then ONE linear native animation to the song's end.
-  // Nothing re-drives it per second — only a re-anchor (new song, sync locked,
-  // pause / resume) restarts it, from exactly where the audio is.
-  useEffect(() => {
-    const anchor = { progressMs, progressAt, progressRunning };
-    const elapsed = elapsedAt(anchor, duration, Date.now());
-    const ratio = progressRatio(elapsed, duration);
-    progressAnim.setValue(ratio);
-    if (elapsed == null || !progressRunning || isBackgrounded || ratio >= 1) {
-      return undefined;
-    }
-    const run = Animated.timing(progressAnim, {
-      toValue: 1,
-      duration: duration - elapsed,
-      easing: Easing.linear,
-      useNativeDriver: true,
-    });
-    run.start();
-    return () => run.stop();
-  }, [progressAnim, progressMs, progressAt, progressRunning, duration, isBackgrounded]);
-
-  const showLiveBadge = Boolean(currentProgram?.isLive && openLiveRequestModal);
+  const reduceMotion = useReducedMotion();
+  const active = shown && !backgrounded && !reduceMotion;
 
   useEffect(() => {
     // Only animate while the badge is actually rendered and visible.
@@ -119,7 +75,7 @@ export function HeaderBar({ openLiveRequestModal, rowWidth, backdrop, bar = fals
     // whole lifetime, keeping the UI thread busy even when nothing was on
     // screen (and while backgrounded).
     // Purely decorative and endless, so Reduce Motion parks it at rest.
-    if (!showLiveBadge || isBackgrounded || reduceMotion) {
+    if (!active) {
       animation.setValue(0);
       return undefined;
     }
@@ -146,12 +102,25 @@ export function HeaderBar({ openLiveRequestModal, rowWidth, backdrop, bar = fals
       loop.stop();
       animation.setValue(0);
     };
-  }, [showLiveBadge, isBackgrounded, reduceMotion, animation]);
+  }, [active, animation]);
 
-  const translateY = animation.interpolate({
+  return animation.interpolate({
     inputRange: [0, PULSE_OPACITY],
     outputRange: [PULSE_TRAVEL, PULSE_TRAVEL - PULSE_BOB],
   });
+}
+
+export function HeaderBar({ openLiveRequestModal, rowWidth, backdrop, bar = false }: Readonly<Props>) {
+  const navigation =
+    useNavigation<DrawerNavigationProp<DrawerParamList>>();
+  const insets = useSafeAreaInsets();
+  const dict = useDict();
+  const player = usePlayer();
+  const isBackgrounded = useIsBackgrounded();
+  const { currentProgram } = player;
+  const showLiveBadge = Boolean(currentProgram?.isLive && openLiveRequestModal);
+
+  const translateY = useLiveBadgePulse(showLiveBadge, isBackgrounded);
 
   const { settings } = useUserSettings();
 
@@ -291,27 +260,75 @@ export function HeaderBar({ openLiveRequestModal, rowWidth, backdrop, bar = fals
           </View>
         )}
       </View>
-      {/* The slot is always there: live shows and jingles have no bar, and
-          dropping its height used to nudge the whole player up and down. */}
-      <View
-        style={styles.progressSlot}
-        aria-hidden
-      >
-        {showProgress && (
-          <Animated.View
-            style={[
-              styles.progressBarView,
-              syncing && styles.progressBarSyncing,
-              {
-                opacity: syncing ? syncBlink : 1,
-                // Unknown position while syncing → show the full muted bar
-                // pulsing rather than a stale/0 progress.
-                transform: [{ scaleX: syncing ? 1 : progressAnim }],
-              },
-            ]}
-          />
-        )}
-      </View>
+      <HeaderProgress />
+    </View>
+  );
+}
+
+/** The track's progress line under the row, pulsing while the clock syncs. */
+function HeaderProgress() {
+  const isBackgrounded = useIsBackgrounded();
+  const progress = useTrackProgress();
+  const { progressMs, progressAt, progressRunning, showProgress } = progress;
+  const duration = progress.durationMs;
+  // The bar spawns AT the live ratio (cold start, screen switch, thaw after
+  // a background freeze) — no first frame at 0 that then snaps forward.
+  const [progressAnim] = useState(() =>
+    new Animated.Value(
+      progressRatio(elapsedAt(progress, duration, Date.now()), duration),
+    ),
+  );
+  /** Still locking the audible clock — the bar is a guess until then. */
+  const syncing = usePlayer().syncing;
+
+  // Pulse the bar while the audible clock is still being measured, so a
+  // wrong/empty position reads as "working on it" instead of broken. Stops
+  // (and resets to full opacity) the moment sync lands or the app hides.
+  const syncBlink = useBlink(syncing && showProgress && !isBackgrounded);
+
+  // The position is a real-time anchor, so the bar runs optimistically: placed
+  // at the live ratio, then ONE linear native animation to the song's end.
+  // Nothing re-drives it per second — only a re-anchor (new song, sync locked,
+  // pause / resume) restarts it, from exactly where the audio is.
+  useEffect(() => {
+    const anchor = { progressMs, progressAt, progressRunning };
+    const elapsed = elapsedAt(anchor, duration, Date.now());
+    const ratio = progressRatio(elapsed, duration);
+    progressAnim.setValue(ratio);
+    if (elapsed == null || !progressRunning || isBackgrounded || ratio >= 1) {
+      return undefined;
+    }
+    const run = Animated.timing(progressAnim, {
+      toValue: 1,
+      duration: duration - elapsed,
+      easing: Easing.linear,
+      useNativeDriver: true,
+    });
+    run.start();
+    return () => run.stop();
+  }, [progressAnim, progressMs, progressAt, progressRunning, duration, isBackgrounded]);
+
+  // The slot is always there: live shows and jingles have no bar, and
+  // dropping its height used to nudge the whole player up and down.
+  return (
+    <View
+      style={styles.progressSlot}
+      aria-hidden
+    >
+      {showProgress && (
+        <Animated.View
+          style={[
+            styles.progressBarView,
+            syncing && styles.progressBarSyncing,
+            {
+              opacity: syncing ? syncBlink : 1,
+              // Unknown position while syncing → show the full muted bar
+              // pulsing rather than a stale/0 progress.
+              transform: [{ scaleX: syncing ? 1 : progressAnim }],
+            },
+          ]}
+        />
+      )}
     </View>
   );
 }

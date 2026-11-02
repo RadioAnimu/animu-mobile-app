@@ -14,7 +14,7 @@ import { SYNC_SLACK_MS, companionIndexAt, entryIndexAt, entryKey } from "@/core/
 import type { LyricEntry } from "@/core/lyrics/types";
 import { labelText, type LineLabel } from "@/core/lyrics/pronunciation";
 import { useScreenReader } from "@/hooks/useScreenReader";
-import { lyricGeometry } from "@/screens/Lyrics/geometry";
+import { lyricGeometry, type LyricGeometry } from "@/screens/Lyrics/geometry";
 import {
   LyricRow,
   UNKNOWN_INDEX,
@@ -85,7 +85,8 @@ export function SyncedLyrics({ entries, labels, position, known, reduceMotion, f
   // so a rotation re-anchors without re-rendering every row.
   const anchor = useSharedValue(LYRIC.ANCHOR);
   const edgeFade = useSharedValue(LYRIC.EDGE_FADE);
-  const geometry = useRef(lyricGeometry(0, LYRIC.ANCHOR, LYRIC.EDGE_FADE));
+  // Before the first layout: the tuned constants (`lyricGeometry` of no height).
+  const geometry = useRef<LyricGeometry>({ anchor: LYRIC.ANCHOR, fade: LYRIC.EDGE_FADE });
   const tops = useSharedValue<number[]>([]);
   const contentHeight = useSharedValue(0);
   const knownShared = useSharedValue(known);

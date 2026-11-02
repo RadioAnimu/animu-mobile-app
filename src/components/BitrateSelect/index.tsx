@@ -110,6 +110,7 @@ export function BitrateSelect() {
             style={[styles.list, listFrame(anchor, window)]}
           >
             <ScrollView bounces={false}>
+              {/* react-doctor-disable-next-line rn-no-scrollview-mapped-list -- the station's few bitrates, not a list to virtualize. */}
               {streams.map((stream, index) => {
                 const selected = stream.url === current?.url;
                 return (

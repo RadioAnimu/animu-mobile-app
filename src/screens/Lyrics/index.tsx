@@ -31,6 +31,27 @@ type Props = NativeStackScreenProps<RootStackParamList, "Lyrics">;
 /** How far the lyrics blur back while the pronunciation menu is out. */
 const MENU_BLUR = 6;
 
+/** The heard song for this screen: its lyrics, their clock and the heading. */
+function useHeardLyrics(visible: boolean) {
+  const dict = useDict();
+  const player = usePlayer();
+  const { status, lyrics, retry } = useLyrics();
+  const track = player.currentTrack;
+  const cover = useResolvedArtwork(track?.artwork || undefined, track?.artworks) ?? player.defaultArtwork;
+  const synced = lyrics?.kind === "synced";
+  const clock = useHeardPosition(track?.raw, visible && synced);
+  const syncing = synced && !clock.known && player.isPlaying;
+  return {
+    status,
+    lyrics,
+    retry,
+    cover,
+    clock,
+    title: track?.title ?? "",
+    subtitle: syncing ? `${dict.SYNCHRONIZING}…` : (track?.artist ?? ""),
+  };
+}
+
 /**
  * Full-screen lyrics of the song being heard, Apple Music style: the cover's
  * colors drifting behind, the active line lit and followed, words filling as
@@ -44,22 +65,14 @@ const MENU_BLUR = 6;
  * follow state.
  */
 export function Lyrics({ navigation }: Readonly<Props>) {
-  const dict = useDict();
   const insets = useSafeAreaInsets();
   const layout = useResponsiveLayout();
-  const player = usePlayer();
   const reduceMotion = useReducedMotion();
   const isBackgrounded = useIsBackgrounded();
   const isFocused = useIsFocused();
-  const { status, lyrics, retry } = useLyrics();
-  const pronunciation = usePronunciation(lyrics);
-
-  const track = player.currentTrack;
-  const cover = useResolvedArtwork(track?.artwork || undefined, track?.artworks) ?? player.defaultArtwork;
   const visible = isFocused && !isBackgrounded;
-  const synced = lyrics?.kind === "synced";
-  const clock = useHeardPosition(track?.raw, visible && synced);
-  const syncing = synced && !clock.known && player.isPlaying;
+  const { status, lyrics, retry, cover, clock, title, subtitle } = useHeardLyrics(visible);
+  const pronunciation = usePronunciation(lyrics);
   const turn = useBackgroundTurn(visible && !reduceMotion);
   const menu = useSharedValue(0);
   // Always a blur (0 at rest): an emptied filter list leaves the last blur on iOS.
@@ -68,8 +81,6 @@ export function Lyrics({ navigation }: Readonly<Props>) {
   }));
 
   const onClose = useCallback(() => navigation.goBack(), [navigation]);
-  const title = track?.title ?? "";
-  const subtitle = syncing ? `${dict.SYNCHRONIZING}…` : (track?.artist ?? "");
 
   // A wide landscape window (see `split`) puts the artwork beside the lyrics.
   const twoPane = layout.split;

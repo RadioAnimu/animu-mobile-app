@@ -11,6 +11,7 @@ import { resolveLayout, type ResponsiveLayout } from "@/theme/layout";
  */
 function isIPadWindowed(width: number, height: number): boolean {
   if (Platform.OS !== "ios" || !Platform.isPad) return false;
+  // react-doctor-disable-next-line rn-no-dimensions-get -- the screen, not the window (no hook has it); re-read on every window change.
   const screen = Dimensions.get("screen");
   const short = Math.min(width, height) < Math.min(screen.width, screen.height) - 1;
   const long = Math.max(width, height) < Math.max(screen.width, screen.height) - 1;

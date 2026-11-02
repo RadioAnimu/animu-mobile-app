@@ -7,7 +7,15 @@
 
 /** Synthetic URL an entry is keyed by; never fetched. */
 const keyOf = (name: string) => `https://animu.local/${encodeURIComponent(name)}`;
-const nameOf = (url: string) => decodeURIComponent(url.slice(url.lastIndexOf("/") + 1));
+/** The file name back from its key; a key this store didn't write is kept as is. */
+const nameOf = (url: string) => {
+  const encoded = url.slice(url.lastIndexOf("/") + 1);
+  try {
+    return decodeURIComponent(encoded);
+  } catch {
+    return encoded;
+  }
+};
 
 /** Header carrying the moment an entry was written (Cache Storage has no mtime). */
 const SAVED_AT = "x-animu-saved-at";

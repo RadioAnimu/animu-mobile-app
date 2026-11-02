@@ -7,7 +7,9 @@ export const CARD_SAVE_ACTION = true;
 const FILE_NAME = "animu-card.png";
 
 async function pngFile(uri: string): Promise<File> {
-  const blob = await (await fetch(uri)).blob();
+  const response = await fetch(uri);
+  if (!response.ok) throw new Error(`card image unavailable (${response.status})`);
+  const blob = await response.blob();
   return new File([blob], FILE_NAME, { type: "image/png" });
 }
 
