@@ -26,5 +26,7 @@ describe("LyricsFileCache (web)", () => {
     expect(await cache.read("song-449")).toEqual(entry(449));
     const kept = await Promise.all(Array.from({ length: 450 }, (_, i) => cache.read(`song-${i}`)));
     expect(kept.filter(Boolean)).toHaveLength(400);
-  });
+    // 450 writes in order take ~1.5 s alone, past the 5 s default on a busy
+    // runner alongside the rest of the suite.
+  }, 15_000);
 });
