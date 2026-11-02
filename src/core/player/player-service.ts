@@ -1,4 +1,5 @@
 import type { HistoryType } from "animu-api";
+import { Platform } from "react-native";
 import type { MediaMetadata, PlaybackState, PlayerStatus } from "react-native-anything-player";
 import type { Stream } from "@/core/domain/stream";
 import { isRealTrack, type Track } from "@/core/domain/track";
@@ -69,6 +70,11 @@ export interface PlayerServiceDependencies {
   publishCatalog?: (streams: Stream[], current: Stream) => Promise<void>;
 }
 
+// A browser that sends a User-Agent (Safari, Firefox) asks the stream server
+// to allow it first, which it does not: the fetch fails and the stream plays
+// without metadata or the oscilloscope. Chrome drops it silently.
+const STREAM_HEADERS: Record<string, string> = Platform.OS === "web" ? {} : { "User-Agent": CONFIG.USER_AGENT };
+
 /**
  * What the player loads for `stream`: every relay as a rendition of one live
  * source, so a quality change has no gap. A stream outside the fetched list
@@ -87,7 +93,7 @@ export const streamSource = (streams: Stream[], stream: Stream) => {
       })),
     }),
     live: true,
-    headers: { "User-Agent": CONFIG.USER_AGENT },
+    headers: STREAM_HEADERS,
   };
 };
 
