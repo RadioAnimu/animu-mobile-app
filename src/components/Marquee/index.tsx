@@ -1,5 +1,6 @@
 import React, {
   createContext,
+  useCallback,
   useContext,
   useEffect,
   useMemo,
@@ -37,6 +38,13 @@ type MarqueeProps = {
 /** Standalone hold (outside a {@link MarqueeGroup}): milliseconds at rest. */
 const STANDALONE_DELAY = 2500;
 
+/**
+ * Passes a line scrolls per text before it rests: enough to read a long
+ * title. A scrolling line keeps the whole window redrawing every frame, so it
+ * does not run for the length of the song; a new text or a tap replays it.
+ */
+const PASSES_PER_TEXT = 3;
+
 /** Rounding guard: don't animate for sub-pixel overflows. */
 const OVERFLOW_THRESHOLD = 1;
 
@@ -44,6 +52,8 @@ type GroupApi = {
   register: () => number;
   unregister: (id: number) => void;
   report: (id: number, durationMs: number) => void;
+  /** Scrolls every line again from the top (a new text, a tap). */
+  replay: () => void;
   delay: number;
   /** Shared clock (ms into the current cycle) every member scrolls from. */
   clock: Animated.Value;
@@ -57,9 +67,10 @@ const GroupContext = createContext<GroupApi | null>(null);
  * sharing it can never drift apart — not after timer jitter, not after the
  * app comes back from the background. Pausing (null cycle or not running)
  * parks the clock at 0, i.e. every line at rest; resuming restarts the whole
- * cycle from the top.
+ * cycle from the top. After {@link PASSES_PER_TEXT} cycles the clock rests
+ * at 0; a new `replayKey` starts it over.
  */
-function useCycleClock(cycle: number | null, running: boolean) {
+function useCycleClock(cycle: number | null, running: boolean, replayKey: number) {
   const clock = useMemo(() => new Animated.Value(0), []);
 
   useEffect(() => {
@@ -69,6 +80,7 @@ function useCycleClock(cycle: number | null, running: boolean) {
     // Animated.loop with a native-driven animation runs once and never
     // re-arms, leaving the marquee stuck off-position.
     let cancelled = false;
+    let passes = 0;
     let current: Animated.CompositeAnimation | null = null;
     const run = () => {
       clock.setValue(0);
@@ -79,7 +91,12 @@ function useCycleClock(cycle: number | null, running: boolean) {
         useNativeDriver: true,
       });
       current.start(({ finished }) => {
-        if (!cancelled && finished) run();
+        passes += 1;
+        if (cancelled || !finished) return;
+        // Rest at 0, which looks the same as the end pose: a new text then
+        // starts from where its own layout expects.
+        if (passes < PASSES_PER_TEXT) run();
+        else clock.setValue(0);
       });
     };
     run();
@@ -89,7 +106,7 @@ function useCycleClock(cycle: number | null, running: boolean) {
       current?.stop();
       clock.setValue(0);
     };
-  }, [clock, cycle, running]);
+  }, [clock, cycle, running, replayKey]);
 
   return clock;
 }
@@ -109,6 +126,8 @@ export function MarqueeGroup({
 }>) {
   const isBackgrounded = useIsBackgrounded();
   const nextId = useRef(0);
+  const [replayKey, setReplayKey] = useState(0);
+  const replay = useCallback(() => setReplayKey((key) => key + 1), []);
   // id -> pass duration; null while that member is still measuring.
   const [records, setRecords] = useState<Map<number, number | null>>(
     () => new Map(),
@@ -148,11 +167,11 @@ export function MarqueeGroup({
 
   // Hidden app: stop the clock entirely (every line back to rest). Native
   // animations keep running in the background on Android, burning CPU.
-  const clock = useCycleClock(cycle, !isBackgrounded);
+  const clock = useCycleClock(cycle, !isBackgrounded, replayKey);
 
   const value = useMemo<GroupApi>(
-    () => ({ ...api, delay, clock }),
-    [api, delay, clock],
+    () => ({ ...api, replay, delay, clock }),
+    [api, replay, delay, clock],
   );
 
   return (
@@ -218,10 +237,22 @@ export const Marquee = React.memo(function Marquee({
     report(idRef.current, overflows ? passDuration : 0);
   }, [report, measured, overflows, passDuration]);
 
+  // A new text scrolls again (the whole group, for a member); so does a tap.
+  const [ownReplays, setOwnReplays] = useState(0);
+  const groupReplay = group?.replay;
+  const replay = useCallback(() => {
+    if (groupReplay) groupReplay();
+    else setOwnReplays((count) => count + 1);
+  }, [groupReplay]);
+  useEffect(() => {
+    replay();
+  }, [text, replay]);
+
   // Standalone lines run their own clock; group members use the shared one.
   const ownClock = useCycleClock(
     !group && overflows ? passDuration + holdDelay : null,
     !isBackgrounded,
+    ownReplays,
   );
   const clock = group ? group.clock : ownClock;
 
@@ -298,7 +329,10 @@ export const Marquee = React.memo(function Marquee({
   return onPress ? (
     <Pressable
       onLayout={lineProps.onLayout}
-      onPress={onPress}
+      onPress={() => {
+        replay();
+        onPress();
+      }}
       accessibilityRole="button"
       accessibilityLabel={text}
       // Subtle press feedback (dims like the history rows' TouchableOpacity).

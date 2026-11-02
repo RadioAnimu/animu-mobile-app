@@ -163,6 +163,35 @@ describe("Marquee", () => {
     expect(passes[1].config).toMatchObject(passes[0].config);
   });
 
+  it("rests after three passes per text, at the pixel-identical end pose", () => {
+    renderMarquee();
+    measure("Now playing", 100, 300);
+    act(() => passes[0].finish());
+    act(() => passes[1].finish());
+    act(() => passes[2].finish());
+    act(() => void vi.advanceTimersByTime(60_000));
+    expect(passes).toHaveLength(3);
+  });
+
+  it("scrolls three more passes for a new text", () => {
+    const { rerender } = renderMarquee();
+    measure("Now playing", 100, 300);
+    for (let i = 0; i < 3; i += 1) act(() => passes[i].finish());
+    rerender(<Marquee text="Next song" speed={SPEED} spacer={SPACER} />);
+    measure("Next song", 100, 300);
+    expect(passes).toHaveLength(4);
+  });
+
+  it("scrolls again when tapped, still running onPress", () => {
+    const onPress = vi.fn();
+    renderMarquee({ onPress });
+    measure("Now playing", 100, 300);
+    for (let i = 0; i < 3; i += 1) act(() => passes[i].finish());
+    fireEvent.click(screen.getByRole("button", { name: "Now playing" }));
+    expect(onPress).toHaveBeenCalledTimes(1);
+    expect(passes).toHaveLength(4);
+  });
+
   it("does not re-arm after an interrupted animation", () => {
     renderMarquee();
     measure("Now playing", 100, 300);
