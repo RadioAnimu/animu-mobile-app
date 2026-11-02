@@ -2,7 +2,7 @@ import { useNavigation } from "@react-navigation/native";
 import type { DrawerNavigationProp } from "@react-navigation/drawer";
 import { type ReactNode, useEffect, useState } from "react";
 import { Image } from "expo-image";
-import { Animated, TouchableOpacity, View } from "react-native";
+import { Animated, PixelRatio, TouchableOpacity, View, useWindowDimensions } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import menuIcon from "@/assets/icons/menu.webp";
 import noteIcon from "@/assets/icons/note.webp";
@@ -60,10 +60,23 @@ const PULSE_DURATION = 1750;
 /** Resting vertical offset of the live badge; the pulse bobs it up and back. */
 const PULSE_TRAVEL = 50;
 const PULSE_BOB = PULSE_TRAVEL * 2 * PULSE_OPACITY;
+/**
+ * The progress bar steps about a pixel at a time, at most 4 times a second:
+ * a continuous native animation made Android redraw the whole window every
+ * frame for the length of the song, for a bar that moves a pixel every few
+ * hundred milliseconds.
+ */
+const PROGRESS_STEP_MIN_MS = 250;
+const PROGRESS_STEP_MAX_MS = 1_000;
+
+/** Bobs when the badge appears, then rests: an endless loop kept Android
+ * redrawing the whole window every frame for the length of a live show. */
+const PULSE_BOBS = 3;
 
 /**
- * The live-request badge's bob: an endless loop while the badge is shown and
- * the app visible, parked at rest otherwise (and under Reduce Motion).
+ * The live-request badge's bob: {@link PULSE_BOBS} bobs each time the badge
+ * shows (or the app comes back), parked at rest otherwise (and under Reduce
+ * Motion).
  */
 function useLiveBadgePulse(shown: boolean, backgrounded: boolean) {
   const [animation] = useState(() => new Animated.Value(0));
@@ -75,7 +88,7 @@ function useLiveBadgePulse(shown: boolean, backgrounded: boolean) {
     // Previously the loop started on mount and ran for the component's
     // whole lifetime, keeping the UI thread busy even when nothing was on
     // screen (and while backgrounded).
-    // Purely decorative and endless, so Reduce Motion parks it at rest.
+    // Purely decorative, so Reduce Motion parks it at rest.
     if (!active) {
       animation.setValue(0);
       return undefined;
@@ -96,6 +109,7 @@ function useLiveBadgePulse(shown: boolean, backgrounded: boolean) {
           useNativeDriver: true,
         }),
       ]),
+      { iterations: PULSE_BOBS },
     );
     loop.start();
 
@@ -286,28 +300,28 @@ function HeaderProgress() {
   // wrong/empty position reads as "working on it" instead of broken. Stops
   // (and resets to full opacity) the moment sync lands or the app hides.
   const syncBlink = useBlink(syncing && showProgress && !isBackgrounded);
+  const barPixels = useWindowDimensions().width * PixelRatio.get();
 
-  // The position is a real-time anchor, so the bar runs optimistically: placed
-  // at the live ratio, then ONE linear native animation to the song's end.
-  // Nothing re-drives it per second — only a re-anchor (new song, sync locked,
-  // pause / resume) restarts it, from exactly where the audio is.
+  // The position is a real-time anchor: placed at the live ratio, then
+  // stepped from the same anchor (no drift), about a pixel per step. Only a
+  // re-anchor (new song, sync locked, pause / resume) restarts it.
   useEffect(() => {
     const anchor = { progressMs, progressAt, progressRunning };
-    const elapsed = elapsedAt(anchor, duration, Date.now());
-    const ratio = progressRatio(elapsed, duration);
-    progressAnim.setValue(ratio);
-    if (elapsed == null || !progressRunning || isBackgrounded || ratio >= 1) {
-      return undefined;
-    }
-    const run = Animated.timing(progressAnim, {
-      toValue: 1,
-      duration: duration - elapsed,
-      easing: MOTION.EASING.LINEAR,
-      useNativeDriver: true,
-    });
-    run.start();
-    return () => run.stop();
-  }, [progressAnim, progressMs, progressAt, progressRunning, duration, isBackgrounded]);
+    const place = () => {
+      const ratio = progressRatio(elapsedAt(anchor, duration, Date.now()), duration);
+      progressAnim.setValue(ratio);
+      return ratio;
+    };
+    const ratio = place();
+    // A hidden bar (live show, jingle) or one without a length never steps.
+    if (!showProgress || duration <= 0 || elapsedAt(anchor, duration, Date.now()) == null) return undefined;
+    if (!progressRunning || isBackgrounded || ratio >= 1) return undefined;
+    const stepMs = Math.min(PROGRESS_STEP_MAX_MS, Math.max(PROGRESS_STEP_MIN_MS, duration / barPixels));
+    const timer = setInterval(() => {
+      if (place() >= 1) clearInterval(timer);
+    }, stepMs);
+    return () => clearInterval(timer);
+  }, [progressAnim, progressMs, progressAt, progressRunning, duration, showProgress, isBackgrounded, barPixels]);
 
   // The slot is always there: live shows and jingles have no bar, and
   // dropping its height used to nudge the whole player up and down.
