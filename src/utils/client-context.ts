@@ -4,6 +4,7 @@ import * as Device from "expo-device";
 import { getLocales } from "expo-localization";
 import Constants from "expo-constants";
 import { clientUserAgent, type ClientInfo } from "animu-api";
+import { APP_VERSION } from "@/utils/app-version";
 import { setUserAgent } from "@/utils/player.config";
 
 /**
@@ -45,15 +46,14 @@ const platform = resolvePlatform();
  * from `Device.osVersion` (human-readable) with a `Platform.Version` fallback.
  */
 const os = resolveOsName(platform);
-const osVersion = String(Device.osVersion ?? Platform.Version ?? "");
+const osVersion = String(Device.osVersion ?? Platform.Version);
 
 /** Friendly model ("iPhone 17 Pro Max", "moto g7"), with sane fallbacks. */
 const model = Device.modelName ?? Device.modelId ?? Device.brand ?? undefined;
 
 const deviceType = resolveDeviceType(platform);
 
-const appVersion =
-  Application.nativeApplicationVersion ?? Constants.expoConfig?.version ?? "0.0.0";
+const appVersion = APP_VERSION ?? "0.0.0";
 const appBuild =
   Application.nativeBuildVersion ??
   String(
@@ -62,7 +62,8 @@ const appBuild =
       : Constants.expoConfig?.android?.versionCode ?? "",
   );
 
-const locale = getLocales()[0];
+// Normally at least one, but an empty list must not crash startup.
+const locale = getLocales().at(0);
 
 export const CLIENT_INFO: ClientInfo = {
   app: "animu-mobile",
@@ -74,9 +75,9 @@ export const CLIENT_INFO: ClientInfo = {
   model,
   manufacturer: Device.manufacturer ?? undefined,
   deviceType,
-  language: locale?.languageTag ?? undefined,
+  language: locale?.languageTag,
   region: locale?.regionCode ?? undefined,
-  emulator: Device.isDevice === false,
+  emulator: !Device.isDevice,
 };
 
 /** `RadioAnimu/2.1.0 (iOS 27; iPhone 17 Pro Max; pt-BR; build 3)` */

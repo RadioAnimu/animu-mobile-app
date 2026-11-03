@@ -2,6 +2,16 @@ import { StyleSheet } from "react-native";
 import { THEME } from "@/theme";
 import { scale } from "@/theme/responsive";
 
+/**
+ * Longest comfortable line of lyrics. Authored at 600pt (wider than any
+ * phone, so phones keep their full column) and capped at 640 so a 1.2×
+ * tablet does not stretch a line to billboard length.
+ */
+export const LYRICS_COLUMN_MAX = Math.min(scale(600), 640);
+
+/** The two-pane head's height: the grabber in its tap target. */
+export const CLOSE_HANDLE_HEIGHT = THEME.SPACE.XS + 2 * THEME.SPACE.SM + scale(5);
+
 /** Lyric text: large, bold, left-aligned — the Apple Music read. */
 export const LYRIC = {
   SIZE: scale(32),
@@ -33,6 +43,62 @@ export const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: THEME.COLORS.BG_DEEP,
   },
+  /** The safe-area-padded content layer (the backdrop stays full-bleed). */
+  content: {
+    flex: 1,
+  },
+  /**
+   * The panes: the lyrics alone, or the artwork beside them — one group,
+   * centered in the window, so a wide window keeps equal margins.
+   */
+  panes: {
+    flex: 1,
+    flexDirection: "row",
+    justifyContent: "center",
+  },
+  /** One pane: the header/close handle over the lyrics. */
+  main: {
+    flex: 1,
+    minWidth: 0,
+  },
+  /** Two panes: the artwork panel beside the lyrics. */
+  artworkPanel: {
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: THEME.SPACE.XXXL,
+    gap: THEME.SPACE.LG,
+  },
+  artworkCover: {
+    borderRadius: THEME.RADIUS.CARD,
+    borderWidth: 0,
+  },
+  artworkText: {
+    alignItems: "center",
+    gap: THEME.SPACE.XS,
+  },
+  artworkTitle: {
+    fontFamily: THEME.FONT_FAMILY.BOLD,
+    fontSize: THEME.FONT_SIZE.HEADING,
+    color: THEME.COLORS.TEXT,
+    textAlign: "center",
+  },
+  artworkArtist: {
+    fontFamily: THEME.FONT_FAMILY.REGULAR,
+    fontSize: THEME.FONT_SIZE.BODY,
+    color: THEME.COLORS.TEXT_SOFT,
+    textAlign: "center",
+  },
+  /** The two-pane head: the grabber, centered over the whole window. */
+  closeHandle: {
+    alignItems: "center",
+    height: CLOSE_HANDLE_HEIGHT,
+    paddingTop: THEME.SPACE.XS,
+  },
+  /** The readable column: never grows past a comfortable line length. */
+  columnCap: {
+    width: "100%",
+    maxWidth: LYRICS_COLUMN_MAX,
+  },
   grabberHit: {
     alignSelf: "center",
     paddingVertical: THEME.SPACE.SM,
@@ -52,11 +118,23 @@ export const styles = StyleSheet.create({
     paddingTop: THEME.SPACE.SM,
     paddingBottom: THEME.SPACE.LG,
   },
+  /** Landscape phones: the same head, trimmed so the lyrics get the room. */
+  grabberHitCompact: {
+    paddingVertical: THEME.SPACE.XXS,
+  },
+  headerCompact: {
+    paddingTop: 0,
+    paddingBottom: THEME.SPACE.MD,
+  },
   thumbnail: {
     width: scale(64),
     height: scale(64),
     borderRadius: THEME.RADIUS.MD,
     borderWidth: 0,
+  },
+  thumbnailCompact: {
+    width: scale(48),
+    height: scale(48),
   },
   headerText: {
     flex: 1,
@@ -71,25 +149,6 @@ export const styles = StyleSheet.create({
     fontFamily: THEME.FONT_FAMILY.REGULAR,
     fontSize: THEME.FONT_SIZE.BODY,
     color: THEME.COLORS.TEXT_SOFT,
-  },
-  roundButton: {
-    width: scale(36),
-    height: scale(36),
-    borderRadius: THEME.RADIUS.CIRCLE,
-    backgroundColor: "rgba(255, 255, 255, 0.14)",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  roundButtonOn: {
-    backgroundColor: THEME.COLORS.TEXT,
-  },
-  pronunciationGlyph: {
-    fontFamily: THEME.FONT_FAMILY.BOLD,
-    fontSize: THEME.FONT_SIZE.LABEL,
-    color: THEME.COLORS.TEXT,
-  },
-  pronunciationGlyphOn: {
-    color: THEME.COLORS.TEXT_ON_LIGHT,
   },
   body: {
     flex: 1,
@@ -221,36 +280,5 @@ export const styles = StyleSheet.create({
     fontFamily: THEME.FONT_FAMILY.BOLD,
     fontSize: THEME.FONT_SIZE.BODY,
     color: THEME.COLORS.TEXT_ON_LIGHT,
-  },
-  prompt: {
-    marginHorizontal: THEME.SPACE.XL,
-    marginBottom: THEME.SPACE.MD,
-    padding: THEME.SPACE.LG,
-    borderRadius: THEME.RADIUS.CARD,
-    backgroundColor: "rgba(255, 255, 255, 0.12)",
-    gap: THEME.SPACE.XS,
-  },
-  promptTitle: {
-    fontFamily: THEME.FONT_FAMILY.BOLD,
-    fontSize: THEME.FONT_SIZE.LIST,
-    color: THEME.COLORS.TEXT,
-  },
-  promptText: {
-    fontFamily: THEME.FONT_FAMILY.REGULAR,
-    fontSize: THEME.FONT_SIZE.LABEL,
-    lineHeight: THEME.LINE_HEIGHT.BODY,
-    color: THEME.COLORS.TEXT_SOFT,
-  },
-  promptButton: {
-    marginTop: 0,
-  },
-  promptButtonBusy: {
-    opacity: THEME.OPACITY.DISABLED,
-  },
-  promptActions: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    marginTop: THEME.SPACE.SM,
   },
 });

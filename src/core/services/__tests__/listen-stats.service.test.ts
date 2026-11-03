@@ -374,7 +374,7 @@ describe("listenStatsService stored-data sanitizing", () => {
             sessions: "many",
             tracks: -3,
             firstAt: "noon",
-            hours: [5, "x", -1, null, ...Array(40).fill(7)],
+            hours: [5, "x", -1, null, ...Array<number>(40).fill(7)],
           }),
           "not-a-day": storedDay(),
           "2024-1-1": storedDay(),
@@ -532,6 +532,47 @@ describe("listenStatsService streak anchoring", () => {
   });
 });
 
+describe("listenStatsService streaks across DST", () => {
+  // The env typings merge to `any` under the type-aware linter.
+  const zone = process.env.TZ as string | undefined;
+  beforeEach(() => {
+    memory.clear();
+    process.env.TZ = "Europe/Lisbon";
+    vi.useFakeTimers({ toFake: ["Date"] });
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    process.env.TZ = zone;
+  });
+
+  const listenAt = (service: ListenStatsService, iso: string): void => {
+    const start = Date.parse(iso);
+    at(start);
+    service.onPlaybackStarted();
+    service.onAudibleTick(start + 60_000);
+    service.onPlaybackStopped();
+  };
+
+  it("does not join two days around the 23-hour spring-forward day", async () => {
+    at(Date.parse("2026-03-28T12:00:00Z"));
+    const service = await makeService();
+    listenAt(service, "2026-03-28T12:00:00Z"); // Mar 28, noon (WET)
+    listenAt(service, "2026-03-30T11:00:00Z"); // Mar 30, noon (WEST); Mar 29 missed
+
+    expect(service.getSnapshot().maxStreak).toBe(1);
+  });
+
+  it("finds yesterday late on the 25-hour fall-back day", async () => {
+    at(Date.parse("2026-10-24T11:00:00Z"));
+    const service = await makeService();
+    listenAt(service, "2026-10-24T11:00:00Z"); // Oct 24, noon (WEST)
+    at(Date.parse("2026-10-25T23:30:00Z")); // Oct 25, 23:30 (WET), nothing heard yet
+
+    expect(service.getSnapshot().currentStreak).toBe(1);
+  });
+});
+
 describe("listenStatsService persistence scheduling", () => {
   beforeEach(async () => {
     // Earlier blocks fake only `Date`, so their stop flushes run on real 0 ms
@@ -560,8 +601,10 @@ describe("listenStatsService persistence scheduling", () => {
     await vi.advanceTimersByTimeAsync(2_000);
 
     expect(AsyncStorage.setItem).toHaveBeenCalledTimes(1);
-    const saved = JSON.parse(memory.get("listenStats") ?? "{}");
-    const day = Object.values<{ shouts: number; submitted: number }>(saved.days)[0];
+    const saved = JSON.parse(memory.get("listenStats") ?? "{}") as {
+      days: Record<string, { shouts: number; submitted: number }>;
+    };
+    const day = Object.values(saved.days)[0];
     expect(day.shouts).toBe(2);
     expect(day.submitted).toBe(1);
 
@@ -644,6 +687,23 @@ describe("listenStatsService persistence scheduling", () => {
 
     await vi.advanceTimersByTimeAsync(5_000); // the debounce timer was cancelled
     expect(AsyncStorage.setItem).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps recording a session the reset happened in", async () => {
+    const service = await makeService();
+    const start = Date.now();
+    service.onPlaybackStarted();
+    service.onAudibleTick(start + 30_000);
+
+    at(start + 30_000);
+    await service.reset();
+    at(start + 30_000 + MIN_SESSION_MS);
+    service.onAudibleTick(Date.now());
+    service.onPlaybackStopped();
+
+    const snap = service.getSnapshot();
+    expect(snap.totalSessions).toBe(1);
+    expect(snap.totalMs).toBe(MIN_SESSION_MS);
   });
 
   it("reset wipes stats and storage, and survives a storage failure", async () => {

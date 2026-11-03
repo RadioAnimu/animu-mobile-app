@@ -1,10 +1,8 @@
 import { useFocusEffect } from "@react-navigation/native";
 import { useCallback, useState } from "react";
 
-import {
-  readDiskCapacity,
-  type DiskCapacity,
-} from "@/core/services/device-storage.service";
+import { readDiskCapacity } from "@/core/services/device-storage.service";
+import type { DiskCapacity } from "@/core/services/disk-capacity";
 
 export interface DeviceStorageState {
   capacity: DiskCapacity;

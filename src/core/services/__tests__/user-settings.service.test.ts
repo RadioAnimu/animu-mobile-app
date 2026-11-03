@@ -68,6 +68,27 @@ describe("userSettingsService.initialize", () => {
     expect(settings).toEqual(DEFAULT_USER_SETTINGS);
   });
 
+  it("moves the old uncapped default to the cover cache cap once, and saves it", async () => {
+    memory.set("userSettings", JSON.stringify({ coverCacheLimitBytes: 0 }));
+    const settings = await userSettingsService.initialize();
+    expect(settings.coverCacheLimitBytes).toBe(100 * 1024 * 1024);
+    expect(settings.settingsVersion).toBe(2);
+    expect(JSON.parse(memory.get("userSettings")!)).toMatchObject({
+      coverCacheLimitBytes: 100 * 1024 * 1024,
+      settingsVersion: 2,
+    });
+  });
+
+  it("keeps an Unlimited picked after the cap became the default", async () => {
+    memory.set("userSettings", JSON.stringify({ coverCacheLimitBytes: 0, settingsVersion: 2 }));
+    expect((await userSettingsService.initialize()).coverCacheLimitBytes).toBe(0);
+  });
+
+  it("keeps a limit chosen before the cap became the default", async () => {
+    memory.set("userSettings", JSON.stringify({ coverCacheLimitBytes: 250 * 1024 * 1024 }));
+    expect((await userSettingsService.initialize()).coverCacheLimitBytes).toBe(250 * 1024 * 1024);
+  });
+
   it("falls back to defaults on corrupt JSON", async () => {
     memory.set("userSettings", "{not json");
 

@@ -1,16 +1,14 @@
-import { Platform } from "react-native";
 import * as AuthSession from "expo-auth-session";
 
 /**
- * Client-side OAuth metadata for the Animu Auth API v5.
- *
- * The `animu-api` package owns transport, schemas and session handling; this
- * file owns what it deliberately stays out of: client ids, authorize
- * endpoints and scopes. Providers advertised by `AnimuAuth.getProviders()`
- * but missing here still render (disabled) until their credentials are set.
+ * The sign-in providers the app offers. Every one runs server-side: the app
+ * opens the backend's `/mobile/<provider>-start.php` in a browser session and
+ * adopts the session token it bounces to {@link AUTH_REDIRECT_URI} — no client
+ * ids, SDKs or platform registration here. Providers advertised by
+ * `AnimuAuth.getProviders()` but missing here still render, disabled.
  */
 
-/** Deep link the OAuth providers redirect back to (`animuapp://redirect`). */
+/** Deep link the server flow bounces back to (`animuapp://redirect`). */
 export const AUTH_REDIRECT_URI = AuthSession.makeRedirectUri({
   scheme: "animuapp",
   path: "redirect",
@@ -19,100 +17,18 @@ export const AUTH_REDIRECT_URI = AuthSession.makeRedirectUri({
 export interface OauthProviderConfig {
   name: string;
   label: string;
-  authorizationEndpoint: string;
-  scopes: string[];
-  /** Default (web) client id — also the fallback for both platforms. */
-  clientId: string;
-  /** Platform client ids (iOS/Android OAuth clients). */
-  iosClientId?: string;
-  androidClientId?: string;
   /**
-   * `"browser"` runs the OAuth redirect through `expo-auth-session`;
-   * `"server"` (default for our providers) delegates the whole redirect to the
-   * backend (`loginWithProvider` opens its `/mobile/<provider>-start.php` in a
-   * browser session and adopts the session token from the deep-link bounce —
-   * no client id, SDK, package or SHA-1 registration); `"native"` uses the
-   * platform SDK.
-   */
-  mode?: "browser" | "native" | "server";
-  /**
-   * Platform-native SDK to prefer when available. `"apple"` uses
-   * `expo-apple-authentication` on iOS and falls back to `mode` elsewhere.
+   * `"apple"`: prefer the native iOS sheet (`expo-apple-authentication`
+   * identity token); elsewhere the server flow.
    */
   native?: "apple";
-  /**
-   * Whether the provider can be linked from the Account screen. Defaults to
-   * `true`; set `false` for server-mode providers that only support login.
-   */
-  linkable?: boolean;
-  /** Rendered as disabled/"coming soon" until the backend supports it. */
-  comingSoon?: boolean;
-  /**
-   * Redirect registered with the provider. Defaults to
-   * {@link AUTH_REDIRECT_URI} (`animuapp://redirect`). Only used in browser
-   * mode.
-   */
-  redirectUri?: string;
-  usePKCE?: boolean;
-  extraParams?: Record<string, string>;
 }
 
-/**
- * OAuth providers we can start a login for. All three delegate to the backend
- * (`/mobile/<provider>-start.php`), so no client ids or platform registration
- * are needed on the app side.
- */
 const OAUTH_PROVIDERS: Record<string, OauthProviderConfig> = {
-  discord: {
-    name: "discord",
-    label: "Discord",
-    // Server-side flow (the backend owns the Discord OAuth client, PKCE and
-    // redirect). Fields below are kept only for reference / a browser fallback.
-    authorizationEndpoint: "https://discord.com/api/oauth2/authorize",
-    scopes: ["identify"],
-    clientId: "1159273876732256266",
-    mode: "server",
-    linkable: true,
-  },
-  google: {
-    name: "google",
-    label: "Google",
-    // Server-side flow: the backend owns the Google OAuth client, the PKCE
-    // verifier and the redirect, so the app carries no client id at all. It
-    // just opens `mobileStartUrl("google")` in a browser session and adopts the
-    // session token the server bounces to `animuapp://redirect`, which is why
-    // this works regardless of how the APK was signed (no SHA-1 registration).
-    // Linking reuses the same URL with the current token appended as `?sid=`.
-    authorizationEndpoint: "",
-    scopes: [],
-    clientId: "",
-    mode: "server",
-    linkable: true,
-  },
-  fluxer: {
-    name: "fluxer",
-    label: "Fluxer",
-    // Mirrors Discord's contract: server-side browser flow
-    // (`/mobile/fluxer-start.php`); the backend owns the Fluxer OAuth client
-    // and redirect, so nothing is configured app-side.
-    authorizationEndpoint: "",
-    scopes: [],
-    clientId: "",
-    mode: "server",
-    linkable: true,
-  },
-  apple: {
-    name: "apple",
-    label: "Apple",
-    authorizationEndpoint: "",
-    scopes: ["name", "email"],
-    clientId: "",
-    // Prefer the native iOS sheet (`expo-apple-authentication` identity token);
-    // Android has no native Apple flow, so it uses the server-side redirect.
-    mode: "server",
-    native: "apple",
-    linkable: true,
-  },
+  discord: { name: "discord", label: "Discord" },
+  google: { name: "google", label: "Google" },
+  fluxer: { name: "fluxer", label: "Fluxer" },
+  apple: { name: "apple", label: "Apple", native: "apple" },
 };
 
 /** Animu Connect (passwordless email codes) is not an OAuth provider. */
@@ -121,14 +37,11 @@ const ANIMU_CONNECT = {
   label: "Animu Connect",
 } as const;
 
-/** Rendered when `getProviders()` is unreachable, so the UI still works. */
-const FALLBACK_PROVIDERS = ["discord", "google", "fluxer", "apple"] as const;
-
-/** Initial button list, replaced by `getProviders()` once it resolves. */
-export const DEFAULT_PROVIDERS = FALLBACK_PROVIDERS.map((name) => ({
-  name,
-  label: OAUTH_PROVIDERS[name]?.label ?? name,
-}));
+/**
+ * Initial button list, replaced by `getProviders()` once it resolves (and
+ * kept when it is unreachable, so the UI still works).
+ */
+export const DEFAULT_PROVIDERS = Object.values(OAUTH_PROVIDERS).map(({ name, label }) => ({ name, label }));
 
 export function getProviderConfig(
   name: string,
@@ -136,42 +49,9 @@ export function getProviderConfig(
   return OAUTH_PROVIDERS[name];
 }
 
-/** Picks the platform-specific client id, falling back to the default one. */
-export function resolveClientId(config: OauthProviderConfig): string {
-  const platformId = Platform.select({
-    ios: config.iosClientId,
-    android: config.androidClientId,
-    default: config.clientId,
-  });
-  return platformId || config.clientId;
-}
-
-/** `true` once the provider can actually be used on this platform. */
+/** `true` for a provider the app can sign in with — and link from the Account screen. */
 export function isProviderConfigured(name: string): boolean {
-  const config = getProviderConfig(name);
-  if (!config || config.comingSoon) return false;
-  // Server-mode providers need no client-side credentials.
-  if (config.mode === "server") return true;
-  return !!resolveClientId(config);
-}
-
-/**
- * `true` when the Account screen may offer to *link* the provider. Server-mode
- * providers default to login-only unless they opt in with `linkable: true`.
- */
-export function isProviderLinkable(name: string): boolean {
-  const config = getProviderConfig(name);
-  if (!config || config.comingSoon) return false;
-  if (config.mode === "server") return config.linkable === true;
-  return isProviderConfigured(name);
-}
-
-/**
- * Redirect URI for a browser-mode provider's authorize step (and the
- * matching code exchange). Native-mode providers omit it entirely.
- */
-export function redirectUriForProvider(name: string): string {
-  return getProviderConfig(name)?.redirectUri ?? AUTH_REDIRECT_URI;
+  return getProviderConfig(name) !== undefined;
 }
 
 /**

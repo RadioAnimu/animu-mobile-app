@@ -41,6 +41,12 @@ export class CoverFileHashMap implements CoverFileCache {
     this.entries.delete(url);
   }
 
+  forgetWhere(test: (fileUri: string) => boolean): void {
+    for (const [url, mapped] of this.entries) {
+      if (test(mapped)) this.entries.delete(url);
+    }
+  }
+
   get size(): number {
     return this.entries.size;
   }

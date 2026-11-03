@@ -2,6 +2,7 @@ import { Image } from "expo-image";
 import React from "react";
 import { ScrollView, Text, View } from "react-native";
 import { usePlayer } from "@/contexts/player/PlayerProvider";
+import { useResponsiveLayout } from "@/hooks/useResponsiveLayout";
 import { useDict } from "@/hooks/useDict";
 import { styles } from "@/components/PopUpProgram/styles";
 import { Sheet } from "@/components/Sheet";
@@ -17,6 +18,9 @@ export const PopUpProgram = React.memo(function PopUpProgram({
 }: Props) {
   const dict = useDict();
   const player = usePlayer();
+  // In landscape the program's art is already on screen — the Home hero —
+  // so the sheet is its text alone.
+  const { landscape } = useResponsiveLayout();
 
   const program = player.currentProgram;
 
@@ -41,11 +45,13 @@ export const PopUpProgram = React.memo(function PopUpProgram({
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.scrollContent}
         >
-          <Image
-            source={{ uri: program.imageUrl }}
-            style={styles.img}
-            contentFit="contain"
-          />
+          {landscape ? null : (
+            <Image
+              source={{ uri: program.imageUrl }}
+              style={styles.img}
+              contentFit="contain"
+            />
+          )}
 
           <Text style={styles.programName}>{programName}</Text>
 

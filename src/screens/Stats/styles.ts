@@ -63,22 +63,7 @@ export const styles = StyleSheet.create({
 
   // ── Sign-in state notice ──
   notice: {
-    alignItems: "flex-start",
-    borderColor: THEME.COLORS.HAIRLINE_SOFT,
-    borderRadius: THEME.RADIUS.CARD,
-    ...CONTINUOUS,
-    borderWidth: 1,
-    flexDirection: "row",
-    gap: THEME.SPACE.SM,
     marginTop: THEME.SPACE.MD,
-    padding: THEME.SPACE.MD,
-  },
-  noticeText: {
-    color: THEME.COLORS.TEXT_SOFT,
-    flex: 1,
-    fontFamily: THEME.FONT_FAMILY.REGULAR,
-    fontSize: THEME.FONT_SIZE.LABEL,
-    lineHeight: THEME.LINE_HEIGHT.CAPTION,
   },
 
   // ── Overview ──

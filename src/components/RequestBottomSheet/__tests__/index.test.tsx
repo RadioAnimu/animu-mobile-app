@@ -195,10 +195,20 @@ describe("RequestBottomSheet", () => {
 
     expect(chip.getAttribute("data-variant")).toBe("error");
     expect(props.onRequestSuccess).not.toHaveBeenCalled();
-    expect((screen.getByLabelText("Message") as HTMLInputElement).value).toBe(
+    expect(screen.getByLabelText<HTMLInputElement>("Message").value).toBe(
       "hi!",
     );
     expect(screen.getByLabelText("Try again")).toBeTruthy();
+  });
+
+  it("leaves a duplicate submit's outcome to the first one", async () => {
+    const props = setup(vi.fn().mockResolvedValue(null));
+
+    fireEvent.click(screen.getByLabelText("Send"));
+    await waitFor(() => expect(props.onSubmit).toHaveBeenCalled());
+
+    expect(screen.queryByLabelText("Try again")).toBeNull();
+    expect(props.onClose).not.toHaveBeenCalled();
   });
 
   it("falls back to the generic message when the submit throws", async () => {

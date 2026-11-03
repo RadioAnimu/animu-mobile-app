@@ -3,6 +3,19 @@ import { UserSettings } from "@/@types/user-settings";
 import { DEFAULT_USER_SETTINGS } from "@/constants/settings";
 import { LANGUAGE_LABELS } from "@/constants/languages";
 
+/**
+ * Version 1 stored the old uncapped cover cache default (`0`): adopt the
+ * cap once. Returns whether `merged` changed and should be saved.
+ */
+function migrateToVersion2(stored: Partial<UserSettings>, merged: UserSettings): boolean {
+  if ((stored.settingsVersion ?? 1) >= 2) return false;
+  if (merged.coverCacheLimitBytes === 0) {
+    merged.coverCacheLimitBytes = DEFAULT_USER_SETTINGS.coverCacheLimitBytes;
+  }
+  merged.settingsVersion = DEFAULT_USER_SETTINGS.settingsVersion;
+  return true;
+}
+
 class UserSettingsService {
   private settings: UserSettings = DEFAULT_USER_SETTINGS;
 
@@ -27,6 +40,9 @@ class UserSettingsService {
         }
         if (!["off", "romaji", "hiragana"].includes(merged.lyricsPronunciation)) {
           merged.lyricsPronunciation = DEFAULT_USER_SETTINGS.lyricsPronunciation;
+        }
+        if (migrateToVersion2(parsed, merged)) {
+          await AsyncStorage.setItem("userSettings", JSON.stringify(merged)).catch(() => {});
         }
         this.settings = merged;
       }

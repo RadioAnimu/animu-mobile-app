@@ -38,7 +38,6 @@ export function useResolvedArtwork(
     const local = localFor(url, (u) => service.peekArtwork(u));
     setResolved(local);
     if (local) return undefined;
-    setResolved(undefined);
     service
       .resolveArtwork(
         url,
@@ -60,5 +59,5 @@ export function useResolvedArtwork(
     };
   }, [url, artworks, service]);
 
-  return url ? resolved ?? undefined : undefined;
+  return url ? resolved : undefined;
 }

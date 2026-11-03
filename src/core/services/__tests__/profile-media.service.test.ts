@@ -53,8 +53,8 @@ vi.mock("expo-file-system", () => {
     delete() {
       fs.files.delete(this.uri);
     }
-    info() {
-      return { md5: fs.files.get(this.uri) };
+    async digest(_algorithm: "MD5") {
+      return fs.files.get(this.uri) as string;
     }
     move(target: File) {
       fs.files.set(target.uri, fs.files.get(this.uri) as string);
@@ -77,7 +77,9 @@ vi.mock("expo-file-system", () => {
 
 const AVATAR_URL = `${ENDPOINTS.auth}/me/avatar.php`;
 const names = () =>
-  [...fs.files.keys()].map((key) => key.split("/").pop()).sort();
+  [...fs.files.keys()]
+    .map((key) => key.split("/").pop() ?? "")
+    .sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
 
 beforeEach(() => {
   fs.files.clear();

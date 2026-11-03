@@ -30,7 +30,7 @@ vi.mock("@/screens/Lyrics/PronunciationIcon", () => ({ PronunciationIcon: () => 
 vi.mock("@/core/japanese", () => ({ DICTIONARY_BYTES: 17_791_956, DICTIONARY_STORED_BYTES: 64_554_959 }));
 vi.mock("@/utils/haptics", () => ({ haptics: { tap: vi.fn(), select: vi.fn() } }));
 vi.mock("@/hooks/useDict", () => ({
-  useDict: () => new Proxy({} as Record<string, string>, { get: (_target, key) => String(key) }),
+  useDict: () => new Proxy({}, { get: (_target, key) => String(key) }),
 }));
 
 const shared = { get: () => 0, set: () => {} } as unknown as SharedValue<number>;
@@ -56,7 +56,7 @@ const menu = (props: Partial<Parameters<typeof PronunciationMenu>[0]> = {}) => {
   return handlers;
 };
 
-const item = (name: string) => screen.getAllByRole("menuitem").find((element) => element.textContent?.includes(name))!;
+const item = (name: string) => screen.getAllByRole("menuitem").find((element) => element.textContent.includes(name))!;
 
 describe("PronunciationMenu", () => {
   afterEach(cleanup);

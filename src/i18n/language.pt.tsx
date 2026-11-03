@@ -322,6 +322,7 @@ const DICT: Dict = {
   ABOUT_RELEASE_ADHOC: "Distribuição ad hoc",
   ABOUT_RELEASE_DEVELOPMENT: "Desenvolvimento",
   ABOUT_RELEASE_SIMULATOR: "Simulador",
+  ABOUT_RELEASE_WEB: "Web",
   ABOUT_RELEASE_ENTERPRISE: "Enterprise",
   ABOUT_RELEASE_PLAY: "Google Play",
   ABOUT_RELEASE_UNKNOWN: "Desconhecida",
@@ -338,7 +339,7 @@ const DICT: Dict = {
 
   ABOUT_COPY_DETAILS: "Copiar informações",
   ABOUT_COPIED: "Copiado",
-  ABOUT_COPY_FAILED: "Não foi possível copiar.",
+  TEXT_COPY_FAILED: "Não foi possível copiar.",
   ABOUT_OPEN_ERROR: "Não foi possível abrir o link.",
   ABOUT_OPENS_BROWSER: "Abre no navegador",
   ABOUT_OPENS_IN_APP: "Abre no app",
@@ -372,7 +373,7 @@ const DICT: Dict = {
     "Defina um limite de tamanho para personalizar as partições",
   STORAGE_FREED: "Liberado {freed}",
   TRACK_REQUEST: "MÚSICA PEDIDA",
-  INFO_REQUEST: `Oii! Sou a Haruka, a DJ da mais moe do Brasil!${"\n"}Vi que já fez a sua escolha!${"\n"}Mas antes não quer deixar um recadinho para mim ou para nossa equipe? Este recado será entregue no chat principal do nosso servidor discord para todo mundo ver${"\n"}💜 Você não precisa deixar recado se não quiser.`,
+  INFO_REQUEST: `Oii! Sou a Haruka, a DJ da mais moe do Brasil!\nVi que já fez a sua escolha!\nMas antes não quer deixar um recadinho para mim ou para nossa equipe? Este recado será entregue no chat principal do nosso servidor discord para todo mundo ver\n💜 Você não precisa deixar recado se não quiser.`,
   SEND_REQUEST_BUTTON_TEXT: "Enviar",
   SEND_REQUEST_PLACEHOLDER: "Deixe seu recado aqui",
   SELECT_ERROR: "Erro ao selecionar a música",
@@ -560,6 +561,7 @@ const DICT: Dict = {
   ACCOUNT_EMAIL_EMPTY: "Nenhum e-mail vinculado ainda.",
   SETTINGS_ACCOUNT_SIGN_IN: "Entrar na sua conta",
   A11Y_OPEN_LYRICS: "Mostrar letra",
+  A11Y_STREAM_QUALITY: "Qualidade do áudio",
   A11Y_CLOSE_LYRICS: "Fechar letra",
   LYRICS_LOADING: "Procurando a letra…",
   LYRICS_MISSING: "Ainda não há letra para esta música",
@@ -636,6 +638,7 @@ const LiveRequestsDisabled = (props: SvgProps) => {
   );
 };
 
+// Metro resolves a bundled image import to its asset id.
 const IMGS = {
   LIVE_LABEL: OnAirLabel,
   LOGO: logo,

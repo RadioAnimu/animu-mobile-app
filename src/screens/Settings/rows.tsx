@@ -24,12 +24,13 @@ interface AccountRowProps {
 }
 
 export function AccountRow({ user, profile, dict, onPress }: Readonly<AccountRowProps>) {
+  const name = profile?.user.username || user?.username;
   const handle = profile?.user.handle || user?.handle;
   // The visible row is a name and a handle; the spoken label says where it
   // leads, so it isn't mistaken for a plain profile card.
   const label = user
     ? [
-        profile?.user.username || user.username,
+        name,
         handle && `@${handle}`,
         dict.ACCOUNT_TITLE,
       ]
@@ -56,7 +57,7 @@ export function AccountRow({ user, profile, dict, onPress }: Readonly<AccountRow
                 style={styles.accountName}
                 numberOfLines={1}
               >
-                {profile?.user.username || user.username}
+                {name}
               </Text>
               {profile?.user.verified && (
                 <View style={styles.accountBadge}>
@@ -73,9 +74,7 @@ export function AccountRow({ user, profile, dict, onPress }: Readonly<AccountRow
               style={styles.accountCaption}
               numberOfLines={1}
             >
-              {profile?.user.handle || user.handle
-                ? `@${profile?.user.handle || user.handle}`
-                : dict.ACCOUNT_TITLE}
+              {handle ? `@${handle}` : dict.ACCOUNT_TITLE}
             </Text>
           </View>
           <Icon

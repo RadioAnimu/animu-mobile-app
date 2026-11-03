@@ -12,8 +12,11 @@ import { PortalProvider } from "@/contexts/Portal";
 import { MyStatusBar } from "@/components/MyStatusBar";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { KeyboardProvider } from "react-native-keyboard-controller";
+import { useAppFonts } from "@/theme/fonts";
 
 export default function App() {
+  // Web loads the fonts at startup; rendering before would flash the system font.
+  if (!useAppFonts()) return null;
   return (
     <ErrorBoundary>
       <AppStateProvider>

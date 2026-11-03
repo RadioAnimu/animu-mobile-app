@@ -107,7 +107,7 @@ function RecentRow({
 }
 
 /** How many entries show before "Show all" (and the most shown while typing). */
-export const RECENT_SHOWN = 10;
+const RECENT_SHOWN = 10;
 
 /**
  * Past searches with their result counts. With an empty field it lists the

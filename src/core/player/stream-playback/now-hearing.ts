@@ -2,6 +2,7 @@ import type { Track } from "@/core/domain/track";
 import type { AudibleTrackResolver } from "@/core/player/stream-playback/audible-track";
 import type { HeardTrack, TrackPosition } from "@/core/player/stream-playback/heard-track";
 import type { StreamSyncEngine } from "@/core/player/stream-playback/stream-sync";
+import { trackStartMs } from "@/core/player/stream-playback/track-start";
 
 /**
  * Playing this long since the source opened without a single ICY title means
@@ -210,8 +211,8 @@ export class NowHearing {
     if (this.mode !== "icy" || heard.awaitingStation || !heard.pastEnd()) return null;
     if (!sync.settled) return null;
     const station = heard.stationTrack;
-    const start = station?.startTime?.getTime();
-    if (!station || start == null || !Number.isFinite(start)) return null;
+    const start = trackStartMs(station);
+    if (!station || start == null) return null;
     if (station.raw === heard.track?.raw) return null;
     const audibleFor = sync.now() - start;
     if (audibleFor < ICY_OVERDUE_MS) return null;
@@ -231,8 +232,8 @@ export class NowHearing {
    */
   private stationPosition(): TrackPosition | null {
     const track = this.deps.heard.stationTrack;
-    const start = track?.startTime?.getTime();
-    if (!track || start == null || !Number.isFinite(start)) return null;
+    const start = trackStartMs(track);
+    if (!track || start == null) return null;
     const skew = this.deps.sync.clockSkew;
     const key = `${track.raw}\n${start}\n${skew}`;
     if (this.stationAnchor?.key !== key) {
@@ -252,8 +253,8 @@ export class NowHearing {
   /** `track` on the locked audible clock, less a calibration (ms). */
   private clockPosition(track: Track | null, biasMs: number): TrackPosition | null {
     const anchor = this.deps.sync.settled ? this.deps.sync.anchor : null;
-    const start = track?.startTime?.getTime();
-    if (!anchor || start == null || !Number.isFinite(start)) return null;
+    const start = trackStartMs(track);
+    if (!anchor || start == null) return null;
     return {
       elapsedMs: anchor.stationMs - biasMs - start,
       at: anchor.at,

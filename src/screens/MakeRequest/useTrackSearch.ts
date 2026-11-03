@@ -57,6 +57,30 @@ export function useTrackSearch({
     [listRef],
   );
 
+  /** A whole new result set (a search or a refresh): it replaces the list and any failure, read from the top. */
+  const showResults = useCallback(
+    (query: string, response: MusicRequestPagination) => {
+      setSearchFailed(false);
+      setState((prev) => ({
+        // Text typed while the request was in flight stays in the field.
+        query: prev.query,
+        searched: query,
+        results: response.results,
+        pagination: response,
+        status: "idle",
+      }));
+      scrollToTop();
+    },
+    [scrollToTop],
+  );
+
+  /** The search (or refresh) failed: the banner replaces the empty state, a toast says why. */
+  const showFailure = useCallback(() => {
+    setSearchFailed(true);
+    setState((prev) => ({ ...prev, status: "idle" }));
+    toast(dict.REQUEST_SEARCH_ERROR, "error");
+  }, [toast, dict]);
+
   const search = useCallback(
     async (rawQuery: string) => {
       const query = rawQuery.trim();
@@ -68,27 +92,16 @@ export function useTrackSearch({
       try {
         const response = await musicRequestService.searchTracksByTitle(query);
         if (!isCurrent(requestId)) return;
-        setState((prev) => ({
-          // Text typed while the search was in flight stays in the field.
-          query: prev.query,
-          searched: query,
-          results: response.results,
-          pagination: response,
-          status: "idle",
-        }));
-        // A fresh search starts reading from the top.
-        scrollToTop();
+        showResults(query, response);
         onSearched(query, response.totalResults);
       } catch (err) {
         console.error("[MakeRequest] search failed:", err);
         if (!isCurrent(requestId)) return;
-        setSearchFailed(true);
-        setState((prev) => ({ ...prev, status: "idle" }));
         haptics.error();
-        toast(dict.REQUEST_SEARCH_ERROR, "error");
+        showFailure();
       }
     },
-    [begin, isCurrent, scrollToTop, onSearched, toast, dict],
+    [begin, isCurrent, showResults, showFailure, onSearched],
   );
 
   const submit = useCallback(
@@ -129,28 +142,17 @@ export function useTrackSearch({
     try {
       const response = await musicRequestService.searchTracksByTitle(query);
       if (!isCurrent(requestId)) return;
-      setState((prev) => ({
-        // Keeps whatever was typed meanwhile.
-        query: prev.query,
-        searched: query,
-        results: response.results,
-        pagination: response,
-        status: "idle",
-      }));
-      scrollToTop();
+      showResults(query, response);
     } catch (err) {
       console.error("[MakeRequest] search failed:", err);
-      // Same staleness rules as `search`: a slow refresh landing after a
-      // newer search must not toast over the newer state, and the error
-      // banner rides the same failure flag so the UI stays consistent.
+      // Same staleness rule as `search`: a slow refresh landing after a
+      // newer search must not toast over the newer state.
       if (!isCurrent(requestId)) return;
-      setSearchFailed(true);
-      setState((prev) => ({ ...prev, status: "idle" }));
-      toast(dict.REQUEST_SEARCH_ERROR, "error");
+      showFailure();
     } finally {
       setRefreshing(false);
     }
-  }, [begin, isCurrent, scrollToTop, state.searched, state.query, toast, dict]);
+  }, [begin, isCurrent, showResults, showFailure, state.searched, state.query]);
 
   /** One tap empties the field, the old results and every error state. */
   const clear = useCallback(() => {

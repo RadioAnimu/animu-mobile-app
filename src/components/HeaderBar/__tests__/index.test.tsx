@@ -1,14 +1,19 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { Animated } from "react-native";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi, type MockInstance } from "vitest";
 
+import type { MockAnimation } from "@/__tests__/react-native-mock";
 import { HeaderBar } from "@/components/HeaderBar";
 
 vi.mock("react-native", async () =>
   (await import("@/__tests__/react-native-mock")).createReactNativeMock(),
 );
-vi.mock("expo-image", () => ({ Image: () => <span data-testid="image" /> }));
+vi.mock("expo-image", () => ({
+  Image: ({ style }: { style?: unknown }) => (
+    <span data-testid="image" data-style={JSON.stringify(style)} />
+  ),
+}));
 vi.mock("react-native-safe-area-context", () => ({
   useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }),
 }));
@@ -19,6 +24,10 @@ const mocks = vi.hoisted(() => ({
   progress: {} as Record<string, unknown>,
   backgrounded: false,
   haptics: { tap: vi.fn() },
+  layout: { usableWidth: 393, windowControlsInset: 0 },
+}));
+vi.mock("@/hooks/useResponsiveLayout", () => ({
+  useResponsiveLayout: () => mocks.layout,
 }));
 
 vi.mock("@react-navigation/native", () => ({
@@ -51,6 +60,9 @@ vi.mock("@/hooks/useDict", () => ({
   }),
 }));
 vi.mock("@/utils/haptics", () => ({ haptics: mocks.haptics }));
+vi.mock("@/components/BitrateSelect", () => ({
+  BitrateSelect: () => <i data-testid="bitrate-select" />,
+}));
 vi.mock("@/components/LyricsButton", () => ({
   // Labeled like the real button (A11Y_OPEN_LYRICS) so placement tests can
   // count the mics by their accessibility label.
@@ -69,12 +81,19 @@ const setPlayer = (overrides: Record<string, unknown> = {}) => {
   };
 };
 
+/** A style array entry as serialized: conditional entries may be `false`/`null`. */
+type StyleEntry = { marginHorizontal?: number } | false | null;
+
+const parseStyle = (element: Element) =>
+  JSON.parse(element.getAttribute("data-style")!) as Record<string, unknown>;
+
 const pressRequest = () =>
   fireEvent.click(screen.getByRole("button", { name: "Make request" }));
 
 describe("HeaderBar", () => {
   beforeEach(() => {
     mocks.backgrounded = false;
+    mocks.layout = { usableWidth: 393, windowControlsInset: 0 };
     mocks.progress = { progressMs: 0, progressAt: 0, progressRunning: false, showProgress: true, durationMs: 200_000 };
     setPlayer();
   });
@@ -83,6 +102,102 @@ describe("HeaderBar", () => {
   it("carries the lyrics microphone beside the request note", () => {
     render(<HeaderBar openLiveRequestModal={() => {}} />);
     expect(screen.getByTestId("lyrics-button")).toBeTruthy();
+  });
+
+  describe("row width", () => {
+    const rowWidth = () =>
+      (
+        JSON.parse(
+          screen.getByTestId("menu-slot").parentElement!.getAttribute("data-style")!,
+        ) as { width?: number }
+      ).width;
+    /** Side margin of the play button (the last style entry wins, as in RN). */
+    const playMargin = () =>
+      (
+        JSON.parse(
+          within(screen.getByRole("button", { name: "Play" }))
+            .getByTestId("image")
+            .getAttribute("data-style")!,
+        ) as (StyleEntry | StyleEntry[])[]
+      )
+        .flat()
+        .reverse()
+        .find(
+          (entry): entry is { marginHorizontal: number } =>
+            !!entry && entry.marginHorizontal !== undefined,
+        )?.marginHorizontal;
+
+    it("spans a phone in portrait with the designed play button margins", () => {
+      render(<HeaderBar />);
+      expect(rowWidth()).toBe(393);
+      expect(playMargin()).toBe(47);
+    });
+
+    it("sits inside the side safe areas, capped to the page column", () => {
+      mocks.layout = { usableWidth: 734, windowControlsInset: 0 };
+      render(<HeaderBar />);
+      expect(rowWidth()).toBe(560);
+      expect(playMargin()).toBe(47);
+    });
+
+    it("keeps a centered row centered when it already clears the window controls", () => {
+      mocks.layout = { usableWidth: 1180, windowControlsInset: 72 };
+      render(<HeaderBar rowWidth={900} />);
+      const container = screen.getByTestId("menu-slot").parentElement!.parentElement!;
+      expect(parseStyle(container).paddingLeft).toBe(0);
+      expect(rowWidth()).toBe(900);
+    });
+
+    it("starts the row past the iPadOS window controls in a resizable window", () => {
+      mocks.layout = { usableWidth: 375, windowControlsInset: 72 };
+      render(<HeaderBar />);
+      const container = screen.getByTestId("menu-slot").parentElement!.parentElement!;
+      expect(parseStyle(container).paddingLeft).toBe(72);
+      expect(parseStyle(screen.getByTestId("menu-slot").parentElement!).width).toBe(303);
+    });
+
+    it("takes the width the split layout gives it", () => {
+      // A landscape phone: 734pt between the island insets, panes 686pt wide.
+      mocks.layout = { usableWidth: 734, windowControlsInset: 0 };
+      render(<HeaderBar rowWidth={686} />);
+      expect(rowWidth()).toBe(686);
+    });
+
+    it("pulls the play button's margins in on a narrow window, down to a floor", () => {
+      mocks.layout = { usableWidth: 300, windowControlsInset: 0 };
+      const { unmount } = render(<HeaderBar />);
+      expect(rowWidth()).toBe(300);
+      expect(playMargin()).toBeCloseTo((47 * 300) / 360);
+      unmount();
+      render(<HeaderBar rowWidth={150} />);
+      expect(playMargin()).toBe(24);
+    });
+  });
+
+  describe("landscape bar", () => {
+    const labelsIn = (slot: string) =>
+      [...screen.getByTestId(slot).querySelectorAll("[aria-label], [data-testid]")]
+        .map((el) => el.getAttribute("aria-label") ?? el.getAttribute("data-testid"))
+        .filter((label) => label !== "image");
+
+    it("reads like the website player: menu and play left; stream, lyrics and requests right", () => {
+      mocks.layout = { usableWidth: 734, windowControlsInset: 0 };
+      render(<HeaderBar rowWidth={686} bar openLiveRequestModal={vi.fn()} />);
+      expect(labelsIn("menu-slot")).toEqual(["Open menu", "Play"]);
+      expect(labelsIn("note-slot")).toEqual(["bitrate-select", "Show lyrics", "Make request"]);
+    });
+
+    it("keeps the mic beside the stream picker during a live show", () => {
+      setPlayer({ currentProgram: { isLive: true, acceptingRequests: true } });
+      render(<HeaderBar rowWidth={686} bar openLiveRequestModal={vi.fn()} />);
+      expect(screen.getAllByLabelText("Show lyrics")).toHaveLength(1);
+      expect(within(screen.getByTestId("note-slot")).getByTestId("badge-enabled")).toBeTruthy();
+    });
+
+    it("leaves the portrait row without the stream picker", () => {
+      render(<HeaderBar />);
+      expect(screen.queryByTestId("bitrate-select")).toBeNull();
+    });
   });
 
   describe("microphone placement", () => {
@@ -162,19 +277,27 @@ describe("HeaderBar", () => {
 
   describe("progress bar", () => {
     const NOW = new Date("2026-10-05T05:00:00Z").getTime();
-    const runs = () =>
-      vi.mocked(Animated.timing).mock.calls.filter(([, config]) => config.toValue === 1);
+    let setValue: MockInstance<(value: number) => void>;
+    /** The bar's value: the Animated.Value last placed strictly inside (0, 1). */
+    const bar = () => {
+      const index = setValue.mock.calls.findLastIndex(([value]) => value > 0 && value < 1);
+      return (setValue.mock.contexts[index] as { value: number }).value;
+    };
+    const steps = () =>
+      vi.mocked(globalThis.setInterval).mock.calls.map(([, ms]) => ms);
 
     beforeEach(() => {
-      vi.useFakeTimers({ toFake: ["Date"] });
+      vi.useFakeTimers({ toFake: ["Date", "setInterval", "clearInterval"] });
       vi.setSystemTime(NOW);
+      setValue = vi.spyOn(Animated.Value.prototype, "setValue");
+      vi.spyOn(globalThis, "setInterval");
       setPlayer({ currentTrack: { duration: 200_000, raw: "Song A" } });
     });
     afterEach(() => {
       vi.useRealTimers();
     });
 
-    it("runs one linear native animation from the heard position to the song's end", () => {
+    it("steps from the heard position, about a pixel at a time, without a continuous animation", () => {
       // Anchored 10 s ago at 50 s: the audio is at 60 s now.
       mocks.progress = {
         progressMs: 50_000,
@@ -184,14 +307,14 @@ describe("HeaderBar", () => {
         durationMs: 200_000,
       };
       render(<HeaderBar />);
-      expect(runs()).toHaveLength(1);
-      expect(runs()[0][1]).toEqual({
-        toValue: 1,
-        duration: 140_000,
-        easing: "linear",
-        useNativeDriver: true,
+      expect(bar()).toBeCloseTo(0.3, 5);
+      // 200 s over a 393 px bar: a step every ~509 ms.
+      expect(steps()).toEqual([200_000 / 393]);
+      expect(vi.mocked(Animated.timing).mock.calls.filter(([, c]) => c.toValue === 1)).toHaveLength(0);
+      act(() => {
+        vi.advanceTimersByTime(2_000);
       });
-      expect((runs()[0][0] as unknown as { value: number }).value).toBeCloseTo(0.3, 5);
+      expect(bar()).toBeCloseTo(0.31, 2);
     });
 
     it("holds still while the audio is stopped", () => {
@@ -203,10 +326,19 @@ describe("HeaderBar", () => {
         durationMs: 200_000,
       };
       render(<HeaderBar />);
-      expect(runs()).toHaveLength(0);
+      expect(bar()).toBeCloseTo(0.25, 5);
+      expect(steps()).toHaveLength(0);
     });
 
-    it("runs to the progress snapshot's duration, not the track's (a live song's estimate)", () => {
+    it("never steps a hidden bar or one without a length", () => {
+      mocks.progress = { progressMs: 50_000, progressAt: NOW, progressRunning: true, showProgress: true, durationMs: 0 };
+      const { rerender } = render(<HeaderBar />);
+      mocks.progress = { progressMs: 50_000, progressAt: NOW, progressRunning: true, showProgress: false, durationMs: 200_000 };
+      rerender(<HeaderBar />);
+      expect(steps()).toHaveLength(0);
+    });
+
+    it("steps against the progress snapshot's duration, not the track's (a live song's estimate)", () => {
       // The station sent no length (0): the bar follows the estimated 100 s.
       setPlayer({ currentTrack: { duration: 0, raw: "Song A" } });
       mocks.progress = {
@@ -217,21 +349,24 @@ describe("HeaderBar", () => {
         durationMs: 100_000,
       };
       render(<HeaderBar />);
-      expect(runs()).toHaveLength(1);
-      expect(runs()[0][1].duration).toBe(50_000);
+      expect(bar()).toBeCloseTo(0.5, 5);
+      expect(steps()).toEqual([100_000 / 393]);
+      act(() => {
+        vi.advanceTimersByTime(1_000);
+      });
+      // Three steps landed (the last at ~763 ms): within a step of 0.51.
+      expect(bar()).toBeCloseTo(0.51, 2);
     });
 
     it("restarts only on a re-anchor, from where the audio is", () => {
       mocks.progress = { progressMs: 50_000, progressAt: NOW, progressRunning: true, showProgress: true, durationMs: 200_000 };
       const { rerender } = render(<HeaderBar />);
       rerender(<HeaderBar />);
-      expect(runs()).toHaveLength(1);
-      const first = vi.mocked(Animated.timing).mock.results[0].value;
+      expect(steps()).toHaveLength(1);
       mocks.progress = { progressMs: 1_200, progressAt: NOW, progressRunning: true, showProgress: true, durationMs: 200_000 };
       rerender(<HeaderBar />);
-      expect(first.stop).toHaveBeenCalledTimes(1);
-      expect(runs()).toHaveLength(2);
-      expect(runs()[1][1].duration).toBe(198_800);
+      expect(steps()).toHaveLength(2);
+      expect(bar()).toBeCloseTo(0.006, 5);
     });
   });
 
@@ -243,6 +378,12 @@ describe("HeaderBar", () => {
       render(<HeaderBar openLiveRequestModal={vi.fn()} />);
       expect(screen.getByTestId("badge-enabled")).toBeTruthy();
       expect(Animated.loop).toHaveBeenCalledTimes(1);
+    });
+
+    it("bobs three times, then rests (no endless loop through a live show)", () => {
+      setPlayer(live);
+      render(<HeaderBar openLiveRequestModal={vi.fn()} />);
+      expect(vi.mocked(Animated.loop).mock.calls[0][1]).toEqual({ iterations: 3 });
     });
 
     it("stays still when there is no live badge", () => {
@@ -260,7 +401,7 @@ describe("HeaderBar", () => {
     it("stops the pulse on unmount", () => {
       setPlayer(live);
       const { unmount } = render(<HeaderBar openLiveRequestModal={vi.fn()} />);
-      const loop = vi.mocked(Animated.loop).mock.results[0].value;
+      const loop = vi.mocked(Animated.loop).mock.results[0].value as MockAnimation;
       unmount();
       expect(loop.stop).toHaveBeenCalledTimes(1);
     });
@@ -281,6 +422,18 @@ describe("HeaderBar", () => {
       expect(mocks.haptics.tap).toHaveBeenCalledTimes(1);
     });
 
+    it("marks a toggle in flight busy, never disabled (a disabled view drops D-pad focus)", async () => {
+      let resolve!: () => void;
+      setPlayer({ play: vi.fn(() => new Promise<void>((r) => (resolve = r))) });
+      render(<HeaderBar />);
+      const button = screen.getByRole("button", { name: "Play" });
+      fireEvent.click(button);
+      await waitFor(() => expect(button.getAttribute("aria-busy")).toBe("true"));
+      expect(button.getAttribute("aria-disabled")).toBeNull();
+      resolve();
+      await waitFor(() => expect(button.getAttribute("aria-busy")).toBe("false"));
+    });
+
     it("pauses when playing", async () => {
       setPlayer({ isPlaying: true });
       render(<HeaderBar />);
@@ -296,7 +449,7 @@ describe("HeaderBar", () => {
       const button = () => screen.getByRole("button", { name: "Play" });
       fireEvent.click(button());
       await waitFor(() =>
-        expect(warn).toHaveBeenCalledWith("[HeaderBar] play/pause failed:", expect.any(Error)),
+        expect(warn).toHaveBeenCalledWith("[PlayPauseButton] play/pause failed:", expect.any(Error)),
       );
       fireEvent.click(button());
       await waitFor(() => expect(play).toHaveBeenCalledTimes(2));

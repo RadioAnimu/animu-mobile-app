@@ -39,14 +39,22 @@ describe("useRemainingMs", () => {
     const { result } = render({ anchor, active: true });
     expect(shown(result.current)).toBe(189);
     // Flips to 188 at the boundary (700 ms), not on a polling tick.
-    act(() => vi.advanceTimersByTime(699));
+    act(() => {
+      vi.advanceTimersByTime(699);
+    });
     expect(shown(result.current)).toBe(189);
-    act(() => vi.advanceTimersByTime(2));
+    act(() => {
+      vi.advanceTimersByTime(2);
+    });
     expect(shown(result.current)).toBe(188);
     for (let second = 187; second > 180; second--) {
-      act(() => vi.advanceTimersByTime(999));
+      act(() => {
+        vi.advanceTimersByTime(999);
+      });
       expect(shown(result.current)).toBe(second + 1);
-      act(() => vi.advanceTimersByTime(1));
+      act(() => {
+        vi.advanceTimersByTime(1);
+      });
       expect(shown(result.current)).toBe(second);
     }
   });
@@ -54,21 +62,27 @@ describe("useRemainingMs", () => {
   it("holds while the audio is stopped or the app is hidden", () => {
     const stopped = { progressMs: 10_000, progressAt: NOW, progressRunning: false };
     const { result, rerender } = render({ anchor: stopped, active: true });
-    act(() => vi.advanceTimersByTime(5_000));
+    act(() => {
+      vi.advanceTimersByTime(5_000);
+    });
     expect(result.current).toBe(190_000);
 
     const running = { ...stopped, progressAt: Date.now(), progressRunning: true };
     rerender({ anchor: running, active: false });
     expect(vi.getTimerCount()).toBe(0);
     rerender({ anchor: running, active: true });
-    act(() => vi.advanceTimersByTime(3_000));
+    act(() => {
+      vi.advanceTimersByTime(3_000);
+    });
     expect(shown(result.current)).toBe(187);
   });
 
   it("stops at zero past the song's end", () => {
     const anchor = { progressMs: 199_500, progressAt: NOW, progressRunning: true };
     const { result } = render({ anchor, active: true });
-    act(() => vi.advanceTimersByTime(5_000));
+    act(() => {
+      vi.advanceTimersByTime(5_000);
+    });
     expect(result.current).toBe(0);
     expect(vi.getTimerCount()).toBe(0);
   });

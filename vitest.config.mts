@@ -12,7 +12,8 @@ export default defineConfig({
   test: {
     clearMocks: true,
     // Both pinned libraries run their own suites via check:animu-api / check:player.
-    exclude: [...configDefaults.exclude, "packages/**", "scripts/__tests__/**"],
+    // e2e/ is Playwright's (`pnpm test:web`).
+    exclude: [...configDefaults.exclude, "packages/**", "scripts/__tests__/**", "e2e/**"],
     // Jenkins' `junit` step picks up junit.xml; without a reporter it would
     // silently publish nothing.
     reporters: process.env.CI

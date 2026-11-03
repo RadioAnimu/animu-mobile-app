@@ -33,7 +33,7 @@ export function CoverDataSection() {
     () => [
       ...COVER_QUALITY_SAMPLES.map((sample) => ({
         key: sample.key,
-        label: dict[QUALITY_LABEL_KEY[sample.key as CoverQualityKey]],
+        label: dict[QUALITY_LABEL_KEY[sample.key]],
         meta: `~${formatBytes(sample.sizeBytes, dict.NUMBER_DECIMAL_SEPARATOR)}`,
         badge:
           sample.key === "medium"

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import type { TextInput } from "react-native";
+import type { TextInputInstance } from "react-native";
 
 import { FormField } from "@/components/FormField";
 import { RequestSubmitButton } from "@/components/RequestSubmitButton";
@@ -41,7 +41,7 @@ export function LiveRequestModal({ visible, handleClose }: Readonly<Props>) {
   const { chip, showChip, clearChip } = useChip();
   const defaultName = user?.nickname || user?.username || "";
 
-  const { formData, setters, setField, reset } = useLiveRequestForm({
+  const { formData, setField, reset } = useLiveRequestForm({
     name: defaultName,
   });
 
@@ -68,7 +68,7 @@ export function LiveRequestModal({ visible, handleClose }: Readonly<Props>) {
         setAttempted(false);
         setDraftOwner(user?.id);
       }
-      if (fresh || !formData.name) setters.setName(defaultName);
+      if (fresh || !formData.name) setField("name", defaultName);
       setStatus("idle");
     }
   }
@@ -138,7 +138,7 @@ export function LiveRequestModal({ visible, handleClose }: Readonly<Props>) {
     onChangeText: (text: string) => handleChange(field, text),
     error: fieldError(field),
     busy: isSubmitting,
-    inputRef: (node: TextInput | null) => registerInput(field, node),
+    inputRef: (node: TextInputInstance | null) => registerInput(field, node),
     maxLength: field === "request" ? LIVE_MESSAGE_MAX : LIVE_FIELD_MAX,
     ...(next && {
       returnKeyType: "next" as const,
@@ -199,7 +199,7 @@ export function LiveRequestModal({ visible, handleClose }: Readonly<Props>) {
         <RequestSubmitButton
           submitting={isSubmitting}
           failed={isError}
-          onPress={handleSubmit}
+          onPress={() => void handleSubmit()}
         />
       </KeyboardScrollView>
     </Sheet>

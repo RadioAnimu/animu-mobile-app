@@ -22,7 +22,7 @@ const TITLE_MIN = 0.78;
 /** Identity (title 60% + artist 40%) a row needs to be accepted. */
 const IDENTITY_MIN = 0.74;
 /** Synced lyrics are timed for the cut on air within this (ms). */
-export const SYNC_TOLERANCE_MS = 4_000;
+const SYNC_TOLERANCE_MS = 4_000;
 /** A name we cannot compare (kanji without a reader) neither helps nor hurts. */
 const UNKNOWN_ARTIST_SCORE = 0.6;
 

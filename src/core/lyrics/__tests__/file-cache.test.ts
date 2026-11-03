@@ -54,8 +54,8 @@ vi.mock("expo-file-system", () => {
   return { Directory, File, Paths: { cache: "file://cache" } };
 });
 
-const { fileNameOf, LyricsFileCache } =
-  await import("@/core/lyrics/file-cache");
+const { LyricsFileCache } = await import("@/core/lyrics/file-cache");
+const { fileNameOf } = await import("@/core/lyrics/cache-entry");
 
 beforeEach(() => {
   storage.exists = false;
@@ -77,17 +77,12 @@ describe("fileNameOf", () => {
 });
 
 describe("lyrics persistence", () => {
-  it("round-trips a known miss and tolerates an OS-purged cache", async () => {
+  it("round-trips a known miss", async () => {
     const cache = new LyricsFileCache();
     expect(await cache.read("song")).toBeNull();
-    expect(await cache.size()).toBe(0);
     const entry = { savedAt: 123, result: { kind: "none" as const } };
     await cache.write("song", entry);
     expect(await cache.read("song")).toEqual(entry);
-    expect(await cache.size()).toBeGreaterThan(0);
-    await cache.clear();
-    expect(await cache.read("song")).toBeNull();
-    await cache.clear();
   });
 
   it("rejects old formats, mismatched song keys, and incomplete lookups", async () => {

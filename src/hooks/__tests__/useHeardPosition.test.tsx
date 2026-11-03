@@ -57,7 +57,9 @@ describe("heard lyrics clock", () => {
       elapsedMs: 2_000,
       advancing: true,
     });
-    act(() => vi.advanceTimersByTime(250));
+    act(() => {
+      vi.advanceTimersByTime(250);
+    });
     expect(result.current.known).toBe(true);
     expect(mocks.frames.setActive).toHaveBeenLastCalledWith(true);
     act(() => {
@@ -70,7 +72,9 @@ describe("heard lyrics clock", () => {
       elapsedMs: 2_200,
       advancing: false,
     });
-    act(() => vi.advanceTimersByTime(150));
+    act(() => {
+      vi.advanceTimersByTime(150);
+    });
     expect(result.current.position.get()).toBe(2_200 + LYRICS_LEAD_MS);
     expect(mocks.frames.setActive).toHaveBeenLastCalledWith(false);
     unmount();
@@ -124,7 +128,9 @@ describe("heard lyrics clock", () => {
     });
     expect(result.current.position.get()).toBe(5_000 + LYRICS_LEAD_MS);
     mocks.read.mockReturnValue(null);
-    act(() => vi.advanceTimersByTime(250));
+    act(() => {
+      vi.advanceTimersByTime(250);
+    });
     expect(result.current.known).toBe(false);
     expect(result.current.position.get()).toBeNaN();
     unmount();

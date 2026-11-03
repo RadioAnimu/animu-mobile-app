@@ -1,6 +1,6 @@
 import type { Timer } from "@/core/player/timer";
 
-export interface ScheduledCall {
+interface ScheduledCall {
   id: number;
   fn: () => void;
   ms: number;

@@ -48,7 +48,6 @@ vi.mock("@/core/auth", async () => import("@/core/auth/errors"));
 vi.mock("@/utils/haptics", () => ({ haptics: mocks.haptics }));
 vi.mock("@/constants/auth", () => ({
   isProviderConfigured: () => true,
-  isProviderLinkable: () => true,
 }));
 vi.mock("@/hooks/useScrollEndPadding", () => ({
   useScrollEndPadding: () => 0,
@@ -157,7 +156,7 @@ const renderAccount = () => render(<Account navigation={NAV} route={{} as never}
 
 /** The confirm dialog's [title, message, buttons] from the last Alert.alert. */
 const lastAlert = () =>
-  vi.mocked(Alert.alert).mock.calls.at(-1) as unknown as [
+  vi.mocked(Alert).alert.mock.calls.at(-1) as unknown as [
     string,
     string,
     { text: string; onPress?: () => void }[],

@@ -1,4 +1,5 @@
 import type { HistoryType } from "animu-api";
+import { Platform } from "react-native";
 import type { MediaMetadata, PlaybackState, PlayerStatus } from "react-native-anything-player";
 import type { Stream } from "@/core/domain/stream";
 import { isRealTrack, type Track } from "@/core/domain/track";
@@ -69,6 +70,11 @@ export interface PlayerServiceDependencies {
   publishCatalog?: (streams: Stream[], current: Stream) => Promise<void>;
 }
 
+// A browser that sends a User-Agent (Safari, Firefox) asks the stream server
+// to allow it first, which it does not: the fetch fails and the stream plays
+// without metadata or the oscilloscope. Chrome drops it silently.
+const STREAM_HEADERS: Record<string, string> = Platform.OS === "web" ? {} : { "User-Agent": CONFIG.USER_AGENT };
+
 /**
  * What the player loads for `stream`: every relay as a rendition of one live
  * source, so a quality change has no gap. A stream outside the fetched list
@@ -87,7 +93,7 @@ export const streamSource = (streams: Stream[], stream: Stream) => {
       })),
     }),
     live: true,
-    headers: { "User-Agent": CONFIG.USER_AGENT },
+    headers: STREAM_HEADERS,
   };
 };
 
@@ -207,7 +213,7 @@ export class PlayerService {
         if (this.loadedStreamId != null) return;
         void this.setupPlayer()
           .then(() => this.play())
-          .catch((error) => console.warn("[PlayerService] remote play:", error));
+          .catch((error: unknown) => console.warn("[PlayerService] remote play:", error));
       }),
     );
     heard.onChange = () => this.handleDisplayedTrackChange();
@@ -218,7 +224,7 @@ export class PlayerService {
       // have missed the item while it looks healthy).
       repository.expireStuckRefresh();
       void this.refreshData({ forceMetadata: true })
-        .catch((error) => console.warn("[PlayerService] refresh for heard title:", error))
+        .catch((error: unknown) => console.warn("[PlayerService] refresh for heard title:", error))
         .finally(() => heard.unresolved(title));
     };
     // The deadline is enforced where JS runs in the background: the SSE events.
@@ -394,14 +400,6 @@ export class PlayerService {
     return this.deps.sampler.subscribeWindows(listener);
   }
 
-  reportVisualizerDelay(appliedMs: number): void {
-    this.deps.sampler.reportAppliedDelay?.(appliedMs);
-  }
-
-  setVisualizerSyncTrim(trimMs: number): void {
-    this.deps.sampler.setSyncTrim?.(trimMs);
-  }
-
   // ── Lifecycle ──
 
   /**
@@ -442,7 +440,7 @@ export class PlayerService {
     const { repository } = this.deps;
     repository.expireStuckRefresh();
     if (fromSuspension) {
-      void this.refreshData().catch((error) => {
+      void this.refreshData().catch((error: unknown) => {
         if (CONFIG.DEBUG) console.warn("[PlayerService] resume refresh:", error);
       });
     }
@@ -476,7 +474,7 @@ export class PlayerService {
       // The data kept still while hidden (a 30 s poll at best): catch up now,
       // not on the next tick.
       if (this.initialized && Date.now() - this.lastPollAt > POLL_PAUSED_MS) {
-        void this.refreshData().catch((error) => {
+        void this.refreshData().catch((error: unknown) => {
           if (CONFIG.DEBUG) console.warn("[PlayerService] resume refresh:", error);
         });
       }
@@ -493,6 +491,11 @@ export class PlayerService {
     await this.setupPromise;
   }
 
+  /** Read through a call so a check after an `await` sees a `dispose()` made meanwhile. */
+  private isDisposed(): boolean {
+    return this.disposed;
+  }
+
   private async runSetup(): Promise<void> {
     const [streams] = await Promise.all([
       animuApi.getStreams(),
@@ -505,13 +508,13 @@ export class PlayerService {
     this.deps.sampler.setEnabled(userSettingsService.getCurrentSettings().visualizerHz > 0);
     this.updateLiveStreamLifecycle();
     await this.deps.streamPreferences.load(streams);
-    if (this.disposed) return;
+    if (this.isDisposed()) return;
     try {
       await this.refreshData();
     } catch (error) {
       console.warn("[PlayerService] setupPlayer: initial data fetch failed:", error);
     }
-    if (this.disposed) return;
+    if (this.isDisposed()) return;
     this.initialized = true;
     // Started before this service (Siri, the car, a reload): follow it.
     if (this.deps.player.status.state !== "idle") {
@@ -553,7 +556,7 @@ export class PlayerService {
   private publishCatalog(): void {
     void this.deps
       .publishCatalog?.(this.streamOptions, this.deps.streamPreferences.current)
-      .catch((error) => console.warn("[PlayerService] catalog:", error));
+      .catch((error: unknown) => console.warn("[PlayerService] catalog:", error));
   }
 
   /** Releases the player and every unit. Safe at any stage; one-way. */
@@ -634,7 +637,7 @@ export class PlayerService {
         // pause — either way the next title (if any) is reported by status.
         await this.deps.player.play();
       }
-      void this.refreshData().catch((error) => console.warn("[PlayerService] refresh:", error));
+      void this.refreshData().catch((error: unknown) => console.warn("[PlayerService] refresh:", error));
     } catch (error) {
       console.error("[PlayerService] Playback error:", error);
       throw error;
@@ -929,7 +932,7 @@ export class PlayerService {
           ? { duration: meta.durationSec, elapsed: elapsed / 1000 }
           : {}),
       })
-      .catch((error) => console.warn("[PlayerService] now playing:", error));
+      .catch((error: unknown) => console.warn("[PlayerService] now playing:", error));
   }
 
   /**
@@ -972,7 +975,7 @@ export class PlayerService {
       Date.now() - this.lastPollAt >= cadence &&
       !this.deps.repository.retryPending
     ) {
-      void this.refreshData().catch((error) => {
+      void this.refreshData().catch((error: unknown) => {
         if (CONFIG.DEBUG) console.warn("[PlayerService] poll:", error);
       });
     }

@@ -2,6 +2,7 @@ import { Text, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { BackArrow } from "@/components/BackArrow";
+import { useResponsiveLayout } from "@/hooks/useResponsiveLayout";
 import { HEADER_HEIGHT, styles } from "@/components/ScreenHeader/styles";
 import { useDict } from "@/hooks/useDict";
 import { THEME } from "@/theme";
@@ -18,13 +19,22 @@ interface Props {
  */
 export function ScreenHeader({ title, onBack }: Readonly<Props>) {
   const insets = useSafeAreaInsets();
+  const { windowControlsInset } = useResponsiveLayout();
   const dict = useDict();
 
   return (
     <View
       style={[
         styles.header,
-        { height: HEADER_HEIGHT + insets.top, paddingTop: insets.top },
+        {
+          height: HEADER_HEIGHT + insets.top,
+          paddingTop: insets.top,
+          // Landscape puts the notch / island at a side, an iPadOS window its
+          // controls at the leading corner: the arrow and the balancing slot
+          // step in past them (all zero on a portrait phone).
+          paddingLeft: THEME.SPACE.SM + insets.left + windowControlsInset,
+          paddingRight: THEME.SPACE.SM + insets.right,
+        },
       ]}
     >
       <TouchableOpacity

@@ -20,7 +20,6 @@ interface Props
   user: User | null;
   /** Submitting: dims and ignores typing, keeping focus and the keyboard. */
   busy?: boolean;
-  maxLength?: number;
 }
 
 /**
@@ -33,7 +32,6 @@ export function ReplyBubble({
   label,
   user,
   busy = false,
-  maxLength,
   placeholder,
   onSubmitEditing,
 }: Readonly<Props>) {
@@ -68,7 +66,6 @@ export function ReplyBubble({
               if (!busy) onChangeText(text);
             }}
             multiline
-            maxLength={maxLength}
             placeholder={placeholder}
             placeholderTextColor={THEME.COLORS.TEXT_ON_LIGHT_DIM}
             accessibilityLabel={label}

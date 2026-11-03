@@ -1,5 +1,6 @@
 import { parseNowPlayingTitle } from "animu-api";
 import type { Track } from "@/core/domain/track";
+import { trackStartMs } from "@/core/player/stream-playback/track-start";
 
 /**
  * How long after the API's `timestart` the station's ICY title changes.
@@ -399,8 +400,8 @@ export class HeardTrack {
   private supersededByStation(): boolean {
     const pending = this.pending;
     if (!pending || this.stationChangedAt <= pending.heardAt) return false;
-    const start = this.options.stationTrack()?.startTime?.getTime();
-    if (start == null || !Number.isFinite(start)) return false;
+    const start = trackStartMs(this.options.stationTrack());
+    if (start == null) return false;
     return start > pending.heardAt + this.skewMs - Math.max(0, pending.lagMs);
   }
 

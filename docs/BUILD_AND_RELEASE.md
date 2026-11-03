@@ -32,7 +32,7 @@ all signed with the Play upload key:
 
 | Job | Jenkinsfile | Purpose |
 | --- | --- | --- |
-| `animu-mobile-app` | `Jenkinsfile` | CI: typecheck, lint, Expo SDK alignment, dependency and full-history secret audits, `vitest`, both library checks, Android bundle smoke test, complete React Doctor scan with zero findings. |
+| `animu-mobile-app` | `Jenkinsfile` | CI: typecheck, lint (ESLint, type-aware oxlint/tsgolint, knip, sherif), Expo SDK alignment, dependency and full-history secret audits, `vitest`, both library checks, Android bundle smoke test, complete React Doctor scan with zero findings. |
 | `animu-mobile-app-release` | `Jenkinsfile.release` | Parameterized release build (below). |
 
 CI runs in the Node container; release builds run on the

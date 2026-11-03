@@ -13,6 +13,8 @@ export interface CoverFileCache {
   track(url: string, fileUri: string): void;
   /** Drops one URL's lookup (a no-op when it isn't tracked). */
   forget(url: string): void;
+  /** Drops every URL whose file matches `test` (its file was deleted). */
+  forgetWhere(test: (fileUri: string) => boolean): void;
   /** Live number of tracked URLs. */
   readonly size: number;
   /** Drops every lookup (called on the resolver's destroy path). */

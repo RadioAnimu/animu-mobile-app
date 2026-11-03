@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Animated, Pressable, Text, TextInput, View } from "react-native";
+import { Animated, Pressable, Text, TextInput, View, type TextInputInstance } from "react-native";
 
 import { styles } from "@/components/CodeInput/styles";
 import { useFocusOnMount } from "@/hooks/useFocusOnMount";
@@ -12,7 +12,6 @@ export const CODE_LENGTH = 4;
 interface Props {
   value: string;
   onChangeText: (value: string) => void;
-  editable?: boolean;
   /**
    * A verify is in flight: the boxes dim and typing is ignored, but the
    * field stays editable and focused. Flipping `editable` off instead would
@@ -46,15 +45,14 @@ interface Props {
 export function CodeInput({
   value,
   onChangeText,
-  editable = true,
   busy = false,
   autoFocus = false,
   accessibilityLabel,
 }: Readonly<Props>) {
   const [focused, setFocused] = useState(false);
-  const inputRef = useRef<TextInput | null>(null);
+  const inputRef = useRef<TextInputInstance | null>(null);
   const [caret] = useState(() => new Animated.Value(1));
-  const active = editable && !busy;
+  const active = !busy;
 
   useFocusOnMount(inputRef, autoFocus);
 
@@ -97,7 +95,6 @@ export function CodeInput({
     <Pressable
       // The TextInput is the accessible element; the row is only a tap target.
       accessible={false}
-      disabled={!editable}
       onPress={() => focusWithKeyboard(inputRef.current)}
       style={styles.row}
     >
@@ -130,7 +127,6 @@ export function CodeInput({
         textContentType="oneTimeCode"
         autoComplete="one-time-code"
         maxLength={CODE_LENGTH}
-        editable={editable}
         caretHidden
         autoCorrect={false}
         autoCapitalize="none"

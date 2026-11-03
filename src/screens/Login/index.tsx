@@ -42,13 +42,14 @@ import { useEmailCodeStepAnnouncement } from "@/hooks/useEmailCodeStepAnnounceme
 import { useReducedMotion } from "@/hooks/useReducedMotion";
 import { useResendCooldown } from "@/hooks/useResendCooldown";
 import { useStepFade } from "@/hooks/useStepFade";
+import { useResponsiveLayout } from "@/hooks/useResponsiveLayout";
 import { haptics } from "@/utils/haptics";
 import { openInAppBrowser } from "@/utils/browser";
 import { interpolate } from "@/utils/format";
 import type { RootStackParamList } from "@/routes/app.routes";
 import { THEME } from "@/theme";
 import { MOTION } from "@/theme/motion";
-import { AuthNotice } from "@/screens/Login/AuthNotice";
+import { Notice } from "@/components/Notice";
 import { ProviderButton } from "@/screens/Login/ProviderButton";
 import { HERO_LOGO_HEIGHT, styles } from "@/screens/Login/styles";
 
@@ -100,7 +101,7 @@ function LegalLine({ dict }: Readonly<{ dict: Dict }>) {
       <Text
         accessibilityRole="link"
         onPress={() => {
-          void openInAppBrowser(API.PRIVACY_URL).catch((error) =>
+          void openInAppBrowser(API.PRIVACY_URL).catch((error: unknown) =>
             console.warn("[Login] failed to open the privacy policy:", error),
           );
         }}
@@ -192,7 +193,7 @@ function MethodStep({
           ))}
         </View>
 
-        <AuthNotice
+        <Notice
           icon="info-outline"
           text={dict.LOGIN_REQUESTS_NOTICE}
           style={styles.noticeSlot}
@@ -272,7 +273,7 @@ function ConnectStep({
 
         <Animated.View style={[styles.connectBody, { opacity: bodyOpacity }]}>
           {!onCodeStep && (
-            <AuthNotice
+            <Notice
               icon="info-outline"
               text={dict.LOGIN_ANIMU_CONNECT_HINT}
               style={styles.noticeAboveField}
@@ -473,6 +474,7 @@ export function Login({ navigation }: Readonly<Props>) {
   };
 
   const error = providerError ?? flow.error;
+  const { windowControlsInset } = useResponsiveLayout();
 
   return (
     // The stack scene is opaque, so the screen paints the app artwork itself.
@@ -483,7 +485,8 @@ export function Login({ navigation }: Readonly<Props>) {
         edges={["top", "left", "right", "bottom"]}
       >
         {/* Outside the scroll view so it stays reachable with the keyboard up. */}
-        <View style={styles.topBar}>
+        {/* In an iPadOS window the back arrow steps past the window controls. */}
+        <View style={[styles.topBar, { paddingLeft: THEME.SPACE.SM + windowControlsInset }]}>
           <TouchableOpacity
             accessibilityRole="button"
             accessibilityLabel={dict.A11Y_BACK}
@@ -506,7 +509,7 @@ export function Login({ navigation }: Readonly<Props>) {
               busyProvider={busyProvider}
               authenticating={isAuthenticating}
               error={error}
-              onProvider={handleProvider}
+              onProvider={(provider) => void handleProvider(provider)}
               onConnect={openConnect}
             />
           ) : (

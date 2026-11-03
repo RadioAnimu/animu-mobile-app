@@ -1,22 +1,26 @@
 import { useNavigation } from "@react-navigation/native";
 import type { DrawerNavigationProp } from "@react-navigation/drawer";
-import { useEffect, useRef, useState } from "react";
+import { type ReactNode, useEffect, useState } from "react";
 import { Image } from "expo-image";
-import { Animated, Easing, TouchableOpacity, View, useWindowDimensions } from "react-native";
+import { Animated, PixelRatio, TouchableOpacity, View, useWindowDimensions } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import menuIcon from "@/assets/icons/menu.webp";
 import noteIcon from "@/assets/icons/note.webp";
-// Named for the ACTION they afford, not the glyph: the square (pause bars)
-// renders while PLAYING, the triangle renders while PAUSED. The file names
-// ("play_square_btn" / "play_triangle_btn") describe the paused/play button
-// pair, which reads backwards at the call site otherwise.
-import pauseAffordanceImage from "@/assets/play_square_btn.webp";
-import playAffordanceImage from "@/assets/play_triangle_btn.webp";
 import { IMGS } from "@/i18n";
 import { THEME } from "@/theme";
-import { CONTAINER_HEIGHT, ICON_HIT_SLOP, MIC_SIZE, styles } from "@/components/HeaderBar/styles";
+import {
+  CONTAINER_HEIGHT,
+  ICON_HIT_SLOP,
+  MIC_SIZE,
+  micOffset,
+  playButtonMargin,
+  styles,
+} from "@/components/HeaderBar/styles";
+import { MOTION } from "@/theme/motion";
 import { contentWidth } from "@/theme/responsive";
+import { BitrateSelect } from "@/components/BitrateSelect";
 import { LyricsButton } from "@/components/LyricsButton";
+import { PlayPauseButton } from "@/components/PlayPauseButton";
 import { useUserSettings } from "@/contexts/user/UserSettingsProvider";
 import {
   usePlayer,
@@ -26,90 +30,259 @@ import { useIsBackgrounded } from "@/contexts/app-state/AppStateProvider";
 import { useDict } from "@/hooks/useDict";
 import { useBlink } from "@/hooks/useBlink";
 import { useReducedMotion } from "@/hooks/useReducedMotion";
+import { useResponsiveLayout } from "@/hooks/useResponsiveLayout";
 import { elapsedAt, progressRatio } from "@/utils/progress";
 import type { DrawerParamList } from "@/routes/app.routes";
-import { haptics } from "@/utils/haptics";
 
 interface Props {
   openLiveRequestModal?: () => void;
+  /**
+   * Width of the icon row. Defaults to the page column of the usable window;
+   * the split layout passes its two-pane content width so the icons line up
+   * with the panes beneath.
+   */
+  rowWidth?: number;
+  /**
+   * Drawn behind the icon row, across the whole bar under the status bar —
+   * the landscape player runs its oscilloscope here, as the website player
+   * draws its wave behind its bar.
+   */
+  backdrop?: ReactNode;
+  /**
+   * The landscape player's bar, as on player.animu.moe: menu and play on the
+   * left; the stream picker, lyrics and requests on the right.
+   */
+  bar?: boolean;
 }
-
-type Status = "playing" | "paused" | "changing";
 
 const PULSE_OPACITY = 0.05;
 const PULSE_DURATION = 1750;
 /** Resting vertical offset of the live badge; the pulse bobs it up and back. */
 const PULSE_TRAVEL = 50;
 const PULSE_BOB = PULSE_TRAVEL * 2 * PULSE_OPACITY;
+/**
+ * The progress bar steps about a pixel at a time, at most 4 times a second:
+ * a continuous native animation made Android redraw the whole window every
+ * frame for the length of the song, for a bar that moves a pixel every few
+ * hundred milliseconds.
+ */
+const PROGRESS_STEP_MIN_MS = 250;
+const PROGRESS_STEP_MAX_MS = 1_000;
+
+/** Bobs when the badge appears, then rests: an endless loop kept Android
+ * redrawing the whole window every frame for the length of a live show. */
+const PULSE_BOBS = 3;
 
 /**
- * The header's play / pause toggle. Its own component: the re-entrancy guard
- * and the optimistic status are its business alone, not the header's.
+ * The live-request badge's bob: {@link PULSE_BOBS} bobs each time the badge
+ * shows (or the app comes back), parked at rest otherwise (and under Reduce
+ * Motion).
  */
-function PlayPauseButton() {
-  const dict = useDict();
-  const player = usePlayer();
-  const [status, setStatus] = useState<Status>("playing");
-  /** Re-entrancy guard: two taps in one frame must not toggle twice. */
-  const changingRef = useRef(false);
+function useLiveBadgePulse(shown: boolean, backgrounded: boolean) {
+  const [animation] = useState(() => new Animated.Value(0));
+  const reduceMotion = useReducedMotion();
+  const active = shown && !backgrounded && !reduceMotion;
 
-  return (
-    <TouchableOpacity
-      activeOpacity={THEME.OPACITY.PRESSED}
-      accessibilityRole="button"
-      accessibilityLabel={
-        player.isPlaying ? dict.A11Y_PAUSE : dict.A11Y_PLAY
-      }
-      accessibilityState={{ disabled: status === "changing" }}
-      onPress={async () => {
-        if (changingRef.current) return;
-        changingRef.current = true;
-        setStatus("changing");
-        haptics.tap();
-        // Capture the pre-toggle truth: after the await the render
-        // closure's `player.isPlaying` is stale (the store moved, this
-        // render did not), so re-reading it would report the WRONG
-        // state. On failure revert to that same truth; the provider
-        // already logs, the catch is the defensive backstop.
-        const wasPlaying = player.isPlaying;
-        try {
-          if (wasPlaying) {
-            await player.pause();
-          } else {
-            await player.play();
-          }
-          setStatus(wasPlaying ? "paused" : "playing");
-        } catch (error) {
-          console.warn("[HeaderBar] play/pause failed:", error);
-          setStatus(wasPlaying ? "playing" : "paused");
-        } finally {
-          changingRef.current = false;
-        }
-      }}
-    >
-      <Image
-        contentFit="contain"
-        style={[
-          styles.playBtn,
-          {
-            opacity: status === "changing" ? THEME.OPACITY.DISABLED : 1,
-          },
-        ]}
-        source={!player.isPlaying ? playAffordanceImage : pauseAffordanceImage}
-      />
-    </TouchableOpacity>
-  );
+  useEffect(() => {
+    // Only animate while the badge is actually rendered and visible.
+    // Previously the loop started on mount and ran for the component's
+    // whole lifetime, keeping the UI thread busy even when nothing was on
+    // screen (and while backgrounded).
+    // Purely decorative, so Reduce Motion parks it at rest.
+    if (!active) {
+      animation.setValue(0);
+      return undefined;
+    }
+
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(animation, {
+          toValue: PULSE_OPACITY,
+          duration: PULSE_DURATION,
+          easing: MOTION.EASING.LINEAR,
+          useNativeDriver: true,
+        }),
+        Animated.timing(animation, {
+          toValue: 0,
+          duration: PULSE_DURATION,
+          easing: MOTION.EASING.LINEAR,
+          useNativeDriver: true,
+        }),
+      ]),
+      { iterations: PULSE_BOBS },
+    );
+    loop.start();
+
+    return () => {
+      loop.stop();
+      animation.setValue(0);
+    };
+  }, [active, animation]);
+
+  return animation.interpolate({
+    inputRange: [0, PULSE_OPACITY],
+    outputRange: [PULSE_TRAVEL, PULSE_TRAVEL - PULSE_BOB],
+  });
 }
 
-export function HeaderBar({ openLiveRequestModal }: Readonly<Props>) {
+export function HeaderBar({ openLiveRequestModal, rowWidth, backdrop, bar = false }: Readonly<Props>) {
   const navigation =
     useNavigation<DrawerNavigationProp<DrawerParamList>>();
   const insets = useSafeAreaInsets();
   const dict = useDict();
   const player = usePlayer();
   const isBackgrounded = useIsBackgrounded();
-  const reduceMotion = useReducedMotion();
   const { currentProgram } = player;
+  const showLiveBadge = Boolean(currentProgram?.isLive && openLiveRequestModal);
+
+  const translateY = useLiveBadgePulse(showLiveBadge, isBackgrounded);
+
+  const { settings } = useUserSettings();
+
+  // The row follows the live window (rotation, split view, Android
+  // multi-window), inside the side safe areas — the notch of a landscape
+  // phone is not room for icons — keeping them aligned with the page column.
+  const { usableWidth, windowControlsInset } = useResponsiveLayout();
+  // In an iPadOS window the row must start past the window controls. A
+  // centered row that already clears them stays centered over the page; one
+  // that would reach under them (a narrow window's full-width row) gives up
+  // just enough of its leading room.
+  const baseWidth = rowWidth ?? contentWidth(usableWidth);
+  const controlsLead = Math.max(0, windowControlsInset - (usableWidth - baseWidth) / 2);
+  const width = Math.min(baseWidth, usableWidth - controlsLead);
+  const playMargin = playButtonMargin(width);
+  const micByMenu = { left: micOffset(width) };
+  const micByNote = { right: micOffset(width) };
+
+  const LiveRequestComponent = currentProgram?.acceptingRequests
+    ? IMGS[settings.selectedLanguage].LIVE_REQUEST_ENABLED
+    : IMGS[settings.selectedLanguage].LIVE_REQUEST_DISABLED;
+
+  const menuButton = (
+    <TouchableOpacity
+      activeOpacity={THEME.OPACITY.PRESSED}
+      accessibilityRole="button"
+      accessibilityLabel={dict.A11Y_OPEN_MENU}
+      hitSlop={ICON_HIT_SLOP}
+      onPress={() => {
+        navigation.openDrawer();
+      }}
+    >
+      <Image contentFit="contain" style={styles.menuBtn} source={menuIcon} />
+    </TouchableOpacity>
+  );
+
+  const requestButton = (
+    <TouchableOpacity
+      activeOpacity={THEME.OPACITY.PRESSED}
+      accessibilityRole="button"
+      accessibilityLabel={dict.A11Y_MAKE_REQUEST}
+      hitSlop={ICON_HIT_SLOP}
+      onPress={() => {
+        if (currentProgram?.isLive) {
+          // Live: requests go through the modal, or nowhere while closed.
+          if (currentProgram.acceptingRequests && openLiveRequestModal) {
+            openLiveRequestModal();
+          }
+          return;
+        }
+        navigation.navigate("MakeRequest");
+      }}
+      style={[styles.noteWrapper, bar && showLiveBadge && styles.noteBesideBadge]}
+    >
+      {currentProgram?.isLive && openLiveRequestModal && (
+        <Animated.View
+          style={[
+            styles.liveRequestBadge,
+            { transform: [{ translateY }] },
+          ]}
+        >
+          <LiveRequestComponent />
+        </Animated.View>
+      )}
+      <Image contentFit="contain" style={styles.noteIcon} source={noteIcon} />
+    </TouchableOpacity>
+  );
+
+  return (
+    <View style={styles.view}>
+      <View
+        style={[
+          styles.container,
+          {
+            height: CONTAINER_HEIGHT + insets.top,
+            paddingTop: insets.top,
+            // The bar runs under a landscape notch / cutout; its row does not.
+            paddingLeft: insets.left + controlsLead,
+            paddingRight: insets.right,
+          },
+        ]}
+      >
+        {backdrop ? (
+          <View
+            pointerEvents="none"
+            style={[styles.backdrop, { top: insets.top }]}
+          >
+            {backdrop}
+          </View>
+        ) : null}
+        {bar ? (
+          <View style={[styles.row, styles.barRow, { width }]}>
+            <View style={styles.barGroup} testID="menu-slot">
+              {menuButton}
+              <PlayPauseButton style={[styles.playBtn, styles.playInBar]} />
+            </View>
+            {/* Live shows hang the request badge off the note's left: the
+                note steps aside from the mic to make room for it. */}
+            <View style={styles.barGroup} testID="note-slot">
+              <BitrateSelect />
+              <LyricsButton size={MIC_SIZE} hitSlop={ICON_HIT_SLOP / 2} />
+              {requestButton}
+            </View>
+          </View>
+        ) : (
+          <View style={[styles.row, { width }]}>
+            {/* The microphone never joins the row's flex, so the play button
+                stays centered wherever it hangs. Live shows dangle the
+                live-request badge over the note — right where a note-side mic
+                would sit — so during a live program the mic parks beside the
+                menu instead (menu·mic, play, note). */}
+            <View style={styles.menuSlot} testID="menu-slot">
+              {menuButton}
+              {showLiveBadge && (
+                <LyricsButton
+                  size={MIC_SIZE}
+                  hitSlop={ICON_HIT_SLOP / 2}
+                  style={[styles.lyricsButtonByMenu, micByMenu]}
+                />
+              )}
+            </View>
+            <PlayPauseButton style={[styles.playBtn, { marginHorizontal: playMargin }]} />
+
+            {/* Fallback placement: away from a live badge the mic hangs off the
+                note's left, as before. Only one mic mounts at a time — the two
+                branches swap it between slots. */}
+            <View style={styles.noteSlot} testID="note-slot">
+              {!showLiveBadge && (
+                <LyricsButton
+                  size={MIC_SIZE}
+                  hitSlop={ICON_HIT_SLOP / 2}
+                  style={[styles.lyricsButtonByNote, micByNote]}
+                />
+              )}
+              {requestButton}
+            </View>
+          </View>
+        )}
+      </View>
+      <HeaderProgress />
+    </View>
+  );
+}
+
+/** The track's progress line under the row, pulsing while the clock syncs. */
+function HeaderProgress() {
+  const isBackgrounded = useIsBackgrounded();
   const progress = useTrackProgress();
   const { progressMs, progressAt, progressRunning, showProgress } = progress;
   const duration = progress.durationMs;
@@ -121,193 +294,56 @@ export function HeaderBar({ openLiveRequestModal }: Readonly<Props>) {
     ),
   );
   /** Still locking the audible clock — the bar is a guess until then. */
-  const syncing = player.syncing;
-
-  const [animation] = useState(() => new Animated.Value(0));
+  const syncing = usePlayer().syncing;
 
   // Pulse the bar while the audible clock is still being measured, so a
   // wrong/empty position reads as "working on it" instead of broken. Stops
   // (and resets to full opacity) the moment sync lands or the app hides.
   const syncBlink = useBlink(syncing && showProgress && !isBackgrounded);
+  const barPixels = useWindowDimensions().width * PixelRatio.get();
 
-  // The position is a real-time anchor, so the bar runs optimistically: placed
-  // at the live ratio, then ONE linear native animation to the song's end.
-  // Nothing re-drives it per second — only a re-anchor (new song, sync locked,
-  // pause / resume) restarts it, from exactly where the audio is.
+  // The position is a real-time anchor: placed at the live ratio, then
+  // stepped from the same anchor (no drift), about a pixel per step. Only a
+  // re-anchor (new song, sync locked, pause / resume) restarts it.
   useEffect(() => {
     const anchor = { progressMs, progressAt, progressRunning };
-    const elapsed = elapsedAt(anchor, duration, Date.now());
-    const ratio = progressRatio(elapsed, duration);
-    progressAnim.setValue(ratio);
-    if (elapsed == null || !progressRunning || isBackgrounded || ratio >= 1) {
-      return undefined;
-    }
-    const run = Animated.timing(progressAnim, {
-      toValue: 1,
-      duration: duration - elapsed,
-      easing: Easing.linear,
-      useNativeDriver: true,
-    });
-    run.start();
-    return () => run.stop();
-  }, [progressAnim, progressMs, progressAt, progressRunning, duration, isBackgrounded]);
-
-  const showLiveBadge = Boolean(currentProgram?.isLive && openLiveRequestModal);
-
-  useEffect(() => {
-    // Only animate while the badge is actually rendered and visible.
-    // Previously the loop started on mount and ran for the component's
-    // whole lifetime, keeping the UI thread busy even when nothing was on
-    // screen (and while backgrounded).
-    // Purely decorative and endless, so Reduce Motion parks it at rest.
-    if (!showLiveBadge || isBackgrounded || reduceMotion) {
-      animation.setValue(0);
-      return undefined;
-    }
-
-    const loop = Animated.loop(
-      Animated.sequence([
-        Animated.timing(animation, {
-          toValue: PULSE_OPACITY,
-          duration: PULSE_DURATION,
-          easing: Easing.linear,
-          useNativeDriver: true,
-        }),
-        Animated.timing(animation, {
-          toValue: 0,
-          duration: PULSE_DURATION,
-          easing: Easing.linear,
-          useNativeDriver: true,
-        }),
-      ]),
-    );
-    loop.start();
-
-    return () => {
-      loop.stop();
-      animation.setValue(0);
+    const place = () => {
+      const ratio = progressRatio(elapsedAt(anchor, duration, Date.now()), duration);
+      progressAnim.setValue(ratio);
+      return ratio;
     };
-  }, [showLiveBadge, isBackgrounded, reduceMotion, animation]);
+    const ratio = place();
+    // A hidden bar (live show, jingle) or one without a length never steps.
+    if (!showProgress || duration <= 0 || elapsedAt(anchor, duration, Date.now()) == null) return undefined;
+    if (!progressRunning || isBackgrounded || ratio >= 1) return undefined;
+    const stepMs = Math.min(PROGRESS_STEP_MAX_MS, Math.max(PROGRESS_STEP_MIN_MS, duration / barPixels));
+    const timer = setInterval(() => {
+      if (place() >= 1) clearInterval(timer);
+    }, stepMs);
+    return () => clearInterval(timer);
+  }, [progressAnim, progressMs, progressAt, progressRunning, duration, showProgress, isBackgrounded, barPixels]);
 
-  const translateY = animation.interpolate({
-    inputRange: [0, PULSE_OPACITY],
-    outputRange: [PULSE_TRAVEL, PULSE_TRAVEL - PULSE_BOB],
-  });
-
-  const { settings } = useUserSettings();
-
-  // The row follows the current window (Android 16 may resize the app on
-  // tablets), keeping the icons aligned with the page column.
-  const { width: windowWidth } = useWindowDimensions();
-
-  const LiveRequestComponent = currentProgram?.acceptingRequests
-    ? IMGS[settings.selectedLanguage].LIVE_REQUEST_ENABLED
-    : IMGS[settings.selectedLanguage].LIVE_REQUEST_DISABLED;
-
+  // The slot is always there: live shows and jingles have no bar, and
+  // dropping its height used to nudge the whole player up and down.
   return (
-    <View style={styles.view}>
-      <View
-        style={[
-          styles.container,
-          {
-            height: CONTAINER_HEIGHT + insets.top,
-            paddingTop: insets.top,
-          },
-        ]}
-      >
-        <View style={[styles.row, { width: contentWidth(windowWidth) }]}>
-          {/* The microphone never joins the row's flex, so the play button
-              stays centered wherever it hangs. Live shows dangle the
-              live-request badge over the note — right where a note-side mic
-              would sit — so during a live program the mic parks beside the
-              menu instead (menu·mic, play, note). */}
-          <View style={styles.menuSlot} testID="menu-slot">
-            <TouchableOpacity
-              activeOpacity={THEME.OPACITY.PRESSED}
-              accessibilityRole="button"
-              accessibilityLabel={dict.A11Y_OPEN_MENU}
-              hitSlop={ICON_HIT_SLOP}
-              onPress={() => {
-                navigation.openDrawer();
-              }}
-            >
-              <Image contentFit="contain" style={styles.menuBtn} source={menuIcon} />
-            </TouchableOpacity>
-            {showLiveBadge && (
-              <LyricsButton
-                size={MIC_SIZE}
-                hitSlop={ICON_HIT_SLOP / 2}
-                style={styles.lyricsButtonByMenu}
-              />
-            )}
-          </View>
-          <PlayPauseButton />
-
-          {/* Fallback placement: away from a live badge the mic hangs off the
-              note's left, as before. Only one mic mounts at a time — the two
-              branches swap it between slots. */}
-          <View style={styles.noteSlot} testID="note-slot">
-            {!showLiveBadge && (
-              <LyricsButton
-                size={MIC_SIZE}
-                hitSlop={ICON_HIT_SLOP / 2}
-                style={styles.lyricsButtonByNote}
-              />
-            )}
-            <TouchableOpacity
-              activeOpacity={THEME.OPACITY.PRESSED}
-              accessibilityRole="button"
-              accessibilityLabel={dict.A11Y_MAKE_REQUEST}
-              hitSlop={ICON_HIT_SLOP}
-              onPress={() => {
-                if (currentProgram?.isLive) {
-                  // Live: requests go through the modal, or nowhere while closed.
-                  if (currentProgram.acceptingRequests && openLiveRequestModal) {
-                    openLiveRequestModal();
-                  }
-                  return;
-                }
-                navigation.navigate("MakeRequest");
-              }}
-              style={styles.noteWrapper}
-            >
-              {currentProgram?.isLive && openLiveRequestModal && (
-                <Animated.View
-                  style={[
-                    styles.liveRequestBadge,
-                    { transform: [{ translateY }] },
-                  ]}
-                >
-                  <LiveRequestComponent />
-                </Animated.View>
-              )}
-              <Image contentFit="contain" style={styles.noteIcon} source={noteIcon} />
-            </TouchableOpacity>
-          </View>
-        </View>
-      </View>
-      {/* The slot is always there: live shows and jingles have no bar, and
-          dropping its height used to nudge the whole player up and down. */}
-      <View
-        style={styles.progressSlot}
-        accessibilityElementsHidden
-        importantForAccessibility="no-hide-descendants"
-      >
-        {showProgress && (
-          <Animated.View
-            style={[
-              styles.progressBarView,
-              syncing && styles.progressBarSyncing,
-              {
-                opacity: syncing ? syncBlink : 1,
-                // Unknown position while syncing → show the full muted bar
-                // pulsing rather than a stale/0 progress.
-                transform: [{ scaleX: syncing ? 1 : progressAnim }],
-              },
-            ]}
-          />
-        )}
-      </View>
+    <View
+      style={styles.progressSlot}
+      aria-hidden
+    >
+      {showProgress && (
+        <Animated.View
+          style={[
+            styles.progressBarView,
+            syncing && styles.progressBarSyncing,
+            {
+              opacity: syncing ? syncBlink : 1,
+              // Unknown position while syncing → show the full muted bar
+              // pulsing rather than a stale/0 progress.
+              transform: [{ scaleX: syncing ? 1 : progressAnim }],
+            },
+          ]}
+        />
+      )}
     </View>
   );
 }

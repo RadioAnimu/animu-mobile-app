@@ -1,8 +1,8 @@
 diff --git a/android/build.gradle.kts b/android/build.gradle.kts
-index 2e01292a695638f4b82d27531d82c0670c149075..1abd6fea6882639b14bc2963ef81e451f179d69a 100644
+index 2a595470228bdb4b0ee287b6a341bc1e6156fd7b..ba5b7e69d51be58cbece60689ea87ecceee3db30 100644
 --- a/android/build.gradle.kts
 +++ b/android/build.gradle.kts
-@@ -151,8 +151,140 @@ if (project == rootProject) {
+@@ -156,8 +156,139 @@ if (project == rootProject) {
      }
  }
  
@@ -58,7 +58,6 @@ index 2e01292a695638f4b82d27531d82c0670c149075..1abd6fea6882639b14bc2963ef81e451
 +}
 +
 +// Kept in this script so Android lint can resolve its Kotlin script module.
-+
 +// Workaround for Android Studio's C++ analyzer surfacing errors during Gradle
 +// Sync when CMake's precompiled header binary (`cmake_pch.hxx.pch`, generated
 +// from `WorkletsPCH.h`) hasn't been built yet. The project compiles fine,
@@ -144,16 +143,14 @@ index 2e01292a695638f4b82d27531d82c0670c149075..1abd6fea6882639b14bc2963ef81e451
 +
  
  android {
-     compileSdk = safeExtGet("compileSdkVersion", 36) as Int
-@@ -313,9 +445,8 @@ tasks.register("assertMinimalReactNativeVersionTask") {
+     compileSdk = safeExtGet("compileSdkVersion", 37) as Int
+@@ -308,9 +439,6 @@ tasks.register("assertMinimalReactNativeVersionTask") {
  
  tasks.named("preBuild") { dependsOn("assertMinimalReactNativeVersionTask") }
  
 -// Workaround for AGP 9 + Kotlin 2.x lint K2 UAST crash on .gradle.kts build scripts.
 -// See: https://issuetracker.google.com/issues/432144179
--tasks.configureEach { if (name.startsWith("lintVital")) enabled = false }
-+
-+
+-tasks.configureEach { if (name.startsWith("lint")) enabled = false }
  
  tasks.register<Copy>("prepareWorkletsHeadersForPrefabs") {
      from("$projectDir/src/main/cpp")

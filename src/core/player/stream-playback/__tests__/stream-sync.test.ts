@@ -1,16 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { Track } from "@/core/domain/track";
-import {
-  getSyncedTrackProgress,
-  StreamSyncEngine,
-} from "@/core/player/stream-playback/stream-sync";
-
-const makeTrack = (overrides: Partial<Track> = {}): Track =>
-  ({
-    startTime: new Date(Date.now() - 5_000),
-    duration: 60_000,
-    ...overrides,
-  }) as Track;
+import { StreamSyncEngine } from "@/core/player/stream-playback/stream-sync";
 
 beforeEach(() => {
   vi.useFakeTimers({ toFake: ["Date"] });
@@ -135,17 +124,6 @@ describe("StreamSyncEngine", () => {
     expect(engine.delay).toBe(60_000);
   });
 
-  it("re-locks on the next reading after an SSE arrival anchor", () => {
-    const engine = new StreamSyncEngine();
-    engine.updateFromStatus({ isLive: true, offsetFromLive: 5 });
-
-    engine.updateFromAnchor({ startTimeMs: Date.now(), receivedAtMs: Date.now() });
-    engine.updateFromStatus({ isLive: true, offsetFromLive: 5.2 }); // snaps
-
-    expect(engine.delay).toBe(5_200);
-    expect(engine.lastAnchor).not.toBeNull();
-  });
-
   it("applies a gross server-clock correction to now()", () => {
     const engine = new StreamSyncEngine();
     engine.updateFromStatus({ isLive: true, offsetFromLive: 0 });
@@ -194,17 +172,6 @@ describe("StreamSyncEngine", () => {
     expect(engine.clockSkew).toBe(0);
   });
 
-  it("requestRelock() makes the next reading snap instead of ease", () => {
-    const engine = new StreamSyncEngine();
-    engine.updateFromStatus({ isLive: true, offsetFromLive: 4 });
-    engine.updateFromStatus({ isLive: true, offsetFromLive: 2 }); // eases
-
-    engine.requestRelock();
-    engine.updateFromStatus({ isLive: true, offsetFromLive: 1.5 });
-
-    expect(engine.delay).toBe(1_500);
-  });
-
   it("corrects the fallback clock before any lag measurement", () => {
     const engine = new StreamSyncEngine();
     engine.setClockSkew(-60_000);
@@ -242,13 +209,11 @@ describe("StreamSyncEngine", () => {
   it("reset() drops the estimate", () => {
     const engine = new StreamSyncEngine();
     engine.updateFromStatus({ isLive: true, offsetFromLive: 5 });
-    engine.updateFromAnchor({ startTimeMs: 1, receivedAtMs: 2 });
 
     engine.reset();
 
     expect(engine.hasMeasurement).toBe(false);
     expect(engine.now()).toBe(Date.now());
-    expect(engine.lastAnchor).toBeNull();
   });
 
   it("holds the estimate through an unmeasurable burst (bad link)", () => {
@@ -502,77 +467,4 @@ describe("StreamSyncEngine", () => {
     });
   });
 
-  describe("isStale", () => {
-    it("reports the age of the retained estimate", () => {
-      const engine = new StreamSyncEngine();
-
-      // Never measured → not "stale", just unmeasured.
-      expect(engine.isStale(10_000)).toBe(false);
-
-      engine.updateFromStatus({ isLive: true, offsetFromLive: 5 });
-      expect(engine.isStale(10_000)).toBe(false);
-
-      vi.setSystemTime(new Date(Date.now() + 11_000));
-      expect(engine.isStale(10_000)).toBe(true);
-
-      // A fresh reading resets the age.
-      engine.updateFromStatus({ isLive: true, offsetFromLive: 5 });
-      expect(engine.isStale(10_000)).toBe(false);
-    });
-
-    it("is not stale after reset() (unmeasured, not old)", () => {
-      const engine = new StreamSyncEngine();
-      engine.updateFromStatus({ isLive: true, offsetFromLive: 5 });
-      vi.setSystemTime(new Date(Date.now() + 60_000));
-
-      engine.reset();
-      expect(engine.isStale(10_000)).toBe(false);
-    });
-  });
-});
-
-describe("getSyncedTrackProgress", () => {
-  it("returns elapsed once the track is audible", () => {
-    const engine = new StreamSyncEngine();
-    engine.updateFromStatus({ isLive: true, offsetFromLive: 0 });
-    const track = makeTrack();
-
-    expect(getSyncedTrackProgress(track, engine.now())).toEqual({
-      elapsedMs: 5_000,
-      pending: false,
-    });
-  });
-
-  it("flags a track that has not reached the speaker yet", () => {
-    const engine = new StreamSyncEngine();
-    engine.updateFromStatus({ isLive: true, offsetFromLive: 10 });
-    const track = makeTrack({ startTime: new Date(Date.now() - 2_000) });
-
-    // Audible clock is 10s behind → the 2s-old track has not started.
-    expect(getSyncedTrackProgress(track, engine.now())).toEqual({
-      elapsedMs: null,
-      pending: true,
-    });
-  });
-
-  it("returns ended (not pending) once elapsed passes the duration", () => {
-    const engine = new StreamSyncEngine();
-    engine.updateFromStatus({ isLive: true, offsetFromLive: 0 });
-    const track = makeTrack({
-      startTime: new Date(Date.now() - 999_999),
-      duration: 1_000,
-    });
-
-    expect(getSyncedTrackProgress(track, engine.now())).toEqual({
-      elapsedMs: null,
-      pending: false,
-    });
-  });
-
-  it("is empty without a track", () => {
-    expect(getSyncedTrackProgress(null, Date.now())).toEqual({
-      elapsedMs: null,
-      pending: false,
-    });
-  });
 });

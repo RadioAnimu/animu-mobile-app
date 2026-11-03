@@ -50,15 +50,6 @@ export interface VisualizerSampler {
   setPlaying(playing: boolean): void;
   /** Subscribes to raw waveform windows; returns an unsubscribe function. */
   subscribeWindows(listener: (window: VisualizerWindow) => void): () => void;
-  /**
-   * Reports back the delay (ms) the visualizer actually applied for a window,
-   * so the sampler can auto-calibrate its residual sync offset. Optional: a
-   * visualizer that applies the window's `outputLatencyMs` verbatim need not
-   * call it.
-   */
-  reportAppliedDelay?(appliedMs: number): void;
-  /** Sets a manual sync bias (ms); positive makes the trace later. */
-  setSyncTrim?(trimMs: number): void;
   /** Stops sampling and drops listeners. One-way. */
   dispose(): void;
 }

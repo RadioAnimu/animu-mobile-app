@@ -15,7 +15,7 @@ import { useCoverDiskClearing, useFreedCoverToast } from "@/hooks/useCoverDisk";
 import { useDict } from "@/hooks/useDict";
 import { useSaveSettings } from "@/hooks/useSaveSettings";
 import { useScrollEndPadding } from "@/hooks/useScrollEndPadding";
-import { maxSelectableLimitBytes } from "@/core/services/device-storage.service";
+import { maxSelectableLimitBytes } from "@/core/services/disk-capacity";
 import type { CoverCacheCategory } from "@/core/services/cover-cache-registry.service";
 import {
   CATEGORY_ORDER,
@@ -33,7 +33,7 @@ import { styles } from "@/screens/Storage/styles";
 type Props = NativeStackScreenProps<RootStackParamList, "Storage">;
 type IconName = NonNullable<ComponentProps<typeof Select>["icon"]>;
 
-/** Fixed-byte tiers, uncapped first (the default). */
+/** Fixed-byte tiers, uncapped first. */
 const LIMIT_TIERS = [0, 50 * MB, 100 * MB, 250 * MB, 500 * MB, 1024 * MB];
 
 /** Per-partition tiers for the Advanced editor. */
@@ -173,7 +173,7 @@ export function Storage({ navigation }: Readonly<Props>) {
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={["left", "right"]}>
+    <SafeAreaView style={styles.container} edges={[]}>
       <ScreenHeader
         title={dict.STORAGE_TITLE}
         onBack={() => navigation.goBack()}

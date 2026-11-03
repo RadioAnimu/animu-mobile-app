@@ -321,6 +321,7 @@ const DICT = {
   ABOUT_RELEASE_ADHOC: "Ad hoc distribution",
   ABOUT_RELEASE_DEVELOPMENT: "Development",
   ABOUT_RELEASE_SIMULATOR: "Simulator",
+  ABOUT_RELEASE_WEB: "Web",
   ABOUT_RELEASE_ENTERPRISE: "Enterprise",
   ABOUT_RELEASE_PLAY: "Google Play",
   ABOUT_RELEASE_UNKNOWN: "Unknown",
@@ -337,7 +338,7 @@ const DICT = {
 
   ABOUT_COPY_DETAILS: "Copy details",
   ABOUT_COPIED: "Copied",
-  ABOUT_COPY_FAILED: "Couldn't copy.",
+  TEXT_COPY_FAILED: "Couldn't copy.",
   ABOUT_OPEN_ERROR: "Couldn't open the link.",
   ABOUT_OPENS_BROWSER: "Opens in browser",
   ABOUT_OPENS_IN_APP: "Opens in the app",
@@ -368,7 +369,7 @@ const DICT = {
   STORAGE_PARTITION_NEEDS_LIMIT: "Set a size limit to customize the partitions",
   STORAGE_FREED: "Freed {freed}",
   TRACK_REQUEST: "REQUESTED SONG",
-  INFO_REQUEST: `Hi! I'm Haruka, the DJ of the most moe in Brazil!${"\n"}I see you've made your choice!${"\n"}But before that, would you like to leave a message for me or for our team? This message will be delivered in the main chat of our Discord server for everyone to see${"\n"}💜 You don't have to leave a message if you don't want to.`,
+  INFO_REQUEST: `Hi! I'm Haruka, the DJ of the most moe in Brazil!\nI see you've made your choice!\nBut before that, would you like to leave a message for me or for our team? This message will be delivered in the main chat of our Discord server for everyone to see\n💜 You don't have to leave a message if you don't want to.`,
   SEND_REQUEST_BUTTON_TEXT: "Send",
   SEND_REQUEST_PLACEHOLDER: "Leave your message here",
   SELECT_ERROR: "Error selecting the song",
@@ -554,6 +555,7 @@ const DICT = {
   ACCOUNT_EMAIL_EMPTY: "No emails linked yet.",
   SETTINGS_ACCOUNT_SIGN_IN: "Sign in to your account",
   A11Y_OPEN_LYRICS: "Show lyrics",
+  A11Y_STREAM_QUALITY: "Audio quality",
   A11Y_CLOSE_LYRICS: "Close lyrics",
   LYRICS_LOADING: "Looking for lyrics…",
   LYRICS_MISSING: "No lyrics for this song yet",
@@ -627,6 +629,7 @@ const LiveRequestsDisabled = (props: SvgProps) => {
   );
 };
 
+// Metro resolves a bundled image import to its asset id.
 const IMGS = {
   LIVE_LABEL: OnAirLabel,
   LOGO: logo,

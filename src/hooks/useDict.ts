@@ -7,6 +7,6 @@ export function useDict(): Dict {
   // Defence in depth against a stale/corrupt persisted language: the settings
   // service sanitizes on load, but a bad value here would otherwise return
   // `undefined` and crash every consumer of the dictionary.
-  const dict: Dict | undefined = DICT[settings.selectedLanguage];
+  const dict = (DICT as Partial<Record<string, Dict>>)[settings.selectedLanguage];
   return dict ?? DICT.PT;
 }

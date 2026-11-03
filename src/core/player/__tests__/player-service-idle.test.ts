@@ -25,6 +25,7 @@ vi.mock("expo-asset", () => ({
   },
 }));
 vi.mock("expo-file-system", () => ({ File: vi.fn(), Paths: { cache: "file://mock/cache" } }));
+vi.mock("expo/fetch", () => ({ fetch: vi.fn() }));
 vi.mock("expo-image", () => ({
   Image: { getCachePathAsync: vi.fn(), writeToCacheAsync: vi.fn() },
 }));

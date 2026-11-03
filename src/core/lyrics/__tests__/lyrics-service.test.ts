@@ -14,21 +14,20 @@ import { kanaRomanizer } from "@/core/lyrics/text";
 import type { LyricsCandidate } from "@/core/lyrics/types";
 import type { Track } from "@/core/domain/track";
 
-const track = (overrides: Partial<Track> = {}): Track =>
-  ({
-    id: "1",
-    raw: "LiSA - Gurenge | Kimetsu no Yaiba",
-    title: "Gurenge",
-    artist: "LiSA",
-    anime: "Kimetsu no Yaiba",
-    artworks: {},
-    artwork: "",
-    duration: 235_000,
-    isRequest: false,
-    startTime: new Date(0),
-    playlistName: "",
-    ...overrides,
-  }) as Track;
+const track = (overrides: Partial<Track> = {}): Track => ({
+  id: "1",
+  raw: "LiSA - Gurenge | Kimetsu no Yaiba",
+  title: "Gurenge",
+  artist: "LiSA",
+  anime: "Kimetsu no Yaiba",
+  artworks: {},
+  artwork: "",
+  duration: 235_000,
+  isRequest: false,
+  startTime: new Date(0),
+  playlistName: "",
+  ...overrides,
+});
 
 const candidate = (overrides: Partial<LyricsCandidate> = {}): LyricsCandidate => ({
   id: 7,
@@ -48,8 +47,6 @@ class MemoryCache implements LyricsCache {
   write = vi.fn(async (key: string, entry: CachedLookup) => {
     this.entries.set(key, entry);
   });
-  size = vi.fn(async () => 0);
-  clear = vi.fn(async () => this.entries.clear());
 }
 
 const deferred = <T>() => {
@@ -269,13 +266,6 @@ describe("LyricsService", () => {
     expect(await service.lyricsFor(track({ raw: "Rádio Animu - jingle", artist: "Rádio Animu" }))).toBeNull();
   });
 
-  it("forgets everything on clear", async () => {
-    provider.get.mockResolvedValue(candidate());
-    service.show(track());
-    await flush();
-    await service.clear();
-    expect(cache.clear).toHaveBeenCalled();
-  });
 });
 
 describe("query terms", () => {

@@ -1,5 +1,5 @@
 import { useEffect, type RefObject } from "react";
-import type { TextInput } from "react-native";
+import type { TextInputInstance } from "react-native";
 
 import { focusWithKeyboard } from "@/utils/keyboard";
 
@@ -18,7 +18,7 @@ import { focusWithKeyboard } from "@/utils/keyboard";
  * {@link focusWithKeyboard} raises the keyboard every time.
  */
 export function useFocusOnMount(
-  ref: RefObject<TextInput | null>,
+  ref: RefObject<TextInputInstance | null>,
   enabled: boolean,
 ): void {
   useEffect(() => {

@@ -5,7 +5,6 @@ import React, {
   useMemo,
   useCallback,
   useReducer,
-  useSyncExternalStore,
 } from "react";
 import { Stream } from "@/core/domain/stream";
 import { playerService } from "@/core/player";
@@ -26,6 +25,7 @@ import {
 } from "@/core/player";
 import { Loading } from "@/screens/Loading";
 import { hideSplashOnce } from "@/screens/Loading/splash";
+import { useExternalStore } from "@/hooks/useExternalStore";
 
 // ─── Contexts by change cadence — subscribe to the one you need ───
 //
@@ -55,11 +55,6 @@ type PlayerContextType = PlayerSnapshot & {
     listener: (window: VisualizerWindow) => void,
   ) => () => void;
   /**
-   * Reports the delay (ms) the visualizer actually applied for the last
-   * window, so the native sampler can auto-calibrate its sync offset.
-   */
-  reportVisualizerDelay: (appliedMs: number) => void;
-  /**
    * Hot-path read of the heard song's position (see
    * `PlayerService.heardPosition`) — sampled by the lyrics clock, which
    * animates between samples itself.
@@ -83,7 +78,6 @@ const PlayerContext = createContext<PlayerContextType>({
   defaultArtwork: "",
   visualizerSupported: false,
   subscribeVisualizerWindows: () => () => {},
-  reportVisualizerDelay: () => {},
   readHeardPosition: () => null,
   isPlaying: false,
   playbackState: "idle",
@@ -114,20 +108,9 @@ export const PlayerProvider: React.FC<{
   }, null);
 
   // ─── Subscribe to stores — the service is the single source of truth ───
-  const playerSnapshot = useSyncExternalStore(
-    playerStore.subscribe,
-    playerStore.getSnapshot,
-  );
-
-  const stationSnapshot = useSyncExternalStore(
-    stationStore.subscribe,
-    stationStore.getSnapshot,
-  );
-
-  const progressSnapshot = useSyncExternalStore(
-    progressStore.subscribe,
-    progressStore.getSnapshot,
-  );
+  const playerSnapshot = useExternalStore(playerStore);
+  const stationSnapshot = useExternalStore(stationStore);
+  const progressSnapshot = useExternalStore(progressStore);
 
   // ─── App visibility — gates the poll lifecycle (see the effect below) ───
   // Raw status comes from AppStateProvider — the app's single native
@@ -147,23 +130,22 @@ export const PlayerProvider: React.FC<{
   // ─── Initialization & background tasks ───
   useEffect(() => {
     let cancelled = false;
-    let unsubscribeAssistant: (() => void) | null = null;
     // An `animuapp://assistant/play` link can land before the player has a
     // stream to resolve (cold start). Buffer it instead of dropping it. (Siri
     // and Google Assistant play natively, through the voice catalog.)
     let assistantPlayPending = false;
 
     const playFromAssistant = () => {
-      playerServiceInstance.play().catch((error) => {
+      playerServiceInstance.play().catch((error: unknown) => {
         console.warn("[PlayerProvider] Assistant play failed:", error);
       });
     };
 
-    // Phone assistants (Siri / Google) deep-link into playback. Subscribe
-    // BEFORE bootstrap: a deep-link "url" event that arrives while the player
-    // is still booting would otherwise fire with no listener attached.
-    unsubscribeAssistant = subscribeAssistantActions((action) => {
-      if (action !== "play") return;
+    // An `animuapp://assistant/play` link starts playback. Subscribe BEFORE
+    // bootstrap: a deep-link "url" event that arrives while the player is
+    // still booting would otherwise fire with no listener attached.
+    // "play" is the only assistant action.
+    const unsubscribeAssistant = subscribeAssistantActions(() => {
       if (playerServiceInstance.isReady) {
         playFromAssistant();
       } else {
@@ -193,12 +175,12 @@ export const PlayerProvider: React.FC<{
       }
     };
 
-    initializePlayer();
+    void initializePlayer();
 
     return () => {
       cancelled = true;
 
-      unsubscribeAssistant?.();
+      unsubscribeAssistant();
 
       playerServiceInstance.destroy().catch(console.error);
     };
@@ -219,12 +201,6 @@ export const PlayerProvider: React.FC<{
   useEffect(() => {
     if (playerSnapshot.isInitialized) hideSplashOnce();
   }, [playerSnapshot.isInitialized]);
-
-  // The 1 Hz JS heartbeat driver is owned by the service (see
-  // `PlayerService.updateHeartbeatDriver`): it runs while the app is visible
-  // or audio is wanted. Gating it here on the store's `isPlaying` missed
-  // plays started from the lock screen while hidden (store emissions are
-  // frozen in the background), leaving the silent-stall detector clockless.
 
   // ─── Action wrappers — delegate to the service (which auto-emits) ───
 
@@ -280,12 +256,6 @@ export const PlayerProvider: React.FC<{
     [playerServiceInstance],
   );
 
-  const reportVisualizerDelay = useCallback(
-    (appliedMs: number) =>
-      playerServiceInstance.reportVisualizerDelay(appliedMs),
-    [playerServiceInstance],
-  );
-
   const readHeardPosition = useCallback(
     () => playerServiceInstance.heardPosition(),
     [playerServiceInstance],
@@ -306,7 +276,6 @@ export const PlayerProvider: React.FC<{
       // player exists (created on first play).
       visualizerSupported: playerServiceInstance.isVisualizerSupported,
       subscribeVisualizerWindows,
-      reportVisualizerDelay,
       readHeardPosition,
     }),
     [
@@ -318,7 +287,6 @@ export const PlayerProvider: React.FC<{
       refreshHistory,
       playerServiceInstance,
       subscribeVisualizerWindows,
-      reportVisualizerDelay,
       readHeardPosition,
     ],
   );

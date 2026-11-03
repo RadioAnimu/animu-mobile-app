@@ -12,6 +12,7 @@ import { userSettingsService } from "@/core/services/user-settings.service";
 import { coverDiskStorage } from "@/core/services/cover-disk-storage.service";
 import { playerService } from "@/core/player";
 import { DEFAULT_USER_SETTINGS } from "@/constants/settings";
+import { whenIdle } from "@/utils/idle";
 
 type UserSettingsContextType = {
   settings: UserSettings;
@@ -27,6 +28,11 @@ const UserSettingsContext = createContext<UserSettingsContextType>({
   updateSettings: () => Promise.reject(new Error("Settings not initialized")),
   resetSettings: () => Promise.reject(new Error("Settings not initialized")),
 });
+
+
+/** What a reset restores: every default but the language. */
+const RESET_SETTINGS: Partial<UserSettings> = { ...DEFAULT_USER_SETTINGS };
+delete RESET_SETTINGS.selectedLanguage;
 
 export const UserSettingsProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
@@ -51,8 +57,7 @@ export const UserSettingsProvider: React.FC<{ children: React.ReactNode }> = ({
 
   /** Serialization chain — interleaved updates (a slow OFF wipe vs a fast
       ON) must persist and apply strictly in call order, or a stale write
-      clobbers the newer one and storage/UI disagree. Lazily initialized
-      (allocation happens once, not eagerly at every ref decl). */
+      clobbers the newer one and storage/UI disagree. */
   const updateChainRef = useRef<Promise<unknown> | null>(null);
 
   // Seeding the chain with initialization is what makes the serialization
@@ -61,19 +66,31 @@ export const UserSettingsProvider: React.FC<{ children: React.ReactNode }> = ({
   // + change, then the load's late `applySettings` would clobber the UI while
   // disk kept the change (or vice versa).
   useEffect(() => {
+    let cancelTrim: (() => void) | null = null;
     const run = (async () => {
       const initialSettings = await userSettingsService.initialize();
       applySettings(initialSettings);
+      // The limit is otherwise only enforced from Settings: hold it on every
+      // launch too, once the app is idle. Queued like an update, it trims to
+      // the settings in effect by then (a limit raised meanwhile wins).
+      cancelTrim = whenIdle(() => {
+        const trim = (updateChainRef.current ?? Promise.resolve()).then(async () => {
+          const { cacheEnabled, coverCacheLimitBytes, coverCachePartitionBytes } = settingsRef.current;
+          if (!cacheEnabled || coverCacheLimitBytes <= 0) return;
+          await coverDiskStorage.trim(coverCacheLimitBytes, coverCachePartitionBytes);
+        });
+        updateChainRef.current = trim.catch((error: unknown) => {
+          console.warn("[UserSettings] launch cache trim failed:", error);
+        });
+      });
     })();
-    updateChainRef.current = run.catch((error) => {
+    updateChainRef.current = run.catch((error: unknown) => {
       console.error("Settings initialization failed:", error);
     });
+    return () => cancelTrim?.();
   }, []);
 
   const updateSettings = useCallback(async (newSettings: Partial<UserSettings>) => {
-    // Serialize: interleaved updates (a slow OFF wipe vs a fast ON) must
-    // persist and apply strictly in call order, or a stale write clobbers
-    // the newer one and storage/UI disagree.
     const run = (updateChainRef.current ?? Promise.resolve()).then(async (): Promise<boolean> => {
       // Merge base read at CHAIN time, not call time — everything queued
       // before us already applied, so `settingsRef.current` is the newest
@@ -106,7 +123,7 @@ export const UserSettingsProvider: React.FC<{ children: React.ReactNode }> = ({
       const cacheTurningOff =
         previous.cacheEnabled && !updatedSettings.cacheEnabled;
       if (cacheTurningOff) {
-        await coverDiskStorage.clearAll().catch((error) => {
+        await coverDiskStorage.clearAll().catch((error: unknown) => {
           console.warn("[UserSettings] cache wipe on disable failed:", error);
         });
       }
@@ -128,7 +145,7 @@ export const UserSettingsProvider: React.FC<{ children: React.ReactNode }> = ({
             updatedSettings.coverCacheLimitBytes,
             updatedSettings.coverCachePartitionBytes,
           )
-          .catch((error) => {
+          .catch((error: unknown) => {
             console.warn("[UserSettings] cache trim on limit change failed:", error);
           });
       }
@@ -139,7 +156,7 @@ export const UserSettingsProvider: React.FC<{ children: React.ReactNode }> = ({
       // Full clearAll — the exact "clear cached covers" path. Non-fatal:
       // the new tier still applies and surfaces re-download what they miss.
       if (previous.liveQualityCover !== updatedSettings.liveQualityCover) {
-        await coverDiskStorage.clearAll().catch((error) => {
+        await coverDiskStorage.clearAll().catch((error: unknown) => {
           console.warn("[UserSettings] cache wipe on quality change failed:", error);
         });
       }
@@ -147,48 +164,16 @@ export const UserSettingsProvider: React.FC<{ children: React.ReactNode }> = ({
       applySettings(updatedSettings);
       return true;
     });
-    updateChainRef.current = run.catch((error) => {
+    updateChainRef.current = run.catch((error: unknown) => {
       console.error("Settings update chain failed:", error);
     });
     return run.catch(() => false);
   }, []);
 
-  const resetSettings = useCallback(async () => {
-    // Reset never implies a cache-off wipe (the default re-ENABLES caching),
-    // but it can change the artwork quality: cached covers key off the tier's
-    // URL, so a reset from a non-default quality leaves old-tier files mixed
-    // with the new ones — same wipe `updateSettings` runs for that transition.
-    // Chained like updateSettings so it can't interleave a queued toggle.
-    const run = (updateChainRef.current ?? Promise.resolve()).then(async (): Promise<boolean> => {
-      // The language is the one setting a reset must not touch: falling back
-      // to the default would switch a non-Portuguese user's UI under them.
-      const restored = {
-        ...DEFAULT_USER_SETTINGS,
-        selectedLanguage: settingsRef.current.selectedLanguage,
-      };
-      // Persist before the (irreversible) wipe, as in updateSettings.
-      try {
-        await userSettingsService.updateSettings(restored);
-      } catch (error) {
-        console.error("[UserSettings] reset not applied — persist failed:", error);
-        return false;
-      }
-      if (
-        settingsRef.current.liveQualityCover !==
-        DEFAULT_USER_SETTINGS.liveQualityCover
-      ) {
-        await coverDiskStorage.clearAll().catch((error) => {
-          console.warn("[UserSettings] cache wipe on reset failed:", error);
-        });
-      }
-      applySettings(restored);
-      return true;
-    });
-    updateChainRef.current = run.catch((error) => {
-      console.error("Settings reset chain failed:", error);
-    });
-    return run.catch(() => false);
-  }, []);
+  // Back to the defaults through the same path as any change (chained, the
+  // quality-change wipe, the limit trim) — except the language: falling back
+  // to the default would switch a non-Portuguese user's UI under them.
+  const resetSettings = useCallback(() => updateSettings(RESET_SETTINGS), [updateSettings]);
 
   // Stable identity per settings change — rebuilding the object on every
   // render would re-render every context consumer on any parent update.

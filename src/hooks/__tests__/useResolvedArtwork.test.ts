@@ -90,9 +90,10 @@ describe("useResolvedArtwork", () => {
     service.peek.mockImplementation((u) =>
       u === URL_B ? "file:///b.jpg" : undefined,
     );
+    const initialProps: { url: string | undefined } = { url: URL_A };
     const { result, rerender, unmount } = renderHook(
       ({ url }) => useResolvedArtwork(url),
-      { initialProps: { url: URL_A as string | undefined } },
+      { initialProps },
     );
     rerender({ url: URL_B });
     expect(result.current).toBe("file:///b.jpg");

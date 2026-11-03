@@ -78,8 +78,18 @@ jobs:
       - name: Dependency audit
         run: pnpm run check:audit
 
-      - name: Lint
-        run: pnpm run lint
+      # `pnpm run lint` runs all three; split so the failing one is obvious.
+      - name: Lint (ESLint)
+        run: pnpm run lint:eslint
+
+      # oxlint's type-aware rules, run by tsgolint (typescript-go).
+      - name: Lint (type-aware, oxlint + tsgolint)
+        run: pnpm run lint:types
+
+      # Unused files/exports/dependencies (knip) and package.json consistency
+      # (sherif).
+      - name: Lint (dependencies, knip + sherif)
+        run: pnpm run lint:deps
 
       - name: Test (with coverage)
         run: pnpm test:coverage

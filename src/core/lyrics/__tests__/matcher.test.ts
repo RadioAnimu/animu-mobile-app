@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { SYNC_TOLERANCE_MS, isTimedFor, pickBest, scoreCandidate } from "@/core/lyrics/matcher";
+import { isTimedFor, pickBest, scoreCandidate } from "@/core/lyrics/matcher";
 import { artistNames, bestSimilarity, normalize, titleVariants, type Romanizer } from "@/core/lyrics/text";
 import type { LyricsCandidate, TrackQuery } from "@/core/lyrics/types";
 
@@ -82,7 +82,6 @@ describe("scoreCandidate", () => {
     expect(full.durationFits).toBe(true);
     expect(tvSize.durationFits).toBe(false);
     expect(tvSize.identity).toBeGreaterThan(0);
-    expect(SYNC_TOLERANCE_MS).toBeLessThan(10_000);
   });
 
   it("compares kanji titles once a reader romanizes them", () => {

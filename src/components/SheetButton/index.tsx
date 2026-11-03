@@ -1,12 +1,6 @@
 import type { ComponentProps } from "react";
 import { Icon } from "@/components/Icon";
-import {
-  ActivityIndicator,
-  Text,
-  TouchableOpacity,
-  type StyleProp,
-  type ViewStyle,
-} from "react-native";
+import { ActivityIndicator, Text, TouchableOpacity } from "react-native";
 
 import { styles } from "@/components/SheetButton/styles";
 import { THEME } from "@/theme";
@@ -19,7 +13,6 @@ interface Props {
   loading?: boolean;
   /** Shown after the label. */
   icon?: MaterialIconName;
-  style?: StyleProp<ViewStyle>;
 }
 
 /** The solid green action button at the foot of the request sheets. */
@@ -28,7 +21,6 @@ export function SheetButton({
   onPress,
   loading = false,
   icon,
-  style,
 }: Readonly<Props>) {
   return (
     <TouchableOpacity
@@ -38,7 +30,7 @@ export function SheetButton({
       activeOpacity={THEME.OPACITY.PRESSED}
       disabled={loading}
       onPress={onPress}
-      style={[styles.button, loading && styles.busy, style]}
+      style={[styles.button, loading && styles.busy]}
     >
       {loading ? (
         <ActivityIndicator color={THEME.COLORS.SURFACE} />

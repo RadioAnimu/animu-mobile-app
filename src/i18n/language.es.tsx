@@ -324,6 +324,7 @@ const DICT: Dict = {
   ABOUT_RELEASE_ADHOC: "Distribución ad hoc",
   ABOUT_RELEASE_DEVELOPMENT: "Desarrollo",
   ABOUT_RELEASE_SIMULATOR: "Simulador",
+  ABOUT_RELEASE_WEB: "Web",
   ABOUT_RELEASE_ENTERPRISE: "Enterprise",
   ABOUT_RELEASE_PLAY: "Google Play",
   ABOUT_RELEASE_UNKNOWN: "Desconocida",
@@ -340,7 +341,7 @@ const DICT: Dict = {
 
   ABOUT_COPY_DETAILS: "Copiar información",
   ABOUT_COPIED: "Copiado",
-  ABOUT_COPY_FAILED: "No se pudo copiar.",
+  TEXT_COPY_FAILED: "No se pudo copiar.",
   ABOUT_OPEN_ERROR: "No se pudo abrir el enlace.",
   ABOUT_OPENS_BROWSER: "Abre en el navegador",
   ABOUT_OPENS_IN_APP: "Abre en la app",
@@ -375,7 +376,7 @@ const DICT: Dict = {
     "Establece un límite de tamaño para personalizar las particiones",
   STORAGE_FREED: "Liberado {freed}",
   TRACK_REQUEST: "MÚSICA SOLICITADA",
-  INFO_REQUEST: `¡Hola! ¡Soy Haruka, la DJ de la radio más moe de Brasil!${"\n"}¡Veamos que ya has hecho tu elección!${"\n"}Pero antes, ¿te gustaría dejar un mensaje para mí o para nuestro equipo? Este mensaje se entregará en el chat principal de nuestro servidor de Discord para que todos lo vean${"\n"}💜 No es necesario que dejes un mensaje si no quieres.`,
+  INFO_REQUEST: `¡Hola! ¡Soy Haruka, la DJ de la radio más moe de Brasil!\n¡Veamos que ya has hecho tu elección!\nPero antes, ¿te gustaría dejar un mensaje para mí o para nuestro equipo? Este mensaje se entregará en el chat principal de nuestro servidor de Discord para que todos lo vean\n💜 No es necesario que dejes un mensaje si no quieres.`,
   SEND_REQUEST_BUTTON_TEXT: "Enviar",
   SEND_REQUEST_PLACEHOLDER: "Deja tu mensaje aquí",
   SELECT_ERROR: "Error al seleccionar la canción",
@@ -563,6 +564,7 @@ const DICT: Dict = {
   ACCOUNT_EMAIL_EMPTY: "Aún no hay correos vinculados.",
   SETTINGS_ACCOUNT_SIGN_IN: "Inicia sesión en tu cuenta",
   A11Y_OPEN_LYRICS: "Mostrar letra",
+  A11Y_STREAM_QUALITY: "Calidad del audio",
   A11Y_CLOSE_LYRICS: "Cerrar letra",
   LYRICS_LOADING: "Buscando la letra…",
   LYRICS_MISSING: "Todavía no hay letra para esta canción",
@@ -636,6 +638,7 @@ const LiveRequestsDisabled = (props: SvgProps) => {
   );
 };
 
+// Metro resolves a bundled image import to its asset id.
 const IMGS = {
   LOGO: logo,
   LAST_REQUEST: lastRequested,

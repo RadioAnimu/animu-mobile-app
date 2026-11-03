@@ -102,7 +102,7 @@ async function fetchStoreLinks(): Promise<StoreLinks> {
 let linksPromise: Promise<StoreLinks> | null = null;
 
 export function getStoreLinks(): Promise<StoreLinks> {
-  linksPromise ??= fetchStoreLinks().catch((error) => {
+  linksPromise ??= fetchStoreLinks().catch((error: unknown) => {
     console.warn("[StoreReview] store list failed:", error);
     linksPromise = null;
     return DEFAULT_STORE_LINKS;

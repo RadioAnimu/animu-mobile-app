@@ -2,6 +2,7 @@ import { StyleSheet } from "react-native";
 import { THEME } from "@/theme";
 import { scale } from "@/theme/responsive";
 
+/** Height of the artwork band over the text. */
 const IMG_HEIGHT = scale(140);
 
 export const styles = StyleSheet.create({

@@ -5,6 +5,8 @@ import type { DictionaryFileName } from "@/core/japanese/dictionary";
 const VERSION_FILE = "version.txt";
 /** `base.dat.gz` downloaded → `base.dat` stored, unpacked. */
 const storedName = (name: DictionaryFileName) => name.replace(/\.gz$/, "");
+/** Typed as a number, but iOS answers `null` when it cannot stat the volume. */
+const availableDiskSpace = (): number | null => Paths.availableDiskSpace;
 
 /**
  * The dictionary lives in the documents directory (not the cache): the OS
@@ -24,7 +26,9 @@ export class DictionaryFileStorage implements DictionaryStorage {
 
   async statDownload(name: DictionaryFileName) {
     const file = this.file(name);
-    return file.exists ? { bytes: file.size, md5: file.md5 } : null;
+    if (!file.exists) return null;
+    // An unreadable file has no hash (a mismatch), as with the old `md5` getter.
+    return { bytes: file.size, md5: await file.digest("MD5").catch(() => null) };
   }
 
   async download(
@@ -37,7 +41,9 @@ export class DictionaryFileStorage implements DictionaryStorage {
     const target = this.file(name);
     if (target.exists) target.delete();
     const task = File.createDownloadTask(url, target, {
-      onProgress: ({ bytesWritten }: { bytesWritten: number }) => onBytes(bytesWritten),
+      // Native 64-bit counts arrive as a BigInt (the type says number): adding
+      // one to a number throws, so convert at the edge.
+      onProgress: ({ bytesWritten }: { bytesWritten: number | bigint }) => onBytes(Number(bytesWritten)),
       signal,
     });
     try {
@@ -66,7 +72,7 @@ export class DictionaryFileStorage implements DictionaryStorage {
     this.ensureDir();
     const file = this.file(storedName(name));
     if (file.exists) file.delete();
-    file.write(bytes);
+    await file.write(bytes);
   }
 
   async readStored(name: DictionaryFileName): Promise<Uint8Array> {
@@ -80,7 +86,7 @@ export class DictionaryFileStorage implements DictionaryStorage {
 
   async writeVersion(version: string): Promise<void> {
     this.ensureDir();
-    this.file(VERSION_FILE).write(version);
+    await this.file(VERSION_FILE).write(version);
   }
 
   async removeAll(): Promise<void> {
@@ -89,7 +95,7 @@ export class DictionaryFileStorage implements DictionaryStorage {
 
   freeBytes(): number {
     try {
-      return Paths.availableDiskSpace ?? 0;
+      return availableDiskSpace() ?? 0;
     } catch {
       // Unknown: let the install try (a full disk then fails the write).
       return Number.POSITIVE_INFINITY;

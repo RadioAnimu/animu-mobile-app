@@ -17,7 +17,7 @@ vi.mock("@/components/Avatar", () => ({ Avatar: () => null }));
 vi.mock("@/utils/haptics", () => ({ haptics: { tap: vi.fn(), warning: vi.fn(), select: vi.fn(), error: vi.fn() } }));
 vi.mock("@/hooks/useDict", () => ({
   useDict: () =>
-    new Proxy({} as Record<string, string>, { get: (_target, key) => String(key) }),
+    new Proxy({}, { get: (_target, key) => String(key) }),
 }));
 vi.mock("@/contexts/user/UserSettingsProvider", () => ({
   useUserSettings: () => ({ resetSettings: mocks.resetSettings }),
@@ -29,7 +29,7 @@ vi.mock("@/contexts/alert/AlertProvider", () => ({
 const confirmReset = async () => {
   render(<ResetSection />);
   fireEvent.click(screen.getByRole("button", { name: /SETTINGS_RESET_ROW/ }));
-  const [, , buttons] = vi.mocked(Alert.alert).mock.calls.at(-1)!;
+  const [, , buttons] = vi.mocked(Alert).alert.mock.calls.at(-1)!;
   buttons?.find((button) => button.style === "destructive")?.onPress?.();
   await vi.waitFor(() => expect(mocks.resetSettings).toHaveBeenCalled());
 };

@@ -4,7 +4,7 @@ import {
   type ComponentProps,
   type RefObject,
 } from "react";
-import type { TextInput } from "react-native";
+import type { TextInputInstance } from "react-native";
 
 import { useAlert } from "@/contexts/alert/AlertProvider";
 import {
@@ -50,7 +50,7 @@ export function useRecentSearchPanel({
   query: string;
   searchedQuery: string | undefined;
   loading: boolean;
-  inputRef: RefObject<TextInput | null>;
+  inputRef: RefObject<TextInputInstance | null>;
   bottomPadding: number;
 }>) {
   const dict = useDict();

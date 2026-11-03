@@ -6,7 +6,7 @@ import { IconBox, RowBody, RowDivider } from "@/components/ListRow";
 import { MaskedValue } from "@/components/MaskedValue";
 import { ProviderIcon } from "@/components/ProviderIcon";
 import { SectionTitle } from "@/components/SectionTitle";
-import { isProviderConfigured, isProviderLinkable } from "@/constants/auth";
+import { isProviderConfigured } from "@/constants/auth";
 import { useDict } from "@/hooks/useDict";
 import { THEME } from "@/theme";
 import { styles } from "@/screens/Account/styles";
@@ -79,27 +79,23 @@ function RowAction({
     );
   }
 
-  if (isProviderLinkable(provider.name)) {
-    return (
-      <TouchableOpacity
-        accessibilityRole="button"
-        accessibilityLabel={`${dict.ACCOUNT_LINK} ${provider.label}`}
-        disabled={!!busy}
-        activeOpacity={THEME.OPACITY.PRESSED}
-        hitSlop={THEME.HIT_SLOP.SM}
-        style={[styles.rowIconAction, !!busy && styles.rowActionDisabled]}
-        onPress={() => onLink(provider.name)}
-      >
-        <Icon
-          name="add-link"
-          size={THEME.ICON.MD}
-          color={THEME.COLORS.BRAND}
-        />
-      </TouchableOpacity>
-    );
-  }
-
-  return null;
+  return (
+    <TouchableOpacity
+      accessibilityRole="button"
+      accessibilityLabel={`${dict.ACCOUNT_LINK} ${provider.label}`}
+      disabled={!!busy}
+      activeOpacity={THEME.OPACITY.PRESSED}
+      hitSlop={THEME.HIT_SLOP.SM}
+      style={[styles.rowIconAction, !!busy && styles.rowActionDisabled]}
+      onPress={() => onLink(provider.name)}
+    >
+      <Icon
+        name="add-link"
+        size={THEME.ICON.MD}
+        color={THEME.COLORS.BRAND}
+      />
+    </TouchableOpacity>
+  );
 }
 
 /** One provider row: icon, label, masked identity or link state, and action. */

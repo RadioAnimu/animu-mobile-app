@@ -1,27 +1,31 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { View, useWindowDimensions } from "react-native";
-import { WebView } from "react-native-webview";
 import type { VisualizerWindow } from "@/core/player";
 import { useIsBackgrounded } from "@/contexts/app-state/AppStateProvider";
 import { usePlayer } from "@/contexts/player/PlayerProvider";
 import { useUserSettings } from "@/contexts/user/UserSettingsProvider";
 import { useIsFocused } from "@react-navigation/native";
 import { THEME } from "@/theme";
-import { CONFIG, debugLog } from "@/utils/player.config";
 import { scale } from "@/theme/responsive";
+import { ScopeFrame, type ScopeFrameHandle } from "@/components/Oscilloscope/ScopeFrame";
 import { styles } from "@/components/Oscilloscope/styles";
 
 /**
  * Full strip the native container reserves for the scope (logo renders
  * around it) — the canvas is absolutely pinned to its vertical centre.
  * Geometry is authored at the 393pt reference and scaled with the logo so
- * the trace stays centred behind it on every device.
+ * the trace stays centred behind it on every device. The default strip is
+ * the logo's height; a smaller logo (landscape phones) passes its own, and
+ * the canvas keeps the same proportions inside it.
  */
 const STRIP_HEIGHT = scale(127);
-const CANVAS_HEIGHT = scale(75);
-const CANVAS_TOP = scale(26);
-
-type WebViewHandle = React.ComponentRef<typeof WebView>;
+/**
+ * The canvas's share of the strip (75 of 127 at the reference), centred in
+ * it. The page derives both from its own viewport height, so a strip of any
+ * height — resized live — keeps the trace centred behind the logo without
+ * reloading the page.
+ */
+const CANVAS_RATIO = 75 / 127;
 
 /**
  * Trace payload encoding: each waveform window becomes one hex digit pair
@@ -31,11 +35,6 @@ type WebViewHandle = React.ComponentRef<typeof WebView>;
  * direct nibble lookup.
  */
 const WAVE_HEX = Array.from({ length: 256 }, (_, byte) => byte.toString(16).padStart(2, "0"));
-
-// Same guarded clock as the sampler diagnostics: a missing `performance`
-// global must never kill the wave delivery feed. (RN + Hermes has it; this
-// is for exotic environments and unit tests.)
-const perfNow = (): number => (typeof performance !== "undefined" ? performance.now() : 0);
 
 function encodeWave(points: number[]): string {
   let hex = "";
@@ -77,28 +76,12 @@ const PAGE_HTML = `<!DOCTYPE html>
       /* The canvas is pinned to the exact vertical centre of the strip the
          native container reserves for it, so no body-flow or zoom quirk of
          the embed can shift where the trace sits. */
-      #oscilloscope { display: block; position: absolute; left: 0; top: ${CANVAS_TOP}px; z-index: 0; color: white; }
+      #oscilloscope { display: block; position: absolute; left: 0; top: 0; z-index: 0; color: white; }
     </style>
   </head>
   <body>
     <canvas id="oscilloscope" width="0" height="0"></canvas>
     <script>
-      // Diagnostics only: fixed-size counters, one report per five seconds.
-      // No per-frame console calls, timers, or changes to rendering/pacing.
-      var diagnosticsEnabled = ${CONFIG.DEBUG};
-      var diagnosticStart = performance.now();
-      var diagnosticLastFrame = 0;
-      var diagnosticLastWave = 0;
-      var diagnosticLastCursor = -1;
-      function diagnosticCounters() {
-        return { frames: 0, frameGapMaxMs: 0, framesOver25Ms: 0,
-          drawMaxMs: 0, waves: 0, waveGapMaxMs: 0, burstWaves: 0,
-          bridgeAgeMaxMs: 0, receiveMaxMs: 0, heldFrames: 0,
-          underrunFrames: 0, fillingFrames: 0, slewedFrames: 0, resyncs: 0, waitingFrames: 0,
-          lagErrorMaxMs: 0, queueMax: 0 };
-      }
-      var diagnostic = diagnosticCounters();
-
       // Decoded windows, oldest first. Serials are consecutive: the queue
       // holds (newestSerial - length + 1) .. newestSerial. Decoded PCM
       // reaches the bridge before the speaker plays it, so the trace reads
@@ -224,15 +207,6 @@ const PAGE_HTML = `<!DOCTYPE html>
         }
         if (payload.type === 'wave') {
           var receivedAt = performance.now();
-          if (diagnosticsEnabled) {
-            var gap = diagnosticLastWave ? receivedAt - diagnosticLastWave : 0;
-            diagnostic.waveGapMaxMs = Math.max(diagnostic.waveGapMaxMs, gap);
-            if (gap > 0 && gap < 4) diagnostic.burstWaves++;
-            diagnosticLastWave = receivedAt;
-            diagnostic.waves++;
-            diagnostic.bridgeAgeMaxMs = Math.max(diagnostic.bridgeAgeMaxMs,
-              payload.diagnosticSentAt ? Date.now() - payload.diagnosticSentAt : 0);
-          }
           waveQueue.push(decode(payload.wave));
           var queueLimit = Math.max(MIN_QUEUE,
             Math.ceil((payload.delay || 0) / (periodMs || 8)) + MIN_LAG_WINDOWS + QUEUE_SLACK_WINDOWS);
@@ -240,11 +214,6 @@ const PAGE_HTML = `<!DOCTYPE html>
           newestSerial++;
           delayMs = payload.delay || 0;
           trackArrival(receivedAt, payload.duration || payload.interval);
-          if (diagnosticsEnabled) {
-            diagnostic.queueMax = Math.max(diagnostic.queueMax, waveQueue.length);
-            diagnostic.receiveMaxMs = Math.max(diagnostic.receiveMaxMs,
-              performance.now() - receivedAt);
-          }
         }
         if (payload.type === 'stop') {
           resetStream();
@@ -260,6 +229,9 @@ const PAGE_HTML = `<!DOCTYPE html>
       function postToNative(payload) {
         if (window.ReactNativeWebView) {
           window.ReactNativeWebView.postMessage(JSON.stringify(payload));
+        } else if (window.parent !== window) {
+          // Web build: the page runs in an iframe of the app.
+          window.parent.postMessage(JSON.stringify(payload), '*');
         }
       }
       postToNative({ type: 'ready' });
@@ -277,27 +249,18 @@ const PAGE_HTML = `<!DOCTYPE html>
           // stream, not told apart yet) the stale schedule would chase
           // windows nobody hears yet; and a schedule that moved later is
           // waited for rather than replayed.
-          if (diagnosticsEnabled) diagnostic.waitingFrames++;
         } else if (cursor < 0 || ahead - step > RESYNC_WINDOWS) {
           cursor = desired;
-          if (diagnosticsEnabled && !filling) diagnostic.resyncs++;
         } else {
           var advance = Math.max(step * (1 - SLEW), Math.min(step * (1 + SLEW), ahead));
-          if (diagnosticsEnabled && advance !== ahead) diagnostic.slewedFrames++;
           cursor += advance;
         }
         var oldest = newestSerial - waveQueue.length + 1;
         filling = desired < oldest;
-        if (diagnosticsEnabled && filling) diagnostic.fillingFrames++;
         if (cursor < oldest) {
           cursor = oldest;
         } else if (cursor > newestSerial) {
           cursor = newestSerial;
-          if (diagnosticsEnabled) diagnostic.underrunFrames++;
-        }
-        if (diagnosticsEnabled && !filling) {
-          diagnostic.lagErrorMaxMs = Math.max(diagnostic.lagErrorMaxMs,
-            Math.abs(desired - cursor) * periodMs);
         }
         return true;
       }
@@ -333,39 +296,21 @@ const PAGE_HTML = `<!DOCTYPE html>
         scopeContext.lineCap = 'round';
       }
       applyStrokeStyles();
-      function finishFrameDiagnostics(frameAt, didStroke) {
-        if (!diagnosticsEnabled) return;
-        if (didStroke) {
-          diagnostic.drawMaxMs = Math.max(diagnostic.drawMaxMs, performance.now() - frameAt);
-        }
-        if (frameAt - diagnosticStart >= 5000) {
-          postToNative({ type: 'diagnostic', elapsedMs: frameAt - diagnosticStart,
-            at: Date.now(), stats: diagnostic, periodMs: periodMs, delayMs: delayMs,
-            visibility: document.visibilityState });
-          diagnostic = diagnosticCounters();
-          diagnosticStart = frameAt;
-        }
-      }
       function drawOscilloscope(frameAt) {
         requestAnimationFrame(drawOscilloscope);
         // The vsync timestamp paces the read position (evenly spaced, like
         // the display); the first call has none.
         frameAt = frameAt || performance.now();
         var hasWave = advanceCursor(frameAt);
-        if (diagnosticsEnabled) {
-          var frameGap = diagnosticLastFrame ? frameAt - diagnosticLastFrame : 0;
-          diagnosticLastFrame = frameAt;
-          diagnostic.frames++;
-          diagnostic.frameGapMaxMs = Math.max(diagnostic.frameGapMaxMs, frameGap);
-          if (frameGap > 25) diagnostic.framesOver25Ms++;
-          if (hasWave && cursor === diagnosticLastCursor) diagnostic.heldFrames++;
-          diagnosticLastCursor = cursor;
-        }
 
         // Identical to the web player: CSS-pixel canvas, 1x, compositor
         // handles upscaling on hi-DPI phones.
         var canvasWidth = Math.floor(window.innerWidth);
-        var canvasHeight = Math.floor(${CANVAS_HEIGHT});
+        var canvasHeight = Math.floor(window.innerHeight * ${CANVAS_RATIO});
+        var canvasTop = Math.floor((window.innerHeight - canvasHeight) / 2);
+        if (scopeCanvas.style.top !== canvasTop + 'px') {
+          scopeCanvas.style.top = canvasTop + 'px';
+        }
         if (scopeCanvas.width !== canvasWidth) {
           scopeCanvas.width = canvasWidth;
           applyStrokeStyles();
@@ -393,7 +338,6 @@ const PAGE_HTML = `<!DOCTYPE html>
         // its pixels are still exactly right.
         if (first === lastStrokeFirst && second === lastStrokeSecond && offset === lastStrokeOffset &&
             canvasWidth === lastStrokeWidth && canvasHeight === lastStrokeHeight) {
-          finishFrameDiagnostics(frameAt, false);
           return;
         }
 
@@ -434,7 +378,6 @@ const PAGE_HTML = `<!DOCTYPE html>
         lastStrokeOffset = offset;
         lastStrokeWidth = canvasWidth;
         lastStrokeHeight = canvasHeight;
-        finishFrameDiagnostics(frameAt, true);
       }
       drawOscilloscope();
     </script>
@@ -442,11 +385,12 @@ const PAGE_HTML = `<!DOCTYPE html>
 </html>`;
 
 /**
- * Home oscilloscope (Android) — passthrough engine.
+ * Home oscilloscope — passthrough engine.
  *
  * No second audio stream and no RN-side per-frame work: the player's
- * existing native PCM tap (expo-audio patch) hands each decoded window to
- * this WebView as a tiny hex payload, and the embedded page runs the *web
+ * decoded-audio tap (react-native-anything-player) hands each window to
+ * the page (a WebView; an iframe on the web) as a tiny hex payload, and the
+ * embedded page runs the *web
  * player's own draw loop* — a window-long stretch of the decoded stream,
  * read on an audio-paced clock and stroked once per display vsync through
  * a GPU-backed canvas.
@@ -458,10 +402,21 @@ const PAGE_HTML = `<!DOCTYPE html>
  * side) and pointer-transparent — it renders, nothing else. `react-freeze`
  * pauses it while backgrounded.
  */
-/** One source object for the page's lifetime (a new one per render is prop churn). */
-const PAGE_SOURCE = { html: PAGE_HTML };
+interface Props {
+  /**
+   * Width of the strip. Defaults to the window's; a pane that does not span
+   * the window passes its own (the page sizes its canvas to the WebView's
+   * `innerWidth`, so the trace follows).
+   */
+  width?: number;
+  /** Height of the strip — the logo's, so the trace stays centred behind it. */
+  height?: number;
+}
 
-export const Oscilloscope = React.memo(function Oscilloscope() {
+export const Oscilloscope = React.memo(function Oscilloscope({
+  width: widthProp,
+  height = STRIP_HEIGHT,
+}: Readonly<Props>) {
   const {
     subscribeVisualizerWindows,
     isPlaying,
@@ -473,10 +428,10 @@ export const Oscilloscope = React.memo(function Oscilloscope() {
   // other screens are in front of it): sampling must stop when it is not
   // the screen the user is actually looking at.
   const isFocused = useIsFocused();
-  const { width } = useWindowDimensions();
+  const { width: windowWidth } = useWindowDimensions();
+  const width = widthProp ?? windowWidth;
 
-  const diagnosticRef = useRef({ start: 0, last: 0, waves: 0, gapMaxMs: 0, encodePostMaxMs: 0 });
-  const webviewRef = useRef<WebViewHandle | null>(null);
+  const webviewRef = useRef<ScopeFrameHandle | null>(null);
   /** Whether the embedded page has announced itself through the bridge. */
   const pageReadyRef = useRef(false);
   /** Monotonic bridge message counter (dedupe guard across platforms). */
@@ -487,22 +442,11 @@ export const Oscilloscope = React.memo(function Oscilloscope() {
     isPlaying && visualizerSupported && settings.visualizerHz > 0;
   const wantsOn = isFocused && samplingWanted && !isBackgrounded;
 
-
-  // Commit logs expose context-driven renders without adding React state.
-  useEffect(() => {
-    if (!CONFIG.DEBUG) return;
-    debugLog("[ScopeDiag] commit", { at: Date.now(), wantsOn, width,
-      isPlaying, isBackgrounded, visualizerHz: settings.visualizerHz });
-  });
   // The WebView only exists while wantsOn: once it is gone, the next one is
   // a fresh page that must announce itself again before it is told to stop.
   useEffect(() => {
     if (!wantsOn) pageReadyRef.current = false;
   }, [wantsOn]);
-  useEffect(() => {
-    debugLog("[ScopeDiag] mount", Date.now());
-    return () => debugLog("[ScopeDiag] unmount", Date.now());
-  }, []);
 
   const post = useCallback(
     (payload: object) => {
@@ -518,31 +462,13 @@ export const Oscilloscope = React.memo(function Oscilloscope() {
 
   const receiveWindow = useCallback(
     (window: VisualizerWindow) => {
-      // Same guarded clock as the sampler diagnostics: the post path must
-      // never die because an environment lacks `performance`.
-      const started = CONFIG.DEBUG ? perfNow() : 0;
       post({
-        ...(CONFIG.DEBUG ? { diagnosticSentAt: Date.now() } : {}),
         type: "wave",
         wave: encodeWave(window.targetWave),
         interval: window.nativeIntervalMs,
         delay: window.outputLatencyMs,
         duration: window.windowMs,
       });
-      if (CONFIG.DEBUG) {
-        const d = diagnosticRef.current;
-        if (!d.start) d.start = started;
-        d.gapMaxMs = Math.max(d.gapMaxMs, d.last ? started - d.last : 0);
-        d.last = started;
-        d.waves++;
-        d.encodePostMaxMs = Math.max(d.encodePostMaxMs, perfNow() - started);
-        if (started - d.start >= 5000) {
-          debugLog("[ScopeDiag] RN", { at: Date.now(), ...d,
-            elapsedMs: started - d.start, pageReady: pageReadyRef.current,
-            hasWebView: !!webviewRef.current });
-          diagnosticRef.current = { start: started, last: started, waves: 0, gapMaxMs: 0, encodePostMaxMs: 0 };
-        }
-      }
     },
     [post],
   );
@@ -552,10 +478,8 @@ export const Oscilloscope = React.memo(function Oscilloscope() {
   // into one continuous signal and paces its own read position.
   useEffect(() => {
     if (!wantsOn) return undefined;
-    debugLog("[ScopeDiag] subscribe", Date.now());
     const unsubscribe = subscribeVisualizerWindows(receiveWindow);
     return () => {
-      debugLog("[ScopeDiag] unsubscribe", Date.now());
       unsubscribe();
       if (pageReadyRef.current) {
         post({ type: "stop" });
@@ -565,16 +489,13 @@ export const Oscilloscope = React.memo(function Oscilloscope() {
 
   const onMessage = useCallback(
     (event: { nativeEvent: { data: string } }) => {
-      // Readiness announcement (and debug diagnostics) from the embedded page.
+      // The embedded page's readiness announcement.
       try {
-        const payload = JSON.parse(event.nativeEvent.data);
+        const payload = JSON.parse(event.nativeEvent.data) as {
+          type?: unknown;
+        } | null;
         if (payload?.type === "ready") {
-          debugLog("[ScopeDiag] page-ready", Date.now());
           pageReadyRef.current = true;
-          return;
-        }
-        if (payload?.type === "diagnostic") {
-          debugLog("[ScopeDiag] WebView", payload);
         }
       } catch {
         // Non-JSON bridge chatter — ignore.
@@ -586,7 +507,6 @@ export const Oscilloscope = React.memo(function Oscilloscope() {
   // A killed or crashed renderer leaves a dead WebView behind (the library
   // only keeps the app alive): remount a fresh page in its place.
   const onRenderProcessGone = useCallback(() => {
-    debugLog("[ScopeDiag] render-process-gone", Date.now());
     pageReadyRef.current = false;
     setPageKey((key) => key + 1);
   }, []);
@@ -594,26 +514,18 @@ export const Oscilloscope = React.memo(function Oscilloscope() {
   if (!wantsOn) return null;
 
   return (
-    <View style={styles.container} pointerEvents="none">
+    <View style={[styles.container, { height }]} pointerEvents="none">
       {/* The WebView *is* the 127px strip: nesting it inside the old 75px
           `canvas` view double-offset the trace (wrapper centred the 127px
           viewport 26px down, then the page offset the canvas another 26px). */}
-      <WebView
+      <ScopeFrame
         key={pageKey}
         ref={webviewRef}
-        source={PAGE_SOURCE}
+        html={PAGE_HTML}
+        width={width}
+        height={height}
         onMessage={onMessage}
         onRenderProcessGone={onRenderProcessGone}
-        javaScriptEnabled
-        domStorageEnabled={false}
-        originWhitelist={["*"]}
-        mediaPlaybackRequiresUserAction={false}
-        mixedContentMode="always"
-        androidLayerType="hardware"
-        scrollEnabled={false}
-        showsHorizontalScrollIndicator={false}
-        showsVerticalScrollIndicator={false}
-        style={{ width, height: STRIP_HEIGHT, backgroundColor: "transparent" }}
       />
     </View>
   );

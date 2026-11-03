@@ -53,17 +53,16 @@ describe("BackoffScheduler", () => {
     expect(runs).toBe(1);
   });
 
-  it("cancel keeps the attempt counter, reset zeroes it", () => {
+  it("cancel keeps the backoff, reset restarts it", () => {
     const { scheduler } = makeScheduler();
 
     scheduler.schedule(() => {});
     scheduler.schedule(() => {});
     scheduler.cancel();
-    expect(scheduler.attemptCount).toBe(2);
     expect(scheduler.isPending).toBe(false);
+    expect(scheduler.schedule(() => {})).toBe(BASE_MS * 4);
 
     scheduler.reset();
-    expect(scheduler.attemptCount).toBe(0);
     expect(scheduler.schedule(() => {})).toBe(BASE_MS);
   });
 });

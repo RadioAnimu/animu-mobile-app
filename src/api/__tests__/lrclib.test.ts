@@ -49,6 +49,24 @@ describe("LrcLibClient", () => {
     expect(init.headers["User-Agent"]).toBe("Animu/test");
   });
 
+  it("names itself in Lrclib-Client from a browser, which can't set User-Agent", async () => {
+    const fetch = vi.fn<FetchLike>(async () => response(200, []));
+    await new LrcLibClient({ fetch, userAgent: "Animu/test", browser: true, retryBaseMs: 0 }).search({ q: "x" });
+    const [, init] = fetch.mock.calls[0];
+    expect(init.headers["Lrclib-Client"]).toBe("Animu/test");
+    expect(init.headers).not.toHaveProperty("User-Agent");
+  });
+
+  it("calls fetch unbound, as a browser's window.fetch requires", async () => {
+    const receivers: unknown[] = [];
+    const fetch: FetchLike = function (this: unknown) {
+      receivers.push(this);
+      return Promise.resolve(response(200, []));
+    };
+    await client(fetch).search({ q: "x" });
+    expect(receivers).toEqual([undefined]);
+  });
+
   it("looks up exactly, a 404 meaning no such song", async () => {
     const fetch = vi.fn<FetchLike>(async () => response(404));
     expect(await client(fetch).get({ trackName: "x", artistName: "y", durationSec: 194.6 })).toBeNull();

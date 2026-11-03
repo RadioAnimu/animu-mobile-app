@@ -37,6 +37,8 @@ const motion = (): ListMotion => ({
   activeIndex: shared(0),
   companionIndex: shared(-1),
   viewport: shared(600),
+  anchor: shared(64),
+  edgeFade: shared(72),
   reduceMotion: false,
 });
 const line: LyricLine = {

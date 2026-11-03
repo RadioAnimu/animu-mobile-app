@@ -15,7 +15,22 @@ const mocks = vi.hoisted(() => ({
   clearAll: vi.fn(),
   trim: vi.fn(),
   setVisualizerEnabled: vi.fn(),
+  idleTasks: [] as (() => void)[],
 }));
+
+// Launch work waits for idle: tests run it when they choose.
+vi.mock("@/utils/idle", () => ({
+  whenIdle: (task: () => void) => {
+    mocks.idleTasks.push(task);
+    return () => {};
+  },
+}));
+const runIdle = async () => {
+  await act(async () => {
+    for (const task of mocks.idleTasks.splice(0)) task();
+    await Promise.resolve();
+  });
+};
 
 vi.mock("@/core/services/user-settings.service", () => ({
   userSettingsService: {
@@ -66,6 +81,7 @@ describe("UserSettingsProvider", () => {
     mocks.updateSettings.mockResolvedValue(undefined);
     mocks.clearAll.mockResolvedValue(undefined);
     mocks.trim.mockResolvedValue(undefined);
+    mocks.idleTasks.length = 0;
   });
 
   afterEach(() => {
@@ -77,6 +93,41 @@ describe("UserSettingsProvider", () => {
 
     await waitFor(() => expect(result.current.settings.hapticsEnabled).toBe(false));
     expect(mocks.setVisualizerEnabled).toHaveBeenCalledWith(true);
+  });
+
+  it("trims the cover cache to its limit once at launch, when idle", async () => {
+    const { result } = renderHook(() => useUserSettings(), { wrapper });
+    await waitFor(() => expect(result.current.settings.hapticsEnabled).toBe(false));
+    expect(mocks.trim).not.toHaveBeenCalled();
+    await runIdle();
+    await waitFor(() =>
+      expect(mocks.trim).toHaveBeenCalledWith(DEFAULT_USER_SETTINGS.coverCacheLimitBytes, null),
+    );
+    expect(mocks.trim).toHaveBeenCalledTimes(1);
+  });
+
+  it("skips the launch trim when the cache is uncapped or off", async () => {
+    mocks.initialize.mockResolvedValueOnce({ ...DEFAULT_USER_SETTINGS, coverCacheLimitBytes: 0 });
+    const { result, unmount } = renderHook(() => useUserSettings(), { wrapper });
+    await waitFor(() => expect(result.current.settings.coverCacheLimitBytes).toBe(0));
+    await runIdle();
+    unmount();
+    mocks.initialize.mockResolvedValueOnce({ ...DEFAULT_USER_SETTINGS, cacheEnabled: false });
+    const second = renderHook(() => useUserSettings(), { wrapper });
+    await waitFor(() => expect(second.result.current.settings.cacheEnabled).toBe(false));
+    await runIdle();
+    expect(mocks.trim).not.toHaveBeenCalled();
+  });
+
+  it("trims to the limit in effect when the launch trim runs, not the one at launch", async () => {
+    const { result } = renderHook(() => useUserSettings(), { wrapper });
+    await waitFor(() => expect(result.current.settings.hapticsEnabled).toBe(false));
+    // The user picks Unlimited before the app goes idle.
+    await act(async () => {
+      await result.current.updateSettings({ coverCacheLimitBytes: 0 });
+    });
+    await runIdle();
+    expect(mocks.trim).not.toHaveBeenCalledWith(DEFAULT_USER_SETTINGS.coverCacheLimitBytes, null);
   });
 
   it("merges a partial update, persists it, and applies it", async () => {

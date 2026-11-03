@@ -4,8 +4,7 @@ import { DEFAULT_STORE_LINKS } from "@/api/store-links";
 
 const fetchMock = vi.fn();
 
-const storeLinks = async () =>
-  (await import("@/api/store-links")) as typeof import("@/api/store-links");
+const storeLinks = () => import("@/api/store-links");
 
 const RESPONSE = (payload: unknown, ok = true, status = 200) =>
   ({ ok, status, json: async () => payload }) as Response;
@@ -55,7 +54,7 @@ describe("getStoreLinks", () => {
   it("falls back to the defaults on an HTTP error without reading the body", async () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     const json = vi.fn(async () => REMOTE_STORES);
-    fetchMock.mockResolvedValue({ ok: false, status: 503, json } as unknown as Response);
+    fetchMock.mockResolvedValue({ ok: false, status: 503, json });
     await expect((await storeLinks()).getStoreLinks()).resolves.toEqual(
       DEFAULT_STORE_LINKS,
     );

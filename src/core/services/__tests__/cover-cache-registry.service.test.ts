@@ -238,9 +238,13 @@ describe("CoverCacheRegistry", () => {
       // One coalesced write, carrying the FINAL 12-entry map.
       await vi.advanceTimersByTimeAsync(PAST_DEBOUNCE_MS);
       expect(writes.length).toBeGreaterThan(0);
-      const last = JSON.parse(writes[writes.length - 1]!) as { entries: Record<string, unknown> };
+      const last = JSON.parse(writes[writes.length - 1]) as { entries: Record<string, unknown> };
       expect(Object.keys(last.entries)).toHaveLength(12);
-      expect(writes.every((w) => JSON.parse(w).entries["https://cdn/img-11.jpg"])).toBe(true);
+      expect(
+        writes.every(
+          (w) => (JSON.parse(w) as { entries: Record<string, unknown> }).entries["https://cdn/img-11.jpg"],
+        ),
+      ).toBe(true);
     } finally {
       vi.doUnmock("@react-native-async-storage/async-storage");
       memory.clear();

@@ -8,7 +8,6 @@ import {
   RowDivider,
 } from "@/components/ListRow";
 import { SectionTitle } from "@/components/SectionTitle";
-import { isProviderLinkable } from "@/constants/auth";
 import type { AuthProfile } from "@/core/domain/user";
 import { useDict } from "@/hooks/useDict";
 import { THEME } from "@/theme";
@@ -69,8 +68,7 @@ function Checklist({
   onRefresh,
 }: Readonly<ChecklistProps>) {
   const dict = useDict();
-  // Hidden, not disabled, where Discord can't be linked from this build.
-  const canLink = !discordLinked && isProviderLinkable("discord");
+  const canLink = !discordLinked;
 
   return (
     <>
@@ -109,7 +107,7 @@ function Checklist({
             label={dict.ACCOUNT_REQUESTS_2FA_HELP}
             description={dict.ACCOUNT_REQUESTS_2FA_HELP_DESC}
             onPress={() => {
-              void openInAppBrowser(DISCORD_2FA_HELP_URL).catch((error) =>
+              void openInAppBrowser(DISCORD_2FA_HELP_URL).catch((error: unknown) =>
                 console.warn(
                   "[Account] failed to open Discord's 2FA help:",
                   error,

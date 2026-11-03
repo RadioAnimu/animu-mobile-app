@@ -62,6 +62,12 @@ export class LrcLibClient implements LyricsProvider {
     private readonly options: {
       fetch: FetchLike;
       userAgent: string;
+      /**
+       * A browser can't set `User-Agent` (and LRCLIB's CORS doesn't allow
+       * it): the same string then goes in `Lrclib-Client`, LRCLIB's header
+       * for browser clients.
+       */
+      browser?: boolean;
       timeoutMs?: number;
       retryBaseMs?: number;
     },
@@ -84,6 +90,11 @@ export class LrcLibClient implements LyricsProvider {
     return toCandidate(await this.request(`${BASE_URL}/get?${query}`, true));
   }
 
+  private headers(): Record<string, string> {
+    const identity = this.options.browser ? "Lrclib-Client" : "User-Agent";
+    return { Accept: "application/json", [identity]: this.options.userAgent };
+  }
+
   /** GET with a timeout; 429/5xx and network failures retry with backoff. */
   private async request(url: string, notFoundIsNull = false): Promise<unknown> {
     const { timeoutMs = TIMEOUT_MS, retryBaseMs = RETRY_BASE_MS } = this.options;
@@ -93,8 +104,11 @@ export class LrcLibClient implements LyricsProvider {
       const controller = new AbortController();
       const timer = setTimeout(() => controller.abort(), timeoutMs);
       try {
-        const response = await this.options.fetch(url, {
-          headers: { Accept: "application/json", "User-Agent": this.options.userAgent },
+        // Called unbound: a browser's `fetch` throws "Illegal invocation"
+        // when its `this` is anything but the window (here, `options`).
+        const { fetch } = this.options;
+        const response = await fetch(url, {
+          headers: this.headers(),
           signal: controller.signal,
         });
         if (notFoundIsNull && response.status === 404) return null;

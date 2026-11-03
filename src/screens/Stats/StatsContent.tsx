@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Alert, Text, View } from "react-native";
+import { Text, View } from "react-native";
 
 import { DestructiveAction } from "@/components/DestructiveAction";
 import { Icon, type IconName } from "@/components/Icon";
@@ -27,6 +27,7 @@ import {
   interpolate,
   listenDurationUnits,
 } from "@/utils/format";
+import { confirmDestructive } from "@/utils/confirm";
 
 /** Rows in the screen's top-requests list. */
 const TOP_SHOWN = 5;
@@ -96,28 +97,23 @@ export function StatsContent({
   const peakWeekday = peakIndex(weekdayBars);
 
   const confirmReset = () => {
-    Alert.alert(
-      dict.STATS_RESET_CONFIRM_TITLE,
-      dict.STATS_RESET_CONFIRM_MSG,
-      [
-        { text: dict.ACCOUNT_CANCEL, style: "cancel" },
-        {
-          text: dict.STATS_RESET_CONFIRM,
-          style: "destructive",
-          onPress: () => {
-            haptics.warning();
-            void (async () => {
-              setResetting(true);
-              try {
-                await onReset();
-              } finally {
-                setResetting(false);
-              }
-            })();
-          },
-        },
-      ],
-    );
+    confirmDestructive({
+      title: dict.STATS_RESET_CONFIRM_TITLE,
+      message: dict.STATS_RESET_CONFIRM_MSG,
+      cancel: dict.ACCOUNT_CANCEL,
+      confirm: dict.STATS_RESET_CONFIRM,
+      onConfirm: () => {
+        haptics.warning();
+        void (async () => {
+          setResetting(true);
+          try {
+            await onReset();
+          } finally {
+            setResetting(false);
+          }
+        })();
+      },
+    });
   };
 
   return (

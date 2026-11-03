@@ -3,8 +3,8 @@
 > The official mobile client for [Rádio Animu](https://www.animu.moe) — Brazil's most moe radio.
 
 [![Version](https://img.shields.io/badge/version-3.0.0-8A2BE2)](https://github.com/RadioAnimu/animu-mobile-app/releases)
-[![React Native](https://img.shields.io/badge/React_Native-0.86-blue)](https://reactnative.dev)
-[![Expo SDK](https://img.shields.io/badge/Expo_SDK-57-000000)](https://expo.dev)
+[![React Native](https://img.shields.io/badge/React_Native-0.88-blue)](https://reactnative.dev)
+[![Expo SDK](https://img.shields.io/badge/Expo_SDK-58-000000)](https://expo.dev)
 [![TypeScript](https://img.shields.io/badge/TypeScript-6.0-3178C6)](https://www.typescriptlang.org)
 [![Platform](https://img.shields.io/badge/platform-Android%20%7C%20iOS-3DDC84)](https://play.google.com/store/apps/details?id=com.nessjs.animu)
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
@@ -15,6 +15,7 @@ This repository is the official mobile application: a real-time internet-radio c
 
 - **Android** — [Google Play Store](https://play.google.com/store/apps/details?id=com.nessjs.animu) (`com.nessjs.animu`)
 - **iOS** — in development · sideload via the [AltStore source](docs/ALTSTORE.md)
+- **Web** — in development · see [Web](docs/WEB.md)
 - **Website** — [animu.moe](https://www.animu.moe) · [animu.com.br](https://www.animu.com.br)
 
 <p align="center">
@@ -66,7 +67,7 @@ Read the full, screen-by-screen breakdown in **[Features](docs/FEATURES.md)**.
 
 ## Tech stack
 
-React Native 0.86 (New Architecture) · React 19 · Expo SDK 57 · TypeScript 6
+React Native 0.88 (New Architecture) · React 19 · Expo SDK 58 · TypeScript 6
 (strict) · React Navigation 7 (drawer + native stack) · `react-native-anything-player`
 (native player) · `expo/fetch` · `react-native-webview` (visualizer)
 · custom `useSyncExternalStore` stores · Vitest.
@@ -79,10 +80,10 @@ git clone --recurse-submodules https://github.com/RadioAnimu/animu-mobile-app.gi
 pnpm install
 pnpm run android   # or: pnpm run ios
 pnpm test          # vitest
-pnpm run lint      # expo lint
+pnpm run lint      # ESLint, oxlint type-aware (tsgolint), knip + sherif
 ```
 
-Requires Node 20+, pnpm (`corepack enable`) and a device/emulator with network
+Requires Node 22.13+, pnpm (`corepack enable`) and a device/emulator with network
 access to `animu.moe`. The
 **Proxima Nova** fonts are not committed — see
 [Development](docs/DEVELOPMENT.md#fonts).
@@ -96,6 +97,7 @@ access to `animu.moe`. The
 | [Architecture](docs/ARCHITECTURE.md) | Layers, player core, stores, key decisions |
 | [Development](docs/DEVELOPMENT.md) | Setup, scripts, tests, aliases, patches, fonts |
 | [Build & Release](docs/BUILD_AND_RELEASE.md) | EAS profiles, versioning, voice assistants |
+| [Web](docs/WEB.md) | Browser build, required CORS, platform differences |
 | [API Surface](docs/API_SURFACE.md) | Station endpoints and the `animu-api` submodule |
 | [AltStore](docs/ALTSTORE.md) | Self-hosted iOS distribution |
 | [Store Submission](docs/STORE_SUBMISSION.md) | Master checklist and data inventory |

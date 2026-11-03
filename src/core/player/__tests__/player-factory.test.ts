@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi, type Mock } from "vitest";
 
 // The factory wires real units around the native player — stub what reaches
 // native modules or the network.
@@ -9,8 +9,8 @@ const { players, skew, prefetch, catalog, streams } = vi.hoisted(() => ({
   players: [] as {
     options: unknown;
     listeners: Map<string, (...args: unknown[]) => void>;
-    setAudioSampling: ReturnType<typeof vi.fn>;
-    release: ReturnType<typeof vi.fn>;
+    setAudioSampling: Mock<() => boolean>;
+    release: Mock<() => Promise<void>>;
   }[],
   skew: { listener: null as ((skewMs: number, rttMs: number) => void) | null },
 }));
@@ -53,6 +53,7 @@ vi.mock("expo-asset", () => ({
   },
 }));
 vi.mock("expo-file-system", () => ({ File: vi.fn(), Paths: { cache: "file://mock/cache" } }));
+vi.mock("expo/fetch", () => ({ fetch: vi.fn() }));
 vi.mock("expo-image", () => ({
   Image: { getCachePathAsync: vi.fn(), writeToCacheAsync: vi.fn() },
 }));
@@ -96,11 +97,13 @@ describe("player factory", () => {
     const file = new URL("../../../../rnap-catalog.json", import.meta.url);
     const fs = await import("node:fs");
     if (process.env.CATALOG_SEED_WRITE) fs.writeFileSync(file, text);
-    const bundled = JSON.parse(fs.readFileSync(file, "utf8"));
+    const bundled = JSON.parse(fs.readFileSync(file, "utf8")) as unknown;
     expect(bundled).toEqual(JSON.parse(text));
     // And RNAP takes it as the prebuild will (its setCatalog rules, at this pin).
     const { createRequire } = await import("node:module");
-    const { catalogSeed } = createRequire(import.meta.url)("react-native-anything-player/plugin/catalogSeed");
+    const { catalogSeed } = createRequire(import.meta.url)("react-native-anything-player/plugin/catalogSeed") as {
+      catalogSeed: (catalog: unknown) => { items: unknown[] };
+    };
     expect(catalogSeed(bundled).items).toHaveLength(1);
   });
 
@@ -110,7 +113,7 @@ describe("player factory", () => {
     expect(players).toHaveLength(1);
     expect(players[0].options).toEqual({
       id: "animu",
-      diagnostics: expect.any(Boolean),
+      diagnostics: expect.any(Boolean) as unknown,
       metadata: { useStreamMetadataForNowPlaying: true },
       android: { stopOnTaskRemoved: true },
       progressInterval: 1_000,

@@ -34,14 +34,10 @@ vi.mock("@/components/SectionTitle", () => ({
 }));
 
 const mocks = vi.hoisted(() => ({
-  discordLinkable: true,
   openInAppBrowser: vi.fn(async () => undefined),
 }));
 vi.mock("@/utils/browser", () => ({
   openInAppBrowser: mocks.openInAppBrowser,
-}));
-vi.mock("@/constants/auth", () => ({
-  isProviderLinkable: () => mocks.discordLinkable,
 }));
 
 const profile = (verified: boolean, linked: string[] = []): AuthProfile =>
@@ -71,7 +67,6 @@ function setup(
 describe("RequestsStatus", () => {
   afterEach(() => {
     cleanup();
-    mocks.discordLinkable = true;
     vi.clearAllMocks();
   });
 
@@ -97,13 +92,6 @@ describe("RequestsStatus", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Link Discord" }));
     expect(onLinkDiscord).toHaveBeenCalledTimes(1);
-  });
-
-  it("hides the link action when Discord can't be linked on this build", () => {
-    mocks.discordLinkable = false;
-    setup(profile(false, ["google"]));
-    expect(screen.getByText("Link Discord first")).toBeTruthy();
-    expect(screen.queryByRole("button")).toBeNull();
   });
 
   it("shows a busy link row while Discord is linking", () => {

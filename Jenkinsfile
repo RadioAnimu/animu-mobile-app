@@ -64,7 +64,11 @@ pipeline {
           # Known-vulnerability gate on the resolved dependency tree.
           pnpm run check:secrets
           pnpm run check:audit
-          pnpm run lint
+          # `pnpm run lint`, split so the failing one is obvious: ESLint,
+          # oxlint's type-aware rules (tsgolint), then knip and sherif.
+          pnpm run lint:eslint
+          pnpm run lint:types
+          pnpm run lint:deps
           pnpm test:coverage
           # The API client is a git submodule compiled into the app.
           pnpm run check:animu-api

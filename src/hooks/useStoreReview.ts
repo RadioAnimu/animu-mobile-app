@@ -20,6 +20,9 @@ export async function resolveInstallSource(): Promise<StoreId> {
       return "altstore";
     case "unknown":
       return Platform.OS === "ios" ? "app-store" : "apk";
+    case "app-store":
+    case "simulator":
+    case "web":
     default:
       return "app-store";
   }
@@ -54,7 +57,7 @@ export function useStoreReview(): StoreReview {
       ([store, links]) => {
         if (cancelled) return;
         const link = links[store];
-        setReview({ store, name: link?.name ?? null, url: link?.url ?? null });
+        setReview({ store, name: link.name, url: link.url });
       },
     );
 

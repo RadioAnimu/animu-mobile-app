@@ -16,19 +16,6 @@ import type {
 } from "animu-api";
 import type { User } from "@/core/domain/user";
 
-/** Normalized OAuth hand-off: the code plus any provider-specific extras. */
-export interface OAuthResult {
-  code: string;
-  codeVerifier?: string;
-  /** Apple only: the consent `user` JSON (link flow). */
-  user?: string;
-  /**
-   * Native flows (Google serverAuthCode, Apple) omit `redirectUri` from the
-   * exchange entirely — the server redeems the code with its own client.
-   */
-  omitRedirectUri?: boolean;
-}
-
 /** Native Sign in with Apple credential, ready to post to the API. */
 export interface AppleNativeCredential {
   identityToken: string;
@@ -44,15 +31,9 @@ export interface AppleNativeCredential {
  */
 export interface OAuthPort {
   /**
-   * Opens the provider's prompt and resolves with the authorization code.
-   * @throws {AuthFlowCancelled} when the user dismisses it.
-   */
-  authorize(provider: string): Promise<OAuthResult>;
-
-  /**
    * Opens `url` in a browser session (custom tab / ASWebAuthenticationSession)
    * and resolves with the deep link it was redirected to — the transport for
-   * server-mode providers. Resolves `null` when the user dismisses it.
+   * every provider's server flow. Resolves `null` when the user dismisses it.
    */
   openSession(url: string, redirectUri: string): Promise<string | null>;
 

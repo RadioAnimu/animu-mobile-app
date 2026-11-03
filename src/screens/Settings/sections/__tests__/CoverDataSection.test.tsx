@@ -16,7 +16,7 @@ vi.mock("@/components/Avatar", () => ({ Avatar: () => null }));
 vi.mock("@/utils/haptics", () => ({ haptics: { tap: vi.fn(), warning: vi.fn(), select: vi.fn(), error: vi.fn() } }));
 vi.mock("@/hooks/useDict", () => ({
   useDict: () =>
-    new Proxy({} as Record<string, string>, { get: (_target, key) => String(key) }),
+    new Proxy({}, { get: (_target, key) => String(key) }),
 }));
 vi.mock("@/constants/artwork-quality", () => ({
   COVER_QUALITY_SAMPLES: [],

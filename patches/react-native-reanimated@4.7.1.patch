@@ -1,14 +1,13 @@
 diff --git a/android/build.gradle.kts b/android/build.gradle.kts
-index 0975509613c3ce969fb084ddebb25b444e83ddc6..47d46874a83774c113a48abc93f7a3e462a64cc2 100644
+index 46728e56115378006ed4bee676c1f37a75f661aa..ee00b88cf3f8d79175372dd37a36a6e1cba9fa25 100644
 --- a/android/build.gradle.kts
 +++ b/android/build.gradle.kts
-@@ -142,7 +142,91 @@ if (project == rootProject) {
+@@ -163,7 +163,90 @@ if (project == rootProject) {
      }
  }
  
 -apply(from = "./generate-stub-pch.gradle.kts")
-+// Keep this in the project script so Android lint can resolve its Kotlin module.
-+
++// Kept in this script so Android lint can resolve its Kotlin script module.
 +// Workaround for Android Studio's C++ analyzer surfacing errors during Gradle
 +// Sync when CMake's precompiled header binary (`cmake_pch.hxx.pch`, generated
 +// from `ReanimatedPCH.h`) hasn't been built yet. The project compiles fine,
@@ -94,13 +93,14 @@ index 0975509613c3ce969fb084ddebb25b444e83ddc6..47d46874a83774c113a48abc93f7a3e4
 +
  
  android {
-     compileSdk = safeExtGet("compileSdkVersion", 36) as Int
-@@ -343,7 +427,7 @@ tasks.named("preBuild") { dependsOn("prepareReanimatedHeadersForPrefabs") }
+     compileSdk = safeExtGet("compileSdkVersion", 37) as Int
+@@ -363,9 +446,6 @@ dependencies {
  
- // Workaround for AGP 9 + Kotlin 2.x lint K2 UAST crash on .gradle.kts build scripts.
- // See: https://issuetracker.google.com/issues/432144179
--tasks.configureEach { if (name.startsWith("lintVital")) enabled = false }
-+
+ tasks.named("preBuild") { dependsOn("prepareReanimatedHeadersForPrefabs") }
+ 
+-// Workaround for AGP 9 + Kotlin 2.x lint K2 UAST crash on .gradle.kts build scripts.
+-// See: https://issuetracker.google.com/issues/432144179
+-tasks.configureEach { if (name.startsWith("lint")) enabled = false }
  
  if (project != rootProject) {
      evaluationDependsOn(":react-native-worklets")

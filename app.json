@@ -3,14 +3,14 @@
     "name": "Rádio Animu",
     "version": "4.0.1",
     "slug": "animu",
-    "orientation": "portrait",
+    "orientation": "default",
     "icon": "./assets/icon-android.png",
     "userInterfaceStyle": "dark",
     "backgroundColor": "#270052",
     "scheme": "animuapp",
     "ios": {
       "icon": "./assets/icon-ios.png",
-      "supportsTablet": false,
+      "supportsTablet": true,
       "bundleIdentifier": "com.nessjs.animu",
       "appleTeamId": "RWDZC8478Q",
       "infoPlist": {
@@ -46,6 +46,17 @@
         "android.permission.USE_FINGERPRINT"
       ]
     },
+    "web": {
+      "name": "Rádio Animu",
+      "shortName": "Animu",
+      "description": "A rádio mais moe do Brasil",
+      "lang": "pt-BR",
+      "bundler": "metro",
+      "output": "single",
+      "favicon": "./assets/icon-ios.png",
+      "themeColor": "#270052",
+      "backgroundColor": "#270052"
+    },
     "plugins": [
       [
         "expo-splash-screen",
@@ -64,13 +75,10 @@
       [
         "expo-build-properties",
         {
-          "ios": {
-            "enableSceneSupport": true
-          },
           "android": {
-            "compileSdkVersion": 36,
+            "compileSdkVersion": 37,
             "targetSdkVersion": 36,
-            "buildToolsVersion": "36.0.0",
+            "buildToolsVersion": "37.0.0",
             "enableMinifyInReleaseBuilds": true,
             "enableShrinkResourcesInReleaseBuilds": true
           }

@@ -29,8 +29,12 @@ const SONARJS_DISABLED = new Set([
 ]);
 
 module.exports = defineConfig([
-  { ignores: ["packages/**"] },
+  { ignores: ["packages/**", "dist/**"] },
   expoConfig,
+  // eslint-config-expo asks eslint-plugin-react to detect the React version,
+  // which calls context.getFilename(), removed in ESLint 10. Keep in step with
+  // the installed react.
+  { settings: { react: { version: "19.3" } } },
   {
     ignores: [
       "dist/*",
@@ -39,7 +43,7 @@ module.exports = defineConfig([
       "node_modules/*",
     ],
     rules: {
-      // Expo SDK 57's config enables the React Compiler lint rules, including
+      // Expo SDK 58's config enables the React Compiler lint rules, including
       // `react-hooks/refs` (kept on). `set-state-in-effect` is off: the app
       // does not run the compiler, and its remaining hits are effects that
       // sync state with an external system (disk/artwork cache, keyboard and

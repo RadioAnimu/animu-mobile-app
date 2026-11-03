@@ -73,7 +73,7 @@ function fileFor(url: string): { exists: boolean; size: number } {
 /** Fresh registry + disk mocks per test: auto-derive distinct files. */
 async function setup(
   tagged: [string, Category][],
-  sizes: Record<string, number> = {},
+  sizes: Partial<Record<string, number>> = {},
   options: { brokenKeys?: string[] } = {},
 ) {
   await coverCacheRegistry.clear();

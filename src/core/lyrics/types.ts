@@ -28,7 +28,7 @@ export interface LyricLine {
 }
 
 /** An instrumental stretch (intro or a marked break): breathing dots. */
-export interface LyricInterlude {
+interface LyricInterlude {
   kind: "interlude";
   startMs: number;
   endMs: number;

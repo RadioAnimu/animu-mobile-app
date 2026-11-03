@@ -10,7 +10,7 @@ export interface UserSettings {
   selectedLanguage: keyof typeof LANGUAGE_LABELS;
   cacheEnabled: boolean;
   /**
-   * Total FIFO byte ceiling for the cover cache. `0` (default) = uncapped —
+   * Total FIFO byte ceiling for the cover cache (default 100 MB). `0` = uncapped —
    * expo-image/Glide keeps evicting at its own discretion. `> 0` = the
    * storage service splits this total into per-category PARTITIONS
    * (weighted: live 30% / requested 15% / played 25% / search 30%) and
@@ -44,4 +44,11 @@ export interface UserSettings {
    * or none. Needs the offline Japanese dictionary; `romaji` by default.
    */
   lyricsPronunciation: "off" | "romaji" | "hiragana";
+  /**
+   * Shape of the stored settings: 1 (absent) = before the cover cache was
+   * capped by default, 2 = current. Lets a stored `coverCacheLimitBytes: 0`
+   * from the old default move to the new cap once, while an "Unlimited"
+   * picked later (stored with version 2) is kept.
+   */
+  settingsVersion: number;
 }

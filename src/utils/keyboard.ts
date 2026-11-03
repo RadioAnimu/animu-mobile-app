@@ -1,4 +1,4 @@
-import type { TextInput } from "react-native";
+import type { TextInputInstance } from "react-native";
 import { KeyboardController } from "react-native-keyboard-controller";
 
 /**
@@ -13,7 +13,7 @@ import { KeyboardController } from "react-native-keyboard-controller";
  * `becomeFirstResponder`) closes the gap; on a field whose keyboard is
  * already up it's a no-op.
  */
-export function focusWithKeyboard(input: TextInput | null): void {
+export function focusWithKeyboard(input: TextInputInstance | null): void {
   if (!input) return;
   if (!input.isFocused()) {
     input.focus();

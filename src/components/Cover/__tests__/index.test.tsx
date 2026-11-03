@@ -35,6 +35,7 @@ vi.mock("expo-image", () => ({
 
 vi.mock("react-native", () => ({
   Dimensions: { get: () => ({ width: 390, height: 844 }) },
+  Platform: {},
   StyleSheet: { create: (styles: object) => styles },
   View: ({ children }: { children?: unknown }) => children,
 }));
@@ -60,30 +61,34 @@ describe("Cover bounded retry", () => {
     vi.stubGlobal("__DEV__", false);
   });
 
-  it("stops retrying a dead URL after MAX_FAILURES", () => {
+  it("stops retrying a dead URL after two retries", () => {
     render(<Cover cover={COVER} />);
-
-    // Failure #1 → fallback (the bundled asset) shows and LOADS.
+    expect(REMOTE_ATTEMPTS()).toBe(1);
+    for (let retry = 1; retry <= 2; retry += 1) {
+      act(() => lastProps?.onError?.());
+      // The fallback (bundled asset) shows and loads — that must not reset the count.
+      act(() => lastProps?.onLoad?.(LOADED(240, 240)));
+      act(() => {
+        vi.advanceTimersByTime(3000);
+      });
+      expect(REMOTE_ATTEMPTS()).toBe(1 + retry);
+    }
     act(() => lastProps?.onError?.());
-    act(() => lastProps?.onLoad?.(LOADED(240, 240))); // fallback onLoad — must NOT reset the counter
-
-    // Retry after the 3s delay; failure #2 must exhaust the bound.
-    act(() => vi.advanceTimersByTime(3000));
-    expect(REMOTE_ATTEMPTS()).toBe(2);
-    act(() => lastProps?.onError?.());
-    expect((lastProps?.source as { uri?: string })?.uri).toBeUndefined();
-
     // Let it run long: no further reloads, fallback stays.
-    act(() => vi.advanceTimersByTime(120_000));
-    expect(REMOTE_ATTEMPTS()).toBe(2);
-    expect((lastProps?.source as { uri?: string })?.uri).toBeUndefined();
+    act(() => {
+      vi.advanceTimersByTime(120_000);
+    });
+    expect(REMOTE_ATTEMPTS()).toBe(3);
+    expect((lastProps?.source as { uri?: string } | undefined)?.uri).toBeUndefined();
   });
 
   it("still self-heals a single transient failure", () => {
     render(<Cover cover={COVER} />);
 
     act(() => lastProps?.onError?.());
-    act(() => vi.advanceTimersByTime(3000));
+    act(() => {
+      vi.advanceTimersByTime(3000);
+    });
     expect(REMOTE_ATTEMPTS()).toBe(2); // failure #1 → retry reloads
 
     // The retry succeeds: state is clean again for any future failure.
@@ -120,5 +125,27 @@ describe("Cover bounded retry", () => {
     // A new cover never renders with the previous artwork's proportions.
     rerender(<Cover cover="https://cdn.test/other.jpg" preserveAspectRatio />);
     expect(lastProps?.style).toContainEqual({ width: SIZE, height: SIZE });
+  });
+
+  it("contains the artwork in a bounded frame when given a size", () => {
+    render(<Cover cover={COVER} preserveAspectRatio size={200} />);
+    expect(lastProps?.style).toContainEqual({ width: 200, height: 200 });
+
+    // Wide art keeps the width and gets shorter (clamped at 2:1).
+    act(() => lastProps?.onLoad?.(LOADED(400, 200)));
+    expect(lastProps?.style).toContainEqual({ width: 200, height: 100 });
+    act(() => lastProps?.onLoad?.(LOADED(1000, 100)));
+    expect(lastProps?.style).toContainEqual({ width: 200, height: 100 });
+
+    // Tall art keeps the height and narrows: it never outgrows the frame.
+    act(() => lastProps?.onLoad?.(LOADED(250, 1000)));
+    expect(lastProps?.style).toContainEqual({ width: 50, height: 200 });
+    act(() => lastProps?.onLoad?.(LOADED(400, 500)));
+    expect(lastProps?.style).toContainEqual({ width: 160, height: 200 });
+  });
+
+  it("sizes the plain square frame too", () => {
+    render(<Cover cover={COVER} size={150} />);
+    expect(lastProps?.style).toContainEqual({ width: 150, height: 150 });
   });
 });

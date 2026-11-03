@@ -26,6 +26,14 @@ export interface CoverStorageOptions {
   onFreed?: (freedBytes: number) => void;
 }
 
+/**
+ * Reads the guard fresh: TypeScript keeps a `.current` narrowing across an
+ * `await`, but the unmount can flip it while the measure is in flight.
+ */
+function isAlive(ref: { readonly current: boolean }): boolean {
+  return ref.current;
+}
+
 export function useCoverStorageSnapshot(
   options?: CoverStorageOptions,
 ): {
@@ -69,20 +77,20 @@ export function useCoverStorageSnapshot(
       // has just paid to get rid of.
       const next = await coverDiskStorage.computeSnapshot(maxBytes, partitions);
       lastTotalRef.current = next.totalBytes;
-      if (aliveRef.current) {
+      if (isAlive(aliveRef)) {
         setSnapshot(next);
         setFailed(false);
       }
       return next;
     } catch (error) {
       console.warn("[useCoverStorage] measure failed:", error);
-      if (aliveRef.current) {
+      if (isAlive(aliveRef)) {
         setSnapshot(null);
         setFailed(true);
       }
       return null;
     } finally {
-      if (aliveRef.current) setMeasuring(false);
+      if (isAlive(aliveRef)) setMeasuring(false);
     }
   }, [maxBytes, partitions]);
 

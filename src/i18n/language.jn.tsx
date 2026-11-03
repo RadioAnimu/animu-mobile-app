@@ -322,6 +322,7 @@ const DICT: Dict = {
   ABOUT_RELEASE_ADHOC: "アドホック配布",
   ABOUT_RELEASE_DEVELOPMENT: "開発",
   ABOUT_RELEASE_SIMULATOR: "シミュレータ",
+  ABOUT_RELEASE_WEB: "ウェブ",
   ABOUT_RELEASE_ENTERPRISE: "Enterprise",
   ABOUT_RELEASE_PLAY: "Google Play",
   ABOUT_RELEASE_UNKNOWN: "不明",
@@ -338,7 +339,7 @@ const DICT: Dict = {
 
   ABOUT_COPY_DETAILS: "情報をコピー",
   ABOUT_COPIED: "コピーしました",
-  ABOUT_COPY_FAILED: "コピーできませんでした",
+  TEXT_COPY_FAILED: "コピーできませんでした",
   ABOUT_OPEN_ERROR: "リンクを開けませんでした。",
   ABOUT_OPENS_BROWSER: "ブラウザで開きます",
   ABOUT_OPENS_IN_APP: "アプリ内で開きます",
@@ -369,7 +370,7 @@ const DICT: Dict = {
   STORAGE_PARTITION_NEEDS_LIMIT: "個別設定には上限の設定が必要です",
   STORAGE_FREED: "{freed} を解放しました",
   TRACK_REQUEST: "リクエスト曲",
-  INFO_REQUEST: `こんにちは！私は春香、ブラジルで最も萌えのラジオのDJだよ！${"\n"}もう選曲はバッチリかな？${"\n"}その前に、私やチームのみんなにメッセージを残してみない？君からのメッセージは、みんなが見れるようにディスコードのメインチャットに流すね！${"\n"}💜 メッセージを残したくない場合は、無理しなくて大丈夫だよ。`,
+  INFO_REQUEST: `こんにちは！私は春香、ブラジルで最も萌えのラジオのDJだよ！\nもう選曲はバッチリかな？\nその前に、私やチームのみんなにメッセージを残してみない？君からのメッセージは、みんなが見れるようにディスコードのメインチャットに流すね！\n💜 メッセージを残したくない場合は、無理しなくて大丈夫だよ。`,
   SEND_REQUEST_BUTTON_TEXT: "リクエストを送る",
   SEND_REQUEST_PLACEHOLDER: "ここにメッセージを書いてね",
   SELECT_ERROR: "選曲に失敗しちゃった",
@@ -552,6 +553,7 @@ const DICT: Dict = {
   ACCOUNT_EMAIL_EMPTY: "まだメールが登録されていないよ。",
   SETTINGS_ACCOUNT_SIGN_IN: "アカウントにログイン",
   A11Y_OPEN_LYRICS: "歌詞を表示",
+  A11Y_STREAM_QUALITY: "音質",
   A11Y_CLOSE_LYRICS: "歌詞を閉じる",
   LYRICS_LOADING: "歌詞を探しています…",
   LYRICS_MISSING: "この曲の歌詞はまだありません",
@@ -633,6 +635,7 @@ const LiveRequestsDisabled = (props: SvgProps) => {
   );
 };
 
+// Metro resolves a bundled image import to its asset id.
 const IMGS = {
   LOGO: logo,
   LAST_REQUEST: lastRequested,

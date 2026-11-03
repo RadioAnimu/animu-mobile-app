@@ -5,9 +5,9 @@ import { vi } from "vitest";
  * WebView HTML) against a recording 2D context, a manual clock and a fake
  * bridge, so tests can drive arrivals and display frames deterministically.
  */
-export type Command = [string, ...unknown[]];
+type Command = [string, ...unknown[]];
 
-export interface PageState {
+interface PageState {
   cursor: number;
   newestSerial: number;
   periodMs: number;
@@ -16,7 +16,7 @@ export interface PageState {
 
 type Listener = (event: { data: string }) => void;
 
-export function loadPage(html: string, width = 320.8) {
+export function loadPage(html: string, width = 320.8, height = 127) {
   const widthAssignments: number[] = [];
   const heightAssignments: number[] = [];
   let canvasWidth = 0;
@@ -37,7 +37,9 @@ export function loadPage(html: string, width = 320.8) {
     set lineJoin(value: string) { state.lineJoin = value; commands.push(["lineJoin", value]); },
     set lineCap(value: string) { state.lineCap = value; commands.push(["lineCap", value]); },
   };
+  const canvasStyle = { top: "" };
   const canvas = {
+    style: canvasStyle,
     get width() { return canvasWidth; },
     set width(value: number) { canvasWidth = value; widthAssignments.push(value); resetContext(); },
     get height() { return canvasHeight; },
@@ -46,12 +48,14 @@ export function loadPage(html: string, width = 320.8) {
   };
   const clock = { now: 0 };
   let frameCallback: ((at?: number) => void) | undefined;
-  const listeners: Record<string, Listener> = {};
+  const listeners: Partial<Record<string, Listener>> = {};
   const nativeMessages: Record<string, unknown>[] = [];
   const pageWindow = {
     innerWidth: width,
+    innerHeight: height,
     addEventListener: (name: string, callback: Listener) => { listeners[name] = callback; },
-    ReactNativeWebView: { postMessage: (value: string) => nativeMessages.push(JSON.parse(value)) },
+    ReactNativeWebView: { postMessage: (value: string) =>
+      nativeMessages.push(JSON.parse(value) as Record<string, unknown>) },
   };
   const pageDocument = {
     getElementById: vi.fn(() => canvas),
@@ -64,24 +68,29 @@ export function loadPage(html: string, width = 320.8) {
   if (open < 0 || close < 0) throw new Error("page script not found");
   const script = html.slice(open + "<script>".length, close);
   // Read-only accessor for the page's pacing state, appended to the script.
-  const peek = new Function(
+  // oxlint-disable-next-line typescript/no-implied-eval -- runs the WebView page's own script under test
+  const runPage = new Function(
     "window", "document", "performance", "requestAnimationFrame", "Date",
     `${script}
     return function () {
       return { cursor: cursor, newestSerial: newestSerial, periodMs: periodMs,
         filling: filling };
     };`,
-  )(
+  ) as (...pageGlobals: unknown[]) => () => PageState;
+  const peek = runPage(
     pageWindow,
     pageDocument,
     { now: () => clock.now },
     (callback: (at?: number) => void) => { frameCallback = callback; },
     { now: () => clock.now },
-  ) as () => PageState;
+  );
 
   let seq = 0;
-  const send = (payload: Record<string, unknown>) =>
-    listeners.message({ data: JSON.stringify({ seq: ++seq, ...payload }) });
+  const send = (payload: Record<string, unknown>) => {
+    const onMessage = listeners.message;
+    if (!onMessage) throw new Error("page registered no message listener");
+    onMessage({ data: JSON.stringify({ seq: ++seq, ...payload }) });
+  };
   return {
     canvas,
     commands,

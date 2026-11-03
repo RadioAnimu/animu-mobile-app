@@ -7,7 +7,7 @@ import {
   screen,
   within,
 } from "@testing-library/react";
-import { AccessibilityInfo, Alert, Animated } from "react-native";
+import { AccessibilityInfo, Alert, Animated, type AlertButton } from "react-native";
 import type { AuthAccountEmail, LinkedProvider } from "animu-api";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -23,6 +23,13 @@ vi.mock("react-native-keyboard-controller", async () =>
 vi.mock("@react-native-vector-icons/material-icons/static", async () =>
   (await import("@/__tests__/react-native-mock")).createIconMock(),
 );
+
+/** Taps an Alert button and waits for its handler (RN types `onPress` loosely). */
+async function pressAlertButton(button: AlertButton): Promise<void> {
+  await act(async () => {
+    await (button.onPress as (() => unknown) | undefined)?.();
+  });
+}
 
 const mocks = vi.hoisted(() => ({
   auth: {} as Record<string, unknown>,
@@ -312,7 +319,7 @@ describe("AccountEmails", () => {
       ]);
       await renderLoaded();
       fireEvent.click(screen.getByRole("button", { name: /^Remove / }));
-      expect(vi.mocked(Alert.alert).mock.calls[0][1]).toContain(
+      expect(vi.mocked(Alert).alert.mock.calls[0][1]).toContain(
         "ana@example.com",
       );
     });
@@ -328,8 +335,8 @@ describe("AccountEmails", () => {
       );
       await renderLoaded();
       fireEvent.click(screen.getByRole("button", { name: /^Remove / }));
-      const buttons = vi.mocked(Alert.alert).mock.calls[0][2]!;
-      await act(async () => buttons[1].onPress?.());
+      const buttons = vi.mocked(Alert).alert.mock.calls[0][2]!;
+      await pressAlertButton(buttons[1]);
       expect(removeEmail).toHaveBeenCalledWith(21);
     });
   });
@@ -446,14 +453,14 @@ describe("AccountEmails", () => {
       await renderLoaded();
 
       fireEvent.click(screen.getByRole("button", { name: /^Remove / }));
-      expect(Alert.alert).toHaveBeenCalledTimes(1);
-      const [title, message, buttons] = vi.mocked(Alert.alert).mock.calls[0];
+      expect(vi.mocked(Alert).alert).toHaveBeenCalledTimes(1);
+      const [title, message, buttons] = vi.mocked(Alert).alert.mock.calls[0];
       expect(title).toBe("Remove email?");
       expect(message).toBe("Remove ana@example.com from your account");
       expect(buttons?.map((b) => b.style)).toEqual(["cancel", "destructive"]);
       expect(removeEmail).not.toHaveBeenCalled();
 
-      await act(async () => buttons![1].onPress?.());
+      await pressAlertButton(buttons![1]);
       expect(removeEmail).toHaveBeenCalledWith(40);
       expect(mocks.toast).toHaveBeenCalledWith("Removed");
       expect(mocks.showError).not.toHaveBeenCalled();
@@ -468,8 +475,8 @@ describe("AccountEmails", () => {
       await renderLoaded();
 
       fireEvent.click(screen.getByRole("button", { name: /^Remove / }));
-      const buttons = vi.mocked(Alert.alert).mock.calls[0][2]!;
-      await act(async () => buttons[1].onPress?.());
+      const buttons = vi.mocked(Alert).alert.mock.calls[0][2]!;
+      await pressAlertButton(buttons[1]);
 
       expect(mocks.showError).toHaveBeenCalledWith("Action failed");
       expect(mocks.toast).not.toHaveBeenCalled();
@@ -488,7 +495,7 @@ describe("AccountEmails", () => {
       const button = screen.getByRole("button", { name: /^Remove / });
       expect(button.getAttribute("aria-disabled")).toBe("true");
       fireEvent.click(button);
-      expect(Alert.alert).not.toHaveBeenCalled();
+      expect(vi.mocked(Alert).alert).not.toHaveBeenCalled();
     });
   });
 
@@ -605,7 +612,7 @@ describe("AccountEmails", () => {
 
     it("announces a real step change once, and fades the body in", async () => {
       setAuth([row({})]);
-      const announce = vi.mocked(AccessibilityInfo.announceForAccessibility);
+      const announce = vi.spyOn(AccessibilityInfo, "announceForAccessibility");
       const timing = vi.mocked(Animated.timing);
       const { rerender } = await renderLoaded();
       expandAddForm();

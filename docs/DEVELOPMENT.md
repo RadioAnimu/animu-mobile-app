@@ -5,10 +5,9 @@ project-specific gotchas.
 
 ## Prerequisites
 
-- **Node.js 20+** (CI uses Node 22).
+- **Node.js 22.13+** (Expo SDK 58's minimum; CI uses Node 22).
 - **pnpm** — the project uses pnpm. Enable it via `corepack enable` (the pinned
-  version is in `package.json` → `packageManager`), or install
-  `pnpm@9` directly.
+  version is in `package.json` → `packageManager`).
 - [Expo CLI](https://docs.expo.dev/more/create-expo/) and an Expo account (for EAS).
 - **Android Studio** / **Xcode** toolchains for native builds.
 - A device or emulator. The app targets a live station backend, so most features
@@ -52,6 +51,7 @@ pnpm run ios        # build & run on iOS
 | `pnpm run start` | Expo dev client |
 | `pnpm run android` / `pnpm run ios` | Native build & run |
 | `pnpm test` | Vitest (player core, services, domain, hooks, plugins) |
+| `pnpm run test:web` | Build the web export and run the Playwright tests in `e2e/` (Chromium and WebKit, against the live station; `npx playwright install chromium webkit` once) |
 | `pnpm run lint` | `expo lint` (flat ESLint config) |
 | `pnpm run build:api` | Build the `animu-api` submodule |
 | `pnpm run fonts` | Fetch the Proxima Nova fonts (`scripts/fetch-fonts.mjs`) |

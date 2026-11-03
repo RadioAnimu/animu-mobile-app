@@ -1,6 +1,7 @@
 import type { Track } from "@/core/domain/track";
 import type { Timer } from "@/core/player/timer";
 import type { StreamSyncEngine } from "@/core/player/stream-playback/stream-sync";
+import { trackStartMs } from "@/core/player/stream-playback/track-start";
 
 /**
  * Floor for the deferred-adoption timer (ms). The exact boundary is bounded
@@ -121,15 +122,15 @@ export class AudibleTrackResolver {
   private backtrackIfBehind(): boolean {
     const displayed = this.displayedValue;
     if (!displayed) return false;
-    const displayedStart = displayed.startTime?.getTime();
-    if (displayedStart == null || !Number.isFinite(displayedStart)) return false;
+    const displayedStart = trackStartMs(displayed);
+    if (displayedStart == null) return false;
     // Still hearing the displayed item → nothing to revert.
     if (this.deps.sync.isAudible(displayedStart)) return false;
 
     const candidate = this.previousValue;
     if (!candidate || sameTrack(candidate, displayed)) return false;
-    const start = candidate.startTime?.getTime();
-    if (start == null || !Number.isFinite(start)) return false;
+    const start = trackStartMs(candidate);
+    if (start == null) return false;
     // Only revert to something the audible clock says is actually playing.
     if (!this.deps.sync.isAudible(start)) return false;
 
@@ -163,21 +164,20 @@ export class AudibleTrackResolver {
       changed = this.backtrackIfBehind();
     }
 
-    const start = station.startTime?.getTime();
-    const timed = start != null && Number.isFinite(start);
+    const start = trackStartMs(station);
     const buffering =
       !force &&
       // Only defer when the lag is actually known — otherwise this is the
       // plain pre-sync behaviour (adopt the announcement immediately).
       this.deps.sync.hasMeasurement &&
-      timed &&
-      !this.deps.sync.isAudible(start!);
+      start != null &&
+      !this.deps.sync.isAudible(start);
 
     // Announced ahead of the speaker, with something already on screen:
     // keep the previous track until the new one is heard.
     if (buffering && this.displayedValue != null) {
       this.markPending(station);
-      this.schedule(start! - this.deps.sync.now());
+      this.schedule(start - this.deps.sync.now());
       return changed;
     }
 
@@ -253,8 +253,8 @@ export class AudibleTrackResolver {
       return;
     }
 
-    const start = pending.startTime?.getTime();
-    if (start == null || !Number.isFinite(start)) {
+    const start = trackStartMs(pending);
+    if (start == null) {
       if (this.reconcile()) this.onChange();
       return;
     }

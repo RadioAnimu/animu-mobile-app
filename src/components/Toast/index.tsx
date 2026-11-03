@@ -1,7 +1,9 @@
 import React, { useCallback, useEffect, useMemo, useRef } from "react";
 import { Animated, StyleSheet, Text, TouchableOpacity } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Icon } from "@/components/Icon";
 import { useReducedMotion } from "@/hooks/useReducedMotion";
+import { useResponsiveLayout } from "@/hooks/useResponsiveLayout";
 import { THEME } from "@/theme";
 import { MOTION } from "@/theme/motion";
 import { haptics } from "@/utils/haptics";
@@ -52,6 +54,21 @@ export const Toast = React.memo(function Toast({
   const reduceMotion = useReducedMotion();
   // Set on the first press — a double tap must not re-run the action.
   const firedRef = useRef(false);
+  // The live window sizes the chip, so a resize re-caps it in place.
+  const { width } = useResponsiveLayout();
+  const insets = useSafeAreaInsets();
+
+  /**
+   * One chip, never a notch-wide slab: the smaller of the phone-era width
+   * (86% of the window — the hosts span the screen, so this matches the
+   * percentage it replaces) and the shared content cap, kept clear of the
+   * landscape side insets. On a portrait phone both insets are 0 and 86% of
+   * a 393pt window is under the cap, so the chip is exactly as it always was.
+   */
+  const maxWidth =
+    Math.min(width * 0.86, THEME.LAYOUT.CONTENT_MAX_WIDTH) -
+    insets.left -
+    insets.right;
 
   /** One press, one outcome: fire helpfully once, then dismiss the chip. */
   const handleActionPress = useCallback(() => {
@@ -97,6 +114,13 @@ export const Toast = React.memo(function Toast({
       accessibilityLiveRegion="polite"
       style={[
         styles.toast,
+        {
+          maxWidth,
+          // Landscape: keep the chip inside the safe area (a portrait
+          // phone reports both as 0, so nothing moves).
+          marginLeft: insets.left,
+          marginRight: insets.right,
+        },
         variant === "error" && styles.toastError,
         { opacity: progress, transform: [{ translateY: rise }] },
       ]}
@@ -135,7 +159,6 @@ const styles = StyleSheet.create({
     backgroundColor: THEME.COLORS.SURFACE,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: THEME.COLORS.HAIRLINE,
-    maxWidth: "86%",
     boxShadow: [
       { offsetX: 0, offsetY: THEME.SPACE.XS, blurRadius: THEME.SPACE.SM, color: THEME.COLORS.SHADOW },
     ],

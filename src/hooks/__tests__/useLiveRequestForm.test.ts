@@ -20,27 +20,13 @@ describe("useLiveRequestForm", () => {
     expect(result.current.formData.artist).toBe("");
   });
 
-  it("updates fields through the setters", () => {
-    const { result } = renderHook(() => useLiveRequestForm());
+  it("updates one field at a time", () => {
+    const { result } = renderHook(() => useLiveRequestForm({ name: "Haru" }));
 
-    act(() => result.current.setters.setArtist("LiSA"));
+    act(() => result.current.setField("artist", "LiSA"));
 
     expect(result.current.formData.artist).toBe("LiSA");
-  });
-
-  it("is invalid until every required field is filled", () => {
-    const { result } = renderHook(() => useLiveRequestForm());
-    expect(result.current.isFormValid()).toBe(false);
-
-    act(() => {
-      result.current.setters.setName("a");
-      result.current.setters.setCity("b");
-      result.current.setters.setArtist("c");
-      result.current.setters.setMusic("d");
-      result.current.setters.setAnime("e");
-    });
-
-    expect(result.current.isFormValid()).toBe(true);
+    expect(result.current.formData.name).toBe("Haru");
   });
 
   it("resets every field", () => {
@@ -56,14 +42,6 @@ describe("useLiveRequestForm", () => {
       anime: "",
       request: "",
     });
-  });
-
-  it("returns the current values from getFormData", () => {
-    const { result } = renderHook(() => useLiveRequestForm());
-
-    act(() => result.current.setters.setMusic("Gurenge"));
-
-    expect(result.current.getFormData().music).toBe("Gurenge");
   });
 });
 

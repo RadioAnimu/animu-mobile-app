@@ -84,7 +84,7 @@ describe("AudioSampler (react-native-anything-player windows)", () => {
     expect(second.level).toBe(0.5);
   });
 
-  it("smooths latency, applies manual and calibrated trims", () => {
+  it("smooths the output latency", () => {
     const t = setup();
     t.sampler.setEnabled(true);
     t.sampler.setPlaying(true);
@@ -92,13 +92,6 @@ describe("AudioSampler (react-native-anything-player windows)", () => {
     t.sample({ outputLatency: 0 });
     // 200 → eased toward 0, not jumping.
     expect(t.windows[1].outputLatencyMs).toBeCloseTo(170, 5);
-    t.sampler.setSyncTrim(50);
-    t.sample({ outputLatency: 0 });
-    expect(t.windows[2].outputLatencyMs).toBeCloseTo(144.5 + 50, 5);
-    // The visualizer applied more than asked: the residual nudges later windows.
-    t.sampler.reportAppliedDelay(400);
-    t.sample({ outputLatency: 0 });
-    expect(t.windows[3].outputLatencyMs).toBeGreaterThan(122.825 + 50);
   });
 
   it("lifts quiet passages and soft-clips loud ones", () => {

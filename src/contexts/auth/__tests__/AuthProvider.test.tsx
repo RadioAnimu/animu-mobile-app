@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import React from "react";
 import { act, cleanup, renderHook, waitFor } from "@testing-library/react";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, type MockInstance, vi } from "vitest";
 import { AnimuApiError } from "animu-api";
 
 import { AuthProvider, useAuth } from "@/contexts/auth/AuthProvider";
@@ -71,7 +71,7 @@ const user = (token: string): User =>
 
 const CACHED = user("cached");
 const FRESH = user("fresh");
-const PROFILE = { id: 1, username: "profile" };
+const PROFILE = { id: 1, username: "profile", banner: { url: null, color: null } };
 const EMAILS = [{ id: 7, email: "a@b.c", source: "animu" }];
 
 const wrapper = ({ children }: { children: React.ReactNode }) => (
@@ -91,7 +91,7 @@ const sessionTask = () =>
   };
 
 describe("AuthProvider", () => {
-  let consoleError: ReturnType<typeof vi.spyOn>;
+  let consoleError: MockInstance<typeof console.error>;
 
   beforeEach(() => {
     consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
@@ -703,7 +703,7 @@ describe("AuthProvider", () => {
 
     it("refreshProfile swaps in the refreshed user/profile and bumps the image version", async () => {
       const { result } = await mountSignedIn();
-      const refreshedProfile = { id: 1, username: "renamed" };
+      const refreshedProfile = { id: 1, username: "renamed", banner: { url: null, color: null } };
       mocks.facade.refreshProfile.mockResolvedValue({
         user: FRESH,
         profile: refreshedProfile,

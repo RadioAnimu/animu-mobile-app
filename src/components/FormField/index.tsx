@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   View,
   type TextInputProps,
+  type TextInputInstance,
 } from "react-native";
 
 import { useDict } from "@/hooks/useDict";
@@ -34,14 +35,13 @@ interface Props
   optional?: boolean;
   /** Validation message — turns the border red and shows it under the field. */
   error?: string;
-  editable?: boolean;
   /**
    * The form is submitting: the field dims and ignores typing but keeps
    * focus, so the keyboard stays up for a retry (flipping `editable` off
    * would blur it and dismiss the keyboard).
    */
   busy?: boolean;
-  inputRef?: Ref<TextInput>;
+  inputRef?: Ref<TextInputInstance>;
 }
 
 /** The counter only appears once the limit is within reach. */
@@ -130,7 +130,6 @@ export function FormField({
   onChangeText,
   optional = false,
   error,
-  editable = true,
   busy = false,
   inputRef,
   multiline = false,
@@ -141,7 +140,7 @@ export function FormField({
   const [focused, setFocused] = useState(false);
 
   const hasError = error != null;
-  const canClear = !multiline && editable && !busy && value.length > 0;
+  const canClear = !multiline && !busy && value.length > 0;
 
   return (
     <View style={styles.wrapper}>
@@ -159,7 +158,7 @@ export function FormField({
           multiline && styles.fieldMultiline,
           focused && styles.fieldFocused,
           hasError && styles.fieldError,
-          (!editable || busy) && styles.fieldDisabled,
+          busy && styles.fieldDisabled,
         ]}
       >
         <TextInput
@@ -169,7 +168,6 @@ export function FormField({
           onChangeText={(text) => {
             if (!busy) onChangeText(text);
           }}
-          editable={editable}
           multiline={multiline}
           maxLength={maxLength}
           placeholderTextColor={PLACEHOLDER_COLOR}

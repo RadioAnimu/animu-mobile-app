@@ -1,6 +1,7 @@
-import { useEffect, useSyncExternalStore } from "react";
+import { useEffect } from "react";
 import { usePlayer } from "@/contexts/player/PlayerProvider";
 import { LyricsService, lyricsService, lyricsStore, type LyricsSnapshot } from "@/core/lyrics";
+import { useExternalStore } from "@/hooks/useExternalStore";
 
 /**
  * Lyrics of the song being heard, while the caller is mounted: the service
@@ -9,7 +10,7 @@ import { LyricsService, lyricsService, lyricsStore, type LyricsSnapshot } from "
  */
 export function useLyrics(): LyricsSnapshot & { retry: () => void } {
   const { currentTrack } = usePlayer();
-  const snapshot = useSyncExternalStore(lyricsStore.subscribe, lyricsStore.getSnapshot);
+  const snapshot = useExternalStore(lyricsStore);
   const service = lyricsService();
   // The track object is re-emitted per cover/state change: follow its identity.
   const key = LyricsService.isSong(currentTrack) ? LyricsService.keyOf(currentTrack) : null;

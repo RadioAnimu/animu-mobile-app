@@ -58,8 +58,7 @@ export function TimeRemaining() {
       <Text
         maxFontSizeMultiplier={THEME.FONT_SCALE.CHROME}
         style={[styles.timeLeft, styles.sizer]}
-        accessibilityElementsHidden
-        importantForAccessibility="no-hide-descendants"
+        aria-hidden
       >
         {dict.TIME_REMAINING}: <CountdownTimerText startTime={0} />
       </Text>

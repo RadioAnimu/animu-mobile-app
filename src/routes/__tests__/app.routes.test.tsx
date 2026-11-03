@@ -4,10 +4,27 @@ import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { AppRoutes } from "@/routes/app.routes";
+import { scale } from "@/theme/responsive";
 
-vi.mock("react-native", async () =>
-  (await import("@/__tests__/react-native-mock")).createReactNativeMock(),
-);
+vi.mock("react-native-safe-area-context", () => ({
+  useSafeAreaInsets: () => ({ top: 0, right: 0, bottom: 0, left: 0 }),
+}));
+vi.mock("react-native", async () => {
+  const mock = (
+    await import("@/__tests__/react-native-mock")
+  ).createReactNativeMock();
+  // Lets a test re-window the (module-cached) mock before rendering, so the
+  // navigator's window-derived options can be asserted at other sizes.
+  windowCtl.set = (width: number, height: number) => {
+    mock.useWindowDimensions = () => ({ width, height, fontScale: 1 });
+  };
+  return mock;
+});
+
+/** Mutable stand-in for the window the RN mock reports. */
+const windowCtl = vi.hoisted(() => ({
+  set: (_width: number, _height: number) => {},
+}));
 
 interface ScreenProps {
   name: string;
@@ -115,6 +132,8 @@ describe("AppRoutes", () => {
     captured.stackScreens.length = 0;
     captured.stack = null;
     captured.reduceMotion = false;
+    // Other tests may have re-windowed the module-cached mock.
+    windowCtl.set(393, 852);
   });
   afterEach(cleanup);
 
@@ -173,8 +192,20 @@ describe("AppRoutes", () => {
   it("sizes the drawer to 80% of the window and hides the header", () => {
     render(<AppRoutes />);
     expect(captured.navigator!.screenOptions.headerShown).toBe(false);
-    // The RN mock's window is 393 wide.
-    expect(captured.navigator!.screenOptions.drawerStyle.width).toBeCloseTo(393 * 0.8);
+    // The RN mock's window is 393 wide: 80% of it is under the cap, so a
+    // phone portrait keeps exactly the overlay width it always had.
+    expect(captured.navigator!.screenOptions.drawerStyle.width).toBeCloseTo(
+      393 * 0.8,
+    );
+  });
+
+  it("caps the drawer width once the window outgrows a phone", () => {
+    // An iPad landscape window would otherwise get an 80% ≈ 944pt menu.
+    windowCtl.set(1180, 820);
+    render(<AppRoutes />);
+    expect(captured.navigator!.screenOptions.drawerStyle.width).toBe(
+      scale(320),
+    );
   });
 
   it("renders the custom drawer content with the navigator's props", () => {
