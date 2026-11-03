@@ -26,7 +26,7 @@ vi.mock("@/i18n", () => ({
 
 vi.mock("@/screens/Loading", () => ({ Loading: () => <span>loading</span> }));
 const { hideSplashOnce } = vi.hoisted(() => ({ hideSplashOnce: vi.fn() }));
-vi.mock("@/screens/Loading/splash", () => ({ hideSplashOnce }));
+vi.mock("@/utils/splash", () => ({ hideSplashOnce }));
 
 vi.mock("@/core/assistant", () => ({ subscribeAssistantActions: () => () => {} }));
 vi.mock("@/contexts/app-state/AppStateProvider", () => ({

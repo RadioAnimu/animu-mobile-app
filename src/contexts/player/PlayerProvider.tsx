@@ -22,7 +22,7 @@ import {
   type VisualizerWindow,
 } from "@/core/player";
 import { Loading } from "@/screens/Loading";
-import { hideSplashOnce } from "@/screens/Loading/splash";
+import { hideSplashOnce } from "@/utils/splash";
 import { useExternalStore } from "@/hooks/useExternalStore";
 
 // ─── Contexts by change cadence — subscribe to the one you need ───

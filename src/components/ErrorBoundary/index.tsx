@@ -1,7 +1,7 @@
 import React from "react";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { DICT, FALLBACK_LANGUAGE } from "@/i18n";
-import { hideSplashOnce } from "@/screens/Loading/splash";
+import { hideSplashOnce } from "@/utils/splash";
 import { THEME } from "@/theme";
 
 interface Props {

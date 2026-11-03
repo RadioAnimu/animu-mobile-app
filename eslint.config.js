@@ -5,6 +5,35 @@ const globals = require("globals");
 
 const RELATIVE_IMPORT_MESSAGE =
   "Use the @/ (src) or @app/ (project root) alias instead of a relative import.";
+const RELATIVE_IMPORT_PATTERN = {
+  group: ["./*", "./**", "../*", "../**"],
+  message: RELATIVE_IMPORT_MESSAGE,
+};
+
+/**
+ * An architecture rule: production files in `files` may not import the
+ * `forbidden` src layers. Imports are alias-only (see below), so matching
+ * `@/<layer>` covers every path. Uses the TypeScript rule so it stacks with
+ * the base `no-restricted-imports` instead of replacing it.
+ */
+const layerRule = (files, forbidden, message, options = {}) => ({
+  files,
+  ignores: ["src/**/__tests__/**"],
+  rules: {
+    "@typescript-eslint/no-restricted-imports": [
+      "error",
+      {
+        patterns: [
+          {
+            group: forbidden.flatMap((layer) => [`@/${layer}`, `@/${layer}/**`]),
+            message,
+            ...options,
+          },
+        ],
+      },
+    ],
+  },
+});
 
 // SonarJS rules that are noise for this codebase, or that mis-flag
 // React/React-Native idioms.
@@ -60,10 +89,12 @@ module.exports = defineConfig([
       "no-restricted-imports": [
         "error",
         {
-          patterns: [
+          patterns: [RELATIVE_IMPORT_PATTERN],
+          paths: [
             {
-              group: ["./*", "./**", "../*", "../**"],
-              message: RELATIVE_IMPORT_MESSAGE,
+              name: "react-native",
+              importNames: ["AppState"],
+              message: "Read app state through AppStateProvider (useIsBackgrounded).",
             },
           ],
         },
@@ -78,6 +109,37 @@ module.exports = defineConfig([
       ],
     },
   },
+  {
+    // The one AppState listener, and Routes: its tree is frozen while hidden
+    // (AppStateGate), so it needs the native event (see src/routes/index.tsx).
+    files: ["src/contexts/app-state/AppStateProvider.tsx", "src/routes/index.tsx"],
+    rules: {
+      "no-restricted-imports": ["error", { patterns: [RELATIVE_IMPORT_PATTERN] }],
+    },
+  },
+  // ── Architecture: which layer may import which (fails lint, like a test) ──
+  layerRule(
+    ["src/core/**", "src/api/**"],
+    ["i18n", "theme", "components", "contexts", "hooks", "screens", "routes"],
+    "Core and API stay UI-free: map to copy, styles and React in the UI layer.",
+  ),
+  layerRule(
+    ["src/theme/**"],
+    ["core", "api", "i18n", "utils", "constants", "components", "contexts", "hooks", "screens", "routes"],
+    "Theme is a leaf: design tokens import nothing from the app.",
+  ),
+  layerRule(
+    ["src/utils/**", "src/constants/**"],
+    ["components", "contexts", "hooks", "screens", "routes"],
+    "Core imports utils and constants: no React layers here (type imports are fine).",
+    { allowTypeImports: true },
+  ),
+  layerRule(
+    ["src/components/**", "src/hooks/**"],
+    ["screens"],
+    "Shared UI must not depend on a screen: move the shared piece down.",
+    { allowTypeImports: true },
+  ),
   {
     // SonarJS — the same rule family SonarQube's "Code Smells" come from, run
     // locally and in CI with no server. Applied to production code only (tests
