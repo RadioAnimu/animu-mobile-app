@@ -10,6 +10,12 @@ updates:
     directory: /
     schedule:
       interval: weekly
+    # pnpm refuses versions younger than 3 days (minimumReleaseAge in
+    # pnpm-workspace.yaml): a version-update PR for a fresher release could not
+    # install unless that file exempts the package. (Security-update PRs skip
+    # the cooldown.)
+    cooldown:
+      default-days: 3
     open-pull-requests-limit: 5
     groups:
       # One PR for routine minor/patch bumps; majors stay separate.
@@ -30,6 +36,9 @@ updates:
       # patches pass `expo install --check`, a minor or major does not.
       - dependency-name: "eslint-config-expo"
         update-types: ["version-update:semver-major", "version-update:semver-minor"]
+      # Expo's Babel preset runs on Babel 7: a Babel major comes with an SDK upgrade.
+      - dependency-name: "@babel/core"
+        update-types: ["version-update:semver-major"]
       # SDK 58 and its lint toolchain support only the current TypeScript major.
       - dependency-name: "typescript"
         update-types: ["version-update:semver-major"]
@@ -52,6 +61,9 @@ updates:
     directory: /
     schedule:
       interval: weekly
+    # The same 3-day wait as the npm side, for the actions CI runs.
+    cooldown:
+      default-days: 3
     open-pull-requests-limit: 5
     groups:
       github-actions:

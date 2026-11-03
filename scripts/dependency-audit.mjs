@@ -1,8 +1,11 @@
 import { spawnSync } from "node:child_process";
 
 // Unpatched build-tool advisories reviewed against the actual resolved paths.
-// Do not broaden these to package-wide exclusions: an added runtime path must fail.
+// Do not broaden these to package-wide exclusions: a path pnpm newly reports
+// fails. (pnpm reports one representative path per version, not every
+// dependent: review the package's other dependents too when adding an entry.)
 // `patched` (default: no fix at all) is for a fix only in a major the dependent cannot take.
+// One reviewed version takes `version` + `paths`; several take `versions` (version → paths).
 const exceptions = {
   "GHSA-mrhx-c7xc-m3w5": {
     name: "zod", version: "3.25.76", patched: ">=4.6.6",
@@ -18,7 +21,26 @@ const exceptions = {
     dependents: ["micromatch@npm:4.0.8"],
     reason: "Build-tool matching of repository-controlled globs; no published fix",
   },
+  "GHSA-g3hv-75wg-m249": {
+    name: "minimatch", patched: ">=11.0.1",
+    versions: {
+      "10.2.6": [".>eslint>minimatch"],
+      "3.1.5": [".>eslint-config-expo>eslint-plugin-import>minimatch"],
+    },
+    reason: "The flaw runs only at optimizationLevel >= 2: 3.x predates it, ESLint uses level 1; 10.2.6 reaches it through glob 13 in Expo CLI/fingerprint, on repository-controlled patterns; fixed only in 11, which ESLint 10 and glob 13 cannot take",
+  },
+  "GHSA-3g3m-2fjr-6pw4": {
+    name: "glob", version: "13.0.6", patched: ">=14.0.2",
+    paths: [".>expo>@expo/cli>glob"],
+    reason: "Expo CLI dev-time project search: an aborted first-match search may keep walking the project tree locally; absent from the mobile bundle; fixed only in glob 14 (@expo/cli pins ^13)",
+  },
 };
+
+/** The paths reviewed for one vulnerable version of a policy's package. */
+const reviewedPaths = (policy, version) =>
+  (policy.versions && Object.hasOwn(policy.versions, version) ? policy.versions[version] : undefined) ??
+  (version === policy.version ? policy.paths : undefined) ??
+  [];
 
 export function assessPnpm(report) {
   if (!report?.metadata?.vulnerabilities || !report.advisories || report.error) throw new Error("Incomplete pnpm audit report");
@@ -27,7 +49,7 @@ export function assessPnpm(report) {
     const policy = exceptions[id];
     const accepted = policy?.name === advisory.module_name && advisory.patched_versions === (policy.patched ?? "<0.0.0") &&
       advisory.findings?.length > 0 && advisory.findings.every(finding =>
-        finding.version === policy.version && finding.paths?.length > 0 && finding.paths.every(p => policy.paths.includes(p)));
+        finding.paths?.length > 0 && finding.paths.every(p => reviewedPaths(policy, finding.version).includes(p)));
     return { name: advisory.module_name, severity: advisory.severity, id, accepted, reason: accepted ? policy.reason : undefined };
   });
   // Fail closed if the registry reports vulnerabilities it did not describe
