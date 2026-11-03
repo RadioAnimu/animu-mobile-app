@@ -1,5 +1,4 @@
 import type { HistoryType } from "animu-api";
-import { Platform } from "react-native";
 import type { MediaMetadata, PlaybackState, PlayerStatus } from "react-native-anything-player";
 import type { Stream } from "@/core/domain/stream";
 import { isRealTrack, type Track } from "@/core/domain/track";
@@ -15,6 +14,8 @@ import type { HeardTrack } from "@/core/player/stream-playback/heard-track";
 import { positionAt, type NowHearing } from "@/core/player/stream-playback/now-hearing";
 import type { NowPlayingRepository } from "@/core/player/stream-playback/now-playing.repository";
 import type { StreamPreferences } from "@/core/player/stream-playback/stream-preferences";
+import { streamSource } from "@/core/player/stream-playback/stream-source";
+import { LiveDurationEstimate } from "@/core/player/stream-playback/live-duration-estimate";
 import {
   playerStore,
   progressStore,
@@ -60,31 +61,6 @@ export interface PlayerServiceDependencies {
   publishCatalog?: (streams: Stream[], current: Stream) => Promise<void>;
 }
 
-// Safari and Firefox send a User-Agent as a CORS-preflighted header the stream
-// server refuses: the fetch fails (no metadata, no oscilloscope). Chrome drops it.
-const STREAM_HEADERS: Record<string, string> = Platform.OS === "web" ? {} : { "User-Agent": CONFIG.USER_AGENT };
-
-/**
- * What the player loads for `stream`: every relay as a rendition of one live
- * source, so a quality change has no gap. A stream outside the fetched list
- * (the fallback) plays on its own.
- */
-export const streamSource = (streams: Stream[], stream: Stream) => {
-  const renditions = streams.some((option) => option.id === stream.id) ? streams : [];
-  return {
-    uri: stream.url,
-    ...(renditions.length > 0 && {
-      renditions: renditions.map((option) => ({
-        id: option.id,
-        uri: option.url,
-        bitrate: option.bitrate * 1_000,
-      })),
-    }),
-    live: true,
-    headers: STREAM_HEADERS,
-  };
-};
-
 /** The heard song's position, read on demand (the lyrics clock samples it). */
 export interface HeardPosition {
   /** `raw` of the heard track, to match it to what the UI shows. */
@@ -94,9 +70,6 @@ export interface HeardPosition {
   /** Advances with the wall clock (audio flowing, or the station's live point); stops at the end. */
   advancing: boolean;
 }
-
-/** A song's identity for its duration estimate: a replay of a title is a new song. */
-const estimateKey = (track: Track): string => `${track.raw}|${track.startTime.getTime()}`;
 
 /** Airwave's playback state → the UI's transport vocabulary. */
 const TRANSPORT: Record<PlaybackState, TransportState> = {
@@ -143,17 +116,16 @@ export class PlayerService {
   private wasIdle = false;
   /** A track change skipped the lyrics prefetch while idle; the return does it. */
   private lyricsSkipped = false;
-  /**
-   * A live song's length from its lyrics, for a real song the station sends no
-   * duration for; `ms` is `null` while pending or not found. DISPLAY only: the
-   * station's `duration` drives the sync — a TV-size row (1:30) against a full
-   * cut on air (4:00) must not end the lyrics at 1:30.
-   */
-  private durationEstimate: { key: string; ms: number | null } | null = null;
+  private readonly durationEstimate: LiveDurationEstimate;
   private readonly unsubscribe: (() => void)[] = [];
 
   constructor(private readonly deps: PlayerServiceDependencies) {
     const { player, repository, heard, hearing } = deps;
+    this.durationEstimate = new LiveDurationEstimate(deps.estimateDuration);
+    this.durationEstimate.onChange = () => {
+      this.emitProgress();
+      if (this.loadedStreamId != null) this.pushNowPlaying();
+    };
     this.unsubscribe.push(
       player.on("status", (status) => this.handleStatus(status)),
       player.on("metadata", (metadata) => this.handleStreamMetadata(metadata)),
@@ -305,9 +277,7 @@ export class PlayerService {
     const track = this.deps.hearing.track;
     if (!track) return 0;
     if (track.duration > 0) return track.duration;
-    const estimate = this.durationEstimate;
-    if (!estimate?.ms || estimate.key !== estimateKey(track)) return 0;
-    return this.estimableTrack() ? estimate.ms : 0;
+    return this.estimableTrack() ? this.durationEstimate.msFor(track) : 0;
   }
 
   /** Progress is shown for a live song once any length is known; else the repository's rule. */
@@ -497,7 +467,7 @@ export class PlayerService {
     this.deps.artwork.reset();
     this.deps.hearing.reset();
     this.deps.streamPreferences.reset();
-    this.durationEstimate = null;
+    this.durationEstimate.dispose();
     this.initialized = false;
     this.streamOptions = [];
     // The last store write: once a replacement exists, the stores are its own.
@@ -742,41 +712,9 @@ export class PlayerService {
     this.updateNowPlaying();
   }
 
-  /**
-   * Keeps {@link durationEstimate} on the heard song: asked once per song, in
-   * the foreground only (no background network); a late answer is ignored.
-   */
+  /** Asked in the foreground only (no background network). */
   private syncDurationEstimate(): void {
-    const track = this.estimableTrack();
-    const estimate = this.deps.estimateDuration;
-    if (!track || !estimate) {
-      this.durationEstimate = null;
-      return;
-    }
-    const key = estimateKey(track);
-    if (this.durationEstimate?.key === key) return;
-    if (!this.appActive) {
-      this.durationEstimate = null;
-      return;
-    }
-    this.durationEstimate = { key, ms: null };
-    void estimate(track)
-      .then(
-        (ms) => ms,
-        () => {
-          // A failed lookup is forgotten so the next sync asks again; "not
-          // found" stays answered.
-          if (this.durationEstimate?.key === key) this.durationEstimate = null;
-          return null;
-        },
-      )
-      .then((ms) => {
-        if (this.disposed || this.durationEstimate?.key !== key) return;
-        if (ms == null || !Number.isFinite(ms) || ms <= 0) return;
-        this.durationEstimate = { key, ms };
-        this.emitProgress();
-        if (this.loadedStreamId != null) this.pushNowPlaying();
-      });
+    this.durationEstimate.sync(this.estimableTrack(), this.appActive);
   }
 
   /** Lock screen: fields and progress, the cover once cached locally (a low-res one first). */

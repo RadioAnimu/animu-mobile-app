@@ -9,7 +9,8 @@ import { listenStatsService } from "@/core/services/listen-stats.service";
 import { lyricsService } from "@/core/lyrics";
 import { userSettingsService } from "@/core/services/user-settings.service";
 import { CONFIG } from "@/utils/player.config";
-import { PlayerService, streamSource, type Ticker } from "@/core/player/player-service";
+import { PlayerService, type Ticker } from "@/core/player/player-service";
+import { streamSource } from "@/core/player/stream-playback/stream-source";
 import { ArtworkResolver } from "@/core/player/storage/artwork";
 import {
   CachedCoverLookup,

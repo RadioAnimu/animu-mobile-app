@@ -9,6 +9,7 @@ import {
 import type { Program } from "@/core/domain/program";
 import { isRealTrack } from "@/core/domain/track";
 import { BackoffScheduler } from "@/core/player/stream-playback/backoff";
+import { TrackHistory } from "@/core/player/stream-playback/track-history";
 import type { Timer } from "@/core/player/timer";
 
 /** Buffer after expected track end before fetching (ms) */
@@ -21,9 +22,6 @@ const TRACK_END_REFRESH_MAX_MS = 30_000;
 const BASE_RETRY_DELAY_MS = 2000;
 /** Max backoff delay on consecutive network errors (ms) */
 const MAX_RETRY_DELAY_MS = 30_000;
-const DAY_MS = 24 * 60 * 60 * 1000;
-/** Cap on each in-memory history feed (a radio left on all day keeps growing them). */
-const MAX_HISTORY_TRACKS = 300;
 /**
  * On-air items kept before the current one, filler included: a jingle shorter
  * than the stream lag (the 4–5 s request jingle) is already replaced when its
@@ -122,16 +120,6 @@ const NO_CHANGE: NowPlayingChange = {
   requestedChanged: false,
 };
 
-/** Payload order preserved; repeats of a `raw` keep only their first (newest) row. */
-function firstOccurrences(tracks: Track[]): Track[] {
-  const seen = new Set<string>();
-  return tracks.filter((track) => {
-    if (seen.has(track.raw)) return false;
-    seen.add(track.raw);
-    return true;
-  });
-}
-
 /**
  * Owns "what is on air": track, program, listeners and the two histories.
  * Merges fetched data with diffing, schedules the track-end refresh, retries
@@ -155,8 +143,7 @@ export class NowPlayingRepository {
   private currentTrackValue: Track | null = null;
   private currentProgramValue: Program | null = null;
   private listenersValue: Listeners | null = null;
-  private playedTracks: Track[] = [];
-  private requestedTracks: Track[] = [];
+  private readonly history = new TrackHistory();
   /** Items that were on air before the current one, newest first (filler too). */
   private recentOnAir: Track[] = [];
   /** The run in flight, for a forced refresh to queue behind. */
@@ -217,11 +204,11 @@ export class NowPlayingRepository {
   }
 
   get lastPlayedTracks(): Track[] {
-    return this.playedTracks;
+    return this.history.played;
   }
 
   get lastRequestedTracks(): Track[] {
-    return this.requestedTracks;
+    return this.history.requested;
   }
 
   /** The automatic station work is switched off (see {@link setLiveStreamActive}). */
@@ -678,16 +665,8 @@ export class NowPlayingRepository {
     const listenersChanged =
       !liveOwns && listeners != null && this.mergeListeners(listeners);
 
-    // The requests list mirrors the feed; compared row by row (`raw`), so the
-    // same song requested twice in a row still updates it.
     const requestedChanged =
-      newRequestedTracks != null &&
-      newRequestedTracks.length > 0 &&
-      (newRequestedTracks.length !== this.requestedTracks.length ||
-        newRequestedTracks.some((track, i) => track.raw !== this.requestedTracks[i].raw));
-    if (requestedChanged) {
-      this.requestedTracks = newRequestedTracks;
-    }
+      newRequestedTracks != null && this.history.mirrorRequests(newRequestedTracks);
 
     // A track change's played-history fetch reports its own flag.
     const changed =
@@ -734,12 +713,7 @@ export class NowPlayingRepository {
     this.options.fetchers.tickLive?.();
   }
 
-  /**
-   * Incrementally merges a history type into its list: the feed's rows join
-   * the kept ones newest-first, one row per song (`raw`), so a song played
-   * again moves up with its new start. The walk stops at the first feed row
-   * older than a day — everything after it is older still.
-   */
+  /** Fetches a history type and merges it into its list ({@link TrackHistory.merge}). */
   async refreshHistory(type: HistoryType): Promise<void> {
     if (this.disposed || this.suspended) return;
     try {
@@ -749,31 +723,7 @@ export class NowPlayingRepository {
         this.options.getDefaultCover(),
       );
       if (type === "played") this.playedStale = false;
-      if (tracks.length === 0) return;
-
-      const target =
-        type === "requests" ? this.requestedTracks : this.playedTracks;
-
-      const recent: Track[] = [];
-      for (const track of tracks) {
-        if (Date.now() - track.startTime.getTime() > DAY_MS) break;
-        recent.push(track);
-      }
-      const merged = firstOccurrences(
-        [...recent, ...target].sort((a, b) => b.startTime.getTime() - a.startTime.getTime()),
-      ).slice(0, MAX_HISTORY_TRACKS);
-      const unchanged =
-        merged.length === target.length &&
-        merged.every(
-          (track, i) => track.raw === target[i].raw && track.startTime.getTime() === target[i].startTime.getTime(),
-        );
-      if (unchanged) return;
-
-      if (type === "requests") {
-        this.requestedTracks = merged;
-      } else {
-        this.playedTracks = merged;
-      }
+      if (!this.history.merge(type, tracks)) return;
 
       this.onChange({
         ...NO_CHANGE,
@@ -835,8 +785,7 @@ export class NowPlayingRepository {
     this.overdueRefreshes = 0;
     this.currentProgramValue = null;
     this.listenersValue = null;
-    this.playedTracks = [];
-    this.requestedTracks = [];
+    this.history.clear();
     this.recentOnAir = [];
     this.showProgressValue = false;
     this.playedStale = false;
