@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, type MockInstance, vi } fr
 import { AnimuApiError } from "animu-api";
 
 import { AuthProvider, useAuth } from "@/contexts/auth/AuthProvider";
+import { AppStateProvider } from "@/contexts/app-state/AppStateProvider";
 import type { User } from "@/core/domain/user";
 
 const mocks = vi.hoisted(() => ({
@@ -74,8 +75,11 @@ const FRESH = user("fresh");
 const PROFILE = { id: 1, username: "profile", banner: { url: null, color: null } };
 const EMAILS = [{ id: 7, email: "a@b.c", source: "animu" }];
 
+// The real AppStateProvider: it owns the (mocked) AppState listener.
 const wrapper = ({ children }: { children: React.ReactNode }) => (
-  <AuthProvider>{children}</AuthProvider>
+  <AppStateProvider>
+    <AuthProvider>{children}</AuthProvider>
+  </AppStateProvider>
 );
 
 const mountAuth = () => renderHook(() => useAuth(), { wrapper });

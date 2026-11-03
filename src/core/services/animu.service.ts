@@ -8,7 +8,6 @@ import {
   type Track,
 } from "animu-api";
 import type { Program } from "@/core/domain/program";
-import { DICT } from "@/i18n";
 import {
   abortPlayerRequests,
   createApiClient,
@@ -50,16 +49,9 @@ class AnimuService {
     return client.getStreamMetadata({ signal: playerRequestSignal() });
   }
 
-  /**
-   * Fetches the program currently on air, enriched with the matching i18n
-   * dictionary entry (the package doesn't know about DICT).
-   */
+  /** Fetches the program currently on air. */
   async getCurrentProgram(): Promise<Program> {
-    const program = await this.getProgramClient().getProgram();
-    return {
-      ...program,
-      programIndex: findProgramIndex(program.name),
-    };
+    return this.getProgramClient().getProgram();
   }
 
   private getProgramClient(): AnimuApi {
@@ -161,14 +153,5 @@ class AnimuService {
     this.liveClient?.tick();
   }
 }
-
-const findProgramIndex = (programName: string): number => {
-  if (!programName) return -1;
-
-  const programNameLower = programName.trim().toLowerCase();
-  return DICT["PT"].PROGRAMS.findIndex(
-    (program) => program.name.trim().toLowerCase() === programNameLower,
-  );
-};
 
 export const animuService = new AnimuService();

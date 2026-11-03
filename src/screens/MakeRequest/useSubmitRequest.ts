@@ -1,12 +1,9 @@
 import { useCallback, useState } from "react";
 
 import { useAuth } from "@/contexts/auth/AuthProvider";
-import { useUserSettings } from "@/contexts/user/UserSettingsProvider";
 import { useDict } from "@/hooks/useDict";
-import {
-  getSubmissionErrorMessage,
-  musicRequestService,
-} from "@/core/services/music-request.service";
+import { musicRequestService } from "@/core/services/music-request.service";
+import { getSubmissionErrorMessage } from "@/screens/MakeRequest/submissionErrorMessage";
 import type {
   MusicRequest,
   MusicRequestSubmission,
@@ -21,7 +18,6 @@ export function useSubmitRequest({
   blockedMessage,
 }: Readonly<{ blockedMessage: string | undefined }>) {
   const { user } = useAuth();
-  const { settings } = useUserSettings();
   const dict = useDict();
 
   const [selectedTrack, setSelectedTrack] = useState<MusicRequest | undefined>(
@@ -61,17 +57,13 @@ export function useSubmitRequest({
       if (!result.success) {
         return {
           success: false,
-          message: getSubmissionErrorMessage(
-            result.error,
-            result.detail,
-            settings.selectedLanguage,
-          ),
+          message: getSubmissionErrorMessage(dict, result.error, result.detail),
         };
       }
 
       return { success: true, message: dict.REQUEST_SUCCESS };
     },
-    [selectedTrack, user, dict, blockedMessage, settings.selectedLanguage],
+    [selectedTrack, user, dict, blockedMessage],
   );
 
   return { user, selectedTrack, setSelectedTrack, handleSubmitRequest };

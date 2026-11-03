@@ -17,9 +17,6 @@ export const IMGS = {
   JN: IMGS_JP,
 };
 
-
-export type LanguageKey = keyof typeof DICT;
-
 export type { Dict } from "@/i18n/language.en";
 
 /**

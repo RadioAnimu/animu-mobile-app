@@ -7,7 +7,7 @@ import React, {
   useMemo,
   useRef,
 } from "react";
-import { AppState, Linking } from "react-native";
+import { Linking } from "react-native";
 import type {
   AuthAccountEmail,
   AuthEmailRequestResult,
@@ -26,6 +26,7 @@ import { clearProfileMedia } from "@/core/services/profile-media.service";
 import { backgroundService } from "@/core/services/background.service";
 import { DEFAULT_PROVIDERS } from "@/constants/auth";
 import { useAlert } from "@/contexts/alert/AlertProvider";
+import { useIsBackgrounded } from "@/contexts/app-state/AppStateProvider";
 import { useDict } from "@/hooks/useDict";
 
 interface AuthContextType {
@@ -301,7 +302,9 @@ function useSessionCheck(
   userRef: React.RefObject<User | null>,
   expireSession: () => Promise<void>,
 ): () => void {
-  const pausedRef = useRef(false);
+  const isBackgrounded = useIsBackgrounded();
+  /** Read by `startSessionCheck`, which a login may call from the background. */
+  const backgroundedRef = useRef(isBackgrounded);
 
   const runSessionCheck = useCallback(async () => {
     if (!userRef.current?.sessionToken) return;
@@ -318,10 +321,8 @@ function useSessionCheck(
 
   const startSessionCheck = useCallback(() => {
     backgroundService.stopTask(SESSION_CHECK_TASK_ID);
-    if (AppState.currentState === "background") {
-      pausedRef.current = true;
-      return;
-    }
+    // Hidden: the return re-checks and starts the poll (below).
+    if (backgroundedRef.current) return;
     backgroundService.startTask({
       id: SESSION_CHECK_TASK_ID,
       interval: SESSION_CHECK_INTERVAL,
@@ -330,21 +331,16 @@ function useSessionCheck(
   }, [runSessionCheck]);
 
   useEffect(() => {
-    const subscription = AppState.addEventListener("change", (next) => {
-      if (next === "background") {
-        pausedRef.current = true;
-        backgroundService.stopTask(SESSION_CHECK_TASK_ID);
-        return;
-      }
-      if (next === "active" && pausedRef.current) {
-        pausedRef.current = false;
-        if (!userRef.current) return;
-        void runSessionCheck();
-        startSessionCheck();
-      }
-    });
-    return () => subscription.remove();
-  }, [runSessionCheck, startSessionCheck, userRef]);
+    const returning = backgroundedRef.current && !isBackgrounded;
+    backgroundedRef.current = isBackgrounded;
+    if (isBackgrounded) {
+      backgroundService.stopTask(SESSION_CHECK_TASK_ID);
+      return;
+    }
+    if (!returning || !userRef.current) return;
+    void runSessionCheck();
+    startSessionCheck();
+  }, [isBackgrounded, runSessionCheck, startSessionCheck, userRef]);
 
   return startSessionCheck;
 }
