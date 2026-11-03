@@ -5,8 +5,8 @@ type Task = {
 };
 
 /**
- * Interval-driven task runner for app-level polls (data refresh, progress
- * tick, session heartbeat).
+ * Interval-driven task runner for app-level polls (today: the session
+ * heartbeat).
  *
  * Scheduling is a self-rescheduling `setTimeout` re-armed only after the
  * previous run settles — a slow poll (weak network, long await) can never

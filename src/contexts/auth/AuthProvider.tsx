@@ -437,6 +437,8 @@ function useAuthProviderValue(): AuthContextType {
     const current = userRef.current;
     if (!current) return null;
     const result = await authFacade.refreshProfile(current);
+    // Signed out (or into another account) while it ran: keep that state.
+    if (!result || userRef.current?.sessionToken !== current.sessionToken) return null;
     userRef.current = result.user;
     setUser(result.user);
     setProfile(result.profile);

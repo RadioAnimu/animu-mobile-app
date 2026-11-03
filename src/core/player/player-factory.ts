@@ -154,6 +154,7 @@ export const createPlayerService = (onDestroyed?: () => void): PlayerService => 
       ...repository.lastPlayedTracks,
     ],
     stationTrack: () => repository.currentTrack,
+    clockSkew: () => sync.clockSkew,
   });
   // The audible clock: the station's track on the measured lag (drives the
   // display when a stream has no ICY titles). Its boundary timer is also

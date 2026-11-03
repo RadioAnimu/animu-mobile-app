@@ -789,6 +789,33 @@ describe("PlayerService on react-native-anything-player", () => {
     expect(t.stats.onPlaybackStopped).toHaveBeenCalledTimes(1);
   });
 
+  it("listen stats tick on native progress readings while hidden", async () => {
+    const t = setup();
+    await t.service.setupPlayer();
+    await t.service.play();
+    t.player.setState("playing", true);
+    t.service.setAppActive(false);
+    t.stats.onAudibleTick.mockClear();
+    t.player.emit("progress", { liveOffset: null, bufferedAhead: 6, position: 0 });
+    expect(t.stats.onAudibleTick).toHaveBeenCalledTimes(1);
+  });
+
+  it("a pause while play reads the stream preference keeps the player silent", async () => {
+    const t = setup();
+    await t.service.setupPlayer();
+    t.player.load.mockClear();
+    let restored = () => {};
+    t.preferences.restore.mockImplementationOnce(
+      () => new Promise<void>((resolve) => (restored = resolve)),
+    );
+    const playing = t.service.play();
+    await t.service.pause();
+    restored();
+    await playing;
+    expect(t.player.load).not.toHaveBeenCalled();
+    expect(t.player.play).not.toHaveBeenCalled();
+  });
+
   it("the visualizer samples only while playing (and foregrounded)", async () => {
     const t = setup();
     await t.service.setupPlayer();

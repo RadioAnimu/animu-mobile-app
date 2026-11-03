@@ -39,6 +39,7 @@ const setup = () => {
   const heard = new HeardTrack({
     candidates: () => [station.track, ...station.recent],
     stationTrack: () => station.track,
+    clockSkew: () => sync.clockSkew,
   });
   const sync = new StreamSyncEngine();
   const audible = new AudibleTrackResolver({
@@ -391,12 +392,10 @@ describe("NowHearing", () => {
     expect(t.hearing.mode).toBe("icy");
   });
 
-  it("feeds the server clock correction to both sources, and resets", () => {
+  it("feeds the server clock correction to the sync engine, and resets", () => {
     const t = setup();
-    const heardSkew = vi.spyOn(t.heard, "setClockSkew");
     const syncSkew = vi.spyOn(t.sync, "setClockSkew");
     t.hearing.setClockSkew(30_000, 100);
-    expect(heardSkew).toHaveBeenCalledWith(30_000, 100);
     expect(syncSkew).toHaveBeenCalledWith(30_000, 100);
     t.hearing.setPlaying(true);
     t.play(13);

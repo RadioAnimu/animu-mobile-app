@@ -432,7 +432,7 @@ export class StreamSyncEngine {
         : Math.max(-MAX_CLOCK_SKEW_MS, Math.min(MAX_CLOCK_SKEW_MS, median));
   }
 
-  /** Applied server-vs-device clock offset (ms) — diagnostics. */
+  /** Applied server-vs-device clock offset (ms); HeardTrack's tune-in correction reads it too. */
   get clockSkew(): number {
     return this.clockSkewMs;
   }

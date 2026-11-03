@@ -30,8 +30,10 @@ vi.mock("@/screens/Loading/splash", () => ({ hideSplashOnce }));
 
 vi.mock("@/core/assistant", () => ({ subscribeAssistantActions: () => () => {} }));
 vi.mock("@/contexts/app-state/AppStateProvider", () => ({
-  useAppStateStatus: () => "active",
   useIsBackgrounded: () => false,
+}));
+vi.mock("@/contexts/user/UserSettingsProvider", () => ({
+  useUserSettings: () => ({ settings: { visualizerHz: 60 } }),
 }));
 
 const { services } = vi.hoisted(() => ({ services: [] as ReturnType<typeof fakeService>[] }));
@@ -54,6 +56,7 @@ function fakeService(setupPlayer: () => Promise<void>) {
   return {
     setupPlayer,
     setAppActive: vi.fn(),
+    setVisualizerEnabled: vi.fn(),
     destroy: vi.fn(() => Promise.resolve()),
     isReady: false,
   };
@@ -96,6 +99,8 @@ describe("PlayerProvider initialization failure", () => {
 
     expect(await screen.findByText("loading")).toBeTruthy();
     expect(pendingSetup).toHaveBeenCalledTimes(1);
+    // The fresh service is wired to the visualizer setting too.
+    expect(retried.setVisualizerEnabled).toHaveBeenCalledWith(true);
     expect(screen.queryByText("Something broke")).toBeNull();
   });
 });

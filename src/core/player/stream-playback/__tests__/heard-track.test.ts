@@ -25,10 +25,12 @@ const track = (raw: string, startMs: number, duration = 200_000): Track =>
 
 const setup = (initial: Track[] = []) => {
   let now = 1_000_000;
+  let skewMs = 0;
   const station = { tracks: initial };
   const heard = new HeardTrack({
     candidates: () => station.tracks,
     stationTrack: () => station.tracks[0] ?? null,
+    clockSkew: () => skewMs,
     now: () => now,
   });
   const changes = vi.fn();
@@ -39,6 +41,9 @@ const setup = (initial: Track[] = []) => {
     changes,
     advance: (ms: number) => {
       now += ms;
+    },
+    setSkew: (ms: number) => {
+      skewMs = ms;
     },
     get now() {
       return now;
@@ -123,19 +128,12 @@ describe("HeardTrack", () => {
     expect(t.heard.elapsedMs()).toBe(52_000 - AHEAD);
   });
 
-  it("corrects the tune-in for a wrong device clock once the skew is significant", () => {
+  it("corrects the tune-in by the applied clock skew", () => {
     const t = setup();
     t.station.tracks = [track("Live", t.now - 60_000)];
-    // Device clock 1 s off: below the threshold, ignored.
-    for (let i = 0; i < 9; i++) t.heard.setClockSkew(1_000, 100);
     t.heard.heard("Live", t.now, true, 0);
     expect(t.heard.elapsedMs()).toBe(60_000 - AHEAD);
-    // 30 s off (median of the window): applied.
-    for (let i = 0; i < 9; i++) t.heard.setClockSkew(30_000, 100);
-    t.heard.heard("Live", t.now, true, 0);
-    expect(t.heard.elapsedMs()).toBe(90_000 - AHEAD);
-    // Imprecise samples (long round trip) are ignored.
-    t.heard.setClockSkew(-500_000, 9_000);
+    t.setSkew(30_000); // the device clock is 30 s behind
     t.heard.heard("Live", t.now, true, 0);
     expect(t.heard.elapsedMs()).toBe(90_000 - AHEAD);
   });
@@ -251,7 +249,6 @@ describe("HeardTrack", () => {
   it("abandons the listening session, keeping what belongs to the device", () => {
     const t = setup([track("Song B", 0), track("Song A", 0)]);
     t.heard.useStream("low", 64);
-    t.heard.setClockSkew(30_000, 100);
     t.heard.heard("Song A", t.now, false, 0);
     expect(t.heard.track?.raw).toBe("Song A");
     t.heard.heard("Song C", t.now, false, 0); // pending: the station has not named it

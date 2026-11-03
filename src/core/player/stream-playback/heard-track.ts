@@ -54,12 +54,6 @@ export const STATION_AHEAD_OF_AUDIO_MS = ICY_AFTER_START_MS - icyTitleInItemMs(D
 const CALIBRATION_WINDOW = 9;
 /** A sample this far off is the API's `timestart` being wrong (live shows, jingles). */
 const CALIBRATION_MAX_MS = 15_000;
-/** A server clock correction is applied once its median reaches this (ms). */
-const CLOCK_SKEW_APPLY_MS = 1_500;
-/** Recent skew samples feeding the median. */
-const SKEW_WINDOW = 9;
-/** Skew samples with a longer round trip are too imprecise to use (ms). */
-const SKEW_MAX_RTT_MS = 2_500;
 /**
  * A position this far (ms) off the player's media clock is moved onto it
  * (see {@link HeardTrack.alignToMedia}). Readings agree to ±6 ms (measured
@@ -109,6 +103,8 @@ export interface HeardTrackOptions {
   candidates: () => readonly (Track | null | undefined)[];
   /** The station's current track (shown before the first ICY title is heard). */
   stationTrack: () => Track | null;
+  /** The applied server-vs-device clock offset (ms): the sync engine's. */
+  clockSkew?: () => number;
   now?: () => number;
 }
 
@@ -145,8 +141,6 @@ export class HeardTrack {
   private pending: { title: string; heardAt: number; tuneIn: boolean; lagMs: number } | null = null;
   /** Wall ms the station last announced an item (0 = not since the reset). */
   private stationChangedAt = 0;
-  private skewSamples: number[] = [];
-  private skewMs = 0;
   /** Per stream: how far the computed position was ahead of the heard one (ms). */
   private readonly calibration = new Map<string, number[]>();
   private stream = "";
@@ -368,12 +362,8 @@ export class HeardTrack {
     this.pending = null;
   }
 
-  /** HTTP `date` header skew sample (server = device + skew), from the API client. */
-  setClockSkew(skewMs: number, rttMs: number): void {
-    if (!Number.isFinite(skewMs) || rttMs > SKEW_MAX_RTT_MS) return;
-    this.skewSamples = [...this.skewSamples, skewMs].slice(-SKEW_WINDOW);
-    const skew = median(this.skewSamples);
-    this.skewMs = Math.abs(skew) >= CLOCK_SKEW_APPLY_MS ? skew : 0;
+  private get skewMs(): number {
+    return this.options.clockSkew?.() ?? 0;
   }
 
   reset(): void {

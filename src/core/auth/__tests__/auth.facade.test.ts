@@ -269,6 +269,7 @@ describe("AuthFacade profile reads", () => {
         getProfile: vi.fn(async () => profile(refreshed)),
       }),
     });
+    api.setSessionToken("existing-token");
 
     const result = await facade.refreshProfile({
       ...authUser(),
@@ -276,13 +277,31 @@ describe("AuthFacade profile reads", () => {
       nickname: "old",
     });
 
-    expect(result.user.sessionToken).toBe("existing-token");
-    expect(result.user.nickname).toBe("");
+    expect(result?.user.sessionToken).toBe("existing-token");
+    expect(result?.user.nickname).toBe("");
     expect(store.save).toHaveBeenCalledWith({
       sessionToken: "existing-token",
-      user: result.user,
+      user: result?.user,
     });
     expect(api.getProfile).toHaveBeenCalledTimes(1);
+  });
+
+  it("refreshProfile persists nothing once the session changed mid-request", async () => {
+    const { api, store, facade } = build();
+    api.setSessionToken("existing-token");
+    api.refreshProfile.mockImplementation(async () => {
+      await facade.forget(); // signed out while the request ran
+      return { updated: true, verified: true, user: authUser() };
+    });
+
+    const result = await facade.refreshProfile({
+      ...authUser(),
+      sessionToken: "existing-token",
+      nickname: "old",
+    });
+
+    expect(result).toBeNull();
+    expect(store.save).not.toHaveBeenCalled();
   });
 });
 

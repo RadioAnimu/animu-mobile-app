@@ -9,10 +9,8 @@ import React, {
 import { Stream } from "@/core/domain/stream";
 import { playerService } from "@/core/player";
 import { subscribeAssistantActions } from "@/core/assistant";
-import {
-  useAppStateStatus,
-  useIsBackgrounded,
-} from "@/contexts/app-state/AppStateProvider";
+import { useIsBackgrounded } from "@/contexts/app-state/AppStateProvider";
+import { useUserSettings } from "@/contexts/user/UserSettingsProvider";
 import {
   playerStore,
   progressStore,
@@ -112,20 +110,27 @@ export const PlayerProvider: React.FC<{
   const stationSnapshot = useExternalStore(stationStore);
   const progressSnapshot = useExternalStore(progressStore);
 
-  // ─── App visibility — gates the poll lifecycle (see the effect below) ───
-  // Raw status comes from AppStateProvider — the app's single native
-  // AppState listener (a second one here would double-subscribe for the
-  // same information).
-  const appState = useAppStateStatus();
+  // ─── App visibility — gates the poll lifecycle ───
+  // AppStateProvider owns the app's single native AppState listener.
   const isBackgrounded = useIsBackgrounded();
 
   // ─── Background UI freeze: stop store emissions while hidden ───
   // The service keeps the native player + media session running; it just
   // stops writing the React stores (and slows the metadata poll) until the
-  // app is foregrounded again, when it re-emits everything.
+  // app is foregrounded again, when it re-emits everything and refreshes
+  // data the frozen JS timers left stale.
   useEffect(() => {
     playerServiceInstance.setAppActive(!isBackgrounded);
   }, [isBackgrounded, playerServiceInstance]);
+
+  // ─── Visualizer wiring ───
+  // Uncapped, like the web player's rAF loop: emitting the trace runs without
+  // a rate cap and the visualizer commits each frame at the display's own
+  // vsync, self-adapting per device. `0` = off, `> 0` = on.
+  const visualizerOn = useUserSettings().settings.visualizerHz > 0;
+  useEffect(() => {
+    playerServiceInstance.setVisualizerEnabled(visualizerOn);
+  }, [visualizerOn, playerServiceInstance]);
 
   // ─── Initialization & background tasks ───
   useEffect(() => {
@@ -185,17 +190,6 @@ export const PlayerProvider: React.FC<{
       playerServiceInstance.destroy().catch(console.error);
     };
   }, [playerServiceInstance]);
-
-  // ─── Foreground refresh: fresh data the moment the app is visible ───
-  // JS timers freeze while backgrounded (iOS) or drift while the OS
-  // throttles them (Android Doze), so the last poll can be minutes old.
-  // The listener lives in AppStateProvider; this effect re-derives the
-  // foreground edge from the raw status it exposes.
-  useEffect(() => {
-    if (appState === "active" && playerServiceInstance.isReady) {
-      void playerServiceInstance.refreshData().catch(console.error);
-    }
-  }, [appState, playerServiceInstance]);
 
   // ─── Dismiss the native splash once the first real screen can render ───
   useEffect(() => {

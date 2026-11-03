@@ -362,10 +362,9 @@ export class NowHearing {
     this.checkMode();
   }
 
-  /** HTTP `date` skew sample, for both sources. */
+  /** HTTP `date` skew sample: the sync engine applies it, the heard track reads it. */
   setClockSkew(skewMs: number, rttMs: number): void {
     const before = this.deps.sync.clockSkew;
-    this.deps.heard.setClockSkew(skewMs, rttMs);
     this.deps.sync.setClockSkew(skewMs, rttMs);
     // The station's live point moves with the applied skew.
     if (this.mode === "station" && this.deps.sync.clockSkew !== before) this.onChange();

@@ -128,17 +128,15 @@ export class AuthFacade {
 
   /**
    * Re-pulls provider data, persists the refreshed user and returns the
-   * updated user + profile in one round-trip.
+   * updated user + profile in one round-trip — or `null` when the session
+   * changed while the request ran (saving then would revive a signed-out one).
    */
   async refreshProfile(
     current: User,
-  ): Promise<{ user: User; profile: AuthProfile }> {
+  ): Promise<{ user: User; profile: AuthProfile } | null> {
     const result = await this.api.refreshProfile();
-    const user: User = {
-      ...result.user,
-      sessionToken: current.sessionToken,
-      nickname: result.user.handle ?? "",
-    };
+    if (this.api.getSessionToken() !== current.sessionToken) return null;
+    const user = this.toUser({ sessionToken: current.sessionToken, user: result.user });
     await this.store.save({ sessionToken: user.sessionToken, user });
     const profile = await this.api.getProfile();
     return { user, profile };
@@ -437,7 +435,7 @@ export class AuthFacade {
     return user;
   }
 
-  private toUser(session: AuthSession): User {
+  private toUser(session: Pick<AuthSession, "sessionToken" | "user">): User {
     return {
       ...session.user,
       sessionToken: session.sessionToken,

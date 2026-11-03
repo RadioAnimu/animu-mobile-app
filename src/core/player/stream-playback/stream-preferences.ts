@@ -22,8 +22,8 @@ export class StreamPreferences {
    * stream.
    */
   async load(options: Stream[]): Promise<void> {
-    const stored = await this.readStored();
-    if (stored && options.some((option) => option.id === stored.id)) {
+    const stored = await this.storedIn(options);
+    if (stored) {
       this.currentStream = stored;
       return;
     }
@@ -44,12 +44,12 @@ export class StreamPreferences {
    * wins, then the first fetched option, otherwise keep the current value.
    */
   async restore(options: Stream[]): Promise<void> {
-    const stored = await this.readStored();
+    const stored = await this.storedIn(options);
     // Same existence guard as load(): a station that renamed/removed the
     // relay must not send playback to a dead URL. An empty fetched list
     // verifies nothing (and selects nothing) — the current value (already
     // validated by load(), else the hardcoded default) stays in place.
-    if (stored && options.some((o) => o.id === stored.id)) {
+    if (stored) {
       this.currentStream = stored;
     } else if (options.length > 0) {
       this.currentStream = options[0];
@@ -68,10 +68,12 @@ export class StreamPreferences {
     this.currentStream = CONFIG.DEFAULT_STREAM_OPTION;
   }
 
-  private async readStored(): Promise<Stream | null> {
+  /** The stored preference as the fetched `options` list it now (fresh URL, bitrate, label). */
+  private async storedIn(options: Stream[]): Promise<Stream | null> {
     try {
       const raw = await AsyncStorage.getItem(CURRENT_STREAM_KEY);
-      return raw ? (JSON.parse(raw) as Stream) : null;
+      const id = raw ? (JSON.parse(raw) as Partial<Stream> | null)?.id : undefined;
+      return options.find((option) => option.id === id) ?? null;
     } catch {
       return null;
     }

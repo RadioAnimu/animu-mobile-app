@@ -118,6 +118,15 @@ class CoverDiskStorage {
       can never resurrect a file a mid-flight trim just dropped. */
   private workChain: Promise<unknown> = Promise.resolve();
 
+  constructor() {
+    coverCacheRegistry.onEvict = (url) => {
+      // Re-tagged while queued: displayed again, so the file stays.
+      void this.enqueue(async () => {
+        if (coverCacheRegistry.taggedAt(url) == null) await deleteCachedFile(url);
+      });
+    };
+  }
+
   get isClearing(): boolean {
     return this.clearing;
   }

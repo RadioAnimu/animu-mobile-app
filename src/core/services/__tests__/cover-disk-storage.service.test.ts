@@ -482,6 +482,21 @@ describe("CoverDiskStorage", () => {
     survivors.forEach((url) => expect(fileFor(url).exists).toBe(true));
   });
 
+  it("deletes the file of an entry the registry cap drops, unless it is displayed again first", async () => {
+    const ring = Array.from({ length: 500 }, (_, i) => `https://cdn/ring-${i}_medium.jpg`);
+    await setup(
+      ring.map((url): [string, Category] => [url, "played"]),
+      { [ring[0]]: 10, [ring[1]]: 10 },
+    );
+    coverCacheRegistry.tag("https://cdn/ring-500_medium.jpg", "played"); // drops ring[0]
+    coverCacheRegistry.tag("https://cdn/ring-501_medium.jpg", "played"); // drops ring[1]…
+    coverCacheRegistry.tag(ring[1], "played"); // …shown again before its delete runs
+    await coverDiskStorage.trim(0); // waits for the queued deletes
+
+    expect(fileFor(ring[0]).exists).toBe(false);
+    expect(fileFor(ring[1]).exists).toBe(true);
+  });
+
   it("computeSnapshot(limit) trims inline and reports the post-trim state", async () => {
     await setup(
       [

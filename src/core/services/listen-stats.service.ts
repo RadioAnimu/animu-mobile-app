@@ -319,7 +319,7 @@ const streakStart = (active: Set<string>): string | null => {
  *   the segment anchor, driven by the transport state machine;
  * - `onAudibleTick(now)` — one processed heartbeat beat while `playing`,
  *   which closes out one ~1s audible segment (background-safe: native
- *   status events keep the heartbeat beating while the app is hidden);
+ *   progress readings keep the heartbeat beating while the app is hidden);
  * - `onTrackHeard(track, isPlaying)` — a track reached the speaker;
  * - `onRequestSubmitted(success)` / `onShoutSubmitted(success)`.
  */
@@ -452,10 +452,9 @@ export class ListenStatsService {
   /** The transport left `playing` (pause, loss, teardown). Closes the session. */
   onPlaybackStopped(): void {
     if (!this.loaded) return;
-    // Close the open segment before dropping the anchor: in the background
-    // audible ticks only fire on track changes, so a pause would otherwise
-    // lose everything heard since the last one (addAudibleMs drops clock-jump
-    // outliers and end<=start ranges).
+    // Close the open segment before dropping the anchor, or a pause would
+    // lose everything heard since the last tick (addAudibleMs drops
+    // clock-jump outliers and end<=start ranges).
     const start = this.segmentStart;
     this.segmentStart = null;
     if (start != null) this.addAudibleMs(start, Date.now());

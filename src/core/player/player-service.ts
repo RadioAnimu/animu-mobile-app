@@ -198,10 +198,12 @@ export class PlayerService {
         void this.open(stream, this.isPlayingIntent);
       }),
       // Native-timer readings while playing: they keep the audible clock
-      // measured, and run JS at song boundaries even where JS timers are
-      // frozen (Android in the background) — the stuck-refresh watchdog too.
+      // measured and the listen stats ticking, and run JS at song boundaries
+      // even where JS timers are frozen (Android in the background) — the
+      // stuck-refresh watchdog too.
       player.on("progress", (reading) => {
         hearing.progress(reading);
+        this.tickStats();
         repository.expireStuckRefresh();
         repository.tickLive();
       }),
@@ -617,6 +619,8 @@ export class PlayerService {
     this.emitPlayer();
     try {
       if (this.streamOptions.length) await this.deps.streamPreferences.restore(this.streamOptions);
+      // Paused or torn down while the preference was read.
+      if (this.isDisposed() || !this.isPlayingIntent) return;
       const stream = this.deps.streamPreferences.current;
       if (this.loadedStreamId !== stream.id) {
         await this.open(stream, true);
@@ -983,7 +987,7 @@ export class PlayerService {
 
   /**
    * Listen stats close [anchor, now) segments: ticked on every displayed
-   * track, state change and foreground second — no background heartbeat.
+   * track, state change, foreground second and native progress reading.
    */
   private tickStats(): void {
     if (this.lastState === "playing") this.deps.stats?.onAudibleTick(Date.now());

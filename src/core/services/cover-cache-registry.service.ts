@@ -33,6 +33,8 @@ interface RegistryShape {
  * missing URLs are pruned on measurement instead of cleaned up here.
  */
 export class CoverCacheRegistry {
+  /** An entry the size cap dropped: its file must go too, or no measure or trim sees it again. */
+  onEvict: (url: string) => void = () => {};
   private readonly entries = new Map<string, RegistryEntry>();
   private loaded: Promise<void> | null = null;
   /** Serialization chain — rapid tags never interleave AsyncStorage writes. */
@@ -48,10 +50,15 @@ export class CoverCacheRegistry {
       .then((raw) => {
         if (!raw) return;
         const parsed = JSON.parse(raw) as Partial<RegistryShape>;
-        for (const [url, entry] of Object.entries(parsed.entries ?? {})) {
-          // A tag that fired while this AsyncStorage read was still in
-          // flight is newer than the stored state — never clobber it.
-          if (!this.entries.has(url)) this.entries.set(url, entry);
+        // A tag that fired while this AsyncStorage read was still in flight
+        // is newer than the stored state: it keeps its entry and stays at
+        // the ring's newest end, so the cap never evicts it first.
+        const fresh = [...this.entries];
+        this.entries.clear();
+        for (const [url, entry] of Object.entries(parsed.entries ?? {})) this.entries.set(url, entry);
+        for (const [url, entry] of fresh) {
+          this.entries.delete(url);
+          this.entries.set(url, entry);
         }
       })
       .catch((error: unknown) => {
@@ -87,9 +94,12 @@ export class CoverCacheRegistry {
     const identical = existing?.category === category;
     this.entries.delete(url);
     this.entries.set(url, { category, at: Date.now() });
-    if (this.entries.size > MAX_ENTRIES) {
+    // `while`: tags made during the load can leave the merge over the cap.
+    while (this.entries.size > MAX_ENTRIES) {
       const oldest = this.entries.keys().next().value;
-      if (oldest != null) this.entries.delete(oldest);
+      if (oldest == null) break;
+      this.entries.delete(oldest);
+      this.onEvict(oldest);
     }
     if (!identical) this.schedulePersist();
   }
