@@ -11,7 +11,7 @@ testers sideload the IPA without an App Store listing.
 | `source.json` | Modern AltStore / SideStore source — points at the `.ipa` assets and a `manifest.json` on GitHub Releases |
 | `classic.json` | AltStore **Classic** source — points directly at a single `.ipa` with a `sha256` |
 | `icon.png`, `header.png` | Source artwork |
-| `screenshots/*.png` | Store screenshots used by the source listing |
+| `screenshots/*.jpg` | Store screenshots used by the source listing: the pt-BR Google Play set (`store/google-play/pt-BR/images/phoneScreenshots/`, made by `scripts/store-screenshots.mjs`) |
 | `delete-account/index.html` | Public account/data deletion instructions linked from Google Play; shares the existing Pages deployment |
 
 Both sources describe the same app:
@@ -30,7 +30,7 @@ whenever anything under `altstore/**` changes:
 https://radioanimu.github.io/animu-mobile-app/           # source.json / classic.json
 https://radioanimu.github.io/animu-mobile-app/icon.png
 https://radioanimu.github.io/animu-mobile-app/header.png
-https://radioanimu.github.io/animu-mobile-app/screenshots/1-home.png
+https://radioanimu.github.io/animu-mobile-app/screenshots/1.jpg
 ```
 
 Add the source in AltStore by URL:
@@ -50,7 +50,11 @@ https://radioanimu.github.io/animu-mobile-app/source.json
      `localizedDescription`, `downloadURL`, `size`, `minOSVersion` and the
      `assetURLs`;
    - update `source.json` / `classic.json`.
-4. Update `screenshots/*` if the UI changed.
+4. Update `screenshots/*` if the UI changed, by copying the regenerated Play set.
+   The description is the Play listing's full description in pt-BR, English,
+   Spanish and Japanese (`store/google-play/<locale>/full_description.txt`), one
+   after the other: a source has a single `localizedDescription`, with no
+   per-language fields.
 5. Commit and push — the Pages workflow redeploys automatically.
 
 `altstore/*.ipa` is gitignored: IPAs are hosted on GitHub Releases, not committed.
