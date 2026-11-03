@@ -12,7 +12,7 @@ import { THEME } from "@/theme";
 import type { Dict } from "@/i18n";
 import { useDict } from "@/hooks/useDict";
 import type { AuthProfile, User } from "@/core/domain/user";
-import { styles, SWITCH } from "@/screens/Settings/styles";
+import { styles, SWITCH } from "@/components/SettingsRows/styles";
 import { haptics } from "@/utils/haptics";
 import { useStackedRows } from "@/hooks/useStackedRows";
 

@@ -21,7 +21,6 @@ import {
   type HeardPosition,
   type VisualizerWindow,
 } from "@/core/player";
-import { Loading } from "@/screens/Loading";
 import { hideSplashOnce } from "@/utils/splash";
 import { useExternalStore } from "@/hooks/useExternalStore";
 
@@ -95,7 +94,9 @@ const ProgressContext = createContext<ProgressSnapshot>({
 
 export const PlayerProvider: React.FC<{
   children: React.ReactNode;
-}> = ({ children }) => {
+  /** Shown until the player is set up (the app's loading screen). */
+  fallback: React.ReactNode;
+}> = ({ children, fallback }) => {
   // Singleton service — plain call, no memoization (the compiler treats
   // memoized objects as frozen, and the player is inherently mutable)
   const playerServiceInstance = playerService();
@@ -289,7 +290,7 @@ export const PlayerProvider: React.FC<{
     <PlayerContext.Provider value={playerContextValue}>
       <StationContext.Provider value={stationSnapshot}>
         <ProgressContext.Provider value={progressSnapshot}>
-          {playerSnapshot.isInitialized ? children : <Loading />}
+          {playerSnapshot.isInitialized ? children : fallback}
         </ProgressContext.Provider>
       </StationContext.Provider>
     </PlayerContext.Provider>

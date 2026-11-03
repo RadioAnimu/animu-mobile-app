@@ -8,7 +8,7 @@ import { useDict } from "@/hooks/useDict";
 import { interpolate } from "@/utils/format";
 import { haptics } from "@/utils/haptics";
 import { useStoreReview } from "@/hooks/useStoreReview";
-import { InfoRow, LinkRow, ValueRow } from "@/screens/Settings/rows";
+import { InfoRow, LinkRow, ValueRow } from "@/components/SettingsRows";
 import { styles } from "@/screens/Settings/styles";
 import { APP_VERSION } from "@/utils/app-version";
 import { openExternal, openInAppBrowser } from "@/utils/browser";

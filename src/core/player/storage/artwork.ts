@@ -18,26 +18,14 @@ import {
 } from "@/core/player/storage/cover-image-cache";
 
 export interface ArtworkResolverOptions {
-  /**
-   * The hashmap behind this resolver (port `CoverFileCache`). Defaults
-   * to a fresh `CoverFileHashMap` — inject a pre-loaded one to share
-   * state across resolver instances.
-   */
+  /** URL → file lookup; defaults to a fresh `CoverFileHashMap`. */
   fileMap?: CoverFileCache;
-  /**
-   * Bridges a freshly downloaded cover file into the disk-image cache so
-   * the in-app view renders it instantly (see `cover-image-cache.ts`).
-   * Optional — pure-resolver callers skip it.
-   */
+  /** Seeds a fresh download into the image cache, so the in-app view renders it at once. */
   onResolved?: SeedCoverCache;
-  /**
-   * Disk-cache hit check: an already-cached copy (this URL or a larger
-   * sibling size) stands in for the download entirely.
-   */
+  /** An image-cache copy (this URL or a larger size) that replaces the download. */
   findCachedCoverFile?: FindCachedCoverFile;
 }
 
-/** The bundled default cover's on-disk stand-in name space. */
 const COVER_FILE_PREFIX = "animu-cover-";
 /**
  * Downloaded covers kept on disk (the lookup's own size): the OS never
@@ -63,8 +51,7 @@ function coverFiles(): File[] {
 
 /** Deterministic cache-file name for a remote cover URL (djb2, hex). */
 function coverFileName(url: string): string {
-  // Slash-normalized: the endpoints spell the same cover both ways and
-  // both spellings must land on the same on-disk file (one download).
+  // Slash-normalized: the endpoints spell one cover both ways.
   return coverFileNameFor(normalizeArtworkKey(url));
 }
 
@@ -79,12 +66,8 @@ function coverFileNameFor(key: string): string {
 }
 
 /**
- * Deadline for the direct download before the fetch fallback takes
- * over. The CDN occasionally wedges new TCP connections for 10s+ while
- * established streams keep flowing — measured as a 10s default timeout
- * on `FileSystem.downloadFileAsync` followed by a near-immediate
- * success on the fallback client. A shorter deadline hands the request
- * to the fallback at the first stall instead of waiting through it.
+ * Deadline before the fetch fallback takes over: the CDN sometimes wedges a
+ * new connection for 10 s+ while the other client gets through at once.
  */
 const DIRECT_DOWNLOAD_DEADLINE_MS = 5_000;
 
@@ -97,16 +80,10 @@ const DOWNLOADS_COVERS = Platform.OS !== "web";
 let partFileSeq = 0;
 
 /**
- * Lands a cover in the cache as `name`, but only ever exposes a complete
- * file under that name: `write` fills a private `.part` file that is renamed
- * onto `name` once the transfer finished.
- *
- * A download written straight into its destination made the final name
- * exist — non-empty — for the whole transfer. A resolve running meanwhile
- * (the prefetch's download outliving its deadline, then the adoption's
- * resolve) took that half-written file as done, and the native media session
- * read it once and kept those bytes for the path: a broken lock-screen cover
- * until the app restarted, while the in-app view (decoding later) looked fine.
+ * Lands a cover as `name`, only ever exposing a complete file: `write` fills
+ * a private `.part` file, renamed once done. A half-written file under the
+ * final name would be taken as done, and the media session keeps the bytes
+ * it read for a path.
  */
 async function landComplete(name: string, write: (part: File) => Promise<unknown>): Promise<File> {
   const destination = new File(Paths.cache, name);
@@ -131,16 +108,11 @@ async function landComplete(name: string, write: (part: File) => Promise<unknown
   return destination;
 }
 
-/** The download client: expo-file-system's native one. */
+/** The native download client. */
 const downloadComplete = (url: string, name: string) =>
   landComplete(name, (part) => File.downloadFileAsync(url, part));
 
-/**
- * The second client (`expo/fetch`, which keeps working in the background
- * like the first), for when the first one's connection wedges:
- * the CDN occasionally stalls a new connection on one client while another
- * gets through at once. Lands the same file, so it is capped and wiped alike.
- */
+/** The fallback client (`expo/fetch`, also background-safe), landing the same file. */
 const fetchComplete = (url: string, name: string) =>
   landComplete(name, async (part) => {
     const response = await fetch(url);
@@ -158,13 +130,8 @@ function deadline<T>(promise: Promise<T>, ms: number): Promise<T> {
 }
 
 /**
- * The lowest-rank cover the API actually reported that is smaller than
- * `url` — the progressive-preview candidate.
- *
- * The report matters: deriving `_tiny` from the CDN naming scheme alone
- * is wrong — the CDN 302s unknown sizes to a constant placeholder image,
- * so a guessed sibling downloaded a 404 page (~161KB) as the "preview".
- * `track.artworks` is the server's word on which sizes exist.
+ * The smallest reported cover below `url`'s size: the progressive preview.
+ * Only reported sizes: the CDN redirects unknown ones to a placeholder.
  */
 export function pickPreviewArtwork(
   url: string | undefined | null,
@@ -186,54 +153,30 @@ export function pickPreviewArtwork(
 }
 
 /**
- * Makes artwork bulletproof for the native media session.
- *
- * The OS notification/lock-screen loads `artworkUri` with its OWN HTTP
- * stack (no app User-Agent, no retry) — one failed load blanks the cover
- * until the next metadata push, and every retry races the network again.
- * This unit downloads the cover once through the app's own stack and
- * hands the media session a `file://` URI instead: no network race,
- * instant render, works offline.
- *
- * It also owns the bundled default cover (see `src/assets/default-cover.png`)
- * so every fallback path — this resolver, the API package's
- * `selectArtwork`, the in-app `Cover` fallback — can use an image that is
- * guaranteed to exist.
+ * Local cover files for the native media session, whose own loader has no
+ * retry (one failed load blanks the lock screen): each cover is downloaded
+ * once and handed over as a `file://` URI. Also owns the bundled default.
  */
 export class ArtworkResolver {
-  /** Remote URL → local `file://` URI hashmap (port, LRU-capped impl below). */
   private readonly fileMap: CoverFileCache;
-  /** In-flight downloads — concurrent callers share one download per URL. */
+  /** Concurrent callers share one download per URL. */
   private readonly inFlight = new Map<string, Promise<string>>();
-  /**
-   * Full URL → the low-res preview file mapped onto it while its own
-   * download runs. Lets a failed full download take the preview back off
-   * the full URL instead of leaving the miniature as "the" cover.
-   */
+  /** Full URL → the preview mapped onto it meanwhile, taken back if the full download fails. */
   private readonly previewFor = new Map<string, string>();
-  /** Spread-identity cache for `apply` — track object → stable wrapper. */
+  /** Stable wrappers for `apply`. */
   private readonly appliedTracks = new WeakMap<Track, Track>();
   /** Remote URL until the bundled default cover resolves (see `init`). */
   private defaultCoverValue = CONFIG.DEFAULT_COVER;
   private initPromise: Promise<void> | null = null;
-  /**
-   * A download that outlived its deadline landed after all (the resolve
-   * already answered with the remote URL). The lock screen only shows local
-   * files, so whoever published that cover must publish it again.
-   */
+  /** A download that outlived its deadline landed: whoever published that cover must again. */
   onLateResolve: ((url: string) => void) | null = null;
-  /** Set by `reset()`; late downloads must not repopulate a destroyed resolver. */
   private disposed = false;
 
   constructor(private readonly options: ArtworkResolverOptions = {}) {
     this.fileMap = options.fileMap ?? new CoverFileHashMap();
   }
 
-  /**
-   * Resolves the bundled default cover to a loadable URI. Release builds
-   * ship it inside the app bundle (already local); dev resolves it from
-   * the metro server. Idempotent — safe to call from every setup path.
-   */
+  /** Resolves the bundled default cover to a loadable URI. Idempotent. */
   init(): Promise<void> {
     // `*.png` modules are untyped (an asset id on native, a URL on web).
     this.initPromise ??= Asset.fromModule(DEFAULT_COVER as Parameters<typeof Asset.fromModule>[0])
@@ -255,11 +198,7 @@ export class ArtworkResolver {
     return this.defaultCoverValue;
   }
 
-  /**
-   * Whether a URL needs a download. Non-remote URIs (bundled default,
-   * prior `file://` results) are already final — `resolve()` passes them
-   * through untouched, so callers should skip the download/re-push dance.
-   */
+  /** Whether a URL needs a download (non-remote URIs, and all on the web, are final). */
   isRemote(url: string): boolean {
     return DOWNLOADS_COVERS && /^https?:/i.test(url);
   }
@@ -269,20 +208,13 @@ export class ArtworkResolver {
     return this.fileMap.peek(url);
   }
 
-  /**
-   * Returns the track with its artwork swapped to the local file when
-   * that URL has been resolved — used by the sync metadata builders
-   * (`buildNowPlayingMetadata`), which cannot await a download.
-   */
+  /** The track with its artwork swapped to the local file, once resolved (sync). */
   apply(track: Track | null | undefined): Track | null | undefined {
     if (!track?.artwork) return track;
     const local = this.fileMap.peek(track.artwork);
     if (!local) return track;
-    // Spread identity cache: `apply` runs on every service emit and the
-    // player store diffs snapshots shallowly — a fresh `{...track}` per
-    // call would read as "currentTrack changed" forever, re-rendering
-    // every consumer on poll ticks with zero real changes. The cached
-    // wrapper is returned while the underlying resolution is unchanged.
+    // Same wrapper while unchanged: the store diffs shallowly, and a fresh
+    // object per emit would re-render every consumer.
     const cached = this.appliedTracks.get(track);
     if (cached?.artwork === local) return cached;
     const next = { ...track, artwork: local };
@@ -291,39 +223,22 @@ export class ArtworkResolver {
   }
 
   /**
-   * Returns a local `file://` URI for a remote cover.
-   *
-   * Lookup ladder — past journeys may already have the bytes on disk:
-   *
-   * 1. this resolver's own lookup (previous media-session resolution);
-   * 2. an in-flight download shared with concurrent callers;
-   * 3. expo-image's disk cache — the in-app displays (search rows,
-   *    history, the player frame) cache every cover they render, and
-   *    `findCachedCoverFile` also swaps in a larger sibling when the CDN
-   *    scheme allows (e.g. the search-result `large` covering a
-   *    `medium` request);
-   * 4. a fresh download, seeded back into expo-image (option 3 above
-   *    makes the NEXT consumer a cache hit).
-   *
-   * Failures degrade gracefully to the remote URL — the native loader's
-   * best effort is preserved, just without its guarantees.
+   * A local `file://` URI for a remote cover: this lookup, a shared in-flight
+   * download, the image cache (or a larger size there), else a download
+   * seeded back into it. A failure answers with the remote URL.
    */
   async resolve(
     url: string,
     onPreview?: (local: string) => void,
     previewUrl?: string | null,
   ): Promise<string> {
-    // Already local (bundled default, prior file URI) — nothing to do
     if (!this.isRemote(url)) return url;
-    // Destroyed — never start new work.
     if (this.disposed) return url;
 
     const cached = this.fileMap.peek(url);
     if (cached) return cached;
 
-    // Progressive preview FIRST, and unconditionally: a prefetch may already
-    // hold the full-size download in flight, and the in-flight de-dupe below
-    // would otherwise return early and skip the low-res paint entirely.
+    // Before the in-flight de-dupe: a prefetch may hold the full download.
     this.startPreview(previewUrl, url, onPreview);
 
     const pending = this.inFlight.get(url);
@@ -338,10 +253,7 @@ export class ArtworkResolver {
           `[ArtDebug] resolve FAILED after ${Date.now() - startedAt}ms (${url}):`,
           error,
         );
-        // The preview stood in for the full file only until it landed. Left
-        // mapped, every later lookup (the store's apply(), the media session,
-        // a retry's peek) would serve the miniature as the final cover — and
-        // the peek would also stop anyone from retrying the download.
+        // Left mapped, the preview would serve as the final cover and block retries.
         const preview = this.previewFor.get(url);
         if (preview && this.fileMap.peek(url) === preview) {
           this.fileMap.forget(url);
@@ -357,13 +269,7 @@ export class ArtworkResolver {
     return promise;
   }
 
-  /**
-   * Low-res step of the progressive cover: downloads the reported smaller
-   * sibling (a few KB), maps it onto the full URL while the full file is
-   * still missing, and reports it via `onPreview`. De-duped through
-   * `resolve(previewUrl)`, so a prefetch and the adoption call share one
-   * download. Idempotent — safe to call on every `resolve`.
-   */
+  /** Maps the small preview onto the full URL while its download runs, and paints it. */
   private startPreview(
     previewUrl: string | null | undefined,
     fullUrl: string,
@@ -373,13 +279,8 @@ export class ArtworkResolver {
     if (this.fileMap.peek(fullUrl)) return;
     void this.resolve(previewUrl)
       .then((local) => {
-        // Map/paint only while the full file is still missing — if it landed
-        // first it wins, and the preview must not shadow it. A reset may have
-        // run while the download was in flight; a destroyed resolver must
-        // not repopulate its map or paint into a dead consumer.
         if (this.disposed) return;
-        // Only while the full download is still running: a preview landing
-        // after the full one failed would otherwise pin the miniature.
+        // Only while the full file is missing and its download still runs.
         if (
           local !== previewUrl &&
           !this.fileMap.peek(fullUrl) &&
@@ -391,7 +292,7 @@ export class ArtworkResolver {
         }
       })
       .catch(() => {
-        // Best effort — the full download decides the end state.
+        // Best effort: the full download decides.
       });
   }
 
@@ -406,27 +307,17 @@ export class ArtworkResolver {
       this.fileMap.track(url, cachedFile);
       return cachedFile;
     }
-    // Plain download to a deterministic cache destination — the
-    // previous path went through expo-asset's `downloadAsync`, whose
-    // asset-cache/hash machinery turned a 60KB image into a
-    // 75-second transfer (direct fetch of the same URL: <1s). Files
-    // accumulate in the OS cache dir (unlimited, tiny covers), and a
-    // pre-existing file short-circuits the network entirely.
+    // A deterministic file name: an existing file skips the network.
     const name = coverFileName(url);
     const destination = new File(Paths.cache, name);
-    // Every landed download, in time or late, is adopted and keeps the
-    // folder capped.
+    // Every landed download, in time or late, is adopted; the folder stays capped.
     const landed = (file: File) => {
       this.adoptLate(url, file.uri);
       this.pruneDownloads();
     };
     try {
       if (!destination.exists || destination.size === 0) {
-        // Raced against a short deadline: a wedged connection must not
-        // cost the full native timeout (measured 10s) before the
-        // fallback even starts. The direct attempt keeps running
-        // underneath — if it lands later it fills the deterministic cache
-        // file and is adopted then (see `adoptLate`).
+        // The direct attempt keeps running past its deadline; a late landing is adopted.
         const direct = downloadComplete(url, name);
         direct.then(landed, () => {}); // late failures are cache-only misses
         await deadline(direct, DIRECT_DOWNLOAD_DEADLINE_MS);
@@ -436,12 +327,8 @@ export class ArtworkResolver {
         `[ArtDebug] resolver direct download failed (${url}):`,
         error,
       );
-      // Fall through to the second client as a backup. The direct attempt
-      // is deadline-bounded above; without the same guard here a fallback
-      // that never settles would keep `resolve()` pending forever and latch
-      // its entry in `inFlight`, so that cover could never retry. The
-      // deadline releases the caller; the work itself is left to finish (or
-      // not) as a cache-only miss.
+      // Deadline-bounded too: a fallback that never settles would latch
+      // `inFlight`, and that cover could never retry.
       const fallback = fetchComplete(url, name);
       fallback.then(landed, () => {}); // late failures are cache-only misses
       return deadline(fallback, DIRECT_DOWNLOAD_DEADLINE_MS).then((file) => {
@@ -468,10 +355,8 @@ export class ArtworkResolver {
   }
 
   /**
-   * The cover cache was wiped: the image library deleted its files, so the
-   * lookups that pointed into it go, and the downloads are pruned but for
-   * the shown cover's. A shown cover that lived in the image cache is
-   * fetched again and republished ({@link onLateResolve}).
+   * The cover cache was wiped: lookups into the image cache go, downloads are
+   * pruned but the shown one, and a shown cover that lived there is refetched.
    */
   afterCacheWipe(shownUrl?: string): void {
     if (!DOWNLOADS_COVERS || this.disposed) return;
@@ -486,10 +371,9 @@ export class ArtworkResolver {
   }
 
   /**
-   * Deletes downloaded covers past the newest `keep`, and the lookups that
-   * pointed at them — never `protect`, the file the media session shows
-   * (Android may read it again; it is not always the newest: the next
-   * song's cover is fetched before it is heard).
+   * Deletes downloads past the newest `keep`, and their lookups, never
+   * `protect`: the media session's file (not always the newest, since the
+   * next song's cover is fetched first).
    */
   pruneDownloads(keep: number = MAX_COVER_FILES, protect?: string): void {
     if (!DOWNLOADS_COVERS || this.disposed) return;
@@ -506,12 +390,9 @@ export class ArtworkResolver {
   }
 
   /**
-   * Adopts a downloaded file when nothing real holds its URL yet (unmapped,
-   * or just its stand-in preview). Runs for every direct/fallback download,
-   * including ones that outlived their deadline. While the URL's resolve is
-   * still running, recording the file is enough: its settle republishes and
-   * every reader goes through the map. Once it has settled (it answered with
-   * the remote URL), nobody would look again — {@link onLateResolve} says so.
+   * Adopts a landed download when only a preview, or nothing, holds its URL.
+   * After its resolve already answered with the remote URL, nobody would look
+   * again: {@link onLateResolve} says so.
    */
   private adoptLate(url: string, local: string): void {
     if (this.disposed) return;
@@ -525,7 +406,7 @@ export class ArtworkResolver {
     this.onLateResolve?.(url);
   }
 
-  /** Destroy path: drop the in-memory lookups (cache files are OS-owned). */
+  /** Destroy: drops the in-memory lookups. */
   reset(): void {
     this.disposed = true;
     this.fileMap.clear();

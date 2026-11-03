@@ -10,7 +10,7 @@ import {
 import { useUserSettings } from "@/contexts/user/UserSettingsProvider";
 import { useDict } from "@/hooks/useDict";
 import { useSaveSettings } from "@/hooks/useSaveSettings";
-import { SettingsRow } from "@/screens/Settings/rows";
+import { SettingsRow } from "@/components/SettingsRows";
 import { formatBytes } from "@/utils/format";
 import { DESTINATION_ICON } from "@/constants/destination-icons";
 

@@ -3,12 +3,10 @@ import type { Track } from "@/core/domain/track";
 import { trackStartMs } from "@/core/player/stream-playback/track-start";
 
 /**
- * How long after the API's `timestart` the station's ICY title changes.
- * Measured against the live stream: 67 consecutive changes over 3 hours
- * (2026-10-04) — min 0.34 s, median 1.18 s, max 1.85 s (`timestart` has
- * one-second resolution). The ICY title also matched the API `rawtitle`
- * byte for byte every time. This is the *station's* timeline, not the
- * audio's: see {@link icyTitleInItemMs} for where the title sits in the item.
+ * How long after the API's `timestart` the station's ICY title changes
+ * (measured: median 1.18 s, range 0.34–1.85 s; `timestart` has one-second
+ * resolution). The station's timeline, not the audio's: see
+ * {@link icyTitleInItemMs}.
  */
 const ICY_AFTER_START_MS = 1_200;
 /** `icy-metaint` of every station mount: audio bytes between metadata blocks. */
@@ -16,18 +14,10 @@ const ICY_METAINT_BYTES = 16_000;
 
 /**
  * How far into an item (ms) its ICY title is heard, on average, on a mount
- * of `bitrateKbps`.
- *
- * The station writes the title at the item's first audio, but Icecast can
- * only send it at the next metadata block of each listener's connection —
- * every {@link ICY_METAINT_BYTES} bytes, counted from that connection's own
- * start. So the title is heard 0…1 block after the item began, uniformly:
- * on average half a block, 0.2 s on the 320 kbps mount and 1 s on the
- * 64 kbps one. Measured 2026-10-11 (all three mounts recorded at once,
- * their decoded audio cross-correlated; 11 changes): titles 0.14 s later on
- * 192 and 0.69 s later on 64 than on 320 (half-block model: 0.13 / 0.80);
- * on 320, jingles start 0–0.2 s before their title. Android's player
- * reports the title where it sits in the stream (within 0.04 s).
+ * of `bitrateKbps`. Icecast sends the title at the next metadata block of
+ * each connection (every {@link ICY_METAINT_BYTES} bytes), so it lands 0…1
+ * block into the item: half a block on average, 0.2 s at 320 kbps and 1 s at
+ * 64 kbps (recorded mounts agree with this model to ~0.1 s).
  */
 export function icyTitleInItemMs(bitrateKbps: number): number {
   const blockMs = (ICY_METAINT_BYTES * 8) / bitrateKbps;
@@ -37,36 +27,26 @@ export function icyTitleInItemMs(bitrateKbps: number): number {
 /** The station's main mount, assumed until a stream is chosen. */
 const DEFAULT_BITRATE_KBPS = 320;
 /**
- * How far the station's clock runs ahead of its audio (ms): the title
- * changes {@link ICY_AFTER_START_MS} after `timestart` and is heard half a
- * 320 kbps block into the item, so the item reached the stream ~1 s after
- * `timestart`. A tune-in's position (station time minus the lag) starts
- * from this until the stream has calibrated its own.
+ * How far the station's clock runs ahead of its audio (ms), ~1 s: the
+ * tune-in bias until a stream has calibrated its own.
  */
 export const STATION_AHEAD_OF_AUDIO_MS = ICY_AFTER_START_MS - icyTitleInItemMs(DEFAULT_BITRATE_KBPS);
 /**
- * The tune-in position is computed, not heard: station time minus the
- * measured lag. Every title change heard afterwards shows how far that
- * computation is off on this stream (the station clock leading its audio,
- * a platform that under-reads the lag right after connecting); the median
- * of recent ones corrects the next tune-in.
+ * A tune-in's position is computed (station time minus the lag), not heard.
+ * Each title change heard later shows how far that is off on this stream;
+ * the median of the recent ones corrects the next tune-in.
  */
 const CALIBRATION_WINDOW = 9;
 /** A sample this far off is the API's `timestart` being wrong (live shows, jingles). */
 const CALIBRATION_MAX_MS = 15_000;
 /**
  * A position this far (ms) off the player's media clock is moved onto it
- * (see {@link HeardTrack.alignToMedia}). Readings agree to ±6 ms (measured
- * on Android); a pause or resume handled a beat late leaves ~0.1 s, which
- * this takes back.
+ * ({@link HeardTrack.alignToMedia}): readings agree to ±6 ms, a late-handled
+ * pause leaves ~0.1 s.
  */
 export const MEDIA_ALIGN_MS = 60;
 
-/**
- * A title as compared on the second matching pass: Unicode form, case,
- * runs of whitespace and backslash-escaped quotes are what encoders and
- * databases disagree on without it being another item.
- */
+/** A title for the second matching pass: what encoders and databases disagree on is folded. */
 const matchKey = (title: string): string =>
   (typeof title.normalize === "function" ? title.normalize("NFC") : title)
     .replace(/\\(['"])/g, "$1")
@@ -111,27 +91,22 @@ export interface HeardTrackOptions {
 /**
  * What the listener is hearing right now, and how far into it.
  *
- * The player delivers each ICY title at the moment it becomes **audible**
- * (react-native-anything-player: AVPlayer's metadata output / Media3's metadata
- * renderer). The station changes that title ~1.2 s after a track starts, so
- * an ICY change *is* "this track just started, here": the displayed track is
- * the API track whose `raw` equals the title, at where the title is heard on
- * this mount ({@link icyTitleInItemMs}). No predictive track end.
+ * The player delivers each ICY title when it becomes **audible**, and the
+ * station changes it as a track starts, so a heard change *is* "this track
+ * just started": the displayed track is the API track whose `raw` is the
+ * title, placed at {@link icyTitleInItemMs}.
  *
- * The one estimate left is the *first* title after tuning in (or re-opening
- * at the live edge): that track is already partway, so its position comes
- * from the station clock minus how far the speaker trails the live edge,
- * corrected by what this stream's heard title changes showed (see
- * {@link CALIBRATION_WINDOW}). It is exact again at the next track boundary.
+ * Only the *first* title after a (re)open is estimated: that track is
+ * already partway, so its position is the station clock minus the lag,
+ * corrected by {@link CALIBRATION_WINDOW}. The next boundary is exact again.
  */
 export class HeardTrack {
   /** The displayed track changed (title, cover, position). */
   onChange: () => void = () => {};
   /**
    * A heard title the station data does not name (yet). The owner fetches
-   * fresh data — by an HTTP request, no JS timer: on Android none fires in the
-   * background, and the SSE stream cannot reconnect there either — then calls
-   * {@link unresolved} if the title is still unknown.
+   * fresh data over HTTP (no JS timer: none fires in the Android background),
+   * then calls {@link unresolved} if it is still unknown.
    */
   onUnknownTitle: (title: string) => void = () => {};
 
@@ -160,10 +135,8 @@ export class HeardTrack {
   }
 
   /**
-   * The position was computed at a tune-in (station time minus a lag reading
-   * taken the moment the first title played), not heard at a change. Right
-   * after connecting that reading can be early: the player may still be
-   * loading the connect burst. Prefer a settled clock while this is true.
+   * The position was computed at a tune-in, not heard. Its lag reading can
+   * be early (the connect burst still loading): prefer a settled clock.
    */
   get estimated(): boolean {
     return this.anchor?.estimated ?? false;
@@ -174,11 +147,7 @@ export class HeardTrack {
     return this.anchor != null;
   }
 
-  /**
-   * The position as a fixed point — elapsed ms at wall `at`, advancing in
-   * real time while `running` — or `null` before a title was heard. The
-   * same object until the anchor moves (a title, a pause / resume).
-   */
+  /** The position as a fixed point, or `null` before a title was heard; the same object until it moves. */
   get position(): TrackPosition | null {
     const anchor = this.anchor;
     if (!anchor || !this.displayed) return null;
@@ -196,21 +165,12 @@ export class HeardTrack {
     return this.options.stationTrack();
   }
 
-  /**
-   * A heard title is still waiting for the station to name it (or shown as
-   * itself) — and is still the newest thing known. Once the station has
-   * announced a later item, it no longer holds the display (see
-   * {@link supersededByStation}).
-   */
+  /** A heard title still awaits its name (or shows as itself) and nothing newer was announced. */
   get awaitingStation(): boolean {
     return this.pending != null && !this.supersededByStation();
   }
 
-  /**
-   * Whether the heard track has played past its own length. A title the
-   * station never named has no length: it counts as over once the station
-   * announced a later item.
-   */
+  /** Whether the heard track played past its length; an unnamed title is over once a later item is announced. */
   pastEnd(now: number = this.now()): boolean {
     const anchor = this.anchor;
     const track = this.displayed;
@@ -220,10 +180,7 @@ export class HeardTrack {
     return elapsed > track.duration;
   }
 
-  /**
-   * The stream being played: each one keeps its own calibration, and its
-   * bitrate sets where its titles are heard.
-   */
+  /** The stream played: its own calibration, and its bitrate places its titles. */
   useStream(key: string, bitrateKbps: number = DEFAULT_BITRATE_KBPS): void {
     this.stream = key;
     this.titleInItemMs = icyTitleInItemMs(bitrateKbps > 0 ? bitrateKbps : DEFAULT_BITRATE_KBPS);
@@ -259,9 +216,9 @@ export class HeardTrack {
   }
 
   /**
-   * Fresh station data still does not name the heard title (API late, a live
-   * show's own title): show the title itself rather than a song that already
-   * ended. Replaced by the station's track if it is named later.
+   * Fresh data still does not name the heard title (API late, a live show's
+   * own title): show the title itself, not a song that already ended, until
+   * the station names it.
    */
   unresolved(title: string): void {
     const pending = this.pending;
@@ -298,14 +255,11 @@ export class HeardTrack {
   }
 
   /**
-   * Keeps the position on the player's media clock. The anchor advances
-   * with the wall clock while audio flows, and a stall or pause stops it
-   * when it is *handled* — late when the JS thread is busy, by however long
-   * that took. The native media position (a progress reading, with the
-   * epoch ms it was taken at) only advances with the audio. The first
-   * reading after the position was placed is its reference; from there the
-   * position follows the media clock, moved onto it when it is more than
-   * {@link MEDIA_ALIGN_MS} off. Returns whether it moved.
+   * Keeps the position on the player's media clock: a stall or pause stops
+   * the anchor when *handled* (late on a busy JS thread), while the media
+   * position only advances with the audio. The first reading after placing
+   * is the reference; past {@link MEDIA_ALIGN_MS} the position moves onto
+   * it. Returns whether it moved.
    */
   alignToMedia(positionS: number, atMs: number): boolean {
     const anchor = this.anchor;
@@ -336,10 +290,7 @@ export class HeardTrack {
     };
   }
 
-  /**
-   * The source (re)opened: the next title is a tune-in, and until it is heard
-   * the position is unknown (the display keeps the current track meanwhile).
-   */
+  /** The source (re)opened: the next title is a tune-in; the track on screen stays meanwhile. */
   reopened(): void {
     this.anchor = null;
     this.media = null;
@@ -347,13 +298,9 @@ export class HeardTrack {
   }
 
   /**
-   * The listening position is given up for good: the display goes back to
-   * the station's current track, with nothing heard and no position. Unlike
-   * {@link reopened} — a mid-play re-open, where the track on screen stays
-   * until the next title places it — the retained track and position here
-   * belong to a listening session that is over (a long pause), so keeping
-   * them would only show a song the station left long ago. The stream, the
-   * calibration and the clock skew belong to the device and survive.
+   * The listening session is over (a long pause): back to the station's
+   * track, nothing heard. Unlike {@link reopened}, nothing on screen is kept.
+   * The stream and its calibration survive.
    */
   abandon(): void {
     this.displayed = null;
@@ -381,11 +328,9 @@ export class HeardTrack {
   }
 
   /**
-   * A heard title the station data does not name (shown as itself, or
-   * waiting) that the station has since moved past: it announced an item
-   * after the title was heard, and that item starts later on the station
-   * timeline than the audio the title was heard in. A late announcement of
-   * an earlier item does not count.
+   * The unnamed heard title was moved past: an item announced after it
+   * starts later on the station timeline than the title's audio (a late
+   * announcement of an earlier item does not count).
    */
   private supersededByStation(): boolean {
     const pending = this.pending;
@@ -416,9 +361,8 @@ export class HeardTrack {
     fromStation = true,
   ): void {
     this.pending = null;
-    // Station time at the moment it was heard, minus the speaker's lag behind
-    // the live edge. A tune-in (already partway) can only be placed this way;
-    // at a change, where the heard title is the truth, it calibrates that.
+    // Station time when heard, minus the lag: places a tune-in, and at a
+    // change (the heard title being the truth) calibrates that.
     const start = track.startTime.getTime();
     const stationElapsed = Number.isFinite(start)
       ? heardAt + this.skewMs - start - Math.max(0, lagMs)

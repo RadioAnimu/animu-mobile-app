@@ -1,25 +1,18 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 /**
- * Which app surface a cached cover was last displayed in. One entry per
- * remote URL — the disk keys of expo-image's cache are the URLs
- * themselves, so tagging at display time is what allows the Settings
- * storage card to attribute real cached file sizes per category.
+ * The app surface a cached cover was last displayed in, one entry per URL
+ * (expo-image keys its disk cache by URL), so Settings can size each category.
  */
 export type CoverCacheCategory = "live" | "requested" | "played" | "search";
 
 const REGISTRY_KEY = "coverCacheRegistry";
-/** AsyncStorage stays small even for heavy browsing sessions. */
 const MAX_ENTRIES = 500;
-/**
- * Trailing debounce for display tags: opening History tags dozens of covers
- * at once, and every write serializes the whole registry (~500 entries).
- */
+/** Debounce for display tags: History tags dozens at once, and each write serializes the whole registry. */
 const PERSIST_DEBOUNCE_MS = 1_000;
 
 interface RegistryEntry {
   category: CoverCacheCategory;
-  /** Display recency — used both for the LRU cap and legend metadata. */
   at: number;
 }
 
@@ -28,23 +21,20 @@ interface RegistryShape {
 }
 
 /**
- * Persists which category each cached cover URL belongs to. Non-authoritative
- * by design: expo-image owns the actual files and may evict at any time, so
- * missing URLs are pruned on measurement instead of cleaned up here.
+ * Persists each cached cover URL's category. Non-authoritative: expo-image
+ * owns the files and may evict them, so missing URLs are pruned on measure.
  */
 export class CoverCacheRegistry {
   /** An entry the size cap dropped: its file must go too, or no measure or trim sees it again. */
   onEvict: (url: string) => void = () => {};
   private readonly entries = new Map<string, RegistryEntry>();
   private loaded: Promise<void> | null = null;
-  /** Serialization chain — rapid tags never interleave AsyncStorage writes. */
   private persistChain: Promise<void> = Promise.resolve();
-  /** Pending debounced write, if any. */
   private persistTimer: ReturnType<typeof setTimeout> | null = null;
   /** Set while the user is wiping the registry — display tags are silenced. */
   private clearing = false;
 
-  /** Reads persisted entries once; subsequent calls reuse the resolved load. */
+  /** Reads persisted entries once. */
   load(): Promise<void> {
     this.loaded ??= AsyncStorage.getItem(REGISTRY_KEY)
       .then((raw) => {
@@ -68,22 +58,10 @@ export class CoverCacheRegistry {
   }
 
   /**
-   * Tags a URL with the category that displayed it. A URL keeps the
-   * category of its most recent display, which mirrors how the user
-   * experienced the cached file.
-   *
-   * Persistence is debounced, then chained (each write queues behind the
-   * previous one) so a burst of rapid tags writes once and can never leave
-   * a stale snapshot behind: each queued persist serializes the exact map
-   * state at its write time.
-   *
-   * Re-tagging an identical (url, category) pair is a persist no-op:
-   * list recycling remounts the same rows while scrolling, and a write
-   * per remount would churn AsyncStorage for zero information — but the
-   * in-memory Map re-insert still runs, so the entry lands back at the
-   * ring's TAIL. This is what keeps the byte-limit trimmer's FIFO walk
-   * honest: a cover on screen right now is the ring's freshest member
-   * and can never be picked as its oldest victim.
+   * Tags a URL with the category that displayed it (its latest display wins).
+   * An identical re-tag (recycled list rows) skips the write but still moves
+   * the entry to the ring's newest end, so the trimmer never evicts a cover
+   * on screen.
    */
   tag(url: string, category: CoverCacheCategory): void {
     if (this.clearing) return;
@@ -104,7 +82,7 @@ export class CoverCacheRegistry {
     if (!identical) this.schedulePersist();
   }
 
-  /** When the URL was last tagged (recency timestamp), for the measure's seed-grace check. */
+  /** When the URL was last tagged. */
   taggedAt(url: string): number | undefined {
     return this.entries.get(url)?.at;
   }
@@ -123,16 +101,13 @@ export class CoverCacheRegistry {
     return groups;
   }
 
-  /** Drops every entry and clears the persisted registry. Round-trip safe: a tag arriving mid-wipe is dropped, not revived. */
+  /** Drops every entry and the persisted registry; a tag arriving mid-wipe is dropped. */
   async clear(): Promise<void> {
     this.clearing = true;
     try {
-      // A pending debounced write would resurrect the entries — cancel it
-      // before it can fire (tags are silenced while `clearing` is set).
+      // A pending debounced write would resurrect the entries.
       this.cancelScheduledPersist();
       await this.load();
-      // Flush parked writes (they see the already-empty map), then drop
-      // any entries a racing tag added while waiting before the wipe.
       await this.persistChain;
       this.entries.clear();
       await AsyncStorage.removeItem(REGISTRY_KEY);
@@ -148,10 +123,6 @@ export class CoverCacheRegistry {
     await this.flushPersist();
   }
 
-  /**
-   * Coalesces a burst of tags into one trailing write. Later tags restart
-   * the timer, so a screenful of covers costs a single AsyncStorage write.
-   */
   private schedulePersist(): void {
     this.cancelScheduledPersist();
     this.persistTimer = setTimeout(() => {
@@ -166,7 +137,7 @@ export class CoverCacheRegistry {
     this.persistTimer = null;
   }
 
-  /** Chains persists so concurrent writes can't write stale snapshots (last queued write wins). */
+  /** Each write queues behind the last and serializes the map as it is then: no stale snapshot. */
   private chainPersist(): Promise<void> {
     this.persistChain = this.persistChain.then(() => this.persist()).catch(
       (error: unknown) => {

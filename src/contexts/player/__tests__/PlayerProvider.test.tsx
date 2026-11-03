@@ -24,7 +24,6 @@ vi.mock("@/i18n", () => ({
   DICT: { PT: { ERROR_TITLE: "Something broke", ERROR_MESSAGE: "", ERROR_RETRY: "Retry" } },
 }));
 
-vi.mock("@/screens/Loading", () => ({ Loading: () => <span>loading</span> }));
 const { hideSplashOnce } = vi.hoisted(() => ({ hideSplashOnce: vi.fn() }));
 vi.mock("@/utils/splash", () => ({ hideSplashOnce }));
 
@@ -79,7 +78,7 @@ describe("PlayerProvider initialization failure", () => {
     services.push(fakeService(() => Promise.reject(new Error("storage unavailable"))));
     render(
       <ErrorBoundary>
-        <PlayerProvider>
+        <PlayerProvider fallback={<span>loading</span>}>
           <span>app</span>
         </PlayerProvider>
       </ErrorBoundary>,

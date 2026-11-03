@@ -27,7 +27,7 @@ import type { RootStackParamList } from "@/routes/app.routes";
 import { coverCategoryLabel } from "@/constants/covers";
 import { formatBytes, interpolate, MB, percentOf } from "@/utils/format";
 import { RowDivider } from "@/components/ListRow";
-import { SettingsRow } from "@/screens/Settings/rows";
+import { SettingsRow } from "@/components/SettingsRows";
 import { styles } from "@/screens/Storage/styles";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Storage">;

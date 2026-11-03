@@ -1,3 +1,5 @@
+const fs = require("node:fs");
+const path = require("node:path");
 const { defineConfig } = require("eslint/config");
 const expoConfig = require("eslint-config-expo/flat");
 const sonarjs = require("eslint-plugin-sonarjs");
@@ -140,6 +142,33 @@ module.exports = defineConfig([
     "Shared UI must not depend on a screen: move the shared piece down.",
     { allowTypeImports: true },
   ),
+  layerRule(
+    ["src/contexts/**"],
+    ["screens", "routes"],
+    "Providers sit above the screens: take the screen as a prop (see PlayerProvider's fallback).",
+    { allowTypeImports: true },
+  ),
+  // Each screen stands alone: what two screens share lives in components/ or utils/.
+  ...fs
+    .readdirSync(path.join(__dirname, "src/screens"), { withFileTypes: true })
+    .filter((entry) => entry.isDirectory())
+    .map(({ name }) => ({
+      files: [`src/screens/${name}/**`],
+      ignores: ["src/**/__tests__/**"],
+      rules: {
+        "@typescript-eslint/no-restricted-imports": [
+          "error",
+          {
+            patterns: [
+              {
+                group: ["@/screens/*", `!@/screens/${name}`, `!@/screens/${name}/**`],
+                message: "A screen must not import another screen: move the shared piece to components/ or utils/.",
+              },
+            ],
+          },
+        ],
+      },
+    })),
   {
     // SonarJS — the same rule family SonarQube's "Code Smells" come from, run
     // locally and in CI with no server. Applied to production code only (tests
