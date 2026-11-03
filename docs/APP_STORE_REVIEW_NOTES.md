@@ -73,8 +73,9 @@ Answer the current App Store Connect questionnaire from the actual app behavior.
 
 ## Platform (2.4.1)
 
-iPhone-only (`ios.supportsTablet: false`) → runs on iPad in compatibility mode.
-Verify it launches and is usable in scaled mode on iPad before submitting.
+iPhone and iPad (`ios.supportsTablet: true`). The app must stay universal: 2.0.5
+shipped with iPad support, and App Store Connect refuses an update that drops a
+device (QA1623). Check the tablet layouts on an iPad before submitting.
 
 ## Sign-in (4.8)
 

@@ -18,7 +18,8 @@ features. No ads, no in-app purchases, no subscriptions, no analytics/tracking.
 
 - Bundle ID: `com.nessjs.animu`
 - Platforms: Android (Play), iOS (App Store)
-- iOS is **iPhone-only** (`ios.supportsTablet: false`)
+- iOS is **iPhone and iPad** (`ios.supportsTablet: true`): 2.0.5 shipped with iPad
+  support, and App Store Connect refuses an update that drops a device (QA1623)
 
 ## Data inventory (source of truth for both stores)
 
@@ -115,7 +116,7 @@ user has an account with us"); leave the remaining categories "NO".
       declarations; the inspected archive includes 14 manifests. Re-scan
       first-party and dependency API use after native changes, and confirm the
       signed archive's privacy report in Xcode before submission.
-- [ ] iPhone-only build (`supportsTablet: false`)
+- [ ] Universal build (`supportsTablet: true`), with 6.9" iPhone and 13" iPad screenshots
 
 ### Google Play
 - [ ] **Data safety** corrected in the live listing (declares "No data
