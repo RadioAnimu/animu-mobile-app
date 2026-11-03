@@ -10,7 +10,7 @@
     "scheme": "animuapp",
     "ios": {
       "icon": "./assets/icon-ios.png",
-      "supportsTablet": true,
+      "supportsTablet": false,
       "bundleIdentifier": "com.nessjs.animu",
       "appleTeamId": "RWDZC8478Q",
       "infoPlist": {
