@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 
 import type { ListenDay } from "@/core/services/listen-stats.service";
 import { captureSize } from "@/screens/Stats/capture";
@@ -19,10 +19,7 @@ import {
   HEAT_MIN_WEEKS,
 } from "@/screens/Stats/styles";
 
-// vi.mock is hoisted above the imports; `scale()` needs Dimensions.
-vi.mock("react-native", async () =>
-  (await import("@/__tests__/react-native-mock")).createReactNativeMock(),
-);
+// `scale()` needs Dimensions: the shared setup's react-native mock provides them.
 
 const day = (ms: number, hours: Partial<Record<number, number>> = {}): ListenDay => ({
   ms,

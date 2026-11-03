@@ -5,9 +5,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { EmailCodeFields } from "@/components/EmailCodeFields";
 import type { EmailCodeFlow } from "@/hooks/useEmailCodeFlow";
 
-vi.mock("react-native", async () =>
-  (await import("@/__tests__/react-native-mock")).createReactNativeMock(),
-);
 vi.mock("react-native-keyboard-controller", async () =>
   (await import("@/__tests__/keyboard-controller-mock")).createKeyboardControllerMock(),
 );

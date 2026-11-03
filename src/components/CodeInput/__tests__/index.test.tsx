@@ -6,9 +6,6 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { MockAnimation } from "@/__tests__/react-native-mock";
 import { CodeInput } from "@/components/CodeInput";
 
-vi.mock("react-native", async () =>
-  (await import("@/__tests__/react-native-mock")).createReactNativeMock(),
-);
 vi.mock("react-native-keyboard-controller", async () =>
   (await import("@/__tests__/keyboard-controller-mock")).createKeyboardControllerMock(),
 );

@@ -8,9 +8,6 @@ import { onReselect } from "@/core/navigation/reselect";
 import { THEME } from "@/theme";
 import { WINDOW_CONTROLS_HEIGHT, type ResponsiveLayout } from "@/theme/layout";
 
-vi.mock("react-native", async () =>
-  (await import("@/__tests__/react-native-mock")).createReactNativeMock(),
-);
 vi.mock("@react-native-vector-icons/material-icons/static", async () =>
   (await import("@/__tests__/react-native-mock")).createIconMock(),
 );

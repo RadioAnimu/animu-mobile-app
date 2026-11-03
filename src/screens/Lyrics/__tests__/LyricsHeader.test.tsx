@@ -6,7 +6,6 @@ import { LyricsHeader } from "@/screens/Lyrics/LyricsHeader";
 import { THEME } from "@/theme";
 import type { ResponsiveLayout } from "@/theme/layout";
 
-vi.mock("react-native", async () => (await import("@/__tests__/react-native-mock")).createReactNativeMock());
 vi.mock("react-native-gesture-handler", () => ({
   usePanGesture: () => ({}),
   GestureDetector: ({ children }: { children: ReactNode }) => <>{children}</>,

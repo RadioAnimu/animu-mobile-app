@@ -4,9 +4,6 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { PrimaryButton } from "@/components/PrimaryButton";
 
-vi.mock("react-native", async () =>
-  (await import("@/__tests__/react-native-mock")).createReactNativeMock(),
-);
 vi.mock("@react-native-vector-icons/material-icons/static", async () =>
   (await import("@/__tests__/react-native-mock")).createIconMock(),
 );

@@ -9,7 +9,6 @@ const mocks = vi.hoisted(() => ({
   availability: "available" as string,
 }));
 
-vi.mock("react-native", async () => (await import("@/__tests__/react-native-mock")).createReactNativeMock());
 vi.mock("@react-navigation/native", () => ({ useNavigation: () => ({ navigate: mocks.navigate }) }));
 vi.mock("@/components/KaraokeMicIcon", () => ({
   KaraokeMicIcon: ({ color }: { color: string }) => <i data-icon="karaoke-mic" data-color={color} />,

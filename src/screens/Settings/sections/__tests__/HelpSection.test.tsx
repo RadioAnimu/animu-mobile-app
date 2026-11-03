@@ -12,7 +12,6 @@ const mocks = vi.hoisted(() => ({
   dict: {} as Record<string, string | undefined>,
 }));
 
-vi.mock("react-native", async () => (await import("@/__tests__/react-native-mock")).createReactNativeMock());
 vi.mock("@/components/Icon", () => ({ Icon: ({ name }: { name: string }) => <i data-icon={name} /> }));
 vi.mock("@/components/SectionTitle", () => ({ SectionTitle: ({ title }: { title: string }) => <h2>{title}</h2> }));
 vi.mock("@/hooks/useStackedRows", () => ({ useStackedRows: () => false }));

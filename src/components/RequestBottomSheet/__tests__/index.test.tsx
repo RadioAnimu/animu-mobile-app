@@ -13,9 +13,6 @@ import { RequestBottomSheet } from "@/components/RequestBottomSheet";
 import { trackSource } from "@/components/RequestBottomSheet/track-source";
 import type { MusicRequest } from "@/core/domain/music-request";
 
-vi.mock("react-native", async () =>
-  (await import("@/__tests__/react-native-mock")).createReactNativeMock(),
-);
 vi.mock("react-native-safe-area-context", () => ({
   useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }),
 }));

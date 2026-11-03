@@ -18,9 +18,6 @@ import { fireLayout } from "@/__tests__/react-native-mock";
 import type { LyricLine } from "@/core/lyrics/types";
 import type { SharedValue } from "react-native-reanimated";
 
-vi.mock("react-native", async () =>
-  (await import("@/__tests__/react-native-mock")).createReactNativeMock(),
-);
 vi.mock("react-native-reanimated", async () =>
   (await import("@/__tests__/reanimated-mock")).createReanimatedMock(),
 );

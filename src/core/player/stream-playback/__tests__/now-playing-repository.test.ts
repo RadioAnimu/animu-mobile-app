@@ -767,13 +767,17 @@ describe("NowPlayingRepository", () => {
     expect(changes).toHaveLength(1);
   });
 
-  it("dedupes repeated rows within one payload (first = newest wins)", async () => {
-    const first = makeTrack({ id: "-1", raw: "Repeat - Song", duration: 0 });
+  it("dedupes repeated rows within one payload (on a tie, the first row wins)", async () => {
+    // One start for both: rows stamped a millisecond apart would make the
+    // second one the newer play, and the merge rightly keeps the newest.
+    const startTime = new Date(Date.now() - 10_000);
+    const first = makeTrack({ id: "-1", raw: "Repeat - Song", duration: 0, startTime });
     const second = makeTrack({
       id: "-1",
       raw: "Repeat - Song",
       duration: 0,
       artwork: "cover-2.jpg",
+      startTime,
     });
 
     const { repository } = makeRepository({

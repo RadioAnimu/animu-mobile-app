@@ -14,9 +14,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AccountEmails } from "@/components/AccountEmails";
 import { isAppleRelayEmail } from "@/components/AccountEmails/relay-email";
 
-vi.mock("react-native", async () =>
-  (await import("@/__tests__/react-native-mock")).createReactNativeMock(),
-);
 vi.mock("react-native-keyboard-controller", async () =>
   (await import("@/__tests__/keyboard-controller-mock")).createKeyboardControllerMock(),
 );

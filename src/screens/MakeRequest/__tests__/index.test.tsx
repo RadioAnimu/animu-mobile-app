@@ -13,9 +13,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { TrackRequestContext } from "@/components/RequestTrack/context";
 import { MakeRequest } from "@/screens/MakeRequest";
 
-vi.mock("react-native", async () =>
-  (await import("@/__tests__/react-native-mock")).createReactNativeMock(),
-);
 vi.mock("react-native-keyboard-controller", async () =>
   (
     await import("@/__tests__/keyboard-controller-mock")

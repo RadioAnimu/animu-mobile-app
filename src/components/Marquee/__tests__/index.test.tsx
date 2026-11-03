@@ -6,10 +6,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { fireLayout } from "@/__tests__/react-native-mock";
 import { Marquee, MarqueeGroup } from "@/components/Marquee";
 
-vi.mock("react-native", async () =>
-  (await import("@/__tests__/react-native-mock")).createReactNativeMock(),
-);
-
 const app = vi.hoisted(() => ({ backgrounded: false }));
 vi.mock("@/contexts/app-state/AppStateProvider", () => ({
   useIsBackgrounded: () => app.backgrounded,

@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 
 import { resolveLayout } from "@/theme/layout";
 import {
@@ -9,12 +9,8 @@ import {
   splitContentWidth,
 } from "@/screens/Home/metrics";
 
-vi.mock("react-native", async () =>
-  (await import("@/__tests__/react-native-mock")).createReactNativeMock(),
-);
-
-// The mocked screen is 393pt wide, so `scale()` is 1 and every number below
-// is in design points.
+// The shared setup's mocked screen is 393pt wide, so `scale()` is 1 and every
+// number below is in design points.
 const PHONE = resolveLayout(852, 393, { top: 0, right: 59, bottom: 21, left: 59 });
 const IPAD = resolveLayout(1180, 820, { top: 24, right: 0, bottom: 20, left: 0 });
 const SHORT_WIDE = resolveLayout(960, 540);

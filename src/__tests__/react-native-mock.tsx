@@ -1,10 +1,13 @@
 /**
  * Minimal DOM-backed stand-in for `react-native`, for jsdom component tests.
  *
- * Usage (factories are hoisted, so import inside the factory):
+ * Every test file gets it by default (`src/__tests__/setup.ts`). To change a
+ * piece, mock again and extend it (factories are hoisted, so import inside):
  *
- *   vi.mock("react-native", async () =>
- *     (await import("@/__tests__/react-native-mock")).createReactNativeMock());
+ *   vi.mock("react-native", async () => ({
+ *     ...(await import("@/__tests__/react-native-mock")).createReactNativeMock(),
+ *     Platform: { OS: "android", select: (o: { android?: unknown }) => o.android },
+ *   }));
  *
  * Host components render plain DOM elements and forward the props a behavior
  * test needs: accessibility label/role/state, testID, press and text-change

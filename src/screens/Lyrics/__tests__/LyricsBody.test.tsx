@@ -4,7 +4,6 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { Lyrics } from "@/core/lyrics";
 import { LyricsBody } from "@/screens/Lyrics/LyricsBody";
 
-vi.mock("react-native", async () => (await import("@/__tests__/react-native-mock")).createReactNativeMock());
 vi.mock("@/components/Icon", () => ({ Icon: ({ name }: { name: string }) => <i data-icon={name} /> }));
 vi.mock("@/screens/Lyrics/Segments", () => ({
   SegmentColumns: ({ segments }: { segments: { text: string; label: string }[] }) => (
