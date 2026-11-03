@@ -168,6 +168,13 @@ const setup = () => {
     hearing,
     sampler,
     ticker: { start: vi.fn(), stop: vi.fn() },
+    stats: {
+      initialize: vi.fn(async () => {}),
+      onPlaybackStarted: vi.fn(),
+      onPlaybackStopped: vi.fn(),
+      onAudibleTick: vi.fn(),
+      onTrackHeard: vi.fn(),
+    },
     onTrackAnnounced,
   } as unknown as PlayerServiceDependencies);
 

@@ -265,7 +265,7 @@ export const PlayerProvider: React.FC<{
       changeStream,
       refreshData,
       refreshHistory,
-      defaultArtwork: playerServiceInstance.defaultArtwork,
+      defaultArtwork: playerServiceInstance.artwork.defaultCover,
       // Re-read on every snapshot change so it flips true once the native
       // player exists (created on first play).
       visualizerSupported: playerServiceInstance.isVisualizerSupported,

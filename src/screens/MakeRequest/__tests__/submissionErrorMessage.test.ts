@@ -43,8 +43,9 @@ describe("getSubmissionErrorMessage", () => {
     expect(message).not.toContain("{time}");
   });
 
-  it("uses the recent variant of PEDIBLOCK when no detail is given", () => {
+  it("uses the recent variant of PEDIBLOCK without a readable time", () => {
     expect(getSubmissionErrorMessage(t, "PEDIBLOCK")).toBe("PEDIBLOCK_RECENT");
+    expect(getSubmissionErrorMessage(t, "PEDIBLOCK", "soon")).toBe("PEDIBLOCK_RECENT");
   });
 
   it("accepts both spellings of STRIKE AND OUT", () => {

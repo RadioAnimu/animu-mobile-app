@@ -22,43 +22,27 @@ const BASE_RETRY_DELAY_MS = 2000;
 /** Max backoff delay on consecutive network errors (ms) */
 const MAX_RETRY_DELAY_MS = 30_000;
 const DAY_MS = 24 * 60 * 60 * 1000;
-/**
- * Cap on each in-memory history feed. A radio left on all day accumulates a
- * track every few minutes; without a cap the arrays (and the O(n) dedup walk
- * over them) grow for the whole session. Far more rows than anyone scrolls.
- */
+/** Cap on each in-memory history feed (a radio left on all day keeps growing them). */
 const MAX_HISTORY_TRACKS = 300;
 /**
- * How many on-air items the repository remembers after the current one,
- * filler included. An ICY title is heard a stream lag after the station
- * announced it, so a jingle shorter than the lag (the 4–5 s request jingle)
- * is already replaced by the next item when it is heard — and the played
- * history drops filler. A few items cover any lag a relay can have.
+ * On-air items kept before the current one, filler included: a jingle shorter
+ * than the stream lag (the 4–5 s request jingle) is already replaced when its
+ * ICY title is heard, and the played history drops filler.
  */
 const MAX_RECENT_ON_AIR = 10;
 /**
- * Hard limit for a single refresh run (ms). Slightly above the HTTP abort
- * timeout so foreground timeouts always win. In the BACKGROUND, RN JS
- * timers freeze — the fetch's `setTimeout`-based abort never fires, a
- * stalled fetch never settles and `refreshing` would latch forever (every
- * later poll silently no-ops → the media session freezes on an old track).
- * `expireStuckRefresh()` — driven by the native heartbeat — breaks the
- * latch and invalidates the stuck run via the epoch guard.
+ * Hard limit for one refresh run (ms), slightly above the HTTP abort timeout so
+ * that wins in the foreground. In the background the fetch's JS-timer abort
+ * never fires; {@link NowPlayingRepository.expireStuckRefresh} breaks the latch.
  */
 const REFRESH_STALE_MS = 30_000;
 /**
- * How long after the last SSE event the live stream is considered a
- * trustworthy source for track/listeners. The daemon pushes at ~1 Hz and
- * reconnects on its own; past this gap the repository silently reverts the
- * metadata part of the poll to HTTP until the stream talks again.
+ * How long after the last SSE event the stream still owns track/listeners (the
+ * daemon pushes at ~1 Hz); past it the poll's metadata leg goes back to HTTP.
  */
 const LIVE_STALE_MS = 15_000;
 
-/**
- * Picks the legs that actually failed out of one refresh run. A metadata
- * failure whose data the live stream owns is not an outage: its stale HTTP
- * answer is discarded exactly like a successful stale payload would be.
- */
+/** The legs of one run that really failed: a metadata leg the live stream owns does not count. */
 const collectRefreshFailures = (
   metadata: PromiseSettledResult<{
     track: Track | null;
@@ -77,8 +61,7 @@ const collectRefreshFailures = (
   return failures;
 };
 
-/**
- * What the repository needs from the network — injectable for tests. */
+/** What the repository needs from the network. */
 export interface NowPlayingFetchers {
   getStreamMetadata(
     artworkQuality?: ArtworkQuality,
@@ -90,10 +73,7 @@ export interface NowPlayingFetchers {
     artworkQuality?: ArtworkQuality,
     defaultCover?: string,
   ): Promise<Track[]>;
-  /**
-   * Realtime now-playing source (SSE). Optional — when absent the
-   * repository falls back to pure HTTP polling.
-   */
+  /** Realtime now-playing source (SSE); without it, HTTP polling only. */
   subscribeLive?(
     quality: ArtworkQuality,
     defaultCover: string,
@@ -104,43 +84,28 @@ export interface NowPlayingFetchers {
       onError?: (error: Error) => void;
     },
   ): () => void;
-  /**
-   * Fires the live client's overdue reconnect / idle timeout (JS timers,
-   * frozen in the background on Android). Optional like `subscribeLive`.
-   */
+  /** Fires the live client's overdue reconnect / idle timeout (JS timers freeze on Android). */
   tickLive?(): void;
-  /**
-   * Aborts every in-flight HTTP request. Called by `expireStuckRefresh()`:
-   * the native heartbeat drives the abort because the fetch's own
-   * JS-timer timeout freezes in the background.
-   */
+  /** Aborts every in-flight HTTP request (see `expireStuckRefresh`). */
   abortInFlightRequests(): void;
 }
 
 export interface NowPlayingRepositoryOptions {
   fetchers: NowPlayingFetchers;
-  /** Runtime user setting — cover artwork quality. */
+  /** The cover quality setting. */
   getCoverQuality: () => ArtworkQuality;
-  /** Runtime resolver value — bundled default cover for missing artwork. */
+  /** The bundled default cover for missing artwork. */
   getDefaultCover: () => string;
   timer: Timer;
   /**
-   * The station-timeline "now" (epoch ms) used to schedule the predictive
-   * track-end refresh. Defaults to `Date.now`; the player injects the live
-   * point on the server's clock (the device clock plus the applied skew), so
-   * the refresh fires when the *station* crosses the track's end — it is
-   * about the station's data, and there may be no audio at all (not the
-   * audible clock, which trails the live edge by the stream lag and exists
-   * only while playing). Tests leave it unset for a real clock.
+   * The station's "now" (epoch ms) for the track-end refresh: the server's
+   * clock, not the audible one — it is about the station's data, and there may
+   * be no audio. Defaults to `Date.now`.
    */
   getNow?: () => number;
 }
 
-/**
- * Which fields actually changed in the last merge. The orchestrator maps
- * these onto store emissions: track/program → now-playing UI, listeners/
- * histories → poll-data UI.
- */
+/** Which fields changed in the last merge (the orchestrator maps them to stores). */
 export interface NowPlayingChange {
   trackChanged: boolean;
   programChanged: boolean;
@@ -168,29 +133,22 @@ function firstOccurrences(tracks: Track[]): Track[] {
 }
 
 /**
- * Owns all "what is on air right now" data: current track, program,
- * listeners and the two history lists. Merges fetched data with diffing,
- * schedules the predictive track-end refresh, and retries failed fetches
- * with exponential backoff. Emits nothing to React directly — it notifies
- * the orchestrator with the change flags, which owns the stores.
+ * Owns "what is on air": track, program, listeners and the two histories.
+ * Merges fetched data with diffing, schedules the track-end refresh, retries
+ * with backoff, and reports change flags to the orchestrator (no React).
  */
 export class NowPlayingRepository {
-  /** Fired whenever merged data actually changed. Wired by the orchestrator. */
+  /** Fired whenever merged data actually changed. */
   onChange: (change: NowPlayingChange) => void = () => {};
   /**
-   * Wired by the orchestrator: may the realtime stream keep running? Asked
-   * before every SSE event is ingested (song, listeners, open). Answering
-   * `false` drops the event untouched and suspends the repository (see
-   * {@link setLiveStreamActive}) — the event is the only code that runs in
-   * the background once JS timers are frozen, so it is where a deadline can
-   * be enforced.
+   * May the realtime stream keep running? Asked before every SSE event — the
+   * only code running once JS timers freeze, so where a deadline is enforced.
+   * `false` drops the event and suspends (see {@link setLiveStreamActive}).
    */
   shouldStayLive: () => boolean = () => true;
   /**
-   * Wired by the orchestrator: nothing visible needs the station extras right
-   * now (the app is hidden and no audio is wanted). A track change then skips
-   * the played-history fetch, and {@link historyStale} remembers it so the
-   * return can catch up.
+   * Nothing visible needs the extras (hidden, no audio wanted): a track change
+   * skips the played-history fetch, and {@link historyStale} remembers it.
    */
   isQuiet: () => boolean = () => false;
 
@@ -205,24 +163,16 @@ export class NowPlayingRepository {
   private inFlight: Promise<boolean> | null = null;
   private showProgressValue = false;
   private refreshing = false;
-  /** Bumped by every new run AND by the watchdog — late settlers compare. */
+  /** Bumped by every new run and by the watchdog: late settlers compare. */
   private refreshEpoch = 0;
   private refreshStartedAt = 0;
   private trackEndTimerId: number | null = null;
-  /**
-   * Overdue refreshes already run for the current track identity. A track
-   * the station keeps reporting past its metadata end (long song, metadata
-   * lag, gap between songs) would otherwise be re-fetched every second for
-   * as long as it stays overdue. Reset when the identity changes.
-   */
+  /** Overdue refreshes run for the current track (backs off a track reported past its end). */
   private overdueRefreshes = 0;
   private disposed = false;
   /**
-   * Automatic station work is switched off ({@link setLiveStreamActive}
-   * `false`): no SSE, no predictive track-end refresh, no retry backoff, and
-   * `refresh()` is a no-op. A run already in flight is dropped when it
-   * settles — its late completion can neither write state nor re-arm a
-   * timer. Cleared by `setLiveStreamActive(true)`.
+   * Automatic work is off ({@link setLiveStreamActive}): no SSE, no timers,
+   * `refresh()` a no-op, and a run in flight is dropped when it settles.
    */
   private suspended = false;
   /** A track change skipped the played-history fetch (see {@link isQuiet}). */
@@ -235,19 +185,12 @@ export class NowPlayingRepository {
   /** Date.now() of the last SSE event (song or listeners); null = no data yet. */
   private lastLiveEventAt: number | null = null;
   /**
-   * The stream's last `song_change` is the station's current item. Cleared by
-   * a live error — a song payload that failed validation is dropped there, and
-   * the daemon only sends the next one at the next title change — until a
-   * song lands again. `listeners` pushes keep the stream fresh but can't
-   * vouch for the track, so the poll's HTTP leg stays on meanwhile.
+   * The stream's last `song_change` is the current item. Cleared by a live
+   * error (a payload that failed validation is dropped there) until a song
+   * lands again; `listeners` pushes can't vouch for the track.
    */
   private liveTrackCurrent = false;
-  /**
-   * Consecutive failed refresh runs. Failures are logged once per streak —
-   * the backoff chain re-runs every few seconds, so one line per attempt is
-   * what turned an upstream outage into a log flood. Reset on success and
-   * whenever automatic work is suspended or torn down.
-   */
+  /** Consecutive failed runs: logged once per streak, not per backoff retry. */
   private refreshFailureStreak = 0;
 
   constructor(private readonly options: NowPlayingRepositoryOptions) {
@@ -294,11 +237,7 @@ export class NowPlayingRepository {
     return this.playedStale;
   }
 
-  /**
-   * The items on air before the current one, newest first — jingles, idents
-   * and transitions included, with their station timing. What a heard ICY
-   * title is matched against once the station has moved past it.
-   */
+  /** The items on air before the current one, newest first, filler included. */
   get recentOnAirTracks(): Track[] {
     return this.recentOnAir;
   }
@@ -353,8 +292,6 @@ export class NowPlayingRepository {
     this.currentTrackValue = track;
     this.overdueRefreshes = 0;
     if (!isRealTrack(track)) return;
-    // Nobody is looking at the history (hidden, nothing playing): skip the
-    // request, the return catches up.
     if (this.isQuiet()) {
       this.playedStale = true;
       return;
@@ -377,11 +314,9 @@ export class NowPlayingRepository {
   // ── Realtime stream (SSE) ──
 
   /**
-   * Attaches the SSE now-playing stream, replacing the HTTP metadata poll
-   * while it is healthy. The daemon seeds a new connection with the current
-   * state, so no one-shot fetch is needed; the poll keeps running for
-   * program/history and silently re-covers track/listeners whenever the
-   * stream goes quiet past {@link LIVE_STALE_MS}.
+   * Attaches the SSE stream, which replaces the HTTP metadata leg while healthy
+   * (the daemon seeds a new connection with the current state); the poll keeps
+   * program/history and covers track/listeners past {@link LIVE_STALE_MS}.
    */
   startLive(): void {
     if (
@@ -401,13 +336,10 @@ export class NowPlayingRepository {
         onListeners: (listeners) => this.ingestListeners(listeners),
         onOpen: () => {
           if (!this.admitLive()) return;
-          // Fresh connection (or reconnect) — drop the stale marker so the
-          // next poll trusts the live source again.
           this.lastLiveEventAt = Date.now();
         },
         onError: (error) => {
-          // The client reconnects with its own backoff; this only logs.
-          // The stale marker below is what re-routes the poll to HTTP.
+          // The client reconnects itself; the stale marker re-routes the poll.
           console.warn("[NowPlayingRepository] live stream error:", error);
           this.lastLiveEventAt = null;
           this.liveTrackCurrent = false;
@@ -416,10 +348,7 @@ export class NowPlayingRepository {
     );
   }
 
-  /**
-   * Rebuilds the live surface when the cover-quality setting changed (the
-   * quality is baked into the SSE client's track mapper). Idempotent.
-   */
+  /** Rebuilds the live client when the cover quality changed (baked into its mapper). */
   private ensureLiveCurrent(): void {
     if (this.disposed || !this.liveSubscription) return;
     const quality = this.options.getCoverQuality();
@@ -429,15 +358,9 @@ export class NowPlayingRepository {
   }
 
   /**
-   * Switches the station's automatic work on or off (the background-idle
-   * policy; see `BackgroundIdle`). Safe on any lifecycle stage and idempotent
-   * in both directions.
-   *
-   * Off = **suspended**: the SSE closes, the predictive track-end refresh and
-   * the retry backoff are cancelled, and nothing re-arms them until it is
-   * back on. On = the stream is re-attached (the daemon seeds the current
-   * state); the caller owns the catch-up fetches (`isSuspended` tells it a
-   * resume is happening, read before the call).
+   * Switches the automatic work on or off (the background-idle policy).
+   * Idempotent. Off suspends everything; on re-attaches the stream, and the
+   * caller owns the catch-up (read `isSuspended` before the call).
    */
   setLiveStreamActive(active: boolean): void {
     if (active) {
@@ -455,11 +378,9 @@ export class NowPlayingRepository {
     this.overdueRefreshes = 0;
     this.retryScheduler.reset();
     this.refreshFailureStreak = 0;
-    // A run in flight belongs to the session being put to sleep. Left alone,
-    // a resume before it settles would let its stale payload through the
-    // guard (over the fresh stream's state) and its latch would turn the
-    // resume's own refresh into a no-op — with no foreground tick to retry
-    // when the resume is a lock-screen play. Invalidate it like the watchdog.
+    // Invalidate a run in flight like the watchdog: a resume before it settles
+    // would take its stale payload, and its latch would no-op the resume's own
+    // refresh (with no foreground tick to retry a lock-screen play).
     if (this.refreshing) {
       this.refreshEpoch++;
       this.refreshing = false;
@@ -467,11 +388,7 @@ export class NowPlayingRepository {
     }
   }
 
-  /**
-   * Gate for every SSE event: ask the orchestrator whether the stream may
-   * keep running. A refusal closes it on the spot — the event that carried
-   * the news is dropped with no state write and no side effect.
-   */
+  /** Gate for every SSE event: a refusal suspends and drops the event. */
   private admitLive(): boolean {
     if (this.disposed || this.suspended) return false;
     if (this.shouldStayLive()) return true;
@@ -487,33 +404,21 @@ export class NowPlayingRepository {
     unsubscribe?.();
   }
 
-  /**
-   * Realtime ingestion of a `song_change` push. Semantically the merge half
-   * of `refresh()` — same diffing, same change events — just driven by the
-   * stream instead of the poll. Runs synchronously (no epoch guard: the
-   * source is a push, not a fetch).
-   */
+  /** A `song_change` push: the merge half of `refresh()`, driven by the stream. */
   private ingestSong(song: LiveNowPlaying): void {
     if (!this.admitLive()) return;
     this.lastLiveEventAt = Date.now();
-    // Only a payload naming a track vouches for it: the offline placeholder
-    // (no track) leaves the old one in place, which the poll must re-check.
+    // Only a payload naming a track vouches for it; the offline placeholder
+    // leaves the old one in place for the poll to re-check. Filler becomes
+    // current too, like the HTTP leg.
     this.liveTrackCurrent = song.track != null;
 
-    // Follow the station's on-air item exactly like the HTTP leg did: real
-    // songs AND filler (jingles/idents/transitions) both become current, so
-    // the UI and the media session track the broadcast instead of freezing
-    // on the previous song. Only a payload with no track at all (offline
-    // placeholder) leaves the current state untouched.
     const track = song.track;
     let trackChanged = false;
     if (track && this.trackIdentityChanged(track)) {
       this.applyTrack(track);
       trackChanged = true;
-      // Progress follows the poll's rule: a seek bar only for real,
-      // non-live tracks. Recomputing here is what keeps the media
-      // session's bar from staying stuck off after a live push (filler
-      // or a live block can flip it off before the next poll lands).
+      // Recomputed here too, or the seek bar stays off after a filler push.
       this.updateShowProgress(this.currentProgramValue?.isLive ?? false);
     }
 
@@ -546,13 +451,9 @@ export class NowPlayingRepository {
   }
 
   /**
-   * ── HTTP poll, invalidated by live data past the staleness window ──
-   *
-   * `forceMetadata`: the player heard a title the station data does not
-   * name, so the live stream evidently missed an item (it sends each one
-   * once). The HTTP metadata leg runs even while the stream looks healthy,
-   * and its track wins unless a `song_change` lands meanwhile. A run already
-   * in flight may have skipped that leg, so a forced call runs after it.
+   * The HTTP poll. `forceMetadata`: a heard title the data does not name, so
+   * the stream missed an item — run the metadata leg even while it looks
+   * healthy, after any run in flight (which may have skipped that leg).
    */
   async refresh(options: { forceMetadata?: boolean } = {}): Promise<boolean> {
     if (this.disposed || this.suspended) return false;
@@ -575,19 +476,12 @@ export class NowPlayingRepository {
     const epoch = this.refreshEpoch;
     this.refreshStartedAt = Date.now();
 
-    // Live healthy → skip the HTTP metadata leg; ingest already owns
-    // track/listeners and re-writes them on the next push. A live track is
-    // required for the skip: while the stream only pushed placeholders
-    // (offline station), the HTTP leg must still have its chance to fill
-    // state exactly like it did before SSE existed.
+    // A healthy stream with a track skips the HTTP metadata leg.
     this.ensureLiveCurrent();
     const liveFresh = this.isLiveAuthoritative();
 
     try {
-      // The three legs are independent: one endpoint being down must not
-      // discard the other two's fresh data. `metadata` can never fail on a
-      // live skip leg (it is a snapshot), so a rejection here means the
-      // HTTP metadata call itself failed.
+      // Independent legs: one endpoint down must not discard the others' data.
       const [metadata, program, newRequestedTracks] = await Promise.allSettled([
         liveFresh
           ? Promise.resolve({
@@ -606,21 +500,13 @@ export class NowPlayingRepository {
         ),
       ]);
 
-      // Invalidated while in flight (watchdog expiry, dispose or suspend):
-      // the stuck run's late settler must not write state or re-arm timers —
-      // a newer run already owns the repository, or nobody does.
+      // Invalidated while in flight (watchdog, dispose, suspend): write nothing.
       if (this.isRefreshInvalidated(epoch)) return false;
 
-      // Same protection against the LIVE source: this HTTP run started on
-      // a stale stream, but a song_change push may have landed while it
-      // was in flight — pushing authoritative state. The stale HTTP
-      // payload must not walk the live data backwards.
+      // A push may have landed meanwhile: the HTTP payload must not walk it back.
       const liveOwns = this.isLiveAuthoritative();
 
-      // A leg whose data the live stream owns did not really fail: its
-      // stale HTTP answer is simply discarded, exactly like its payload.
-      // Computed BEFORE the merge decision below: a skipped payload must
-      // not swallow a sibling leg's failure that needs its own retry.
+      // Before the merge: a skipped payload must not swallow a sibling's failure.
       const failures = collectRefreshFailures(
         metadata,
         program,
@@ -635,10 +521,7 @@ export class NowPlayingRepository {
         liveOwns,
       );
       if (!applied) {
-        // The payload is skipped (no track to install), but a rejected
-        // program/requests leg in the same run still failed on its own:
-        // before the allSettled split it made the whole run fail and
-        // retry, so the retry must survive the skip.
+        // Skipped payload, but a failed sibling leg still needs its retry.
         if (failures.length > 0) {
           this.reportRefreshFailure(failures[0]);
           this.scheduleRetry();
@@ -647,40 +530,29 @@ export class NowPlayingRepository {
       }
 
       if (failures.length > 0) {
-        // Keep what did arrive (the partial payload is applied above), but
-        // report the run as failed so the backoff chain retries the rest.
+        // Keep what arrived, retry the rest; the applied part may have moved
+        // the track, so re-aim the track-end timer (its own timer).
         this.reportRefreshFailure(failures[0]);
         this.scheduleRetry();
-        // The applied part may have moved the track (or flipped the program
-        // live), leaving the predictive timer pointed at the OLD track's
-        // end: recompute it from current state. Its own timer, so this does
-        // not disturb the retry chain armed just above.
         this.scheduleTrackEndRefresh();
         return false;
       }
 
-      // ── Success: reset error backoff & schedule track-end refresh ──
       this.reportRefreshRecovered();
       this.retryScheduler.reset();
       this.scheduleTrackEndRefresh();
 
-      // Only identity changes count as "changed": listener/request ticks
-      // reach the badge UI through onChange but never re-push metadata.
+      // Only identity changes count (listener ticks never re-push metadata).
       return applied.trackChanged || applied.programChanged;
     } catch (error) {
-      // Invalidated run: its failure belongs to the past — no logging
-      // noise, no retry re-arming over a newer run's head.
       if (this.isRefreshInvalidated(epoch)) return false;
 
       this.reportRefreshFailure(error);
-
-      // ── Network / API error: exponential backoff retry ──
       this.scheduleRetry();
 
       return false;
     } finally {
-      // Only the current run may release the latch — an expired run's
-      // late settler must not unlock a newer run's single-flight guard.
+      // Only the current run releases the latch, not an expired one's settler.
       if (epoch === this.refreshEpoch) this.refreshing = false;
     }
   }
@@ -696,11 +568,7 @@ export class NowPlayingRepository {
     });
   }
 
-  /**
-   * Merges one run's settled legs. Returns `null` when the payload must be
-   * skipped entirely: the HTTP metadata leg succeeded but named no track,
-   * and the live stream cannot vouch for one.
-   */
+  /** Merges one run's settled legs; `null` when the metadata leg named no track. */
   private applySettledRefresh(
     metadata: PromiseSettledResult<{
       track: Track | null;
@@ -712,9 +580,7 @@ export class NowPlayingRepository {
   ): { trackChanged: boolean; programChanged: boolean } | null {
     const track = metadata.status === "fulfilled" ? metadata.value.track : null;
 
-    // A *failed* metadata leg is handled by the caller (partial apply +
-    // backoff); this is the case where the request succeeded but returned
-    // no track, which was never retried.
+    // Succeeded with no track (a failed leg is the caller's): not retried.
     if (!liveOwns && metadata.status === "fulfilled" && !track) {
       console.warn(
         "[NowPlayingRepository] API returned invalid track data, skipping update",
@@ -736,12 +602,8 @@ export class NowPlayingRepository {
   }
 
   /**
-   * Logs a failed refresh run — once per streak. The retry chain re-runs
-   * every few seconds while an endpoint is down, so repeating the same line
-   * per attempt is what flooded the device log; the recovery line closes the
-   * streak. Typed API failures (the expected shape of an outage) stay at
-   * `warn` with a single readable line; anything else is a genuine bug and
-   * keeps `error` with the object.
+   * Logs a failed run once per streak. Typed API failures (an outage) are one
+   * `warn` line; anything else is a bug and keeps `error` with the object.
    */
   private reportRefreshFailure(error: unknown): void {
     this.refreshFailureStreak += 1;
@@ -768,11 +630,7 @@ export class NowPlayingRepository {
     );
   }
 
-  /**
-   * Whether the live (SSE) source currently owns track/listener state: a
-   * subscription exists, it has delivered a track with no error since, and
-   * its last event is inside the staleness window.
-   */
+  /** The stream owns track/listeners: it delivered a track, no error since, and is fresh. */
   private isLiveAuthoritative(): boolean {
     const vouchesForTrack =
       this.liveSubscription != null && this.liveTrackCurrent && this.currentTrackValue != null;
@@ -784,14 +642,8 @@ export class NowPlayingRepository {
   }
 
   /**
-   * Writes one HTTP poll's payload into the repository and notifies once.
-   * Only identity changes (track/program) are reported back: listener and
-   * request ticks reach the badge UI through `onChange` but never re-push
-   * metadata.
-   *
-   * `program` / `newRequestedTracks` are `null` when that leg failed: the
-   * repository keeps its previous value instead of clearing it, so a partial
-   * outage never blanks the UI.
+   * Writes one poll's payload and notifies once; returns the identity changes.
+   * A `null` leg failed: the previous value stays, so an outage never blanks the UI.
    */
   private applyRefreshPayload(payload: {
     track: Track | null;
@@ -814,33 +666,30 @@ export class NowPlayingRepository {
       if (programChanged) this.currentProgramValue = program;
     }
 
-    // Enable progress for real, non-live tracks (radio keeps playing
-    // server-side so we always show progress). Recompute on EITHER change:
-    // a live block starting/ending while the same track stays on air must
-    // still flip the seek bar off/on. A failed program leg keeps the
-    // program already installed.
+    // On either change: a live block starting with the same track on air
+    // must still flip the seek bar.
     if (trackChanged || programChanged) {
       this.updateShowProgress(
         program?.isLive ?? this.currentProgramValue?.isLive ?? false,
       );
     }
 
-    // Same live-authority rule for the listener count: on a skip leg it
-    // is the snapshot we just installed out of (never differs); after a
-    // mid-flight push, the HTTP count is stale and must not regress it.
+    // Same live-authority rule: a stale HTTP count must not regress a push.
     const listenersChanged =
       !liveOwns && listeners != null && this.mergeListeners(listeners);
 
+    // The requests list mirrors the feed; compared row by row (`raw`), so the
+    // same song requested twice in a row still updates it.
     const requestedChanged =
       newRequestedTracks != null &&
       newRequestedTracks.length > 0 &&
-      newRequestedTracks[0].raw !== (this.requestedTracks[0]?.raw || "");
+      (newRequestedTracks.length !== this.requestedTracks.length ||
+        newRequestedTracks.some((track, i) => track.raw !== this.requestedTracks[i].raw));
     if (requestedChanged) {
       this.requestedTracks = newRequestedTracks;
     }
 
-    // Note: the fire-and-forget `refreshHistory("played")` triggered by a
-    // track change reports its own playedChanged flag when it completes.
+    // A track change's played-history fetch reports its own flag.
     const changed =
       trackChanged || programChanged || listenersChanged || requestedChanged;
 
@@ -858,12 +707,9 @@ export class NowPlayingRepository {
   }
 
   /**
-   * Heartbeat watchdog: expires a refresh run that has outlived
-   * `REFRESH_STALE_MS`. In the background, JS timers freeze — a stalled
-   * fetch's `setTimeout`-based abort never fires, the run never settles
-   * and `refreshing` would latch forever, freezing all now-playing data
-   * (media session + UI stuck on an old track). Called from the native
-   * 1 Hz heartbeat, which keeps ticking where JS timers don't.
+   * Watchdog, driven by the native 1 Hz heartbeat: expires a run older than
+   * `REFRESH_STALE_MS`. In the background a stalled fetch never settles (its
+   * abort is a frozen JS timer), and the latch would freeze all now-playing data.
    */
   expireStuckRefresh(): void {
     if (!this.refreshing) return;
@@ -873,22 +719,15 @@ export class NowPlayingRepository {
         Date.now() - this.refreshStartedAt
       }ms — releasing latch`,
     );
-    // Invalidate the stuck run: its late settler is epoch-guarded and
-    // will discard its payload without writing state.
     this.refreshEpoch++;
     this.refreshing = false;
-    // Cut the hung sockets loose — the fetch's own abort timeout is a JS
-    // timer and never fires in the background. The rejected run is
-    // discarded by the epoch guard; the next poll opens fresh connections.
+    // Cut the hung sockets loose; the next poll opens fresh connections.
     this.options.fetchers.abortInFlightRequests();
   }
 
   /**
-   * Heartbeat for the live stream's timers, driven by the native 1 Hz
-   * readings like {@link expireStuckRefresh}: its reconnect backoff and
-   * dead-socket timeout are JS timers, which do not run in the background
-   * on Android — a stream dropped there would otherwise stay down until the
-   * app returned to the foreground.
+   * Heartbeat for the live stream's JS timers (reconnect, dead socket), which
+   * do not run in the background on Android: a dropped stream would stay down.
    */
   tickLive(): void {
     if (this.disposed || !this.liveSubscription) return;
@@ -896,13 +735,10 @@ export class NowPlayingRepository {
   }
 
   /**
-   * Incrementally merges a history type into its list.
-   *
-   * The feed's rows join the kept ones newest-first, one row per song
-   * (`raw`): a song played again moves up with its new start, instead of the
-   * old row staying put. The walk stops at the first feed row older than a
-   * day — everything after it is older still, and only an eviction could
-   * have dropped it.
+   * Incrementally merges a history type into its list: the feed's rows join
+   * the kept ones newest-first, one row per song (`raw`), so a song played
+   * again moves up with its new start. The walk stops at the first feed row
+   * older than a day — everything after it is older still.
    */
   async refreshHistory(type: HistoryType): Promise<void> {
     if (this.disposed || this.suspended) return;
@@ -953,14 +789,9 @@ export class NowPlayingRepository {
   }
 
   /**
-   * Predictive refresh: schedules a fetch right after the current real,
-   * non-live track is expected to end (`startTime + duration + buffer`),
-   * keeping the UI ahead of the station instead of polling blindly. The
-   * delay is measured against the injected `getNow` — the station's live
-   * point on the server's clock — so the refresh lands just after the
-   * station crosses the track's end, with or without audio playing.
-   * A track already past its end is re-checked after 1 s the first time, then
-   * with a doubling delay (capped) while the same track stays on air.
+   * Predictive refresh just after the real, non-live track ends on the
+   * station's clock (`getNow`). A track already past its end is re-checked
+   * after 1 s, then with a doubling (capped) delay while it stays on air.
    */
   scheduleTrackEndRefresh(): void {
     this.cancelTrackEndTimer();
@@ -968,7 +799,6 @@ export class NowPlayingRepository {
 
     const track = this.currentTrackValue;
     if (!track || track.duration <= 0) return;
-    // Don't schedule for non-real tracks (jingles, transitions) or live
     if (!isRealTrack(track)) return;
     if (this.currentProgramValue?.isLive) return;
 
@@ -984,19 +814,13 @@ export class NowPlayingRepository {
 
     this.trackEndTimerId = this.options.timer.set(() => {
       this.trackEndTimerId = null;
-      // Counted when it fires, not when armed: re-arming (partial failure,
-      // live push) without a run must not advance the backoff.
+      // Counted when it fires: re-arming without a run must not advance it.
       if (overdue) this.overdueRefreshes++;
       void this.refresh().catch(console.error);
     }, delay);
   }
 
-  /**
-   * Permanently stops the repository (destroy path): cancels every
-   * pending timer and makes all future fetches no-ops. This is what
-   * kills zombie chains — an in-flight `refresh()` whose catch fires
-   * AFTER teardown can no longer re-arm the retry scheduler or emit.
-   */
+  /** Stops for good: no timer re-arms and no fetch emits after teardown. */
   dispose(): void {
     this.disposed = true;
     this.stopLive();

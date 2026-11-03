@@ -105,6 +105,21 @@ const makeRepository = (
 };
 
 describe("NowPlayingRepository", () => {
+  it("the poll updates the requests when the same song is requested again", async () => {
+    const first = makeTrack({ isRequest: true, startTime: new Date(Date.now() - 600_000) });
+    const again = makeTrack({ isRequest: true, startTime: new Date(Date.now() - 5_000) });
+    const getTrackHistory = vi.fn(async (type: string) => (type === "requests" ? [first] : []));
+    const { repository, changes } = makeRepository({ getTrackHistory });
+    await repository.refresh();
+    changes.length = 0;
+
+    getTrackHistory.mockImplementation(async (type: string) => (type === "requests" ? [again, first] : []));
+    await repository.refresh();
+
+    expect(repository.lastRequestedTracks).toEqual([again, first]); // the feed, as sent
+    expect(changes.some((change) => change.requestedChanged)).toBe(true);
+  });
+
   it("merges data and reports only real changes", async () => {
     const { repository, changes, setStreamMetadata } = makeRepository();
 

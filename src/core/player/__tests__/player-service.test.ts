@@ -901,12 +901,7 @@ describe("PlayerService on react-native-anything-player", () => {
 
   it("delegates artwork, visualizer and history calls to their units", async () => {
     const t = setup();
-    t.artwork.peek.mockReturnValue("file://cache/x.jpg");
-    expect(t.service.peekArtwork("https://cdn/x.jpg")).toBe("file://cache/x.jpg");
-    const onPreview = vi.fn();
-    await t.service.resolveArtwork("https://cdn/x.jpg", onPreview, "https://cdn/x-small.jpg");
-    expect(t.artwork.resolve).toHaveBeenCalledWith("https://cdn/x.jpg", onPreview, "https://cdn/x-small.jpg");
-    expect(t.service.defaultArtwork).toBe("file://default.png");
+    expect(t.service.artwork).toBe(t.artwork);
     expect(t.service.isVisualizerSupported).toBe(true);
     t.service.setVisualizerEnabled(true);
     expect(t.sampler.setEnabled).toHaveBeenLastCalledWith(true);

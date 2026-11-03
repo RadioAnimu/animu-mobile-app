@@ -57,6 +57,7 @@ function fakeService(setupPlayer: () => Promise<void>) {
     setupPlayer,
     setAppActive: vi.fn(),
     setVisualizerEnabled: vi.fn(),
+    artwork: { defaultCover: "" },
     destroy: vi.fn(() => Promise.resolve()),
     isReady: false,
   };

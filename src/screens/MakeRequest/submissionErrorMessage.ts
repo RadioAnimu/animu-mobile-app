@@ -31,12 +31,14 @@ export const getSubmissionErrorMessage = (
   // Server sends raw lowercase spellings (`erro: "harublock"`); the package
   // normalizes known blocks to uppercased codes — match both.
   switch ((error ?? "").toUpperCase()) {
-    case "PEDIBLOCK":
-      return detail
-        ? interpolate(t.REQUEST_ERROR_PEDIBLOCK, {
-            time: new Date(detail + "Z").toLocaleTimeString(),
-          })
+    case "PEDIBLOCK": {
+      // The server's UTC "YYYY-MM-DD HH:MM:SS"; anything else reads as "recent".
+      // ISO needs the "T": Safari reads the spaced form as Invalid Date.
+      const until = detail ? new Date(detail.replace(" ", "T") + "Z") : null;
+      return until && !Number.isNaN(until.getTime())
+        ? interpolate(t.REQUEST_ERROR_PEDIBLOCK, { time: until.toLocaleTimeString() })
         : t.REQUEST_ERROR_PEDIBLOCK_RECENT;
+    }
     case "ANIBLOCK":
     case "ARTISTBLOCK":
       return withDetail(t.REQUEST_ERROR_BLOCK_90);

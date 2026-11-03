@@ -3,9 +3,14 @@ import { playerService } from "@/core/player";
 import { pickPreviewArtwork } from "@/core/player/storage/artwork";
 import type { Artworks } from "animu-api";
 
-/** A file already on disk (the store swaps resolved covers to their file) is used as is. */
-const localFor = (url: string, peek: (url: string) => string | undefined) =>
-  /^https?:/i.test(url) ? peek(url) : url;
+type Resolver = ReturnType<typeof playerService>["artwork"];
+
+/**
+ * A URI needing no download (a file already on disk, any URL on the web) is
+ * used as is; a remote one is the resolver's file once it has it.
+ */
+const localFor = (artwork: Resolver, url: string) => (artwork.isRemote(url) ? artwork.peek(url) : url);
+
 
 /**
  * Resolves a remote artwork URL to the shared resolver's local `file://`
@@ -23,10 +28,10 @@ export function useResolvedArtwork(
   url: string | undefined,
   artworks?: Artworks,
 ): string | undefined {
-  const service = playerService();
+  const artwork = playerService().artwork;
 
   const [resolved, setResolved] = useState<string | undefined>(() =>
-    url ? localFor(url, (u) => service.peekArtwork(u)) : undefined,
+    url ? localFor(artwork, url) : undefined,
   );
 
   useEffect(() => {
@@ -35,11 +40,11 @@ export function useResolvedArtwork(
       return undefined;
     }
     let cancelled = false;
-    const local = localFor(url, (u) => service.peekArtwork(u));
+    const local = localFor(artwork, url);
     setResolved(local);
     if (local) return undefined;
-    service
-      .resolveArtwork(
+    artwork
+      .resolve(
         url,
         (preview) => {
           // Low-res preview lands first — paint it, upgrade on the final
@@ -57,7 +62,7 @@ export function useResolvedArtwork(
     return () => {
       cancelled = true;
     };
-  }, [url, artworks, service]);
+  }, [url, artworks, artwork]);
 
   return url ? resolved : undefined;
 }

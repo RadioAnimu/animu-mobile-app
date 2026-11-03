@@ -41,9 +41,7 @@ export function dominantColor(rgbaData) {
 
 async function main() {
   const app = readJson(path.join(ROOT, "app.json")).expo;
-  const pkg = readJson(path.join(ROOT, "package.json"));
-  const version = app.version ?? pkg.version;
-  const label = process.env.SPLASH_LABEL ?? `v${version}`;
+  const label = process.env.SPLASH_LABEL ?? `v${app.version}`;
 
   if (!GlobalFonts.registerFromPath(FONT_FILE, "ProximaNovaBold")) {
     throw new Error(`Could not load font: ${FONT_FILE}`);
