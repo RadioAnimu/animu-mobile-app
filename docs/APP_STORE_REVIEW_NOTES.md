@@ -7,22 +7,24 @@ policy edits live in [`STORE_SUBMISSION.md`](STORE_SUBMISSION.md).
 
 ## Notes for Review (paste into App Store Connect)
 
-> Rádio Animu is the official client for a free, non-profit Brazilian anime
-> radio station. Playback needs no account; signing in only unlocks requests and
-> profile features.
+As submitted with 4.1.0. The review account's email and code live only in
+App Store Connect → App Review Information; never commit them.
+
+> Rádio Animu is the official app of Rádio Animu (www.animu.com.br), a free, non-profit Brazilian anime web radio. Playback needs no account; signing in only unlocks song requests, the profile and the listening card.
 >
-> - **No purchases.** The app is free — there are no in-app purchases or
->   subscriptions.
-> - **Account deletion** is available in-app: Account → Delete account.
-> - **Sign in:** Sign in with Apple is offered alongside Google, Discord and
->   email sign-in codes.
-> - **Updates:** this build does not download or execute replacement JavaScript bundles. App updates are distributed through the store.
-> - **User content (1.2):** the only user-submitted content is the optional live
->   request / shout-out form, delivered privately to the station's DJ panel and
->   moderated by station staff. It is not shown to other users in the app —
->   there is no public feed, no user-to-user messaging and no profiles visible
->   to others.
-> - **Voice assistant:** "Hey Siri, play Rádio Animu".
+> Content: the app plays only the station's own live broadcast, streamed from the station's servers (stream.animu.moe). It is not a directory of third-party stations, and it does not download, record or re-stream audio. Song titles and cover art come from the station's own API, the same data shown on the station's website. Synced lyrics are fetched on demand from LRCLIB (lrclib.net), a public lyrics database, and are not stored or redistributed by the station. The station's original content is licensed CC BY-NC-SA 4.0, as stated in the app under Settings > About.
+>
+> Demo account: on the sign-in screen, tap "Sign in with an email code", enter <review account email>, then enter the code <review code>. No inbox is needed: this review account accepts that fixed code.
+>
+> Song requests: to stop spam, the station only accepts requests from accounts with a linked Discord account that has two-factor authentication on. The demo account can search the library and see the request screen, but sending a request shows that requirement instead. Everything else (playback, lyrics, history, stats, settings) works with the demo account.
+>
+> - No purchases: the app is free, with no in-app purchases or subscriptions.
+> - Account deletion is in the app: Account > Delete account.
+> - Sign in with Apple is offered alongside Google, Discord, Fluxer and email codes.
+> - The build does not download or run replacement code; updates ship through the store.
+> - User content: signed-in listeners can request a song from the station's library; the request list in the app and on the station's website shows the song and the requester's display name. The optional live shout-out (name, city, message) goes to the station's DJ panel, where station staff moderate it, and may be read on air or posted on the station's Discord server; staff can remove any entry. There is no user-to-user messaging and no public profiles.
+> - Siri: "Hey Siri, play Rádio Animu".
+> - The interface follows the device language: Portuguese, English, Spanish or Japanese.
 
 ---
 
@@ -84,6 +86,5 @@ email sign-in codes, satisfying the equivalent-login requirement.
 
 ## Placeholder / platform-reference items (fixed)
 
-- No "Coming soon"/"Soon" text ships; the Android-only visualizer row is omitted
-  on iOS and unavailable providers are hidden.
+- No "Coming soon"/"Soon" text ships, and unavailable providers are hidden.
 - The iOS assistant hint shows only the Siri phrase (no "Ok Google").

@@ -65,11 +65,11 @@
           "version": "4.1.0",
           "buildVersion": "7",
           "date": "2026-11-03T00:20:00+00:00",
-          "localizedDescription": "Player na horizontal, como no site, com a letra ao lado da capa; layouts para iPad; mais leve em sessões longas; cache de capas limitado a 100 MB por padrão; correção no download do dicionário de japonês.\n\nLandscape player like the website, with lyrics beside the cover; iPad layouts; lighter in long sessions; cover cache capped at 100 MB by default; Japanese dictionary download fix.",
+          "localizedDescription": "Player na horizontal, como no site, com a letra ao lado da capa; mais leve em sessões longas; cache de capas limitado a 100 MB por padrão; correção no download do dicionário de japonês.\n\nLandscape player like the website, with lyrics beside the cover; lighter in long sessions; cover cache capped at 100 MB by default; Japanese dictionary download fix.",
           "downloadURL": "https://github.com/RadioAnimu/animu-mobile-app/releases/download/v4.1.0/animu-4.1.0.ipa",
           "size": 18300508,
           "sha256": "0d126744ed165cb8ce3d50b818fa06b955fff2067ba6aa432a6910c968e0c077",
-          "minOSVersion": "15.1"
+          "minOSVersion": "16.4"
         },
         {
           "version": "2.0.5",

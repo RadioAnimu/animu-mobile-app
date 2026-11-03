@@ -11,15 +11,17 @@ testers sideload the IPA without an App Store listing.
 | `source.json` | Modern AltStore / SideStore source — points at the `.ipa` assets and a `manifest.json` on GitHub Releases |
 | `classic.json` | AltStore **Classic** source — points directly at a single `.ipa` with a `sha256` |
 | `icon.png`, `header.png` | Source artwork |
-| `screenshots/*.jpg` | Store screenshots used by the source listing: the pt-BR Google Play set (`store/google-play/pt-BR/images/phoneScreenshots/`, made by `scripts/store-screenshots.mjs`) |
+| `screenshots/*` | Store screenshots used by the source listings. Classic uses the pt-BR Google Play set (`1.jpg`–`8.jpg`, from `store/google-play/pt-BR/images/phoneScreenshots/`, made by `scripts/store-screenshots.mjs`); PAL keeps the 2.0.5 captures until its next version |
 | `delete-account/index.html` | Public account/data deletion instructions linked from Google Play; shares the existing Pages deployment |
 
-Both sources describe the same app:
+Both sources share:
 
 - Bundle ID: `com.nessjs.animu`
 - Category: `entertainment`
 - Tint: `#6BDB00`
-- Minimum iOS: **15.1**
+- Minimum iOS: **16.4** from 4.1.0 (Expo SDK 58); 2.0.5 supported 15.1. Each
+  `versions[]` entry carries its own `minOSVersion`, read from the IPA's
+  `MinimumOSVersion`.
 
 ## Hosting
 
