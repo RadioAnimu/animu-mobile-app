@@ -31,7 +31,8 @@
     "postinstall": "node scripts/prepare-submodules.mjs",
     "build:player": "node scripts/prepare-submodules.mjs react-native-anything-player",
     "test:tooling": "node --test scripts/__tests__/*.test.mjs",
-    "check:secrets": "node scripts/check-secrets.mjs"
+    "check:secrets": "node scripts/check-secrets.mjs",
+    "verify": "node scripts/verify.mjs"
   },
   "dependencies": {
     "@expo/metro-runtime": "~58.0.16",

@@ -1,3 +1,4 @@
 {
-  "projects": ["animu"]
+  "projects": ["animu"],
+  "ignore": { "files": ["**/dist-web/**"] }
 }

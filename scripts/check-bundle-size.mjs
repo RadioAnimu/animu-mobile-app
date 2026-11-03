@@ -5,6 +5,8 @@
  * than after release.
  *
  * usage: node scripts/check-bundle-size.mjs <bundle> <maxBundleBytes> [<assetsDir> <maxAssetBytes>]
+ *        node scripts/check-bundle-size.mjs   (no arguments: builds the release
+ *        Android bundle the way CI does and checks it against CI's budgets)
  *
  * Budgets sit ~10% above the measured size at the time they were set
  * (bundle 3.21 MB, assets 1.81 MB); raise them deliberately, with the reason
@@ -15,10 +17,38 @@
  * handling (react-native-keyboard-controller, ~106 KB — Metro does not
  * tree-shake its unused toolbar/chat views) and React Navigation 7.14.3.
  */
-import { readdirSync, statSync } from "node:fs";
+import { spawnSync } from "node:child_process";
+import { mkdtempSync, readdirSync, rmSync, statSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-const [, , bundle, maxBundle, assetsDir, maxAssets] = process.argv;
+/** CI's budgets (the pipelines pass the same numbers; a tooling test keeps them in step). */
+const DEFAULT_MAX_BUNDLE = 3_900_000;
+const DEFAULT_MAX_ASSETS = 2_000_000;
+
+let [, , bundle, maxBundle, assetsDir, maxAssets] = process.argv;
+/** The self-built bundle's folder, removed on exit. */
+let out = null;
+
+if (process.argv.length === 2) {
+  out = mkdtempSync(join(tmpdir(), "animu-bundle-"));
+  process.on("exit", () => rmSync(out, { recursive: true, force: true }));
+  // Ctrl-C ends the build too: exit through the cleanup instead of the default kill.
+  for (const signal of ["SIGINT", "SIGTERM"]) process.on(signal, () => process.exit(130));
+  bundle = join(out, "index.android.bundle");
+  assetsDir = join(out, "assets");
+  [maxBundle, maxAssets] = [String(DEFAULT_MAX_BUNDLE), String(DEFAULT_MAX_ASSETS)];
+  const build = spawnSync(
+    "pnpm",
+    ["exec", "expo", "export:embed", "--platform", "android", "--entry-file", "index.js",
+      "--bundle-output", bundle, "--assets-dest", assetsDir, "--dev", "false"],
+    { stdio: ["ignore", "ignore", "inherit"] },
+  );
+  if (build.status !== 0) {
+    console.error(`[size] the release bundle did not build${build.signal ? ` (${build.signal})` : ""}`);
+    process.exit(1);
+  }
+}
 
 const dirBytes = (dir) =>
   readdirSync(dir, { withFileTypes: true }).reduce(
