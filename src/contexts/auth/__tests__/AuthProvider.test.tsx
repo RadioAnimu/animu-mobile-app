@@ -29,7 +29,8 @@ const mocks = vi.hoisted(() => ({
     verifyAddEmail: vi.fn(),
     removeEmail: vi.fn(),
   },
-  background: { startTask: vi.fn(), stopTask: vi.fn() },
+  repeat: vi.fn(),
+  stopPoll: vi.fn(),
   getInitialURL: vi.fn(),
   appStateListen: vi.fn(),
   toast: vi.fn(),
@@ -41,9 +42,7 @@ vi.mock("@/core/services/profile-media.service", () => ({
   syncProfileMedia: () => Promise.resolve(null),
   clearProfileMedia: vi.fn(),
 }));
-vi.mock("@/core/services/background.service", () => ({
-  backgroundService: mocks.background,
-}));
+vi.mock("@/utils/repeat", () => ({ repeatEvery: mocks.repeat }));
 vi.mock("react-native", () => ({
   Linking: { getInitialURL: mocks.getInitialURL },
   AppState: {
@@ -87,12 +86,11 @@ const mountAuth = () => renderHook(() => useAuth(), { wrapper });
 /** Lets the fire-and-forget bootstrap promise chain settle. */
 const settle = () => act(async () => {});
 
-const sessionTask = () =>
-  mocks.background.startTask.mock.calls.at(-1)?.[0] as {
-    id: string;
-    interval: number;
-    callback: () => Promise<void>;
-  };
+/** The session poll last started: its interval and the check it repeats. */
+const sessionTask = () => {
+  const [interval, callback] = mocks.repeat.mock.calls.at(-1) as [number, () => Promise<void>];
+  return { interval, callback };
+};
 
 describe("AuthProvider", () => {
   let consoleError: MockInstance<typeof console.error>;
@@ -100,6 +98,7 @@ describe("AuthProvider", () => {
   beforeEach(() => {
     consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
     mocks.appStateListen.mockReturnValue({ remove: vi.fn() });
+    mocks.repeat.mockReturnValue(mocks.stopPoll);
     mocks.facade.restore.mockResolvedValue(null);
     mocks.facade.resumeServerAuth.mockResolvedValue(null);
     mocks.facade.getProviders.mockResolvedValue([
@@ -134,7 +133,7 @@ describe("AuthProvider", () => {
         ]),
       );
       expect(result.current.isAuthenticated).toBe(false);
-      expect(mocks.background.startTask).not.toHaveBeenCalled();
+      expect(mocks.repeat).not.toHaveBeenCalled();
       expect(mocks.facade.getSessionStatus).not.toHaveBeenCalled();
     });
 
@@ -149,10 +148,7 @@ describe("AuthProvider", () => {
       expect(result.current.emails).toEqual(EMAILS);
       // A plain restore is not a fresh login: the image cache is untouched.
       expect(result.current.imageVersion).toBe(0);
-      expect(sessionTask()).toMatchObject({
-        id: "session-check",
-        interval: 60_000,
-      });
+      expect(sessionTask().interval).toBe(60_000);
     });
 
     it("passes the launch URL to resumeServerAuth and prefers the resumed user", async () => {
@@ -225,8 +221,7 @@ describe("AuthProvider", () => {
       expect(result.current.isAuthenticated).toBe(false);
       expect(result.current.profile).toBeNull();
       expect(mocks.facade.getProfile).not.toHaveBeenCalled();
-      expect(mocks.background.startTask).not.toHaveBeenCalled();
-      expect(mocks.background.stopTask).toHaveBeenCalledWith("session-check");
+      expect(mocks.repeat).not.toHaveBeenCalled();
       expect(mocks.toast).toHaveBeenCalledExactlyOnceWith("Signed out", "error");
     });
 
@@ -236,7 +231,7 @@ describe("AuthProvider", () => {
 
       const { result } = mountAuth();
       await waitFor(() =>
-        expect(mocks.background.startTask).toHaveBeenCalledTimes(1),
+        expect(mocks.repeat).toHaveBeenCalledTimes(1),
       );
       await settle();
 
@@ -281,7 +276,6 @@ describe("AuthProvider", () => {
 
       const { unmount } = mountAuth();
       unmount();
-      expect(mocks.background.stopTask).toHaveBeenCalledWith("session-check");
 
       await act(async () => {
         resolveRestore(CACHED);
@@ -290,7 +284,7 @@ describe("AuthProvider", () => {
 
       // The cancelled run bails before validating or starting the checker.
       expect(mocks.facade.getSessionStatus).not.toHaveBeenCalled();
-      expect(mocks.background.startTask).not.toHaveBeenCalled();
+      expect(mocks.repeat).not.toHaveBeenCalled();
       expect(mocks.facade.getProfile).not.toHaveBeenCalled();
     });
   });
@@ -394,16 +388,16 @@ describe("AuthProvider", () => {
 
     it("stops the poll in the background and re-checks once on return", async () => {
       await mountSignedIn();
-      const startsBefore = mocks.background.startTask.mock.calls.length;
+      const startsBefore = mocks.repeat.mock.calls.length;
       const checksBefore = mocks.facade.getSessionStatus.mock.calls.length;
-      mocks.background.stopTask.mockClear();
+      mocks.stopPoll.mockClear();
 
       await emitAppState("background");
-      expect(mocks.background.stopTask).toHaveBeenCalledWith("session-check");
+      expect(mocks.stopPoll).toHaveBeenCalledTimes(1);
 
       await emitAppState("active");
       expect(mocks.facade.getSessionStatus.mock.calls).toHaveLength(checksBefore + 1);
-      expect(mocks.background.startTask.mock.calls).toHaveLength(startsBefore + 1);
+      expect(mocks.repeat.mock.calls).toHaveLength(startsBefore + 1);
     });
 
     it("ignores transient inactive -> active flips that never backgrounded", async () => {
@@ -433,7 +427,7 @@ describe("AuthProvider", () => {
       expect(result.current.isAuthenticating).toBe(false);
       await waitFor(() => expect(result.current.profile).toEqual(PROFILE));
       expect(result.current.emails).toEqual(EMAILS);
-      expect(sessionTask().id).toBe("session-check");
+      expect(mocks.repeat).toHaveBeenCalled();
     });
 
     it("resets isAuthenticating and propagates the error when login fails", async () => {
@@ -522,6 +516,33 @@ describe("AuthProvider", () => {
       });
 
       expect(mocks.facade.forget).toHaveBeenCalledTimes(1);
+      expect(mocks.toast).not.toHaveBeenCalled();
+    });
+
+    it("a dead answer for a replaced session leaves the new one signed in", async () => {
+      mocks.facade.restore.mockResolvedValue(CACHED);
+      const { result } = mountAuth();
+      await waitFor(() => expect(result.current.profile).toEqual(PROFILE));
+      let resolveStatus: (alive: boolean) => void = () => {};
+      mocks.facade.getSessionStatus.mockReturnValue(
+        new Promise<boolean>((resolve) => {
+          resolveStatus = resolve;
+        }),
+      );
+      const check = sessionTask().callback();
+      mocks.facade.loginWithEmailCode.mockResolvedValue(FRESH);
+
+      await act(async () => {
+        await result.current.logout();
+        await result.current.loginWithEmailCode("a@b.c", "1234");
+      });
+      await act(async () => {
+        resolveStatus(false); // the old session's verdict
+        await check;
+      });
+
+      expect(result.current.user).toBe(FRESH);
+      expect(mocks.facade.forget).toHaveBeenCalledTimes(1); // the logout's only
       expect(mocks.toast).not.toHaveBeenCalled();
     });
 

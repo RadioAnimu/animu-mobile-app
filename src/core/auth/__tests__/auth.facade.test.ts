@@ -286,6 +286,25 @@ describe("AuthFacade profile reads", () => {
     expect(api.getProfile).toHaveBeenCalledTimes(1);
   });
 
+  it("a sign-out during a session save clears only after the save landed", async () => {
+    const store = makeStore();
+    let finishSave = () => {};
+    store.save.mockImplementationOnce(() => new Promise<void>((resolve) => (finishSave = resolve)));
+    const { api, facade } = build({ store });
+    api.setSessionToken("existing-token");
+    api.refreshProfile.mockResolvedValue({ updated: true, verified: true, user: authUser() });
+    api.getProfile.mockResolvedValue(profile(authUser()));
+
+    const refreshing = facade.refreshProfile({ ...authUser(), sessionToken: "existing-token", nickname: "" });
+    await vi.waitFor(() => expect(store.save).toHaveBeenCalled());
+    const forgetting = facade.forget();
+    await Promise.resolve();
+    expect(store.clear).not.toHaveBeenCalled(); // queued behind the save
+    finishSave();
+    await Promise.all([refreshing, forgetting]);
+    expect(store.clear).toHaveBeenCalledTimes(1);
+  });
+
   it("refreshProfile persists nothing once the session changed mid-request", async () => {
     const { api, store, facade } = build();
     api.setSessionToken("existing-token");
