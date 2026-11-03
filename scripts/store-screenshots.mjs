@@ -1,14 +1,19 @@
 #!/usr/bin/env node
-// Composes the Google Play phone screenshots: a caption over the brand
-// gradient and the raw emulator capture framed as a phone, 1080x1920 (9:16).
+// Composes the store screenshots: a caption over the brand gradient and the
+// raw capture framed as a device.
 //
-//   node scripts/store-screenshots.mjs <raw-dir> [locale...]
+//   node scripts/store-screenshots.mjs <raw-dir> [locale...] [--target play|iphone|ipad]
+//
+// --target play (default): Google Play phone, 1080x1920 (9:16), written to
+//   store/google-play/<locale>/images/phoneScreenshots/<n>.jpg.
+// --target iphone: App Store 6.9" iPhone, 1320x2868, from iPhone 16 Pro Max
+//   captures; --target ipad: App Store 13" iPad, 2064x2752, from iPad Pro 13"
+//   captures. Both are written to store/app-store/<locale>/<target>/<n>.jpg.
 //
 // <raw-dir> holds one folder per app UI language (pt, en, es, ja), each with
-// the 1080x2400 captures named after `shots` in store/google-play/screenshots.json.
+// the device captures named after `shots` in store/google-play/screenshots.json.
 // A capture missing from a language folder falls back to `pt` (the lyrics
-// screen has no UI text, so it is shared). Output goes to
-// store/google-play/<locale>/images/phoneScreenshots/<n>.jpg.
+// screen has no UI text, so it is shared).
 //
 // Japanese captions need a CJK font: set CJK_FONT to a bold one (e.g. Noto Sans
 // CJK JP Bold); otherwise the Droid fallback font is used if installed.
@@ -20,14 +25,29 @@ import { createCanvas, loadImage, GlobalFonts } from "@napi-rs/canvas";
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const STORE = path.join(ROOT, "store/google-play");
 const FONTS = path.join(ROOT, "src/assets/fonts");
-const W = 1080;
-const H = 1920;
 const JPEG_QUALITY = 92;
 
-const [rawDir, ...only] = process.argv.slice(2);
+// Canvas size and layout per store. `phone` is the framed capture's top, height,
+// corner radius and bezel; `glow` the green glow's centre height and radius.
+const TARGETS = {
+  play: { W: 1080, H: 1920, font: 72, lineHeight: 84, top: [210, 165], textInset: 140, phone: { y: 350, h: 1500, r: 56, bezel: 14 }, glow: [1150, 700] },
+  iphone: { W: 1320, H: 2868, font: 92, lineHeight: 108, top: [300, 245], textInset: 170, phone: { y: 480, h: 2240, r: 120, bezel: 18 }, glow: [1700, 950] },
+  ipad: { W: 2064, H: 2752, font: 120, lineHeight: 140, top: [300, 240], textInset: 400, phone: { y: 470, h: 2130, r: 36, bezel: 22 }, glow: [1550, 1300] },
+};
+
+const args = process.argv.slice(2);
+const targetAt = args.indexOf("--target");
+const target = targetAt >= 0 ? args.splice(targetAt, 2)[1] : "play";
+const T = TARGETS[target];
+if (!T) {
+  console.error(`unknown --target ${target} (play, iphone or ipad)`);
+  process.exit(1);
+}
+const { W, H } = T;
+const [rawDir, ...only] = args;
 if (!rawDir) {
   console.error(
-    "usage: node scripts/store-screenshots.mjs <raw-dir> [locale...]",
+    "usage: node scripts/store-screenshots.mjs <raw-dir> [locale...] [--target play|iphone|ipad]",
   );
   process.exit(1);
 }
@@ -76,7 +96,7 @@ async function compose(capture, caption, locale) {
   ctx.fillStyle = bg;
   ctx.fillRect(0, 0, W, H);
   // Soft green glow behind the phone.
-  const glow = ctx.createRadialGradient(W / 2, 1150, 50, W / 2, 1150, 700);
+  const glow = ctx.createRadialGradient(W / 2, T.glow[0], 50, W / 2, T.glow[0], T.glow[1]);
   glow.addColorStop(0, "rgba(109,219,0,0.22)");
   glow.addColorStop(1, "rgba(109,219,0,0)");
   ctx.fillStyle = glow;
@@ -84,34 +104,38 @@ async function compose(capture, caption, locale) {
 
   // Japanese uses the CJK font for its Latin words too, so a caption doesn't
   // mix two typefaces.
-  ctx.font = locale.startsWith("ja") ? "72px CJK" : "72px PNBold, CJK";
+  // Two lines is all the space above the phone: a caption that needs more
+  // shrinks, down to 80% of the target's size.
+  let lines;
+  for (let size = T.font; ; size -= 2) {
+    ctx.font = locale.startsWith("ja") ? `${size}px CJK` : `${size}px PNBold, CJK`;
+    lines = wrap(ctx, caption, W - T.textInset);
+    if (lines.length <= 2) break;
+    if (size <= T.font * 0.8)
+      throw new Error(`${locale}: caption too long: ${caption}`);
+  }
   ctx.fillStyle = "#ffffff";
   ctx.textAlign = "center";
-  const lines = wrap(ctx, caption, W - 140);
-  // Two lines is all the space above the phone.
-  if (lines.length > 2)
-    throw new Error(`${locale}: caption too long: ${caption}`);
-  const lineHeight = 84;
-  const top = lines.length === 1 ? 210 : 165;
+  const { lineHeight } = T;
+  const top = lines.length === 1 ? T.top[0] : T.top[1];
   lines.forEach((l, k) => ctx.fillText(l, W / 2, top + k * lineHeight));
   ctx.fillStyle = "#6ddb00";
   ctx.beginPath();
+  // The bar under the caption scales with the font (120x10 at Play's 72px).
+  const bar = { w: Math.round((T.font * 5) / 3), h: Math.round(T.font / 7.2) };
   ctx.roundRect(
-    W / 2 - 60,
-    top + (lines.length - 1) * lineHeight + 38,
-    120,
-    10,
-    5,
+    W / 2 - bar.w / 2,
+    top + (lines.length - 1) * lineHeight + Math.round(T.font * 0.528),
+    bar.w,
+    bar.h,
+    bar.h / 2,
   );
   ctx.fill();
 
   const img = await loadImage(fs.readFileSync(capture));
-  const ph = 1500;
+  const { y, h: ph, r, bezel } = T.phone;
   const pw = Math.round(img.width * (ph / img.height));
   const x = Math.round((W - pw) / 2);
-  const y = 350;
-  const r = 56;
-  const bezel = 14;
   ctx.save();
   ctx.shadowColor = "rgba(0,0,0,0.55)";
   ctx.shadowBlur = 60;
@@ -138,7 +162,10 @@ async function compose(capture, caption, locale) {
 
 for (const [locale, texts] of Object.entries(captions)) {
   if (only.length && !only.includes(locale)) continue;
-  const outDir = path.join(STORE, locale, "images/phoneScreenshots");
+  const outDir =
+    target === "play"
+      ? path.join(STORE, locale, "images/phoneScreenshots")
+      : path.join(ROOT, "store/app-store", locale, target);
   fs.mkdirSync(outDir, { recursive: true });
   for (const f of fs.readdirSync(outDir)) fs.rmSync(path.join(outDir, f));
   for (const [i, shot] of shots.entries()) {
