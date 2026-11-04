@@ -5,6 +5,7 @@ import type {
   PlaybackState,
   PlayerEventMap,
   PlayerStatus,
+  Progress,
 } from "react-native-anything-player";
 
 /** The slice of an Airwave player the service drives, with event emitters. */
@@ -47,12 +48,14 @@ export class FakePlayer {
   updateNowPlaying = vi.fn(async (_m: AirwaveNowPlaying) => {});
   setAudioSampling = vi.fn(() => true);
   release = vi.fn(async () => {});
-  getProgress = vi.fn(() => ({
+  getProgress = vi.fn((): Progress => ({
     position: 0,
     duration: null,
     buffered: 0,
     bufferedAhead: 6,
     liveOffset: null,
+    liveOffsetSettled: false,
+    programDate: null,
     timestamp: Date.now(),
   }));
 

@@ -108,6 +108,11 @@ export class PlayerService {
   private playingQuality: string | null = null;
   /** The next audible ICY title follows a (re)open: it is already partway. */
   private tuneIn = true;
+  /**
+   * The audio jumped: until the clock settles again, a title heard is partway
+   * into its song (a switch tells the new connection's), placed like a tune-in.
+   */
+  private afterJump = false;
   private lastPollAt = 0;
   private lastState: PlaybackState = "idle";
   /** Hidden with no audio wanted — the clock behind the realtime-connection deadline. */
@@ -132,13 +137,6 @@ export class PlayerService {
       player.on("discontinuity", () => this.handleDiscontinuity()),
       // A voice request or a car pick played the station natively.
       player.on("searchPlay", () => this.adoptNativeLoad()),
-      // A gapless switch that failed keeps the old relay playing: re-open the pick.
-      player.on("error", (error) => {
-        if (error.code !== "QUALITY_SWITCH_FAILED") return;
-        const stream = this.deps.streamPreferences.current;
-        if (this.loadedStreamId !== stream.id || this.playingQuality === stream.id) return;
-        void this.open(stream, this.isPlayingIntent);
-      }),
       // Native-timer readings while playing: they run JS where JS timers are
       // frozen (Android background) — the audible clock, stats, watchdogs.
       player.on("progress", (reading) => {
@@ -649,15 +647,17 @@ export class PlayerService {
 
   /**
    * The audio jumped with no state change: a fresh connection replaced a
-   * dropped one, and its connect burst replays recent audio (up to 16 s on the
-   * 64 kbps mount). Re-place the shown song as a tune-in, or the lyrics run
-   * seconds off; its title is not reported again.
+   * dropped one (its connect burst replays up to 16 s on the 64 kbps mount),
+   * or a quality switch went ahead without being lined up. Re-place the shown
+   * song as a tune-in, or the lyrics run seconds off; its title is not
+   * reported again.
    */
   private handleDiscontinuity(): void {
     if (this.tuneIn) return; // Already being placed.
     const raw = this.deps.hearing.track?.raw;
-    debugLog("[PlayerService] the stream's connection was replaced: re-placing");
+    debugLog("[PlayerService] the audio jumped: re-placing");
     this.markReopened();
+    this.afterJump = true;
     this.deps.hearing.setPlaying(this.lastState === "playing");
     if (raw) this.hearTitle(raw, Date.now());
     this.emitPlayer();
@@ -665,18 +665,16 @@ export class PlayerService {
   }
 
   /**
-   * The rendition playing changed. A switch while playing lands on another
-   * relay's fresh connection with no status and no `discontinuity`: re-place
-   * the song as after one. (Not playing, the loading status re-places it.)
+   * The rendition playing changed. RNAP lines a switch up with what is heard,
+   * so the song keeps its place; one that went ahead without reports a
+   * `discontinuity`, which re-places it. A pick that fails to connect keeps the
+   * old relay, and RNAP tries it again after a minute.
    */
   private followQuality(quality: string | null): void {
     if (quality === this.playingQuality) return;
-    const switched = this.playingQuality != null;
     this.playingQuality = quality;
     const stream = this.streamOptions.find((option) => option.id === quality);
-    if (!stream) return;
-    this.deps.heard.useStream(stream.id, stream.bitrate);
-    if (switched && this.lastState === "playing") this.handleDiscontinuity();
+    if (stream) this.deps.heard.useStream(stream.id, stream.bitrate);
   }
 
   /** An ICY title became audible (Airwave reports it when heard). */
@@ -687,7 +685,8 @@ export class PlayerService {
   }
 
   private hearTitle(title: string, heardAt: number): void {
-    const tuneIn = this.tuneIn;
+    if (this.deps.hearing.clockSettled) this.afterJump = false;
+    const tuneIn = this.tuneIn || this.afterJump;
     this.tuneIn = false;
     // How far the speaker trails the live edge (places a tune-in, calibrates at
     // a change); the locked clock's lag, as a reading falls through an outage.

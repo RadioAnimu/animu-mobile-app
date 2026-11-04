@@ -359,6 +359,8 @@ describe("PlayerService on react-native-anything-player", () => {
       buffered: 0,
       bufferedAhead: 4,
       liveOffset: null,
+      liveOffsetSettled: false,
+      programDate: null,
       timestamp: Date.now(),
     });
     // Song B started 17 s + 1 s (the station's lead) + its ICY offset ago.
@@ -463,7 +465,7 @@ describe("PlayerService on react-native-anything-player", () => {
     expect(heardProgress()).not.toBeNull();
     // The connection dropped and the player played on into a fresh one: the
     // state stays "playing", only the native discontinuity tells.
-    t.player.emit("discontinuity", { position: 0, timestamp: Date.now() });
+    t.player.emit("discontinuity", { position: 0, reason: "reconnect", jump: null, timestamp: Date.now() });
     read(0.1, 14);
     expect(playerStore.getSnapshot().syncing).toBe(true);
     expect(heardProgress()).toBeNull();
@@ -478,28 +480,20 @@ describe("PlayerService on react-native-anything-player", () => {
     vi.useRealTimers();
   });
 
-  it("a switch that fails natively (the old relay plays on) re-opens the one picked", async () => {
+  it("a switch RNAP refused is left to it: the old relay plays on, nothing re-opens", async () => {
     const t = setup();
     await t.service.setupPlayer();
     await t.service.play();
     t.player.setQuality("high");
     t.player.setState("playing", true);
     await t.service.changeStream(STREAMS[1]);
+    expect(t.player.selectQuality).toHaveBeenCalledWith("low");
+    // RNAP tries the pick again itself, lined up, after the rendition sits out.
+    t.player.emit("error", { code: "QUALITY_SWITCH_FAILED" }, { fatal: false });
     expect(t.player.load).toHaveBeenCalledTimes(1);
-    t.player.emit("error", { code: "QUALITY_SWITCH_FAILED" }, { fatal: false });
-    expect(t.player.load).toHaveBeenCalledTimes(2);
-    expect(t.player.load).toHaveBeenLastCalledWith(
-      expect.objectContaining({ uri: "https://stream.example/64" }),
-      { autoplay: true, quality: "low" },
-    );
-    // Other non-fatal errors, or a failure once the pick plays, re-open nothing.
-    t.player.setQuality("low");
-    t.player.emit("error", { code: "QUALITY_SWITCH_FAILED" }, { fatal: false });
-    t.player.emit("error", { code: "NETWORK_ERROR" }, { fatal: false });
-    expect(t.player.load).toHaveBeenCalledTimes(2);
   });
 
-  it("a rendition switch landing while playing re-places the song on the new relay", async () => {
+  it("a rendition switch keeps the song's place; one that could not be lined up re-places it", async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-10-05T05:00:00Z"));
     const t = setup(); // Song A: on air for 30 s
@@ -511,24 +505,61 @@ describe("PlayerService on react-native-anything-player", () => {
     t.player.hear("Song A");
     const read = (position: number, lagS: number) => {
       vi.advanceTimersByTime(1_000);
-      t.player.emit("progress", { liveOffset: null, bufferedAhead: lagS, position });
+      t.player.emit("progress", { liveOffset: lagS, bufferedAhead: 2, position });
     };
     for (let s = 1; s <= 5; s++) read(s, 6);
-    expect(heardProgress()).not.toBeNull();
+    const placed = heardProgress();
+    expect(placed).not.toBeNull();
     await t.service.changeStream(STREAMS[1]);
-    expect(playerStore.getSnapshot().syncing).toBe(false); // the old relay plays on
-    // The switch lands: still "playing", now the 64 kbps relay from position 0.
+    // RNAP lined the 64 kbps relay up with what is heard: the position and the
+    // live offset carry on, with no discontinuity.
     t.player.setQuality("low");
     expect(useStream).toHaveBeenLastCalledWith("low", 64);
-    read(0.1, 14);
+    read(6, 6);
+    expect(playerStore.getSnapshot().syncing).toBe(false);
+    expect(heardProgress()).toBe(placed! + 1_000);
+    // A pick back that the player had to take without lining it up (the old
+    // connection stalled) reports the jump.
+    await t.service.changeStream(STREAMS[0]);
+    t.player.setQuality("high");
+    t.player.emit("discontinuity", { position: 7, reason: "switch", jump: -8, timestamp: Date.now() });
+    read(7, 14);
     expect(playerStore.getSnapshot().syncing).toBe(true);
     expect(heardProgress()).toBeNull();
-    for (let s = 1; s <= 5; s++) read(0.1 + s, 14);
+    for (let s = 1; s <= 5; s++) read(7 + s, 14);
     t.tick();
     expect(playerStore.getSnapshot().currentTrack?.raw).toBe("Song A");
-    // 41 s on air, the new relay 14 s behind.
-    expect(heardProgress()).toBe(27_000 - STATION_AHEAD_OF_AUDIO_MS);
+    // 42 s on air, now 14 s behind.
+    expect(heardProgress()).toBe(28_000 - STATION_AHEAD_OF_AUDIO_MS);
     expect(t.player.load).toHaveBeenCalledTimes(1);
+    vi.useRealTimers();
+  });
+
+  it("a title the new connection tells right after a jump is placed as a tune-in, not as a song change", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-10-05T05:00:00Z"));
+    const t = setup(); // Song A: on air for 30 s
+    const heard = vi.spyOn(t.heard, "heard");
+    await t.service.setupPlayer();
+    await t.service.play();
+    t.player.setState("playing", true);
+    t.player.hear("Song A");
+    t.settle(5, 6);
+    // Song B is on air by the time a switch goes ahead without being lined up:
+    // the new connection is partway into it, and says so after the jump.
+    t.announce(track("Song B", { startTime: new Date(Date.now() - 20_000) }));
+    t.player.emit("discontinuity", { position: 5, reason: "switch", jump: 12, timestamp: Date.now() });
+    t.player.hear("Song B");
+    expect(heard).toHaveBeenLastCalledWith("Song B", expect.any(Number), true, expect.any(Number));
+    t.settle(5, 6);
+    expect(playerStore.getSnapshot().currentTrack?.raw).toBe("Song B");
+    // 25 s on air, 6 s behind: placed from the clock, no calibration sample.
+    expect(heardProgress()).toBe(19_000 - STATION_AHEAD_OF_AUDIO_MS);
+    expect(t.heard.tuneInBiasMs).toBe(STATION_AHEAD_OF_AUDIO_MS);
+    // Once the clock has settled again, a title is a song change as before.
+    t.announce(track("Song C", { startTime: new Date() }));
+    t.player.hear("Song C");
+    expect(heard).toHaveBeenLastCalledWith("Song C", expect.any(Number), false, expect.any(Number));
     vi.useRealTimers();
   });
 
@@ -755,7 +786,7 @@ describe("PlayerService on react-native-anything-player", () => {
     expect(t.player.load).not.toHaveBeenCalled();
   });
 
-  it("a stream outside the loaded renditions, or a refused switch, re-opens", async () => {
+  it("a stream outside the loaded renditions, or a selectQuality that throws, re-opens", async () => {
     const t = setup();
     await t.service.setupPlayer();
     await t.service.play();

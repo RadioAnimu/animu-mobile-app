@@ -138,6 +138,11 @@ export class NowHearing {
     return heard.anchored && (!heard.estimated || sync.settled);
   }
 
+  /** Whether the audible clock is placed from a settled reading. */
+  get clockSettled(): boolean {
+    return this.deps.sync.settled;
+  }
+
   /** Whether {@link position} is known — audible or, in `station` mode, the station's. */
   get positionKnown(): boolean {
     return this.mode === "station" ? this.position() != null : this.anchored;
