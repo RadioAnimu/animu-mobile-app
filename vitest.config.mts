@@ -22,6 +22,10 @@ export default defineConfig({
     reporters: process.env.CI
       ? ["default", ["junit", { outputFile: "junit.xml" }]]
       : ["default"],
+    // CI runs the suite beside the other verify steps on a shared host: a
+    // CPU-bound test (the dictionary decode) took over 5 s there. Locally the
+    // default stays, so a test that got slow still shows.
+    testTimeout: process.env.CI ? 20_000 : 5_000,
     coverage: {
       // `lcov` feeds SonarQube / Codecov / any lcov consumer; `text` prints the
       // summary to the CI log. Only app code counts (tests are excluded).
