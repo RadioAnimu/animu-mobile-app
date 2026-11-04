@@ -40,6 +40,12 @@ test("an iOS build number behind the versionCode is brought level", () => {
   assert.equal(expo.android.versionCode, 21);
 });
 
+test("an iOS build number ahead of the versionCode is refused, not lowered", () => {
+  const { status, expo } = bump({ ...app, ios: { buildNumber: "23" } });
+  assert.equal(status, 1);
+  assert.equal(expo.ios.buildNumber, "23");
+});
+
 test("no bump leaves an aligned app.json untouched", () => {
   const { status, expo } = bump(app);
   assert.equal(status, 0);

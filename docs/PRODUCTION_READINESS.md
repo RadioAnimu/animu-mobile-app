@@ -22,7 +22,8 @@ Found and fixed:
   (QA builds) still allowed `CREATE_GITHUB_RELEASE` and `COMMIT_BUMP`, with
   release-identical artifact names. It is now refused with either option
   (verified: release #30 failed at validation), names its artifacts
-  `*-qa-unchecked`, and archives only the APK.
+  `*-qa-unchecked`, and archives only the APK (and, since iOS builds on the
+  Mac, its Ad Hoc IPA).
 - **Medium — release gates could be bypassed or skipped.** `TRUST_CI` accepted
   any job named in a free-form parameter. It now trusts only
   `Animu/animu-mobile-app` and still runs a fresh dependency audit. Releases now

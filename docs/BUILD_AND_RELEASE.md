@@ -9,21 +9,24 @@ platform build numbers:
 
 | Field | File | Current |
 | --- | --- | --- |
-| `expo.version` | `app.json` / `package.json` | `3.0.0` |
-| `expo.ios.buildNumber` | `app.json` | `6` |
-| `expo.android.versionCode` | `app.json` | `16` |
+| `expo.version` | `app.json` / `package.json` | `4.1.0` |
+| `expo.ios.buildNumber` | `app.json` | `21` |
+| `expo.android.versionCode` | `app.json` | `21` |
 
-`eas.json` sets `appVersionSource: "local"` and `autoIncrement: false`, so
-**bump these by hand** before a store build.
+The iOS build number is always the Android `versionCode`: the release job's
+`BUMP` moves both, and refuses to lower a build number App Store Connect has
+seen. `eas.json` sets `appVersionSource: "local"` and `autoIncrement: false`.
 
-## Android releases (Jenkins)
+## Releases (Jenkins)
 
-Android releases are built and published by Jenkins, **without EAS**. The
-release job produces the same artifact set as the historical GitHub releases,
-all signed with the Play upload key:
+Android and iOS releases are built and published by Jenkins, **without EAS
+build servers**. The release job produces the same artifact set as the
+historical GitHub releases:
 
 - `animu-<version>-code<versionCode>.aab` — Play Store upload
 - `animu-<version>-code<versionCode>.apk` — universal direct-install (all ABIs)
+- `animu-<version>-build<versionCode>.ipa` — App Store Connect upload
+  (Transporter); it is not uploaded for you
 - a `.sha256` file for each
 - `RELEASE_NOTES.md` — artifact table, SHA-256s, and per-device Play download
   sizes
@@ -35,18 +38,23 @@ all signed with the Play upload key:
 | `animu-mobile-app` | `Jenkinsfile` | CI: typecheck, lint (ESLint, type-aware oxlint/tsgolint, knip, sherif), Expo SDK alignment, dependency and full-history secret audits, `vitest`, both library checks, Android bundle smoke test, complete React Doctor scan with zero findings. |
 | `animu-mobile-app-release` | `Jenkinsfile.release` | Parameterized release build (below). |
 
-CI runs in the Node container; release builds run on the
-`animu-android-native` host agent (Node, JDK 17, Android SDK/NDK). The release job is parameterized:
+CI runs in the Node container. Release builds run on the
+`animu-android-native` host agent (Node, JDK 17, Android SDK/NDK), and their
+iOS half on the MacBook agent (`ios-release`: Xcode, CocoaPods, Node; reached
+over Tailscale and launched on demand, so the Mac must be awake). The two
+platforms build side by side from the same commit and resolved `app.json`. The
+release job is parameterized:
 
 | Parameter | Meaning |
 | --- | --- |
+| `PLATFORMS` | `both` (default), `android` or `ios`. The version, checks and gates run either way. Run `both` for one release: a later single-platform run into the same tag replaces the uploaded `RELEASE_NOTES.md` but not the release body. |
 | `VERSION` | Marketing version; must equal `app.json` → `expo.version`. |
-| `VERSION_CODE` | Android `versionCode`; must equal `app.json` → `expo.android.versionCode`. |
+| `VERSION_CODE` | Android `versionCode` and iOS build number; must equal both in `app.json`. |
 | `TAG` | Git/release tag, e.g. `v3.0.1`. |
 | `CREATE_GITHUB_RELEASE` | When true, create the GitHub release and upload the artifacts. |
 | `DRAFT` / `PRERELEASE` | Flags for the created GitHub release. |
 | `TRUST_CI` | Skip the pre-release checks when the `Animu/animu-mobile-app` CI job has a passing build for the exact commit. The dependency audit still runs fresh. |
-| `SKIP_CHECKS` | Default `false`. Set `true` for a QA build to bypass CI lookup, pre-release checks, Android lint/native tests, and artifact compliance checks. Production signing and signer verification still run. The artifacts are named `*-qa-unchecked`, and the build refuses to run with `CREATE_GITHUB_RELEASE` or `COMMIT_BUMP`. |
+| `SKIP_CHECKS` | Default `false`. Set `true` for a QA build to bypass CI lookup, pre-release checks, Android lint/native tests, and artifact compliance checks. Production signing and signer verification still run; the IPA is Ad Hoc signed instead (installs on the devices in its profile, cannot go to the App Store). The artifacts are named `*-qa-unchecked`, and the build refuses to run with `CREATE_GITHUB_RELEASE` or `COMMIT_BUMP`. |
 
 ### Pipeline steps
 
@@ -74,7 +82,13 @@ CI runs in the Node container; release builds run on the
    key, and that the APK signer matches the AAB signer.
 10. Write SHA-256 checksums, per-device Play download sizes (bundletool), and
     `RELEASE_NOTES.md`.
-11. Optionally create the GitHub release and upload the artifacts.
+11. In parallel on the Mac: `expo prebuild --platform ios` (stamped like
+    Android), `pod install`, a manually signed `xcodebuild archive`, and
+    `-exportArchive` to the IPA. The archive is checked against App Store
+    requirements (`scripts/validate-ios-archive.py`), and the IPA for its
+    version, distribution identity, team, embedded profile and entitlements.
+12. Merge both platforms' notes into `RELEASE_NOTES.md`; optionally create the
+    GitHub release and upload the artifacts.
 
 The universal APK uses the upload key. Google Play App Signing may use a
 different app-signing key, so matching APK/AAB upload signatures do not prove
@@ -86,7 +100,8 @@ For a production APK for QA, enable `SKIP_CHECKS`, leave `BUMP=none` and
 fails otherwise). Download
 `release-artifacts/animu-<version>-code<versionCode>-qa-unchecked.apk` from the successful
 Jenkins build's artifacts. The AAB is still built as the source of the universal
-APK but is not archived. Release notes record that checks were bypassed. Sonar runs in a separate
+APK but is not archived. With `PLATFORMS` `both` or `ios`, the Ad Hoc
+`animu-<version>-build<versionCode>-qa-unchecked.ipa` is archived too. Release notes record that checks were bypassed. Sonar runs in a separate
 job and is not invoked by this release pipeline.
 
 ### Signing (Play uploads)
@@ -97,6 +112,17 @@ credential and injected the same way EAS did it: a small Gradle script
 declares a `release` `signingConfig` and applies it to the release build type.
 Keystore passwords are written to mode-600 files and passed to bundletool with
 its `file:` scheme so they never appear in the build log.
+
+### Signing (iOS)
+
+The distribution certificate and the App Store and Ad Hoc provisioning profiles
+are the ones EAS manages, copied into the Jenkins `ios-distribution-signing`
+credential (base64 JSON: `p12`, `p12Password`, `profiles.APP_STORE`,
+`profiles.AD_HOC`). The build imports the certificate into a keychain of its
+own, puts it first in the search list, signs the app target manually, and
+afterwards deletes the keychain, restores the search list and removes the
+profile it installed. When EAS renews the certificate or a profile (they expire
+2027-09-14), refresh the credential; the build fails on an expired profile.
 
 The committed `android/app/build.gradle` still points `release` at the debug
 keystore — that file is generated by `expo prebuild` (gitignored) and is never

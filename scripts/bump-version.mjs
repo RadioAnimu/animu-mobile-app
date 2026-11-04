@@ -64,6 +64,14 @@ if (!/^\d+\.\d+\.\d+$/.test(bumped.version) || !Number.isSafeInteger(bumped.vers
   process.exit(1);
 }
 
+// The iOS build number may catch up with the versionCode, never fall back:
+// App Store Connect refuses a build number it has seen.
+const buildNumber = Number(expo.ios?.buildNumber ?? 0);
+if (buildNumber > bumped.versionCode) {
+  console.error(`[bump] refusing to lower ios.buildNumber ${buildNumber} to versionCode ${bumped.versionCode}`);
+  process.exit(1);
+}
+
 // Write back only when something changed.
 const before = JSON.stringify({ v: expo.version, c: expo.android?.versionCode, b: expo.ios?.buildNumber });
 const after = JSON.stringify({ v: bumped.version, c: bumped.versionCode, b: String(bumped.versionCode) });

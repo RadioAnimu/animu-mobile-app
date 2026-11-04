@@ -32,6 +32,22 @@
 //   PRERELEASE            Mark the GitHub release as a pre-release
 //   SKIP_CHECKS           Build for QA without CI, lint, tests or compliance gates
 
+// Removes the iOS signing material from the Mac: restores the keychain search
+// list, deletes the build's keychain, and removes only the provisioning
+// profiles the build added. Run after the iOS build, and before the next one
+// in case a lost agent connection skipped it.
+def IOS_SIGNING_CLEANUP = '''#!/bin/bash
+  S="$WORKSPACE/.signing"
+  if [ -s "$S/keychains.orig" ]; then security list-keychains -d user -s $(cat "$S/keychains.orig") || true; fi
+  security delete-keychain "$S/release.keychain-db" 2>/dev/null || true
+  if [ -f "$S/installed-profiles" ]; then
+    while IFS= read -r profile; do rm -f "$profile"; done < "$S/installed-profiles"
+  fi
+  rm -rf "$S" "$TMPDIR/Animu.xcarchive" "$TMPDIR/ios-export" "$TMPDIR/ipa" \
+         "$TMPDIR/embedded.plist" "$TMPDIR/entitlements.plist" "$TMPDIR/ipa-signature.txt"
+  security list-keychains -d user
+'''
+
 pipeline {
   // Lock BEFORE any executor is allocated: with a top-level agent, the lock
   // would only be taken after the executor is assigned, so waiting builds would
@@ -190,10 +206,7 @@ pipeline {
       steps {
         // The Proxima Nova fonts are licensed and gitignored. They are staged
         // on the host outside the repo and copied into the workspace here.
-        withCredentials([
-          string(credentialsId: 'android-upload-keystore', variable: 'ANDROID_UPLOAD_KEYSTORE_B64'),
-          string(credentialsId: 'jenkins-api-token', variable: 'JENKINS_API_TOKEN'),
-        ]) {
+        withCredentials([string(credentialsId: 'jenkins-api-token', variable: 'JENKINS_API_TOKEN')]) {
           sh '''
             set -eux
             FONTS_STAGE="${FONTS_STAGE:-$HOME/.animu-secrets/fonts}"
@@ -225,27 +238,6 @@ pipeline {
 
             # Both linked submodules reuse only verified output for their pins.
             node scripts/prepare-submodules.mjs
-
-            # Decode the upload keystore once, into a workspace-local path the
-            # Gradle signing injection reads. Passwords go to mode-600 files so
-            # they never appear in the console log. Removed after the build.
-            mkdir -p "$WORKSPACE/.signing"
-            chmod 700 "$WORKSPACE/.signing"
-            set +x
-            umask 077
-            printf "%s" "$ANDROID_UPLOAD_KEYSTORE_B64" | base64 -d > "$WORKSPACE/.signing.json"
-            node -e '
-              const fs = require("fs");
-              const j = JSON.parse(fs.readFileSync(process.env.WORKSPACE + "/.signing.json", "utf8"));
-              fs.writeFileSync(process.env.WORKSPACE + "/.signing/upload.jks", Buffer.from(j.keystore, "base64"));
-            '
-            node -e '
-              const fs = require("fs");
-              const j = JSON.parse(fs.readFileSync(process.env.WORKSPACE + "/.signing.json", "utf8"));
-              const dir = process.env.WORKSPACE + "/.signing";
-              fs.writeFileSync(dir + "/storepass", j.keystorePassword, { mode: 0o600 });
-              fs.writeFileSync(dir + "/keypass", j.keyPassword || j.keystorePassword, { mode: 0o600 });
-            '
           '''
         }
       }
@@ -427,6 +419,32 @@ pipeline {
           stages {
             stage('Prebuild + inject signing') {
               steps {
+                // Only an Android build decodes the upload keystore.
+                withCredentials([string(credentialsId: 'android-upload-keystore', variable: 'ANDROID_UPLOAD_KEYSTORE_B64')]) {
+                  sh '''
+                    set -eu
+                    # Decode the upload keystore once, into a workspace-local path the
+                    # Gradle signing injection reads. Passwords go to mode-600 files so
+                    # they never appear in the console log. Removed after the build.
+                    mkdir -p "$WORKSPACE/.signing"
+                    chmod 700 "$WORKSPACE/.signing"
+                    set +x
+                    umask 077
+                    printf "%s" "$ANDROID_UPLOAD_KEYSTORE_B64" | base64 -d > "$WORKSPACE/.signing.json"
+                    node -e '
+                      const fs = require("fs");
+                      const j = JSON.parse(fs.readFileSync(process.env.WORKSPACE + "/.signing.json", "utf8"));
+                      fs.writeFileSync(process.env.WORKSPACE + "/.signing/upload.jks", Buffer.from(j.keystore, "base64"));
+                    '
+                    node -e '
+                      const fs = require("fs");
+                      const j = JSON.parse(fs.readFileSync(process.env.WORKSPACE + "/.signing.json", "utf8"));
+                      const dir = process.env.WORKSPACE + "/.signing";
+                      fs.writeFileSync(dir + "/storepass", j.keystorePassword, { mode: 0o600 });
+                      fs.writeFileSync(dir + "/keypass", j.keyPassword || j.keystorePassword, { mode: 0o600 });
+                    '
+                  '''
+                }
                 sh '''
                   set -eux
 
@@ -746,9 +764,12 @@ pipeline {
             XDG_CACHE_HOME = '/Users/rmotafreitas/.cache/animu-ci/tools'
             TMPDIR = '/Users/rmotafreitas/jenkins-tmp'
             TMP = '/Users/rmotafreitas/jenkins-tmp'
-            JAVA_HOME = '/Users/rmotafreitas/.sdkman/candidates/java/17.0.14-tem'
+            // The Android build's Linux paths mean nothing here.
             ANDROID_HOME = ''
             ANDROID_SDK_ROOT = ''
+            GRADLE_USER_HOME = ''
+            CCACHE_DIR = ''
+            CCACHE_CONFIGPATH = ''
             // CocoaPods refuses to run without a UTF-8 locale.
             LANG = 'en_US.UTF-8'
             LC_ALL = 'en_US.UTF-8'
@@ -837,6 +858,7 @@ pipeline {
 
             stage('iOS: archive + export signed IPA') {
               steps {
+                sh IOS_SIGNING_CLEANUP
                 withCredentials([string(credentialsId: 'ios-distribution-signing', variable: 'IOS_SIGNING_B64')]) {
                   sh '''#!/bin/bash
                     set -euo pipefail
@@ -853,6 +875,9 @@ pipeline {
                     S="$WORKSPACE/.signing"
                     rm -rf "$S"; mkdir -m 700 "$S"; umask 077
                     printf "%s" "$IOS_SIGNING_B64" | base64 -D > "$S/signing.json"
+                    # Xcode hands its environment to every build script (and
+                    # their logs, which are archived unmasked).
+                    unset IOS_SIGNING_B64
                     node -e '
                       const fs = require("fs");
                       const [dir, kind] = process.argv.slice(1);
@@ -873,15 +898,14 @@ pipeline {
                     [[ "$(date -u +%Y-%m-%dT%H:%M:%SZ)" < "$EXPIRES" ]] || { echo "profile $NAME expired $EXPIRES"; exit 1; }
                     echo "Signing with $KIND profile \\"$NAME\\" ($UUID)"
 
-                    # Xcode reads profiles from both places, depending on its version.
-                    # Only a profile this build added is removed afterwards.
-                    for dir in "$HOME/Library/MobileDevice/Provisioning Profiles" "$HOME/Library/Developer/Xcode/UserData/Provisioning Profiles"; do
-                      mkdir -p "$dir"
-                      if [ ! -e "$dir/$UUID.mobileprovision" ]; then
-                        cp "$S/profile.mobileprovision" "$dir/$UUID.mobileprovision"
-                        printf "%s\\n" "$dir/$UUID.mobileprovision" >> "$S/installed-profiles"
-                      fi
-                    done
+                    # Where Xcode 16+ reads profiles. Only a profile this build
+                    # added is removed afterwards.
+                    PROFILES="$HOME/Library/Developer/Xcode/UserData/Provisioning Profiles"
+                    mkdir -p "$PROFILES"
+                    if [ ! -e "$PROFILES/$UUID.mobileprovision" ]; then
+                      cp "$S/profile.mobileprovision" "$PROFILES/$UUID.mobileprovision"
+                      printf "%s\\n" "$PROFILES/$UUID.mobileprovision" > "$S/installed-profiles"
+                    fi
 
                     # A keychain of this build's own, unlocked for its length: the
                     # login keychain is locked in an SSH session.
@@ -890,7 +914,7 @@ pipeline {
                     security create-keychain -p "$KC_PASS" "$KC"
                     security set-keychain-settings -lut 5400 "$KC"
                     security unlock-keychain -p "$KC_PASS" "$KC"
-                    security import "$S/dist.p12" -k "$KC" -P "$(cat "$S/p12pass")" -T /usr/bin/codesign -T /usr/bin/security >/dev/null
+                    security import "$S/dist.p12" -k "$KC" -P "$(cat "$S/p12pass")" -T /usr/bin/codesign >/dev/null
                     security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KC_PASS" "$KC" >/dev/null
                     rm "$S/dist.p12" "$S/p12pass"
                     # Export finds identities only in the search list: put the
@@ -912,7 +936,8 @@ pipeline {
                     SCHEME=$(basename "$WORKSPACE_DIR" .xcworkspace)
                     ARCHIVE="$TMPDIR/Animu.xcarchive"
                     rm -rf "$ARCHIVE" "$TMPDIR/ios-export"
-                    xcodebuild -workspace "$WORKSPACE_DIR" -scheme "$SCHEME" \\
+                    # caffeinate: the Mac must not idle-sleep mid-build.
+                    caffeinate -i xcodebuild -workspace "$WORKSPACE_DIR" -scheme "$SCHEME" \\
                       -configuration Release -destination 'generic/platform=iOS' \\
                       -archivePath "$ARCHIVE" -derivedDataPath "$WORKSPACE/.ios-derived-data" \\
                       OTHER_CODE_SIGN_FLAGS="--keychain $KC" \\
@@ -932,7 +957,7 @@ pipeline {
                     opt "Add :uploadSymbols bool true"
                     opt "Add :destination string export"
                     plutil -p "$OPTIONS"
-                    xcodebuild -exportArchive -archivePath "$ARCHIVE" \\
+                    caffeinate -i xcodebuild -exportArchive -archivePath "$ARCHIVE" \\
                       -exportPath "$TMPDIR/ios-export" -exportOptionsPlist "$OPTIONS" \\
                       > "$WORKSPACE/ios-logs/export.log" 2>&1 \\
                       || { tail -60 "$WORKSPACE/ios-logs/export.log"; echo "export failed (full log archived)"; exit 1; }
@@ -941,6 +966,7 @@ pipeline {
                     set -- "$TMPDIR"/ios-export/*.ipa
                     [ "$#" = 1 ] && [ -f "$1" ] || { echo "export did not produce one IPA"; exit 1; }
                     cp "$1" "$IPA"
+                    chmod 644 "$IPA"
                     printf "%s\\n" "$UUID" > "$S/profile-uuid"
                     ls -la "$IPA"
                   '''
@@ -1040,21 +1066,9 @@ pipeline {
           }
           post {
             always {
+              // Cleanup first: a failing archive step must not skip it.
+              sh IOS_SIGNING_CLEANUP
               archiveArtifacts artifacts: 'ios-logs/**', allowEmptyArchive: true
-              sh '''#!/bin/bash
-                # Never leave signing material on the Mac: the keychain goes, the
-                # search list is restored, and only profiles this build added are
-                # removed.
-                S="$WORKSPACE/.signing"
-                if [ -s "$S/keychains.orig" ]; then security list-keychains -d user -s $(cat "$S/keychains.orig") || true; fi
-                security delete-keychain "$S/release.keychain-db" 2>/dev/null || true
-                if [ -f "$S/installed-profiles" ]; then
-                  while IFS= read -r profile; do rm -f "$profile"; done < "$S/installed-profiles"
-                fi
-                rm -rf "$S" "$TMPDIR/Animu.xcarchive" "$TMPDIR/ios-export" "$TMPDIR/ipa" \
-                       "$TMPDIR/embedded.plist" "$TMPDIR/entitlements.plist" "$TMPDIR/ipa-signature.txt"
-                security list-keychains -d user
-              '''
             }
           }
         }
@@ -1090,7 +1104,7 @@ pipeline {
             set -eux
             export GH_TOKEN
             cd "$ARTIFACT_DIR"
-            case "$PLATFORMS" in
+            case "${PLATFORMS:-both}" in
               android) TITLE="${TAG} (Android)" ;;
               ios) TITLE="${TAG} (iOS)" ;;
               *) TITLE="${TAG}" ;;
