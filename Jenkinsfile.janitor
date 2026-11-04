@@ -5,8 +5,10 @@
 // rebuilds stay incremental. Space is therefore only reclaimed when a job is
 // renamed/deleted and its old workspace is orphaned, or when Docker layers
 // accumulate. This job is the safety net: it removes *stale* workspaces
-// (untouched for 30+ days) and prunes old Docker layers, while leaving active
-// job caches intact.
+// (untouched for 30+ days), drops packages no project uses from the host's
+// pnpm store, refreshes the CI containers' images and prunes old Docker
+// layers, while leaving active job caches intact; then it reports what each
+// cache holds.
 //
 // It shares the build-host lock, so it never runs alongside a CI/release build.
 
@@ -66,7 +68,21 @@ pipeline {
               -type d -mtime +30 -empty -print -delete 2>/dev/null || true
           ' || true
 
-          # 4) Docker: dangling images and build cache older than 7 days. Recent
+          # 4) The host's pnpm store (release, Sonar and library jobs): every
+          #    lockfile change leaves the old versions behind. Their workspaces
+          #    hard-link into it on this disk, so pnpm can tell what is still
+          #    used. (The CI containers' store, in the animu-node-cache volume,
+          #    is copied from, not linked: pruning it would empty it.)
+          ( . scripts/ci-cache.sh && corepack pnpm store prune ) || true
+
+          # 5) The CI containers' images are floating tags (Node 22 for the app
+          #    and the API, 24 for the player): Jenkins pulled them once and
+          #    never again, so they miss every patch release since. The
+          #    replaced image turns dangling and goes in the prune below.
+          docker pull -q node:22-bookworm || true
+          docker pull -q node:24-bookworm || true
+
+          # 6) Docker: dangling images and build cache older than 7 days. Recent
           #    layers (and everything still referenced) are kept.
           docker image prune -f || true
           docker builder prune -f --filter until=168h || true
@@ -75,6 +91,12 @@ pipeline {
           df -h / | tail -1
           echo "=== docker disk usage ==="
           docker system df || true
+          echo "=== caches ==="
+          du -sh /home/rmotafreitas/.cache/animu-ci/* /home/rmotafreitas/.gradle/caches \
+            /home/rmotafreitas/jenkins-agent/workspace/Animu/* 2>/dev/null || true
+          docker run --rm -v animu-node-cache:/cache alpine du -sh /cache 2>/dev/null || true
+          CCACHE_DIR=/home/rmotafreitas/jenkins-agent/workspace/Animu/animu-mobile-app-release/.gradle-home/ccache \
+            CCACHE_CONFIGPATH="$WORKSPACE/scripts/ccache.conf" ccache --show-stats 2>/dev/null | grep -iE 'size|hits' || true
         '''
       }
     }

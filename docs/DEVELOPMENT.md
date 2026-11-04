@@ -165,9 +165,14 @@ release pipeline consumes that for the pinned commit when available. See
 ## Continuous integration
 
 `.github/workflows/ci.yml` and the Jenkins `animu-mobile-app` job run on every
-push to `main` and on pull requests:
+push to `main` and on pull requests. After `pnpm install --frozen-lockfile`
+(which prepares both pinned libraries, reusing verified output or matching
+Jenkins artifacts), both run `pnpm verify` (`scripts/verify.mjs`), the same
+command a local run uses. It runs independent steps side by side (half the
+cores at a time; `--serial` runs one at a time with live output), runs every
+step even after one fails, and ends with a summary:
 
-1. `pnpm install --frozen-lockfile` (prepares both pinned libraries, reusing verified output or matching Jenkins artifacts).
+1. Tooling tests (`pnpm run test:tooling` and the Python ones).
 2. `pnpm run typecheck` — typecheck.
 3. `pnpm run lint` — lint (SonarJS rules run as errors on production code).
 4. `pnpm run check:expo-deps` — Expo SDK dependency alignment, then
@@ -185,7 +190,8 @@ push to `main` and on pull requests:
 
 GitHub CI also runs a `web` job: `pnpm run test:web`, the Playwright tests in
 `e2e/` against the export in Chromium and WebKit (they play the live station).
-`pnpm verify` runs the Jenkins steps locally, the web export included.
+`pnpm verify --fast` skips the slow steps (secrets, the libraries, the bundle,
+React Doctor and the network checks).
 
 `react-doctor.yml` posts advisory PR feedback separately.
 
