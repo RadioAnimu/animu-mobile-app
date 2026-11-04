@@ -1157,7 +1157,10 @@ pipeline {
         // Hoc IPA: its AAB is an unchecked Play upload and must not be
         // downloadable as one.
         archiveArtifacts artifacts: params.SKIP_CHECKS ? 'release-artifacts/*.apk,release-artifacts/*.apk.sha256,release-artifacts/*.ipa,release-artifacts/*.ipa.sha256,release-artifacts/RELEASE_NOTES.md' : 'release-artifacts/*', allowEmptyArchive: false, fingerprint: true
-        archiveArtifacts artifacts: 'android/build/reports/profile/**', allowEmptyArchive: true
+        // An iOS-only run would pick up the last Android build's report.
+        script {
+          if (params.PLATFORMS != 'ios') archiveArtifacts artifacts: 'android/build/reports/profile/**', allowEmptyArchive: true
+        }
       }
       echo 'Release pipeline succeeded.'
     }
