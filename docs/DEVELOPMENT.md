@@ -178,8 +178,9 @@ push to `main` and on pull requests:
    own typecheck and tests.
 8. **Bundle smoke test** — `expo export:embed` for Android, catching broken asset
    paths and unresolvable imports that TypeScript can't see.
-9. **Web export** — `pnpm run build:web`, since web-only modules (`*.web.ts`)
-   are never in the Android bundle.
+9. **Web export** — `node scripts/check-web-export.mjs` (`pnpm run build:web`,
+   standing in for the licensed fonts where they are missing), since web-only
+   modules (`*.web.ts`) are never in the Android bundle.
 10. **React Doctor gate** — `pnpm run doctor:gate`, fails on any finding.
 
 GitHub CI also runs a `web` job: `pnpm run test:web`, the Playwright tests in

@@ -24,7 +24,7 @@ const STEPS = [
   { label: "animu-api", script: "check:animu-api", slow: true },
   { label: "player", script: "check:player", slow: true },
   { label: "bundle size", script: "check:bundle-size", slow: true },
-  { label: "web export", script: "build:web", slow: true },
+  { label: "web export", command: ["node", "scripts/check-web-export.mjs"], slow: true },
   { label: "react doctor", script: "doctor:gate", slow: true },
 ];
 
