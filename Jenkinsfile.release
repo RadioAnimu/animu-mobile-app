@@ -73,7 +73,12 @@ def RELEASE_TAG_CHECK = '''#!/bin/bash
     echo "Tag $TAG is taken ($taken exists). Bump the version, or set TAG: a new tag, or $TAG itself to add this run's files to that release."
     exit 1
   fi
-  echo "TAG=$TAG names $taken: this run's files are added to it (its title, notes and draft state are left as they are)"
+  # A release made on a bare tag would sit on that tag's commit, not this one.
+  if [ "$taken" != "a release" ]; then
+    echo "TAG=$TAG is a git tag without a release: a release on it would not be on the commit built here. Choose a new tag."
+    exit 1
+  fi
+  echo "TAG=$TAG names a release: this run's files are added to it (its body, title and draft state are kept; its RELEASE_NOTES.md file is replaced)"
 '''
 
 pipeline {
@@ -87,9 +92,9 @@ pipeline {
     choice(name: 'PLATFORMS', choices: ['both', 'android', 'ios'], description: 'What to build. both = Android on the Linux host and iOS on the MacBook, side by side, into one release. The version, checks and gates are shared either way.')
     string(name: 'VERSION', defaultValue: '', description: 'Exact marketing version, e.g. 3.0.1. Overrides whatever BUMP would produce. Blank = use app.json (or BUMP).')
     string(name: 'VERSION_CODE', defaultValue: '', description: 'Exact Android versionCode (and iOS build number, always the same), e.g. 16. Overrides whatever BUMP would produce. Blank = use app.json (or BUMP).')
-    string(name: 'TAG', defaultValue: '', description: 'Release/git tag, e.g. v3.0.1. Blank = "v" + the resolved VERSION.')
+    string(name: 'TAG', defaultValue: '', description: 'Release/git tag, e.g. v3.0.1. Blank = "v" + the resolved VERSION, which must not have a release or tag yet. Set it to an existing release\'s tag only to add this run\'s files to that release.')
     choice(name: 'BUMP', choices: ['none', 'versionCode', 'patch', 'minor', 'major'], description: 'Change the version before building. none = build app.json exactly as-is (no version change). versionCode = versionCode (and iOS build number) +1, version unchanged. patch = x.y.Z+1 and versionCode +1. minor = x.Y+1.0 and versionCode +1. major = X+1.0.0 and versionCode +1. (VERSION/VERSION_CODE, if set, override the result.)')
-    booleanParam(name: 'COMMIT_BUMP', defaultValue: false, description: 'Commit the bumped app.json back to main so the version is not lost. Only used when BUMP is not none.')
+    booleanParam(name: 'COMMIT_BUMP', defaultValue: false, description: 'Commit the changed app.json (and splash art) to main so the version is not lost; pushed only after the builds succeed. Required for a GitHub release that changes the version (BUMP, VERSION or VERSION_CODE).')
     booleanParam(name: 'CREATE_GITHUB_RELEASE', defaultValue: false, description: 'Create the GitHub release for TAG and upload the .aab/.apk/.ipa + checksums. Off = only build and archive the artifacts, no release.')
     booleanParam(name: 'DRAFT', defaultValue: true, description: 'Create the GitHub release as a draft (not public until you publish it). Only used when CREATE_GITHUB_RELEASE is on.')
     booleanParam(name: 'PRERELEASE', defaultValue: false, description: 'Mark the GitHub release as a pre-release. Only used when CREATE_GITHUB_RELEASE is on.')
@@ -169,9 +174,11 @@ pipeline {
             echo "QA build: quality checks are bypassed; production signing is enabled."
           fi
           # A released version main does not record would be bumped to again,
-          # and the stores refuse a versionCode or build number twice.
-          if [ "${CREATE_GITHUB_RELEASE:-false}" = "true" ] && [ "${BUMP:-none}" != "none" ] && [ "${COMMIT_BUMP:-false}" != "true" ]; then
-            echo "A release with BUMP=${BUMP} needs COMMIT_BUMP, so main records the version it ships"
+          # and the stores refuse a versionCode or build number twice. BUMP,
+          # VERSION and VERSION_CODE all change app.json.
+          if [ "${CREATE_GITHUB_RELEASE:-false}" = "true" ] && [ "${COMMIT_BUMP:-false}" != "true" ] \
+            && { [ "${BUMP:-none}" != "none" ] || [ -n "${VERSION:-}" ] || [ -n "${VERSION_CODE:-}" ]; }; then
+            echo "A release that changes the version (BUMP, VERSION or VERSION_CODE) needs COMMIT_BUMP, so main records the version it ships"
             exit 1
           fi
         '''
@@ -1126,10 +1133,15 @@ pipeline {
     stage('Commit bumped version') {
       agent { label 'animu-android-native' }
       when {
-        expression { return params.BUMP != 'none' && params.COMMIT_BUMP }
+        // A no-op when the version is unchanged (the diff check below).
+        expression { return params.COMMIT_BUMP }
       }
+      environment { TAG_GIVEN = "${params.TAG ? 'true' : 'false'}" }
       steps {
         withCredentials([string(credentialsId: 'github-release-token', variable: 'GH_TOKEN')]) {
+          // Before pushing: a tag taken during the build must not leave main
+          // with a version that is never released.
+          script { if (params.CREATE_GITHUB_RELEASE) sh RELEASE_TAG_CHECK }
           sh '''
             set -eux
             # The splash images carry the version label and were regenerated by
