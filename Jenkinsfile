@@ -86,6 +86,11 @@ pipeline {
           node scripts/check-bundle-size.mjs /tmp/index.android.bundle 3900000 \
             /tmp/animu-assets 2000000
 
+          # The web export (dist/web) must build too: web-only modules
+          # (*.web.ts) are never bundled by the Android export above. The
+          # licensed fonts never reach CI: the script stands in for them.
+          node scripts/check-web-export.mjs
+
           # React Doctor gate (any finding fails the build).
           pnpm run doctor:gate
           node scripts/ci-results.mjs publish RadioAnimu/animu-mobile-app

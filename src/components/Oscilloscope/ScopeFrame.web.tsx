@@ -14,13 +14,18 @@ export const ScopeFrame = forwardRef<ScopeFrameHandle, ScopeFrameProps>(function
 
   useImperativeHandle(ref, () => ({
     postMessage(message: string) {
+      // The sandboxed frame's origin is opaque, so no origin string can name
+      // it: "*" is the only target that reaches it, and the window it goes to
+      // is our own frame's. Only wave samples and their timing are sent.
       frame.current?.contentWindow?.postMessage(message, "*");
     },
   }), []);
 
   useEffect(() => {
     const receive = (event: MessageEvent) => {
-      if (event.source !== frame.current?.contentWindow || typeof event.data !== "string") return;
+      // Only our frame: its window, and the opaque origin ("null") the sandbox gives it.
+      if (event.source !== frame.current?.contentWindow || event.origin !== "null") return;
+      if (typeof event.data !== "string") return;
       onMessage({ nativeEvent: { data: event.data } });
     };
     window.addEventListener("message", receive);

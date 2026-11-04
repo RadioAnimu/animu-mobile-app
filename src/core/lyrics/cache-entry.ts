@@ -16,12 +16,26 @@ interface StoredLookup extends CachedLookup {
   key: string;
 }
 
-/** FNV-1a, 32 bit: a file name for a song key (the key is stored inside). */
+/**
+ * FNV-1a, 32 bit: a file name for a song key (the key is stored inside).
+ * It hashes UTF-16 units, not code points: the names already on disk were made
+ * that way, and a different hash would orphan every cached lookup. A code point
+ * past U+FFFF is split back into its two surrogates; a lone surrogate comes
+ * through the iteration as itself.
+ */
 export function fileNameOf(key: string): string {
   let hash = 0x811c9dc5;
-  for (let i = 0; i < key.length; i += 1) {
-    hash ^= key.charCodeAt(i);
-    hash = Math.imul(hash, 0x01000193) >>> 0;
+  const mix = (unit: number) => {
+    hash = Math.imul(hash ^ unit, 0x01000193) >>> 0;
+  };
+  for (const char of key) {
+    const point = char.codePointAt(0) ?? 0;
+    if (point > 0xffff) {
+      mix(0xd800 + ((point - 0x10000) >> 10));
+      mix(0xdc00 + ((point - 0x10000) & 0x3ff));
+    } else {
+      mix(point);
+    }
   }
   return `${hash.toString(16).padStart(8, "0")}-${key.length}.json`;
 }
