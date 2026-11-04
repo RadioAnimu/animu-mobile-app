@@ -51,7 +51,7 @@ release job is parameterized:
 | `VERSION` | Marketing version; must equal `app.json` → `expo.version`. |
 | `VERSION_CODE` | Android `versionCode` and iOS build number; must equal both in `app.json`. |
 | `TAG` | Git/release tag, e.g. `v3.0.1`. Blank = `v` + the version. A release goes to a tag of its own: when the tag is taken (an earlier release, or one published by hand), the run fails before building unless `TAG` names that tag on purpose, which adds this run's files to that release and leaves its title, notes and draft state as they are. |
-| `BUMP` / `COMMIT_BUMP` | Change the version before building, and commit `app.json` and the splash art to `main`. The commit is pushed only after both builds succeed. A GitHub release of a bumped version requires `COMMIT_BUMP`. |
+| `BUMP` / `COMMIT_BUMP` | Change the version before building, and commit `app.json` and the splash art to `main`. The commit is pushed only after the selected builds succeed. A GitHub release of a bumped version requires `COMMIT_BUMP`. |
 | `CREATE_GITHUB_RELEASE` | When true, create the GitHub release and upload the artifacts. |
 | `DRAFT` / `PRERELEASE` | Flags for the created GitHub release. |
 | `TRUST_CI` | Skip the pre-release checks when the `Animu/animu-mobile-app` CI job has a passing build for the exact commit. The dependency audit still runs fresh. |

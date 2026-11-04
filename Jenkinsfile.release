@@ -48,6 +48,34 @@ def IOS_SIGNING_CLEANUP = '''#!/bin/bash
   security list-keychains -d user
 '''
 
+// Fails when $TAG already has a GitHub release or a git tag, unless the TAG
+// parameter named it (TAG_GIVEN=true) to add this run's files to that release.
+// A lookup that fails for any other reason (network, token) fails too: only a
+// clear "not found" counts as free. Run before the build and again just
+// before the release is created.
+def RELEASE_TAG_CHECK = '''#!/bin/bash
+  set -euo pipefail
+  export GH_TOKEN
+  taken=""
+  if out=$(gh release view "$TAG" --json tagName 2>&1); then
+    taken="a release"
+  elif [ "$out" != "release not found" ]; then
+    echo "Could not look up release $TAG: $out"; exit 1
+  fi
+  rc=0; git ls-remote --exit-code --tags origin "refs/tags/$TAG" >/dev/null || rc=$?
+  case "$rc" in
+    0) taken="${taken:-a git tag}" ;;
+    2) ;;
+    *) echo "Could not look up tag $TAG (git ls-remote exit $rc)"; exit 1 ;;
+  esac
+  if [ -z "$taken" ]; then echo "Tag $TAG is free"; exit 0; fi
+  if [ "$TAG_GIVEN" != "true" ]; then
+    echo "Tag $TAG is taken ($taken exists). Bump the version, or set TAG: a new tag, or $TAG itself to add this run's files to that release."
+    exit 1
+  fi
+  echo "TAG=$TAG names $taken: this run's files are added to it (its title, notes and draft state are left as they are)"
+'''
+
 pipeline {
   // Lock BEFORE any executor is allocated: with a top-level agent, the lock
   // would only be taken after the executor is assigned, so waiting builds would
@@ -216,20 +244,7 @@ pipeline {
       environment { TAG_GIVEN = "${params.TAG ? 'true' : 'false'}" }
       steps {
         withCredentials([string(credentialsId: 'github-release-token', variable: 'GH_TOKEN')]) {
-          sh '''
-            set -eu
-            export GH_TOKEN
-            if gh release view "$TAG" >/dev/null 2>&1 \
-              || git ls-remote --exit-code --tags origin "refs/tags/$TAG" >/dev/null 2>&1; then
-              if [ "$TAG_GIVEN" != "true" ]; then
-                echo "Tag $TAG is taken (a release or tag exists). Bump the version, or set TAG: a new tag, or $TAG itself to add this run's files to that release."
-                exit 1
-              fi
-              echo "TAG=$TAG names an existing release or tag: this run's files will be added to it"
-            else
-              echo "Tag $TAG is free"
-            fi
-          '''
+          sh RELEASE_TAG_CHECK
         }
       }
     }
@@ -1106,7 +1121,7 @@ pipeline {
       }
     }
 
-    // Only after both builds succeeded: a failed build leaves main as it was.
+    // Only after the selected builds succeeded: a failed build leaves main as it was.
     // The release is tagged on this commit, which records the version it ships.
     stage('Commit bumped version') {
       agent { label 'animu-android-native' }
@@ -1141,6 +1156,8 @@ pipeline {
       environment { TAG_GIVEN = "${params.TAG ? 'true' : 'false'}" }
       steps {
         withCredentials([string(credentialsId: 'github-release-token', variable: 'GH_TOKEN')]) {
+          // Again: a release or tag made during the build is refused the same way.
+          sh RELEASE_TAG_CHECK
           sh '''
             set -eux
             export GH_TOKEN
@@ -1156,10 +1173,7 @@ pipeline {
             [ "$PRERELEASE" = "true" ] && set -- "$@" --prerelease
 
             if gh release view "$TAG" >/dev/null 2>&1; then
-              # Checked before the build too; a release made since then is
-              # refused the same way.
-              [ "$TAG_GIVEN" = "true" ] || { echo "Release $TAG appeared during this build; not adding to it"; exit 1; }
-              echo "Release $TAG exists and TAG names it: adding this run's files (its title, notes and draft state are left as they are)"
+              echo "Release $TAG exists and TAG names it: adding this run's files"
             else
               gh release create "$TAG" "$@"
             fi
