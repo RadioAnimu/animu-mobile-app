@@ -173,9 +173,11 @@ describe("HeardTrack", () => {
     t.heard.reopened();
     t.heard.heard("Live", t.now, true, 6_000);
     expect(t.heard.elapsedMs()).toBe(48_800);
-    // Another stream has its own (none yet).
+    // Another stream has its own (none yet); a lined-up switch carries the
+    // audio on, so the tune-in keeps the calibration it was placed with.
     t.heard.useStream("192k", 192);
     expect(t.heard.tuneInBiasMs).toBe(AHEAD);
+    expect(t.heard.placedBiasMs).toBe(5_200);
     t.heard.useStream("64k", 64);
     expect(t.heard.tuneInBiasMs).toBe(5_200);
   });

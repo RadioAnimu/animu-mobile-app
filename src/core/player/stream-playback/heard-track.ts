@@ -44,7 +44,7 @@ const CALIBRATION_MAX_MS = 15_000;
  * ({@link HeardTrack.alignToMedia}): readings agree to ±6 ms, a late-handled
  * pause leaves ~0.1 s.
  */
-export const MEDIA_ALIGN_MS = 60;
+const MEDIA_ALIGN_MS = 60;
 
 /** A title for the second matching pass: what encoders and databases disagree on is folded. */
 const matchKey = (title: string): string =>
@@ -76,6 +76,8 @@ export interface TrackPosition {
 interface Anchor extends TrackPosition {
   /** Computed at a tune-in, not heard at a change. */
   estimated: boolean;
+  /** The tune-in calibration it was placed with (ms). */
+  biasMs: number;
 }
 
 export interface HeardTrackOptions {
@@ -152,6 +154,14 @@ export class HeardTrack {
     const anchor = this.anchor;
     if (!anchor || !this.displayed) return null;
     return anchor;
+  }
+
+  /**
+   * The calibration the position was placed with: a lined-up quality switch
+   * carries the audio on, so it keeps the stream it was placed on.
+   */
+  get placedBiasMs(): number {
+    return this.anchor?.biasMs ?? this.tuneInBiasMs;
   }
 
   /** How far this stream's computed (tune-in) position runs ahead of the audio (ms). */
@@ -274,7 +284,7 @@ export class HeardTrack {
     }
     const expected = reference.elapsedMs + (positionMs - reference.positionMs);
     if (Math.abs(expected - elapsed) <= MEDIA_ALIGN_MS) return false;
-    this.anchor = { elapsedMs: expected, at: atMs, running: anchor.running, estimated: anchor.estimated };
+    this.anchor = { ...anchor, elapsedMs: expected, at: atMs };
     return true;
   }
 
@@ -283,10 +293,10 @@ export class HeardTrack {
     const anchor = this.anchor;
     if (!anchor || anchor.running === running) return;
     this.anchor = {
+      ...anchor,
       elapsedMs: anchor.elapsedMs + (anchor.running ? Math.max(0, now - anchor.at) : 0),
       at: now,
       running,
-      estimated: anchor.estimated,
     };
   }
 
@@ -370,8 +380,9 @@ export class HeardTrack {
     if (!tuneIn && fromStation && stationElapsed != null) {
       this.calibrate(stationElapsed - this.titleInItemMs);
     }
+    const biasMs = this.tuneInBiasMs;
     let elapsed = this.titleInItemMs;
-    if (tuneIn && stationElapsed != null) elapsed = stationElapsed - this.tuneInBiasMs;
+    if (tuneIn && stationElapsed != null) elapsed = stationElapsed - biasMs;
     if (track.duration > 0) elapsed = Math.min(elapsed, track.duration);
     const now = this.now();
     this.media = null;
@@ -380,6 +391,7 @@ export class HeardTrack {
       at: now,
       running: true,
       estimated: tuneIn,
+      biasMs,
     };
     this.displayed = track;
     this.onChange();

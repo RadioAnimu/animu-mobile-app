@@ -1,7 +1,12 @@
+import type { Progress } from "react-native-anything-player";
 import type { Track } from "@/core/domain/track";
 import type { AudibleTrackResolver } from "@/core/player/stream-playback/audible-track";
 import type { HeardTrack, TrackPosition } from "@/core/player/stream-playback/heard-track";
-import type { StreamSyncEngine } from "@/core/player/stream-playback/stream-sync";
+import {
+  lagSeconds,
+  type LiveOffsetReading,
+  type StreamSyncEngine,
+} from "@/core/player/stream-playback/stream-sync";
 import { trackStartMs } from "@/core/player/stream-playback/track-start";
 
 /**
@@ -25,15 +30,8 @@ export const STATION_AFTER_PAUSE_MS = 5_000;
 /** Which source drives the display (see {@link NowHearing}). */
 export type HearingMode = "icy" | "clock" | "station";
 
-/** A native progress reading (seconds), as Airwave reports it. */
-export interface LagReading {
-  liveOffset: number | null;
-  bufferedAhead: number;
-  /** The player's media position (s) — the audio's own clock. */
-  position?: number;
-  /** Epoch ms the reading was taken at. */
-  timestamp?: number;
-}
+/** A native progress reading (seconds), as RNAP reports it; `position` is the audio's own clock. */
+export type LagReading = LiveOffsetReading & Pick<Progress, "position">;
 
 export interface NowHearingDeps {
   /** What ICY says is heard (the station's titles, at the moment they play). */
@@ -52,8 +50,8 @@ export interface NowHearingDeps {
  *
  * - **ICY titles** ({@link HeardTrack}) are the truth at every song change.
  * - At a **tune-in** the title names the song; how far into it comes from the
- *   settled audible clock, since the first lag reading can be taken while the
- *   connect burst still loads (4.8 s buffered of 17 s behind, on Android).
+ *   audible clock once RNAP's live offset has settled (the connect burst has
+ *   arrived).
  * - **The audible clock** ({@link StreamSyncEngine} +
  *   {@link AudibleTrackResolver}) drives when a stream carries no titles.
  * - **The station's live point** (`station` mode) with no audio flowing or
@@ -161,7 +159,7 @@ export class NowHearing {
     const overdue = this.overdue();
     if (overdue) return this.clockPosition(overdue, heard.tuneInBiasMs);
     if (!heard.estimated) return heard.position;
-    return heard.anchored ? this.clockPosition(heard.track, heard.tuneInBiasMs) : null;
+    return heard.anchored ? this.clockPosition(heard.track, heard.placedBiasMs) : null;
   }
 
   /** Elapsed ms into {@link track} right now, or `null` when unknown / not within it. */
@@ -232,36 +230,24 @@ export class NowHearing {
 
   /**
    * How far the speaker trails the live edge (ms) for a heard title: the
-   * locked lag once settled (what tune-ins use, so changes calibrate it),
-   * else the player's `readingMs`.
+   * settled clock's (what tune-ins use, so changes calibrate it), else the
+   * player's `reading`.
    */
-  lagMs(readingMs: number): number {
-    const { sync } = this.deps;
-    return (sync.settled ? sync.lockedLag : null) ?? readingMs;
+  lagMs(reading: Pick<Progress, "liveOffset" | "bufferedAhead">): number {
+    return this.deps.sync.lockedLag ?? lagSeconds(reading) * 1000;
   }
 
-  /** A native progress reading (Airwave `progress` events, ~1 Hz while playing). */
+  /** A native progress reading (RNAP `progress` events, ~1 Hz while playing). */
   progress(reading: LagReading): void {
     const { sync, heard } = this.deps;
-    const lockBefore = sync.anchor;
-    sync.updateFromStatus({
-      isLive: true,
-      offsetFromLive: reading.liveOffset,
-      bufferedAheadSeconds: reading.bufferedAhead,
-    });
-    // Both positions follow the audio's own clock (see `alignToMedia`).
-    let heardMoved = false;
-    if (reading.position != null && reading.timestamp != null) {
-      sync.alignToMedia(reading.position, reading.timestamp);
-      heardMoved = heard.alignToMedia(reading.position, reading.timestamp);
-    }
+    const clockMoved = sync.reading(reading);
+    // A heard position follows the audio's own clock (see `alignToMedia`).
+    const heardMoved = heard.alignToMedia(reading.position, reading.timestamp);
     this.deps.pump?.();
     this.deps.audible.adoptIfDue();
     const reported = this.checkMode();
-    // A re-lock or media-clock correction moved the position: report it.
     const clockDriven = this.mode === "clock" || heard.estimated || this.overdue() != null;
-    const relocked = lockBefore != null && lockBefore.stationMs !== sync.anchor?.stationMs;
-    if (!reported && (clockDriven ? relocked : heardMoved)) this.onChange();
+    if (!reported && (clockDriven ? clockMoved : heardMoved)) this.onChange();
   }
 
   /** An ICY title was heard (after {@link HeardTrack.heard}). */

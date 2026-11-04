@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { StreamSyncEngine } from "@/core/player/stream-playback/stream-sync";
+import { StreamSyncEngine, type LiveOffsetReading } from "@/core/player/stream-playback/stream-sync";
 
 beforeEach(() => {
   vi.useFakeTimers({ toFake: ["Date"] });
@@ -10,125 +10,137 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
+/** RNAP's reading now: `liveOffset` s behind live, settled unless told. */
+const live = (liveOffset: number, liveOffsetSettled = true): LiveOffsetReading => ({
+  liveOffset,
+  liveOffsetSettled,
+  bufferedAhead: 4,
+  timestamp: Date.now(),
+});
+
 describe("StreamSyncEngine", () => {
-  it("falls back to the device clock before any measurement", () => {
+  it("is the device clock before any reading", () => {
     const engine = new StreamSyncEngine();
 
     expect(engine.hasMeasurement).toBe(false);
+    expect(engine.settled).toBe(false);
     expect(engine.now()).toBe(Date.now());
-    expect(engine.delay).toBe(0);
   });
 
-  it("shifts now back by the measured live offset", () => {
+  it("estimates from an unsettled reading, and settles on RNAP's word", () => {
     const engine = new StreamSyncEngine();
-    engine.updateFromStatus({ isLive: true, offsetFromLive: 7.5 });
-
+    expect(engine.reading(live(5, false))).toBe(false);
     expect(engine.hasMeasurement).toBe(true);
+    expect(engine.anchor).toBeNull();
+    expect(engine.now()).toBe(Date.now() - 5_000);
+
+    expect(engine.reading(live(7.5))).toBe(true);
+    expect(engine.settled).toBe(true);
+    expect(engine.anchor).toEqual({ stationMs: Date.now() - 7_500, at: Date.now(), running: true });
+    expect(engine.lockedLag).toBe(7_500);
+  });
+
+  it("holds still through readings that agree, and moves for one that does not", () => {
+    const engine = new StreamSyncEngine();
+    engine.reading(live(7.5));
+    const anchor = engine.anchor;
+    vi.advanceTimersByTime(1_000);
+    expect(engine.reading(live(7.54))).toBe(false);
+    expect(engine.anchor).toBe(anchor);
+    expect(engine.now()).toBe(Date.now() - 7_500);
+
+    vi.advanceTimersByTime(1_000);
+    expect(engine.reading(live(9))).toBe(true);
+    expect(engine.now()).toBe(Date.now() - 9_000);
+  });
+
+  it("keeps the settled clock while a new reading settles", () => {
+    const engine = new StreamSyncEngine();
+    engine.reading(live(7.5));
+    expect(engine.reading(live(15, false))).toBe(false);
     expect(engine.now()).toBe(Date.now() - 7_500);
   });
 
-  it("keeps the last known offset while a reading is missing", () => {
+  it("reads the buffer on a browser's plain <audio> (no live offset), moved only when lastingly behind", () => {
     const engine = new StreamSyncEngine();
-    engine.updateFromStatus({ isLive: true, offsetFromLive: 4 });
-    engine.updateFromStatus({ isLive: true, offsetFromLive: null });
+    const buffer = (bufferedAhead: number) =>
+      engine.reading({ liveOffset: null, liveOffsetSettled: false, bufferedAhead, timestamp: Date.now() });
+    buffer(3);
+    expect(engine.settled).toBe(true);
+    expect(engine.now()).toBe(Date.now() - 3_000);
 
-    expect(engine.delay).toBe(4_000);
-    expect(engine.now()).toBe(Date.now() - 4_000);
+    // It drains between loads: a lower reading never moves the clock.
+    vi.advanceTimersByTime(1_000);
+    expect(buffer(2)).toBe(false);
+    expect(engine.now()).toBe(Date.now() - 3_000);
+    // Well above the clock's lag it does.
+    expect(buffer(5.5)).toBe(true);
+    expect(engine.now()).toBe(Date.now() - 5_500);
   });
 
-  it("ignores negative/non-finite offsets", () => {
+  it("places the clock at the reading's own time", () => {
     const engine = new StreamSyncEngine();
-    engine.updateFromStatus({ isLive: true, offsetFromLive: 4 });
-    engine.updateFromStatus({ isLive: true, offsetFromLive: -1 });
-    engine.updateFromStatus({ isLive: true, offsetFromLive: Number.NaN });
+    engine.reading({ ...live(7.5), timestamp: Date.now() - 200 });
 
-    expect(engine.delay).toBe(4_000);
+    expect(engine.now()).toBe(Date.now() - 7_500);
   });
 
-  it("clears the delay after sustained non-live frames", () => {
+  it("ignores negative or non-finite readings", () => {
     const engine = new StreamSyncEngine();
-    engine.updateFromStatus({ isLive: true, offsetFromLive: 4 });
-
-    // A single frame is a teardown transient (held); sustained non-live is a
-    // genuinely non-broadcast source and clears the estimate.
-    for (let i = 0; i < 5; i++) {
-      engine.updateFromStatus({ isLive: false, offsetFromLive: null });
-    }
+    engine.reading(live(-1));
+    engine.reading(live(Number.NaN));
 
     expect(engine.hasMeasurement).toBe(false);
+  });
+
+  it("holds while audio is stopped, the stopped time added to the lag", () => {
+    const engine = new StreamSyncEngine();
+    engine.reading(live(5));
+    engine.setRunning(false);
+    const held = engine.now();
+    vi.advanceTimersByTime(4_000);
+
+    expect(engine.now()).toBe(held);
+    expect(engine.lockedLag).toBe(9_000);
+    engine.setRunning(true);
+    vi.advanceTimersByTime(1_000);
+    expect(engine.now()).toBe(held + 1_000);
+  });
+
+  it("reset() drops the reading and the clock", () => {
+    const engine = new StreamSyncEngine();
+    engine.reading(live(5));
+    engine.reset();
+
+    expect(engine.hasMeasurement).toBe(false);
+    expect(engine.anchor).toBeNull();
+    expect(engine.lockedLag).toBeNull();
     expect(engine.now()).toBe(Date.now());
   });
 
-  it("trusts a finite offset even when the live flag is false", () => {
+  it("reports audibility of a track start", () => {
     const engine = new StreamSyncEngine();
-    engine.updateFromStatus({ isLive: false, offsetFromLive: 6 });
+    engine.reading(live(3));
 
-    expect(engine.now()).toBe(Date.now() - 6_000);
+    expect(engine.isAudible(Date.now())).toBe(false);
+    expect(engine.isAudible(Date.now() - 4_000)).toBe(true);
   });
 
-  it("falls back to the forward buffer when the live offset is unavailable", () => {
+  it("a skew applied after the clock is placed moves it at the next settled reading", () => {
     const engine = new StreamSyncEngine();
-    engine.updateFromStatus({
-      isLive: true,
-      offsetFromLive: null,
-      bufferedAheadSeconds: 8,
-    });
+    engine.reading(live(5));
+    for (let i = 0; i < 3; i++) engine.setClockSkew(-60_000);
+    expect(engine.now()).toBe(Date.now() - 5_000);
 
-    expect(engine.now()).toBe(Date.now() - 8_000);
-  });
-
-  it("prefers the live offset over the forward buffer", () => {
-    const engine = new StreamSyncEngine();
-    engine.updateFromStatus({
-      isLive: true,
-      offsetFromLive: 4,
-      bufferedAheadSeconds: 8,
-    });
-
-    expect(engine.delay).toBe(4_000);
-  });
-
-  it("tracks a rising lag in bounded steps and snaps large jumps", () => {
-    const engine = new StreamSyncEngine();
-    engine.updateFromStatus({ isLive: true, offsetFromLive: 5 }); // snaps (first)
-
-    engine.updateFromStatus({ isLive: true, offsetFromLive: 5.3 }); // +300ms rise
-    expect(engine.delay).toBe(5_300);
-
-    engine.updateFromStatus({ isLive: true, offsetFromLive: 10 }); // snaps
-    expect(engine.delay).toBe(10_000);
-  });
-
-  it("caps a single rising step so a spike cannot fling the estimate", () => {
-    const engine = new StreamSyncEngine();
-    engine.updateFromStatus({ isLive: true, offsetFromLive: 1 });
-
-    // +2s rise, below the re-lock threshold → one bounded step.
-    engine.updateFromStatus({ isLive: true, offsetFromLive: 3 });
-    expect(engine.delay).toBe(2_000);
-  });
-
-  it("eases a falling lag instead of jumping forward", () => {
-    const engine = new StreamSyncEngine();
-    engine.updateFromStatus({ isLive: true, offsetFromLive: 5 });
-
-    engine.updateFromStatus({ isLive: true, offsetFromLive: 3 });
-    // 5000 * 0.85 + 3000 * 0.15 = 4700
-    expect(engine.delay).toBeCloseTo(4_700, 5);
-  });
-
-  it("clamps implausible offsets", () => {
-    const engine = new StreamSyncEngine();
-    engine.updateFromStatus({ isLive: true, offsetFromLive: 9_999 });
-
-    expect(engine.delay).toBe(60_000);
+    expect(engine.reading(live(5))).toBe(true);
+    expect(engine.now()).toBe(Date.now() - 65_000);
   });
 
   it("applies a gross server-clock correction to now()", () => {
     const engine = new StreamSyncEngine();
-    engine.updateFromStatus({ isLive: true, offsetFromLive: 0 });
     // Device is 60s ahead of the server → station time is 60s behind it.
     engine.setClockSkew(-60_000);
+    engine.reading(live(0));
 
     expect(engine.clockSkew).toBe(-60_000);
     expect(engine.now()).toBe(Date.now() - 60_000);
@@ -187,284 +199,4 @@ describe("StreamSyncEngine", () => {
 
     expect(engine.clockSkew).toBe(-60_000);
   });
-
-  it("keeps the lag through a brief isLive:false teardown gap", () => {
-    const engine = new StreamSyncEngine();
-    engine.updateFromStatus({ isLive: true, offsetFromLive: 4 });
-
-    // An item swap (`replace()`) emits a few teardown frames at ~1 Hz; the
-    // estimate must survive them or the UI flings to the live point.
-    for (let i = 0; i < 4; i++) {
-      engine.updateFromStatus({ isLive: false, offsetFromLive: null, bufferedAheadSeconds: null });
-    }
-    expect(engine.delay).toBe(4_000);
-    expect(engine.hasMeasurement).toBe(true);
-
-    // Sustained non-live → genuinely not a broadcast.
-    engine.updateFromStatus({ isLive: false, offsetFromLive: null, bufferedAheadSeconds: null });
-    expect(engine.delay).toBe(0);
-    expect(engine.hasMeasurement).toBe(false);
-  });
-
-  it("reset() drops the estimate", () => {
-    const engine = new StreamSyncEngine();
-    engine.updateFromStatus({ isLive: true, offsetFromLive: 5 });
-
-    engine.reset();
-
-    expect(engine.hasMeasurement).toBe(false);
-    expect(engine.now()).toBe(Date.now());
-  });
-
-  it("holds the estimate through an unmeasurable burst (bad link)", () => {
-    const engine = new StreamSyncEngine();
-    engine.updateFromStatus({ isLive: true, offsetFromLive: 5 });
-    vi.setSystemTime(new Date(Date.now() + 4_000));
-    expect(engine.settled).toBe(true);
-
-    // Packet loss / a stalled buffer: no offset and no buffer for a stretch.
-    for (let i = 0; i < 30; i++) {
-      engine.updateFromStatus({
-        isLive: true,
-        offsetFromLive: null,
-        bufferedAheadSeconds: null,
-      });
-    }
-
-    expect(engine.delay).toBe(5_000);
-    expect(engine.hasMeasurement).toBe(true);
-    expect(engine.settled).toBe(true);
-  });
-
-  it("re-measures and re-settles after a sustained non-live clear", () => {
-    const engine = new StreamSyncEngine();
-    engine.updateFromStatus({ isLive: true, offsetFromLive: 5 });
-    vi.setSystemTime(new Date(Date.now() + 4_000));
-    expect(engine.settled).toBe(true);
-
-    // A real source swap (not a teardown blip) discards the estimate.
-    for (let i = 0; i < 5; i++) {
-      engine.updateFromStatus({ isLive: false, offsetFromLive: null });
-    }
-    expect(engine.hasMeasurement).toBe(false);
-    expect(engine.settled).toBe(false);
-
-    // The live source returns (reconnect): measure again, then settle.
-    engine.updateFromStatus({ isLive: true, offsetFromLive: 3 });
-    expect(engine.hasMeasurement).toBe(true);
-    expect(engine.settled).toBe(false);
-
-    vi.setSystemTime(new Date(Date.now() + 2_600));
-    expect(engine.settled).toBe(true);
-  });
-
-  it("reports audibility of a track start", () => {
-    const engine = new StreamSyncEngine();
-    engine.updateFromStatus({ isLive: true, offsetFromLive: 3 });
-
-    expect(engine.isAudible(Date.now())).toBe(false);
-    expect(engine.isAudible(Date.now() - 4_000)).toBe(true);
-  });
-
-  describe("lockedLag", () => {
-    const locked = (lagS: number) => {
-      const engine = new StreamSyncEngine();
-      for (let i = 0; i < 4; i++) {
-        engine.updateFromStatus({ isLive: true, offsetFromLive: lagS });
-        vi.setSystemTime(new Date(Date.now() + 1_000));
-      }
-      expect(engine.settled).toBe(true);
-      return engine;
-    };
-
-    it("is null until the clock settles", () => {
-      const engine = new StreamSyncEngine();
-      expect(engine.lockedLag).toBeNull();
-      engine.updateFromStatus({ isLive: true, offsetFromLive: 17 });
-      expect(engine.lockedLag).toBeNull();
-    });
-
-    it("holds the locked lag while readings under-read (a draining buffer)", () => {
-      const engine = locked(17);
-      expect(engine.lockedLag).toBe(17_000);
-      for (let i = 0; i < 10; i++) {
-        vi.setSystemTime(new Date(Date.now() + 1_000));
-        engine.updateFromStatus({ isLive: true, offsetFromLive: 17 - i });
-      }
-      expect(engine.lockedLag).toBe(17_000);
-    });
-
-    it("adds the time audio was stopped", () => {
-      const engine = locked(6);
-      engine.setRunning(false);
-      vi.setSystemTime(new Date(Date.now() + 5_000));
-      expect(engine.lockedLag).toBe(11_000);
-      engine.setRunning(true);
-      vi.setSystemTime(new Date(Date.now() + 5_000));
-      expect(engine.lockedLag).toBe(11_000);
-    });
-  });
-
-  describe("settled", () => {
-    it("is false on the first reading and until the estimate stops moving", () => {
-      const engine = new StreamSyncEngine();
-      engine.updateFromStatus({ isLive: true, offsetFromLive: 2 });
-
-      expect(engine.hasMeasurement).toBe(true);
-      expect(engine.settled).toBe(false); // minimum quiet period
-
-      vi.setSystemTime(new Date(Date.now() + 2_600));
-      expect(engine.settled).toBe(true);
-    });
-
-    it("stays settled across a later drift (no flapping)", () => {
-      const engine = new StreamSyncEngine();
-      engine.updateFromStatus({ isLive: true, offsetFromLive: 2 });
-      vi.setSystemTime(new Date(Date.now() + 4_000));
-      expect(engine.settled).toBe(true);
-
-      // A later snap/ease — the re-lock a track change arms — must NOT flip
-      // the UI back to "calculating".
-      engine.updateFromStatus({ isLive: true, offsetFromLive: 9 });
-      expect(engine.settled).toBe(true);
-    });
-
-    it("caps the wait so a noisy estimate cannot pulse forever", () => {
-      const engine = new StreamSyncEngine();
-      engine.updateFromStatus({ isLive: true, offsetFromLive: 2 });
-
-      for (let i = 1; i <= 15; i++) {
-        vi.setSystemTime(new Date(Date.now() + 1_000));
-        engine.updateFromStatus({ isLive: true, offsetFromLive: 2 + i * 0.5 });
-      }
-
-      expect(engine.settled).toBe(true);
-    });
-
-    it("is false again after reset()", () => {
-      const engine = new StreamSyncEngine();
-      engine.updateFromStatus({ isLive: true, offsetFromLive: 2 });
-      vi.setSystemTime(new Date(Date.now() + 4_000));
-      expect(engine.settled).toBe(true);
-
-      engine.reset();
-      expect(engine.settled).toBe(false);
-    });
-  });
-
-  describe("locked clock", () => {
-    /** One ≈1 Hz native reading `lagS` behind the live edge. */
-    const reading = (engine: StreamSyncEngine, lagS: number) => {
-      vi.setSystemTime(new Date(Date.now() + 1_000));
-      engine.updateFromStatus({ isLive: true, offsetFromLive: null, bufferedAheadSeconds: lagS });
-    };
-    /** Settles the engine on a steady 6 s lag. */
-    const settled = () => {
-      const engine = new StreamSyncEngine();
-      for (let i = 0; i < 4; i++) reading(engine, 6);
-      expect(engine.settled).toBe(true);
-      return engine;
-    };
-
-    it("has no anchor until the estimate settles", () => {
-      const engine = new StreamSyncEngine();
-      reading(engine, 6);
-      expect(engine.anchor).toBeNull();
-      reading(engine, 6);
-      reading(engine, 6);
-      reading(engine, 6);
-      expect(engine.anchor).toEqual({
-        stationMs: Date.now() - 6_000,
-        at: Date.now(),
-        running: true,
-      });
-    });
-
-    it("advances in exact real time through jittery lag readings", () => {
-      const engine = settled();
-      const anchor = engine.anchor;
-      const start = engine.now();
-      // The forward buffer saw-tooths as chunks land (and dips on a hiccup).
-      for (const lag of [4.2, 6.9, 3.1, 5.5, 7.4, 2.8, 6.1, 4.4]) {
-        reading(engine, lag);
-        expect(engine.anchor).toEqual(anchor);
-      }
-      expect(engine.now() - start).toBe(8_000);
-    });
-
-    it("holds while audio is stopped and adds that time to the lag", () => {
-      const engine = settled();
-      const before = engine.now();
-      engine.setRunning(false);
-      vi.setSystemTime(new Date(Date.now() + 5_000));
-      expect(engine.now()).toBe(before);
-      expect(engine.anchor?.running).toBe(false);
-      engine.setRunning(true);
-      vi.setSystemTime(new Date(Date.now() + 2_000));
-      // Resumed in place: 2 s further into the audio, now 11 s behind live.
-      expect(engine.now()).toBe(before + 2_000);
-      expect(Date.now() - engine.now()).toBe(11_000);
-    });
-
-    it("re-locks only when the estimate stays clearly above the lock", () => {
-      const engine = settled();
-      const anchor = engine.anchor;
-      // Under-reads (below the lock) never move it.
-      for (let i = 0; i < 10; i++) reading(engine, 2);
-      expect(engine.anchor).toEqual(anchor);
-      // The burst was still loading at the lock: the real lag is 9 s.
-      for (let i = 0; i < 6; i++) reading(engine, 9);
-      expect(engine.anchor).not.toEqual(anchor);
-      expect(Date.now() - engine.now()).toBe(9_000);
-    });
-
-    it("a short climb above the lock does not move it", () => {
-      const engine = settled();
-      const anchor = engine.anchor;
-      for (let i = 0; i < 4; i++) reading(engine, 9);
-      for (let i = 0; i < 3; i++) reading(engine, 6);
-      reading(engine, 9);
-      expect(engine.anchor).toEqual(anchor);
-    });
-
-    it("follows the media clock: a stall handled late is taken back", () => {
-      const engine = settled();
-      engine.alignToMedia(100, Date.now()); // the reference
-      const before = engine.now();
-      // 3 s of audio, on time: nothing to correct.
-      vi.setSystemTime(new Date(Date.now() + 3_000));
-      expect(engine.alignToMedia(103, Date.now())).toBe(false);
-      // The audio stalled for 2 s, but the stall was never handled (JS busy):
-      // the media clock did not move, the locked clock did.
-      vi.setSystemTime(new Date(Date.now() + 2_000));
-      expect(engine.alignToMedia(103, Date.now())).toBe(true);
-      expect(engine.now()).toBe(before + 3_000);
-      // Audio again: the clock runs on from there.
-      vi.setSystemTime(new Date(Date.now() + 1_000));
-      expect(engine.alignToMedia(104, Date.now())).toBe(false);
-      expect(engine.now()).toBe(before + 4_000);
-    });
-
-    it("leaves the media clock's small jitter alone, and re-references after a restart", () => {
-      const engine = settled();
-      const anchor = engine.anchor;
-      engine.alignToMedia(10, Date.now());
-      vi.setSystemTime(new Date(Date.now() + 1_000));
-      expect(engine.alignToMedia(11.04, Date.now())).toBe(false);
-      vi.setSystemTime(new Date(Date.now() + 1_000));
-      // A new connection: its media clock starts over.
-      expect(engine.alignToMedia(0.2, Date.now())).toBe(false);
-      vi.setSystemTime(new Date(Date.now() + 1_000));
-      expect(engine.alignToMedia(1.2, Date.now())).toBe(false);
-      expect(engine.anchor).toEqual(anchor);
-    });
-
-    it("reset() drops the lock", () => {
-      const engine = settled();
-      engine.reset();
-      expect(engine.anchor).toBeNull();
-      expect(engine.now()).toBe(Date.now());
-    });
-  });
-
 });

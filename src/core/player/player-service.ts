@@ -689,9 +689,8 @@ export class PlayerService {
     const tuneIn = this.tuneIn || this.afterJump;
     this.tuneIn = false;
     // How far the speaker trails the live edge (places a tune-in, calibrates at
-    // a change); the locked clock's lag, as a reading falls through an outage.
-    const progress = this.deps.player.getProgress();
-    const lagMs = this.deps.hearing.lagMs((progress.liveOffset ?? progress.bufferedAhead) * 1000);
+    // a change): the settled clock's.
+    const lagMs = this.deps.hearing.lagMs(this.deps.player.getProgress());
     debugLog(
       `[PlayerService] heard "${title}" tuneIn=${tuneIn} lag=${Math.round(lagMs)}ms tuneInBias=${Math.round(this.deps.heard.tuneInBiasMs)}ms`,
     );

@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Track } from "@/core/domain/track";
+import { liveReadings } from "@/core/player/__tests__/fake-player";
 import { AudibleTrackResolver } from "@/core/player/stream-playback/audible-track";
 import {
   HeardTrack,
@@ -52,11 +53,12 @@ const setup = () => {
   const changes = vi.fn();
   hearing.onChange = changes;
   heard.onChange = changes;
+  const reading = liveReadings();
   /** Seconds of 1 Hz native readings with `lagS` behind the live edge. */
   const play = (seconds: number, lagS = 6) => {
     for (let i = 0; i < seconds; i++) {
       vi.advanceTimersByTime(1_000);
-      hearing.progress({ liveOffset: null, bufferedAhead: lagS });
+      hearing.progress(reading(lagS));
     }
   };
   return { station, heard, sync, audible, hearing, changes, pump, play };
@@ -93,7 +95,7 @@ describe("NowHearing", () => {
     const reading = (advanceMs: number, audioMs: number) => {
       vi.advanceTimersByTime(advanceMs);
       media += audioMs / 1000;
-      t.hearing.progress({ liveOffset: null, bufferedAhead: 6, position: media, timestamp: Date.now() });
+      t.hearing.progress({ liveOffset: 6, liveOffsetSettled: true, bufferedAhead: 2, position: media, timestamp: Date.now() });
     };
     for (let i = 0; i < 5; i++) reading(1_000, 1_000);
     expect(t.hearing.elapsedMs()).toBe(AT_TITLE + 5_000);
@@ -105,6 +107,30 @@ describe("NowHearing", () => {
     expect(t.changes).toHaveBeenCalled(); // the lock screen is re-placed too
     reading(1_000, 1_000);
     expect(t.hearing.elapsedMs()).toBe(AT_TITLE + 6_000);
+  });
+
+  it("a tune-in keeps the calibration it was placed with across a lined-up quality switch", () => {
+    const t = setup();
+    t.heard.useStream("high", 320);
+    t.hearing.setPlaying(true);
+    // A change heard on 320 calibrates it: placed 3.8 s past its ICY offset.
+    t.station.track = track("Song A", Date.now() - 10_000);
+    t.heard.heard("Song A", Date.now(), false, 6_000);
+    expect(t.heard.tuneInBiasMs).toBe(3_800);
+    // A re-open, then a tune-in placed from the settled clock with that calibration.
+    t.heard.reopened();
+    t.hearing.reopened();
+    t.station.track = track("Song B", Date.now() - 60_000);
+    t.heard.heard("Song B", Date.now(), true, 6_000);
+    t.hearing.titleWasHeard();
+    t.play(4, 6);
+    const placed = t.hearing.elapsedMs();
+    expect(placed).toBe(64_000 - 6_000 - 3_800);
+    // The switch lands lined up: the 64 kbps mount has no calibration of its
+    // own yet, but the audio carried on, so neither does the position move.
+    t.heard.useStream("low", 64);
+    expect(t.heard.tuneInBiasMs).toBe(STATION_AHEAD_OF_AUDIO_MS);
+    expect(t.hearing.elapsedMs()).toBe(placed);
   });
 
   it("a tune-in takes its position from the settled clock, not the first reading", () => {
@@ -175,9 +201,10 @@ describe("NowHearing", () => {
   });
 
   describe("once synced, the position only moves in real time", () => {
-    const jitter = [14.2, 17.9, 12.5, 16.1, 15.4, 13.3, 17.0, 11.8];
+    /** A settled reading's noise (s): well under the clock's 60 ms. */
+    const jitter = [0.03, -0.02, 0.05, -0.04, 0.01, -0.05, 0.04, -0.01];
 
-    it("a tune-in ignores later lag jitter", () => {
+    it("a tune-in ignores a reading's small jitter", () => {
       const t = setup(); // Song A: on air for 60 s
       t.hearing.setPlaying(true);
       t.heard.heard("Song A", Date.now(), true, 4_800);
@@ -186,19 +213,19 @@ describe("NowHearing", () => {
       const position = t.hearing.position();
       expect(t.hearing.elapsedMs()).toBe(47_000 - STATION_AHEAD_OF_AUDIO_MS);
       t.changes.mockClear();
-      for (const lag of jitter) t.play(1, lag);
+      for (const j of jitter) t.play(1, 17 + j);
       expect(t.hearing.position()).toEqual(position);
       expect(t.hearing.elapsedMs()).toBe(47_000 - STATION_AHEAD_OF_AUDIO_MS + jitter.length * 1_000);
       expect(t.changes).not.toHaveBeenCalled(); // nothing to re-push to the lock screen
     });
 
-    it("without titles, the clock ignores later lag jitter", () => {
+    it("without titles, the clock ignores a reading's small jitter", () => {
       const t = setup();
       t.hearing.setPlaying(true);
       t.play(13, 6);
       expect(t.hearing.elapsedMs()).toBe(67_000);
       const position = t.hearing.position();
-      for (const lag of jitter.map((l) => l - 10)) t.play(1, lag);
+      for (const j of jitter) t.play(1, 6 + j);
       expect(t.hearing.position()).toEqual(position);
       expect(t.hearing.elapsedMs()).toBe(67_000 + jitter.length * 1_000);
     });

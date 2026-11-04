@@ -14,7 +14,7 @@ import { playerStore, progressStore, stationStore } from "@/core/player/store";
 import type { Track } from "@/core/domain/track";
 import type { Stream } from "@/core/domain/stream";
 import { elapsedAt } from "@/utils/progress";
-import { FakePlayer } from "@/core/player/__tests__/fake-player";
+import { FakePlayer, liveReadings } from "@/core/player/__tests__/fake-player";
 
 // The service's module graph reaches native modules — stub them for node.
 vi.mock("react-native", () => ({ Platform: { OS: "ios" } }));
@@ -67,6 +67,7 @@ const STREAMS: Stream[] = [
 
 const setup = (extra: Partial<PlayerServiceDependencies> = {}) => {
   const player = new FakePlayer();
+  const reading = liveReadings();
   const repository = {
     onChange: (_c: unknown) => {},
     currentTrack: track("Song A") as Track | null,
@@ -169,11 +170,12 @@ const setup = (extra: Partial<PlayerServiceDependencies> = {}) => {
     ticker,
     onDestroyed,
     tick: () => tick?.(),
+    reading,
     /** `seconds` of 1 Hz native progress readings, `lagS` behind the live edge. */
     settle(seconds: number, lagS: number) {
       for (let i = 0; i < seconds; i++) {
         vi.advanceTimersByTime(1_000);
-        player.emit("progress", { liveOffset: null, bufferedAhead: lagS, position: 0 });
+        player.emit("progress", reading(lagS));
       }
     },
     /** The station announces a new track (SSE / poll). */
@@ -459,12 +461,13 @@ describe("PlayerService on react-native-anything-player", () => {
     t.player.hear("Song A");
     const read = (position: number, lagS: number) => {
       vi.advanceTimersByTime(1_000);
-      t.player.emit("progress", { liveOffset: null, bufferedAhead: lagS, position });
+      t.player.emit("progress", t.reading(lagS, position));
     };
     for (let s = 1; s <= 5; s++) read(s, 6);
     expect(heardProgress()).not.toBeNull();
     // The connection dropped and the player played on into a fresh one: the
     // state stays "playing", only the native discontinuity tells.
+    t.reading.reset();
     t.player.emit("discontinuity", { position: 0, reason: "reconnect", jump: null, timestamp: Date.now() });
     read(0.1, 14);
     expect(playerStore.getSnapshot().syncing).toBe(true);
@@ -505,7 +508,7 @@ describe("PlayerService on react-native-anything-player", () => {
     t.player.hear("Song A");
     const read = (position: number, lagS: number) => {
       vi.advanceTimersByTime(1_000);
-      t.player.emit("progress", { liveOffset: lagS, bufferedAhead: 2, position });
+      t.player.emit("progress", t.reading(lagS, position));
     };
     for (let s = 1; s <= 5; s++) read(s, 6);
     const placed = heardProgress();
@@ -522,6 +525,7 @@ describe("PlayerService on react-native-anything-player", () => {
     // connection stalled) reports the jump.
     await t.service.changeStream(STREAMS[0]);
     t.player.setQuality("high");
+    t.reading.reset();
     t.player.emit("discontinuity", { position: 7, reason: "switch", jump: -8, timestamp: Date.now() });
     read(7, 14);
     expect(playerStore.getSnapshot().syncing).toBe(true);
@@ -548,6 +552,7 @@ describe("PlayerService on react-native-anything-player", () => {
     // Song B is on air by the time a switch goes ahead without being lined up:
     // the new connection is partway into it, and says so after the jump.
     t.announce(track("Song B", { startTime: new Date(Date.now() - 20_000) }));
+    t.reading.reset();
     t.player.emit("discontinuity", { position: 5, reason: "switch", jump: 12, timestamp: Date.now() });
     t.player.hear("Song B");
     expect(heard).toHaveBeenLastCalledWith("Song B", expect.any(Number), true, expect.any(Number));
@@ -684,7 +689,7 @@ describe("PlayerService on react-native-anything-player", () => {
     const t = setup();
     await t.service.setupPlayer();
     t.repository.expireStuckRefresh.mockClear();
-    t.player.emit("progress", { liveOffset: null, bufferedAhead: 6, position: 0 });
+    t.player.emit("progress", t.reading(6));
     expect(t.repository.expireStuckRefresh).toHaveBeenCalledTimes(1);
     expect(t.repository.tickLive).toHaveBeenCalledTimes(1);
   });
@@ -827,7 +832,7 @@ describe("PlayerService on react-native-anything-player", () => {
     t.player.setState("playing", true);
     t.service.setAppActive(false);
     t.stats.onAudibleTick.mockClear();
-    t.player.emit("progress", { liveOffset: null, bufferedAhead: 6, position: 0 });
+    t.player.emit("progress", t.reading(6));
     expect(t.stats.onAudibleTick).toHaveBeenCalledTimes(1);
   });
 
@@ -908,7 +913,7 @@ describe("PlayerService on react-native-anything-player", () => {
     // 1 Hz native readings: the speaker trails the live edge by 6 s.
     const second = () => {
       vi.advanceTimersByTime(1_000);
-      t.player.emit("progress", { liveOffset: null, bufferedAhead: 6, position: 0 });
+      t.player.emit("progress", t.reading(6));
     };
     for (let i = 0; i < 5; i++) second();
     expect(t.hearing.mode).toBe("icy"); // still waiting for a title
