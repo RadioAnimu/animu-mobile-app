@@ -11,4 +11,5 @@ if (!lib) throw new Error(`Unknown submodule: ${name}`);
 // Only asked, not restored: install already put the library's build in place,
 // and `pnpm verify` runs this beside steps that read it.
 const verified = process.env.CI === "true" && await restore(lib.repository, path.join(root, "packages", name), "build", { write: false });
-isolated(name, (_dir, run) => run(verified ? "check:audit" : "check:quality"));
+// A verified pin needs only the audit, which reads the dependency tree: no build scripts.
+isolated(name, (_dir, run) => run(verified ? "check:audit" : "check:quality"), { scripts: !verified });

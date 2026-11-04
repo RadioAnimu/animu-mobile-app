@@ -94,7 +94,7 @@ pipeline {
           echo "=== caches ==="
           du -sh /home/rmotafreitas/.cache/animu-ci/* /home/rmotafreitas/.gradle/caches \
             /home/rmotafreitas/jenkins-agent/workspace/Animu/* 2>/dev/null || true
-          docker run --rm -v animu-node-cache:/cache alpine du -sh /cache 2>/dev/null || true
+          docker run --rm -v animu-node-cache:/cache node:22-bookworm du -sh /cache 2>/dev/null || true
           CCACHE_DIR=/home/rmotafreitas/jenkins-agent/workspace/Animu/animu-mobile-app-release/.gradle-home/ccache \
             CCACHE_CONFIGPATH="$WORKSPACE/scripts/ccache.conf" ccache --show-stats 2>/dev/null | grep -iE 'size|hits' || true
         '''

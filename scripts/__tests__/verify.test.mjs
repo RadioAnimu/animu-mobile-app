@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
-import { concurrency, plan, stages, STEPS } from "../verify.mjs";
+import { concurrency, plan, stepEnv, stages, STEPS } from "../verify.mjs";
 
 const scripts = JSON.parse(readFileSync(new URL("../../package.json", import.meta.url), "utf8")).scripts;
 
@@ -33,9 +33,9 @@ test("stages run in order; --fast skips the slow steps; an unknown flag is refus
 });
 
 test("half the cores at a time, at least two; one with --serial", () => {
-  assert.equal(concurrency([], 12), 6);
-  assert.equal(concurrency([], 2), 2);
-  assert.equal(concurrency(["--serial"], 12), 1);
+  assert.equal(concurrency([], 12, {}), 6);
+  assert.equal(concurrency([], 2, {}), 2);
+  assert.equal(concurrency(["--serial"], 12, {}), 1);
 });
 
 test("run as a script, it runs, through a symlink too (an unknown flag exits 2)", () => {
@@ -52,4 +52,12 @@ test("run as a script, it runs, through a symlink too (an unknown flag exits 2)"
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
+});
+
+test("VERIFY_JOBS sets the count; a verify a step starts gets at most 2", () => {
+  assert.equal(concurrency([], 12, { VERIFY_JOBS: "3" }), 3);
+  assert.equal(concurrency([], 12, { VERIFY_JOBS: "x" }), 6);
+  assert.equal(stepEnv(6, {}, false).VERIFY_JOBS, "2");
+  assert.equal(stepEnv(1, {}, false).VERIFY_JOBS, "1");
+  assert.equal(stepEnv(6, {}, false).VERIFY_RUNNING, "1");
 });

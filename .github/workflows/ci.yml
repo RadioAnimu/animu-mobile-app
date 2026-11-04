@@ -9,8 +9,11 @@ permissions:
   contents: read
   actions: read
 
+# A newer push cancels a PR's older run. Every other run is a group of its own:
+# a shared group keeps one pending run and drops the rest, and every main
+# commit keeps its results (the release and Sonar reuse them).
 concurrency:
-  group: ci-${{ github.event.pull_request.number || github.ref }}
+  group: ci-${{ github.event.pull_request.number || github.run_id }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:

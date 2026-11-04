@@ -59,9 +59,29 @@ export function stages(steps) {
   return [...byStage.keys()].sort((a, b) => a - b).map((stage) => byStage.get(stage));
 }
 
-/** How many steps run at once: half the cores, at least two (one with `--serial`). */
-export function concurrency(args, cores = availableParallelism()) {
-  return args.includes("--serial") ? 1 : Math.max(2, Math.floor(cores / 2));
+/**
+ * How many steps run at once: VERIFY_JOBS if set (a verify started by
+ * another's step gets 2), else half the cores and at least two; one with
+ * `--serial`.
+ */
+export function concurrency(args, cores = availableParallelism(), env = process.env) {
+  if (args.includes("--serial")) return 1;
+  const jobs = Number(env.VERIFY_JOBS);
+  if (Number.isInteger(jobs) && jobs >= 1) return jobs;
+  return Math.max(2, Math.floor(cores / 2));
+}
+
+/**
+ * What every step sees: VERIFY_RUNNING (the test runners then take half the
+ * cores) and VERIFY_JOBS for a verify a step starts (a library's checks).
+ */
+export function stepEnv(limit, env = process.env, tty = process.stdout.isTTY) {
+  return {
+    ...env,
+    VERIFY_RUNNING: "1",
+    VERIFY_JOBS: String(Math.min(2, limit)),
+    ...(tty ? { FORCE_COLOR: "1" } : {}),
+  };
 }
 
 const commandOf = (step) => step.command ?? ["pnpm", "run", "--silent", step.script];
@@ -85,14 +105,14 @@ function stop(signal) {
 }
 
 /** Runs one step; its output goes live to the terminal, or is kept to print whole. */
-function run(step, live) {
+function run(step, live, env) {
   const [command, ...args] = commandOf(step);
   const started = Date.now();
   return new Promise((resolve) => {
-    const env = process.stdout.isTTY ? { ...process.env, FORCE_COLOR: "1" } : process.env;
     const child = spawn(command, args, { stdio: live ? ["ignore", "inherit", "inherit"] : ["ignore", "pipe", "pipe"],
       // Its own process group, so stop() reaches everything it starts.
       detached: true, env });
+    child.verifyLabel = step.label;
     running.add(child);
     const output = [];
     child.stdout?.on("data", (chunk) => output.push(chunk));
@@ -124,6 +144,16 @@ async function main(args) {
   for (const signal of Object.keys(SIGNAL_EXIT)) process.on(signal, () => stop(signal));
   const limit = concurrency(args);
   const live = limit === 1;
+  const env = stepEnv(limit);
+  const github = Boolean(process.env.GITHUB_ACTIONS);
+  // In CI, a step that hangs would print nothing until the timeout: say what runs.
+  const heartbeat =
+    !live && process.env.CI
+      ? setInterval(() => {
+          const labels = [...running].map((child) => child.verifyLabel);
+          if (labels.length) console.log(`· still running: ${labels.join(", ")}`);
+        }, 60_000)
+      : null;
   const results = new Map();
   for (const stage of stages(steps)) {
     if (stoppedBy) break;
@@ -131,15 +161,18 @@ async function main(args) {
       const header = `\n▶ ${step.label} (${commandOf(step).join(" ")})`;
       if (live) console.log(header);
       else console.log(`· ${step.label} started`);
-      const result = await run(step, live);
+      const result = await run(step, live, env);
       if (!live) {
-        console.log(header);
+        // GitHub folds each step's output under its line.
+        console.log(github ? `::group::${header.trim()}` : header);
         process.stdout.write(result.output);
+        if (github) console.log("::endgroup::");
       }
       results.set(step, result);
     });
   }
 
+  if (heartbeat) clearInterval(heartbeat);
   if (stoppedBy) {
     console.error(`\nverify stopped by ${stoppedBy}.`);
     return SIGNAL_EXIT[stoppedBy];

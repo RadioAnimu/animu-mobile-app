@@ -91,7 +91,9 @@ describe("JapaneseReader (kuromoji + IPADIC)", () => {
     const reference = new DynamicDictionaries();
     reference.token_info_dictionary.loadTargetMap(map);
     expect(await readTargetMap(trim(map), async () => {})).toEqual(reference.token_info_dictionary.target_map);
-  });
+    // Decodes the whole IPADIC target map twice: ~2.5 s alone, past the 5 s
+    // default once beside the other verify steps on a busy CI host.
+  }, 15_000);
 
   it("resolves kanji to hiragana", () => {
     expect(reader.hiragana("君の名は")).toBe("きみのなは");
