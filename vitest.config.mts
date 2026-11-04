@@ -22,6 +22,9 @@ export default defineConfig({
     reporters: process.env.CI
       ? ["default", ["junit", { outputFile: "junit.xml" }]]
       : ["default"],
+    // Beside the other `pnpm verify` steps, half the cores for the test files:
+    // every tool's own worker pool on top of six steps oversubscribed the host.
+    ...(process.env.VERIFY_RUNNING ? { maxWorkers: "50%" } : {}),
     coverage: {
       // `lcov` feeds SonarQube / Codecov / any lcov consumer; `text` prints the
       // summary to the CI log. Only app code counts (tests are excluded).
