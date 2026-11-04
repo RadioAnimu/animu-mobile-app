@@ -148,6 +148,8 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+          # init-submodules.sh needs the history: fetch it now, not unshallow later.
+          fetch-depth: 0
 
       - name: Initialize pinned submodules
         run: bash scripts/init-submodules.sh
@@ -162,7 +164,18 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      # The lockfile pins Playwright, so its browser builds follow it.
+      - name: Playwright version
+        id: playwright
+        run: echo "version=$(pnpm exec playwright --version | cut -d ' ' -f 2)" >> "$GITHUB_OUTPUT"
+
+      # The lockfile pins Playwright, so its browser builds follow its version.
+      - name: Cache browsers
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-${{ runner.arch }}-playwright-${{ steps.playwright.outputs.version }}
+
+      # Downloads only what the cache lacks; the system libraries always.
       - name: Install browsers
         run: pnpm exec playwright install --with-deps chromium webkit
 
