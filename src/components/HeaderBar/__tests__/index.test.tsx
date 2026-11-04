@@ -6,9 +6,6 @@ import { afterEach, beforeEach, describe, expect, it, vi, type MockInstance } fr
 import type { MockAnimation } from "@/__tests__/react-native-mock";
 import { HeaderBar } from "@/components/HeaderBar";
 
-vi.mock("react-native", async () =>
-  (await import("@/__tests__/react-native-mock")).createReactNativeMock(),
-);
 vi.mock("expo-image", () => ({
   Image: ({ style }: { style?: unknown }) => (
     <span data-testid="image" data-style={JSON.stringify(style)} />

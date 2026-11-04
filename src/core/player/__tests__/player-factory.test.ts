@@ -128,7 +128,7 @@ describe("player factory", () => {
   it("publishes the station for voice and cars: the app's own source, the pick, one car tab", async () => {
     const quiet = vi.spyOn(console, "error").mockImplementation(() => {});
     const { createPlayerService } = await load();
-    const { streamSource } = await import("@/core/player/player-service");
+    const { streamSource } = await import("@/core/player/stream-playback/stream-source");
     streams.push(
       { id: "320", url: "https://s.example/320", bitrate: 320 },
       { id: "64", url: "https://s.example/64", bitrate: 64 },

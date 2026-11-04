@@ -8,7 +8,7 @@ import { useDict } from "@/hooks/useDict";
 import { useSaveSettings } from "@/hooks/useSaveSettings";
 import { LANGUAGE_LABELS } from "@/constants/languages";
 import { RowDivider } from "@/components/ListRow";
-import { SettingsRow } from "@/screens/Settings/rows";
+import { SettingsRow } from "@/components/SettingsRows";
 import { styles } from "@/screens/Settings/styles";
 
 /** App-wide preferences: language and touch vibration. */

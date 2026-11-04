@@ -5,6 +5,7 @@ import type {
   PlaybackState,
   PlayerEventMap,
   PlayerStatus,
+  Progress,
 } from "react-native-anything-player";
 
 /** The slice of an Airwave player the service drives, with event emitters. */
@@ -47,12 +48,14 @@ export class FakePlayer {
   updateNowPlaying = vi.fn(async (_m: AirwaveNowPlaying) => {});
   setAudioSampling = vi.fn(() => true);
   release = vi.fn(async () => {});
-  getProgress = vi.fn(() => ({
+  getProgress = vi.fn((): Progress => ({
     position: 0,
     duration: null,
     buffered: 0,
     bufferedAhead: 6,
     liveOffset: null,
+    liveOffsetSettled: false,
+    programDate: null,
     timestamp: Date.now(),
   }));
 
@@ -83,4 +86,37 @@ export class FakePlayer {
   emit(event: string, ...args: unknown[]): void {
     this.listeners.get(event)?.forEach((l) => l(...args));
   }
+}
+
+/**
+ * RNAP's 1 Hz progress readings for a live stream `lagS` behind live. Like
+ * RNAP it settles on the live point (`position + lag − time`): once that has
+ * not risen by more than 0.1 s for 3 s, so a stall (position held, lag
+ * growing) stays settled; `reset()` is a `discontinuity` (measured again).
+ * The media position runs in real time from the first reading unless given.
+ */
+export function liveReadings() {
+  let point = Number.NaN;
+  let risenAt = 0;
+  let start: number | null = null;
+  const read = (lagS: number, position = (Date.now() - (start ??= Date.now())) / 1000): Progress => {
+    const next = position + lagS - Date.now() / 1000;
+    if (!(next <= point + 0.1)) risenAt = Date.now();
+    point = next;
+    return {
+      position,
+      duration: null,
+      buffered: 0,
+      bufferedAhead: 2,
+      liveOffset: lagS,
+      liveOffsetSettled: Date.now() - risenAt >= 3_000,
+      programDate: null,
+      timestamp: Date.now(),
+    };
+  };
+  return Object.assign(read, {
+    reset: () => {
+      point = Number.NaN;
+    },
+  });
 }

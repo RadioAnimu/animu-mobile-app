@@ -13,7 +13,7 @@ import { ScreenHeader } from "@/components/ScreenHeader";
 import { SectionTitle } from "@/components/SectionTitle";
 import { SocialIcon, type SocialBrand } from "@/components/SocialIcon";
 import { ActionRow, IconBox, RowBody, RowDivider } from "@/components/ListRow";
-import { InfoRow, LinkRow } from "@/screens/Settings/rows";
+import { InfoRow, LinkRow } from "@/components/SettingsRows";
 import { useDict } from "@/hooks/useDict";
 import type { Dict } from "@/i18n";
 import { useStackedRows } from "@/hooks/useStackedRows";

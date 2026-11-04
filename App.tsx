@@ -3,6 +3,7 @@ import ErrorBoundary from "@/components/ErrorBoundary";
 import { AppStateGate } from "@/components/AppStateGate";
 
 import { Routes } from "@/routes";
+import { Loading } from "@/screens/Loading";
 import { AppStateProvider } from "@/contexts/app-state/AppStateProvider";
 import { PlayerProvider } from "@/contexts/player/PlayerProvider";
 import { UserSettingsProvider } from "@/contexts/user/UserSettingsProvider";
@@ -35,7 +36,7 @@ export default function App() {
               <PortalProvider>
                 <UserSettingsProvider>
                   <AlertProvider>
-                    <PlayerProvider>
+                    <PlayerProvider fallback={<Loading />}>
                       <AuthProvider>
                         <AppStateGate>
                           <Routes />

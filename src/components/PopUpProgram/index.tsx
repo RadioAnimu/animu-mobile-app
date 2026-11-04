@@ -4,8 +4,20 @@ import { ScrollView, Text, View } from "react-native";
 import { usePlayer } from "@/contexts/player/PlayerProvider";
 import { useResponsiveLayout } from "@/hooks/useResponsiveLayout";
 import { useDict } from "@/hooks/useDict";
+import { DICT, type Dict } from "@/i18n";
 import { styles } from "@/components/PopUpProgram/styles";
 import { Sheet } from "@/components/Sheet";
+
+/**
+ * The localized PROGRAMS entry for the station's program: the per-language
+ * tables are index-aligned, and the station names programs in Portuguese.
+ */
+const localizedProgram = (dict: Dict, name: string | undefined) => {
+  const key = name?.trim().toLowerCase();
+  if (!key) return undefined;
+  const index = DICT.PT.PROGRAMS.findIndex((entry) => entry.name.trim().toLowerCase() === key);
+  return index < 0 ? undefined : dict.PROGRAMS[index];
+};
 
 interface Props {
   visible: boolean;
@@ -24,14 +36,8 @@ export const PopUpProgram = React.memo(function PopUpProgram({
 
   const program = player.currentProgram;
 
-  // Resolve the localized program data via the index-aligned PROGRAMS
-  // tables; fall back to domain object fields
-  const localized = (() => {
-    if (program?.programIndex == null || program.programIndex < 0) {
-      return undefined;
-    }
-    return dict.PROGRAMS[program.programIndex];
-  })();
+  // Localized program data, falling back to the station's own fields.
+  const localized = localizedProgram(dict, program?.name);
 
   const programName = localized?.name ?? program?.name;
   const programInfo = localized?.information ?? program?.info;

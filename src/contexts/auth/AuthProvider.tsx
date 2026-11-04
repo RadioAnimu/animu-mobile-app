@@ -7,7 +7,7 @@ import React, {
   useMemo,
   useRef,
 } from "react";
-import { AppState, Linking } from "react-native";
+import { Linking } from "react-native";
 import type {
   AuthAccountEmail,
   AuthEmailRequestResult,
@@ -23,10 +23,11 @@ import {
   type ProfileMedia,
 } from "@/contexts/auth/useProfileMedia";
 import { clearProfileMedia } from "@/core/services/profile-media.service";
-import { backgroundService } from "@/core/services/background.service";
 import { DEFAULT_PROVIDERS } from "@/constants/auth";
 import { useAlert } from "@/contexts/alert/AlertProvider";
+import { useIsBackgrounded } from "@/contexts/app-state/AppStateProvider";
 import { useDict } from "@/hooks/useDict";
+import { repeatEvery } from "@/utils/repeat";
 
 interface AuthContextType {
   user: User | null;
@@ -71,10 +72,24 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | null>(null);
 
 const SESSION_CHECK_INTERVAL = 60000; // 1 minute
-const SESSION_CHECK_TASK_ID = "session-check";
+
+type UserRef = React.RefObject<User | null>;
+type StopRef = React.RefObject<(() => void) | null>;
+
+/**
+ * The one guard for async auth work: an answer applies only while the session
+ * it ran for is still the signed-in one (not signed out, nor replaced).
+ */
+const isCurrentSession = (userRef: UserRef, token: string | undefined): boolean =>
+  token != null && userRef.current?.sessionToken === token;
+
+const stopPoll = (stopRef: StopRef): void => {
+  stopRef.current?.();
+  stopRef.current = null;
+};
 
 interface AuthBootstrapDeps {
-  userRef: React.RefObject<User | null>;
+  userRef: UserRef;
   setUser: (user: User | null) => void;
   setProviders: (providers: ProviderInfo[]) => void;
   setImageVersion: React.Dispatch<React.SetStateAction<number>>;
@@ -92,16 +107,20 @@ interface AuthBootstrapDeps {
  * session — the next periodic check re-validates.
  */
 async function validateActiveSession({
+  userRef,
   expireSession,
   loadProfile,
   refreshEmails,
   startSessionCheck,
 }: Pick<
   AuthBootstrapDeps,
-  "expireSession" | "loadProfile" | "refreshEmails" | "startSessionCheck"
+  "userRef" | "expireSession" | "loadProfile" | "refreshEmails" | "startSessionCheck"
 >): Promise<void> {
+  const token = userRef.current?.sessionToken;
   try {
-    if (await authFacade.getSessionStatus()) {
+    const alive = await authFacade.getSessionStatus();
+    if (!isCurrentSession(userRef, token)) return;
+    if (alive) {
       startSessionCheck();
       void loadProfile();
       void refreshEmails();
@@ -110,7 +129,7 @@ async function validateActiveSession({
     }
   } catch {
     // Offline: keep the cached session, the next check re-validates.
-    startSessionCheck();
+    if (isCurrentSession(userRef, token)) startSessionCheck();
   }
 }
 
@@ -201,7 +220,6 @@ function useAuthBootstrap(deps: AuthBootstrapDeps): void {
 
     return () => {
       cancelled = true;
-      backgroundService.stopTask(SESSION_CHECK_TASK_ID);
     };
   }, [
     userRef,
@@ -216,6 +234,7 @@ function useAuthBootstrap(deps: AuthBootstrapDeps): void {
 }
 
 interface AccountActionsDeps {
+  userRef: UserRef;
   loadProfile: () => Promise<void>;
   refreshEmails: () => Promise<void>;
   setEmails: (emails: AuthAccountEmail[]) => void;
@@ -225,6 +244,7 @@ interface AccountActionsDeps {
 
 /** Provider linking and Animu Connect email management for the signed-in account. */
 function useAccountActions({
+  userRef,
   loadProfile,
   refreshEmails,
   setEmails,
@@ -267,20 +287,22 @@ function useAccountActions({
 
   const verifyAddEmail = useCallback(
     async (email: string, code: string) => {
+      const token = userRef.current?.sessionToken;
       const result = await authFacade.verifyAddEmail({ email, code });
-      setEmails(result.emails);
+      if (isCurrentSession(userRef, token)) setEmails(result.emails);
       return result;
     },
-    [setEmails],
+    [setEmails, userRef],
   );
 
   const removeEmail = useCallback(
     async (emailId: number) => {
+      const token = userRef.current?.sessionToken;
       const result = await authFacade.removeEmail(emailId);
-      setEmails(result.emails);
+      if (isCurrentSession(userRef, token)) setEmails(result.emails);
       return result;
     },
-    [setEmails],
+    [setEmails, userRef],
   );
 
   return {
@@ -298,17 +320,21 @@ function useAccountActions({
  * for nothing, so it pauses and re-checks once on return.
  */
 function useSessionCheck(
-  userRef: React.RefObject<User | null>,
+  userRef: UserRef,
   expireSession: () => Promise<void>,
+  stopRef: StopRef,
 ): () => void {
-  const pausedRef = useRef(false);
+  const isBackgrounded = useIsBackgrounded();
+  /** Read by `startSessionCheck`, which a login may call from the background. */
+  const backgroundedRef = useRef(isBackgrounded);
 
   const runSessionCheck = useCallback(async () => {
-    if (!userRef.current?.sessionToken) return;
+    const token = userRef.current?.sessionToken;
+    if (!token) return;
     try {
-      if (!(await authFacade.getSessionStatus())) {
-        await expireSession();
-      }
+      const alive = await authFacade.getSessionStatus();
+      // A dead answer for a session already replaced must not end the new one.
+      if (!alive && isCurrentSession(userRef, token)) await expireSession();
       // Network hiccups throw and are ignored below — they must not log
       // the listener out.
     } catch (error) {
@@ -317,34 +343,25 @@ function useSessionCheck(
   }, [expireSession, userRef]);
 
   const startSessionCheck = useCallback(() => {
-    backgroundService.stopTask(SESSION_CHECK_TASK_ID);
-    if (AppState.currentState === "background") {
-      pausedRef.current = true;
-      return;
-    }
-    backgroundService.startTask({
-      id: SESSION_CHECK_TASK_ID,
-      interval: SESSION_CHECK_INTERVAL,
-      callback: runSessionCheck,
-    });
-  }, [runSessionCheck]);
+    stopPoll(stopRef);
+    // Hidden: the return re-checks and starts the poll (below).
+    if (backgroundedRef.current) return;
+    stopRef.current = repeatEvery(SESSION_CHECK_INTERVAL, runSessionCheck);
+  }, [runSessionCheck, stopRef]);
+
+  useEffect(() => () => stopPoll(stopRef), [stopRef]);
 
   useEffect(() => {
-    const subscription = AppState.addEventListener("change", (next) => {
-      if (next === "background") {
-        pausedRef.current = true;
-        backgroundService.stopTask(SESSION_CHECK_TASK_ID);
-        return;
-      }
-      if (next === "active" && pausedRef.current) {
-        pausedRef.current = false;
-        if (!userRef.current) return;
-        void runSessionCheck();
-        startSessionCheck();
-      }
-    });
-    return () => subscription.remove();
-  }, [runSessionCheck, startSessionCheck, userRef]);
+    const returning = backgroundedRef.current && !isBackgrounded;
+    backgroundedRef.current = isBackgrounded;
+    if (isBackgrounded) {
+      stopPoll(stopRef);
+      return;
+    }
+    if (!returning || !userRef.current) return;
+    void runSessionCheck();
+    startSessionCheck();
+  }, [isBackgrounded, runSessionCheck, startSessionCheck, stopRef, userRef]);
 
   return startSessionCheck;
 }
@@ -361,15 +378,17 @@ function useAuthProviderValue(): AuthContextType {
   const [imageVersion, setImageVersion] = useState(0);
   const [isAuthenticating, setIsAuthenticating] = useState(false);
 
-  // Ref avoids stale closures in the background task callback
+  // Ref avoids stale closures in the poll's callback
   const userRef = useRef<User | null>(null);
+  /** Stops the session poll (owned by useSessionCheck, ended here too). */
+  const stopPollRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
     userRef.current = user;
   }, [user]);
 
   const clearSession = useCallback(async () => {
-    backgroundService.stopTask(SESSION_CHECK_TASK_ID);
+    stopPoll(stopPollRef);
     await authFacade.forget();
     userRef.current = null;
     clearProfileMedia();
@@ -401,22 +420,26 @@ function useAuthProviderValue(): AuthContextType {
   }, [clearSession]);
 
   const loadProfile = useCallback(async () => {
+    const token = userRef.current?.sessionToken;
     try {
-      setProfile(await authFacade.getProfile());
+      const next = await authFacade.getProfile();
+      if (isCurrentSession(userRef, token)) setProfile(next);
     } catch (error) {
       console.error("[AuthProvider] Failed to load profile:", error);
     }
   }, []);
 
   const refreshEmails = useCallback(async () => {
+    const token = userRef.current?.sessionToken;
     try {
-      setEmails((await authFacade.getEmails()).emails);
+      const { emails: next } = await authFacade.getEmails();
+      if (isCurrentSession(userRef, token)) setEmails(next);
     } catch (error) {
       console.error("[AuthProvider] Failed to load emails:", error);
     }
   }, []);
 
-  const startSessionCheck = useSessionCheck(userRef, expireSession);
+  const startSessionCheck = useSessionCheck(userRef, expireSession, stopPollRef);
 
   const adoptUser = useCallback(
     async (nextUser: User) => {
@@ -437,6 +460,7 @@ function useAuthProviderValue(): AuthContextType {
     const current = userRef.current;
     if (!current) return null;
     const result = await authFacade.refreshProfile(current);
+    if (!result || !isCurrentSession(userRef, current.sessionToken)) return null;
     userRef.current = result.user;
     setUser(result.user);
     setProfile(result.profile);
@@ -531,6 +555,7 @@ function useAuthProviderValue(): AuthContextType {
     verifyAddEmail,
     removeEmail,
   } = useAccountActions({
+    userRef,
     loadProfile,
     refreshEmails,
     setEmails,

@@ -4,22 +4,15 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { useResolvedArtwork } from "@/hooks/useResolvedArtwork";
 
-const { service } = vi.hoisted(() => {
-  const peek = vi.fn<(url: string) => string | undefined>();
-  return {
-    service: {
-      peek,
-      // A method, like the service's (`this.deps`): an unbound call fails.
-      peekArtwork(this: { peek: typeof peek } | undefined, url: string) {
-        if (!this) throw new TypeError("peekArtwork called unbound");
-        return this.peek(url);
-      },
-      resolveArtwork: vi.fn(),
-    },
-  };
-});
+const { artwork } = vi.hoisted(() => ({
+  artwork: {
+    isRemote: vi.fn((url: string) => /^https?:/i.test(url)),
+    peek: vi.fn<(url: string) => string | undefined>(),
+    resolve: vi.fn(),
+  },
+}));
 
-vi.mock("@/core/player", () => ({ playerService: () => service }));
+vi.mock("@/core/player", () => ({ playerService: () => ({ artwork }) }));
 vi.mock("@/core/player/storage/artwork", () => ({
   pickPreviewArtwork: vi.fn(() => "preview-src"),
 }));
@@ -29,33 +22,41 @@ const URL_B = "https://cdn.test/b.jpg";
 
 describe("useResolvedArtwork", () => {
   beforeEach(() => {
-    service.peek.mockReset().mockReturnValue(undefined);
-    service.resolveArtwork.mockReset();
+    artwork.peek.mockReset().mockReturnValue(undefined);
+    artwork.isRemote.mockImplementation((url: string) => /^https?:/i.test(url));
+    artwork.resolve.mockReset();
   });
 
   it("returns undefined and never resolves when there is no url", () => {
     const { result } = renderHook(() => useResolvedArtwork(undefined));
     expect(result.current).toBeUndefined();
-    expect(service.resolveArtwork).not.toHaveBeenCalled();
+    expect(artwork.resolve).not.toHaveBeenCalled();
   });
 
   it("uses the already-cached local file without downloading", () => {
-    service.peek.mockReturnValue("file:///cache/a.jpg");
+    artwork.peek.mockReturnValue("file:///cache/a.jpg");
     const { result } = renderHook(() => useResolvedArtwork(URL_A));
     expect(result.current).toBe("file:///cache/a.jpg");
-    expect(service.resolveArtwork).not.toHaveBeenCalled();
+    expect(artwork.resolve).not.toHaveBeenCalled();
+  });
+
+  it("uses a URL that needs no download (the web) as is, on the first render", () => {
+    artwork.isRemote.mockReturnValue(false);
+    const { result } = renderHook(() => useResolvedArtwork(URL_A));
+    expect(result.current).toBe(URL_A);
+    expect(artwork.resolve).not.toHaveBeenCalled();
   });
 
   it("uses a local file URI as is, on the first render", () => {
     const { result } = renderHook(() => useResolvedArtwork("file:///cache/a.jpg"));
     expect(result.current).toBe("file:///cache/a.jpg");
-    expect(service.resolveArtwork).not.toHaveBeenCalled();
+    expect(artwork.resolve).not.toHaveBeenCalled();
   });
 
   it("paints the preview first, then upgrades to the final file", async () => {
     let onPreview: (p: string) => void = () => undefined;
     let finish: (r: string) => void = () => undefined;
-    service.resolveArtwork.mockImplementation(
+    artwork.resolve.mockImplementation(
       (_url: string, cb: (p: string) => void) => {
         onPreview = cb;
         return new Promise<string>((res) => (finish = res));
@@ -63,7 +64,7 @@ describe("useResolvedArtwork", () => {
     );
     const { result } = renderHook(() => useResolvedArtwork(URL_A));
     expect(result.current).toBeUndefined();
-    expect(service.resolveArtwork).toHaveBeenCalledWith(
+    expect(artwork.resolve).toHaveBeenCalledWith(
       URL_A,
       expect.any(Function),
       "preview-src",
@@ -77,17 +78,17 @@ describe("useResolvedArtwork", () => {
   });
 
   it("falls back to the remote url when resolution fails", async () => {
-    service.resolveArtwork.mockRejectedValue(new Error("offline"));
+    artwork.resolve.mockRejectedValue(new Error("offline"));
     const { result } = renderHook(() => useResolvedArtwork(URL_A));
     await waitFor(() => expect(result.current).toBe(URL_A));
   });
 
   it("ignores a late result after the url changed or it unmounted", async () => {
     let finishA: (r: string) => void = () => undefined;
-    service.resolveArtwork.mockImplementationOnce(
+    artwork.resolve.mockImplementationOnce(
       () => new Promise<string>((res) => (finishA = res)),
     );
-    service.peek.mockImplementation((u) =>
+    artwork.peek.mockImplementation((u) =>
       u === URL_B ? "file:///b.jpg" : undefined,
     );
     const initialProps: { url: string | undefined } = { url: URL_A };

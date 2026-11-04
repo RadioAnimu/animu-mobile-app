@@ -26,6 +26,8 @@ export function Routes() {
   useEffect(() => {
     // react-doctor-disable-next-line rn-no-dimensions-get -- addEventListener is current API (it returns the subscription); only removeEventListener was removed.
     const resized = Dimensions.addEventListener("change", refreshOrientationPolicy);
+    // A native listener, not `useIsBackgrounded`: this tree is frozen while
+    // hidden (`AppStateGate`), so it would never see the background state.
     const resumed = AppState.addEventListener("change", (state) => {
       if (state === "active") refreshOrientationPolicy();
     });

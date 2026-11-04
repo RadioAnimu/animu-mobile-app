@@ -14,6 +14,8 @@ import {
 // Wider artwork is cropped to this rather than shown as a thin strip. Tall
 // artwork has no cap: it just grows the frame.
 const MAX_RATIO = 2;
+// A re-measure closer than this to the stored ratio is rounding, not a new shape.
+const RATIO_TOLERANCE = 0.01;
 
 /** Full slot width; the height follows the proportions. */
 function fitInSlot(ratio: number) {
@@ -131,15 +133,26 @@ export function Cover({
       onLoad={(event) => {
         // The fallback (bundled asset) loads too and fires this: only the
         // artwork's own proportions count.
-        if (!showFallback) {
-          const { width, height } = event.source;
-          if (preserveAspectRatio && width > 0 && height > 0) {
-            setMeasured({ url: cover, ratio: width / height });
-          }
-        }
+        if (showFallback || !preserveAspectRatio) return;
+        const { width, height } = event.source;
+        if (width <= 0 || height <= 0) return;
+        const next = width / height;
+        // Rounding is ignored, so a size that came back 1 px off cannot move the
+        // frame and reload it (on Android that loop flickered a sheared cover);
+        // a real new shape, e.g. after a late event of the previous cover, wins.
+        setMeasured((prev) =>
+          prev?.url === cover && Math.abs(prev.ratio - next) <= prev.ratio * RATIO_TOLERANCE
+            ? prev
+            : { url: cover, ratio: next },
+        );
       }}
       cachePolicy={settings.cacheEnabled ? "disk" : "none"}
       contentFit="cover"
+      // Measured covers decode at full size: the size reported is the image's
+      // own, and a frame resize does not start another load (Android). Safe
+      // for the station's artwork tiers (the largest is ~768 px); this skips
+      // expo-image's cap on oversized bitmaps, so keep it off for unbounded art.
+      allowDownscaling={!preserveAspectRatio}
       recyclingKey={recyclingKey ?? cover}
     />
   );

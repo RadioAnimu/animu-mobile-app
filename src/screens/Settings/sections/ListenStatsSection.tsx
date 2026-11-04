@@ -4,7 +4,7 @@ import { useFocusEffect } from "@react-navigation/native";
 import { listenStatsService } from "@/core/services/listen-stats.service";
 import { useDict } from "@/hooks/useDict";
 import type { Dict } from "@/i18n";
-import { ValueRow } from "@/screens/Settings/rows";
+import { ValueRow } from "@/components/SettingsRows";
 import { formatListenDuration, listenDurationUnits } from "@/utils/format";
 
 interface Props {

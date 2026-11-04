@@ -81,7 +81,7 @@ const hearTrack = (
 describe("listenStatsService", () => {
   beforeEach(() => {
     memory.clear();
-    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.useFakeTimers();
     vi.setSystemTime(dayStart(0) + 12 * 3_600_000); // today, noon
   });
 
@@ -246,7 +246,7 @@ describe("listenStatsService", () => {
   it("keeps the request ranking bounded, newest one-offs surviving", async () => {
     const service = await makeService();
     for (let i = 0; i < 55; i++) service.onRequestSubmitted(true, `t${i}`, song(`t${i}`));
-    await service.flushForTesting();
+    await vi.runOnlyPendingTimersAsync(); // the debounced write
     const stored = JSON.parse(memory.get("listenStats") ?? "{}") as {
       topRequests: Record<string, unknown>;
     };
@@ -261,7 +261,7 @@ describe("listenStatsService", () => {
     service.onPlaybackStopped();
     hearTrack(service, "a", true);
     service.onRequestSubmitted(true);
-    await service.flushForTesting();
+    await vi.runOnlyPendingTimersAsync(); // the debounced write
 
     const reloaded = await makeService();
     const snap = reloaded.getSnapshot();
@@ -322,7 +322,7 @@ describe("listenStatsService", () => {
     first.onPlaybackStarted();
     first.onAudibleTick(recent + 60_000);
     first.onPlaybackStopped();
-    await first.flushForTesting();
+    await vi.runOnlyPendingTimersAsync(); // the debounced write
 
     const reloaded = await makeService();
     const snap = reloaded.getSnapshot();
@@ -351,7 +351,7 @@ const storedDay = (overrides: Record<string, unknown> = {}) => ({
 describe("listenStatsService stored-data sanitizing", () => {
   beforeEach(() => {
     memory.clear();
-    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.useFakeTimers();
     vi.setSystemTime(dayStart(0) + 12 * 3_600_000);
   });
 
@@ -674,21 +674,6 @@ describe("listenStatsService persistence scheduling", () => {
     expect(service.getSnapshot().totalShouts).toBe(1);
   });
 
-  it("flushForTesting drops the pending timer and is a no-op when clean", async () => {
-    const service = new ListenStatsService();
-    await service.initialize();
-
-    await service.flushForTesting(); // nothing dirty yet
-    expect(AsyncStorage.setItem).not.toHaveBeenCalled();
-
-    service.onShoutSubmitted(true);
-    await service.flushForTesting();
-    expect(AsyncStorage.setItem).toHaveBeenCalledTimes(1);
-
-    await vi.advanceTimersByTimeAsync(5_000); // the debounce timer was cancelled
-    expect(AsyncStorage.setItem).toHaveBeenCalledTimes(1);
-  });
-
   it("keeps recording a session the reset happened in", async () => {
     const service = await makeService();
     const start = Date.now();
@@ -710,7 +695,7 @@ describe("listenStatsService persistence scheduling", () => {
     const service = new ListenStatsService();
     await service.initialize();
     service.onRequestSubmitted(true, "a", song("a"));
-    await service.flushForTesting();
+    await vi.runOnlyPendingTimersAsync(); // the debounced write
     expect(memory.has("listenStats")).toBe(true);
 
     await service.reset();

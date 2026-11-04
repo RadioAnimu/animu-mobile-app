@@ -11,6 +11,9 @@ export default defineConfig({
   // implementations stay intact.
   test: {
     clearMocks: true,
+    // Shared stand-ins for react-native, react-native-svg, AsyncStorage and
+    // expo-image; a test file's own vi.mock overrides them.
+    setupFiles: ["./src/__tests__/setup.ts"],
     // Both pinned libraries run their own suites via check:animu-api / check:player.
     // e2e/ is Playwright's (`pnpm test:web`).
     exclude: [...configDefaults.exclude, "packages/**", "scripts/__tests__/**", "e2e/**"],

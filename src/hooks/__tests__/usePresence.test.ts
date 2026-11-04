@@ -6,10 +6,6 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { usePresence } from "@/hooks/usePresence";
 import { MOTION } from "@/theme/motion";
 
-vi.mock("react-native", async () =>
-  (await import("@/__tests__/react-native-mock")).createReactNativeMock(),
-);
-
 type Finish = (result: { finished: boolean }) => void;
 
 /** The last timing animation: its config and a way to complete it. */

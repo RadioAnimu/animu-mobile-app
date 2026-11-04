@@ -205,6 +205,24 @@ describe("JapaneseDictionary", () => {
       expect(storage.urls).toEqual([]);
     });
 
+    it("cancels during a retry wait without sitting it out", async () => {
+      quiet();
+      storage.behave = (_url, name) => (name === "tid.dat.gz" ? "drop" : published(name));
+      dictionary = new JapaneseDictionary({
+        storage,
+        store,
+        buildTokenizer: build,
+        unpack: fakeUnpack,
+        wait: () => new Promise(() => {}), // a retry wait that never ends by itself
+      });
+      const done = dictionary.install();
+      await vi.waitFor(() => expect(storage.urls.some((url) => url.endsWith("tid.dat.gz"))).toBe(true));
+      await dictionary.cancel();
+      await done;
+      expect(store.getSnapshot()).toMatchObject({ install: "none", progress: 0 });
+      expect(storage.empty).toBe(true);
+    });
+
     it("cancels mid-transfer, deleting what it wrote", async () => {
       storage.behave = (_url, name) => (name === "tid.dat.gz" ? "hang" : published(name));
       const done = dictionary.install();

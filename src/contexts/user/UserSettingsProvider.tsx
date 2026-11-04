@@ -10,7 +10,6 @@ import React, {
 import { UserSettings } from "@/@types/user-settings";
 import { userSettingsService } from "@/core/services/user-settings.service";
 import { coverDiskStorage } from "@/core/services/cover-disk-storage.service";
-import { playerService } from "@/core/player";
 import { DEFAULT_USER_SETTINGS } from "@/constants/settings";
 import { whenIdle } from "@/utils/idle";
 
@@ -46,14 +45,6 @@ export const UserSettingsProvider: React.FC<{ children: React.ReactNode }> = ({
     settingsRef.current = next;
     setSettings(next);
   };
-
-  // ── Visualizer wiring ──
-  // Uncapped, like the web player's rAF loop: emitting the trace runs without
-  // a rate cap and the visualizer commits each frame at the display's own
-  // vsync, self-adapting per device. `0` = off, `> 0` = on.
-  useEffect(() => {
-    playerService().setVisualizerEnabled(settings.visualizerHz > 0);
-  }, [settings.visualizerHz]);
 
   /** Serialization chain — interleaved updates (a slow OFF wipe vs a fast
       ON) must persist and apply strictly in call order, or a stale write

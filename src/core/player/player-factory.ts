@@ -9,7 +9,8 @@ import { listenStatsService } from "@/core/services/listen-stats.service";
 import { lyricsService } from "@/core/lyrics";
 import { userSettingsService } from "@/core/services/user-settings.service";
 import { CONFIG } from "@/utils/player.config";
-import { PlayerService, streamSource, type Ticker } from "@/core/player/player-service";
+import { PlayerService, type Ticker } from "@/core/player/player-service";
+import { streamSource } from "@/core/player/stream-playback/stream-source";
 import { ArtworkResolver } from "@/core/player/storage/artwork";
 import {
   CachedCoverLookup,
@@ -50,12 +51,9 @@ export const PLAYER_ID = "animu";
 /** Also the catalog's: a player native code creates must behave as the app's. */
 const playerOptions = (): Omit<PlayerOptions, "id"> => ({
   diagnostics: CONFIG.DEBUG,
-  // The app publishes its own lock-screen metadata (anime / artist / cover
-  // from the station API), which wins over the stream's, and sets it again
-  // right after each load (a load drops it). The ICY title shows until the
-  // app has: a car or a voice request can start the catalog's player with no
-  // JavaScript, and the car then names the song, not just the station. The
-  // station's ICY name always fills the album line the app leaves empty.
+  // The app's lock-screen metadata wins over the stream's; the ICY title
+  // shows until it lands (a car or voice request can start the player with
+  // no JavaScript), and the ICY name fills the album line.
   metadata: { useStreamMetadataForNowPlaying: true },
   // Swiping the app away ends playback (the controls never outlive the app).
   android: { stopOnTaskRemoved: true },
@@ -65,12 +63,9 @@ const playerOptions = (): Omit<PlayerOptions, "id"> => ({
 });
 
 /**
- * One player per JavaScript runtime. A service created while the previous one
- * still holds it (Fast Refresh re-runs this module) takes it over: a second
- * `Player` with the same id is refused. Kept on the global object, which a
- * re-run module does not reset. A remount after a teardown creates a new one,
- * even while the old one's native release is pending: `release()` frees the
- * id at once (react-native-anything-player#93).
+ * One player per JavaScript runtime, kept on the global object so a Fast
+ * Refresh re-run takes it over (a second `Player` with the same id is
+ * refused). `release()` frees the id at once (react-native-anything-player#93).
  */
 const holder = globalThis as { __animuPlayer?: { player: Player; owner: object } | null };
 
@@ -103,10 +98,8 @@ const acquirePlayer = (owner: object): AudioPlayer => {
 };
 
 /**
- * The station for Siri, Google Assistant and cars (Android Auto; CarPlay waits
- * for Apple's entitlement, see app.json): every relay as a
- * rendition (the source the app loads itself, so a request while it plays
- * goes on without a gap), starting at the listener's quality.
+ * The station for Siri, Google Assistant and cars: every relay as a rendition
+ * of the source the app loads itself, so a request while it plays has no gap.
  */
 export const catalogFor = (streams: Stream[], current: Stream) => ({
   items: [
@@ -145,19 +138,18 @@ export const createPlayerService = (onDestroyed?: () => void): PlayerService => 
     timer: jsTimer,
   });
   const heard = new HeardTrack({
-    // The heard title may be the one the station just announced, or one it
-    // already moved past: a recent on-air item (a jingle shorter than the
-    // lag is replaced before it is heard) or an older song (history).
+    // The heard title may be one the station already moved past: a recent
+    // on-air item (a jingle shorter than the lag) or an older song.
     candidates: () => [
       repository.currentTrack,
       ...repository.recentOnAirTracks,
       ...repository.lastPlayedTracks,
     ],
     stationTrack: () => repository.currentTrack,
+    clockSkew: () => sync.clockSkew,
   });
-  // The audible clock: the station's track on the measured lag (drives the
-  // display when a stream has no ICY titles). Its boundary timer is also
-  // pumped by the native progress readings.
+  // The audible clock (the display when a stream has no ICY titles); native
+  // progress readings pump its boundary timer.
   const sync = new StreamSyncEngine();
   const boundaryTimer = createPumpedTimer();
   const audible = new AudibleTrackResolver({
@@ -176,16 +168,14 @@ export const createPlayerService = (onDestroyed?: () => void): PlayerService => 
     onResolved: (localUri, remoteUrl) => {
       // Caching off keeps nothing: no attribution, no copy into the image cache.
       if (!userSettingsService.getCurrentSettings().cacheEnabled) return Promise.resolve();
-      // Attribute the download to the live surface while the remote URL is
-      // still known (the UI renders the local file).
+      // Attributed while the remote URL is still known (the UI shows the file).
       coverCacheRegistry.tag(remoteUrl, "live");
       return coverSeeder.seed(localUri, remoteUrl);
     },
     findCachedCoverFile: coverLookup.find.bind(coverLookup),
   });
-  // A cover-cache wipe (the clean button, caching off, a quality change) also
-  // deletes the lock-screen downloads — all but the cover the media session
-  // shows, the heard track's — and the lookups into the wiped image cache.
+  // A cover-cache wipe also drops the lock-screen downloads, except the
+  // heard track's cover the media session shows.
   const stopPruning = coverDiskStorage.subscribe(() => {
     if (!coverDiskStorage.isClearing) artwork.afterCacheWipe(hearing.track?.artwork);
   });
@@ -213,9 +203,8 @@ export const createPlayerService = (onDestroyed?: () => void): PlayerService => 
     },
     onTrackAnnounced: (track) => lyricsService().prefetch(track),
     publishCatalog,
-    // A live song the station gave no length for: LRCLIB's, from the same
-    // lookup the header's lyrics button makes (shared memory, in-flight and
-    // disk cache — no extra request).
+    // A live song with no length: LRCLIB's, from the lyrics lookup already
+    // made (shared cache, no extra request).
     estimateDuration: (track) =>
       lyricsService()
         .lyricsFor(track)
@@ -227,8 +216,7 @@ export const createPlayerService = (onDestroyed?: () => void): PlayerService => 
 export const playerService = (): PlayerService => {
   if (playerServiceInstance) return playerServiceInstance;
   const instance = createPlayerService(() => {
-    // Only the current singleton may clear the slot: a late teardown of an
-    // older instance must not orphan its replacement.
+    // A late teardown of an older instance must not orphan its replacement.
     if (playerServiceInstance === instance) playerServiceInstance = null;
   });
   playerServiceInstance = instance;

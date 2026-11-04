@@ -5,7 +5,6 @@ import type { SharedValue } from "react-native-reanimated";
 import type { JapaneseDictionarySnapshot } from "@/core/japanese";
 import { PronunciationMenu } from "@/screens/Lyrics/PronunciationMenu";
 
-vi.mock("react-native", async () => (await import("@/__tests__/react-native-mock")).createReactNativeMock());
 vi.mock("react-native-reanimated", async () => {
   const { View } = (await import("@/__tests__/react-native-mock")).createReactNativeMock();
   // Animations land at once: their end callback runs as they start.

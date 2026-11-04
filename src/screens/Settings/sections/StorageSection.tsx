@@ -6,7 +6,7 @@ import { useCoverStorageSnapshot } from "@/hooks/useCoverStorage";
 import { useCoverDiskClearing, useFreedCoverToast } from "@/hooks/useCoverDisk";
 import { useDict } from "@/hooks/useDict";
 import { useSaveSettings } from "@/hooks/useSaveSettings";
-import { SettingsRow, ValueRow } from "@/screens/Settings/rows";
+import { SettingsRow, ValueRow } from "@/components/SettingsRows";
 import { formatBytes } from "@/utils/format";
 
 interface Props {

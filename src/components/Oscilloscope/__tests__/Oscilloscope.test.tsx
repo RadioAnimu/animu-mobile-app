@@ -7,10 +7,6 @@ import { Oscilloscope } from "@/components/Oscilloscope/Oscilloscope";
 import { loadPage, play } from "@/components/Oscilloscope/__tests__/page-harness";
 import { THEME } from "@/theme";
 
-vi.mock("react-native", async () =>
-  (await import("@/__tests__/react-native-mock")).createReactNativeMock(),
-);
-
 const webview = vi.hoisted(() => ({
   postMessage: vi.fn<(message: string) => void>(),
   onMessage: null as null | ((event: { nativeEvent: { data: string } }) => void),
@@ -69,7 +65,6 @@ vi.mock("@/contexts/user/UserSettingsProvider", () => ({
 vi.mock("@react-navigation/native", () => ({
   useIsFocused: () => mocks.focused,
 }));
-
 
 const setPlayer = (overrides: Record<string, unknown> = {}) => {
   mocks.player = {

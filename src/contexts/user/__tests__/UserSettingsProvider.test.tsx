@@ -14,7 +14,6 @@ const mocks = vi.hoisted(() => ({
   updateSettings: vi.fn(),
   clearAll: vi.fn(),
   trim: vi.fn(),
-  setVisualizerEnabled: vi.fn(),
   idleTasks: [] as (() => void)[],
 }));
 
@@ -40,11 +39,6 @@ vi.mock("@/core/services/user-settings.service", () => ({
 }));
 vi.mock("@/core/services/cover-disk-storage.service", () => ({
   coverDiskStorage: { clearAll: mocks.clearAll, trim: mocks.trim },
-}));
-vi.mock("@/core/player", () => ({
-  playerService: () => ({
-    setVisualizerEnabled: mocks.setVisualizerEnabled,
-  }),
 }));
 
 describe("useUserSettings outside a provider", () => {
@@ -88,11 +82,10 @@ describe("UserSettingsProvider", () => {
     cleanup();
   });
 
-  it("loads the stored settings and wires the player to them", async () => {
+  it("loads the stored settings", async () => {
     const { result } = renderHook(() => useUserSettings(), { wrapper });
 
     await waitFor(() => expect(result.current.settings.hapticsEnabled).toBe(false));
-    expect(mocks.setVisualizerEnabled).toHaveBeenCalledWith(true);
   });
 
   it("trims the cover cache to its limit once at launch, when idle", async () => {
@@ -146,7 +139,6 @@ describe("UserSettingsProvider", () => {
       visualizerHz: 0,
     });
     expect(result.current.settings.visualizerHz).toBe(0);
-    expect(mocks.setVisualizerEnabled).toHaveBeenLastCalledWith(false);
   });
 
   it("reports a failed persist to the caller and keeps the previous settings", async () => {

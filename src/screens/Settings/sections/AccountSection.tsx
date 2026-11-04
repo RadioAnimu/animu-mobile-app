@@ -1,6 +1,6 @@
 import type { AuthProfile, User } from "@/core/domain/user";
 import { useDict } from "@/hooks/useDict";
-import { AccountRow } from "@/screens/Settings/rows";
+import { AccountRow } from "@/components/SettingsRows";
 
 interface Props {
   user: User | null;

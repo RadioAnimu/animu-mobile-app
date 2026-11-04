@@ -8,7 +8,6 @@ import {
   type Track,
 } from "animu-api";
 import type { Program } from "@/core/domain/program";
-import { DICT } from "@/i18n";
 import {
   abortPlayerRequests,
   createApiClient,
@@ -21,22 +20,14 @@ class AnimuService {
   private liveClient: AnimuLive | null = null;
   private liveKey = "";
   /**
-   * Program client, cached per artwork quality (the quality can shape the
-   * program payload) — REBUILDS only when the setting changes so the
-   * package's 2.5s GET micro-cache survives across the 5s/30s poll cadence
-   * (a per-call client would make every poll a fresh HTTP round-trip).
-   * Still `playerScoped`, so the watchdog can cut a stalled program fetch.
+   * Program client, rebuilt only when the artwork quality changes, so the
+   * package's GET micro-cache survives between polls.
    */
   private programClient: AnimuApi | null = null;
   private programClientQuality: ArtworkQuality | null = null;
   /**
-   * Fetches track + listeners in one snapshot: the package reads the Go
-   * SSE daemon's seeded `song_change` and closes the connection (the legacy
-   * PHP now-playing endpoint is retired).
-   *
-   * Artwork quality is a runtime user setting and the default cover a
-   * runtime resolver value (bundled asset), so this uses a dedicated
-   * client per call instead of the shared one.
+   * Track + listeners in one snapshot: the SSE daemon's seeded `song_change`,
+   * read and closed. A client per call carries the runtime quality and cover.
    */
   async getStreamMetadata(
     artworkQuality?: ArtworkQuality,
@@ -50,16 +41,9 @@ class AnimuService {
     return client.getStreamMetadata({ signal: playerRequestSignal() });
   }
 
-  /**
-   * Fetches the program currently on air, enriched with the matching i18n
-   * dictionary entry (the package doesn't know about DICT).
-   */
+  /** Fetches the program currently on air. */
   async getCurrentProgram(): Promise<Program> {
-    const program = await this.getProgramClient().getProgram();
-    return {
-      ...program,
-      programIndex: findProgramIndex(program.name),
-    };
+    return this.getProgramClient().getProgram();
   }
 
   private getProgramClient(): AnimuApi {
@@ -73,14 +57,7 @@ class AnimuService {
     return this.programClient;
   }
 
-  /**
-   * Fetches a history feed (played/requested).
-   *
-   * Same rationale as getStreamMetadata: the user's artwork quality and
-   * the resolver's default cover are runtime values — history covers are
-   * size-variant picks, so the shared client's module-load defaults would
-   * pin every row to medium quality.
-   */
+  /** A history feed (played/requested), with the runtime quality and cover. */
   async getTrackHistory(
     type: HistoryType,
     artworkQuality?: ArtworkQuality,
@@ -93,32 +70,18 @@ class AnimuService {
   }
 
   /**
-   * Watchdog hook — aborts the player's own in-flight data requests
-   * (metadata, program, history). Called by the player's native-driven
-   * heartbeat when a data refresh outlives its hard limit: in the
-   * background, the JS-timer abort inside HttpClient never fires, so
-   * stalled requests would hang forever and freeze the now-playing data.
-   *
-   * Deliberately scoped rather than the package's process-global
-   * `abortAllInFlightRequests()`: a bad network that stalls a poll must not
-   * also abort an in-flight login, avatar upload or music request. The SSE
-   * connection is excluded too (it has its own controller and must survive).
+   * Watchdog hook: aborts the player's own data requests when a refresh
+   * outlives its limit (in the background the JS-timer abort never fires).
+   * Scoped, see {@link abortPlayerRequests}; the SSE stream is not affected.
    */
   abortInFlightRequests(): void {
     abortPlayerRequests();
   }
 
   /**
-   * Realtime now-playing (`song_change` + `listeners`) via the station's
-   * SSE daemon. Quality/cover are captured per client (constructor state),
-   * so a changed key rebuilds the surface — the daemon seeds every new
-   * connection with the current state, making the rebuild seamless.
-   *
-   * The SSE connection is deliberately NOT covered by
-   * {@link abortPlayerRequests} either: its AbortController lives inside
-   * `AnimuLive` and must survive the watchdog, which exists to cut stale
-   * one-shot fetches only. The live client is created without
-   * `playerScoped`, so it is out of scope by construction.
+   * Realtime now-playing via the SSE daemon. A changed quality/cover key
+   * rebuilds the client; the daemon seeds each connection, so that is
+   * seamless. Not `playerScoped`: the watchdog must not cut the stream.
    */
   subscribeLive(
     quality: ArtworkQuality,
@@ -161,14 +124,5 @@ class AnimuService {
     this.liveClient?.tick();
   }
 }
-
-const findProgramIndex = (programName: string): number => {
-  if (!programName) return -1;
-
-  const programNameLower = programName.trim().toLowerCase();
-  return DICT["PT"].PROGRAMS.findIndex(
-    (program) => program.name.trim().toLowerCase() === programNameLower,
-  );
-};
 
 export const animuService = new AnimuService();

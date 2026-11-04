@@ -5,10 +5,6 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { useStepFade } from "@/hooks/useStepFade";
 
-vi.mock("react-native", async () =>
-  (await import("@/__tests__/react-native-mock")).createReactNativeMock(),
-);
-
 describe("useStepFade", () => {
   beforeEach(() => {
     vi.mocked(Animated.timing).mockClear();

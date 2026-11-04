@@ -7,10 +7,8 @@ import { CONFIG } from "@/utils/player.config";
 import { CLIENT_INFO } from "@/utils/client-context";
 
 /**
- * Sink for the server-vs-device clock offset observed on each HTTP response.
- * The player registers the sync engine here; no extra requests are made —
- * every existing call (metadata poll, program, history, SSE connect) carries
- * a `date` header that already tells us the server's clock.
+ * Sink for the server-vs-device clock offset, read from the `date` header of
+ * every existing response (no extra requests).
  */
 let serverSkewListener: ((skewMs: number, rttMs: number) => void) | null =
   null;
@@ -26,10 +24,9 @@ export const setServerSkewListener = (
 const DATE_HEADER_FLOOR_BIAS_MS = 500;
 
 /**
- * `expo/fetch` wrapped to feed every response's `date` header to the sync
- * engine's clock correction (a browser hides `date` on cross-origin
- * responses, so the web build has none). In a browser the request is also
- * kept CORS-simple where it can be (see {@link asSimpleRequest}).
+ * `expo/fetch` feeding each response's `date` header to the clock correction
+ * (browsers hide it cross-origin, so the web gets none). In a browser the
+ * request is also kept CORS-simple (see {@link asSimpleRequest}).
  */
 const clockAwareFetch: typeof expoFetch = async (input, init) => {
   const sentAtMs = Date.now();
@@ -44,21 +41,15 @@ const clockAwareFetch: typeof expoFetch = async (input, init) => {
   // not of now — its "skew" is just its age.
   const cached = response.headers.get("age") != null;
   if (skew != null && !cached) {
-    // The header is floored to whole seconds: the true instant is, on
-    // average, half a second later.
     serverSkewListener?.(skew + DATE_HEADER_FLOOR_BIAS_MS, receivedAtMs - sentAtMs);
   }
   return response;
 };
 
 /**
- * Player-scoped cancellation. The now-playing watchdog must cut ONLY the
- * player's own stalled metadata/history/program sockets on a bad network.
- * The package's `abortAllInFlightRequests()` is process-global and would also
- * kill an in-flight login, avatar upload or music request happening at the
- * same moment. Player clients get the wrapper below, which links the
- * package's per-request signal to this scope; every other client keeps the
- * package's own timeout/abort behaviour untouched.
+ * Player-scoped cancellation: the now-playing watchdog cuts only the player's
+ * stalled sockets. The package's `abortAllInFlightRequests()` is global and
+ * would also kill a login, upload or music request in flight.
  */
 let playerScope = new AbortController();
 
@@ -69,9 +60,8 @@ export const abortPlayerRequests = (): void => {
 };
 
 /**
- * The current player scope's signal, for calls that outlive the fetch itself
- * (the now-playing snapshot keeps reading the SSE body after the headers, when
- * `playerScopedFetch` has already unlinked the scope).
+ * The current player scope's signal, for reads that outlive the fetch (the
+ * SSE body after the headers, once `playerScopedFetch` unlinked the scope).
  */
 export const playerRequestSignal = (): AbortSignal => playerScope.signal;
 
@@ -94,17 +84,13 @@ const playerScopedFetch: typeof expoFetch = async (input, init) => {
 };
 
 /**
- * Shared client for everything whose settings don't change per call:
- * program, history, music/live requests, streams, auth.
+ * Shared client for calls whose settings don't change per call (program,
+ * history, requests, streams, auth). The app's single integration point with
+ * the package.
  *
- * The package owns schemas, mappers and transport (timeouts, micro-cache,
- * error taxonomy). This file is the app's single integration point — if the
- * package API changes, adapt here, not in the services.
- *
- * Uses `expo/fetch` instead of React Native's global fetch: its dedicated
- * native OkHttp stack keeps working while the app is backgrounded and
- * cancels hung calls natively — RN's `NetworkingModule` pool wedges in the
- * background, freezing now-playing metadata updates.
+ * `expo/fetch`, not RN's global fetch: its native OkHttp stack keeps working
+ * in the background and cancels hung calls, where RN's `NetworkingModule`
+ * pool wedges and freezes now-playing updates.
  */
 export const animuApi = new AnimuApi({
   clientInfo: CLIENT_INFO,
@@ -114,30 +100,17 @@ export const animuApi = new AnimuApi({
 });
 
 /**
- * The SSE stream is reconnected after this long without a byte. The daemon
- * writes only on a change (a song, a listener count) and sends no
- * keep-alive, so a socket that died silently — a Wi-Fi/cellular handoff, a
- * NAT timeout — would otherwise wait forever; the HTTP poll covers the
- * metadata after 15 s, this brings the push back. Well above a normal quiet
- * stretch, so a healthy stream is never cut.
+ * The SSE stream is reconnected after this long without a byte: the daemon
+ * sends no keep-alive, so a silently dead socket (network handoff, NAT
+ * timeout) would wait forever. Well above a normal quiet stretch.
  */
 const LIVE_IDLE_TIMEOUT_MS = 90_000;
 
 /**
- * Builds a client whose per-call options (artwork quality, default cover) are
- * runtime user/resolver state rather than the shared client's module-load
- * defaults. Callers that need them — now-playing metadata, history rows, the
- * live SSE surface, and request search — each get their own lightweight,
- * otherwise-stateless instance (the package keeps only a short-lived HTTP
- * micro-cache, which the player's 5s polling doesn't depend on).
- *
- * The SSE surface is reached through the returned client's `.live` accessor;
- * it is long-lived (no request timeout) and survives backgrounding via
- * `expo/fetch`'s native OkHttp stack, the same reason the shared client uses
- * it. Search rows carry every size the station exposes and the mapper picks
- * per `artworkQuality` — the SAME setting that selects the now-playing cover,
- * so a searched and later-played song shares the same URL family (disk-cache
- * life).
+ * A client for runtime per-call options (artwork quality, default cover):
+ * now-playing, history, the live SSE surface (`.live`) and request search.
+ * Search uses the same quality as the now-playing cover, so a searched and
+ * later-played song share one cached URL.
  */
 export const createApiClient = (
   artworkQuality: ArtworkQuality,

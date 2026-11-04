@@ -4,10 +4,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { TimeRemaining } from "@/components/TimeRemaining";
 
-vi.mock("react-native", async () =>
-  (await import("@/__tests__/react-native-mock")).createReactNativeMock(),
-);
-
 const mocks = vi.hoisted(() => ({
   player: {} as Record<string, unknown>,
   progress: {} as Record<string, unknown>,

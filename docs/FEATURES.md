@@ -15,12 +15,12 @@ listener count, remaining time and the stream-quality selector.
 - **Selectable bitrate** — 320 kbps MP3, 192 kbps MP3 and 64 kbps AAC+.
   Available streams are discovered at startup from `stream.animu.moe` with a
   hardcoded fallback list when the endpoint is unreachable. A switch while
-  playing keeps the audio going. On Android the new relay is lined up with
-  what is heard first (each relay starts a different number of seconds behind
-  live), so normally nothing repeats or skips; a switch that cannot be lined
-  up (25 s, or a connection dropping meanwhile) takes over anyway and the
-  song is placed again. On iOS a switch can still repeat or skip those
-  seconds.
+  playing keeps the audio going. The new relay is lined up with what is heard
+  first (each relay starts a different number of seconds behind live), so
+  nothing repeats or skips and the song keeps its place. A switch that cannot
+  be lined up goes ahead anyway: the audio jumps, and the song is placed
+  again. Recorded on Android and in browsers; iOS has the
+  same code but has not been recorded on a device yet.
 - **Real-time station metadata** — the app keeps the UI in sync with the
   server-side track, cover artwork, live program, DJ and listener count,
   preferring the station's realtime SSE stream and falling back to HTTP polling.

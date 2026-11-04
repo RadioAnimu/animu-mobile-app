@@ -17,7 +17,7 @@ import { useDict } from "@/hooks/useDict";
 import type { Dict } from "@/i18n";
 import { LyricsBackground } from "@/screens/Lyrics/LyricsBackground";
 import { type PronunciationGlyph, PronunciationIcon } from "@/screens/Lyrics/PronunciationIcon";
-import { dictionarySize } from "@/screens/Settings/sections/dictionary-size";
+import { dictionarySize } from "@/utils/dictionary-size";
 import { THEME } from "@/theme";
 import { MOTION } from "@/theme/motion";
 import { scale } from "@/theme/responsive";

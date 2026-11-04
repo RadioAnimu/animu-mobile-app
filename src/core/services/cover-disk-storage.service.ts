@@ -12,10 +12,8 @@ import {
 } from "@/core/services/cover-cache-partitions";
 
 /**
- * Grace window for a freshly-tagged URL whose bytes are still seeding into
- * the image cache (the resolver's `writeCache` races this measure). Absent
- * this window the measure would prune the tag before the bytes land, and
- * nothing would ever re-tag that cover.
+ * Grace for a freshly tagged URL whose bytes are still being written to the
+ * image cache: pruning it then would lose the tag for good.
  */
 const SEED_GRACE_MS = 60_000;
 
@@ -23,9 +21,7 @@ type CoverStorageKey = CoverCacheCategory;
 
 export interface CoverStorageSlice {
   key: CoverStorageKey;
-  /** Bytes of cached files found on disk under this category. */
   bytes: number;
-  /** Files found on disk under this category. */
   count: number;
 }
 
@@ -35,23 +31,17 @@ export interface CoverStorageSnapshot {
   totalCount: number;
 }
 
-/** Result of one byte-limit enforcement pass (`trim`, or the pass
-    embedded in `computeSnapshot`). */
+/** Result of one byte-limit pass (`trim`, or the one inside `computeSnapshot`). */
 export interface CoverCacheTrimResult {
   /** URLs whose cache files were deleted — oldest displayed first. */
   evicted: string[];
-  /** Bytes actually reclaimed (0 when nothing needed removing). */
   freedBytes: number;
-  /** Measured bytes still cached after the pass. */
   remainingBytes: number;
 }
 
 /**
- * stat result for one tracked URL:
- * - `found`   → bytes measured from the real cached file;
- * - `absent`  → expo-image positively reports no cached file (safe to prune);
- * - `unknown` → the stat itself failed; the file may exist — the entry is
- *   kept but contributes no bytes until a later measure resolves it.
+ * One tracked URL on disk. `absent` is safe to prune; `unknown` (the stat
+ * failed, the file may exist) is kept but counts no bytes.
  */
 type CachedStat =
   | { state: "found"; bytes: number }
@@ -73,13 +63,7 @@ async function cachedFileBytes(url: string): Promise<CachedStat> {
   }
 }
 
-/**
- * Deletes the file behind expo-image's cache key for one URL. The glob
- * registry's measurement uses the exact same lookup, so the path stat'd
- * found is the path deleted — Glide keeps its own journal, so stat →
- * delete → later stat reads "absent" and the ghost entry heals itself
- * out of the registry.
- */
+/** Deletes the file behind expo-image's cache key: the same lookup the measure stats. */
 async function deleteCachedFile(url: string): Promise<boolean> {
   try {
     const path = await Image.getCachePathAsync(url);
@@ -95,35 +79,32 @@ async function deleteCachedFile(url: string): Promise<boolean> {
 }
 
 /**
- * Answers "how much disk do cached covers take" per app category by
- * stat'ing the real files expo-image stores (one lookup per tracked URL,
- * batched). Registry URLs whose files were evicted are pruned so the
- * legend never shows ghosts.
- *
- * When a `maxBytes` limit is given, the same pass also runs the FIFO
- * byte trim: the ring is the registry's recency order — oldest displayed
- * covers are deleted (and deregistered) until the measured total fits.
+ * Measures cached covers per category from the real files expo-image keeps,
+ * pruning URLs whose files are gone. With a byte limit, the same pass deletes
+ * the oldest displayed covers until each partition fits.
  */
 class CoverDiskStorage {
-  /** Shared wipe-in-progress flag — the Settings toggle and the storage
-      card's clean button both disable themselves while any wipe runs
-      (the clean button AND the automatic wipe on cache-off come through
-      `clearAll`, so this is the one source of truth). */
+  /** A wipe is running: every wipe goes through `clearAll`, and its buttons disable on this. */
   private readonly clearListeners = new Set<() => void>();
   private clearing = false;
 
-  /** Serialization chain — snapshots, trims and wipes never interleave:
-      (measure → decide → delete → prune) is atomic relative to another
-      pass or a `clearAll`, so bytes are never accounted twice and a wipe
-      can never resurrect a file a mid-flight trim just dropped. */
+  /** Snapshots, trims, deletes and wipes run one at a time, so none sees another half done. */
   private workChain: Promise<unknown> = Promise.resolve();
+
+  constructor() {
+    coverCacheRegistry.onEvict = (url) => {
+      // Re-tagged while queued: displayed again, so the file stays.
+      void this.enqueue(async () => {
+        if (coverCacheRegistry.taggedAt(url) == null) await deleteCachedFile(url);
+      });
+    };
+  }
 
   get isClearing(): boolean {
     return this.clearing;
   }
 
-  /** Pub/sub for the `clearing` flag — React ties it in with
-      `useSyncExternalStore`. */
+  /** Pub/sub for the `clearing` flag (`useSyncExternalStore`). */
   subscribe(listener: () => void): () => void {
     this.clearListeners.add(listener);
     return () => this.clearListeners.delete(listener);
@@ -135,9 +116,7 @@ class CoverDiskStorage {
     for (const listener of this.clearListeners) listener();
   }
 
-  /** Queues an operation behind every queued one already running; the
-      chain itself swallows errors so one failed pass never poisons the
-      next, while the caller still gets its own rejection. */
+  /** Queues an operation; a failure rejects its caller, never the next operation. */
   private enqueue<T>(operation: () => Promise<T>): Promise<T> {
     const result = this.workChain.then(operation);
     this.workChain = result.catch(() => {});
@@ -156,14 +135,7 @@ class CoverDiskStorage {
     });
   }
 
-  /**
-   * Measures every tracked URL and, when over the per-partition caps
-   * (computed from `maxBytes` + optional custom overrides), walks each
-   * partition's FIFO ring hard-deleting cache files until back under
-   * its own budget. Serialized so lowering the limit in Settings and a
-   * storage card re-measure can never delete the same URL twice or
-   * fight a wipe.
-   */
+  /** Deletes the oldest covers of each partition over its cap (from `maxBytes` and the overrides). */
   async trim(
     maxBytes: number,
     partitions: CoverCachePartitions | null = null,
@@ -202,11 +174,8 @@ class CoverDiskStorage {
       );
       const evictedSet = new Set(evicted);
 
-      // Positively-absent files (Glide evicted them at its own will) are
-      // pruned exactly like before; evicted-by-limit URLs join the same
-      // batch so the registry forgets them in one persist. A freshly-
-      // tagged URL rides out the seed grace instead — its bytes may be
-      // mid-write into the image cache.
+      // Absent files (the image cache evicted them) and trimmed ones are
+      // forgotten in one persist; a freshly tagged URL rides out the grace.
       const missing = [...statByUrl.entries()]
         .filter(([url, stat]) => stat.state === "absent" && !evictedSet.has(url))
         .map(([url]) => url)
@@ -222,9 +191,7 @@ class CoverDiskStorage {
         let count = 0;
         for (const url of freshGroups[key]) {
           const stat = statByUrl.get(url);
-          // A tag that raced the prune added an URL this pass never
-          // stat'd — it contributes nothing on this pass (next measure
-          // resolves it), same policy as `unknown`.
+          // A URL tagged during this pass was never stat'd: the next one counts it.
           if (stat?.state === "found") {
             bytes += stat.bytes;
             count++;
@@ -241,7 +208,7 @@ class CoverDiskStorage {
     });
   }
 
-  /** One stat per tracked URL, batched, keyed back by URL. */
+  /** One stat per tracked URL, keyed by URL. */
   private async statAll(
     groups: Record<CoverStorageKey, string[]>,
   ): Promise<Map<string, CachedStat>> {
@@ -255,22 +222,10 @@ class CoverDiskStorage {
   }
 
   /**
-   * The FIFO ring walk, per partition: each category's `groups[key]` is
-   * oldest-display first (registry recency order within the partition),
-   * and the partition's measured total shrinks as real files are deleted
-   * front-to-back. Partitions evict INDEPENDENTLY — a search flood can
-   * never free space by dropping live covers, and vice versa.
-   * Conservative on every axis:
-   *
-   * - `unknown` stats are skipped — no path was obtainable, the file may
-   *   still exist, and a later measure resolves it (heals in or out);
-   * - `absent` stats are skipped — nothing to delete, the registry
-   *   already owns the pruning of these;
-   * - a failed deletion keeps the URL registered (bytes stay counted;
-   *   the next pass retries);
-   * - each partition's NEWEST entry is never evicted, so the trimmer
-   *   can't discard the cover the user is looking at right now — even a
-   *   cap smaller than one cover leaves the freshest file standing.
+   * Deletes oldest-first within each partition until it fits its cap.
+   * Partitions evict independently (a search flood never drops live covers).
+   * Only `found` files are deleted; a failed delete stays registered for the
+   * next pass; a partition's newest entry (likely on screen) is never deleted.
    */
   private async evictPartitions(
     groups: Record<CoverStorageKey, string[]>,
@@ -313,14 +268,8 @@ class CoverDiskStorage {
     }, 0);
     if (partitionBytes <= cap) return { evicted, freedBytes };
 
-    // Walk the partition's ring up to (but excluding) its newest
-    // entry — index 0 is the oldest end of the buffer, the read
-    // pointer advances one slot per eviction.
-    // NOTE: the awaits are DELIBERATELY sequential. Each deletion
-    // decides whether the next one is needed at all (budget-progressive);
-    // parallelizing would pre-delete MORE covers than the cap requires.
-    // Evictions are per-slot on a FIFO walk, not a batch operation — that
-    // is the ring contract, so a sequential loop (not `Promise.all`).
+    // Oldest first, never the newest. Sequential on purpose: each delete
+    // decides whether the next is needed, so parallel deletes would overshoot.
     for (const url of partition.slice(0, -1)) {
       if (partitionBytes <= cap) break;
       const stat = statByUrl.get(url);

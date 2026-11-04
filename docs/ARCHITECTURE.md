@@ -109,8 +109,9 @@ switching stream or a live-edge resume). The title says which song, but it is
 already partway: its position is station time minus how far the speaker trails
 the live edge, with a server clock correction from HTTP `date` headers when
 the device clock is grossly wrong. That lag is taken from the audible clock
-once it has settled (1 Hz readings, a few seconds of "calculating"), not from
-the moment the first title plays. The first title plays at once, while the
+once Anything Player's `liveOffset` has settled (`liveOffsetSettled`: the
+burst has arrived and the reading has held 3 s), not from the moment the first
+title plays. The first title plays at once, while the
 connect burst is still loading: 1.6 s of audio on 320, 7 s on 192, 17 s on
 64. A reading taken then was the 192 / 64 kbps regression: Android had 4.8 s
 buffered of the 17 s actually behind the edge, and iOS `loadedTimeRanges` read
@@ -123,30 +124,37 @@ tune-in. Before the first change it starts from the station clock's
 lead over its audio (`STATION_AHEAD_OF_AUDIO_MS`, 1 s: the title changes
 1.2 s after `timestart` and is heard 0.2 s into the item on 320).
 
-Measured after the fix (2026-10-05, tune-in vs the next heard change, which
-carries the station's own ±1 s `timestart` jitter): 64 kbps 0.9 s on iOS and
-Android (before: 5.6 s and 16 s), 192 kbps 0.3 s on iOS.
+Measured after the fix (2026-10-05, with the app's own lag estimate, before
+Anything Player 1.4.0; tune-in vs the next heard change, which carries the
+station's own ±1 s `timestart` jitter): 64 kbps 0.9 s on iOS and Android
+(before: 5.6 s and 16 s), 192 kbps 0.3 s on iOS. The clock on 1.4.0's
+`liveOffset` has not been measured on a device yet.
 
 **The audible clock (`StreamSyncEngine` + `AudibleTrackResolver`)** is the
-pre-ICY model: wall clock minus the measured lag, smoothed. The station's
+pre-ICY model: wall clock minus Anything Player's `liveOffset`. The station's
 track shows once the clock reaches its start. It drives the display when a
 stream carries no ICY titles (12 s of playback without one), so the app never
 depends on one source alone. It is fed by Anything Player's `progress` events: 1 Hz
 readings from a native timer while playing, which also pump its boundary
 timer on Android, where JS timers do not run in the background.
 
-**Once settled, the audible clock is locked.** The lag readings jitter with
-network delivery (the forward buffer saw-tooths as chunks land), but while
-audio plays without a stall the real lag cannot change. So the settled estimate
-becomes a fixed wall-clock offset, and every computed position (a tune-in, or
-the clock without ICY) advances in true seconds from it. Before the lock, the
-position followed every reading, so seconds stretched, shrank or repeated, and
-the bar jumped after "synchronizing". The lag only really changes when audio
-stops: a pause or stall holds the clock and adds that time to the lag, and a
-re-open measures again. The readings can only under-read the lag (the player
-cannot hold audio the station has not sent), so the lock moves only when they
-stay 2 s or more above it for 5 readings in a row. That happens when the lock
-was taken while the connect burst was still loading.
+**The audible clock is a fixed point.** `liveOffset` is how far what is
+heard trails the audio arriving on the device (the server's burst, the
+buffer, the decoder), measured natively, so it does not saw-tooth as chunks
+land and it grows while paused or stalled. Network transit and the station's
+own lead over its audio are not in it; the tune-in calibration covers them.
+The first settled reading places the clock; a later one moves it only when it
+disagrees by more than 150 ms (above Anything Player's own 0.1 s noise), so
+every computed position (a tune-in, or the clock without ICY) advances in true
+seconds. A pause or stall holds the clock (the player's state), the next
+reading corrects one handled late, and a re-open measures again. Anything
+Player measures the offset wherever it reads the stream (Android and iOS
+always, the web through MSE). A browser's plain `<audio>` element (a station
+without CORS) has none: the forward buffer stands in, and since it only
+under-reads and drains between loads it moves the clock only when 2 s or more
+behind it.
+The app used to estimate the lag itself from the buffer, which under-read it
+while the burst loaded (4.8 s buffered of 17 s behind, on Android).
 
 **One position, extrapolated everywhere.** `NowHearing.position()` is the
 position as a fixed point: elapsed ms at a wall-clock instant, advancing while
@@ -173,16 +181,19 @@ position discontinuity onto the new connection; iOS: the playhead reaching
 the splice). `PlayerService` then places the song again like after a
 re-open, from the audible clock, which re-measures the lag on the new
 connection. The same title is not reported again, so the track already shown
-is re-heard as a tune-in.
+is re-heard as a tune-in. A title that does arrive before the clock settles
+again (a switch that went ahead tells the new connection's, after its
+`discontinuity`) is partway into its song too: it is placed the same way and
+never calibrates.
 
 **Timing that depends on the JS thread.** Play and stall transitions are
 handled in JS, so a busy JS thread used to shift the position by the delay.
 Every progress reading now carries the player's media position, which only
-advances with the audio: the heard position (`HeardTrack.alignToMedia`) and
-the locked clock (`StreamSyncEngine.alignToMedia`) take the first reading
-after they are placed as a reference and follow the media clock from there,
-moved onto it when more than 60 ms off (the readings agree to ±6 ms; a
-pause or resume handled a beat late used to leave ~0.1 s). The biggest source of JS stalls was
+advances with the audio: the heard position (`HeardTrack.alignToMedia`) takes
+the first reading after it is placed as a reference and follows the media
+clock from there, moved onto it when more than 60 ms off (the readings agree
+to ±6 ms; a pause or resume handled a beat late used to leave ~0.1 s). The
+audible clock needs no such step: each reading is timed natively. The biggest source of JS stalls was
 the Japanese dictionary's reader, rebuilt on every lyrics open (12 s of JS on
 the emulator) with quick reopens stacking builds; it is now kept for a minute
 after the lyrics close (`READER_KEEP_MS`). Opening the lyrics still costs

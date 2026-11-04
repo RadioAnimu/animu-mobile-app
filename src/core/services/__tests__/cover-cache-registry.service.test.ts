@@ -172,6 +172,36 @@ describe("CoverCacheRegistry", () => {
     );
   });
 
+  it("hands the entry the size cap drops to onEvict", () => {
+    const registry = freshRegistry();
+    const onEvict = vi.fn();
+    registry.onEvict = onEvict;
+    for (let i = 0; i <= 500; i++) registry.tag(`https://cdn.animu.studio/${i}.jpg`, "played");
+
+    expect(onEvict).toHaveBeenCalledExactlyOnceWith("https://cdn.animu.studio/0.jpg");
+    expect(registry.taggedAt("https://cdn.animu.studio/0.jpg")).toBeUndefined();
+  });
+
+  it("keeps tags made during the load newest, and the cap trims the merge back to 500", async () => {
+    const stored = Object.fromEntries(
+      Array.from({ length: 500 }, (_, i) => [`https://cdn.animu.studio/${i}.jpg`, { category: "played", at: i }]),
+    );
+    memory.set("coverCacheRegistry", JSON.stringify({ entries: stored }));
+    const registry = freshRegistry();
+    const onEvict = vi.fn();
+    registry.onEvict = onEvict;
+    registry.tag(URLS.live, "live"); // starts the load
+    await registry.load();
+    registry.tag(URLS.search, "search");
+
+    expect(onEvict.mock.calls).toEqual([
+      ["https://cdn.animu.studio/0.jpg"],
+      ["https://cdn.animu.studio/1.jpg"],
+    ]);
+    expect(Object.values(registry.groupByCategory()).flat()).toHaveLength(500);
+    expect(registry.taggedAt(URLS.live)).toBeDefined();
+  });
+
   it("prune() drops evicted URLs from memory and storage", async () => {
     const registry = freshRegistry();
     registry.tag(URLS.played, "played");

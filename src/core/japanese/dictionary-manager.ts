@@ -93,6 +93,13 @@ class Cancelled extends Error {
   }
 }
 
+/** Resolves once `signal` aborts: a retry wait must not hold up a cancel. */
+const aborted = (signal: AbortSignal): Promise<void> =>
+  new Promise((resolve) => {
+    if (signal.aborted) resolve();
+    else signal.addEventListener("abort", () => resolve(), { once: true });
+  });
+
 /** Re-reads `signal` on every call, so an abort during an `await` is seen. */
 function throwIfCancelled(signal: AbortSignal): void {
   if (signal.aborted) throw new Cancelled();
@@ -299,7 +306,7 @@ export class JapaneseDictionary {
     let lastError: unknown = new Error(`${name}: no mirror`);
     for (const delay of [0, ...RETRY_DELAYS_MS]) {
       if (mirrors.length === 0) break;
-      if (delay > 0) await this.wait(delay);
+      if (delay > 0) await Promise.race([this.wait(delay), aborted(signal)]);
       const round = await this.tryMirrors(name, mirrors, report, signal);
       if (round.verified) return;
       lastError = round.error;

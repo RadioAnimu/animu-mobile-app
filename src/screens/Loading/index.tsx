@@ -2,7 +2,7 @@ import { useEffect } from "react";
 import { ActivityIndicator, View } from "react-native";
 import { Image } from "expo-image";
 import { THEME } from "@/theme";
-import { hideSplashOnce } from "@/screens/Loading/splash";
+import { hideSplashOnce } from "@/utils/splash";
 import { FALLBACK_HIDE_MS, styles } from "@/screens/Loading/styles";
 import splashScreenImage from "@app/assets/splash_top.webp";
 

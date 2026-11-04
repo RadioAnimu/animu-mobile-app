@@ -3,28 +3,14 @@ import type { Timer } from "@/core/player/timer";
 import type { StreamSyncEngine } from "@/core/player/stream-playback/stream-sync";
 import { trackStartMs } from "@/core/player/stream-playback/track-start";
 
-/**
- * Floor for the deferred-adoption timer (ms). The exact boundary is bounded
- * below by the sync engine's resolution anyway; a tiny floor keeps a
- * zero-delay reading from scheduling a busy loop.
- */
+/** Floor for the deferred-adoption timer (ms), so a zero delay never busy-loops. */
 const RECONCILE_FLOOR_MS = 250;
 /**
- * Safety cap (ms) on how long a pending track may hold the previous one.
- *
- * Under normal operation the wait is the stream lag (seconds, bounded by the
- * sync engine). But a badly skewed station `startTime` — or a native offset
- * that never resolves — could otherwise pin the display to the old track
- * indefinitely. Past this wall-clock wait the announced track is adopted
- * regardless, so the UI always catches up.
+ * Longest a pending track may hold the previous one (ms): a skewed station
+ * `startTime` or an offset that never resolves must not pin the old track.
  */
 const MAX_PENDING_WAIT_MS = 65_000;
-/**
- * Safety cap (ms) on the re-tune re-acquire hold. A relay switch resets the
- * sync engine, so until the new relay's lag is measured a just-announced item
- * must not be adopted on the wall-clock fallback. This bounds that hold in
- * case the new relay never produces a measurement.
- */
+/** Longest the re-tune hold (see {@link AudibleTrackResolver.beginReacquire}) waits for a measurement (ms). */
 const REACQUIRE_MAX_MS = 15_000;
 
 export interface AudibleTrackDeps {
@@ -45,31 +31,21 @@ const sameTrack = (a: Track | null, b: Track | null): boolean => {
 };
 
 /**
- * Delays the now-playing display to the moment the listener actually hears
- * the new song.
+ * Delays the now-playing display to the moment the new song is heard.
  *
- * The station announces a `song_change` the instant it starts broadcasting
- * the track, but the speaker is still buffering the previous one. Showing the
- * announcement immediately makes the title/cover/lyrics run ahead of the
- * audio by the whole stream lag. This resolver holds the previous track on
- * screen until the announced one reaches the audible clock, then swaps —
- * so the UI (title, cover, lock screen) flips exactly when the song is heard.
+ * The station announces a song the instant it broadcasts it, while the
+ * speaker still plays the previous one for the whole stream lag. This keeps
+ * the previous track on screen until the announced one reaches the audible
+ * clock (`StreamSyncEngine` says *when*, this says *what*);
+ * `repository.currentTrack` stays the station's truth.
  *
- * It is the display-side counterpart of `StreamSyncEngine`: the engine says
- * *when* a track is audible, this says *what* to render until then. The
- * previous track is retained in memory, so the hand-off is seamless while
- * `repository.currentTrack` stays the station's truth for history/scheduling.
- *
- * Deliberately additive: the hold only engages once the sync engine has
- * actually measured a lag (`hasMeasurement`). With no measurement the
- * resolver adopts every announcement immediately — exactly the pre-sync
- * behaviour — so a platform that cannot measure can never regress the UI.
+ * The hold only engages once a lag was measured: without one every
+ * announcement is adopted at once.
  */
 export class AudibleTrackResolver {
   /**
-   * Fired when the displayed track changes from a *deferred* adoption (the
-   * boundary timer or a heartbeat re-check). Synchronous reconciles report
-   * through {@link reconcile}'s return value, so the orchestrator emits once.
+   * A *deferred* adoption changed the display (boundary timer, heartbeat).
+   * Synchronous reconciles report through {@link reconcile}'s return value.
    */
   onChange: () => void = () => {};
 
@@ -81,12 +57,7 @@ export class AudibleTrackResolver {
   /** Wall-clock mark the current pending item was first held (cap anchor). */
   private pendingSinceMs = 0;
   private timerId: number | null = null;
-  /**
-   * A relay switch (or any re-tune) reset the sync clock. Until the new
-   * relay's lag is measured, a just-announced item must NOT be adopted on the
-   * wall-clock fallback — the newly-selected relay is still several seconds
-   * behind on the previous song. While set, the on-screen track is held.
-   */
+  /** A re-tune reset the clock: the on-screen track is held (see {@link beginReacquire}). */
   private reacquire = false;
   /** Wall-clock mark {@link reacquire} was armed (safety-cap anchor). */
   private reacquireSinceMs = 0;
@@ -99,10 +70,10 @@ export class AudibleTrackResolver {
   }
 
   /**
-   * Arms the re-tune hold: keep the currently displayed track until the new
-   * stream's lag has been measured, instead of flashing the announced item on
-   * the sync engine's wall-clock fallback while the new relay is still on the
-   * previous song. Idempotent.
+   * Arms the re-tune hold: the displayed track stays until the new relay's
+   * lag is measured. On the clock's wall-clock fallback a just-announced item
+   * would look audible while the relay is still on the previous song.
+   * Idempotent.
    */
   beginReacquire(): void {
     this.reacquire = true;
@@ -115,23 +86,20 @@ export class AudibleTrackResolver {
 
   /**
    * Reverts the display when a re-tune landed *behind* the station timeline:
-   * the displayed (newer) item is still in the future on the audible clock,
-   * so the listener is actually on the previous item (the one retained when
-   * the display advanced to the current one).
+   * the displayed item is still in the future, so the listener is on the
+   * previous one.
    */
   private backtrackIfBehind(): boolean {
     const displayed = this.displayedValue;
     if (!displayed) return false;
     const displayedStart = trackStartMs(displayed);
     if (displayedStart == null) return false;
-    // Still hearing the displayed item → nothing to revert.
     if (this.deps.sync.isAudible(displayedStart)) return false;
 
     const candidate = this.previousValue;
     if (!candidate || sameTrack(candidate, displayed)) return false;
     const start = trackStartMs(candidate);
     if (start == null) return false;
-    // Only revert to something the audible clock says is actually playing.
     if (!this.deps.sync.isAudible(start)) return false;
 
     this.displayedValue = candidate;
@@ -142,12 +110,10 @@ export class AudibleTrackResolver {
   }
 
   /**
-   * Aligns the displayed track with the station's current item. Returns
-   * whether the display changed. When the announced track is still buffered,
-   * the previous one is retained and a boundary timer is armed.
+   * Aligns the displayed track with the station's current item; whether the
+   * display changed. A still-buffered announcement arms a boundary timer.
    *
-   * @param force adopt immediately even if the announced track is buffered
-   *   (used by the pending safety cap).
+   * @param force adopt even a buffered track (the pending safety cap).
    */
   reconcile(force = false): boolean {
     const station = this.deps.getStationTrack();
@@ -158,30 +124,23 @@ export class AudibleTrackResolver {
 
     if (this.reacquire) {
       if (this.holdForReacquire(station)) return false;
-      // The measurement landed (or nothing was on screen): if the new relay
-      // landed *behind* the station timeline, the newer item on screen is
-      // still in the future — revert to the one actually playing.
       changed = this.backtrackIfBehind();
     }
 
     const start = trackStartMs(station);
     const buffering =
       !force &&
-      // Only defer when the lag is actually known — otherwise this is the
-      // plain pre-sync behaviour (adopt the announcement immediately).
       this.deps.sync.hasMeasurement &&
       start != null &&
       !this.deps.sync.isAudible(start);
 
-    // Announced ahead of the speaker, with something already on screen:
-    // keep the previous track until the new one is heard.
     if (buffering && this.displayedValue != null) {
       this.markPending(station);
       this.schedule(start - this.deps.sync.now());
       return changed;
     }
 
-    // Audible (or nothing on screen yet — better to show it than nothing).
+    // Audible, or nothing on screen yet: better shown than nothing.
     this.pending = null;
     this.cancel();
     if (sameTrack(this.displayedValue, station)) return changed;
@@ -208,11 +167,8 @@ export class AudibleTrackResolver {
   }
 
   /**
-   * A re-tune reset the clock. Until the new relay's lag is measured, hold
-   * whatever is on screen (its wall-clock fallback would otherwise make a
-   * just-announced item look audible when the new relay is still behind).
-   * Returns true when the display is held; false once the hold is released
-   * (measurement landed, nothing on screen, or the safety cap elapsed).
+   * The re-tune hold: true while it holds the display, false once released
+   * (measured, nothing on screen, or past {@link REACQUIRE_MAX_MS}).
    */
   private holdForReacquire(station: Track): boolean {
     const waiting = !this.deps.sync.hasMeasurement && this.displayedValue != null;
@@ -227,17 +183,12 @@ export class AudibleTrackResolver {
   }
 
   /**
-   * Adopts a pending track once it has crossed the audible boundary.
-   * Idempotent; driven by the boundary timer and by the native status
-   * heartbeat (which keeps it accurate if the lag shifted after arming).
+   * Adopts a pending track once it crossed the audible boundary. Idempotent;
+   * driven by the boundary timer and the native heartbeat.
    */
   adoptIfDue(): void {
-    // A re-tune is re-locking: let `reconcile` decide — hold until the new
-    // lag is measured, then revert/adopt once it lands. Handled BEFORE the
-    // pending guard because a settled display has no pending item, yet must
-    // still be re-evaluated against the new relay's clock. No timer is armed
-    // on the wall-clock fallback (it would busy-loop); the native frames and
-    // the heartbeat keep calling this.
+    // Before the pending guard: a settled display has no pending item, yet
+    // must be re-checked against the new relay's clock.
     if (this.reacquire) {
       if (this.reconcile()) this.onChange();
       return;
@@ -246,8 +197,6 @@ export class AudibleTrackResolver {
     const pending = this.pending;
     if (!pending) return;
 
-    // Safety net: never hold the previous track past the cap, even if the
-    // station start / native offset make the audible boundary unreachable.
     if (this.wallNow() - this.pendingSinceMs > MAX_PENDING_WAIT_MS) {
       if (this.reconcile(true)) this.onChange();
       return;
@@ -259,8 +208,7 @@ export class AudibleTrackResolver {
       return;
     }
 
-    // The lag can shift after the boundary was armed (the engine re-locks on
-    // a reconnect), so an early wake re-arms from the fresh clock.
+    // The lag can shift after arming: an early wake re-arms from the clock.
     const remaining = start - this.deps.sync.now();
     if (remaining > 0) {
       this.schedule(remaining);

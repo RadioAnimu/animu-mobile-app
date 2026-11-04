@@ -13,9 +13,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { TrackRequestContext } from "@/components/RequestTrack/context";
 import { MakeRequest } from "@/screens/MakeRequest";
 
-vi.mock("react-native", async () =>
-  (await import("@/__tests__/react-native-mock")).createReactNativeMock(),
-);
 vi.mock("react-native-keyboard-controller", async () =>
   (
     await import("@/__tests__/keyboard-controller-mock")
@@ -195,6 +192,8 @@ vi.mock("@/i18n", () => ({ IMGS: { PT: { MAKE_REQUEST: "make.png" } } }));
 vi.mock("@/utils/haptics", () => ({ haptics: mocks.haptics }));
 vi.mock("@/core/services/music-request.service", () => ({
   musicRequestService: mocks.service,
+}));
+vi.mock("@/screens/MakeRequest/submissionErrorMessage", () => ({
   getSubmissionErrorMessage: mocks.submissionError,
 }));
 
@@ -794,7 +793,7 @@ describe("MakeRequest screen", () => {
         success: false,
         message: "mapped error",
       });
-      expect(mocks.submissionError).toHaveBeenCalledWith("limit", "d", "PT");
+      expect(mocks.submissionError).toHaveBeenCalledWith(expect.any(Object), "limit", "d");
     });
 
     it("marks only the submitted row as no longer requestable", () => {

@@ -16,6 +16,7 @@ let lastProps: {
   onError?: () => void;
   onLoad?: (event: { source: { width: number; height: number } }) => void;
   style?: unknown;
+  allowDownscaling?: boolean;
 } | null = null;
 
 vi.mock("expo-image", () => ({
@@ -24,6 +25,7 @@ vi.mock("expo-image", () => ({
     onError?: () => void;
     onLoad?: (event: { source: { width: number; height: number } }) => void;
     style?: unknown;
+    allowDownscaling?: boolean;
   }) => {
     lastProps = props;
     const isRemote = typeof props.source === "object" && "uri" in props.source;
@@ -107,19 +109,24 @@ describe("Cover bounded retry", () => {
     const { rerender } = render(<Cover cover={COVER} preserveAspectRatio />);
     const SIZE = (lastProps?.style as { width?: number }[]).at(-1)?.width ?? 0;
     expect(lastProps?.style).toContainEqual({ width: SIZE, height: SIZE });
+    let n = 0;
+    const load = (width: number, height: number) => {
+      rerender(<Cover cover={`https://cdn.test/${++n}.jpg`} preserveAspectRatio />);
+      act(() => lastProps?.onLoad?.(LOADED(width, height)));
+    };
 
     // Wide art gets shorter.
-    act(() => lastProps?.onLoad?.(LOADED(400, 200)));
+    load(400, 200);
     expect(lastProps?.style).toContainEqual({ width: SIZE, height: SIZE / 2 });
 
     // Tall art gets taller, with no cap.
-    act(() => lastProps?.onLoad?.(LOADED(400, 500)));
+    load(400, 500);
     expect(lastProps?.style).toContainEqual({ width: SIZE, height: SIZE * 1.25 });
-    act(() => lastProps?.onLoad?.(LOADED(250, 1000)));
+    load(250, 1000);
     expect(lastProps?.style).toContainEqual({ width: SIZE, height: SIZE * 4 });
 
     // Extreme wide ratios are clamped, not turned into a strip.
-    act(() => lastProps?.onLoad?.(LOADED(1000, 100)));
+    load(1000, 100);
     expect(lastProps?.style).toContainEqual({ width: SIZE, height: SIZE / 2 });
 
     // A new cover never renders with the previous artwork's proportions.
@@ -128,20 +135,60 @@ describe("Cover bounded retry", () => {
   });
 
   it("contains the artwork in a bounded frame when given a size", () => {
-    render(<Cover cover={COVER} preserveAspectRatio size={200} />);
+    const { rerender } = render(<Cover cover={COVER} preserveAspectRatio size={200} />);
     expect(lastProps?.style).toContainEqual({ width: 200, height: 200 });
+    let n = 0;
+    const load = (width: number, height: number) => {
+      rerender(<Cover cover={`https://cdn.test/${++n}.jpg`} preserveAspectRatio size={200} />);
+      act(() => lastProps?.onLoad?.(LOADED(width, height)));
+    };
 
     // Wide art keeps the width and gets shorter (clamped at 2:1).
-    act(() => lastProps?.onLoad?.(LOADED(400, 200)));
+    load(400, 200);
     expect(lastProps?.style).toContainEqual({ width: 200, height: 100 });
-    act(() => lastProps?.onLoad?.(LOADED(1000, 100)));
+    load(1000, 100);
     expect(lastProps?.style).toContainEqual({ width: 200, height: 100 });
 
     // Tall art keeps the height and narrows: it never outgrows the frame.
-    act(() => lastProps?.onLoad?.(LOADED(250, 1000)));
+    load(250, 1000);
     expect(lastProps?.style).toContainEqual({ width: 50, height: 200 });
-    act(() => lastProps?.onLoad?.(LOADED(400, 500)));
+    load(400, 500);
     expect(lastProps?.style).toContainEqual({ width: 160, height: 200 });
+  });
+
+  it("ignores a re-measure that is only rounding, in either frame", () => {
+    const { rerender } = render(<Cover cover={COVER} preserveAspectRatio size={300} />);
+    act(() => lastProps?.onLoad?.(LOADED(300, 299)));
+    expect(lastProps?.style).toContainEqual({ width: 300, height: 299 });
+    // A decode for the 299 px frame reports a square: rounding, the frame stays.
+    act(() => lastProps?.onLoad?.(LOADED(299, 299)));
+    expect(lastProps?.style).toContainEqual({ width: 300, height: 299 });
+
+    // The same on Home's unbounded slot.
+    rerender(<Cover cover="https://cdn.test/home.jpg" preserveAspectRatio />);
+    const SIZE = (lastProps?.style as { width?: number }[]).at(-1)?.width ?? 0;
+    act(() => lastProps?.onLoad?.(LOADED(300, 299)));
+    const measured = { width: SIZE, height: (SIZE * 299) / 300 };
+    expect(lastProps?.style).toContainEqual(measured);
+    act(() => lastProps?.onLoad?.(LOADED(299, 299)));
+    expect(lastProps?.style).toContainEqual(measured);
+  });
+
+  it("corrects a late load of the previous cover once the new one loads", () => {
+    const { rerender } = render(<Cover cover={COVER} preserveAspectRatio size={200} />);
+    rerender(<Cover cover="https://cdn.test/next.jpg" preserveAspectRatio size={200} />);
+    act(() => lastProps?.onLoad?.(LOADED(400, 200))); // the old cover's late event
+    expect(lastProps?.style).toContainEqual({ width: 200, height: 100 });
+    act(() => lastProps?.onLoad?.(LOADED(250, 1000))); // the new, tall cover
+    expect(lastProps?.style).toContainEqual({ width: 50, height: 200 });
+    expect(lastProps?.style).not.toContainEqual({ width: 200, height: 100 });
+  });
+
+  it("decodes a measured cover at full size, so a resize never reloads it", () => {
+    const { rerender } = render(<Cover cover={COVER} preserveAspectRatio />);
+    expect(lastProps?.allowDownscaling).toBe(false);
+    rerender(<Cover cover={COVER} />);
+    expect(lastProps?.allowDownscaling).toBe(true);
   });
 
   it("sizes the plain square frame too", () => {

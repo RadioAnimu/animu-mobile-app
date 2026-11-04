@@ -5,7 +5,7 @@ import React, {
   useState,
   type ReactNode,
 } from "react";
-import { AppState, type AppStateStatus } from "react-native";
+import { AppState } from "react-native";
 
 /**
  * App-wide "is the app in the background" signal.
@@ -21,46 +21,27 @@ import { AppState, type AppStateStatus } from "react-native";
  */
 const AppBackgroundContext = createContext(false);
 
-const KNOWN_STATUSES: ReadonlySet<string> = new Set<AppStateStatus>(["active", "background", "inactive", "extension"]);
-
-/** RN types the launch state as any string, or none yet. */
-function isKnownStatus(state: string | null | undefined): state is AppStateStatus {
-  return state != null && KNOWN_STATUSES.has(state);
-}
-const AppStatusContext = createContext<AppStateStatus>("active");
-
 export const AppStateProvider: React.FC<{ children: ReactNode }> = ({
   children,
 }) => {
   // Before RN reports a state (or while it is "unknown"), the app is in front.
-  const [state, setState] = useState<AppStateStatus>(() =>
-    isKnownStatus(AppState.currentState) ? AppState.currentState : "active",
+  const [isBackgrounded, setBackgrounded] = useState(
+    () => AppState.currentState === "background",
   );
 
   useEffect(() => {
-    const subscription = AppState.addEventListener(
-      "change",
-      (nextState: AppStateStatus) => {
-        setState(nextState);
-      },
-    );
+    const subscription = AppState.addEventListener("change", (nextState) => {
+      setBackgrounded(nextState === "background");
+    });
     return () => subscription.remove();
   }, []);
 
-  const isBackgrounded = state === "background";
-
   return (
-    <AppStatusContext.Provider value={state}>
-      <AppBackgroundContext.Provider value={isBackgrounded}>
-        {children}
-      </AppBackgroundContext.Provider>
-    </AppStatusContext.Provider>
+    <AppBackgroundContext.Provider value={isBackgrounded}>
+      {children}
+    </AppBackgroundContext.Provider>
   );
 };
 
 export const useIsBackgrounded = (): boolean =>
   useContext(AppBackgroundContext);
-
-/** The raw AppState value ("active" / "inactive" / "background"). */
-export const useAppStateStatus = (): AppStateStatus =>
-  useContext(AppStatusContext);

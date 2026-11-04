@@ -4,9 +4,6 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { ConnectActions } from "@/components/ConnectActions";
 
-vi.mock("react-native", async () =>
-  (await import("@/__tests__/react-native-mock")).createReactNativeMock(),
-);
 vi.mock("@/hooks/useDict", () => ({
   useDict: () => ({
     LOGIN_CODE_RESEND: "Resend code",

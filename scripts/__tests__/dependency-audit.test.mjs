@@ -63,3 +63,24 @@ test("Yarn exceptions reject a changed version or dependent", () => {
   entry.children["Tree Versions"] = ["3.0.2"];
   assert.equal(blocking(assessYarn(JSON.stringify(entry))), true);
 });
+
+test("a package reviewed at two versions is accepted only on each version's reported paths", () => {
+  const minimatch = {
+    module_name: "minimatch", github_advisory_id: "GHSA-g3hv-75wg-m249", severity: "high", patched_versions: ">=11.0.1",
+    findings: [
+      { version: "10.2.6", paths: [".>eslint>minimatch"] },
+      { version: "3.1.5", paths: [".>eslint-config-expo>eslint-plugin-import>minimatch"] },
+    ],
+  };
+  const two = advisory => ({ metadata: { vulnerabilities: { high: 2 } }, advisories: { 1: advisory } });
+  assert.equal(blocking(assessPnpm(two(minimatch))), false);
+  const swapped = structuredClone(minimatch);
+  swapped.findings[0].paths = [".>eslint-config-expo>eslint-plugin-import>minimatch"]; // the 3.1.5 path at 10.2.6
+  assert.equal(blocking(assessPnpm(two(swapped))), true);
+  const other = structuredClone(minimatch);
+  other.findings[1].version = "3.1.4";
+  assert.equal(blocking(assessPnpm(two(other))), true);
+  const prototypeKey = structuredClone(minimatch);
+  prototypeKey.findings[1].version = "constructor"; // not a reviewed version, and no crash
+  assert.equal(blocking(assessPnpm(two(prototypeKey))), true);
+});

@@ -1,0 +1,88 @@
+import { StyleSheet } from "react-native";
+
+import { THEME } from "@/theme";
+import { ROW_STYLES } from "@/theme/screen";
+import { scale } from "@/theme/responsive";
+import { CONTINUOUS, avatarRadius } from "@/theme/shape";
+
+const CONTENT_PADDING = THEME.SPACE.LG;
+
+export const SWITCH = {
+  TRACK_WIDTH: scale(50),
+  TRACK_HEIGHT: scale(30),
+  THUMB: scale(24),
+  PADDING: scale(3),
+};
+
+export const styles = StyleSheet.create({
+  accountRow: {
+    paddingVertical: CONTENT_PADDING,
+  },
+  accountAvatar: {
+    width: THEME.LAYOUT.AVATAR.MD,
+    height: THEME.LAYOUT.AVATAR.MD,
+    borderRadius: avatarRadius(THEME.LAYOUT.AVATAR.MD),
+    ...CONTINUOUS,
+    backgroundColor: THEME.COLORS.APP_BG,
+  },
+  accountInfo: {
+    flex: 1,
+    gap: THEME.SPACE.XS,
+    marginLeft: CONTENT_PADDING,
+    paddingRight: CONTENT_PADDING,
+  },
+  accountNameRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: THEME.SPACE.XS,
+  },
+  accountName: {
+    flexShrink: 1,
+    color: THEME.COLORS.TEXT,
+    fontFamily: THEME.FONT_FAMILY.BOLD,
+    fontSize: THEME.FONT_SIZE.SUBHEAD,
+  },
+  accountBadge: {
+    height: scale(26),
+    justifyContent: "center",
+  },
+  accountCaption: ROW_STYLES.caption,
+  row: {
+    ...ROW_STYLES.row,
+    justifyContent: "space-between",
+  },
+  rowDisabled: {
+    opacity: THEME.OPACITY.DISABLED,
+  },
+  switchDisabled: {
+    opacity: THEME.OPACITY.DISABLED,
+  },
+  rowValue: {
+    flexDirection: "row",
+    alignItems: "center",
+    flexShrink: 1,
+    gap: THEME.SPACE.XS,
+  },
+  rowValueText: {
+    flexShrink: 1,
+    color: THEME.COLORS.TEXT_SOFT,
+    fontFamily: THEME.FONT_FAMILY.REGULAR,
+    fontSize: THEME.FONT_SIZE.LIST,
+  },
+  switchTrack: {
+    width: SWITCH.TRACK_WIDTH,
+    height: SWITCH.TRACK_HEIGHT,
+    borderRadius: SWITCH.TRACK_HEIGHT / 2,
+    justifyContent: "center",
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: THEME.COLORS.HAIRLINE_SOFT,
+  },
+  switchThumb: {
+    width: SWITCH.THUMB,
+    height: SWITCH.THUMB,
+    borderRadius: SWITCH.THUMB / 2,
+    backgroundColor: THEME.COLORS.TEXT,
+    position: "absolute",
+    left: SWITCH.PADDING,
+  },
+});

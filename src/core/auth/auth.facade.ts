@@ -53,10 +53,8 @@ function isMobileAuthCallback(url: string | null | undefined): url is string {
 const INVALID_CALLBACK = "Invalid authentication callback URL";
 
 /**
- * The server's refusal of a first sign-in whose provider email already belongs
- * to another account. It only travels as free text (the `msg` of an
- * `error=oauth` bounce, or the message of a `token_exchange_failed` response),
- * so it is matched leniently: case, padding and a trailing period don't count.
+ * The server's "email already taken" refusal of a first sign-in. It only
+ * travels as free text, so case, padding and a trailing period don't count.
  */
 function isEmailTakenMessage(message: string | null | undefined): boolean {
   return (
@@ -74,17 +72,14 @@ function isEmailTakenExchangeError(error: unknown): boolean {
 }
 
 /**
- * Single entry point to authentication, composing three ports:
- *
- * - {@link AuthApiPort} — the Animu Auth v5 API (token, profile, account);
- * - {@link OAuthPort} — provider redirects (Discord/Google/Apple);
- * - {@link SessionStorePort} — persistence of the session token + user.
- *
- * Views never touch the ports directly; they call this facade (through the
- * `useAuth` context), which owns the OAuth→session exchange and the
- * persistence rules. Provider-specific quirks stay in the adapters.
+ * Single entry point to authentication over three ports: the Animu Auth API
+ * ({@link AuthApiPort}), provider sign-in ({@link OAuthPort}) and session
+ * persistence ({@link SessionStorePort}). Provider quirks stay in the adapters.
  */
 export class AuthFacade {
+  /** Session saves and clears run one at a time (see {@link queueStore}). */
+  private storeQueue: Promise<unknown> = Promise.resolve();
+
   constructor(
     private readonly api: AuthApiPort,
     private readonly oauth: OAuthPort,
@@ -108,8 +103,7 @@ export class AuthFacade {
     } catch (error) {
       console.error("[AuthFacade] Failed to fetch providers:", error);
     }
-    // Always surface the known providers — even ones the server has not
-    // enabled yet — so the login screen can advertise them as "coming soon".
+    // Known providers the server has not enabled yet show as "coming soon".
     const known = new Set(server.map((provider) => provider.name));
     const extra = DEFAULT_PROVIDERS.filter(
       (provider) => !known.has(provider.name),
@@ -127,31 +121,23 @@ export class AuthFacade {
   }
 
   /**
-   * Re-pulls provider data, persists the refreshed user and returns the
-   * updated user + profile in one round-trip.
+   * Re-pulls provider data and persists the refreshed user; `null` when the
+   * session changed meanwhile (saving then would revive a signed-out one).
    */
   async refreshProfile(
     current: User,
-  ): Promise<{ user: User; profile: AuthProfile }> {
+  ): Promise<{ user: User; profile: AuthProfile } | null> {
     const result = await this.api.refreshProfile();
-    const user: User = {
-      ...result.user,
-      sessionToken: current.sessionToken,
-      nickname: result.user.handle ?? "",
-    };
-    await this.store.save({ sessionToken: user.sessionToken, user });
+    if (this.api.getSessionToken() !== current.sessionToken) return null;
+    const user = this.toUser({ sessionToken: current.sessionToken, user: result.user });
+    await this.queueStore(() => this.store.save({ sessionToken: user.sessionToken, user }));
     const profile = await this.api.getProfile();
     return { user, profile };
   }
 
   // ─── Login ────────────────────────────────────────────────────────────
 
-  /**
-   * Provider login. Apple tries the native iOS sheet first (falling back to
-   * the server flow on Android); server-mode providers (Discord/Google/Apple)
-   * delegate the redirect to the backend; anything else runs the app-driven
-   * OAuth redirect.
-   */
+  /** Provider login: Apple's native iOS sheet first, else the backend's browser flow. */
   async loginWithProvider(provider: string): Promise<User> {
     const config = getProviderConfig(provider);
     if (!config) throw new Error(`Unknown provider: ${provider}`);
@@ -165,7 +151,7 @@ export class AuthFacade {
           ),
         );
       }
-      // No native Apple here (e.g. Android) — fall through to the server flow.
+      // No native Apple here (e.g. Android): the server flow.
     }
     return this.loginWithMobileProvider(provider);
   }
@@ -186,10 +172,8 @@ export class AuthFacade {
   }
 
   /**
-   * Server-side login: open the backend's `/mobile/<provider>-start.php` in a
-   * browser session and adopt the session token from the deep-link bounce. The
-   * backend owns the provider's OAuth client, PKCE and redirect, so no client
-   * id, SDK or signing-certificate registration is involved.
+   * Server-side login: the backend's start page in a browser session, then the
+   * token from the deep-link bounce. The backend owns OAuth, PKCE and redirect.
    */
   private async loginWithMobileProvider(provider: string): Promise<User> {
     const callbackUrl = await this.runBrowserFlow(
@@ -200,16 +184,10 @@ export class AuthFacade {
   }
 
   /**
-   * Cold-start recovery for the server-provider browser flow. If the OS killed
-   * the app while the auth browser was open, the `animuapp://redirect` bounce
-   * is delivered as the app's launch URL instead of resolving the in-flight
-   * `openSession` promise — without this the user lands on the login screen
-   * with no way to adopt the already-issued token.
-   *
-   * A bounce is only adoptable when a FRESH pending-flow marker exists (see
-   * {@link runBrowserFlow}): the URL itself is unauthenticated input, and
-   * adopting any token found in it would let a spoofed notification/link
-   * overwrite the user's session with the attacker's.
+   * Cold-start recovery: when the OS killed the app during the browser flow,
+   * the bounce arrives as the launch URL. It is adopted only with a fresh
+   * pending-flow marker ({@link runBrowserFlow}): the URL is untrusted input,
+   * and a spoofed link must not replace the session with an attacker's.
    */
   async resumeServerAuth(url: string | null | undefined): Promise<User | null> {
     if (!isMobileAuthCallback(url)) return null;
@@ -218,28 +196,21 @@ export class AuthFacade {
   }
 
   /**
-   * Opens the auth browser with a pending-flow marker ARMED FIRST: the marker
-   * stamps that the user launched this flow and persists across process
-   * death, so `resumeServerAuth` can adopt the OS-delivered cold-start bounce
-   * — while every other `animuapp://redirect` source stays unadoptable.
+   * Opens the auth browser after arming a pending-flow marker, which survives
+   * process death so only this flow's bounce can be adopted at cold start.
    */
   private async runBrowserFlow(startUrl: string): Promise<string | null> {
     await this.store.markServerAuthPending();
     try {
       return await this.oauth.openSession(startUrl, AUTH_REDIRECT_URI);
     } finally {
-      // Resolved in-app (login, dismissal or thrown): the flow ended, so the
-      // marker must not authorize a LATER cold-start adoption. The app being
-      // killed mid-flow runs nothing — the marker legitimately persists for
-      // `resumeServerAuth`, until its adapter TTL.
+      // Ended in-app, so the marker must not authorize a later adoption. A
+      // killed app runs nothing here: the marker lives on until its TTL.
       await this.store.discardServerAuthPending();
     }
   }
 
-  /**
-   * `provider` is unknown on the cold-start path: the bounce URL doesn't carry
-   * it, and the marker only proves a flow was started.
-   */
+  /** `provider` is unknown at cold start: the bounce doesn't carry it. */
   private async adoptMobileCallback(
     callbackUrl: string,
     provider?: string,
@@ -258,15 +229,13 @@ export class AuthFacade {
       );
     }
 
-    // completeMobileAuth already stored the token on the client; set it
-    // explicitly too so the port doesn't depend on that side effect.
+    // Explicit too, so the port doesn't depend on that side effect.
     this.api.setSessionToken(result.token);
     let profile: AuthProfile;
     try {
       profile = await this.api.getProfile();
     } catch (error) {
-      // Nothing was adopted: the app still holds the previous user, so the
-      // client must not keep talking with the new account's token.
+      // Nothing adopted: back to the previous user's token.
       this.api.setSessionToken(previousToken);
       throw error;
     }
@@ -277,10 +246,7 @@ export class AuthFacade {
     });
   }
 
-  /**
-   * Native Apple login: hand the SDK's RS256 identity token to the server,
-   * which verifies it against Apple's JWKS (no redirect, PKCE or client id).
-   */
+  /** Native Apple login: the server verifies the SDK's identity token against Apple's keys. */
   private async exchangeAppleIdentity(
     credential: AppleNativeCredential,
   ): Promise<AuthSession> {
@@ -306,17 +272,12 @@ export class AuthFacade {
 
   // ─── Account management ───────────────────────────────────────────────
 
-  /**
-   * Links an extra provider. Apple tries the native iOS sheet first; server
-   * providers (Discord/Google/Apple) run the backend browser flow with the
-   * current session token; the rest use the app-driven OAuth redirect.
-   */
+  /** Links an extra provider: Apple's native iOS sheet first, else the backend's browser flow. */
   async linkProvider(provider: string): Promise<AuthLinkResult | void> {
     try {
       return await this.runLink(provider);
     } catch (error) {
-      // The JSON endpoint answers `link_conflict` as an API error; the browser
-      // flow's `?error=link_conflict` bounce is mapped in linkWithMobileProvider.
+      // The JSON endpoint's form; the browser bounce's is mapped in linkWithMobileProvider.
       if (error instanceof AnimuApiError && error.code === "link_conflict") {
         throw new ProviderLinkConflict(provider);
       }
@@ -345,11 +306,7 @@ export class AuthFacade {
     return this.linkWithMobileProvider(provider);
   }
 
-  /**
-   * Server-side link: open the start URL with the current session token
-   * (`?sid=`) and adopt the bounce. The token is unchanged; the caller
-   * refreshes the profile so the new link shows up.
-   */
+  /** Server-side link with the current session (`?sid=`); the caller refreshes the profile. */
   private async linkWithMobileProvider(provider: string): Promise<void> {
     const sessionToken = this.api.getSessionToken();
     if (!sessionToken) throw new Error("Not authenticated");
@@ -411,11 +368,9 @@ export class AuthFacade {
     try {
       await this.api.deleteAccount();
     } catch (error) {
-      // Offline/timeout/5xx left the account in place server-side, so keeping
-      // the session lets the user retry without signing in again. Any other
-      // failure — 401, another 4xx, or a 2xx the server did not confirm —
-      // leaves no usable session (the animu-api client drops its own after
-      // any 2xx), so the local copy must go too.
+      // Offline, timeout or 5xx: the account is still there, keep the session
+      // to retry. Any other failure leaves no usable session (the client drops
+      // its own after any 2xx), so the local copy goes too.
       if (isRetryableRequestFailure(error)) throw error;
       await this.forget();
       throw error;
@@ -426,18 +381,28 @@ export class AuthFacade {
   /** Forgets the session locally without calling the server. */
   async forget(): Promise<void> {
     this.api.setSessionToken(null);
-    await this.store.clear();
+    await this.queueStore(() => this.store.clear());
   }
 
   // ─── Internals ────────────────────────────────────────────────────────
 
   private async adopt(session: AuthSession): Promise<User> {
     const user = this.toUser(session);
-    await this.store.save({ sessionToken: user.sessionToken, user });
+    await this.queueStore(() => this.store.save({ sessionToken: user.sessionToken, user }));
     return user;
   }
 
-  private toUser(session: AuthSession): User {
+  /**
+   * Queues a session write behind the ones already running: a save that
+   * started before a sign-out lands before its clear, never after it.
+   */
+  private queueStore(write: () => Promise<void>): Promise<void> {
+    const run = this.storeQueue.then(write);
+    this.storeQueue = run.catch(() => {});
+    return run;
+  }
+
+  private toUser(session: Pick<AuthSession, "sessionToken" | "user">): User {
     return {
       ...session.user,
       sessionToken: session.sessionToken,

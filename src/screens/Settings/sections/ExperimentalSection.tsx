@@ -8,9 +8,9 @@ import { useDict } from "@/hooks/useDict";
 import { useJapaneseDictionary } from "@/hooks/useJapaneseDictionary";
 import { useSaveSettings } from "@/hooks/useSaveSettings";
 import type { Dict } from "@/i18n";
-import { SettingsRow, ValueRow } from "@/screens/Settings/rows";
+import { SettingsRow, ValueRow } from "@/components/SettingsRows";
 import { styles } from "@/screens/Settings/styles";
-import { dictionarySize, dictionaryStoredSize } from "@/screens/Settings/sections/dictionary-size";
+import { dictionarySize, dictionaryStoredSize } from "@/utils/dictionary-size";
 import { haptics } from "@/utils/haptics";
 import { confirmDestructive } from "@/utils/confirm";
 

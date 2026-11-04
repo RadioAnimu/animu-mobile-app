@@ -1,15 +1,8 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { isRealTrack, type Track } from "@/core/domain/track";
 
-// ─── Data model ───
-//
-// One JSON blob in AsyncStorage keyed by local calendar day
-// ("YYYY-MM-DD"), so heatmaps, streaks and totals all read the same
-// structure the recorder writes. Per-day objects stay compact (numbers
-// only), and pruning keeps the blob small enough that the whole history
-// lives on the device forever.
+// ─── Data model: one JSON blob, keyed by local calendar day ("YYYY-MM-DD") ───
 
-/** Hours the per-hour breakdown is kept for each day (0–23). */
 const HOUR_SLOTS = 24;
 /** Per-hour raw data is compacted after this many days (daily totals kept). */
 const HOUR_DETAIL_DAYS = 120;
@@ -25,9 +18,7 @@ const FLUSH_EVENT_MS = 2_000;
  * at most this much listening time; stop/pause flush promptly regardless.
  */
 const FLUSH_AUDIBLE_MS = 30_000;
-/** Storage key — one JSON blob, versioned for future migrations. */
 const STORAGE_KEY = "listenStats";
-/** Blob schema version. */
 const SCHEMA_VERSION = 1;
 
 /** One local day of listening. All durations are milliseconds. */
@@ -40,13 +31,11 @@ export interface ListenDay {
   tracks: number;
   /** Tracks heard that were listener requests. */
   requests: number;
-  /** Music requests the user submitted (client-side count). */
+  /** Music requests and live shout-outs the user submitted (client-side counts). */
   submitted: number;
-  /** Live shout-outs the user submitted (client-side count). */
   shouts: number;
-  /** First audible ms of the day (epoch). */
+  /** First and last audible ms of the day (epoch). */
   firstAt: number | null;
-  /** Last audible ms of the day (epoch). */
   lastAt: number | null;
   /** Listening ms per local hour of day (0–23). Compacted to all-zero after a while. */
   hours: number[];
@@ -67,16 +56,10 @@ const EMPTY_DAY = (): ListenDay => ({
   hours: emptyHours(),
 });
 
-/** Track entries kept for the "top requests" ranking. */
 const MAX_TRACKED_REQUESTS = 50;
-/** How many requested songs a snapshot ranks. */
 const TOP_REQUESTS_SHOWN = 10;
 
-/**
- * A requested song's count + latest metadata. On a radio the listener
- * doesn't pick what plays — requests are the one place their taste shows,
- * so they (not songs heard) are what gets ranked.
- */
+/** A requested song's count and latest metadata: requests, not songs heard, show a listener's taste. */
 interface TrackedRequest {
   n: number;
   title: string;
@@ -93,7 +76,6 @@ export interface RequestedSong {
   artwork: string;
 }
 
-/** One ranked request in a snapshot. */
 interface RankedRequest {
   /** `""` for requests recorded before titles were stored. */
   title: string;
@@ -121,14 +103,9 @@ export const dayKeyOf = (epochMs: number): string => {
   return `${d.getFullYear()}-${m}-${day}`;
 };
 
-/** Local hour (0–23) for an epoch ms. */
 const hourOf = (epochMs: number): number => new Date(epochMs).getHours();
 
-/**
- * Splits an epoch range into per-day, per-hour ms buckets. A session that
- * crosses midnight (and hour boundaries) attributes each millisecond to the
- * day/hour it was actually heard in.
- */
+/** Splits an epoch range into per-day, per-hour ms buckets (across midnight too). */
 export const splitByHour = (
   startMs: number,
   endMs: number,
@@ -139,7 +116,6 @@ export const splitByHour = (
   while (cursor < endMs) {
     const day = dayKeyOf(cursor);
     const hour = hourOf(cursor);
-    // Advance to the next hour boundary (or the end).
     const boundary = new Date(cursor);
     boundary.setMinutes(0, 0, 0);
     boundary.setHours(hour + 1);
@@ -154,25 +130,17 @@ export const splitByHour = (
 
 export interface ListenStatsSnapshot {
   days: Record<string, ListenDay>;
-  /** Total audible listening across all stored days (ms). */
+  /** Totals across all stored days (see {@link ListenDay}). */
   totalMs: number;
-  /** Total counted sessions. */
   totalSessions: number;
-  /** Total tracks heard (filler excluded). */
   totalTracks: number;
-  /** Total listener-request tracks heard. */
   totalRequestTracks: number;
-  /** Total music requests submitted. */
   totalSubmitted: number;
-  /** Total live shout-outs submitted. */
   totalShouts: number;
   /** Current consecutive-day listening streak (today counts if ≥ MIN_SESSION_MS). */
   currentStreak: number;
-  /** Longest streak in the stored history. */
   maxStreak: number;
-  /** Longest single-day listening (ms). */
   bestDayMs: number;
-  /** Number of days with any counted listening. */
   activeDays: number;
   /** Epoch ms of the first stored day (0 when empty). */
   firstDayAt: number;
@@ -228,7 +196,6 @@ const sanitizeDays = (value: unknown): Record<string, ListenDay> => {
   const days: Record<string, ListenDay> = {};
   if (typeof value !== "object" || value === null) return days;
   for (const [key, val] of Object.entries(value as Record<string, unknown>)) {
-    // Keys must look like day keys — anything else is discarded.
     if (!/^\d{4}-\d{2}-\d{2}$/.test(key)) continue;
     const day = sanitizeDay(val);
     if (day) days[key] = day;
@@ -274,10 +241,7 @@ const ranked = <T extends { n: number }>(
 ): [string, T][] =>
   Object.entries(map ?? {}).sort((a, b) => b[1].n - a[1].n);
 
-/**
- * Drops the weakest entry once a ranking map exceeds `cap` (first-seen wins
- * ties, matching insertion order).
- */
+/** Drops the weakest entry once a ranking map exceeds `cap` (the first seen survives a tie). */
 const dropWeakest = (top: Record<string, { n: number }>, cap: number): void => {
   const ids = Object.keys(top);
   if (ids.length <= cap) return;
@@ -288,16 +252,13 @@ const dropWeakest = (top: Record<string, { n: number }>, cap: number): void => {
   delete top[weakest];
 };
 
-/** Plain code-unit string order (identical to the default `.sort()`), which is chronological for ISO day keys. */
+/** Code-unit order: chronological for day keys. */
 const compareKeys = (a: string, b: string): number => {
   if (a < b) return -1;
   return a > b ? 1 : 0;
 };
 
-/**
- * The key a current streak starts from: today, else yesterday (today hasn't
- * counted yet), else none.
- */
+/** Where a current streak starts: today, else yesterday (today not counted yet), else none. */
 const streakStart = (active: Set<string>): string | null => {
   const today = dayKeyOf(Date.now());
   if (active.has(today)) return today;
@@ -306,29 +267,15 @@ const streakStart = (active: Set<string>): string | null => {
 };
 
 /**
- * On-device listen-stats recorder + reader.
- *
- * Recording is event-driven and crash-safe: every change is flushed to
- * AsyncStorage as one JSON blob (best-effort — a failed write degrades to
- * in-memory state, mirroring `recentSearchesService`), and accumulation
- * happens in bounded segments so a killed app can only lose the current
- * segment, never corrupt the file.
- *
- * Playback truth is fed from `PlayerService`:
- * - `onPlaybackStarted()` / `onPlaybackStopped()` — session boundaries and
- *   the segment anchor, driven by the transport state machine;
- * - `onAudibleTick(now)` — one processed heartbeat beat while `playing`,
- *   which closes out one ~1s audible segment (background-safe: native
- *   status events keep the heartbeat beating while the app is hidden);
- * - `onTrackHeard(track, isPlaying)` — a track reached the speaker;
- * - `onRequestSubmitted(success)` / `onShoutSubmitted(success)`.
+ * On-device listen stats, recorded from `PlayerService` events. Time accrues
+ * in short segments, so a killed app loses only the open one; a failed write
+ * degrades to memory.
  */
 export class ListenStatsService {
   private blob: ListenStatsBlob = { version: SCHEMA_VERSION, days: {} };
   private loaded = false;
   private loadPromise: Promise<void> | null = null;
   private flushTimer: ReturnType<typeof setTimeout> | null = null;
-  /** Dirty flag — coalesces bursts of updates into one write. */
   private dirty = false;
   private flushDeadline = 0;
 
@@ -351,7 +298,7 @@ export class ListenStatsService {
           this.blob = this.sanitizeBlob(parsed);
         }
       } catch {
-        // Corrupt/unreadable — start fresh rather than crash.
+        // Corrupt: start fresh rather than crash.
         this.blob = { version: SCHEMA_VERSION, days: {} };
       }
       this.loaded = true;
@@ -381,11 +328,7 @@ export class ListenStatsService {
     return existing;
   }
 
-  /**
-   * Best-effort coalesced write; a failure degrades to memory-only. The
-   * earliest requested deadline wins, so a discrete event never waits behind
-   * the slow audible-tick cadence.
-   */
+  /** Coalesced write; the earliest deadline wins, so an event never waits behind the tick cadence. */
   private scheduleFlush(delayMs: number = FLUSH_EVENT_MS): void {
     this.dirty = true;
     const deadline = Date.now() + delayMs;
@@ -407,10 +350,7 @@ export class ListenStatsService {
 
   // ── Recording API (called by PlayerService) ──
 
-  /**
-   * The transport entered `playing`. Opens the recording window: audible
-   * time accrues from here, beat by beat, until playback stops.
-   */
+  /** The transport entered `playing`: audible time accrues from here. */
   onPlaybackStarted(): void {
     if (!this.loaded) return;
     this.segmentStart = Date.now();
@@ -418,10 +358,8 @@ export class ListenStatsService {
   }
 
   /**
-   * One processed heartbeat beat while the transport is `playing` — closes
-   * out the [anchor, now) segment. The anchor means beats can never
-   * over-count a paused gap: a `playing` entry after any non-playing stretch
-   * always re-anchors through {@link onPlaybackStarted}.
+   * A tick while `playing`: closes the [anchor, now) segment. A paused gap is
+   * never counted, since every `playing` entry re-anchors.
    */
   onAudibleTick(nowMs: number): void {
     const start = this.segmentStart;
@@ -434,8 +372,7 @@ export class ListenStatsService {
   private addAudibleMs(startMs: number, endMs: number): void {
     if (!this.loaded) return;
     if (endMs <= startMs || !Number.isFinite(endMs) || !Number.isFinite(startMs)) return;
-    // Pathological gaps (clock jumps, suspended JS) are dropped: a segment
-    // longer than an hour of wall time is not real listening.
+    // Over an hour is a clock jump or suspended JS, not listening.
     if (endMs - startMs > 3_600_000) return;
     this.currentSessionMs += endMs - startMs;
     for (const { day, hour, ms } of splitByHour(startMs, endMs)) {
@@ -452,10 +389,9 @@ export class ListenStatsService {
   /** The transport left `playing` (pause, loss, teardown). Closes the session. */
   onPlaybackStopped(): void {
     if (!this.loaded) return;
-    // Close the open segment before dropping the anchor: in the background
-    // audible ticks only fire on track changes, so a pause would otherwise
-    // lose everything heard since the last one (addAudibleMs drops clock-jump
-    // outliers and end<=start ranges).
+    // Close the open segment before dropping the anchor, or a pause would
+    // lose everything heard since the last tick (addAudibleMs drops
+    // clock-jump outliers and end<=start ranges).
     const start = this.segmentStart;
     this.segmentStart = null;
     if (start != null) this.addAudibleMs(start, Date.now());
@@ -466,10 +402,8 @@ export class ListenStatsService {
         this.ensureDay(day).sessions += 1;
       }
       this.currentSessionMs = 0;
-      // Audible ticks only schedule slow flushes; persist what accrued now —
-      // immediately, not on the 2s event delay: once audio stops, iOS may
-      // suspend a backgrounded app within seconds (and later kill it), taking
-      // the pending timer and up to 30s of ticks with it.
+      // Write now: once audio stops, iOS may suspend a hidden app within
+      // seconds, taking the pending write with it.
       this.scheduleFlush(0);
     }
   }
@@ -477,8 +411,6 @@ export class ListenStatsService {
   /** A track reached the speaker while audio was playing. */
   onTrackHeard(track: Track | null, isPlaying: boolean): void {
     if (!this.loaded || !isPlaying || !track) return;
-    // Station rule for real programming (jingles / idents / filler
-    // transitions are not music — see the package's `isRealTrack`).
     if (!isRealTrack(track)) return;
     // De-dupe: the same track can be re-announced (poll + SSE race).
     const key = `${track.id}|${track.raw}`;
@@ -495,11 +427,7 @@ export class ListenStatsService {
     this.scheduleFlush();
   }
 
-  /**
-   * A music request the user submitted was accepted by the server. Songs
-   * accrue per track id (count + latest metadata) so the card and the
-   * screen can rank the listener's actual most-requested songs.
-   */
+  /** A music request the server accepted; counted per track id for the ranking. */
   onRequestSubmitted(
     success: boolean,
     trackId?: string,
@@ -525,7 +453,6 @@ export class ListenStatsService {
         if (song.artwork) entry.art = song.artwork;
       }
       top[trackId] = entry;
-      // Bound the map: drop the least-requested track past the cap.
       dropWeakest(top, MAX_TRACKED_REQUESTS);
       this.blob.topRequests = top;
     }
@@ -541,10 +468,7 @@ export class ListenStatsService {
 
   // ── Queries ──
 
-  /**
-   * Builds a full snapshot. Cheap: the blob is at most a few hundred small
-   * day objects, so aggregation is a plain loop.
-   */
+  /** A full snapshot (a plain loop over at most a few hundred days). */
   getSnapshot(): ListenStatsSnapshot {
     this.prune();
     const keys = Object.keys(this.blob.days).sort(compareKeys);
@@ -569,7 +493,6 @@ export class ListenStatsService {
       if (firstDayAt === 0 || at < firstDayAt) firstDayAt = at;
     }
     const { currentStreak, maxStreak } = this.streaks(keys);
-    // Share-card ranking: most-requested tracks' artworks, best first.
     const topRequests = ranked(this.blob.topRequests)
       .slice(0, TOP_REQUESTS_SHOWN)
       .map(([, r]) => ({
@@ -600,18 +523,14 @@ export class ListenStatsService {
   private streaks(keys: string[]): { currentStreak: number; maxStreak: number } {
     const active = new Set(keys.filter((k) => this.blob.days[k].ms >= MIN_SESSION_MS));
     if (active.size === 0) return { currentStreak: 0, maxStreak: 0 };
-    // Longest run across the sorted active days.
     let max = 1;
     let run = 1;
     const sorted = [...active].sort(compareKeys);
-    // Day steps go through calendar dates, not 24 h spans: a DST day is 23 or
-    // 25 hours long.
+    // Calendar steps, not 24 h spans: a DST day is 23 or 25 hours long.
     for (let i = 1; i < sorted.length; i++) {
       run = prevDayKey(sorted[i]) === sorted[i - 1] ? run + 1 : 1;
       if (run > max) max = run;
     }
-    // Current streak: walk back from today (or yesterday, if today hasn't
-    // counted yet).
     let cursor = streakStart(active);
     let current = 0;
     while (cursor != null && active.has(cursor)) {
@@ -621,11 +540,7 @@ export class ListenStatsService {
     return { currentStreak: current, maxStreak: max };
   }
 
-  /**
-   * Drops per-hour detail past the detail window and whole days past the
-   * hard cap. Aggregate stats (minutes, sessions, tracks) are kept forever —
-   * the hour breakdown is the only thing that ages out.
-   */
+  /** Drops per-hour detail past the detail window and whole days past the cap. */
   private prune(): void {
     const keys = Object.keys(this.blob.days).sort(compareKeys);
     if (keys.length > MAX_DAYS) {
@@ -639,17 +554,6 @@ export class ListenStatsService {
         d.hours = emptyHours();
       }
     }
-  }
-
-  /** Test hook — flush any pending write immediately. */
-  async flushForTesting(): Promise<void> {
-    if (this.flushTimer) {
-      clearTimeout(this.flushTimer);
-      this.flushTimer = null;
-    }
-    if (!this.dirty) return;
-    this.dirty = false;
-    await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(this.blob));
   }
 
   /**
