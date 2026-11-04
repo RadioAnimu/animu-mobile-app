@@ -29,8 +29,11 @@ const created = [];
 const cleanUp = () => {
   for (const path of created.splice(0)) rmSync(path, { force: true });
 };
+// Runs however the script ends. Ctrl-C and a pipeline abort signal the whole
+// process tree: the build dies, spawnSync returns and the exit runs this. A
+// signal to this process alone waits for the build (spawnSync blocks the
+// event loop), which then ends with the build's status, through the same exit.
 process.on("exit", cleanUp);
-// Ctrl-C or a pipeline abort: exit through the cleanup.
 for (const signal of ["SIGINT", "SIGTERM"]) process.on(signal, () => process.exit(130));
 
 for (const font of FONTS) {
