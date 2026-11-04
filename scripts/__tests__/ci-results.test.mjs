@@ -66,8 +66,13 @@ test('Jenkins restore falls back on failed builds, corruption, and dirty source'
     process.env.JENKINS_URL = `http://127.0.0.1:${server.address().port}`;
     process.env.JENKINS_USER = 'test'; process.env.JENKINS_API_TOKEN = 'test';
     delete process.env.GH_TOKEN; delete process.env.GITHUB_TOKEN; delete process.env.CI_REUSE_RESULTS;
+    assert.equal(await restore(repository, cwd, 'build', { write: false }), true);
+    assert.ok(!fs.existsSync(path.join(cwd, 'dist')), 'asking writes nothing');
     assert.equal(await restore(repository, cwd, 'build'), true);
     assert.equal(fs.readFileSync(path.join(cwd, 'dist/esm/index.js'), 'utf8'), 'test');
+    fs.writeFileSync(path.join(cwd, 'dist/esm/index.js'), 'in use');
+    assert.equal(await restore(repository, cwd, 'build', { write: false }), true);
+    assert.equal(fs.readFileSync(path.join(cwd, 'dist/esm/index.js'), 'utf8'), 'in use', 'asking leaves the output as it is');
     result = 'FAILURE'; assert.equal(await restore(repository, cwd), false);
     result = 'SUCCESS'; data.coverageSha256 = 'corrupt'; assert.equal(await restore(repository, cwd), false);
     assert.ok(!fs.existsSync(path.join(cwd, 'coverage/lcov.info')));

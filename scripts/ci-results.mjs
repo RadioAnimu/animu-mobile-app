@@ -61,11 +61,21 @@ export function publish(repository, cwd = process.cwd()) {
   validateResults(data, repository, data.sha);
   fs.writeFileSync(path.join(cwd, 'ci-results.json'), JSON.stringify(data));
 }
-export async function restore(repository, cwd = process.cwd(), kind = 'coverage') {
+/**
+ * Restores a successful CI run's coverage or build output for the clean
+ * checkout's commit, or reports that there is none. `write: false` only asks
+ * whether there is one, leaving the checkout as it is: `pnpm verify` checks the
+ * libraries beside steps that read their built output.
+ */
+export async function restore(repository, cwd = process.cwd(), kind = 'coverage', { write = true } = {}) {
   if (!projects[repository] || process.env.CI_REUSE_RESULTS === '0' || !clean(cwd)) return false;
   const sha = revision(cwd);
   try {
     const data = validateResults(await downloadResults(repository, projects[repository].job, sha), repository, sha);
+    if (!write) {
+      console.log(`[ci-results] Successful CI for ${repository}@${sha}`);
+      return true;
+    }
     if (kind === 'coverage') {
       fs.mkdirSync(path.join(cwd, 'coverage'), { recursive: true });
       fs.writeFileSync(path.join(cwd, 'coverage/lcov.info'), data.lcov);
