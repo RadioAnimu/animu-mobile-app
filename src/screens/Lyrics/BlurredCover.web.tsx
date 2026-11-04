@@ -66,6 +66,7 @@ export function BlurredCover({ cover, blurRadius, transition }: Readonly<Blurred
       width={SHOWN}
       height={SHOWN}
       aria-hidden
+      tabIndex={-1}
       style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }}
     />
   );
@@ -102,7 +103,7 @@ function canvasOf(size: number): Surface | null {
  */
 function blurred(image: HTMLImageElement, sigma: number): HTMLCanvasElement | null {
   const side = Math.min(image.naturalWidth, image.naturalHeight);
-  if (!(side > 0)) return null;
+  if (Number.isNaN(side) || side <= 0) return null;
   let size = side;
   while (size / 2 > SIZE) size = Math.round(size / 2);
   let current = canvasOf(size);

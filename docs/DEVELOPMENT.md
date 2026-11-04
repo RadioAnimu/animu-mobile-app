@@ -178,7 +178,13 @@ push to `main` and on pull requests:
    own typecheck and tests.
 8. **Bundle smoke test** — `expo export:embed` for Android, catching broken asset
    paths and unresolvable imports that TypeScript can't see.
-9. **React Doctor gate** — `pnpm run doctor:gate`, fails on any finding.
+9. **Web export** — `pnpm run build:web`, since web-only modules (`*.web.ts`)
+   are never in the Android bundle.
+10. **React Doctor gate** — `pnpm run doctor:gate`, fails on any finding.
+
+GitHub CI also runs a `web` job: `pnpm run test:web`, the Playwright tests in
+`e2e/` against the export in Chromium and WebKit (they play the live station).
+`pnpm verify` runs the Jenkins steps locally, the web export included.
 
 `react-doctor.yml` posts advisory PR feedback separately.
 

@@ -73,6 +73,12 @@ describe("fileNameOf", () => {
     expect(fileNameOf("新時代|ado|227")).toMatch(/^[0-9a-f]{8}-\d+\.json$/);
     // Existing UTF-16 cache identities must survive supplementary characters.
     expect(fileNameOf("😀")).toBe("cb31c4b8-2.json");
+    // Names already on disk: hashed per UTF-16 unit, lone surrogates included.
+    expect(fileNameOf("新時代|ado|227")).toBe("d04c0d57-11.json");
+    expect(fileNameOf("\uD83D")).toBe("37822568-1.json");
+    expect(fileNameOf("a\uDE00b")).toBe("0f7429d2-3.json");
+    expect(fileNameOf("\uDE00\uD83D")).toBe("35158a86-2.json");
+    expect(fileNameOf("x😀y\uD800")).toBe("b2b754eb-5.json");
   });
 });
 

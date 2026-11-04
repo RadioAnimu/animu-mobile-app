@@ -56,7 +56,7 @@ export function useBackgroundTurn(animate: boolean): SharedValue<number> {
  */
 function overscan(width: number, height: number, fixed: number): number {
   const shortSide = Math.min(width, height);
-  if (!(shortSide > 0)) return fixed;
+  if (Number.isNaN(shortSide) || shortSide <= 0) return fixed;
   if (height >= width) return fixed;
   return Math.min(fixed, (Math.hypot(width, height) / shortSide) * OVERSCAN_MARGIN);
 }
