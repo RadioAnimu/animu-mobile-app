@@ -496,6 +496,9 @@ pipeline {
                     echo "org.gradle.parallel=true"
                     echo "org.gradle.caching=true"
                     echo "org.gradle.workers.max=2"
+                    # AGP 9 makes unit-test tasks only for the tested build
+                    # type (debug); the player's tests run on release here.
+                    echo "android.onlyEnableUnitTestForTheTestedBuildType=false"
                   } >> android/gradle.properties
                 '''
               }
