@@ -179,6 +179,15 @@ jobs:
       - name: Install browsers
         run: pnpm exec playwright install --with-deps chromium webkit
 
+      # The Proxima Nova fonts are licensed and never leave the release hosts
+      # (as in ios-release.yml). This export is not distributed, so any
+      # TrueType font under their file names lets the web bundle resolve them.
+      - name: Stand in for the licensed fonts
+        run: |
+          stand_in=node_modules/@react-native-vector-icons/material-icons/fonts/MaterialIcons.ttf
+          cp "$stand_in" src/assets/fonts/proximanova-reg.ttf
+          cp "$stand_in" src/assets/fonts/proximanova-bold.ttf
+
       - name: Web export + browser tests
         run: pnpm run test:web
 

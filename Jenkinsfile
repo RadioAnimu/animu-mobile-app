@@ -87,8 +87,19 @@ pipeline {
             /tmp/animu-assets 2000000
 
           # The web export (dist/web) must build too: web-only modules
-          # (*.web.ts) are never bundled by the Android export above.
+          # (*.web.ts) are never bundled by the Android export above. Its
+          # bundle requires the licensed Proxima Nova fonts, which never reach
+          # CI: a missing one is stood in for by any TrueType file (this export
+          # is not distributed, as in ios-release.yml), and removed after.
+          stand_ins=""
+          for font in proximanova-reg.ttf proximanova-bold.ttf; do
+            if [ ! -f "src/assets/fonts/$font" ]; then
+              cp node_modules/@react-native-vector-icons/material-icons/fonts/MaterialIcons.ttf "src/assets/fonts/$font"
+              stand_ins="$stand_ins src/assets/fonts/$font"
+            fi
+          done
           pnpm run build:web
+          rm -f $stand_ins
 
           # React Doctor gate (any finding fails the build).
           pnpm run doctor:gate
