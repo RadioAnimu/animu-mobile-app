@@ -1,27 +1,52 @@
-// Release pipeline for the Animu Android app — fully local, no EAS.
+// Release pipeline for the Animu app, Android and iOS — fully local, no EAS
+// build servers.
 //
 // Produces the same artifact set as the manual GitHub releases:
-//   animu-<version>-code<versionCode>.aab  (Play Store upload)
-//   animu-<version>-code<versionCode>.apk  (universal direct-install)
+//   animu-<version>-code<versionCode>.aab   (Play Store upload)
+//   animu-<version>-code<versionCode>.apk   (universal direct-install)
+//   animu-<version>-build<versionCode>.ipa  (App Store Connect upload)
 // a SHA-256 checksum for each, and a RELEASE_NOTES.md with the artifact table,
 // Play per-device download sizes (bundletool), and the checksums.
 //
-// Runs natively on the `animu-android-native` host agent (Node + JDK + Android
-// SDK/NDK). The Gradle project directory is stable across runs, so rebuilds are
-// incremental instead of starting from scratch.
+// The shared stages (version, install, checks, gates) and the Android build
+// run natively on the `animu-android-native` host agent (Node + JDK + Android
+// SDK/NDK). The iOS build runs beside the Android one on the MacBook agent
+// (`ios-release`, over Tailscale, launched on demand), from the same commit and
+// the same resolved app.json. Both keep their native project between runs, so
+// rebuilds are incremental instead of starting from scratch.
 //
-// Signing uses the project's Android upload keystore, read from the
+// Android signing uses the project's upload keystore, read from the
 // `android-upload-keystore` credential and injected into the Gradle build the
-// same way EAS does (an extra `signingConfigs.release` + `apply from`).
+// same way EAS does (an extra `signingConfigs.release` + `apply from`). iOS
+// signing uses the distribution certificate and provisioning profiles EAS
+// manages, copied into the `ios-distribution-signing` credential: the
+// certificate goes into a keychain made for the build and deleted after it.
 //
 // Parameters
+//   PLATFORMS             both, android or ios
 //   VERSION               Marketing version, e.g. 3.0.1 (must match app.json)
-//   VERSION_CODE          Android versionCode, e.g. 16 (must match app.json)
+//   VERSION_CODE          Android versionCode and iOS build number, e.g. 16 (must match app.json)
 //   TAG                   Git tag / release tag, e.g. v3.0.1
 //   CREATE_GITHUB_RELEASE When true, create the GitHub release and upload assets
 //   DRAFT                 Create the GitHub release as a draft
 //   PRERELEASE            Mark the GitHub release as a pre-release
 //   SKIP_CHECKS           Build for QA without CI, lint, tests or compliance gates
+
+// Removes the iOS signing material from the Mac: restores the keychain search
+// list, deletes the build's keychain, and removes only the provisioning
+// profiles the build added. Run after the iOS build, and before the next one
+// in case a lost agent connection skipped it.
+def IOS_SIGNING_CLEANUP = '''#!/bin/bash
+  S="$WORKSPACE/.signing"
+  if [ -s "$S/keychains.orig" ]; then security list-keychains -d user -s $(cat "$S/keychains.orig") || true; fi
+  security delete-keychain "$S/release.keychain-db" 2>/dev/null || true
+  if [ -f "$S/installed-profiles" ]; then
+    while IFS= read -r profile; do rm -f "$profile"; done < "$S/installed-profiles"
+  fi
+  rm -rf "$S" "$TMPDIR/Animu.xcarchive" "$TMPDIR/ios-export" "$TMPDIR/ipa" \
+         "$TMPDIR/embedded.plist" "$TMPDIR/entitlements.plist" "$TMPDIR/ipa-signature.txt"
+  security list-keychains -d user
+'''
 
 pipeline {
   // Lock BEFORE any executor is allocated: with a top-level agent, the lock
@@ -31,15 +56,16 @@ pipeline {
   agent none
 
   parameters {
+    choice(name: 'PLATFORMS', choices: ['both', 'android', 'ios'], description: 'What to build. both = Android on the Linux host and iOS on the MacBook, side by side, into one release. The version, checks and gates are shared either way.')
     string(name: 'VERSION', defaultValue: '', description: 'Exact marketing version, e.g. 3.0.1. Overrides whatever BUMP would produce. Blank = use app.json (or BUMP).')
-    string(name: 'VERSION_CODE', defaultValue: '', description: 'Exact Android versionCode, e.g. 16. Overrides whatever BUMP would produce. Blank = use app.json (or BUMP).')
+    string(name: 'VERSION_CODE', defaultValue: '', description: 'Exact Android versionCode (and iOS build number, always the same), e.g. 16. Overrides whatever BUMP would produce. Blank = use app.json (or BUMP).')
     string(name: 'TAG', defaultValue: '', description: 'Release/git tag, e.g. v3.0.1. Blank = "v" + the resolved VERSION.')
-    choice(name: 'BUMP', choices: ['none', 'versionCode', 'patch', 'minor', 'major'], description: 'Change the version before building. none = build app.json exactly as-is (no version change). versionCode = versionCode +1, version unchanged. patch = x.y.Z+1 and versionCode +1. minor = x.Y+1.0 and versionCode +1. major = X+1.0.0 and versionCode +1. (VERSION/VERSION_CODE, if set, override the result.)')
+    choice(name: 'BUMP', choices: ['none', 'versionCode', 'patch', 'minor', 'major'], description: 'Change the version before building. none = build app.json exactly as-is (no version change). versionCode = versionCode (and iOS build number) +1, version unchanged. patch = x.y.Z+1 and versionCode +1. minor = x.Y+1.0 and versionCode +1. major = X+1.0.0 and versionCode +1. (VERSION/VERSION_CODE, if set, override the result.)')
     booleanParam(name: 'COMMIT_BUMP', defaultValue: false, description: 'Commit the bumped app.json back to main so the version is not lost. Only used when BUMP is not none.')
-    booleanParam(name: 'CREATE_GITHUB_RELEASE', defaultValue: false, description: 'Create the GitHub release for TAG and upload the .aab/.apk + checksums. Off = only build and archive the artifacts, no release.')
+    booleanParam(name: 'CREATE_GITHUB_RELEASE', defaultValue: false, description: 'Create the GitHub release for TAG and upload the .aab/.apk/.ipa + checksums. Off = only build and archive the artifacts, no release.')
     booleanParam(name: 'DRAFT', defaultValue: true, description: 'Create the GitHub release as a draft (not public until you publish it). Only used when CREATE_GITHUB_RELEASE is on.')
     booleanParam(name: 'PRERELEASE', defaultValue: false, description: 'Mark the GitHub release as a pre-release. Only used when CREATE_GITHUB_RELEASE is on.')
-    booleanParam(name: 'SKIP_CHECKS', defaultValue: false, description: 'QA build: bypass CI lookup, typecheck, lint, tests, audits, React Doctor and artifact compliance checks. Build the production AAB and signed universal APK, named *-qa-unchecked; signing verification still runs. Refused together with CREATE_GITHUB_RELEASE or COMMIT_BUMP.')
+    booleanParam(name: 'SKIP_CHECKS', defaultValue: false, description: 'QA build: bypass CI lookup, typecheck, lint, tests, audits, React Doctor and artifact compliance checks. Build the production AAB and signed universal APK, and an Ad Hoc signed IPA (installs on the devices in its profile), named *-qa-unchecked; signing verification still runs. Refused together with CREATE_GITHUB_RELEASE or COMMIT_BUMP.')
     booleanParam(name: 'TRUST_CI', defaultValue: true, description: 'If the CI job has a green build for this exact commit, skip the pre-release checks. Off = always re-run typecheck/lint/tests.')
   }
 
@@ -101,7 +127,11 @@ pipeline {
             none|versionCode|patch|minor|major) ;;
             *) echo "invalid BUMP: $BUMP"; exit 1 ;;
           esac
-          echo "BUMP=${BUMP:-none} COMMIT_BUMP=${COMMIT_BUMP:-false} TRUST_CI=${TRUST_CI:-true} SKIP_CHECKS=${SKIP_CHECKS:-false}"
+          case "${PLATFORMS:-both}" in
+            both|android|ios) ;;
+            *) echo "invalid PLATFORMS: $PLATFORMS"; exit 1 ;;
+          esac
+          echo "PLATFORMS=${PLATFORMS:-both} BUMP=${BUMP:-none} COMMIT_BUMP=${COMMIT_BUMP:-false} TRUST_CI=${TRUST_CI:-true} SKIP_CHECKS=${SKIP_CHECKS:-false}"
           if [ "${SKIP_CHECKS:-false}" = "true" ]; then
             # An unchecked build must never reach a release or main.
             if [ "${CREATE_GITHUB_RELEASE:-false}" = "true" ] || [ "${COMMIT_BUMP:-false}" = "true" ]; then
@@ -176,10 +206,7 @@ pipeline {
       steps {
         // The Proxima Nova fonts are licensed and gitignored. They are staged
         // on the host outside the repo and copied into the workspace here.
-        withCredentials([
-          string(credentialsId: 'android-upload-keystore', variable: 'ANDROID_UPLOAD_KEYSTORE_B64'),
-          string(credentialsId: 'jenkins-api-token', variable: 'JENKINS_API_TOKEN'),
-        ]) {
+        withCredentials([string(credentialsId: 'jenkins-api-token', variable: 'JENKINS_API_TOKEN')]) {
           sh '''
             set -eux
             FONTS_STAGE="${FONTS_STAGE:-$HOME/.animu-secrets/fonts}"
@@ -211,27 +238,6 @@ pipeline {
 
             # Both linked submodules reuse only verified output for their pins.
             node scripts/prepare-submodules.mjs
-
-            # Decode the upload keystore once, into a workspace-local path the
-            # Gradle signing injection reads. Passwords go to mode-600 files so
-            # they never appear in the console log. Removed after the build.
-            mkdir -p "$WORKSPACE/.signing"
-            chmod 700 "$WORKSPACE/.signing"
-            set +x
-            umask 077
-            printf "%s" "$ANDROID_UPLOAD_KEYSTORE_B64" | base64 -d > "$WORKSPACE/.signing.json"
-            node -e '
-              const fs = require("fs");
-              const j = JSON.parse(fs.readFileSync(process.env.WORKSPACE + "/.signing.json", "utf8"));
-              fs.writeFileSync(process.env.WORKSPACE + "/.signing/upload.jks", Buffer.from(j.keystore, "base64"));
-            '
-            node -e '
-              const fs = require("fs");
-              const j = JSON.parse(fs.readFileSync(process.env.WORKSPACE + "/.signing.json", "utf8"));
-              const dir = process.env.WORKSPACE + "/.signing";
-              fs.writeFileSync(dir + "/storepass", j.keystorePassword, { mode: 0o600 });
-              fs.writeFileSync(dir + "/keypass", j.keyPassword || j.keystorePassword, { mode: 0o600 });
-            '
           '''
         }
       }
@@ -348,11 +354,14 @@ pipeline {
           set -eux
           APP_VERSION=$(node -p "require('./app.json').expo.version")
           APP_CODE=$(node -p "require('./app.json').expo.android.versionCode")
+          APP_BUILD=$(node -p "require('./app.json').expo.ios.buildNumber")
           [ "$APP_VERSION" = "$VERSION" ] || {
             echo "app.json version ($APP_VERSION) != VERSION ($VERSION)"; exit 1; }
           [ "$APP_CODE" = "$VERSION_CODE" ] || {
             echo "app.json versionCode ($APP_CODE) != VERSION_CODE ($VERSION_CODE)"; exit 1; }
-          echo "app.json matches VERSION=$VERSION VERSION_CODE=$VERSION_CODE"
+          [ "$APP_BUILD" = "$VERSION_CODE" ] || {
+            echo "app.json ios.buildNumber ($APP_BUILD) != VERSION_CODE ($VERSION_CODE)"; exit 1; }
+          echo "app.json matches VERSION=$VERSION VERSION_CODE=$VERSION_CODE (iOS build $APP_BUILD)"
         '''
       }
     }
@@ -384,309 +393,706 @@ pipeline {
       }
     }
 
-    stage('Prebuild + inject signing') {
+    // The iOS build runs on the Mac: it gets this exact commit (the bump
+    // commit, when one was pushed) and the files the stages above may have
+    // changed, so both platforms ship the same version and splash.
+    stage('Hand off to the iOS build') {
       agent { label 'animu-android-native' }
+      when { expression { return params.PLATFORMS != 'android' } }
       steps {
-        sh '''
-          set -eux
-
-
-          # Generate the native project from app.json + config plugins, same as
-          # EAS did. Reuse an existing android/ when the native config is
-          # unchanged so Gradle stays incremental; regenerate when app.json,
-          # the plugins, or the Expo/RN versions change (or FORCE_PREBUILD=1).
-          NATIVE_STAMP="$WORKSPACE/.native-stamp"
-          # The player's config plugin runs at prebuild too (its native code is
-          # compiled from the submodule by Gradle, so a bump needs no prebuild).
-          WANT="$(node scripts/build-input-key.mjs native)"
-          HAVE=$( [ -f "$NATIVE_STAMP" ] && cat "$NATIVE_STAMP" || echo none )
-          if [ ! -d android ] || [ "$WANT" != "$HAVE" ] || [ "${FORCE_PREBUILD:-0}" = "1" ]; then
-            echo "Regenerating android/ (native config changed)"
-            pnpm exec expo prebuild --platform android --clean --no-install
-            printf "%s" "$WANT" > "$NATIVE_STAMP"
-          else
-            echo "Reusing existing android/ (native config unchanged)"
-          fi
-
-          # Make sure node_modules match the generated project. Reuse the stamp
-          # from the Install stage so we only install when something changed.
-          STAMP="$WORKSPACE/.deps-stamp"
-          WANT="$(node scripts/build-input-key.mjs dependencies)"
-          HAVE="$( [ -f "$STAMP" ] && cat "$STAMP" || echo none )"
-          if [ "$WANT" != "$HAVE" ] || [ ! -d node_modules ]; then
-            # Reconcile changed dependencies without discarding unchanged packages.
-            pnpm install --frozen-lockfile
-            printf "%s" "$WANT" > "$STAMP"
-          else
-            echo "Dependencies unchanged; skipping install"
-          fi
-
-          # Inject the release signing config the same way EAS does: a small
-          # Gradle script that adds a `release` signingConfig and applies it.
-          node scripts/inject-android-signing.mjs
-
-          # Give the Gradle JVM a bounded heap. The prebuild default (2g) is
-          # tight for R8/minify, but 6g plus Kotlin/R8 workers plus a concurrent
-          # CI job overruns this 16 GB host and the kernel OOM-kills the daemon.
-          # Two workers bound parallel lint/Kotlin/native tasks on the shared 16 GB host.
-          # Rewrite the block each run so tuning changes take effect even when a
-          # previous android/ is reused.
-          sed -i '/# animu-ci-tuning/,$d' android/gradle.properties
-          {
-            echo "# animu-ci-tuning (added by the release pipeline)"
-            echo "org.gradle.jvmargs=-Xmx4g -XX:MaxMetaspaceSize=768m -XX:+UseParallelGC"
-            echo "org.gradle.parallel=true"
-            echo "org.gradle.caching=true"
-            echo "org.gradle.workers.max=2"
-          } >> android/gradle.properties
-        '''
+        script {
+          env.RELEASE_SHA = sh(script: 'git rev-parse HEAD', returnStdout: true).trim()
+          echo "iOS builds ${env.RELEASE_SHA}"
+        }
+        stash name: 'release-inputs', includes: 'app.json,assets/splash_top.png,assets/splash_top.webp'
       }
     }
 
-    stage('Build signed AAB (production, Play upload)') {
-      agent { label 'animu-android-native' }
-      steps {
-        sh '''
-          set -eux
+    // Android on the Linux host and iOS on the Mac, side by side. A failure in
+    // either stops the other: a release needs both.
+    stage('Build') {
+      failFast true
+      parallel {
+        stage('Android') {
+          agent { label 'animu-android-native' }
+          when { beforeAgent true; expression { return params.PLATFORMS != 'ios' } }
+          stages {
+            stage('Prebuild + inject signing') {
+              steps {
+                // Only an Android build decodes the upload keystore.
+                withCredentials([string(credentialsId: 'android-upload-keystore', variable: 'ANDROID_UPLOAD_KEYSTORE_B64')]) {
+                  sh '''
+                    set -eu
+                    # Decode the upload keystore once, into a workspace-local path the
+                    # Gradle signing injection reads. Passwords go to mode-600 files so
+                    # they never appear in the console log. Removed after the build.
+                    mkdir -p "$WORKSPACE/.signing"
+                    chmod 700 "$WORKSPACE/.signing"
+                    set +x
+                    umask 077
+                    printf "%s" "$ANDROID_UPLOAD_KEYSTORE_B64" | base64 -d > "$WORKSPACE/.signing.json"
+                    node -e '
+                      const fs = require("fs");
+                      const j = JSON.parse(fs.readFileSync(process.env.WORKSPACE + "/.signing.json", "utf8"));
+                      fs.writeFileSync(process.env.WORKSPACE + "/.signing/upload.jks", Buffer.from(j.keystore, "base64"));
+                    '
+                    node -e '
+                      const fs = require("fs");
+                      const j = JSON.parse(fs.readFileSync(process.env.WORKSPACE + "/.signing.json", "utf8"));
+                      const dir = process.env.WORKSPACE + "/.signing";
+                      fs.writeFileSync(dir + "/storepass", j.keystorePassword, { mode: 0o600 });
+                      fs.writeFileSync(dir + "/keypass", j.keyPassword || j.keystorePassword, { mode: 0o600 });
+                    '
+                  '''
+                }
+                sh '''
+                  set -eux
 
-          mkdir -p "$ARTIFACT_DIR" "$GRADLE_USER_HOME" "$TMPDIR" "$CCACHE_DIR"
-          ccache --show-stats || true
-          # -I wires ccache into every native module (scripts/ccache.gradle).
-          cd android
-          if [ "${SKIP_CHECKS:-false}" = "true" ]; then
-            # bundleRelease may also schedule Android's vital lint implicitly.
-            ./gradlew :app:bundleRelease -x lint -x lintRelease -x lintVitalRelease --no-daemon \
-              --profile -I "$WORKSPACE/scripts/ccache.gradle"
-          else
-            ./gradlew :app:lintRelease :react-native-anything-player:testReleaseUnitTest :app:bundleRelease --no-daemon \
-              --profile -I "$WORKSPACE/scripts/ccache.gradle"
-          fi
-          cd ..
-          ccache --show-stats || true
-          cp android/app/build/outputs/bundle/release/app-release.aab \
-             "$ARTIFACT_DIR/animu-${VERSION}-code${VERSION_CODE}.aab"
-          ls -la "$ARTIFACT_DIR"
-        '''
+
+                  # Generate the native project from app.json + config plugins, same as
+                  # EAS did. Reuse an existing android/ when the native config is
+                  # unchanged so Gradle stays incremental; regenerate when app.json,
+                  # the plugins, or the Expo/RN versions change (or FORCE_PREBUILD=1).
+                  NATIVE_STAMP="$WORKSPACE/.native-stamp"
+                  # The player's config plugin runs at prebuild too (its native code is
+                  # compiled from the submodule by Gradle, so a bump needs no prebuild).
+                  WANT="$(node scripts/build-input-key.mjs native)"
+                  HAVE=$( [ -f "$NATIVE_STAMP" ] && cat "$NATIVE_STAMP" || echo none )
+                  if [ ! -d android ] || [ "$WANT" != "$HAVE" ] || [ "${FORCE_PREBUILD:-0}" = "1" ]; then
+                    echo "Regenerating android/ (native config changed)"
+                    pnpm exec expo prebuild --platform android --clean --no-install
+                    printf "%s" "$WANT" > "$NATIVE_STAMP"
+                  else
+                    echo "Reusing existing android/ (native config unchanged)"
+                  fi
+
+                  # Make sure node_modules match the generated project. Reuse the stamp
+                  # from the Install stage so we only install when something changed.
+                  STAMP="$WORKSPACE/.deps-stamp"
+                  WANT="$(node scripts/build-input-key.mjs dependencies)"
+                  HAVE="$( [ -f "$STAMP" ] && cat "$STAMP" || echo none )"
+                  if [ "$WANT" != "$HAVE" ] || [ ! -d node_modules ]; then
+                    # Reconcile changed dependencies without discarding unchanged packages.
+                    pnpm install --frozen-lockfile
+                    printf "%s" "$WANT" > "$STAMP"
+                  else
+                    echo "Dependencies unchanged; skipping install"
+                  fi
+
+                  # Inject the release signing config the same way EAS does: a small
+                  # Gradle script that adds a `release` signingConfig and applies it.
+                  node scripts/inject-android-signing.mjs
+
+                  # Give the Gradle JVM a bounded heap. The prebuild default (2g) is
+                  # tight for R8/minify, but 6g plus Kotlin/R8 workers plus a concurrent
+                  # CI job overruns this 16 GB host and the kernel OOM-kills the daemon.
+                  # Two workers bound parallel lint/Kotlin/native tasks on the shared 16 GB host.
+                  # Rewrite the block each run so tuning changes take effect even when a
+                  # previous android/ is reused.
+                  sed -i '/# animu-ci-tuning/,$d' android/gradle.properties
+                  {
+                    echo "# animu-ci-tuning (added by the release pipeline)"
+                    echo "org.gradle.jvmargs=-Xmx4g -XX:MaxMetaspaceSize=768m -XX:+UseParallelGC"
+                    echo "org.gradle.parallel=true"
+                    echo "org.gradle.caching=true"
+                    echo "org.gradle.workers.max=2"
+                    # AGP 9 makes unit-test tasks only for the tested build
+                    # type (debug); the player's tests run on release here.
+                    echo "android.onlyEnableUnitTestForTheTestedBuildType=false"
+                  } >> android/gradle.properties
+                '''
+              }
+            }
+
+            stage('Build signed AAB (production, Play upload)') {
+              steps {
+                sh '''
+                  set -eux
+
+                  mkdir -p "$ARTIFACT_DIR" "$GRADLE_USER_HOME" "$TMPDIR" "$CCACHE_DIR"
+                  ccache --show-stats || true
+                  # -I wires ccache into every native module (scripts/ccache.gradle).
+                  cd android
+                  if [ "${SKIP_CHECKS:-false}" = "true" ]; then
+                    # bundleRelease may also schedule Android's vital lint implicitly.
+                    ./gradlew :app:bundleRelease -x lint -x lintRelease -x lintVitalRelease --no-daemon \
+                      --profile -I "$WORKSPACE/scripts/ccache.gradle"
+                  else
+                    ./gradlew :app:lintRelease :react-native-anything-player:testReleaseUnitTest :app:bundleRelease --no-daemon \
+                      --profile -I "$WORKSPACE/scripts/ccache.gradle"
+                  fi
+                  cd ..
+                  ccache --show-stats || true
+                  cp android/app/build/outputs/bundle/release/app-release.aab \
+                     "$ARTIFACT_DIR/animu-${VERSION}-code${VERSION_CODE}.aab"
+                  ls -la "$ARTIFACT_DIR"
+                '''
+              }
+            }
+
+            // Derive the universal APK from the AAB with bundletool instead of running
+            // a second Gradle build. Signing uses the same upload keystore, so the APK
+            // carries the upload signer. Play may re-sign with a different app key;
+            // direct-install APKs then update only the same direct-install channel.
+            stage('Derive universal APK from AAB') {
+              steps {
+                sh '''
+                  set -eux
+                  AAB="$ARTIFACT_DIR/animu-${VERSION}-code${VERSION_CODE}.aab"
+                  APK="$ARTIFACT_DIR/animu-${VERSION}-code${VERSION_CODE}.apk"
+                  TOOLS="$WORKSPACE/.tools"
+                  BUNDLETOOL_VERSION=1.18.1
+                  BUNDLETOOL_JAR="$TOOLS/bundletool.jar"
+                  mkdir -p "$TOOLS" "$TMPDIR"
+
+                  BUNDLETOOL_SHA256=675786493983787ffa11550bdb7c0715679a44e1643f3ff980a529e9c822595c
+                  if [ ! -f "$BUNDLETOOL_JAR" ] || [ "$(sha256sum "$BUNDLETOOL_JAR" | cut -d' ' -f1)" != "$BUNDLETOOL_SHA256" ]; then
+                    curl -fsSL -o "$BUNDLETOOL_JAR" \
+                      "https://github.com/google/bundletool/releases/download/${BUNDLETOOL_VERSION}/bundletool-all-${BUNDLETOOL_VERSION}.jar"
+                  fi
+
+                  echo "$BUNDLETOOL_SHA256  $BUNDLETOOL_JAR" | sha256sum -c -
+                  if [ "${SKIP_CHECKS:-false}" != "true" ]; then
+                    java -jar "$BUNDLETOOL_JAR" validate --bundle="$AAB"
+                    java -jar "$BUNDLETOOL_JAR" dump config --bundle="$AAB" > "$TMPDIR/bundle-config.txt"
+                    grep -q PAGE_ALIGNMENT_16K "$TMPDIR/bundle-config.txt"
+                    java -jar "$BUNDLETOOL_JAR" dump manifest --bundle="$AAB" > "$TMPDIR/release-manifest.xml"
+                    python3 -m unittest discover -s scripts/__tests__ -p '*_test.py'
+                    python3 scripts/validate-android-artifact.py "$AAB" "$TMPDIR/release-manifest.xml" app.json
+                  fi
+
+                  APKS="$TMPDIR/universal.apks"
+                  rm -f "$APKS"
+                  KS="$WORKSPACE/.signing/upload.jks"
+                  ALIAS=$(node -p "require(process.env.WORKSPACE + '/.signing.json').keyAlias")
+
+                  # Passwords come from mode-600 files (file: scheme) so they never
+                  # appear in the build log.
+                  java -jar "$BUNDLETOOL_JAR" build-apks \
+                    --bundle="$AAB" --output="$APKS" --mode=universal \
+                    --ks="$KS" --ks-pass="file:$WORKSPACE/.signing/storepass" \
+                    --ks-key-alias="$ALIAS" --key-pass="file:$WORKSPACE/.signing/keypass"
+
+                  rm -rf "$TMPDIR/universal-extract"
+                  unzip -o -q "$APKS" -d "$TMPDIR/universal-extract"
+                  cp "$TMPDIR/universal-extract/universal.apk" "$APK"
+                  if [ "${SKIP_CHECKS:-false}" != "true" ]; then
+                    "$ANDROID_SDK_ROOT/build-tools/$(node -p "require('./app.json').expo.plugins.find(p => Array.isArray(p) && p[0] === 'expo-build-properties')[1].android.buildToolsVersion")/zipalign" -c -P 16 4 "$APK"
+                  fi
+                  ls -la "$APK"
+                '''
+              }
+            }
+
+            stage('Validate signing certificates') {
+              steps {
+                sh '''
+                  set -eux
+                  AAB="$ARTIFACT_DIR/animu-${VERSION}-code${VERSION_CODE}.aab"
+                  APK="$ARTIFACT_DIR/animu-${VERSION}-code${VERSION_CODE}.apk"
+                  test -f "$AAB" || { echo "AAB missing: $AAB"; exit 1; }
+                  test -f "$APK" || { echo "APK missing: $APK"; exit 1; }
+
+                  # Play rejects AABs signed with the Android debug key. The AAB stores
+                  # its signature in META-INF; the universal APK uses the v2/v3 APK
+                  # Signature Scheme, so it must be checked with apksigner.
+                  AAB_CERT=$(unzip -p "$AAB" 'META-INF/*.RSA' 2>/dev/null | keytool -printcert 2>/dev/null || true)
+                  echo "--- AAB certificate ---"
+                  echo "$AAB_CERT"
+                  [ -n "$AAB_CERT" ] || { echo "ERROR: could not read AAB signature"; exit 1; }
+                  if echo "$AAB_CERT" | grep -q "CN=Android Debug"; then
+                    echo "ERROR: AAB is signed with the Android debug keystore"; exit 1
+                  fi
+                  # A certificate in META-INF does not prove it signs these bytes:
+                  # jarsigner checks every entry's digest. It exits 0 on an unsigned
+                  # jar, hence the explicit verdict line.
+                  if ! "$JAVA_HOME/bin/jarsigner" -verify "$AAB" > "$TMPDIR/aab-verify.txt" 2>&1 \
+                    || ! grep -qx "jar verified." "$TMPDIR/aab-verify.txt"; then
+                    cat "$TMPDIR/aab-verify.txt"; echo "ERROR: AAB signature does not verify"; exit 1
+                  fi
+
+                  APKSIGNER=$(find "$ANDROID_SDK_ROOT/build-tools" -name apksigner | sort | tail -1)
+                  echo "--- APK signing certificate ---"
+                  "$APKSIGNER" verify --print-certs "$APK" | tee "$TMPDIR/apk-certs.txt"
+                  if grep -q "CN=Android Debug" "$TMPDIR/apk-certs.txt"; then
+                    echo "ERROR: APK is signed with the Android debug keystore"; exit 1
+                  fi
+
+                  # The universal APK is derived from the AAB, so both must carry the
+                  # same signer. Compare SHA-256 fingerprints.
+                  AAB_SHA256=$(echo "$AAB_CERT" | grep -i "SHA256:" | head -1 | sed 's/.*SHA256: *//' | tr -d ':' | tr 'A-F' 'a-f')
+                  APK_SHA256=$("$APKSIGNER" verify --print-certs "$APK" \
+                    | grep -i "certificate SHA-256 digest" | head -1 | sed 's/.*digest: *//' | tr -d ':' | tr 'A-F' 'a-f')
+                  echo "AAB signer SHA-256: $AAB_SHA256"
+                  echo "APK signer SHA-256: $APK_SHA256"
+                  [ -n "$AAB_SHA256" ] && [ "$AAB_SHA256" = "$APK_SHA256" ] || {
+                    echo "ERROR: APK signer does not match the AAB signer"; exit 1; }
+                '''
+              }
+            }
+
+            stage('Checksums + bundletool sizes + release notes') {
+              steps {
+                sh '''
+                  set -eux
+                  # Resolve the app's target SDK before cd-ing into the artifacts dir
+                  # (app.json and scripts/ live at the workspace root).
+                  TARGET_SDK=$(node scripts/target-sdk.mjs)
+                  cd "$ARTIFACT_DIR"
+                  AAB="animu-${VERSION}-code${VERSION_CODE}.aab"
+                  APK="animu-${VERSION}-code${VERSION_CODE}.apk"
+                  # QA artifacts are named so they cannot pass for a checked release.
+                  if [ "${SKIP_CHECKS:-false}" = "true" ]; then
+                    mv "$AAB" "${AAB%.aab}-qa-unchecked.aab"
+                    mv "$APK" "${APK%.apk}-qa-unchecked.apk"
+                    AAB="${AAB%.aab}-qa-unchecked.aab"
+                    APK="${APK%.apk}-qa-unchecked.apk"
+                  fi
+
+                  sha256sum "$AAB" > "$AAB.sha256"
+                  sha256sum "$APK" > "$APK.sha256"
+                  AAB_SHA=$(cut -d' ' -f1 "$AAB.sha256")
+                  APK_SHA=$(cut -d' ' -f1 "$APK.sha256")
+
+                  human() { awk -v s="$(stat -c%s "$1")" 'BEGIN{printf "%.1f MB", s/1048576}'; }
+                  AAB_SIZE=$(human "$AAB")
+                  APK_SIZE=$(human "$APK")
+
+                  # --- bundletool: per-device download sizes from the AAB ---
+                  BUNDLETOOL_VERSION=1.18.1
+                  TOOLS="$WORKSPACE/.tools"
+                  BUNDLETOOL_JAR="$TOOLS/bundletool.jar"
+                  KS="$WORKSPACE/.signing/upload.jks"
+                  ALIAS=$(node -p "require(process.env.WORKSPACE + '/.signing.json').keyAlias")
+
+                  APKS="$TMPDIR/animu-size.apks"
+                  rm -f "$APKS"
+                  java -jar "$BUNDLETOOL_JAR" build-apks \
+                    --bundle="$AAB" --output="$APKS" --mode=default \
+                    --ks="$KS" --ks-pass="file:$WORKSPACE/.signing/storepass" \
+                    --ks-key-alias="$ALIAS" --key-pass="file:$WORKSPACE/.signing/keypass" >/dev/null
+
+                  # One device spec per line: abi|density|sdk.
+                  #   Download: bundletool get-size total reports the min/max COMPRESSED
+                  #             size of the splits Play serves to the device.
+                  #   Install:  sum of the UNCOMPRESSED contents of the same splits
+                  #             (what the device stores once installed). bundletool has
+                  #             no install-size command, so extract-apks + unzip sums it.
+                  SIZE_TABLE=""
+                  for spec in \
+                    "arm64-v8a|480|34" "armeabi-v7a|480|34" "x86_64|480|34" \
+                    "arm64-v8a|320|34" "arm64-v8a|640|34"; do
+                    abi=${spec%%|*}; rest=${spec#*|}; dpi=${rest%%|*}; sdk=${rest#*|}
+                    printf '{"supportedAbis":["%s"],"supportedLocales":["en-US"],"screenDensity":%s,"sdkVersion":%s}\n' \
+                      "$abi" "$dpi" "$sdk" > "$TMPDIR/dev.json"
+
+                    download=$(java -jar "$BUNDLETOOL_JAR" get-size total \
+                      --apks="$APKS" --device-spec="$TMPDIR/dev.json" 2>/dev/null \
+                      | awk -F, 'NR==2 {printf "%.1f MB", $1/1048576}')
+
+                    rm -rf "$TMPDIR/dev-splits"
+                    mkdir -p "$TMPDIR/dev-splits"
+                    if java -jar "$BUNDLETOOL_JAR" extract-apks \
+                         --apks="$APKS" --output-dir="$TMPDIR/dev-splits" \
+                         --device-spec="$TMPDIR/dev.json" >/dev/null 2>&1; then
+                      bytes=0
+                      for split in "$TMPDIR/dev-splits"/*.apk; do
+                        [ -f "$split" ] || continue
+                        sz=$(unzip -l "$split" 2>/dev/null \
+                          | awk 'NF>=4 && $1 ~ /^[0-9]+$/ {s+=$1} END {print s+0}')
+                        bytes=$((bytes + sz))
+                      done
+                      install=$(awk -v b="$bytes" 'BEGIN{printf "%.1f MB", b/1048576}')
+                    else
+                      install="-"
+                    fi
+
+                    if [ -n "$download" ]; then
+                      SIZE_TABLE="${SIZE_TABLE}| ${abi} · ${dpi}dpi | Android ${sdk} | ${download} | ${install} |\n"
+                    fi
+                  done
+
+                  # The app's own SDK target (for context — it is not the size-table device).
+                  # (Resolved at the top of this stage, before cd.)
+
+                  {
+                    echo "## Android release ${TAG} (versionCode ${VERSION_CODE})"
+                    echo ""
+                    echo "Built on Jenkins, signed with the Play upload key."
+                    if [ "${SKIP_CHECKS:-false}" = "true" ]; then
+                      echo "QA build: quality and artifact compliance checks were bypassed (SKIP_CHECKS=true)."
+                    fi
+                    echo "App target SDK: ${TARGET_SDK}."
+                    echo ""
+                    echo "### Artifacts"
+                    echo "| File | Size | SHA-256 | Use |"
+                    echo "|---|---|---|---|"
+                    echo "| ${AAB} | ${AAB_SIZE} | ${AAB_SHA} | Play Store upload |"
+                    echo "| ${APK} | ${APK_SIZE} | ${APK_SHA} | Direct install (universal APK) |"
+                    echo ""
+                    if [ -n "$SIZE_TABLE" ]; then
+                      echo "### Play Store sizes per device (bundletool ${BUNDLETOOL_VERSION})"
+                      echo "Simulated devices: download is the compressed set of splits Play serves to that"
+                      echo "device; install is their uncompressed contents. The Android column is the"
+                      echo "simulated device OS (measurement input), not the app's target SDK."
+                      echo ""
+                      echo "| Device | Android | Download | Install |"
+                      echo "|---|---|---|---|"
+                      printf '%b' "$SIZE_TABLE"
+                    else
+                      echo "_(bundletool per-device sizes unavailable for this build)_"
+                    fi
+                  } > RELEASE_NOTES.android.md
+                '''
+              }
+            }
+          }
+        }
+
+        stage('iOS') {
+          agent { label 'ios-release' }
+          when { beforeAgent true; expression { return params.PLATFORMS != 'android' } }
+          // Counts the wait for the Mac too: an asleep or offline Mac fails the
+          // build here instead of holding the host lock until the job timeout.
+          options { timeout(time: 75, unit: 'MINUTES') }
+          // The Mac's own paths in place of the Linux host's above. Node, CocoaPods
+          // and Xcode come from the agent's PATH; pnpm is the pinned one, through
+          // corepack shims kept in the cache (never the Mac's global pnpm).
+          environment {
+            CI_CACHE_DIR = '/Users/rmotafreitas/.cache/animu-ci'
+            COREPACK_HOME = '/Users/rmotafreitas/.cache/animu-ci/corepack'
+            npm_config_cache = '/Users/rmotafreitas/.cache/animu-ci/npm'
+            npm_config_store_dir = '/Users/rmotafreitas/.cache/animu-ci/pnpm'
+            YARN_GLOBAL_FOLDER = '/Users/rmotafreitas/.cache/animu-ci/yarn'
+            XDG_CACHE_HOME = '/Users/rmotafreitas/.cache/animu-ci/tools'
+            TMPDIR = '/Users/rmotafreitas/jenkins-tmp'
+            TMP = '/Users/rmotafreitas/jenkins-tmp'
+            // The Android build's Linux paths mean nothing here.
+            ANDROID_HOME = ''
+            ANDROID_SDK_ROOT = ''
+            GRADLE_USER_HOME = ''
+            JAVA_HOME = ''
+            CCACHE_DIR = ''
+            CCACHE_CONFIGPATH = ''
+            // CocoaPods refuses to run without a UTF-8 locale.
+            LANG = 'en_US.UTF-8'
+            LC_ALL = 'en_US.UTF-8'
+          }
+          stages {
+            stage('iOS: checkout') {
+              steps {
+                checkout scm
+                sh '''
+                  set -eux
+                  # The job's checkout takes main's tip; build the commit the shared
+                  # stages checked (it is on main, or was just pushed there).
+                  git cat-file -e "${RELEASE_SHA}^{commit}" 2>/dev/null || git fetch --no-tags origin "$RELEASE_SHA"
+                  git checkout --force --detach "$RELEASE_SHA"
+                  test "$(git rev-parse HEAD)" = "$RELEASE_SHA"
+                  bash scripts/init-submodules.sh
+                  rm -rf "$ARTIFACT_DIR" "$WORKSPACE/ios-logs"
+                  mkdir -p "$ARTIFACT_DIR" "$WORKSPACE/ios-logs" "$TMPDIR" "$CI_CACHE_DIR/bin"
+                '''
+                unstash 'release-inputs'
+                sh '''
+                  set -eux
+                  [ "$(node -p "require('./app.json').expo.version")" = "$VERSION" ]
+                  [ "$(node -p "require('./app.json').expo.ios.buildNumber")" = "$VERSION_CODE" ]
+                  xcodebuild -version
+                  xcrun --sdk iphoneos --show-sdk-version
+                  node --version
+                  pod --version
+                '''
+              }
+            }
+
+            stage('iOS: install') {
+              steps {
+                sh '''
+                  set -eux
+                  corepack enable --install-directory "$CI_CACHE_DIR/bin"
+                  export PATH="$CI_CACHE_DIR/bin:$PATH"
+                  pnpm --version
+
+                  FONTS_STAGE="${FONTS_STAGE:-$HOME/.animu-secrets/fonts}"
+                  if [ -d "$FONTS_STAGE" ]; then
+                    mkdir -p src/assets/fonts
+                    cp "$FONTS_STAGE"/proximanova-reg.ttf "$FONTS_STAGE"/proximanova-bold.ttf src/assets/fonts/
+                  fi
+                  node scripts/fetch-fonts.mjs
+                  for f in proximanova-reg.ttf proximanova-bold.ttf; do
+                    test -f "src/assets/fonts/$f" || { echo "missing font: $f (stage it in $FONTS_STAGE)"; exit 1; }
+                  done
+
+                  STAMP="$WORKSPACE/.deps-stamp"
+                  WANT="$(node scripts/build-input-key.mjs dependencies)"
+                  HAVE="$( [ -f "$STAMP" ] && cat "$STAMP" || echo none )"
+                  if [ "$WANT" != "$HAVE" ] || [ ! -d node_modules ]; then
+                    pnpm install --frozen-lockfile
+                    printf "%s" "$WANT" > "$STAMP"
+                  else
+                    echo "Dependencies unchanged; reusing node_modules"
+                  fi
+                  node scripts/prepare-submodules.mjs
+                '''
+              }
+            }
+
+            stage('iOS: prebuild + pods') {
+              steps {
+                sh '''
+                  set -eux
+                  export PATH="$CI_CACHE_DIR/bin:$PATH"
+                  # As on Android: keep ios/ (and its Pods) while the native inputs
+                  # are unchanged, so Xcode builds incrementally.
+                  NATIVE_STAMP="$WORKSPACE/.native-stamp"
+                  WANT="$(node scripts/build-input-key.mjs native)"
+                  HAVE=$( [ -f "$NATIVE_STAMP" ] && cat "$NATIVE_STAMP" || echo none )
+                  if [ ! -d ios ] || [ "$WANT" != "$HAVE" ] || [ "${FORCE_PREBUILD:-0}" = "1" ]; then
+                    echo "Regenerating ios/ (native config changed)"
+                    pnpm exec expo prebuild --platform ios --clean --no-install
+                    printf "%s" "$WANT" > "$NATIVE_STAMP"
+                  else
+                    echo "Reusing existing ios/ (native config unchanged)"
+                  fi
+                  pod install --project-directory=ios
+                '''
+              }
+            }
+
+            stage('iOS: archive + export signed IPA') {
+              steps {
+                sh IOS_SIGNING_CLEANUP
+                withCredentials([string(credentialsId: 'ios-distribution-signing', variable: 'IOS_SIGNING_B64')]) {
+                  sh '''#!/bin/bash
+                    set -euo pipefail
+                    export PATH="$CI_CACHE_DIR/bin:$PATH"
+                    TEAM=$(node -p "require('./app.json').expo.ios.appleTeamId")
+                    BUNDLE_ID=$(node -p "require('./app.json').expo.ios.bundleIdentifier")
+                    # A QA build is Ad Hoc: it installs on the profile's devices and
+                    # cannot be uploaded to the App Store.
+                    if [ "${SKIP_CHECKS:-false}" = "true" ]; then KIND=AD_HOC METHOD=release-testing
+                    else KIND=APP_STORE METHOD=app-store-connect; fi
+
+                    # Signing material goes to a mode-700 directory, removed (with
+                    # the keychain) in this stage's post.
+                    S="$WORKSPACE/.signing"
+                    rm -rf "$S"; mkdir -m 700 "$S"; umask 077
+                    printf "%s" "$IOS_SIGNING_B64" | base64 -D > "$S/signing.json"
+                    # Xcode hands its environment to every build script (and
+                    # their logs, which are archived unmasked).
+                    unset IOS_SIGNING_B64
+                    node -e '
+                      const fs = require("fs");
+                      const [dir, kind] = process.argv.slice(1);
+                      const j = JSON.parse(fs.readFileSync(dir + "/signing.json", "utf8"));
+                      fs.writeFileSync(dir + "/dist.p12", Buffer.from(j.p12, "base64"));
+                      fs.writeFileSync(dir + "/p12pass", j.p12Password);
+                      fs.writeFileSync(dir + "/profile.mobileprovision", Buffer.from(j.profiles[kind], "base64"));
+                    ' "$S" "$KIND"
+                    rm "$S/signing.json"
+
+                    security cms -D -i "$S/profile.mobileprovision" > "$S/profile.plist"
+                    pl() { /usr/libexec/PlistBuddy -c "Print :$1" "$S/profile.plist"; }
+                    UUID=$(pl UUID); NAME=$(pl Name)
+                    [ "$(pl TeamIdentifier:0)" = "$TEAM" ] || { echo "profile team is not $TEAM"; exit 1; }
+                    [ "$(pl Entitlements:application-identifier)" = "$TEAM.$BUNDLE_ID" ] || { echo "profile is not for $BUNDLE_ID"; exit 1; }
+                    # ISO 8601 UTC on both sides, so they compare as strings.
+                    EXPIRES=$(plutil -extract ExpirationDate raw -o - "$S/profile.plist")
+                    [[ "$(date -u +%Y-%m-%dT%H:%M:%SZ)" < "$EXPIRES" ]] || { echo "profile $NAME expired $EXPIRES"; exit 1; }
+                    echo "Signing with $KIND profile \\"$NAME\\" ($UUID)"
+
+                    # Where Xcode 16+ reads profiles. Only a profile this build
+                    # added is removed afterwards.
+                    PROFILES="$HOME/Library/Developer/Xcode/UserData/Provisioning Profiles"
+                    mkdir -p "$PROFILES"
+                    if [ ! -e "$PROFILES/$UUID.mobileprovision" ]; then
+                      cp "$S/profile.mobileprovision" "$PROFILES/$UUID.mobileprovision"
+                      printf "%s\\n" "$PROFILES/$UUID.mobileprovision" > "$S/installed-profiles"
+                    fi
+
+                    # A keychain of this build's own, unlocked for its length: the
+                    # login keychain is locked in an SSH session.
+                    KC="$S/release.keychain-db"
+                    KC_PASS=$(uuidgen)
+                    security create-keychain -p "$KC_PASS" "$KC"
+                    security set-keychain-settings -lut 5400 "$KC"
+                    security unlock-keychain -p "$KC_PASS" "$KC"
+                    security import "$S/dist.p12" -k "$KC" -P "$(cat "$S/p12pass")" -T /usr/bin/codesign >/dev/null
+                    security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KC_PASS" "$KC" >/dev/null
+                    rm "$S/dist.p12" "$S/p12pass"
+                    # Export finds identities only in the search list: put the
+                    # keychain first, and keep the list to restore it.
+                    security list-keychains -d user | sed -E 's/^[[:space:]]*"(.*)"$/\\1/' > "$S/keychains.orig"
+                    security list-keychains -d user -s "$KC" $(cat "$S/keychains.orig")
+                    IDENTITY=$(security find-identity -v -p codesigning "$KC" | awk 'NR == 1 && /\\)/ { print $2 }')
+                    [ -n "$IDENTITY" ] || { echo "no valid signing identity in the distribution certificate"; exit 1; }
+
+                    # Manual signing on the app target only, as EAS does: the pods
+                    # keep their own settings.
+                    node -e '
+                      const { IOSConfig } = require("expo/config-plugins");
+                      const [profileName, appleTeamId] = process.argv.slice(1);
+                      IOSConfig.ProvisioningProfile.setProvisioningProfileForPbxproj(process.cwd(), { profileName, appleTeamId, buildConfiguration: "Release" });
+                    ' "$NAME" "$TEAM"
+
+                    WORKSPACE_DIR=$(ls -d ios/*.xcworkspace)
+                    SCHEME=$(basename "$WORKSPACE_DIR" .xcworkspace)
+                    ARCHIVE="$TMPDIR/Animu.xcarchive"
+                    rm -rf "$ARCHIVE" "$TMPDIR/ios-export"
+                    # caffeinate: the Mac must not idle-sleep mid-build.
+                    caffeinate -i xcodebuild -workspace "$WORKSPACE_DIR" -scheme "$SCHEME" \\
+                      -configuration Release -destination 'generic/platform=iOS' \\
+                      -archivePath "$ARCHIVE" -derivedDataPath "$WORKSPACE/.ios-derived-data" \\
+                      OTHER_CODE_SIGN_FLAGS="--keychain $KC" \\
+                      archive > "$WORKSPACE/ios-logs/archive.log" 2>&1 \\
+                      || { tail -80 "$WORKSPACE/ios-logs/archive.log"; echo "archive failed (full log archived)"; exit 1; }
+                    tail -5 "$WORKSPACE/ios-logs/archive.log"
+
+                    OPTIONS="$S/ExportOptions.plist"
+                    opt() { /usr/libexec/PlistBuddy -c "$1" "$OPTIONS" >/dev/null; }
+                    opt "Add :method string $METHOD"
+                    opt "Add :teamID string $TEAM"
+                    opt "Add :signingStyle string manual"
+                    opt "Add :signingCertificate string $IDENTITY"
+                    opt "Add :provisioningProfiles dict"
+                    opt "Add :provisioningProfiles:$BUNDLE_ID string $UUID"
+                    opt "Add :manageAppVersionAndBuildNumber bool false"
+                    opt "Add :uploadSymbols bool true"
+                    opt "Add :destination string export"
+                    plutil -p "$OPTIONS"
+                    caffeinate -i xcodebuild -exportArchive -archivePath "$ARCHIVE" \\
+                      -exportPath "$TMPDIR/ios-export" -exportOptionsPlist "$OPTIONS" \\
+                      > "$WORKSPACE/ios-logs/export.log" 2>&1 \\
+                      || { tail -60 "$WORKSPACE/ios-logs/export.log"; echo "export failed (full log archived)"; exit 1; }
+
+                    IPA="$ARTIFACT_DIR/animu-${VERSION}-build${VERSION_CODE}.ipa"
+                    set -- "$TMPDIR"/ios-export/*.ipa
+                    [ "$#" = 1 ] && [ -f "$1" ] || { echo "export did not produce one IPA"; exit 1; }
+                    cp "$1" "$IPA"
+                    chmod 644 "$IPA"
+                    printf "%s\\n" "$UUID" > "$S/profile-uuid"
+                    ls -la "$IPA"
+                  '''
+                }
+              }
+            }
+
+            // What App Store Connect checks on upload (SDK, versions, permissions,
+            // privacy manifests), then the signature itself: the IPA must carry
+            // the distribution identity and the profile this build chose.
+            stage('iOS: validate archive + signature') {
+              steps {
+                sh '''#!/bin/bash
+                  set -euo pipefail
+                  TEAM=$(node -p "require('./app.json').expo.ios.appleTeamId")
+                  BUNDLE_ID=$(node -p "require('./app.json').expo.ios.bundleIdentifier")
+                  if [ "${SKIP_CHECKS:-false}" != "true" ]; then
+                    python3 -m unittest discover -s scripts/__tests__ -p 'validate_ios_archive_test.py'
+                    python3 scripts/validate-ios-archive.py "$TMPDIR/Animu.xcarchive" app.json \\
+                      | tee "$WORKSPACE/ios-logs/archive-validation.json"
+                  fi
+
+                  IPA="$ARTIFACT_DIR/animu-${VERSION}-build${VERSION_CODE}.ipa"
+                  X="$TMPDIR/ipa"
+                  rm -rf "$X"; mkdir -p "$X"
+                  unzip -q "$IPA" -d "$X"
+                  set -- "$X"/Payload/*.app
+                  [ "$#" = 1 ] && [ -d "$1" ] || { echo "IPA must hold one app"; exit 1; }
+                  APP=$1
+                  info() { /usr/libexec/PlistBuddy -c "Print :$1" "$APP/Info.plist"; }
+                  [ "$(info CFBundleIdentifier)" = "$BUNDLE_ID" ] || { echo "IPA bundle id is not $BUNDLE_ID"; exit 1; }
+                  [ "$(info CFBundleShortVersionString)" = "$VERSION" ] || { echo "IPA version is not $VERSION"; exit 1; }
+                  [ "$(info CFBundleVersion)" = "$VERSION_CODE" ] || { echo "IPA build number is not $VERSION_CODE"; exit 1; }
+
+                  codesign --verify --deep --strict --verbose=2 "$APP"
+                  codesign -dvv "$APP" 2>&1 | tee "$TMPDIR/ipa-signature.txt" | grep -E '^(Authority|TeamIdentifier|Identifier)='
+                  grep -qE '^Authority=(iPhone|Apple) Distribution: .*\\('"$TEAM"'\\)$' "$TMPDIR/ipa-signature.txt" \\
+                    || { echo "IPA is not signed with the $TEAM distribution identity"; exit 1; }
+                  grep -qx "TeamIdentifier=$TEAM" "$TMPDIR/ipa-signature.txt" || { echo "IPA team is not $TEAM"; exit 1; }
+
+                  security cms -D -i "$APP/embedded.mobileprovision" > "$TMPDIR/embedded.plist"
+                  [ "$(/usr/libexec/PlistBuddy -c 'Print :UUID' "$TMPDIR/embedded.plist")" = "$(cat "$WORKSPACE/.signing/profile-uuid")" ] \\
+                    || { echo "IPA embeds a different provisioning profile"; exit 1; }
+                  codesign -d --entitlements - --xml "$APP" 2>/dev/null > "$TMPDIR/entitlements.plist"
+                  ent() { /usr/libexec/PlistBuddy -c "Print :$1" "$TMPDIR/entitlements.plist" 2>/dev/null || true; }
+                  [ "$(ent application-identifier)" = "$TEAM.$BUNDLE_ID" ] || { echo "IPA application-identifier is wrong"; exit 1; }
+                  [ "$(ent get-task-allow)" = "false" ] || { echo "IPA is debuggable (get-task-allow)"; exit 1; }
+                  if [ "${SKIP_CHECKS:-false}" != "true" ]; then
+                    # Only an App Store profile has no device list and grants
+                    # TestFlight (beta-reports-active).
+                    if /usr/libexec/PlistBuddy -c 'Print :ProvisionedDevices' "$TMPDIR/embedded.plist" >/dev/null 2>&1; then
+                      echo "IPA embeds a device-limited profile, not the App Store one"; exit 1
+                    fi
+                    [ "$(ent beta-reports-active)" = "true" ] || { echo "IPA is not App Store signed"; exit 1; }
+                  fi
+                  echo "IPA signature verified"
+                '''
+              }
+            }
+
+            stage('iOS: checksum + release notes') {
+              steps {
+                sh '''
+                  set -eux
+                  XCODE=$(xcodebuild -version | head -1)
+                  SDK=$(xcrun --sdk iphoneos --show-sdk-version)
+                  cd "$ARTIFACT_DIR"
+                  IPA="animu-${VERSION}-build${VERSION_CODE}.ipa"
+                  if [ "${SKIP_CHECKS:-false}" = "true" ]; then
+                    mv "$IPA" "${IPA%.ipa}-qa-unchecked.ipa"
+                    IPA="${IPA%.ipa}-qa-unchecked.ipa"
+                  fi
+                  shasum -a 256 "$IPA" > "$IPA.sha256"
+                  IPA_SHA=$(cut -d' ' -f1 "$IPA.sha256")
+                  IPA_SIZE=$(awk -v s="$(stat -f%z "$IPA")" 'BEGIN{printf "%.1f MB", s/1048576}')
+                  {
+                    echo "## iOS release ${TAG} (build ${VERSION_CODE})"
+                    echo ""
+                    if [ "${SKIP_CHECKS:-false}" = "true" ]; then
+                      echo "Built on Jenkins (${XCODE}, iOS SDK ${SDK}), Ad Hoc signed: installs on the devices in its profile only."
+                      echo "QA build: quality and artifact compliance checks were bypassed (SKIP_CHECKS=true)."
+                      USE="Ad Hoc install (registered devices)"
+                    else
+                      echo "Built on Jenkins (${XCODE}, iOS SDK ${SDK}), signed for App Store distribution."
+                      USE="App Store Connect upload (Transporter)"
+                    fi
+                    echo ""
+                    echo "### Artifacts"
+                    echo "| File | Size | SHA-256 | Use |"
+                    echo "|---|---|---|---|"
+                    echo "| ${IPA} | ${IPA_SIZE} | ${IPA_SHA} | ${USE} |"
+                  } > RELEASE_NOTES.ios.md
+                '''
+                stash name: 'ios-artifacts', includes: 'release-artifacts/*.ipa,release-artifacts/*.ipa.sha256,release-artifacts/RELEASE_NOTES.ios.md'
+              }
+            }
+          }
+          post {
+            always {
+              // Cleanup first: a failing archive step must not skip it.
+              sh IOS_SIGNING_CLEANUP
+              archiveArtifacts artifacts: 'ios-logs/**', allowEmptyArchive: true
+            }
+          }
+        }
       }
     }
 
-    // Derive the universal APK from the AAB with bundletool instead of running
-    // a second Gradle build. Signing uses the same upload keystore, so the APK
-    // carries the upload signer. Play may re-sign with a different app key;
-    // direct-install APKs then update only the same direct-install channel.
-    stage('Derive universal APK from AAB') {
+    // One RELEASE_NOTES.md for what was built, with the IPA beside the
+    // Android artifacts, so they archive and release together.
+    stage('Release notes') {
       agent { label 'animu-android-native' }
       steps {
+        script {
+          if (params.PLATFORMS != 'android') unstash 'ios-artifacts'
+        }
         sh '''
           set -eux
-          AAB="$ARTIFACT_DIR/animu-${VERSION}-code${VERSION_CODE}.aab"
-          APK="$ARTIFACT_DIR/animu-${VERSION}-code${VERSION_CODE}.apk"
-          TOOLS="$WORKSPACE/.tools"
-          BUNDLETOOL_VERSION=1.18.1
-          BUNDLETOOL_JAR="$TOOLS/bundletool.jar"
-          mkdir -p "$TOOLS" "$TMPDIR"
-
-          BUNDLETOOL_SHA256=675786493983787ffa11550bdb7c0715679a44e1643f3ff980a529e9c822595c
-          if [ ! -f "$BUNDLETOOL_JAR" ] || [ "$(sha256sum "$BUNDLETOOL_JAR" | cut -d' ' -f1)" != "$BUNDLETOOL_SHA256" ]; then
-            curl -fsSL -o "$BUNDLETOOL_JAR" \
-              "https://github.com/google/bundletool/releases/download/${BUNDLETOOL_VERSION}/bundletool-all-${BUNDLETOOL_VERSION}.jar"
-          fi
-
-          echo "$BUNDLETOOL_SHA256  $BUNDLETOOL_JAR" | sha256sum -c -
-          if [ "${SKIP_CHECKS:-false}" != "true" ]; then
-            java -jar "$BUNDLETOOL_JAR" validate --bundle="$AAB"
-            java -jar "$BUNDLETOOL_JAR" dump config --bundle="$AAB" > "$TMPDIR/bundle-config.txt"
-            grep -q PAGE_ALIGNMENT_16K "$TMPDIR/bundle-config.txt"
-            java -jar "$BUNDLETOOL_JAR" dump manifest --bundle="$AAB" > "$TMPDIR/release-manifest.xml"
-            python3 -m unittest discover -s scripts/__tests__ -p '*_test.py'
-            python3 scripts/validate-android-artifact.py "$AAB" "$TMPDIR/release-manifest.xml" app.json
-          fi
-
-          APKS="$TMPDIR/universal.apks"
-          rm -f "$APKS"
-          KS="$WORKSPACE/.signing/upload.jks"
-          ALIAS=$(node -p "require(process.env.WORKSPACE + '/.signing.json').keyAlias")
-
-          # Passwords come from mode-600 files (file: scheme) so they never
-          # appear in the build log.
-          java -jar "$BUNDLETOOL_JAR" build-apks \
-            --bundle="$AAB" --output="$APKS" --mode=universal \
-            --ks="$KS" --ks-pass="file:$WORKSPACE/.signing/storepass" \
-            --ks-key-alias="$ALIAS" --key-pass="file:$WORKSPACE/.signing/keypass"
-
-          rm -rf "$TMPDIR/universal-extract"
-          unzip -o -q "$APKS" -d "$TMPDIR/universal-extract"
-          cp "$TMPDIR/universal-extract/universal.apk" "$APK"
-          if [ "${SKIP_CHECKS:-false}" != "true" ]; then
-            "$ANDROID_SDK_ROOT/build-tools/$(node -p "require('./app.json').expo.plugins.find(p => Array.isArray(p) && p[0] === 'expo-build-properties')[1].android.buildToolsVersion")/zipalign" -c -P 16 4 "$APK"
-          fi
-          ls -la "$APK"
-        '''
-      }
-    }
-
-    stage('Validate signing certificates') {
-      agent { label 'animu-android-native' }
-      steps {
-        sh '''
-          set -eux
-          AAB="$ARTIFACT_DIR/animu-${VERSION}-code${VERSION_CODE}.aab"
-          APK="$ARTIFACT_DIR/animu-${VERSION}-code${VERSION_CODE}.apk"
-          test -f "$AAB" || { echo "AAB missing: $AAB"; exit 1; }
-          test -f "$APK" || { echo "APK missing: $APK"; exit 1; }
-
-          # Play rejects AABs signed with the Android debug key. The AAB stores
-          # its signature in META-INF; the universal APK uses the v2/v3 APK
-          # Signature Scheme, so it must be checked with apksigner.
-          AAB_CERT=$(unzip -p "$AAB" 'META-INF/*.RSA' 2>/dev/null | keytool -printcert 2>/dev/null || true)
-          echo "--- AAB certificate ---"
-          echo "$AAB_CERT"
-          [ -n "$AAB_CERT" ] || { echo "ERROR: could not read AAB signature"; exit 1; }
-          if echo "$AAB_CERT" | grep -q "CN=Android Debug"; then
-            echo "ERROR: AAB is signed with the Android debug keystore"; exit 1
-          fi
-          # A certificate in META-INF does not prove it signs these bytes:
-          # jarsigner checks every entry's digest. It exits 0 on an unsigned
-          # jar, hence the explicit verdict line.
-          if ! "$JAVA_HOME/bin/jarsigner" -verify "$AAB" > "$TMPDIR/aab-verify.txt" 2>&1 \
-            || ! grep -qx "jar verified." "$TMPDIR/aab-verify.txt"; then
-            cat "$TMPDIR/aab-verify.txt"; echo "ERROR: AAB signature does not verify"; exit 1
-          fi
-
-          APKSIGNER=$(find "$ANDROID_SDK_ROOT/build-tools" -name apksigner | sort | tail -1)
-          echo "--- APK signing certificate ---"
-          "$APKSIGNER" verify --print-certs "$APK" | tee "$TMPDIR/apk-certs.txt"
-          if grep -q "CN=Android Debug" "$TMPDIR/apk-certs.txt"; then
-            echo "ERROR: APK is signed with the Android debug keystore"; exit 1
-          fi
-
-          # The universal APK is derived from the AAB, so both must carry the
-          # same signer. Compare SHA-256 fingerprints.
-          AAB_SHA256=$(echo "$AAB_CERT" | grep -i "SHA256:" | head -1 | sed 's/.*SHA256: *//' | tr -d ':' | tr 'A-F' 'a-f')
-          APK_SHA256=$("$APKSIGNER" verify --print-certs "$APK" \
-            | grep -i "certificate SHA-256 digest" | head -1 | sed 's/.*digest: *//' | tr -d ':' | tr 'A-F' 'a-f')
-          echo "AAB signer SHA-256: $AAB_SHA256"
-          echo "APK signer SHA-256: $APK_SHA256"
-          [ -n "$AAB_SHA256" ] && [ "$AAB_SHA256" = "$APK_SHA256" ] || {
-            echo "ERROR: APK signer does not match the AAB signer"; exit 1; }
-        '''
-      }
-    }
-
-    stage('Checksums + bundletool sizes + release notes') {
-      agent { label 'animu-android-native' }
-      steps {
-        sh '''
-          set -eux
-          # Resolve the app's target SDK before cd-ing into the artifacts dir
-          # (app.json and scripts/ live at the workspace root).
-          TARGET_SDK=$(node scripts/target-sdk.mjs)
           cd "$ARTIFACT_DIR"
-          AAB="animu-${VERSION}-code${VERSION_CODE}.aab"
-          APK="animu-${VERSION}-code${VERSION_CODE}.apk"
-          # QA artifacts are named so they cannot pass for a checked release.
-          if [ "${SKIP_CHECKS:-false}" = "true" ]; then
-            mv "$AAB" "${AAB%.aab}-qa-unchecked.aab"
-            mv "$APK" "${APK%.apk}-qa-unchecked.apk"
-            AAB="${AAB%.aab}-qa-unchecked.aab"
-            APK="${APK%.apk}-qa-unchecked.apk"
-          fi
-
-          sha256sum "$AAB" > "$AAB.sha256"
-          sha256sum "$APK" > "$APK.sha256"
-          AAB_SHA=$(cut -d' ' -f1 "$AAB.sha256")
-          APK_SHA=$(cut -d' ' -f1 "$APK.sha256")
-
-          human() { awk -v s="$(stat -c%s "$1")" 'BEGIN{printf "%.1f MB", s/1048576}'; }
-          AAB_SIZE=$(human "$AAB")
-          APK_SIZE=$(human "$APK")
-
-          # --- bundletool: per-device download sizes from the AAB ---
-          BUNDLETOOL_VERSION=1.18.1
-          TOOLS="$WORKSPACE/.tools"
-          BUNDLETOOL_JAR="$TOOLS/bundletool.jar"
-          KS="$WORKSPACE/.signing/upload.jks"
-          ALIAS=$(node -p "require(process.env.WORKSPACE + '/.signing.json').keyAlias")
-
-          APKS="$TMPDIR/animu-size.apks"
-          rm -f "$APKS"
-          java -jar "$BUNDLETOOL_JAR" build-apks \
-            --bundle="$AAB" --output="$APKS" --mode=default \
-            --ks="$KS" --ks-pass="file:$WORKSPACE/.signing/storepass" \
-            --ks-key-alias="$ALIAS" --key-pass="file:$WORKSPACE/.signing/keypass" >/dev/null
-
-          # One device spec per line: abi|density|sdk.
-          #   Download: bundletool get-size total reports the min/max COMPRESSED
-          #             size of the splits Play serves to the device.
-          #   Install:  sum of the UNCOMPRESSED contents of the same splits
-          #             (what the device stores once installed). bundletool has
-          #             no install-size command, so extract-apks + unzip sums it.
-          SIZE_TABLE=""
-          for spec in \
-            "arm64-v8a|480|34" "armeabi-v7a|480|34" "x86_64|480|34" \
-            "arm64-v8a|320|34" "arm64-v8a|640|34"; do
-            abi=${spec%%|*}; rest=${spec#*|}; dpi=${rest%%|*}; sdk=${rest#*|}
-            printf '{"supportedAbis":["%s"],"supportedLocales":["en-US"],"screenDensity":%s,"sdkVersion":%s}\n' \
-              "$abi" "$dpi" "$sdk" > "$TMPDIR/dev.json"
-
-            download=$(java -jar "$BUNDLETOOL_JAR" get-size total \
-              --apks="$APKS" --device-spec="$TMPDIR/dev.json" 2>/dev/null \
-              | awk -F, 'NR==2 {printf "%.1f MB", $1/1048576}')
-
-            rm -rf "$TMPDIR/dev-splits"
-            mkdir -p "$TMPDIR/dev-splits"
-            if java -jar "$BUNDLETOOL_JAR" extract-apks \
-                 --apks="$APKS" --output-dir="$TMPDIR/dev-splits" \
-                 --device-spec="$TMPDIR/dev.json" >/dev/null 2>&1; then
-              bytes=0
-              for split in "$TMPDIR/dev-splits"/*.apk; do
-                [ -f "$split" ] || continue
-                sz=$(unzip -l "$split" 2>/dev/null \
-                  | awk 'NF>=4 && $1 ~ /^[0-9]+$/ {s+=$1} END {print s+0}')
-                bytes=$((bytes + sz))
-              done
-              install=$(awk -v b="$bytes" 'BEGIN{printf "%.1f MB", b/1048576}')
-            else
-              install="-"
-            fi
-
-            if [ -n "$download" ]; then
-              SIZE_TABLE="${SIZE_TABLE}| ${abi} · ${dpi}dpi | Android ${sdk} | ${download} | ${install} |\n"
-            fi
-          done
-
-          # The app's own SDK target (for context — it is not the size-table device).
-          # (Resolved at the top of this stage, before cd.)
-
-          {
-            echo "## Android release ${TAG} (versionCode ${VERSION_CODE})"
-            echo ""
-            echo "Built on Jenkins, signed with the Play upload key."
-            if [ "${SKIP_CHECKS:-false}" = "true" ]; then
-              echo "QA build: quality and artifact compliance checks were bypassed (SKIP_CHECKS=true)."
-            fi
-            echo "App target SDK: ${TARGET_SDK}."
-            echo ""
-            echo "### Artifacts"
-            echo "| File | Size | SHA-256 | Use |"
-            echo "|---|---|---|---|"
-            echo "| ${AAB} | ${AAB_SIZE} | ${AAB_SHA} | Play Store upload |"
-            echo "| ${APK} | ${APK_SIZE} | ${APK_SHA} | Direct install (universal APK) |"
-            echo ""
-            if [ -n "$SIZE_TABLE" ]; then
-              echo "### Play Store sizes per device (bundletool ${BUNDLETOOL_VERSION})"
-              echo "Simulated devices: download is the compressed set of splits Play serves to that"
-              echo "device; install is their uncompressed contents. The Android column is the"
-              echo "simulated device OS (measurement input), not the app's target SDK."
-              echo ""
-              echo "| Device | Android | Download | Install |"
-              echo "|---|---|---|---|"
-              printf '%b' "$SIZE_TABLE"
-            else
-              echo "_(bundletool per-device sizes unavailable for this build)_"
-            fi
-          } > RELEASE_NOTES.md
-
+          for part in RELEASE_NOTES.android.md RELEASE_NOTES.ios.md; do
+            if [ -f "$part" ]; then cat "$part"; echo; rm "$part"; fi
+          done > RELEASE_NOTES.md
           echo "=== RELEASE_NOTES.md ==="
           cat RELEASE_NOTES.md
         '''
@@ -702,10 +1108,13 @@ pipeline {
             set -eux
             export GH_TOKEN
             cd "$ARTIFACT_DIR"
-            AAB="animu-${VERSION}-code${VERSION_CODE}.aab"
-            APK="animu-${VERSION}-code${VERSION_CODE}.apk"
+            case "${PLATFORMS:-both}" in
+              android) TITLE="${TAG} (Android)" ;;
+              ios) TITLE="${TAG} (iOS)" ;;
+              *) TITLE="${TAG}" ;;
+            esac
 
-            set -- --title "${TAG} (Android)" --target "$(git rev-parse HEAD)" --notes-file RELEASE_NOTES.md
+            set -- --title "$TITLE" --target "$(git rev-parse HEAD)" --notes-file RELEASE_NOTES.md
             [ "$DRAFT" = "true" ] && set -- "$@" --draft
             [ "$PRERELEASE" = "true" ] && set -- "$@" --prerelease
 
@@ -715,7 +1124,13 @@ pipeline {
               gh release create "$TAG" "$@"
             fi
 
-            gh release upload "$TAG" "$AAB" "$APK" "$AAB.sha256" "$APK.sha256" RELEASE_NOTES.md --clobber
+            # This run's artifacts only: the directory is emptied when it starts.
+            set --
+            for f in *.aab *.apk *.ipa; do
+              if [ -f "$f" ]; then set -- "$@" "$f" "$f.sha256"; fi
+            done
+            [ "$#" -gt 0 ] || { echo "no artifacts to release"; exit 1; }
+            gh release upload "$TAG" "$@" RELEASE_NOTES.md --clobber
           '''
         }
       }
@@ -742,10 +1157,14 @@ pipeline {
     }
     success {
       node('animu-android-native') {
-        // Archive successful builds. A QA build keeps only its APK: its AAB is
-        // an unchecked Play upload and must not be downloadable as one.
-        archiveArtifacts artifacts: params.SKIP_CHECKS ? 'release-artifacts/*.apk,release-artifacts/*.apk.sha256,release-artifacts/RELEASE_NOTES.md' : 'release-artifacts/*', allowEmptyArchive: false, fingerprint: true
-        archiveArtifacts artifacts: 'android/build/reports/profile/**', allowEmptyArchive: true
+        // Archive successful builds. A QA build keeps only its APK and its Ad
+        // Hoc IPA: its AAB is an unchecked Play upload and must not be
+        // downloadable as one.
+        archiveArtifacts artifacts: params.SKIP_CHECKS ? 'release-artifacts/*.apk,release-artifacts/*.apk.sha256,release-artifacts/*.ipa,release-artifacts/*.ipa.sha256,release-artifacts/RELEASE_NOTES.md' : 'release-artifacts/*', allowEmptyArchive: false, fingerprint: true
+        // An iOS-only run would pick up the last Android build's report.
+        script {
+          if (params.PLATFORMS != 'ios') archiveArtifacts artifacts: 'android/build/reports/profile/**', allowEmptyArchive: true
+        }
       }
       echo 'Release pipeline succeeded.'
     }
