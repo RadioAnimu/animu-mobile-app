@@ -1185,6 +1185,9 @@ pipeline {
             [ "$PRERELEASE" = "true" ] && set -- "$@" --prerelease
 
             if gh release view "$TAG" >/dev/null 2>&1; then
+              # Only one TAG names on purpose (checked above, and again here for
+              # a release made in between).
+              [ "$TAG_GIVEN" = "true" ] || { echo "Release $TAG appeared after the check; not adding to it"; exit 1; }
               echo "Release $TAG exists and TAG names it: adding this run's files"
             else
               gh release create "$TAG" "$@"
