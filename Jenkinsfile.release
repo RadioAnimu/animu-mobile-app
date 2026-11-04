@@ -768,6 +768,7 @@ pipeline {
             ANDROID_HOME = ''
             ANDROID_SDK_ROOT = ''
             GRADLE_USER_HOME = ''
+            JAVA_HOME = ''
             CCACHE_DIR = ''
             CCACHE_CONFIGPATH = ''
             // CocoaPods refuses to run without a UTF-8 locale.

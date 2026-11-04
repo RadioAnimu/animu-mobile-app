@@ -66,8 +66,12 @@ if (!/^\d+\.\d+\.\d+$/.test(bumped.version) || !Number.isSafeInteger(bumped.vers
 
 // The iOS build number may catch up with the versionCode, never fall back:
 // App Store Connect refuses a build number it has seen.
-const buildNumber = Number(expo.ios?.buildNumber ?? 0);
-if (buildNumber > bumped.versionCode) {
+const buildNumber = String(expo.ios?.buildNumber ?? "0");
+if (!/^\d+$/.test(buildNumber)) {
+  console.error(`[bump] refusing to replace a non-integer ios.buildNumber: ${buildNumber}`);
+  process.exit(1);
+}
+if (Number(buildNumber) > bumped.versionCode) {
   console.error(`[bump] refusing to lower ios.buildNumber ${buildNumber} to versionCode ${bumped.versionCode}`);
   process.exit(1);
 }

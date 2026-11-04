@@ -46,6 +46,12 @@ test("an iOS build number ahead of the versionCode is refused, not lowered", () 
   assert.equal(expo.ios.buildNumber, "23");
 });
 
+test("a non-integer iOS build number is refused, not replaced", () => {
+  const { status, expo } = bump({ ...app, ios: { buildNumber: "22.0.1" } });
+  assert.equal(status, 1);
+  assert.equal(expo.ios.buildNumber, "22.0.1");
+});
+
 test("no bump leaves an aligned app.json untouched", () => {
   const { status, expo } = bump(app);
   assert.equal(status, 0);
