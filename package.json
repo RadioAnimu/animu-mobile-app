@@ -10,7 +10,7 @@
     "install:apk": "node scripts/install-apk.mjs",
     "lint": "pnpm run lint:eslint && pnpm run lint:types && pnpm run lint:deps",
     "lint:eslint": "expo lint . -- --max-warnings 0",
-    "lint:types": "oxlint --type-aware --deny-warnings",
+    "lint:types": "oxlint --type-aware --deny-warnings --disable-nested-config",
     "lint:deps": "knip --no-progress && sherif -r root-package-dependencies -p animu-api",
     "typecheck": "tsc --noEmit",
     "check:expo-deps": "expo install --check",
