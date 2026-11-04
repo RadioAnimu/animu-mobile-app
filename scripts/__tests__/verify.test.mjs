@@ -18,10 +18,12 @@ test("`pnpm run lint` runs the linters verify runs", () => {
   assert.deepEqual(scripts.lint.split(" && ").sort(), linters.sort());
 });
 
-test("the two Metro exports never run at once", () => {
-  const metro = STEPS.filter((step) => step.script === "check:bundle-size" || step.command?.includes("scripts/check-web-export.mjs"));
-  assert.equal(metro.length, 2);
-  assert.notEqual(metro[0].stage ?? 0, metro[1].stage ?? 0);
+test("the two Metro exports never run at once: the web one waits for the bundle", () => {
+  const web = STEPS.find((step) => step.command?.includes("scripts/check-web-export.mjs"));
+  const bundle = STEPS.find((step) => step.script === "check:bundle-size");
+  assert.equal(web.after, bundle.label);
+  // It starts last in its stage, so it waits as little as it can.
+  assert.equal(stages(plan([])).flat().at(-1), web);
 });
 
 test("stages run in order; --fast skips the slow steps; an unknown flag is refused", () => {
@@ -60,4 +62,5 @@ test("VERIFY_JOBS sets the count; a verify a step starts gets at most 2", () => 
   assert.equal(stepEnv(6, {}, false).VERIFY_JOBS, "2");
   assert.equal(stepEnv(1, {}, false).VERIFY_JOBS, "1");
   assert.equal(stepEnv(6, {}, false).VERIFY_RUNNING, "1");
+  assert.equal(stepEnv(1, {}, false).VERIFY_RUNNING, undefined);
 });

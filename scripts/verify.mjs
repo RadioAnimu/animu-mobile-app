@@ -5,8 +5,8 @@
  * GitHub CI run this script, so a local run and CI cannot drift apart.
  *
  * Steps of a stage run at once (half the cores at a time, each step's output
- * printed whole when it ends); stages run in order. The two Metro exports are
- * in separate stages: they share Metro's cache.
+ * printed whole when it ends); stages run in order. A step `after` another
+ * waits for it: the two Metro exports share Metro's cache.
  *
  * usage: pnpm verify            every step
  *        pnpm verify --fast     skips the slow ones (secrets, submodules, bundle, doctor, network)
@@ -37,8 +37,8 @@ export const STEPS = [
   { label: "expo deps", script: "check:expo-deps", slow: true },
   { label: "tooling tests", script: "test:tooling" },
   { label: "python tooling tests", command: ["python3", "-m", "unittest", "discover", "-s", "scripts/__tests__", "-p", "*_test.py"] },
-  // After the bundle-size export: the two Metro exports share Metro's cache.
-  { label: "web export", command: ["node", "scripts/check-web-export.mjs"], slow: true, stage: 1 },
+  // Waits for the bundle-size export only: the two Metro exports share Metro's cache.
+  { label: "web export", command: ["node", "scripts/check-web-export.mjs"], slow: true, after: "bundle size" },
 ];
 
 const FLAGS = new Set(["--fast", "--serial"]);
@@ -52,7 +52,8 @@ export function plan(args) {
 /** `steps` grouped by stage, in stage order. */
 export function stages(steps) {
   const byStage = new Map();
-  for (const step of steps) {
+  // A step `after` another starts last, so it waits as little as it can.
+  for (const step of [...steps].sort((a, b) => Number(Boolean(a.after)) - Number(Boolean(b.after)))) {
     const stage = step.stage ?? 0;
     byStage.set(stage, [...(byStage.get(stage) ?? []), step]);
   }
@@ -78,10 +79,21 @@ export function concurrency(args, cores = availableParallelism(), env = process.
 export function stepEnv(limit, env = process.env, tty = process.stdout.isTTY) {
   return {
     ...env,
-    VERIFY_RUNNING: "1",
+    // The test runners take half the cores only beside other steps.
+    ...(limit > 1 ? { VERIFY_RUNNING: "1" } : {}),
     VERIFY_JOBS: String(Math.min(2, limit)),
     ...(tty ? { FORCE_COLOR: "1" } : {}),
   };
+}
+
+/**
+ * The package manager this script runs under, as `pnpm run` named it in
+ * npm_execpath (a JS file runs on this Node), or `pnpm` from PATH.
+ */
+export function runner(env = process.env) {
+  const execPath = env.npm_execpath;
+  if (!execPath) return ["pnpm"];
+  return /\.[cm]?js$/.test(execPath) ? [process.execPath, execPath] : [execPath];
 }
 
 const commandOf = (step) => step.command ?? ["pnpm", "run", "--silent", step.script];
@@ -91,9 +103,19 @@ const running = new Set();
 let stoppedBy = null;
 const SIGNAL_EXIT = { SIGINT: 130, SIGTERM: 143 };
 
-/** Ctrl-C or a pipeline abort: start nothing more, and stop what runs (its whole tree). */
+/** Ctrl-C or a pipeline abort: start nothing more, and stop what runs (its whole tree); a second one kills it. */
 function stop(signal) {
-  if (stoppedBy) return;
+  if (stoppedBy) {
+    // Again: a step that ignores the first signal does not get to hang verify.
+    for (const child of running) {
+      try {
+        process.kill(-child.pid, "SIGKILL");
+      } catch {
+        // Already gone.
+      }
+    }
+    process.exit(SIGNAL_EXIT[stoppedBy]);
+  }
   stoppedBy = signal;
   for (const child of running) {
     try {
@@ -106,7 +128,7 @@ function stop(signal) {
 
 /** Runs one step; its output goes live to the terminal, or is kept to print whole. */
 function run(step, live, env) {
-  const [command, ...args] = commandOf(step);
+  const [command, ...args] = step.command ?? [...runner(), "run", "--silent", step.script];
   const started = Date.now();
   return new Promise((resolve) => {
     const child = spawn(command, args, { stdio: live ? ["ignore", "inherit", "inherit"] : ["ignore", "pipe", "pipe"],
@@ -155,9 +177,16 @@ async function main(args) {
         }, 60_000)
       : null;
   const results = new Map();
+  // Each step's end, for the steps `after` it (resolved at once for a skipped one).
+  const settle = new Map();
+  const done = new Map(STEPS.map((step) => [step.label, new Promise((resolve) => settle.set(step.label, resolve))]));
+  for (const step of STEPS) if (!steps.includes(step)) settle.get(step.label)();
   for (const stage of stages(steps)) {
     if (stoppedBy) break;
     await pool(stage, limit, async (step) => {
+      // Started last in its stage, so what it waits for has usually ended.
+      if (step.after) await done.get(step.after);
+      if (stoppedBy) return;
       const header = `\n▶ ${step.label} (${commandOf(step).join(" ")})`;
       if (live) console.log(header);
       else console.log(`· ${step.label} started`);
@@ -169,6 +198,7 @@ async function main(args) {
         if (github) console.log("::endgroup::");
       }
       results.set(step, result);
+      settle.get(step.label)();
     });
   }
 

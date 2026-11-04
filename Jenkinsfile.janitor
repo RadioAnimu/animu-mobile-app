@@ -74,6 +74,10 @@ pipeline {
           #    used. (The CI containers' store, in the animu-node-cache volume,
           #    is copied from, not linked: pruning it would empty it.)
           ( . scripts/ci-cache.sh && corepack pnpm store prune ) || true
+          # Yarn's cache (the player's jobs and the app's library check) only
+          # grows: a zip no install read in 30 days (an old lockfile's) goes,
+          # and Yarn fetches it again if it is ever needed.
+          find /home/rmotafreitas/.cache/animu-ci/yarn -name '*.zip' -atime +30 -delete 2>/dev/null || true
 
           # 5) The CI containers' images are floating tags (Node 22 for the app
           #    and the API, 24 for the player): Jenkins pulled them once and
