@@ -51,7 +51,7 @@ release job is parameterized:
 | `VERSION` | Marketing version; must equal `app.json` → `expo.version`. |
 | `VERSION_CODE` | Android `versionCode` and iOS build number; must equal both in `app.json`. |
 | `TAG` | Git/release tag, e.g. `v3.0.1`. Blank = `v` + the version. A release goes to a tag of its own: when the tag is taken (an earlier release, or one published by hand), the run fails before building unless `TAG` names that release on purpose. Then this run's files are added to it: its body, title and draft state are kept, and its `RELEASE_NOTES.md` file is replaced. A git tag without a release is always refused. The check runs again before the version is pushed and before the release is created. |
-| `BUMP` / `COMMIT_BUMP` | Change the version before building, and commit `app.json` and the splash art to `main`. The commit is pushed only after the selected builds succeed. A GitHub release that changes the version (`BUMP`, `VERSION` or `VERSION_CODE`) requires `COMMIT_BUMP`. If the release fails after the push, rerun with `BUMP=none`. |
+| `BUMP` / `COMMIT_BUMP` | Change the version before building, and commit `app.json` and the splash art to `main`. The commit is pushed only after the selected builds succeed. A GitHub release that sets `BUMP`, `VERSION` or `VERSION_CODE` requires `COMMIT_BUMP`. If the release fails after the push, rerun with `BUMP=none`, and `TAG=v<version>` if the failed run already created the release; if someone else took the tag, bump again. |
 | `CREATE_GITHUB_RELEASE` | When true, create the GitHub release and upload the artifacts. |
 | `DRAFT` / `PRERELEASE` | Flags for the created GitHub release. |
 | `TRUST_CI` | Skip the pre-release checks when the `Animu/animu-mobile-app` CI job has a passing build for the exact commit. The dependency audit still runs fresh. |
@@ -60,7 +60,8 @@ release job is parameterized:
 ### Pipeline steps
 
 1. Validate parameters and `app.json` (version/versionCode must match); for a
-   GitHub release, check that its tag is free.
+   GitHub release, check that its tag is free, or that `TAG` names an existing
+   release.
 2. Checkout both public submodules at their pinned revisions.
 3. Install dependencies with pnpm — when dependency configuration changes (stamped); verify both library outputs every run.
 4. Regenerate the splash art (`assets/splash_top.png`, `assets/splash_top.webp`)

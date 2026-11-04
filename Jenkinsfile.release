@@ -94,7 +94,7 @@ pipeline {
     string(name: 'VERSION_CODE', defaultValue: '', description: 'Exact Android versionCode (and iOS build number, always the same), e.g. 16. Overrides whatever BUMP would produce. Blank = use app.json (or BUMP).')
     string(name: 'TAG', defaultValue: '', description: 'Release/git tag, e.g. v3.0.1. Blank = "v" + the resolved VERSION, which must not have a release or tag yet. Set it to an existing release\'s tag only to add this run\'s files to that release.')
     choice(name: 'BUMP', choices: ['none', 'versionCode', 'patch', 'minor', 'major'], description: 'Change the version before building. none = build app.json exactly as-is (no version change). versionCode = versionCode (and iOS build number) +1, version unchanged. patch = x.y.Z+1 and versionCode +1. minor = x.Y+1.0 and versionCode +1. major = X+1.0.0 and versionCode +1. (VERSION/VERSION_CODE, if set, override the result.)')
-    booleanParam(name: 'COMMIT_BUMP', defaultValue: false, description: 'Commit the changed app.json (and splash art) to main so the version is not lost; pushed only after the builds succeed. Required for a GitHub release that changes the version (BUMP, VERSION or VERSION_CODE).')
+    booleanParam(name: 'COMMIT_BUMP', defaultValue: false, description: 'Commit the changed app.json (and splash art) to main so the version is not lost; pushed only after the builds succeed. Required for a GitHub release that sets BUMP, VERSION or VERSION_CODE.')
     booleanParam(name: 'CREATE_GITHUB_RELEASE', defaultValue: false, description: 'Create the GitHub release for TAG and upload the .aab/.apk/.ipa + checksums. Off = only build and archive the artifacts, no release.')
     booleanParam(name: 'DRAFT', defaultValue: true, description: 'Create the GitHub release as a draft (not public until you publish it). Only used when CREATE_GITHUB_RELEASE is on.')
     booleanParam(name: 'PRERELEASE', defaultValue: false, description: 'Mark the GitHub release as a pre-release. Only used when CREATE_GITHUB_RELEASE is on.')
@@ -178,7 +178,7 @@ pipeline {
           # VERSION and VERSION_CODE all change app.json.
           if [ "${CREATE_GITHUB_RELEASE:-false}" = "true" ] && [ "${COMMIT_BUMP:-false}" != "true" ] \
             && { [ "${BUMP:-none}" != "none" ] || [ -n "${VERSION:-}" ] || [ -n "${VERSION_CODE:-}" ]; }; then
-            echo "A release that changes the version (BUMP, VERSION or VERSION_CODE) needs COMMIT_BUMP, so main records the version it ships"
+            echo "A release that sets BUMP, VERSION or VERSION_CODE needs COMMIT_BUMP, so main records the version it ships"
             exit 1
           fi
         '''
