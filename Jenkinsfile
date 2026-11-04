@@ -98,7 +98,8 @@ pipeline {
               stand_ins="$stand_ins src/assets/fonts/$font"
             fi
           done
-          pnpm run build:web
+          # Removed on failure too: a stand-in left behind would count as present.
+          pnpm run build:web || { rm -f $stand_ins; exit 1; }
           rm -f $stand_ins
 
           # React Doctor gate (any finding fails the build).
