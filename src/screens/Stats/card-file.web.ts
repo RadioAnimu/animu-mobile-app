@@ -42,5 +42,6 @@ export async function saveCard(uri: string): Promise<boolean> {
   return true;
 }
 
-/** Nothing to clean up: the data URI lives in memory. */
-export function discardCard(_uri: string): void {}
+export function discardCard(_uri: string): void {
+  // Nothing to clean up: the data URI lives in memory.
+}

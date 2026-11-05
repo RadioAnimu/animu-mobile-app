@@ -53,41 +53,14 @@ pipeline {
           # Immutable installs reconcile dependencies while preserving reusable files.
           pnpm install --frozen-lockfile
 
-          pnpm run test:tooling
-          python3 -m unittest discover -s scripts/__tests__ -p '*_test.py'
-          pnpm run typecheck
-          # Expo-managed packages must match the installed SDK (deliberate
-          # exceptions live in expo.install.exclude).
-          pnpm run check:expo-deps
-          # App config schema, duplicate native modules, SDK compatibility.
-          pnpm run check:expo-doctor
-          # Known-vulnerability gate on the resolved dependency tree.
-          pnpm run check:secrets
-          pnpm run check:audit
-          # `pnpm run lint`, split so the failing one is obvious: ESLint,
-          # oxlint's type-aware rules (tsgolint), then knip and sherif.
-          pnpm run lint:eslint
-          pnpm run lint:types
-          pnpm run lint:deps
-          pnpm test:coverage
-          # The API client is a git submodule compiled into the app.
-          pnpm run check:animu-api
-          # So is the audio player (its own Yarn install, removed afterwards).
-          pnpm run check:player
+          # Every check (scripts/verify.mjs, what `pnpm verify` runs locally):
+          # tooling tests, typecheck, Expo deps and doctor, secrets, audit,
+          # ESLint, oxlint, knip + sherif, tests with coverage, both libraries,
+          # the Android bundle and its size budget, the web export and React
+          # Doctor. Independent steps run side by side, and every step runs
+          # even after one fails, so one build shows all that is broken.
+          pnpm verify
 
-          # Bundles the app so broken asset paths and unresolvable imports fail
-          # CI (TypeScript cannot catch these).
-          pnpm exec expo export:embed --platform android --entry-file index.js \
-            --bundle-output /tmp/index.android.bundle \
-            --assets-dest /tmp/animu-assets --dev false
-
-          # Size budget (measured 3.37 MB JS / 1.71 MB assets, ~10% headroom;
-          # see scripts/check-bundle-size.mjs for what the JS budget covers).
-          node scripts/check-bundle-size.mjs /tmp/index.android.bundle 3900000 \
-            /tmp/animu-assets 2000000
-
-          # React Doctor gate (any finding fails the build).
-          pnpm run doctor:gate
           node scripts/ci-results.mjs publish RadioAnimu/animu-mobile-app
           '''
         }

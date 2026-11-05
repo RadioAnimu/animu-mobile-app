@@ -30,7 +30,7 @@ export interface LyricGeometry {
  * constants (every phone in portrait) is untouched.
  */
 export function lyricGeometry(height: number, anchor: number, fade: number): LyricGeometry {
-  if (!(height > 0)) return { anchor, fade };
+  if (Number.isNaN(height) || height <= 0) return { anchor, fade };
   return {
     anchor: Math.min(anchor, height * ANCHOR_MAX_RATIO),
     fade: Math.min(fade, height * EDGE_FADE_MAX_RATIO),

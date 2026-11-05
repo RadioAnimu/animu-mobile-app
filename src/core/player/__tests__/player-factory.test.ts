@@ -105,7 +105,9 @@ describe("player factory", () => {
       catalogSeed: (catalog: unknown) => { items: unknown[] };
     };
     expect(catalogSeed(bundled).items).toHaveLength(1);
-  });
+    // The file's first test imports the player module cold: ~0.3 s alone, past
+    // the 5 s default once on a busy host alongside the rest of the suite.
+  }, 15_000);
 
   it("creates the Airwave player with the app's options", async () => {
     const { createPlayerService } = await load();

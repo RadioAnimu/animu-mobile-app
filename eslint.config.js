@@ -60,7 +60,9 @@ const SONARJS_DISABLED = new Set([
 ]);
 
 module.exports = defineConfig([
-  { ignores: ["packages/**", "dist/**"] },
+  // Outputs: coverage/ is cleared and rewritten by the tests verify runs at
+  // the same time, which a walk into it would trip over.
+  { ignores: ["packages/**", "dist/**", "coverage/**", "test-results/**", "playwright-report/**"] },
   expoConfig,
   // eslint-config-expo asks eslint-plugin-react to detect the React version,
   // which calls context.getFilename(), removed in ESLint 10. Keep in step with

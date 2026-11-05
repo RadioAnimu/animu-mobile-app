@@ -10,6 +10,9 @@
  *   2. --bump increments the value already in app.json.
  *   3. Otherwise app.json is left as-is.
  *
+ * The iOS build number (ios.buildNumber) is the versionCode too, so one
+ * number names both platforms' builds and only ever grows.
+ *
  * Prints the resulting { version, versionCode } as a single JSON line (so the
  * pipeline can read it back), and lists changed files on stderr. Writes
  * app.json in place only when something actually changes.
@@ -61,16 +64,30 @@ if (!/^\d+\.\d+\.\d+$/.test(bumped.version) || !Number.isSafeInteger(bumped.vers
   process.exit(1);
 }
 
+// The iOS build number may catch up with the versionCode, never fall back:
+// App Store Connect refuses a build number it has seen.
+const buildNumber = String(expo.ios?.buildNumber ?? "0");
+if (!/^\d+$/.test(buildNumber)) {
+  console.error(`[bump] refusing to replace a non-integer ios.buildNumber: ${buildNumber}`);
+  process.exit(1);
+}
+if (Number(buildNumber) > bumped.versionCode) {
+  console.error(`[bump] refusing to lower ios.buildNumber ${buildNumber} to versionCode ${bumped.versionCode}`);
+  process.exit(1);
+}
+
 // Write back only when something changed.
-const before = JSON.stringify({ v: expo.version, c: expo.android?.versionCode });
-const after = JSON.stringify({ v: bumped.version, c: bumped.versionCode });
+const before = JSON.stringify({ v: expo.version, c: expo.android?.versionCode, b: expo.ios?.buildNumber });
+const after = JSON.stringify({ v: bumped.version, c: bumped.versionCode, b: String(bumped.versionCode) });
 if (before !== after) {
   expo.version = bumped.version;
   expo.android = expo.android ?? {};
   expo.android.versionCode = bumped.versionCode;
+  expo.ios = expo.ios ?? {};
+  expo.ios.buildNumber = String(bumped.versionCode);
   appJson.expo = expo;
   fs.writeFileSync(appJsonPath, JSON.stringify(appJson, null, 2) + "\n");
-  console.error(`[bump] app.json: version ${expo.version}, versionCode ${bumped.versionCode}`);
+  console.error(`[bump] app.json: version ${expo.version}, versionCode and iOS buildNumber ${bumped.versionCode}`);
 } else {
   console.error("[bump] no change");
 }

@@ -38,7 +38,12 @@ export function scratchBase(tmp = os.tmpdir()) {
 // Build/test from the actual worktree, including local edits, with an isolated
 // toolchain. Never delete a developer's node_modules or expose a second React
 // Native installation to the application's Metro/autolinker.
-export function isolated(name, action) {
+/**
+ * Runs `action` in a throwaway copy of the library with its own install.
+ * `scripts: false` installs without build scripts, for a check (the audit)
+ * that only reads the dependency tree.
+ */
+export function isolated(name, action, { scripts = true } = {}) {
   const source = path.join(root, "packages", name);
   const temp = fs.mkdtempSync(path.join(scratchBase(), `${name}-`));
   try {
@@ -54,7 +59,9 @@ export function isolated(name, action) {
       else fs.copyFileSync(path.join(source, file), path.join(temp, file));
     }
     const manager = name === "animu-api" ? "pnpm" : "yarn";
-    run("corepack", [manager, "install", manager === "pnpm" ? "--frozen-lockfile" : "--immutable"], temp);
+    const frozen = manager === "pnpm" ? "--frozen-lockfile" : "--immutable";
+    const noScripts = scripts ? [] : [manager === "pnpm" ? "--ignore-scripts" : "--mode=skip-build"];
+    run("corepack", [manager, "install", frozen, ...noScripts], temp);
     action(temp, (script, ...args) => run("corepack", [manager, "run", script, ...args], temp));
   } finally {
     fs.rmSync(temp, { recursive: true, force: true });
