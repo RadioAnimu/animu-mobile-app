@@ -5,7 +5,7 @@ import {
   CURRENT_STREAM_KEY,
   StreamPreferences,
 } from "@/core/player/stream-playback/stream-preferences";
-import type { Stream } from "@/core/domain/stream";
+import { AUTO_QUALITY, type Stream } from "@/core/domain/stream";
 
 const memory = new Map<string, string>();
 let writeShouldThrow = false;
@@ -32,7 +32,9 @@ const OPTIONS: Stream[] = [stream("320"), stream("192")];
 const store = (value: Stream) => memory.set(CURRENT_STREAM_KEY, JSON.stringify(value));
 const storedId = () => {
   const raw = memory.get(CURRENT_STREAM_KEY);
-  return raw ? (JSON.parse(raw) as Stream).id : undefined;
+  if (!raw) return undefined;
+  const value = JSON.parse(raw) as Stream | typeof AUTO_QUALITY;
+  return value === AUTO_QUALITY ? AUTO_QUALITY : value.id;
 };
 
 beforeEach(() => {
@@ -62,12 +64,33 @@ describe("StreamPreferences.load", () => {
     expect(storedId()).toBe("320");
   });
 
-  it("picks and persists the first option on first launch", async () => {
+  it("picks and persists automatic quality on first launch, opening at the first option", async () => {
     const prefs = new StreamPreferences();
 
     await prefs.load(OPTIONS);
 
+    expect(prefs.auto).toBe(true);
     expect(prefs.current.id).toBe("320");
+    expect(storedId()).toBe(AUTO_QUALITY);
+  });
+
+  it("adopts stored automatic quality", async () => {
+    memory.set(CURRENT_STREAM_KEY, JSON.stringify(AUTO_QUALITY));
+    const prefs = new StreamPreferences();
+
+    await prefs.load(OPTIONS);
+
+    expect(prefs.auto).toBe(true);
+    expect(prefs.current.id).toBe("320");
+  });
+
+  it("keeps a stored pick: an existing install is not moved to automatic quality", async () => {
+    store(stream("320"));
+    const prefs = new StreamPreferences();
+
+    await prefs.load(OPTIONS);
+
+    expect(prefs.auto).toBe(false);
     expect(storedId()).toBe("320");
   });
 
@@ -83,6 +106,16 @@ describe("StreamPreferences.load", () => {
     expect(storedId()).toBe("192");
   });
 
+  it("keeps stored automatic quality when the API list is empty (offline launch)", async () => {
+    memory.set(CURRENT_STREAM_KEY, JSON.stringify(AUTO_QUALITY));
+    const prefs = new StreamPreferences();
+
+    await prefs.load([]);
+
+    expect(prefs.auto).toBe(true);
+    expect(prefs.current.id).toBe(CONFIG.DEFAULT_STREAM_OPTION.id);
+  });
+
   it("treats corrupt stored JSON as no preference", async () => {
     memory.set(CURRENT_STREAM_KEY, "{not json");
     const prefs = new StreamPreferences();
@@ -90,6 +123,7 @@ describe("StreamPreferences.load", () => {
     await prefs.load(OPTIONS);
 
     expect(prefs.current.id).toBe("320");
+    expect(prefs.auto).toBe(true);
   });
 });
 
@@ -126,6 +160,17 @@ describe("StreamPreferences.restore", () => {
     expect(storedId()).toBeUndefined();
   });
 
+  it("keeps automatic quality when nothing is stored (a failed write)", async () => {
+    const prefs = new StreamPreferences();
+    await prefs.setAuto(OPTIONS);
+    memory.clear();
+
+    await prefs.restore(OPTIONS);
+
+    expect(prefs.auto).toBe(true);
+    expect(storedId()).toBe(AUTO_QUALITY);
+  });
+
   it("keeps the current value when there is nothing to choose from", async () => {
     const prefs = new StreamPreferences();
 
@@ -143,6 +188,19 @@ describe("StreamPreferences.set / reset", () => {
 
     expect(prefs.current.id).toBe("64");
     expect(storedId()).toBe("64");
+  });
+
+  it("persists automatic quality, and a pick leaves it", async () => {
+    const prefs = new StreamPreferences();
+
+    await prefs.setAuto(OPTIONS);
+    expect(prefs.auto).toBe(true);
+    expect(prefs.current.id).toBe("320");
+    expect(storedId()).toBe(AUTO_QUALITY);
+
+    await prefs.set(stream("192"));
+    expect(prefs.auto).toBe(false);
+    expect(storedId()).toBe("192");
   });
 
   it("resets to the hardcoded default in memory only", async () => {

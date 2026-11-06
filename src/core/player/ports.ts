@@ -18,6 +18,7 @@ export type AudioPlayer = Pick<
   | "getProgress"
   | "updateNowPlaying"
   | "setAudioSampling"
+  | "sleep"
   | "release"
 >;
 

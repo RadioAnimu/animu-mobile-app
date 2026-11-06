@@ -1,6 +1,6 @@
 import type { HistoryType } from "animu-api";
 import type { MediaMetadata, PlaybackState, PlayerStatus } from "react-native-anything-player";
-import type { Stream } from "@/core/domain/stream";
+import { AUTO_QUALITY, type Stream } from "@/core/domain/stream";
 import { isRealTrack, type Track } from "@/core/domain/track";
 import { userSettingsService } from "@/core/services/user-settings.service";
 import type { listenStatsService } from "@/core/services/listen-stats.service";
@@ -21,6 +21,7 @@ import {
   progressStore,
   stationStore,
   type PlayerSnapshot,
+  type SleepChoice,
   type StationSnapshot,
   type TransportState,
 } from "@/core/player/store";
@@ -30,6 +31,12 @@ import { prefetchArtwork } from "@/core/player/artwork-prefetch";
 /** API data refresh cadence while audio is wanted / paused (foreground). */
 const POLL_PLAYING_MS = 5_000;
 const POLL_PAUSED_MS = 30_000;
+
+/** The sleep timer fades the audio out over its last seconds (at most). */
+const SLEEP_FADE_OUT_S = 10;
+
+/** The listener's quality: a stream, or RNAP's automatic quality. */
+export type QualityChoice = Stream | typeof AUTO_QUALITY;
 
 /** Runs `tick` about once a second while started (foreground UI only). */
 export interface Ticker {
@@ -58,7 +65,7 @@ export interface PlayerServiceDependencies {
   /** A live song's length from the lyrics database (ms), or `null`. Display only. May reject. */
   estimateDuration?: (track: Track) => Promise<number | null>;
   /** Stores the station for voice requests and car picks (`setCatalog`). May reject. */
-  publishCatalog?: (streams: Stream[], current: Stream) => Promise<void>;
+  publishCatalog?: (streams: Stream[], current: Stream, quality: string) => Promise<void>;
 }
 
 /** The heard song's position, read on demand (the lyrics clock samples it). */
@@ -100,12 +107,21 @@ export class PlayerService {
   private appActive = true;
   /** A `play()` that has not reached the player yet counts as play intent. */
   private pendingPlay = false;
-  /** The stream the player has loaded (id), or null before the first play. */
-  private loadedStreamId: string | null = null;
+  /**
+   * The quality the player has loaded: a stream id, or `'auto'`; null before
+   * the first play.
+   */
+  private loadedQuality: string | null = null;
   /** The streams loaded as renditions: a switch among them has no gap. */
   private loadedRenditionIds: string[] = [];
   /** The rendition playing (`status.quality`). */
   private playingQuality: string | null = null;
+  /** What the running sleep timer was set to (the UI names it). */
+  private sleepChoice: SleepChoice | null = null;
+  /** A `setSleepTimer` is in flight: statuses until it lands keep its name. */
+  private sleepPending = false;
+  /** The last `sleepAtTrackEnd` emitted: it turns false as a song runs past its length. */
+  private sleepAtTrackEnd = false;
   /** The next audible ICY title follows a (re)open: it is already partway. */
   private tuneIn = true;
   /**
@@ -129,7 +145,7 @@ export class PlayerService {
     this.durationEstimate = new LiveDurationEstimate(deps.estimateDuration);
     this.durationEstimate.onChange = () => {
       this.emitProgress();
-      if (this.loadedStreamId != null) this.pushNowPlaying();
+      if (this.loadedQuality != null) this.pushNowPlaying();
     };
     this.unsubscribe.push(
       player.on("status", (status) => this.handleStatus(status)),
@@ -141,6 +157,7 @@ export class PlayerService {
       // frozen (Android background) — the audible clock, stats, watchdogs.
       player.on("progress", (reading) => {
         hearing.progress(reading);
+        this.syncSleepAtTrackEnd();
         this.tickStats();
         repository.expireStuckRefresh();
         repository.tickLive();
@@ -149,7 +166,7 @@ export class PlayerService {
       // app for it): the one command Airwave cannot answer natively.
       player.on("remoteCommand", ({ command }) => {
         if (command !== "play" && command !== "togglePlayPause") return;
-        if (this.loadedStreamId != null) return;
+        if (this.loadedQuality != null) return;
         void this.setupPlayer()
           .then(() => this.play())
           .catch((error: unknown) => console.warn("[PlayerService] remote play:", error));
@@ -171,7 +188,7 @@ export class PlayerService {
     // A cover that landed after its resolve gave up: publish it now.
     deps.artwork.onLateResolve = (url) => {
       if (this.disposed || this.deps.hearing.track?.artwork !== url) return;
-      if (this.loadedStreamId != null) this.pushNowPlaying();
+      if (this.loadedQuality != null) this.pushNowPlaying();
       this.emitPlayer();
     };
     repository.onChange = (change) => {
@@ -197,7 +214,7 @@ export class PlayerService {
         this.emitPlayer();
         this.emitProgress();
         // The lock screen's live badge and seek bar follow the program too.
-        if (this.loadedStreamId != null) this.pushNowPlaying();
+        if (this.loadedQuality != null) this.pushNowPlaying();
       }
       if (change.listenersChanged || change.playedChanged || change.requestedChanged) {
         this.emitStation();
@@ -431,21 +448,22 @@ export class PlayerService {
       (option) => option.id === (status.quality ?? status.selectedQuality),
     );
     if (!stream) return;
-    this.loadedStreamId = stream.id;
+    // What the player holds: the catalog's pick, or automatic quality.
+    const held = status.selectedQuality ?? AUTO_QUALITY;
+    this.loadedQuality = held;
     this.loadedRenditionIds = status.qualities
       .map((quality) => quality.id)
       .filter((id) => this.streamOptions.some((option) => option.id === id));
     this.deps.heard.useStream(stream.id, stream.bitrate);
     this.pushNowPlaying();
     this.emitPlayer();
-    // Not the listener's pick: back to it, without a gap.
-    const pick = this.deps.streamPreferences.current;
-    if (pick.id !== stream.id && this.loadedRenditionIds.includes(pick.id)) void this.retune(pick);
+    // Not the listener's choice: back to it, without a gap.
+    if (held !== this.qualityChoice && this.canSelect(this.qualityChoice)) void this.retune();
   }
 
   private publishCatalog(): void {
     void this.deps
-      .publishCatalog?.(this.streamOptions, this.deps.streamPreferences.current)
+      .publishCatalog?.(this.streamOptions, this.deps.streamPreferences.current, this.qualityChoice)
       .catch((error: unknown) => console.warn("[PlayerService] catalog:", error));
   }
 
@@ -506,7 +524,7 @@ export class PlayerService {
       // Paused or torn down while the preference was read.
       if (this.isDisposed() || !this.isPlayingIntent) return;
       const stream = this.deps.streamPreferences.current;
-      if (this.loadedStreamId !== stream.id) {
+      if (this.loadedQuality !== this.qualityChoice) {
         await this.open(stream, true);
       } else if (wasStation) {
         // The display gave up the heard position (a long pause). Airwave
@@ -532,6 +550,62 @@ export class PlayerService {
     }
   }
 
+  /**
+   * Pauses after `choice` (minutes, or the end of the song heard), fading out
+   * first; `null` cancels. RNAP runs it natively, so it fires with JS frozen.
+   * Resolves `false` when the song's end cannot be told (see
+   * {@link trackLeftSeconds}).
+   */
+  async setSleepTimer(choice: SleepChoice | null): Promise<boolean> {
+    if (this.disposed) return false;
+    let timer: { after: number; fadeOut: number } | null = null;
+    if (choice != null) {
+      const after = choice === "track" ? this.trackLeftSeconds() : choice * 60;
+      if (after == null) {
+        // Refused: the song's end goes from the options with the refusal.
+        this.syncSleepAtTrackEnd();
+        return false;
+      }
+      timer = { after, fadeOut: Math.min(SLEEP_FADE_OUT_S, after) };
+    }
+    // A new timer is named first: RNAP's status (its `sleepAt`) can come
+    // before the promise. A cancel keeps the name until RNAP drops the timer
+    // (a status meanwhile still has it). A refused timer gets the old name back.
+    const previous = this.sleepChoice;
+    if (choice != null) this.sleepChoice = choice;
+    this.sleepPending = true;
+    try {
+      await this.deps.player.sleep(timer);
+      this.sleepChoice = choice;
+    } catch (error) {
+      this.sleepChoice = previous;
+      throw error;
+    } finally {
+      this.sleepPending = false;
+      this.emitPlayer();
+    }
+    return true;
+  }
+
+  /** The song's end can stop being offered with no event: past its length, it is unknown. */
+  private syncSleepAtTrackEnd(): void {
+    if ((this.trackLeftSeconds() != null) !== this.sleepAtTrackEnd) this.emitPlayer();
+  }
+
+  /**
+   * Seconds until the song heard ends, `null` unless audio plays (a paused
+   * player's timer only ends), the song is placed and the station gives its
+   * length: the lyrics' estimate is display-only, and this pauses the audio.
+   */
+  private trackLeftSeconds(): number | null {
+    const duration = this.deps.hearing.track?.duration ?? 0;
+    if (this.lastState !== "playing" || !(duration > 0) || !this.deps.hearing.positionKnown) return null;
+    const elapsed = this.heardElapsedMs();
+    if (elapsed == null) return null;
+    const left = (duration - elapsed) / 1000;
+    return left > 0 ? left : null;
+  }
+
   async pause(): Promise<void> {
     this.pendingPlay = false;
     if (this.disposed) return;
@@ -542,35 +616,60 @@ export class PlayerService {
     this.emitPlayer();
   }
 
-  async changeStream(stream: Stream): Promise<void> {
-    if (this.deps.streamPreferences.current.id === stream.id) return;
-    await this.deps.streamPreferences.set(stream);
+  /** A stream the listener picked, or automatic quality. */
+  async changeStream(choice: QualityChoice): Promise<void> {
+    const preferences = this.deps.streamPreferences;
+    const id = choice === AUTO_QUALITY ? AUTO_QUALITY : choice.id;
+    if (this.qualityChoice === id) return;
+    if (choice === AUTO_QUALITY) await preferences.setAuto(this.streamOptions);
+    else await preferences.set(choice);
     this.publishCatalog();
     // Re-tune only a loaded player; otherwise the next play() opens it.
-    if (this.loadedStreamId != null) await this.retune(stream);
+    if (this.loadedQuality != null) await this.retune();
     this.emitPlayer();
   }
 
+  /** The listener's quality as RNAP names it: a stream id, or `'auto'`. */
+  private get qualityChoice(): string {
+    const preferences = this.deps.streamPreferences;
+    return preferences.auto ? AUTO_QUALITY : preferences.current.id;
+  }
+
+  /** Whether the loaded source can switch to `quality` without re-opening. */
+  private canSelect(quality: string): boolean {
+    return quality === AUTO_QUALITY
+      ? this.loadedRenditionIds.length > 0
+      : this.loadedRenditionIds.includes(quality);
+  }
+
   /**
-   * Switches a loaded player to `stream`: among the loaded renditions behind
-   * what is heard (the status reports when it lands), else by re-opening.
+   * Switches a loaded player to the listener's quality: among the loaded
+   * renditions behind what is heard (the status reports when it lands), else
+   * by re-opening.
    */
-  private async retune(stream: Stream): Promise<void> {
-    if (this.loadedRenditionIds.includes(stream.id)) {
-      this.loadedStreamId = stream.id;
+  private async retune(): Promise<void> {
+    const quality = this.qualityChoice;
+    if (this.canSelect(quality)) {
+      this.loadedQuality = quality;
       try {
-        await this.deps.player.selectQuality(stream.id);
+        await this.deps.player.selectQuality(quality);
         return;
       } catch (error) {
         console.warn("[PlayerService] selectQuality:", error);
       }
     }
-    await this.open(stream, this.isPlayingIntent);
+    await this.open(this.deps.streamPreferences.current, this.isPlayingIntent);
   }
 
-  /** Opens `stream` (a different relay buffers differently: re-lock the position). */
+  /**
+   * Opens `stream` at the listener's quality (a different relay buffers
+   * differently: re-lock the position).
+   */
   private async open(stream: Stream, autoplay: boolean): Promise<void> {
-    this.loadedStreamId = stream.id;
+    const quality = this.qualityChoice;
+    this.loadedQuality = quality;
+    // The status names the rendition the load opens (automatic quality picks its own).
+    this.playingQuality = null;
     this.tuneIn = true;
     this.deps.heard.useStream(stream.id, stream.bitrate);
     this.deps.heard.reopened();
@@ -580,7 +679,7 @@ export class PlayerService {
     try {
       await this.deps.player.load(
         { ...source, metadata: this.getNowPlayingMetadata() },
-        { autoplay, ...(source.renditions && { quality: stream.id }) },
+        { autoplay, ...(source.renditions && { quality }) },
       );
     } catch (error) {
       // Recoverable failures keep reconnecting natively; the status tells the UI.
@@ -608,6 +707,8 @@ export class PlayerService {
   private handleStatus(status: PlayerStatus): void {
     const previous = this.lastState;
     this.lastState = status.state;
+    // A timer that fired (or was cancelled natively) has no name left.
+    if (status.sleepAt == null && !this.sleepPending) this.sleepChoice = null;
     const playing = status.state === "playing";
     if (playing !== (previous === "playing")) {
       if (playing) this.deps.stats.onPlaybackStarted();
@@ -717,7 +818,7 @@ export class PlayerService {
 
   /** Lock screen: fields and progress, the cover once cached locally (a low-res one first). */
   private updateNowPlaying(): void {
-    if (this.loadedStreamId == null) return;
+    if (this.loadedQuality == null) return;
     this.pushNowPlaying();
     const track = this.deps.hearing.track;
     const url = track?.artwork;
@@ -784,6 +885,7 @@ export class PlayerService {
     this.deps.hearing.recheck();
     this.tickStats();
     this.emitProgress();
+    this.syncSleepAtTrackEnd();
     this.deps.repository.expireStuckRefresh();
     const cadence = this.isPlayingIntent ? POLL_PLAYING_MS : POLL_PAUSED_MS;
     // Never poll over a pending retry: it would defeat the 2 s → 30 s backoff.
@@ -809,17 +911,24 @@ export class PlayerService {
 
   private emitPlayer(): void {
     if (this.disposed || !this.appActive) return;
+    const { status } = this.deps.player;
     const next: PlayerSnapshot = {
       currentTrack: this.deps.artwork.apply(this.deps.hearing.track) ?? undefined,
       currentProgram: this.deps.repository.currentProgram ?? undefined,
       currentStream: this.deps.streamPreferences.current,
+      autoQuality: this.deps.streamPreferences.auto,
+      playingStream: this.streamOptions.find((option) => option.id === status.quality),
       streamOptions: this.streamOptions,
       isPlaying: this.isPlayingIntent,
-      playbackState: this.pendingPlay ? "connecting" : TRANSPORT[this.deps.player.status.state],
+      playbackState: this.pendingPlay ? "connecting" : TRANSPORT[status.state],
       isInitialized: this.initialized,
       // Audio wanted, no title heard since the source opened: "calculating".
       syncing: this.isPlayingIntent && !this.deps.hearing.anchored,
+      sleepAt: status.sleepAt,
+      sleepChoice: status.sleepAt == null ? null : this.sleepChoice,
+      sleepAtTrackEnd: this.trackLeftSeconds() != null,
     };
+    this.sleepAtTrackEnd = next.sleepAtTrackEnd ?? false;
     playerStore.setSnapshot(next);
   }
 

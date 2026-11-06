@@ -45,6 +45,12 @@ export class FakePlayer {
     return this.status;
   });
   selectQuality = vi.fn(async (_id: string) => {});
+  /** RNAP's sleep timer: `status.sleepAt` follows it; {@link fireSleep} runs it out. */
+  sleep = vi.fn(async (timer: { after: number; fadeOut?: number } | null) => {
+    this.status = { ...this.status, sleepAt: timer ? Date.now() + timer.after * 1000 : null };
+    this.emit("status", this.status);
+    return this.status;
+  });
   updateNowPlaying = vi.fn(async (_m: AirwaveNowPlaying) => {});
   setAudioSampling = vi.fn(() => true);
   release = vi.fn(async () => {});
@@ -75,6 +81,13 @@ export class FakePlayer {
   setQuality(quality: string | null): void {
     this.status = { ...this.status, quality };
     this.emit("status", this.status);
+  }
+
+  /** The sleep timer ran out: RNAP pauses, then reports it. */
+  fireSleep(): void {
+    this.status = { ...this.status, state: "paused", playWhenReady: false, sleepAt: null };
+    this.emit("status", this.status);
+    this.emit("sleep", { reason: "fired", timestamp: Date.now() });
   }
 
   /** An ICY title becomes audible. */

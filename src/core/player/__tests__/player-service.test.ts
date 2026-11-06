@@ -90,10 +90,16 @@ const setup = (extra: Partial<PlayerServiceDependencies> = {}) => {
   };
   const preferences = {
     current: STREAMS[0],
+    auto: false,
     load: vi.fn(async () => {}),
     restore: vi.fn(async () => {}),
     set: vi.fn(async (s: Stream) => {
       preferences.current = s;
+      preferences.auto = false;
+    }),
+    setAuto: vi.fn(async (options: Stream[]) => {
+      preferences.auto = true;
+      if (options[0]) preferences.current = options[0];
     }),
     reset: vi.fn(),
   };
@@ -724,10 +730,80 @@ describe("PlayerService on react-native-anything-player", () => {
     expect(publishCatalog).toHaveBeenLastCalledWith(
       [expect.objectContaining({ id: "high" }), expect.objectContaining({ id: "low" })],
       STREAMS[0],
+      "high",
     );
     await t.service.changeStream(STREAMS[1]);
-    expect(publishCatalog).toHaveBeenLastCalledWith(expect.any(Array), STREAMS[1]);
-    expect(publishCatalog).toHaveBeenCalledTimes(2);
+    expect(publishCatalog).toHaveBeenLastCalledWith(expect.any(Array), STREAMS[1], "low");
+    await t.service.changeStream("auto");
+    expect(publishCatalog).toHaveBeenLastCalledWith(expect.any(Array), STREAMS[0], "auto");
+    expect(publishCatalog).toHaveBeenCalledTimes(3);
+  });
+
+  it("automatic quality: loads with it, switches to and from it without a gap", async () => {
+    const t = setup();
+    t.preferences.auto = true;
+    await t.service.setupPlayer();
+    expect(playerStore.getSnapshot().autoQuality).toBe(true);
+    await t.service.play();
+    expect(t.player.load).toHaveBeenLastCalledWith(
+      expect.objectContaining({ renditions: expect.any(Array) as unknown }),
+      { autoplay: true, quality: "auto" },
+    );
+    t.player.setState("playing", true);
+    // RNAP stepped down: the store names the stream heard.
+    t.player.setQuality("low");
+    expect(playerStore.getSnapshot().playingStream?.id).toBe("low");
+    await t.service.changeStream(STREAMS[0]);
+    expect(t.player.selectQuality).toHaveBeenLastCalledWith("high");
+    expect(playerStore.getSnapshot()).toMatchObject({ autoQuality: false, currentStream: STREAMS[0] });
+    // Until the switch lands, the stream heard is still the old one.
+    expect(playerStore.getSnapshot().playingStream?.id).toBe("low");
+    await t.service.changeStream("auto");
+    expect(t.player.selectQuality).toHaveBeenLastCalledWith("auto");
+    expect(t.player.load).toHaveBeenCalledTimes(1);
+    // Already automatic: nothing to do.
+    await t.service.changeStream("auto");
+    expect(t.player.selectQuality).toHaveBeenCalledTimes(2);
+  });
+
+  it("a voice request's pick becomes automatic again when the listener chose it", async () => {
+    const t = setup();
+    t.preferences.auto = true;
+    t.player.status = {
+      ...t.player.status,
+      state: "playing",
+      playWhenReady: true,
+      quality: "low",
+      selectedQuality: "low",
+      qualities: [
+        { id: "high", height: null, bitrate: 192_000, label: null, audioOnly: true },
+        { id: "low", height: null, bitrate: 64_000, label: null, audioOnly: true },
+      ],
+    };
+    await t.service.setupPlayer();
+    expect(t.player.selectQuality).toHaveBeenLastCalledWith("auto");
+    expect(t.player.load).not.toHaveBeenCalled();
+    await t.service.play();
+    expect(t.player.load).not.toHaveBeenCalled();
+  });
+
+  it("a car pick at automatic quality moves to the listener's pick", async () => {
+    const t = setup();
+    t.player.status = {
+      ...t.player.status,
+      state: "playing",
+      playWhenReady: true,
+      quality: "high",
+      selectedQuality: null,
+      qualities: [
+        { id: "high", height: null, bitrate: 192_000, label: null, audioOnly: true },
+        { id: "low", height: null, bitrate: 64_000, label: null, audioOnly: true },
+      ],
+    };
+    t.preferences.current = STREAMS[1];
+    await t.service.setupPlayer();
+    expect(t.player.selectQuality).toHaveBeenLastCalledWith("low");
+    expect(t.player.load).not.toHaveBeenCalled();
   });
 
   it("follows a player a voice request started before the app (no re-open)", async () => {
@@ -811,6 +887,139 @@ describe("PlayerService on react-native-anything-player", () => {
       expect.objectContaining({ uri: "https://stream.example/192" }),
       { autoplay: true, quality: "high" },
     );
+  });
+
+  it("sets, names and cancels the sleep timer, fading out over its last seconds", async () => {
+    const t = setup();
+    await t.service.setupPlayer();
+    await t.service.play();
+    t.player.setState("playing", true);
+    await expect(t.service.setSleepTimer(30)).resolves.toBe(true);
+    expect(t.player.sleep).toHaveBeenLastCalledWith({ after: 1_800, fadeOut: 10 });
+    expect(playerStore.getSnapshot()).toMatchObject({ sleepAt: t.player.status.sleepAt, sleepChoice: 30 });
+    await expect(t.service.setSleepTimer(null)).resolves.toBe(true);
+    expect(t.player.sleep).toHaveBeenLastCalledWith(null);
+    expect(playerStore.getSnapshot()).toMatchObject({ sleepAt: null, sleepChoice: null });
+  });
+
+  it("a new sleep timer is named as soon as RNAP reports it (no unnamed moment)", async () => {
+    const t = setup();
+    await t.service.setupPlayer();
+    const seen: unknown[] = [];
+    const off = playerStore.subscribe(() => {
+      const { sleepAt, sleepChoice } = playerStore.getSnapshot();
+      if (sleepAt != null) seen.push(sleepChoice);
+    });
+    // A status from before the timer landed comes in while RNAP applies it.
+    t.player.sleep.mockImplementationOnce(async (timer) => {
+      t.player.setState(t.player.status.state);
+      t.player.status = { ...t.player.status, sleepAt: Date.now() + (timer?.after ?? 0) * 1000 };
+      t.player.emit("status", t.player.status);
+      return t.player.status;
+    });
+    await t.service.setSleepTimer(30);
+    off();
+    expect(seen.length).toBeGreaterThan(0);
+    expect(seen.every((choice) => choice === 30)).toBe(true);
+  });
+
+  it("cancelling a sleep timer never shows it unnamed while RNAP drops it", async () => {
+    const t = setup();
+    await t.service.setupPlayer();
+    await t.service.setSleepTimer(30);
+    // A status still carrying the timer comes in while RNAP cancels it: the
+    // store, read right then, still names it.
+    let early: unknown = "unread";
+    t.player.sleep.mockImplementationOnce(async () => {
+      t.player.setState(t.player.status.state);
+      early = playerStore.getSnapshot().sleepChoice;
+      t.player.status = { ...t.player.status, sleepAt: null };
+      t.player.emit("status", t.player.status);
+      return t.player.status;
+    });
+    await t.service.setSleepTimer(null);
+    expect(early).toBe(30);
+    expect(playerStore.getSnapshot()).toMatchObject({ sleepAt: null, sleepChoice: null });
+  });
+
+  it("stops offering the song's end once the song runs past its length", async () => {
+    vi.useFakeTimers();
+    const t = setup();
+    await t.service.setupPlayer();
+    await t.service.play();
+    t.player.setState("playing", true);
+    t.player.hear("Song A");
+    t.announce(track("Song B", { startTime: new Date() }));
+    t.player.hear("Song B");
+    expect(playerStore.getSnapshot().sleepAtTrackEnd).toBe(true);
+    vi.advanceTimersByTime(210_000); // the fixture's songs last 200 s
+    t.tick();
+    expect(playerStore.getSnapshot().sleepAtTrackEnd).toBe(false);
+    vi.useRealTimers();
+  });
+
+  it("a sleep timer RNAP refuses keeps the running one's name", async () => {
+    const t = setup();
+    await t.service.setupPlayer();
+    await t.service.setSleepTimer(30);
+    t.player.sleep.mockRejectedValueOnce(new Error("refused"));
+    await expect(t.service.setSleepTimer(60)).rejects.toThrow("refused");
+    t.player.setState("paused", false);
+    expect(playerStore.getSnapshot().sleepChoice).toBe(30);
+  });
+
+  it("a sleep timer that fires pauses: the store shows no timer and no play intent", async () => {
+    const t = setup();
+    await t.service.setupPlayer();
+    await t.service.play();
+    t.player.setState("playing", true);
+    await t.service.setSleepTimer(15);
+    t.player.fireSleep();
+    expect(playerStore.getSnapshot()).toMatchObject({
+      isPlaying: false,
+      playbackState: "paused",
+      sleepAt: null,
+      sleepChoice: null,
+    });
+  });
+
+  it("a sleep timer at the song's end waits for its place, then counts what is left", async () => {
+    vi.useFakeTimers();
+    const t = setup();
+    await t.service.setupPlayer();
+    await t.service.play();
+    t.player.setState("playing", true);
+    // Nothing heard since opening: the song's place is unknown.
+    await expect(t.service.setSleepTimer("track")).resolves.toBe(false);
+    expect(playerStore.getSnapshot().sleepAtTrackEnd).toBe(false);
+    expect(t.player.sleep).not.toHaveBeenCalled();
+    t.player.hear("Song A");
+    t.announce(track("Song B", { startTime: new Date() }));
+    t.player.hear("Song B");
+    expect(playerStore.getSnapshot().sleepAtTrackEnd).toBe(true);
+    vi.advanceTimersByTime(50_000);
+    const elapsed = t.service.heardPosition()!.elapsedMs;
+    await expect(t.service.setSleepTimer("track")).resolves.toBe(true);
+    const after = t.player.sleep.mock.lastCall?.[0]?.after ?? 0;
+    expect(after).toBeCloseTo((200_000 - elapsed) / 1000, 1);
+    expect(playerStore.getSnapshot().sleepChoice).toBe("track");
+    // Paused, a timer would only end: the song's end is not offered.
+    t.player.setState("paused", false);
+    expect(playerStore.getSnapshot().sleepAtTrackEnd).toBe(false);
+    await expect(t.service.setSleepTimer("track")).resolves.toBe(false);
+    vi.useRealTimers();
+  });
+
+  it("a song with only an estimated length offers no sleep at its end", async () => {
+    const t = setup();
+    await t.service.setupPlayer();
+    await t.service.play();
+    t.player.setState("playing", true);
+    t.player.hear("Song A");
+    t.announce(track("Live song", { startTime: new Date(), duration: 0 }));
+    t.player.hear("Live song");
+    await expect(t.service.setSleepTimer("track")).resolves.toBe(false);
+    expect(playerStore.getSnapshot().sleepAtTrackEnd).toBe(false);
   });
 
   it("listen stats follow audible playback (no background heartbeat needed)", async () => {

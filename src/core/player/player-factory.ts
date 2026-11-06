@@ -48,6 +48,10 @@ let playerServiceInstance: PlayerService | null = null;
  */
 export const PLAYER_ID = "animu";
 
+/** Seconds a play fades in over (once audio flows), and a pause or stop out. */
+const FADE_IN_S = 0.8;
+const FADE_OUT_S = 0.4;
+
 /** Also the catalog's: a player native code creates must behave as the app's. */
 const playerOptions = (): Omit<PlayerOptions, "id"> => ({
   diagnostics: CONFIG.DEBUG,
@@ -60,6 +64,9 @@ const playerOptions = (): Omit<PlayerOptions, "id"> => ({
   // Native-timer readings while playing: the audible clock's lag, and JS at
   // song boundaries where JS timers are frozen (Android background).
   progressInterval: 1_000,
+  // A play eases in and a pause eases out, as a radio's fader would; the
+  // play button changes at once.
+  fade: { in: FADE_IN_S, out: FADE_OUT_S },
 });
 
 /**
@@ -88,6 +95,7 @@ const acquirePlayer = (owner: object): AudioPlayer => {
     getProgress: player.getProgress.bind(player),
     updateNowPlaying: player.updateNowPlaying.bind(player),
     setAudioSampling: player.setAudioSampling.bind(player),
+    sleep: player.sleep.bind(player),
     // Only the last service to take the player ends it.
     release: async () => {
       if (holder.__animuPlayer?.owner !== owner) return;
@@ -99,9 +107,10 @@ const acquirePlayer = (owner: object): AudioPlayer => {
 
 /**
  * The station for Siri, Google Assistant and cars: every relay as a rendition
- * of the source the app loads itself, so a request while it plays has no gap.
+ * of the source the app loads itself, so a request while it plays has no gap,
+ * at the listener's `quality` (a stream id, or `'auto'`).
  */
-export const catalogFor = (streams: Stream[], current: Stream) => ({
+export const catalogFor = (streams: Stream[], current: Stream, quality: string) => ({
   items: [
     {
       id: "animu",
@@ -112,16 +121,16 @@ export const catalogFor = (streams: Stream[], current: Stream) => ({
       group: "Rádio Animu",
       artwork: CONFIG.DEFAULT_COVER,
       source: streamSource(streams, current),
-      quality: current.id,
+      quality,
     },
   ],
   playerId: PLAYER_ID,
   playerOptions: playerOptions(),
 });
 
-const publishCatalog = async (streams: Stream[], current: Stream): Promise<void> => {
+const publishCatalog = async (streams: Stream[], current: Stream, quality: string): Promise<void> => {
   if (!streams.some((stream) => stream.id === current.id)) return;
-  const { items, ...options } = catalogFor(streams, current);
+  const { items, ...options } = catalogFor(streams, current, quality);
   await setCatalog(items, options);
 };
 

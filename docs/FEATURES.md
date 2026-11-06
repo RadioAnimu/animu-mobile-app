@@ -20,7 +20,19 @@ listener count, remaining time and the stream-quality selector.
   nothing repeats or skips and the song keeps its place. A switch that cannot
   be lined up goes ahead anyway: the audio jumps, and the song is placed
   again. Recorded on Android and in browsers; iOS has the
-  same code but has not been recorded on a device yet.
+  same code but has not been recorded on a device yet. A picked stream that
+  is not heard yet pulses its pill until the switch lands.
+- **Automatic quality** — the default on a fresh install (Settings →
+  Playback; an existing install keeps its pick). RNAP starts at the top
+  stream, steps down when it stalls (320 → 192 → 64) and tries a step up
+  after two minutes without one, each switch lined up like a pick. The pills
+  then mark the stream heard; tapping one picks it, which leaves automatic
+  quality. The landscape bar's list starts with *Automatic*.
+- **Sleep timer** — Settings → Playback: 15, 30, 45 or 60 minutes, or the end
+  of the song heard (once its length and place are known). It pauses the
+  radio, fading out over the last 10 s, and runs natively, so it fires with
+  the app in the background or the screen off. Play and pause also fade
+  (0.8 s in, 0.4 s out), for voice and car starts too.
 - **Real-time station metadata** — the app keeps the UI in sync with the
   server-side track, cover artwork, live program, DJ and listener count,
   preferring the station's realtime SSE stream and falling back to HTTP polling.
@@ -48,7 +60,8 @@ by the OS between snapshots (`durationSec` + periodic elapsed position).
 ## Voice and cars
 
 - **Google Assistant / Gemini** — "Ok Google, play Rádio Animu" plays the
-  station at the listener's quality, even when the app is not running.
+  station at the listener's quality (a pick, or automatic), even when the app
+  is not running.
 - **Siri** — "Hey Siri, play Rádio Animu" (PT / EN / ES / JA phrases) plays
   it natively through an App Intent.
 - **Android Auto** — the car lists Rádio Animu and plays it. Started from the

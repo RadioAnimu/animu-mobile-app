@@ -35,7 +35,7 @@
           "User-Agent": "animu-api"
         }
       },
-      "quality": "320"
+      "quality": "auto"
     }
   ],
   "playerId": "animu",
@@ -47,6 +47,10 @@
     "android": {
       "stopOnTaskRemoved": true
     },
-    "progressInterval": 1000
+    "progressInterval": 1000,
+    "fade": {
+      "in": 0.8,
+      "out": 0.4
+    }
   }
 }

@@ -15,6 +15,9 @@ export type TransportState =
   | "paused" // paused (by the user or the system)
   | "reconnecting"; // stream lost while audio is wanted; recovering
 
+/** A sleep timer: minutes from now, or the end of the song heard. */
+export type SleepChoice = 15 | 30 | 45 | 60 | "track";
+
 // ─── Snapshot types ───
 //
 // Three stores by change cadence — components opt into the granularity
@@ -25,7 +28,15 @@ export type TransportState =
 export type PlayerSnapshot = {
   currentTrack?: Track;
   currentProgram?: Program;
+  /** The stream picked; under automatic quality, the one a load opens at. */
   currentStream?: Stream;
+  /** Automatic quality: RNAP picks the stream from the connection. */
+  autoQuality?: boolean;
+  /**
+   * The stream heard (`status.quality`), `undefined` before a load. It trails
+   * {@link currentStream} while a picked switch is lined up, or is retried.
+   */
+  playingStream?: Stream;
   /** Static after boot (Settings' bitrate picker). */
   streamOptions?: Stream[];
   isPlaying: boolean;
@@ -46,6 +57,15 @@ export type PlayerSnapshot = {
    * withheld until then.
    */
   syncing: boolean;
+  /** Epoch ms the sleep timer pauses playback at, `null`/absent without one. */
+  sleepAt?: number | null;
+  /**
+   * What the running sleep timer was set to; `null` without one, and when a
+   * timer outlived the JS that set it (a reload): RNAP keeps only `sleepAt`.
+   */
+  sleepChoice?: SleepChoice | null;
+  /** The sleep timer can be set to the end of the song heard (playing, placed, its length known). */
+  sleepAtTrackEnd?: boolean;
 };
 
 /** Poll data — changes per API poll (5s playing / 30s paused). */

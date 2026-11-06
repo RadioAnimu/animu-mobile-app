@@ -6,7 +6,6 @@ import React, {
   useCallback,
   useReducer,
 } from "react";
-import { Stream } from "@/core/domain/stream";
 import { playerService } from "@/core/player";
 import { subscribeAssistantActions } from "@/core/assistant";
 import { useIsBackgrounded } from "@/contexts/app-state/AppStateProvider";
@@ -19,6 +18,8 @@ import {
   type ProgressSnapshot,
   type StationSnapshot,
   type HeardPosition,
+  type QualityChoice,
+  type SleepChoice,
   type VisualizerWindow,
 } from "@/core/player";
 import { hideSplashOnce } from "@/utils/splash";
@@ -36,7 +37,13 @@ import { useExternalStore } from "@/hooks/useExternalStore";
 type PlayerContextType = PlayerSnapshot & {
   play: () => Promise<void>;
   pause: () => Promise<void>;
-  changeStream: (stream: Stream) => Promise<void>;
+  /** A stream the listener picked, or automatic quality (`AUTO_QUALITY`). */
+  changeStream: (choice: QualityChoice) => Promise<void>;
+  /**
+   * Sets the sleep timer (`null` cancels). Resolves `false` when it could not
+   * be set: the end of a song whose length or place is not known.
+   */
+  setSleepTimer: (choice: SleepChoice | null) => Promise<boolean>;
   refreshData: () => Promise<void>;
   /** Refreshes one history feed — pull-to-refresh on the history lists. */
   refreshHistory: (type: "requests" | "played") => Promise<void>;
@@ -70,6 +77,7 @@ const PlayerContext = createContext<PlayerContextType>({
   play: notInitialized,
   pause: notInitialized,
   changeStream: notInitialized,
+  setSleepTimer: notInitialized,
   refreshData: notInitialized,
   refreshHistory: notInitialized,
   defaultArtwork: "",
@@ -216,11 +224,23 @@ export const PlayerProvider: React.FC<{
   }, [playerServiceInstance]);
 
   const changeStream = useCallback(
-    async (stream: Stream) => {
+    async (choice: QualityChoice) => {
       try {
-        await playerServiceInstance.changeStream(stream);
+        await playerServiceInstance.changeStream(choice);
       } catch (error) {
         console.error("[PlayerProvider] Stream change error:", error);
+      }
+    },
+    [playerServiceInstance],
+  );
+
+  const setSleepTimer = useCallback(
+    async (choice: SleepChoice | null) => {
+      try {
+        return await playerServiceInstance.setSleepTimer(choice);
+      } catch (error) {
+        console.error("[PlayerProvider] Sleep timer error:", error);
+        return false;
       }
     },
     [playerServiceInstance],
@@ -264,6 +284,7 @@ export const PlayerProvider: React.FC<{
       play,
       pause,
       changeStream,
+      setSleepTimer,
       refreshData,
       refreshHistory,
       defaultArtwork: playerServiceInstance.artwork.defaultCover,
@@ -278,6 +299,7 @@ export const PlayerProvider: React.FC<{
       play,
       pause,
       changeStream,
+      setSleepTimer,
       refreshData,
       refreshHistory,
       playerServiceInstance,

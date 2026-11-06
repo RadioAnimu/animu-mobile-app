@@ -16,7 +16,7 @@
  */
 export { playerService } from "@/core/player/player-factory";
 export type { VisualizerWindow } from "@/core/player/visualizer/types";
-export type { HeardPosition } from "@/core/player/player-service";
+export type { HeardPosition, QualityChoice } from "@/core/player/player-service";
 
 export {
   playerStore,
@@ -24,5 +24,6 @@ export {
   stationStore,
   type PlayerSnapshot,
   type ProgressSnapshot,
+  type SleepChoice,
   type StationSnapshot,
 } from "@/core/player/store";
