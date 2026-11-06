@@ -454,7 +454,7 @@ export class PlayerService {
     this.loadedRenditionIds = status.qualities
       .map((quality) => quality.id)
       .filter((id) => this.streamOptions.some((option) => option.id === id));
-    this.deps.heard.useStream(stream.id, stream.bitrate);
+    this.deps.heard.useStream(stream.id, stream.bitrate, stream.category);
     this.pushNowPlaying();
     this.emitPlayer();
     // Not the listener's choice: back to it, without a gap.
@@ -671,7 +671,7 @@ export class PlayerService {
     // The status names the rendition the load opens (automatic quality picks its own).
     this.playingQuality = null;
     this.tuneIn = true;
-    this.deps.heard.useStream(stream.id, stream.bitrate);
+    this.deps.heard.useStream(stream.id, stream.bitrate, stream.category);
     this.deps.heard.reopened();
     this.deps.hearing.reopened();
     const source = streamSource(this.streamOptions, stream);
@@ -775,7 +775,7 @@ export class PlayerService {
     if (quality === this.playingQuality) return;
     this.playingQuality = quality;
     const stream = this.streamOptions.find((option) => option.id === quality);
-    if (stream) this.deps.heard.useStream(stream.id, stream.bitrate);
+    if (stream) this.deps.heard.useStream(stream.id, stream.bitrate, stream.category);
   }
 
   /** An ICY title became audible (Airwave reports it when heard). */

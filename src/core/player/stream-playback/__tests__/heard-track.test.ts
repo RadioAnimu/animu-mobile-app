@@ -161,8 +161,10 @@ describe("HeardTrack", () => {
     change("S1");
     // At a change the heard title is the truth: no estimate involved.
     expect(t.heard.elapsedMs()).toBe(1_000);
-    expect(t.heard.tuneInBiasMs).toBe(5_200);
+    // Far from the usual lead: held until the next change agrees.
+    expect(t.heard.tuneInBiasMs).toBe(AHEAD);
     change("S2");
+    expect(t.heard.tuneInBiasMs).toBe(5_200);
     // A song whose start the API got wrong is not a sample.
     t.advance(200_000);
     t.station.tracks = [track("Live show", t.now - 600_000)];
@@ -180,6 +182,52 @@ describe("HeardTrack", () => {
     expect(t.heard.placedBiasMs).toBe(5_200);
     t.heard.useStream("64k", 64);
     expect(t.heard.tuneInBiasMs).toBe(5_200);
+  });
+
+  it("does not take one far-off change as a stream's calibration (a lag misread across a stall)", () => {
+    const t = setup([track("Old", 0)]);
+    t.heard.useStream("192", 192);
+    const inItem = icyTitleInItemMs(192);
+    // A change heard `offMs` later than station time less the lag puts it.
+    const change = (raw: string, offMs: number) => {
+      t.advance(200_000);
+      t.station.tracks = [track(raw, t.now - 6_000 - inItem - offMs)];
+      t.heard.heard(raw, t.now, false, 6_000);
+    };
+    // The stream's first change, its lag read 12.7 s short (a stall): held.
+    change("S1", 12_900);
+    expect(t.heard.tuneInBiasMs).toBe(AHEAD);
+    // The next one does not agree: the far one is dropped.
+    change("S2", 150);
+    expect(t.heard.tuneInBiasMs).toBe(150);
+    change("S3", 12_900);
+    change("S4", 250);
+    expect(t.heard.tuneInBiasMs).toBe(250);
+    // A tune-in is placed with it: 60 s on air, 6 s lag.
+    t.station.tracks = [track("Live", t.now - 60_000)];
+    t.heard.reopened();
+    t.heard.heard("Live", t.now, true, 6_000);
+    expect(t.heard.elapsedMs()).toBe(60_000 - 6_000 - 250);
+  });
+
+  it("a stream not calibrated yet borrows the calibration of its codec's streams", () => {
+    const t = setup([track("Old", 0)]);
+    t.heard.useStream("320", 320, "MP3");
+    const change = (raw: string, offMs: number) => {
+      t.advance(200_000);
+      t.station.tracks = [track(raw, t.now - 6_000 - AT_TITLE - offMs)];
+      t.heard.heard(raw, t.now, false, 6_000);
+    };
+    change("S1", 700);
+    change("S2", 860);
+    expect(t.heard.tuneInBiasMs).toBe(860);
+    // A switch that was not lined up places the song on 192 as a tune-in:
+    // the other MP3 mount's calibration, not the usual lead.
+    t.heard.useStream("192", 192, "MP3");
+    expect(t.heard.tuneInBiasMs).toBe(860);
+    // The AAC+ mount reads differently: the usual lead until it has its own.
+    t.heard.useStream("64", 64, "AAC+");
+    expect(t.heard.tuneInBiasMs).toBe(AHEAD);
   });
 
   it("follows the player's media clock: a stall handled late is taken back", () => {

@@ -40,6 +40,14 @@ const CALIBRATION_WINDOW = 9;
 /** A sample this far off is the API's `timestart` being wrong (live shows, jingles). */
 const CALIBRATION_MAX_MS = 15_000;
 /**
+ * A sample this far (ms) from the calibration it would join is held until the
+ * next change agrees with it: one far-off change is a lag misread at that
+ * moment (a stall, a reconnect), not the stream. Genuine samples of a stream
+ * spread by about one ICY block (2 s on the 64 kbps mount); two that agree
+ * on a new value start its calibration over.
+ */
+const CALIBRATION_JUMP_MS = 3_000;
+/**
  * A position this far (ms) off the player's media clock is moved onto it
  * ({@link HeardTrack.alignToMedia}): readings agree to ±6 ms, a late-handled
  * pause leaves ~0.1 s.
@@ -120,6 +128,10 @@ export class HeardTrack {
   private stationChangedAt = 0;
   /** Per stream: how far the computed position was ahead of the heard one (ms). */
   private readonly calibration = new Map<string, number[]>();
+  /** Per stream: a far-off sample waiting for the next change to confirm it. */
+  private readonly unconfirmed = new Map<string, number>();
+  /** Per stream: its codec, which a stream without a calibration borrows by. */
+  private readonly codecs = new Map<string, string>();
   private stream = "";
   /** Where this mount's titles are heard in their item (ms). */
   private titleInItemMs = icyTitleInItemMs(DEFAULT_BITRATE_KBPS);
@@ -164,10 +176,21 @@ export class HeardTrack {
     return this.anchor?.biasMs ?? this.tuneInBiasMs;
   }
 
-  /** How far this stream's computed (tune-in) position runs ahead of the audio (ms). */
+  /**
+   * How far this stream's computed (tune-in) position runs ahead of the audio
+   * (ms): its own calibration, else that of the streams of its codec. The
+   * station's lead over its audio is shared and drifts (0.1 → 0.8 s within an
+   * hour, measured 2026-11-06); the MP3 mounts then agreed to ~0.2 s and the
+   * AAC+ one sat ~0.8 s higher, so only a stream of the same codec stands in.
+   */
   get tuneInBiasMs(): number {
-    const samples = this.calibration.get(this.stream);
-    return samples?.length ? median(samples) : STATION_AHEAD_OF_AUDIO_MS;
+    const own = this.calibration.get(this.stream);
+    if (own?.length) return median(own);
+    const codec = this.codecs.get(this.stream);
+    const kin = [...this.calibration]
+      .filter(([key]) => codec != null && this.codecs.get(key) === codec)
+      .flatMap(([, samples]) => samples);
+    return kin.length ? median(kin) : STATION_AHEAD_OF_AUDIO_MS;
   }
 
   /** The station's current track (what it announced last). */
@@ -190,9 +213,14 @@ export class HeardTrack {
     return elapsed > track.duration;
   }
 
-  /** The stream played: its own calibration, and its bitrate places its titles. */
-  useStream(key: string, bitrateKbps: number = DEFAULT_BITRATE_KBPS): void {
+  /**
+   * The stream played: its own calibration, and its bitrate places its titles.
+   * `codec` (the API's `category`) lets a stream without a calibration borrow
+   * one of its kind.
+   */
+  useStream(key: string, bitrateKbps: number = DEFAULT_BITRATE_KBPS, codec?: string): void {
     this.stream = key;
+    if (codec) this.codecs.set(key, codec);
     this.titleInItemMs = icyTitleInItemMs(bitrateKbps > 0 ? bitrateKbps : DEFAULT_BITRATE_KBPS);
   }
 
@@ -333,6 +361,16 @@ export class HeardTrack {
 
   private calibrate(sample: number): void {
     if (Math.abs(sample) > CALIBRATION_MAX_MS) return;
+    const held = this.unconfirmed.get(this.stream);
+    this.unconfirmed.delete(this.stream);
+    if (Math.abs(sample - this.tuneInBiasMs) > CALIBRATION_JUMP_MS) {
+      if (held == null || Math.abs(sample - held) > CALIBRATION_JUMP_MS) {
+        this.unconfirmed.set(this.stream, sample);
+      } else {
+        this.calibration.set(this.stream, [held, sample]);
+      }
+      return;
+    }
     const samples = this.calibration.get(this.stream) ?? [];
     this.calibration.set(this.stream, [...samples, sample].slice(-CALIBRATION_WINDOW));
   }

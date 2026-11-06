@@ -41,8 +41,8 @@ vi.mock("../../../api/client", () => ({
   setServerSkewListener: vi.fn(),
   animuApi: {
     getStreams: vi.fn(async () => [
-      { id: "high", url: "https://stream.example/192", label: "192", bitrate: 192 },
-      { id: "low", url: "https://stream.example/64", label: "64", bitrate: 64 },
+      { id: "high", url: "https://stream.example/192", label: "192", bitrate: 192, category: "MP3" },
+      { id: "low", url: "https://stream.example/64", label: "64", bitrate: 64, category: "AAC+" },
     ]),
   },
 }));
@@ -61,8 +61,8 @@ const track = (raw: string, extra: Partial<Track> = {}): Track =>
   }) as unknown as Track;
 
 const STREAMS: Stream[] = [
-  { id: "high", url: "https://stream.example/192", label: "192", bitrate: 192 } as unknown as Stream,
-  { id: "low", url: "https://stream.example/64", label: "64", bitrate: 64 } as unknown as Stream,
+  { id: "high", url: "https://stream.example/192", label: "192", bitrate: 192, category: "MP3" } as unknown as Stream,
+  { id: "low", url: "https://stream.example/64", label: "64", bitrate: 64, category: "AAC+" } as unknown as Stream,
 ];
 
 const setup = (extra: Partial<PlayerServiceDependencies> = {}) => {
@@ -523,7 +523,7 @@ describe("PlayerService on react-native-anything-player", () => {
     // RNAP lined the 64 kbps relay up with what is heard: the position and the
     // live offset carry on, with no discontinuity.
     t.player.setQuality("low");
-    expect(useStream).toHaveBeenLastCalledWith("low", 64);
+    expect(useStream).toHaveBeenLastCalledWith("low", 64, "AAC+");
     read(6, 6);
     expect(playerStore.getSnapshot().syncing).toBe(false);
     expect(heardProgress()).toBe(placed! + 1_000);
