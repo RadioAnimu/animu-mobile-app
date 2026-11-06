@@ -1,5 +1,5 @@
 import type { HistoryType } from "animu-api";
-import type { MediaMetadata, PlaybackState, PlayerStatus } from "react-native-anything-player";
+import type { MediaMetadata, PlaybackState, PlayerStatus, StreamBoundary } from "react-native-anything-player";
 import { AUTO_QUALITY, type Stream } from "@/core/domain/stream";
 import { isRealTrack, type Track } from "@/core/domain/track";
 import { userSettingsService } from "@/core/services/user-settings.service";
@@ -34,6 +34,11 @@ const POLL_PAUSED_MS = 30_000;
 
 /** The sleep timer fades the audio out over its last seconds (at most). */
 const SLEEP_FADE_OUT_S = 10;
+/**
+ * A title change waits this long for the player to find its item's start
+ * (it reports within 4 s of the title), then is placed at the title.
+ */
+const START_WAIT_MS = 6_000;
 
 /** The listener's quality: a stream, or RNAP's automatic quality. */
 export type QualityChoice = Stream | typeof AUTO_QUALITY;
@@ -129,6 +134,12 @@ export class PlayerService {
    * into its song (a switch tells the new connection's), placed like a tune-in.
    */
   private afterJump = false;
+  /** Whether the player reports where heard items start (`boundary` events). */
+  private boundariesOn = false;
+  /** Title changes heard, waiting for the player to find where their items start. */
+  private awaitingStart: { title: string; heardAt: number }[] = [];
+  /** A start found ahead of the speaker: the display switches when it is heard. */
+  private startTimer: ReturnType<typeof setTimeout> | null = null;
   private lastPollAt = 0;
   private lastState: PlaybackState = "idle";
   /** Hidden with no audio wanted — the clock behind the realtime-connection deadline. */
@@ -142,6 +153,9 @@ export class PlayerService {
 
   constructor(private readonly deps: PlayerServiceDependencies) {
     const { player, repository, heard, hearing } = deps;
+    // The station's titles are seconds off its audio: the player finds each
+    // item's start around them (RNAP `boundary`).
+    this.boundariesOn = player.setBoundaryDetection(true);
     this.durationEstimate = new LiveDurationEstimate(deps.estimateDuration);
     this.durationEstimate.onChange = () => {
       this.emitProgress();
@@ -150,12 +164,14 @@ export class PlayerService {
     this.unsubscribe.push(
       player.on("status", (status) => this.handleStatus(status)),
       player.on("metadata", (metadata) => this.handleStreamMetadata(metadata)),
+      player.on("boundary", (boundary) => this.handleBoundary(boundary)),
       player.on("discontinuity", () => this.handleDiscontinuity()),
       // A voice request or a car pick played the station natively.
       player.on("searchPlay", () => this.adoptNativeLoad()),
       // Native-timer readings while playing: they run JS where JS timers are
       // frozen (Android background) — the audible clock, stats, watchdogs.
       player.on("progress", (reading) => {
+        this.placeOverdueTitles();
         hearing.progress(reading);
         this.syncSleepAtTrackEnd();
         this.tickStats();
@@ -740,6 +756,8 @@ export class PlayerService {
   /** The source re-opened: the position is re-placed from the next title, as a tune-in. */
   private markReopened(): void {
     this.tuneIn = true;
+    this.awaitingStart = [];
+    this.clearStartTimer();
     this.deps.heard.reopened();
     this.deps.hearing.reopened();
     // The lock screen drops the position too until the tune-in places it.
@@ -789,6 +807,13 @@ export class PlayerService {
     if (this.deps.hearing.clockSettled) this.afterJump = false;
     const tuneIn = this.tuneIn || this.afterJump;
     this.tuneIn = false;
+    // A change: placed where the player finds its item starts (the title is
+    // only near it), once that is known (`handleBoundary`).
+    const latest = this.awaitingStart.at(-1)?.title ?? this.deps.hearing.track?.raw;
+    if (!tuneIn && this.boundariesOn && title.trim() !== latest?.trim()) {
+      this.awaitingStart.push({ title: title.trim(), heardAt });
+      return;
+    }
     // How far the speaker trails the live edge (places a tune-in, calibrates at
     // a change): the settled clock's.
     const lagMs = this.deps.hearing.lagMs(this.deps.player.getProgress());
@@ -797,6 +822,50 @@ export class PlayerService {
     );
     this.deps.heard.heard(title, heardAt, tuneIn, lagMs);
     this.deps.hearing.titleWasHeard();
+  }
+
+  /**
+   * Where a heard title's item starts. `gap` / `onset`: in the audio, to a few
+   * ms — the item is placed there at 0, and the display switches as it is
+   * heard (it is often found a moment ahead). `title`: the audio does not show
+   * it (a crossfade), the title's own time and the ICY model.
+   */
+  private handleBoundary(boundary: StreamBoundary): void {
+    const index = this.awaitingStart.findIndex((entry) => entry.title === boundary.title.trim());
+    if (index < 0) return;
+    const entry = this.awaitingStart[index];
+    // Older ones were superseded before their start was found: this one is heard.
+    this.awaitingStart.splice(0, index + 1);
+    const atStart = boundary.kind !== "title";
+    const at = atStart ? boundary.at : entry.heardAt;
+    const place = () => this.placeTitle(entry.title, at, atStart);
+    const delay = at - Date.now();
+    this.clearStartTimer();
+    // No JS timer runs in the Android background: placed now there (the lock screen).
+    if (delay > 15 && this.appActive) this.startTimer = setTimeout(place, delay);
+    else place();
+  }
+
+  /** A title change whose start never came (no audio sampled): placed at the title. */
+  private placeOverdueTitles(): void {
+    if (this.awaitingStart.length === 0) return;
+    const first = this.awaitingStart[0];
+    if (Date.now() - first.heardAt < START_WAIT_MS) return;
+    this.awaitingStart.shift();
+    this.placeTitle(first.title, first.heardAt, false);
+  }
+
+  private placeTitle(title: string, at: number, atStart: boolean): void {
+    this.startTimer = null;
+    const lagMs = this.deps.hearing.lagMs(this.deps.player.getProgress());
+    debugLog(`[PlayerService] "${title}" starts at ${at} (${atStart ? "audio" : "title"}) lag=${Math.round(lagMs)}ms`);
+    this.deps.heard.heard(title, at, false, lagMs, atStart);
+    this.deps.hearing.titleWasHeard();
+  }
+
+  private clearStartTimer(): void {
+    if (this.startTimer != null) clearTimeout(this.startTimer);
+    this.startTimer = null;
   }
 
   /** The displayed track changed: UI, progress, lock screen and stats move together. */

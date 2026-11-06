@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, afterEach, describe, expect, it, vi } from "vitest";
 import type { PlaybackState } from "react-native-anything-player";
 import { PlayerService, type PlayerServiceDependencies } from "@/core/player/player-service";
 import { AudibleTrackResolver } from "@/core/player/stream-playback/audible-track";
@@ -65,8 +65,10 @@ const STREAMS: Stream[] = [
   { id: "low", url: "https://stream.example/64", label: "64", bitrate: 64, category: "AAC+" } as unknown as Stream,
 ];
 
-const setup = (extra: Partial<PlayerServiceDependencies> = {}) => {
+const setup = (extra: Partial<PlayerServiceDependencies> = {}, options: { boundaries?: boolean } = {}) => {
   const player = new FakePlayer();
+  // The player finds where items start in the audio (RNAP `boundary` events).
+  if (options.boundaries) player.setBoundaryDetection.mockReturnValue(true);
   const reading = liveReadings();
   const repository = {
     onChange: (_c: unknown) => {},
@@ -346,6 +348,69 @@ describe("PlayerService on react-native-anything-player", () => {
       expect.objectContaining({ raw: "Song B" }),
       true,
     );
+  });
+
+  describe("item starts found in the audio (RNAP boundary)", () => {
+    const changeToB = async (startedAgoMs = 1_000) => {
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date("2026-10-05T05:00:00Z"));
+      const t = setup({}, { boundaries: true });
+      await t.service.setupPlayer();
+      await t.service.play();
+      t.player.setState("playing", true);
+      t.player.hear("Song A");
+      t.settle(5, 6);
+      t.announce(track("Song B", { startTime: new Date(Date.now() - startedAgoMs) }));
+      // B's title is heard, seconds off its audio: nothing moves yet.
+      t.player.hear("Song B");
+      expect(playerStore.getSnapshot().currentTrack?.raw).toBe("Song A");
+      return t;
+    };
+    const boundary = (t: ReturnType<typeof setup>, at: number, kind: "gap" | "onset" | "title" = "gap") =>
+      t.player.emit("boundary", { title: "Song B", titleAt: Date.now(), at, kind });
+    afterEach(() => vi.useRealTimers());
+
+    it("a title change waits for its item's start, then switches as it is heard, at 0", async () => {
+      const t = await changeToB();
+      // Found 800 ms ahead of the speaker (the title came early).
+      boundary(t, Date.now() + 800);
+      expect(playerStore.getSnapshot().currentTrack?.raw).toBe("Song A");
+      vi.advanceTimersByTime(800);
+      expect(playerStore.getSnapshot().currentTrack?.raw).toBe("Song B");
+      expect(heardProgress()).toBe(0);
+      vi.advanceTimersByTime(1_500);
+      expect(heardProgress()).toBe(1_500);
+    });
+
+    it("a start behind the title (it came late) switches at once, already that far in", async () => {
+      const t = await changeToB();
+      boundary(t, Date.now() - 400);
+      expect(playerStore.getSnapshot().currentTrack?.raw).toBe("Song B");
+      expect(heardProgress()).toBe(400);
+    });
+
+    it("an exact start calibrates the next tune-in exactly (no ICY offset in it)", async () => {
+      // B started on the station 6.5 s before it is heard, 6 s behind live.
+      const t = await changeToB(6_500);
+      boundary(t, Date.now());
+      expect(t.heard.tuneInBiasMs).toBe(500);
+    });
+
+    it("a crossfade (no start in the audio) is placed at the title, as without detection", async () => {
+      const t = await changeToB();
+      boundary(t, Date.now(), "title");
+      expect(playerStore.getSnapshot().currentTrack?.raw).toBe("Song B");
+      // The ICY model on the stream played (192 kbps here).
+      expect(heardProgress()).toBe(icyTitleInItemMs(192));
+    });
+
+    it("a start that never comes is placed at the title after a few seconds", async () => {
+      const t = await changeToB();
+      t.settle(5, 6);
+      expect(playerStore.getSnapshot().currentTrack?.raw).toBe("Song A");
+      t.settle(2, 6);
+      expect(playerStore.getSnapshot().currentTrack?.raw).toBe("Song B");
+    });
   });
 
   it("calibrates a title change on the locked clock, not a draining buffer", async () => {

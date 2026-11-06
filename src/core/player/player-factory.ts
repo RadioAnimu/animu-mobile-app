@@ -95,6 +95,7 @@ const acquirePlayer = (owner: object): AudioPlayer => {
     getProgress: player.getProgress.bind(player),
     updateNowPlaying: player.updateNowPlaying.bind(player),
     setAudioSampling: player.setAudioSampling.bind(player),
+    setBoundaryDetection: player.setBoundaryDetection.bind(player),
     sleep: player.sleep.bind(player),
     // Only the last service to take the player ends it.
     release: async () => {

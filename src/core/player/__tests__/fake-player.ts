@@ -53,6 +53,8 @@ export class FakePlayer {
   });
   updateNowPlaying = vi.fn(async (_m: AirwaveNowPlaying) => {});
   setAudioSampling = vi.fn(() => true);
+  // Off unless a test turns it on: the title-timed path (a platform without audio sampling).
+  setBoundaryDetection = vi.fn(() => false);
   release = vi.fn(async () => {});
   getProgress = vi.fn((): Progress => ({
     position: 0,

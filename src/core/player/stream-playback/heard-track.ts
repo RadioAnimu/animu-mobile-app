@@ -123,7 +123,7 @@ export class HeardTrack {
   private displayed: Track | null = null;
   private anchor: Anchor | null = null;
   /** A heard title the API has not named yet (resolved by `stationChanged`). */
-  private pending: { title: string; heardAt: number; tuneIn: boolean; lagMs: number } | null = null;
+  private pending: { title: string; heardAt: number; tuneIn: boolean; lagMs: number; atStart: boolean } | null = null;
   /** Wall ms the station last announced an item (0 = not since the reset). */
   private stationChangedAt = 0;
   /** Per stream: how far the computed position was ahead of the heard one (ms). */
@@ -239,18 +239,18 @@ export class HeardTrack {
    * @param tuneIn first title since the source (re)opened — already partway.
    * @param lagMs how far the speaker trails the live edge.
    */
-  heard(title: string, heardAt: number, tuneIn: boolean, lagMs: number): void {
+  heard(title: string, heardAt: number, tuneIn: boolean, lagMs: number, atStart = false): void {
     const wanted = title.trim();
     if (!wanted) return;
     if (!tuneIn && this.displayed?.raw.trim() === wanted) return;
     const track = this.find(wanted);
     if (!track) {
       // ICY can reach the speaker before the API names the track: wait for it.
-      this.pending = { title: wanted, heardAt, tuneIn, lagMs };
+      this.pending = { title: wanted, heardAt, tuneIn, lagMs, atStart };
       this.onUnknownTitle(wanted);
       return;
     }
-    this.adopt(track, heardAt, tuneIn, lagMs);
+    this.adopt(track, heardAt, tuneIn, lagMs, true, atStart);
   }
 
   /**
@@ -277,7 +277,7 @@ export class HeardTrack {
     } as Track;
     // Keep `pending`: `stationChanged` upgrades to the real track.
     const keep = pending;
-    this.adopt(heard, pending.heardAt, pending.tuneIn, pending.lagMs, false);
+    this.adopt(heard, pending.heardAt, pending.tuneIn, pending.lagMs, false, pending.atStart);
     this.pending = keep;
   }
 
@@ -289,7 +289,7 @@ export class HeardTrack {
     // A shown fallback title (see `unresolved`) still counts as pending.
     if (!pending) return;
     const track = this.find(pending.title);
-    if (track) this.adopt(track, pending.heardAt, pending.tuneIn, pending.lagMs);
+    if (track) this.adopt(track, pending.heardAt, pending.tuneIn, pending.lagMs, true, pending.atStart);
   }
 
   /**
@@ -407,8 +407,12 @@ export class HeardTrack {
     tuneIn: boolean,
     lagMs: number,
     fromStation = true,
+    atStart = false,
   ): void {
     this.pending = null;
+    // Where the title sits in its item: at its start when the player found
+    // the start in the audio (`atStart`), else the ICY model's estimate.
+    const inItemMs = atStart ? 0 : this.titleInItemMs;
     // Station time when heard, minus the lag: places a tune-in, and at a
     // change (the heard title being the truth) calibrates that.
     const start = track.startTime.getTime();
@@ -416,17 +420,18 @@ export class HeardTrack {
       ? heardAt + this.skewMs - start - Math.max(0, lagMs)
       : null;
     if (!tuneIn && fromStation && stationElapsed != null) {
-      this.calibrate(stationElapsed - this.titleInItemMs);
+      this.calibrate(stationElapsed - inItemMs);
     }
     const biasMs = this.tuneInBiasMs;
-    let elapsed = this.titleInItemMs;
+    let elapsed = inItemMs;
     if (tuneIn && stationElapsed != null) elapsed = stationElapsed - biasMs;
     if (track.duration > 0) elapsed = Math.min(elapsed, track.duration);
     const now = this.now();
     this.media = null;
+    // A start still ahead (the audio reaches the speaker later): the clock waits for it.
     this.anchor = {
       elapsedMs: Math.max(0, elapsed) + Math.max(0, now - heardAt),
-      at: now,
+      at: Math.max(now, heardAt),
       running: true,
       estimated: tuneIn,
       biasMs,
