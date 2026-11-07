@@ -51,6 +51,9 @@
     "fade": {
       "in": 0.8,
       "out": 0.4
+    },
+    "recovery": {
+      "giveUpAfterMs": null
     }
   }
 }

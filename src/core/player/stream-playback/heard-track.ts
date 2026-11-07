@@ -48,6 +48,12 @@ const CALIBRATION_MAX_MS = 15_000;
  */
 const CALIBRATION_JUMP_MS = 3_000;
 /**
+ * Airings whose start was found in the audio, kept for re-placing them: their
+ * exact bias makes a tune-in into the same airing (a reconnect after a tunnel,
+ * a resume, a restart) exact, with the lag measured then.
+ */
+const AIRINGS_KEPT = 8;
+/**
  * A position this far (ms) off the player's media clock is moved onto it
  * ({@link HeardTrack.alignToMedia}): readings agree to ±6 ms, a late-handled
  * pause leaves ~0.1 s.
@@ -88,6 +94,12 @@ interface Anchor extends TrackPosition {
   biasMs: number;
 }
 
+/** What a {@link HeardTrack} learned that outlives the app: its calibrations and the airings it found the start of. */
+export interface HeardTrackMemory {
+  calibration: Record<string, number[]>;
+  airings: [string, number][];
+}
+
 export interface HeardTrackOptions {
   /** Tracks the station has announced, newest first (current + recent history). */
   candidates: () => readonly (Track | null | undefined)[];
@@ -113,6 +125,8 @@ export interface HeardTrackOptions {
 export class HeardTrack {
   /** The displayed track changed (title, cover, position). */
   onChange: () => void = () => {};
+  /** It learned something worth keeping ({@link memory}): a calibration sample, an airing's start. */
+  onLearned: () => void = () => {};
   /**
    * A heard title the station data does not name (yet). The owner fetches
    * fresh data over HTTP (no JS timer: none fires in the Android background),
@@ -130,6 +144,8 @@ export class HeardTrack {
   private readonly calibration = new Map<string, number[]>();
   /** Per stream: a far-off sample waiting for the next change to confirm it. */
   private readonly unconfirmed = new Map<string, number>();
+  /** Per airing (stream, title, station start): the exact bias its found start gave. */
+  private readonly airings = new Map<string, number>();
   /** Per stream: its codec, which a stream without a calibration borrows by. */
   private readonly codecs = new Map<string, string>();
   private stream = "";
@@ -359,6 +375,39 @@ export class HeardTrack {
     this.stationChangedAt = 0;
   }
 
+  /** What it learned, to restore with {@link remember} after a restart. */
+  memory(): HeardTrackMemory {
+    return { calibration: Object.fromEntries(this.calibration), airings: [...this.airings] };
+  }
+
+  /** Restores a {@link memory}; what was learned since this run started wins. */
+  remember(memory: Partial<HeardTrackMemory> | null): void {
+    for (const [stream, samples] of Object.entries(memory?.calibration ?? {})) {
+      const kept = Array.isArray(samples) ? samples.filter(Number.isFinite) : [];
+      if (!this.calibration.has(stream) && kept.length > 0) {
+        this.calibration.set(stream, kept.slice(-CALIBRATION_WINDOW));
+      }
+    }
+    const restored = (Array.isArray(memory?.airings) ? memory.airings : []).filter(
+      ([key, bias]) => typeof key === "string" && Number.isFinite(bias) && !this.airings.has(key),
+    );
+    const merged = [...restored, ...this.airings].slice(-AIRINGS_KEPT);
+    this.airings.clear();
+    for (const [key, bias] of merged) this.airings.set(key, bias);
+  }
+
+  private airingKey(track: Track): string {
+    return `${this.stream}|${track.raw.trim()}|${track.startTime.getTime()}`;
+  }
+
+  private rememberAiring(track: Track, biasMs: number): void {
+    const key = this.airingKey(track);
+    this.airings.delete(key);
+    this.airings.set(key, biasMs);
+    if (this.airings.size > AIRINGS_KEPT) this.airings.delete(this.airings.keys().next().value!);
+    this.onLearned();
+  }
+
   private calibrate(sample: number): void {
     if (Math.abs(sample) > CALIBRATION_MAX_MS) return;
     const held = this.unconfirmed.get(this.stream);
@@ -368,11 +417,13 @@ export class HeardTrack {
         this.unconfirmed.set(this.stream, sample);
       } else {
         this.calibration.set(this.stream, [held, sample]);
+        this.onLearned();
       }
       return;
     }
     const samples = this.calibration.get(this.stream) ?? [];
     this.calibration.set(this.stream, [...samples, sample].slice(-CALIBRATION_WINDOW));
+    this.onLearned();
   }
 
   /**
@@ -421,8 +472,10 @@ export class HeardTrack {
       : null;
     if (!tuneIn && fromStation && stationElapsed != null) {
       this.calibrate(stationElapsed - inItemMs);
+      // Its start was heard: this airing's bias is known exactly.
+      if (atStart) this.rememberAiring(track, stationElapsed);
     }
-    const biasMs = this.tuneInBiasMs;
+    const biasMs = (tuneIn ? this.airings.get(this.airingKey(track)) : undefined) ?? this.tuneInBiasMs;
     let elapsed = inItemMs;
     if (tuneIn && stationElapsed != null) elapsed = stationElapsed - biasMs;
     if (track.duration > 0) elapsed = Math.min(elapsed, track.duration);

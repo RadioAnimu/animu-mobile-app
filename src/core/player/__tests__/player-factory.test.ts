@@ -123,6 +123,7 @@ describe("player factory", () => {
       android: { stopOnTaskRemoved: true },
       progressInterval: 1_000,
       fade: { in: 0.8, out: 0.4 },
+      recovery: { giveUpAfterMs: null },
     });
     expect([...players[0].listeners.keys()]).toEqual(
       expect.arrayContaining(["status", "metadata", "remoteCommand", "progress"]),

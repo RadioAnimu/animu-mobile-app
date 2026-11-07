@@ -4,6 +4,7 @@ import {
   HeardTrack,
   STATION_AHEAD_OF_AUDIO_MS,
   icyTitleInItemMs,
+  type HeardTrackMemory,
 } from "@/core/player/stream-playback/heard-track";
 
 /** Where a title is heard in its item on the default (320 kbps) mount. */
@@ -228,6 +229,53 @@ describe("HeardTrack", () => {
     // The AAC+ mount reads differently: the usual lead until it has its own.
     t.heard.useStream("64", 64, "AAC+");
     expect(t.heard.tuneInBiasMs).toBe(AHEAD);
+  });
+
+  it("a reconnect into an airing whose start was heard is placed exactly, at the lag measured then", () => {
+    const t = setup([track("Old", 0)]);
+    t.heard.useStream("320", 320, "MP3");
+    // Each change's start found in the audio, 6 s behind live.
+    const found = (raw: string, biasMs: number) => {
+      t.advance(200_000);
+      t.station.tracks = [track(raw, t.now - 6_000 - biasMs)];
+      t.heard.heard(raw, t.now, false, 6_000, true);
+    };
+    found("T", 2_000);
+    found("U", 2_500);
+    found("S", 4_000);
+    // The stream's calibration is the median (2.5 s); S's own airing is 4 s.
+    expect(t.heard.tuneInBiasMs).toBe(2_500);
+    // A tunnel: the connection drops in S and comes back 30 s later, 9 s behind live.
+    t.heard.reopened();
+    t.advance(30_000);
+    t.heard.heard("S", t.now, true, 9_000);
+    // S is heard 30 s after its start was, and 3 s further behind live now: 27 s in.
+    expect(t.heard.elapsedMs()).toBe(27_000);
+  });
+
+  it("what it learned outlives a restart", () => {
+    const first = setup([track("Old", 0)]);
+    first.heard.useStream("320", 320, "MP3");
+    first.station.tracks = [track("S", first.now - 6_700)];
+    first.heard.heard("S", first.now, false, 6_000, true);
+    const learned = vi.fn();
+    first.heard.onLearned = learned;
+    first.station.tracks = [track("T", first.now - 6_800)];
+    first.heard.heard("T", first.now, false, 6_000, true);
+    expect(learned).toHaveBeenCalled();
+    const memory = JSON.parse(JSON.stringify(first.heard.memory())) as HeardTrackMemory;
+    // The app restarts: a new tracker, the same memory.
+    const next = setup([track("T", first.now - 6_800)]);
+    next.heard.useStream("320", 320, "MP3");
+    next.heard.remember(memory);
+    expect(next.heard.tuneInBiasMs).toBe(first.heard.tuneInBiasMs);
+    // T's airing is placed as exactly as before the restart.
+    next.advance(first.now - next.now + 20_000);
+    next.heard.heard("T", next.now, true, 6_000);
+    expect(next.heard.elapsedMs()).toBe(20_000);
+    // Garbage in storage changes nothing.
+    next.heard.remember({ calibration: { "320": ["x" as unknown as number] }, airings: [[1 as unknown as string, 2]] });
+    expect(next.heard.tuneInBiasMs).toBe(first.heard.tuneInBiasMs);
   });
 
   it("follows the player's media clock: a stall handled late is taken back", () => {
