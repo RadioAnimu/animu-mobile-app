@@ -375,6 +375,28 @@ export class HeardTrack {
     this.stationChangedAt = 0;
   }
 
+  /**
+   * The displayed track started at the heard epoch `at`, found in the audio a
+   * connection opened with: placed exactly there (its estimate replaced), its
+   * airing's bias kept and calibrating the stream.
+   */
+  placeStart(at: number, lagMs: number): void {
+    const track = this.displayed;
+    const anchor = this.anchor;
+    if (!track || !anchor) return;
+    let biasMs = anchor.biasMs;
+    const start = track.startTime.getTime();
+    if (Number.isFinite(start)) {
+      biasMs = at + this.skewMs - start - Math.max(0, lagMs);
+      this.calibrate(biasMs);
+      this.rememberAiring(track, biasMs);
+    }
+    const now = this.now();
+    this.media = null;
+    this.anchor = { ...anchor, elapsedMs: Math.max(0, now - at), at: Math.max(now, at), biasMs };
+    this.onChange();
+  }
+
   /** What it learned, to restore with {@link remember} after a restart. */
   memory(): HeardTrackMemory {
     return { calibration: Object.fromEntries(this.calibration), airings: [...this.airings] };

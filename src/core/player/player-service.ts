@@ -832,7 +832,10 @@ export class PlayerService {
    */
   private handleBoundary(boundary: StreamBoundary): void {
     const index = this.awaitingStart.findIndex((entry) => entry.title === boundary.title.trim());
-    if (index < 0) return;
+    if (index < 0) {
+      this.placeTunedInStart(boundary);
+      return;
+    }
     const entry = this.awaitingStart[index];
     // Older ones were superseded before their start was found: this one is heard.
     this.awaitingStart.splice(0, index + 1);
@@ -844,6 +847,18 @@ export class PlayerService {
     // No JS timer runs in the Android background: placed now there (the lock screen).
     if (delay > 15 && this.appActive) this.startTimer = setTimeout(place, delay);
     else place();
+  }
+
+  /**
+   * The song tuned into started in the audio the connection opened with (the
+   * seconds before live): its estimate is replaced by that exact start.
+   */
+  private placeTunedInStart(boundary: StreamBoundary): void {
+    const { heard, hearing } = this.deps;
+    if (boundary.kind !== "gap" || !heard.estimated || hearing.track?.raw.trim() !== boundary.title.trim()) return;
+    const lagMs = hearing.lagMs(this.deps.player.getProgress());
+    debugLog(`[PlayerService] tuned-in "${boundary.title}" started at ${boundary.at} (audio) lag=${Math.round(lagMs)}ms`);
+    heard.placeStart(boundary.at, lagMs);
   }
 
   /** A title change whose start never came (no audio sampled): placed at the title. */

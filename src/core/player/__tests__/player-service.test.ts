@@ -404,6 +404,27 @@ describe("PlayerService on react-native-anything-player", () => {
       expect(heardProgress()).toBe(icyTitleInItemMs(192));
     });
 
+    it("a tune-in whose song started in the audio the connection opened with is placed there exactly", async () => {
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date("2026-10-05T05:00:00Z"));
+      const t = setup({}, { boundaries: true });
+      await t.service.setupPlayer();
+      await t.service.play();
+      t.player.setState("playing", true);
+      // Song A, tuned into: placed from the station clock (an estimate).
+      t.player.hear("Song A");
+      t.settle(5, 6);
+      expect(t.heard.estimated).toBe(true);
+      // RNAP found A's start 2 s into what the connection played first.
+      t.player.emit("boundary", { title: "Song A", titleAt: Date.now() - 5_000, at: Date.now() - 3_000, kind: "gap" });
+      expect(heardProgress()).toBe(3_000);
+      vi.advanceTimersByTime(1_000);
+      expect(heardProgress()).toBe(4_000);
+      // A boundary for another song changes nothing.
+      t.player.emit("boundary", { title: "Other", titleAt: Date.now(), at: Date.now() - 10_000, kind: "gap" });
+      expect(heardProgress()).toBe(4_000);
+    });
+
     it("a start that never comes is placed at the title after a few seconds", async () => {
       const t = await changeToB();
       t.settle(5, 6);
