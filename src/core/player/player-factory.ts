@@ -1,3 +1,4 @@
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Player, setCatalog, type PlayerOptions } from "react-native-anything-player";
 import type { Stream } from "@/core/domain/stream";
 import type { AudioPlayer } from "@/core/player/ports";
@@ -18,7 +19,7 @@ import {
   ExpoImageCoverDiskCache,
 } from "@/core/player/storage/cover-image-cache";
 import { AudibleTrackResolver } from "@/core/player/stream-playback/audible-track";
-import { HeardTrack } from "@/core/player/stream-playback/heard-track";
+import { HeardTrack, type HeardTrackMemory } from "@/core/player/stream-playback/heard-track";
 import { NowHearing } from "@/core/player/stream-playback/now-hearing";
 import { NowPlayingRepository } from "@/core/player/stream-playback/now-playing.repository";
 import { StreamPreferences } from "@/core/player/stream-playback/stream-preferences";
@@ -48,7 +49,14 @@ let playerServiceInstance: PlayerService | null = null;
  */
 export const PLAYER_ID = "animu";
 
+/** Seconds a play fades in over (once audio flows), and a pause or stop out. */
+const FADE_IN_S = 0.8;
+const FADE_OUT_S = 0.4;
+
 /** Also the catalog's: a player native code creates must behave as the app's. */
+/** Where {@link HeardTrack} keeps what it learned (`HeardTrackMemory`). */
+const HEARD_MEMORY_KEY = "heardTrackMemory";
+
 const playerOptions = (): Omit<PlayerOptions, "id"> => ({
   diagnostics: CONFIG.DEBUG,
   // The app's lock-screen metadata wins over the stream's; the ICY title
@@ -60,6 +68,12 @@ const playerOptions = (): Omit<PlayerOptions, "id"> => ({
   // Native-timer readings while playing: the audible clock's lag, and JS at
   // song boundaries where JS timers are frozen (Android background).
   progressInterval: 1_000,
+  // A play eases in and a pause eases out, as a radio's fader would; the
+  // play button changes at once.
+  fade: { in: FADE_IN_S, out: FADE_OUT_S },
+  // A listener who left it playing wants it back whenever the network is:
+  // a tunnel, a flight. Offline, RNAP waits for the network (no busy retries).
+  recovery: { giveUpAfterMs: null },
 });
 
 /**
@@ -88,6 +102,8 @@ const acquirePlayer = (owner: object): AudioPlayer => {
     getProgress: player.getProgress.bind(player),
     updateNowPlaying: player.updateNowPlaying.bind(player),
     setAudioSampling: player.setAudioSampling.bind(player),
+    setBoundaryDetection: player.setBoundaryDetection.bind(player),
+    sleep: player.sleep.bind(player),
     // Only the last service to take the player ends it.
     release: async () => {
       if (holder.__animuPlayer?.owner !== owner) return;
@@ -99,9 +115,10 @@ const acquirePlayer = (owner: object): AudioPlayer => {
 
 /**
  * The station for Siri, Google Assistant and cars: every relay as a rendition
- * of the source the app loads itself, so a request while it plays has no gap.
+ * of the source the app loads itself, so a request while it plays has no gap,
+ * at the listener's `quality` (a stream id, or `'auto'`).
  */
-export const catalogFor = (streams: Stream[], current: Stream) => ({
+export const catalogFor = (streams: Stream[], current: Stream, quality: string) => ({
   items: [
     {
       id: "animu",
@@ -112,16 +129,16 @@ export const catalogFor = (streams: Stream[], current: Stream) => ({
       group: "Rádio Animu",
       artwork: CONFIG.DEFAULT_COVER,
       source: streamSource(streams, current),
-      quality: current.id,
+      quality,
     },
   ],
   playerId: PLAYER_ID,
   playerOptions: playerOptions(),
 });
 
-const publishCatalog = async (streams: Stream[], current: Stream): Promise<void> => {
+const publishCatalog = async (streams: Stream[], current: Stream, quality: string): Promise<void> => {
   if (!streams.some((stream) => stream.id === current.id)) return;
-  const { items, ...options } = catalogFor(streams, current);
+  const { items, ...options } = catalogFor(streams, current, quality);
   await setCatalog(items, options);
 };
 
@@ -148,6 +165,15 @@ export const createPlayerService = (onDestroyed?: () => void): PlayerService => 
     stationTrack: () => repository.currentTrack,
     clockSkew: () => sync.clockSkew,
   });
+  // What it learned (calibrations, the airings whose start it heard) outlives
+  // a restart: a listener back after a tunnel, a flight or a killed app is
+  // placed with it.
+  void AsyncStorage.getItem(HEARD_MEMORY_KEY)
+    .then((raw) => heard.remember(raw ? (JSON.parse(raw) as HeardTrackMemory) : null))
+    .catch(() => undefined);
+  heard.onLearned = () => {
+    void AsyncStorage.setItem(HEARD_MEMORY_KEY, JSON.stringify(heard.memory())).catch(() => undefined);
+  };
   // The audible clock (the display when a stream has no ICY titles); native
   // progress readings pump its boundary timer.
   const sync = new StreamSyncEngine();

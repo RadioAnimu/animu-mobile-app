@@ -121,3 +121,10 @@ export function formatResultCount(
   }
   return interpolate(dict.REQUEST_SEARCH_COUNT_N, { n });
 }
+
+/** A countdown as `m:ss` (whole seconds, rounded up; minutes grow past 59). */
+export function formatCountdown(ms: number): string {
+  const total = Math.max(0, Math.ceil(ms / 1000));
+  const seconds = total % 60;
+  return `${Math.floor(total / 60)}:${seconds < 10 ? "0" : ""}${seconds}`;
+}

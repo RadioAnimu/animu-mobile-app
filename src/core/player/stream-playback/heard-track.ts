@@ -40,6 +40,20 @@ const CALIBRATION_WINDOW = 9;
 /** A sample this far off is the API's `timestart` being wrong (live shows, jingles). */
 const CALIBRATION_MAX_MS = 15_000;
 /**
+ * A sample this far (ms) from the calibration it would join is held until the
+ * next change agrees with it: one far-off change is a lag misread at that
+ * moment (a stall, a reconnect), not the stream. Genuine samples of a stream
+ * spread by about one ICY block (2 s on the 64 kbps mount); two that agree
+ * on a new value start its calibration over.
+ */
+const CALIBRATION_JUMP_MS = 3_000;
+/**
+ * Airings whose start was found in the audio, kept for re-placing them: their
+ * exact bias makes a tune-in into the same airing (a reconnect after a tunnel,
+ * a resume, a restart) exact, with the lag measured then.
+ */
+const AIRINGS_KEPT = 8;
+/**
  * A position this far (ms) off the player's media clock is moved onto it
  * ({@link HeardTrack.alignToMedia}): readings agree to ±6 ms, a late-handled
  * pause leaves ~0.1 s.
@@ -80,6 +94,12 @@ interface Anchor extends TrackPosition {
   biasMs: number;
 }
 
+/** What a {@link HeardTrack} learned that outlives the app: its calibrations and the airings it found the start of. */
+export interface HeardTrackMemory {
+  calibration: Record<string, number[]>;
+  airings: [string, number][];
+}
+
 export interface HeardTrackOptions {
   /** Tracks the station has announced, newest first (current + recent history). */
   candidates: () => readonly (Track | null | undefined)[];
@@ -105,6 +125,8 @@ export interface HeardTrackOptions {
 export class HeardTrack {
   /** The displayed track changed (title, cover, position). */
   onChange: () => void = () => {};
+  /** It learned something worth keeping ({@link memory}): a calibration sample, an airing's start. */
+  onLearned: () => void = () => {};
   /**
    * A heard title the station data does not name (yet). The owner fetches
    * fresh data over HTTP (no JS timer: none fires in the Android background),
@@ -115,11 +137,17 @@ export class HeardTrack {
   private displayed: Track | null = null;
   private anchor: Anchor | null = null;
   /** A heard title the API has not named yet (resolved by `stationChanged`). */
-  private pending: { title: string; heardAt: number; tuneIn: boolean; lagMs: number } | null = null;
+  private pending: { title: string; heardAt: number; tuneIn: boolean; lagMs: number; atStart: boolean } | null = null;
   /** Wall ms the station last announced an item (0 = not since the reset). */
   private stationChangedAt = 0;
   /** Per stream: how far the computed position was ahead of the heard one (ms). */
   private readonly calibration = new Map<string, number[]>();
+  /** Per stream: a far-off sample waiting for the next change to confirm it. */
+  private readonly unconfirmed = new Map<string, number>();
+  /** Per airing (stream, title, station start): the exact bias its found start gave. */
+  private readonly airings = new Map<string, number>();
+  /** Per stream: its codec, which a stream without a calibration borrows by. */
+  private readonly codecs = new Map<string, string>();
   private stream = "";
   /** Where this mount's titles are heard in their item (ms). */
   private titleInItemMs = icyTitleInItemMs(DEFAULT_BITRATE_KBPS);
@@ -164,10 +192,21 @@ export class HeardTrack {
     return this.anchor?.biasMs ?? this.tuneInBiasMs;
   }
 
-  /** How far this stream's computed (tune-in) position runs ahead of the audio (ms). */
+  /**
+   * How far this stream's computed (tune-in) position runs ahead of the audio
+   * (ms): its own calibration, else that of the streams of its codec. The
+   * station's lead over its audio is shared and drifts (0.1 → 0.8 s within an
+   * hour, measured 2026-11-06); the MP3 mounts then agreed to ~0.2 s and the
+   * AAC+ one sat ~0.8 s higher, so only a stream of the same codec stands in.
+   */
   get tuneInBiasMs(): number {
-    const samples = this.calibration.get(this.stream);
-    return samples?.length ? median(samples) : STATION_AHEAD_OF_AUDIO_MS;
+    const own = this.calibration.get(this.stream);
+    if (own?.length) return median(own);
+    const codec = this.codecs.get(this.stream);
+    const kin = [...this.calibration]
+      .filter(([key]) => codec != null && this.codecs.get(key) === codec)
+      .flatMap(([, samples]) => samples);
+    return kin.length ? median(kin) : STATION_AHEAD_OF_AUDIO_MS;
   }
 
   /** The station's current track (what it announced last). */
@@ -190,9 +229,14 @@ export class HeardTrack {
     return elapsed > track.duration;
   }
 
-  /** The stream played: its own calibration, and its bitrate places its titles. */
-  useStream(key: string, bitrateKbps: number = DEFAULT_BITRATE_KBPS): void {
+  /**
+   * The stream played: its own calibration, and its bitrate places its titles.
+   * `codec` (the API's `category`) lets a stream without a calibration borrow
+   * one of its kind.
+   */
+  useStream(key: string, bitrateKbps: number = DEFAULT_BITRATE_KBPS, codec?: string): void {
     this.stream = key;
+    if (codec) this.codecs.set(key, codec);
     this.titleInItemMs = icyTitleInItemMs(bitrateKbps > 0 ? bitrateKbps : DEFAULT_BITRATE_KBPS);
   }
 
@@ -211,18 +255,18 @@ export class HeardTrack {
    * @param tuneIn first title since the source (re)opened — already partway.
    * @param lagMs how far the speaker trails the live edge.
    */
-  heard(title: string, heardAt: number, tuneIn: boolean, lagMs: number): void {
+  heard(title: string, heardAt: number, tuneIn: boolean, lagMs: number, atStart = false): void {
     const wanted = title.trim();
     if (!wanted) return;
     if (!tuneIn && this.displayed?.raw.trim() === wanted) return;
     const track = this.find(wanted);
     if (!track) {
       // ICY can reach the speaker before the API names the track: wait for it.
-      this.pending = { title: wanted, heardAt, tuneIn, lagMs };
+      this.pending = { title: wanted, heardAt, tuneIn, lagMs, atStart };
       this.onUnknownTitle(wanted);
       return;
     }
-    this.adopt(track, heardAt, tuneIn, lagMs);
+    this.adopt(track, heardAt, tuneIn, lagMs, true, atStart);
   }
 
   /**
@@ -249,7 +293,7 @@ export class HeardTrack {
     } as Track;
     // Keep `pending`: `stationChanged` upgrades to the real track.
     const keep = pending;
-    this.adopt(heard, pending.heardAt, pending.tuneIn, pending.lagMs, false);
+    this.adopt(heard, pending.heardAt, pending.tuneIn, pending.lagMs, false, pending.atStart);
     this.pending = keep;
   }
 
@@ -261,7 +305,7 @@ export class HeardTrack {
     // A shown fallback title (see `unresolved`) still counts as pending.
     if (!pending) return;
     const track = this.find(pending.title);
-    if (track) this.adopt(track, pending.heardAt, pending.tuneIn, pending.lagMs);
+    if (track) this.adopt(track, pending.heardAt, pending.tuneIn, pending.lagMs, true, pending.atStart);
   }
 
   /**
@@ -331,10 +375,77 @@ export class HeardTrack {
     this.stationChangedAt = 0;
   }
 
+  /**
+   * The displayed track started at the heard epoch `at`, found in the audio a
+   * connection opened with: placed exactly there (its estimate replaced), its
+   * airing's bias kept and calibrating the stream.
+   */
+  placeStart(at: number, lagMs: number): void {
+    const track = this.displayed;
+    const anchor = this.anchor;
+    if (!track || !anchor) return;
+    let biasMs = anchor.biasMs;
+    const start = track.startTime.getTime();
+    if (Number.isFinite(start)) {
+      biasMs = at + this.skewMs - start - Math.max(0, lagMs);
+      this.calibrate(biasMs);
+      this.rememberAiring(track, biasMs);
+    }
+    const now = this.now();
+    this.media = null;
+    this.anchor = { ...anchor, elapsedMs: Math.max(0, now - at), at: Math.max(now, at), biasMs };
+    this.onChange();
+  }
+
+  /** What it learned, to restore with {@link remember} after a restart. */
+  memory(): HeardTrackMemory {
+    return { calibration: Object.fromEntries(this.calibration), airings: [...this.airings] };
+  }
+
+  /** Restores a {@link memory}; what was learned since this run started wins. */
+  remember(memory: Partial<HeardTrackMemory> | null): void {
+    for (const [stream, samples] of Object.entries(memory?.calibration ?? {})) {
+      const kept = Array.isArray(samples) ? samples.filter(Number.isFinite) : [];
+      if (!this.calibration.has(stream) && kept.length > 0) {
+        this.calibration.set(stream, kept.slice(-CALIBRATION_WINDOW));
+      }
+    }
+    const restored = (Array.isArray(memory?.airings) ? memory.airings : []).filter(
+      ([key, bias]) => typeof key === "string" && Number.isFinite(bias) && !this.airings.has(key),
+    );
+    const merged = [...restored, ...this.airings].slice(-AIRINGS_KEPT);
+    this.airings.clear();
+    for (const [key, bias] of merged) this.airings.set(key, bias);
+  }
+
+  private airingKey(track: Track): string {
+    return `${this.stream}|${track.raw.trim()}|${track.startTime.getTime()}`;
+  }
+
+  private rememberAiring(track: Track, biasMs: number): void {
+    const key = this.airingKey(track);
+    this.airings.delete(key);
+    this.airings.set(key, biasMs);
+    if (this.airings.size > AIRINGS_KEPT) this.airings.delete(this.airings.keys().next().value!);
+    this.onLearned();
+  }
+
   private calibrate(sample: number): void {
     if (Math.abs(sample) > CALIBRATION_MAX_MS) return;
+    const held = this.unconfirmed.get(this.stream);
+    this.unconfirmed.delete(this.stream);
+    if (Math.abs(sample - this.tuneInBiasMs) > CALIBRATION_JUMP_MS) {
+      if (held == null || Math.abs(sample - held) > CALIBRATION_JUMP_MS) {
+        this.unconfirmed.set(this.stream, sample);
+      } else {
+        this.calibration.set(this.stream, [held, sample]);
+        this.onLearned();
+      }
+      return;
+    }
     const samples = this.calibration.get(this.stream) ?? [];
     this.calibration.set(this.stream, [...samples, sample].slice(-CALIBRATION_WINDOW));
+    this.onLearned();
   }
 
   /**
@@ -369,8 +480,12 @@ export class HeardTrack {
     tuneIn: boolean,
     lagMs: number,
     fromStation = true,
+    atStart = false,
   ): void {
     this.pending = null;
+    // Where the title sits in its item: at its start when the player found
+    // the start in the audio (`atStart`), else the ICY model's estimate.
+    const inItemMs = atStart ? 0 : this.titleInItemMs;
     // Station time when heard, minus the lag: places a tune-in, and at a
     // change (the heard title being the truth) calibrates that.
     const start = track.startTime.getTime();
@@ -378,17 +493,20 @@ export class HeardTrack {
       ? heardAt + this.skewMs - start - Math.max(0, lagMs)
       : null;
     if (!tuneIn && fromStation && stationElapsed != null) {
-      this.calibrate(stationElapsed - this.titleInItemMs);
+      this.calibrate(stationElapsed - inItemMs);
+      // Its start was heard: this airing's bias is known exactly.
+      if (atStart) this.rememberAiring(track, stationElapsed);
     }
-    const biasMs = this.tuneInBiasMs;
-    let elapsed = this.titleInItemMs;
+    const biasMs = (tuneIn ? this.airings.get(this.airingKey(track)) : undefined) ?? this.tuneInBiasMs;
+    let elapsed = inItemMs;
     if (tuneIn && stationElapsed != null) elapsed = stationElapsed - biasMs;
     if (track.duration > 0) elapsed = Math.min(elapsed, track.duration);
     const now = this.now();
     this.media = null;
+    // A start still ahead (the audio reaches the speaker later): the clock waits for it.
     this.anchor = {
       elapsedMs: Math.max(0, elapsed) + Math.max(0, now - heardAt),
-      at: now,
+      at: Math.max(now, heardAt),
       running: true,
       estimated: tuneIn,
       biasMs,

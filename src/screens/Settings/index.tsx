@@ -15,6 +15,7 @@ import { CoverDataSection } from "@/screens/Settings/sections/CoverDataSection";
 import { ExperimentalSection } from "@/screens/Settings/sections/ExperimentalSection";
 import { HelpSection } from "@/screens/Settings/sections/HelpSection";
 import { ListenStatsSection } from "@/screens/Settings/sections/ListenStatsSection";
+import { PlaybackSection } from "@/screens/Settings/sections/PlaybackSection";
 import { PreferencesSection } from "@/screens/Settings/sections/PreferencesSection";
 import { ResetSection } from "@/screens/Settings/sections/ResetSection";
 import { StorageSection } from "@/screens/Settings/sections/StorageSection";
@@ -49,6 +50,8 @@ export function Settings({ navigation }: Readonly<Props>) {
           <RowDivider />
           <ListenStatsSection onPress={() => navigation.navigate("Stats")} />
         </View>
+
+        <PlaybackSection />
 
         <PreferencesSection />
 

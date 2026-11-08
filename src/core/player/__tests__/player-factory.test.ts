@@ -10,6 +10,7 @@ const { players, skew, prefetch, catalog, streams } = vi.hoisted(() => ({
     options: unknown;
     listeners: Map<string, (...args: unknown[]) => void>;
     setAudioSampling: Mock<() => boolean>;
+    setBoundaryDetection: Mock<() => boolean>;
     release: Mock<() => Promise<void>>;
   }[],
   skew: { listener: null as ((skewMs: number, rttMs: number) => void) | null },
@@ -20,6 +21,7 @@ vi.mock("react-native-anything-player", () => ({
   Player: class {
     listeners = new Map<string, (...args: unknown[]) => void>();
     setAudioSampling = vi.fn(() => true);
+    setBoundaryDetection = vi.fn(() => true);
     released = false;
     release = vi.fn(async () => {
       this.released = true;
@@ -31,6 +33,7 @@ vi.mock("react-native-anything-player", () => ({
     play = vi.fn();
     pause = vi.fn();
     selectQuality = vi.fn();
+    sleep = vi.fn();
     getProgress = vi.fn();
     updateNowPlaying = vi.fn(async () => {});
     status = { state: "idle", playWhenReady: false, network: "online" };
@@ -88,12 +91,12 @@ describe("player factory", () => {
 
   // The catalog the app bundles (app.json's `catalog`: voice requests and cars
   // on a fresh install, before the app ever ran) is what the app publishes at
-  // start with the fallback relays and the default quality. Regenerate it with
+  // start with the fallback relays and a first launch's automatic quality. Regenerate it with
   // `CATALOG_SEED_WRITE=1 pnpm vitest run player-factory`.
   it("bundles the catalog the app publishes with the fallback relays", async () => {
     const { catalogFor } = await load();
     const { CONFIG } = await import("@/utils/player.config");
-    const text = `${JSON.stringify(catalogFor(CONFIG.FALLBACK_STREAM_OPTIONS, CONFIG.DEFAULT_STREAM_OPTION), null, 2)}\n`;
+    const text = `${JSON.stringify(catalogFor(CONFIG.FALLBACK_STREAM_OPTIONS, CONFIG.DEFAULT_STREAM_OPTION, "auto"), null, 2)}\n`;
     const file = new URL("../../../../rnap-catalog.json", import.meta.url);
     const fs = await import("node:fs");
     if (process.env.CATALOG_SEED_WRITE) fs.writeFileSync(file, text);
@@ -119,6 +122,8 @@ describe("player factory", () => {
       metadata: { useStreamMetadataForNowPlaying: true },
       android: { stopOnTaskRemoved: true },
       progressInterval: 1_000,
+      fade: { in: 0.8, out: 0.4 },
+      recovery: { giveUpAfterMs: null },
     });
     expect([...players[0].listeners.keys()]).toEqual(
       expect.arrayContaining(["status", "metadata", "remoteCommand", "progress"]),
@@ -127,7 +132,7 @@ describe("player factory", () => {
     skew.listener?.(30_000, 100);
   });
 
-  it("publishes the station for voice and cars: the app's own source, the pick, one car tab", async () => {
+  it("publishes the station for voice and cars: the app's own source, the quality, one car tab", async () => {
     const quiet = vi.spyOn(console, "error").mockImplementation(() => {});
     const { createPlayerService } = await load();
     const { streamSource } = await import("@/core/player/stream-playback/stream-source");
@@ -143,7 +148,8 @@ describe("player factory", () => {
       title: "Rádio Animu",
       kind: "station",
       group: "Rádio Animu",
-      quality: "320",
+      // Nothing stored: a first launch plays at automatic quality.
+      quality: "auto",
       source: streamSource(streams as never, streams[0] as never),
     });
     // A player native code creates behaves as the app's (the id is the catalog's own).

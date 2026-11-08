@@ -113,9 +113,10 @@ struct PlayAnimuIntent: SystemIntent {
     static let description: IntentDescription? = IntentDescription("Starts playing R\u00e1dio Animu.")
 
     func perform() async throws -> some IntentResult {
+        // No match is no "open the app first": the app bundles its catalog
+        // (rnap-catalog.json), so a fresh install has the station too.
         switch await RNAPVoice.play(query: "") {
         case .playing: return .result()
-        case .noMatch: throw AnimuPlayError.notSetUp
         default: throw AnimuPlayError.failed
         }
     }
@@ -123,13 +124,10 @@ struct PlayAnimuIntent: SystemIntent {
 
 @available(iOS 16.0, *)
 enum AnimuPlayError: Error, CustomLocalizedStringResourceConvertible {
-    /// Nothing stored yet: the app stores the station the first time it runs.
-    case notSetUp
     case failed
 
     var localizedStringResource: LocalizedStringResource {
         switch self {
-        case .notSetUp: return "Open R\u00e1dio Animu once, then ask again."
         case .failed: return "R\u00e1dio Animu can't play right now."
         }
     }

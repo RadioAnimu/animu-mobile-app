@@ -21,6 +21,10 @@ export const styles = StyleSheet.create({
     borderRadius: THEME.RADIUS.SM,
     marginBottom: THEME.SPACE.SM,
   },
+  /** The two lines, pulsing together while a picked switch lands. */
+  label: {
+    alignItems: "center",
+  },
   kbps: {
     fontSize: THEME.FONT_SIZE.LIST,
     fontFamily: THEME.FONT_FAMILY.BOLD,

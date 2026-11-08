@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   formatBytes,
+  formatCountdown,
   formatResultCount,
   interpolate,
   percentOf,
@@ -80,5 +81,14 @@ describe("formatResultCount", () => {
     expect(formatResultCount(169, en)).toBe("169 results");
     expect(formatResultCount(3177, en)).toBe("3,177 results");
     expect(formatResultCount(1234567, pt)).toBe("1.234.567 resultados");
+  });
+});
+
+describe("formatCountdown", () => {
+  it("reads m:ss, rounding up to the whole second", () => {
+    expect(formatCountdown(90_500)).toBe("1:31");
+    expect(formatCountdown(3_600_000)).toBe("60:00");
+    expect(formatCountdown(999)).toBe("0:01");
+    expect(formatCountdown(-5)).toBe("0:00");
   });
 });
