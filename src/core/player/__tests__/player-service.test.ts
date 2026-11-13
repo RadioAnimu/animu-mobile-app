@@ -408,6 +408,8 @@ describe("PlayerService on react-native-anything-player", () => {
       vi.useFakeTimers();
       vi.setSystemTime(new Date("2026-10-05T05:00:00Z"));
       const t = setup({}, { boundaries: true });
+      // A started on the station 5 s ago: 10 s ago once the clock has settled.
+      t.repository.currentTrack = track("Song A", { startTime: new Date(Date.now() - 5_000) });
       await t.service.setupPlayer();
       await t.service.play();
       t.player.setState("playing", true);
@@ -423,6 +425,40 @@ describe("PlayerService on react-native-anything-player", () => {
       // A boundary for another song changes nothing.
       t.player.emit("boundary", { title: "Other", titleAt: Date.now(), at: Date.now() - 10_000, kind: "gap" });
       expect(heardProgress()).toBe(4_000);
+    });
+
+    it("a tuned-in start told before the lag is measured is placed once it is, with that lag", async () => {
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date("2026-10-05T05:00:00Z"));
+      const t = setup({}, { boundaries: true });
+      t.repository.currentTrack = track("Song A", { startTime: new Date(Date.now() - 9_000) });
+      await t.service.setupPlayer();
+      await t.service.play();
+      t.player.setState("playing", true);
+      t.player.hear("Song A");
+      // Found 2 s back while the burst is still arriving: the lag read now is not the lag.
+      t.player.emit("boundary", { title: "Song A", titleAt: Date.now(), at: Date.now() - 2_000, kind: "gap" });
+      expect(t.heard.memory().airings).toEqual([]);
+      t.settle(5, 6);
+      expect(heardProgress()).toBe(7_000);
+      // Heard 7 s after A's station start, 6 s behind live: the station leads its audio by 1 s.
+      expect(t.heard.memory().airings.map(([, bias]) => bias)).toEqual([1_000]);
+    });
+
+    it("a change heard before the lag is measured is placed, and teaches nothing", async () => {
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date("2026-10-05T05:00:00Z"));
+      const t = setup({}, { boundaries: true });
+      await t.service.setupPlayer();
+      await t.service.play();
+      t.player.setState("playing", true);
+      t.player.hear("Song A");
+      t.announce(track("Song B", { startTime: new Date(Date.now() - 1_000) }));
+      t.player.hear("Song B");
+      t.player.emit("boundary", { title: "Song B", titleAt: Date.now(), at: Date.now(), kind: "gap" });
+      expect(playerStore.getSnapshot().currentTrack?.raw).toBe("Song B");
+      expect(heardProgress()).toBe(0);
+      expect(t.heard.memory()).toEqual({ calibration: {}, airings: [] });
     });
 
     it("a start that never comes is placed at the title after a few seconds", async () => {

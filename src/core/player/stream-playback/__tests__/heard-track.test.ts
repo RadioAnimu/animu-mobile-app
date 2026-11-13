@@ -253,6 +253,28 @@ describe("HeardTrack", () => {
     expect(t.heard.elapsedMs()).toBe(27_000);
   });
 
+  it("a start found in a connection's opening audio replaces the tune-in's estimate, unless the calibration rules it out", () => {
+    const t = setup([track("Old", 0)]);
+    t.heard.useStream("320", 320, "MP3");
+    // The stream's calibration: the station leads its audio by 2 s.
+    t.advance(200_000);
+    t.station.tracks = [track("T", t.now - 6_000 - 2_000)];
+    t.heard.heard("T", t.now, false, 6_000, true);
+    // A tune-in 4 s into S (station time), 6 s behind live.
+    t.advance(200_000);
+    t.station.tracks = [track("S", t.now - 12_000)];
+    t.heard.reopened();
+    t.heard.heard("S", t.now, true, 6_000);
+    expect(t.heard.elapsedMs()).toBe(4_000);
+    // A gap 9 s back: the start of the jingle before S, or silence that is not a start.
+    expect(t.heard.placeStart(t.now - 9_000, 6_000)).toBe(false);
+    expect(t.heard.elapsedMs()).toBe(4_000);
+    // S's own start, 4.3 s back.
+    expect(t.heard.placeStart(t.now - 4_300, 6_000)).toBe(true);
+    expect(t.heard.elapsedMs()).toBe(4_300);
+    expect(t.heard.memory().airings.at(-1)?.[1]).toBe(1_700);
+  });
+
   it("what it learned outlives a restart", () => {
     const first = setup([track("Old", 0)]);
     first.heard.useStream("320", 320, "MP3");

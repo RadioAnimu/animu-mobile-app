@@ -137,7 +137,8 @@ export class HeardTrack {
   private displayed: Track | null = null;
   private anchor: Anchor | null = null;
   /** A heard title the API has not named yet (resolved by `stationChanged`). */
-  private pending: { title: string; heardAt: number; tuneIn: boolean; lagMs: number; atStart: boolean } | null = null;
+  private pending: { title: string; heardAt: number; tuneIn: boolean; lagMs: number | null; atStart: boolean } | null =
+    null;
   /** Wall ms the station last announced an item (0 = not since the reset). */
   private stationChangedAt = 0;
   /** Per stream: how far the computed position was ahead of the heard one (ms). */
@@ -253,9 +254,11 @@ export class HeardTrack {
   /**
    * An ICY title became audible.
    * @param tuneIn first title since the source (re)opened — already partway.
-   * @param lagMs how far the speaker trails the live edge.
+   * @param lagMs how far the speaker trails the live edge; `null` while it is
+   *   still being measured (a connection's first seconds): nothing is learned
+   *   from this title then.
    */
-  heard(title: string, heardAt: number, tuneIn: boolean, lagMs: number, atStart = false): void {
+  heard(title: string, heardAt: number, tuneIn: boolean, lagMs: number | null, atStart = false): void {
     const wanted = title.trim();
     if (!wanted) return;
     if (!tuneIn && this.displayed?.raw.trim() === wanted) return;
@@ -378,16 +381,20 @@ export class HeardTrack {
   /**
    * The displayed track started at the heard epoch `at`, found in the audio a
    * connection opened with: placed exactly there (its estimate replaced), its
-   * airing's bias kept and calibrating the stream.
+   * airing's bias kept and calibrating the stream. `lagMs` is the settled
+   * lag. Returns `false`, placing nothing, for a start the tune-in bias rules
+   * out ({@link CALIBRATION_JUMP_MS} from it): silence inside the song, the
+   * start of the item after it, a connection's own silence.
    */
-  placeStart(at: number, lagMs: number): void {
+  placeStart(at: number, lagMs: number): boolean {
     const track = this.displayed;
     const anchor = this.anchor;
-    if (!track || !anchor) return;
+    if (!track || !anchor) return false;
     let biasMs = anchor.biasMs;
     const start = track.startTime.getTime();
     if (Number.isFinite(start)) {
       biasMs = at + this.skewMs - start - Math.max(0, lagMs);
+      if (Math.abs(biasMs - this.tuneInBiasMs) > CALIBRATION_JUMP_MS) return false;
       this.calibrate(biasMs);
       this.rememberAiring(track, biasMs);
     }
@@ -395,6 +402,7 @@ export class HeardTrack {
     this.media = null;
     this.anchor = { ...anchor, elapsedMs: Math.max(0, now - at), at: Math.max(now, at), biasMs };
     this.onChange();
+    return true;
   }
 
   /** What it learned, to restore with {@link remember} after a restart. */
@@ -458,7 +466,7 @@ export class HeardTrack {
     if (!pending || this.stationChangedAt <= pending.heardAt) return false;
     const start = trackStartMs(this.options.stationTrack());
     if (start == null) return false;
-    return start > pending.heardAt + this.skewMs - Math.max(0, pending.lagMs);
+    return start > pending.heardAt + this.skewMs - Math.max(0, pending.lagMs ?? 0);
   }
 
   /** The candidate whose `raw` is `title`: exactly, else on {@link matchKey}. */
@@ -478,7 +486,7 @@ export class HeardTrack {
     track: Track,
     heardAt: number,
     tuneIn: boolean,
-    lagMs: number,
+    lagMs: number | null,
     fromStation = true,
     atStart = false,
   ): void {
@@ -489,9 +497,8 @@ export class HeardTrack {
     // Station time when heard, minus the lag: places a tune-in, and at a
     // change (the heard title being the truth) calibrates that.
     const start = track.startTime.getTime();
-    const stationElapsed = Number.isFinite(start)
-      ? heardAt + this.skewMs - start - Math.max(0, lagMs)
-      : null;
+    const stationElapsed =
+      Number.isFinite(start) && lagMs != null ? heardAt + this.skewMs - start - Math.max(0, lagMs) : null;
     if (!tuneIn && fromStation && stationElapsed != null) {
       this.calibrate(stationElapsed - inItemMs);
       // Its start was heard: this airing's bias is known exactly.

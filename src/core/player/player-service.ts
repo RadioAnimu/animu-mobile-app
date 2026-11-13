@@ -140,6 +140,8 @@ export class PlayerService {
   private awaitingStart: { title: string; heardAt: number }[] = [];
   /** A start found ahead of the speaker: the display switches when it is heard. */
   private startTimer: ReturnType<typeof setTimeout> | null = null;
+  /** The start of the song tuned into, found in the audio: placed once the clock is settled. */
+  private tunedInStart: StreamBoundary | null = null;
   private lastPollAt = 0;
   private lastState: PlaybackState = "idle";
   /** Hidden with no audio wanted — the clock behind the realtime-connection deadline. */
@@ -173,6 +175,7 @@ export class PlayerService {
       player.on("progress", (reading) => {
         this.placeOverdueTitles();
         hearing.progress(reading);
+        this.placeTunedInStart();
         this.syncSleepAtTrackEnd();
         this.tickStats();
         repository.expireStuckRefresh();
@@ -757,6 +760,7 @@ export class PlayerService {
   private markReopened(): void {
     this.tuneIn = true;
     this.awaitingStart = [];
+    this.tunedInStart = null;
     this.clearStartTimer();
     this.deps.heard.reopened();
     this.deps.hearing.reopened();
@@ -833,7 +837,9 @@ export class PlayerService {
   private handleBoundary(boundary: StreamBoundary): void {
     const index = this.awaitingStart.findIndex((entry) => entry.title === boundary.title.trim());
     if (index < 0) {
-      this.placeTunedInStart(boundary);
+      // No change heard: the start of the song tuned into.
+      if (boundary.kind === "gap") this.tunedInStart = boundary;
+      this.placeTunedInStart();
       return;
     }
     const entry = this.awaitingStart[index];
@@ -851,14 +857,19 @@ export class PlayerService {
 
   /**
    * The song tuned into started in the audio the connection opened with (the
-   * seconds before live): its estimate is replaced by that exact start.
+   * seconds before live): its estimate is replaced by that exact start, once
+   * the clock is settled (the lag read before that still grows with the burst).
    */
-  private placeTunedInStart(boundary: StreamBoundary): void {
+  private placeTunedInStart(): void {
+    const start = this.tunedInStart;
     const { heard, hearing } = this.deps;
-    if (boundary.kind !== "gap" || !heard.estimated || hearing.track?.raw.trim() !== boundary.title.trim()) return;
+    if (!start || !hearing.clockSettled) return;
+    this.tunedInStart = null;
+    if (!heard.estimated || hearing.track?.raw.trim() !== start.title.trim()) return;
     const lagMs = hearing.lagMs(this.deps.player.getProgress());
-    debugLog(`[PlayerService] tuned-in "${boundary.title}" started at ${boundary.at} (audio) lag=${Math.round(lagMs)}ms`);
-    heard.placeStart(boundary.at, lagMs);
+    const placed = heard.placeStart(start.at, lagMs);
+    const verdict = placed ? "placed" : "not its start";
+    debugLog(`[PlayerService] tuned-in "${start.title}" started at ${start.at} (audio) lag=${Math.round(lagMs)}ms: ${verdict}`);
   }
 
   /** A title change whose start never came (no audio sampled): placed at the title. */
@@ -872,8 +883,11 @@ export class PlayerService {
 
   private placeTitle(title: string, at: number, atStart: boolean): void {
     this.startTimer = null;
-    const lagMs = this.deps.hearing.lagMs(this.deps.player.getProgress());
-    debugLog(`[PlayerService] "${title}" starts at ${at} (${atStart ? "audio" : "title"}) lag=${Math.round(lagMs)}ms`);
+    const { hearing } = this.deps;
+    // A connection's first seconds: the lag is not measured yet, and teaches nothing.
+    const lagMs = hearing.clockSettled ? hearing.lagMs(this.deps.player.getProgress()) : null;
+    const lag = lagMs == null ? "unsettled" : `${Math.round(lagMs)}ms`;
+    debugLog(`[PlayerService] "${title}" starts at ${at} (${atStart ? "audio" : "title"}) lag=${lag}`);
     this.deps.heard.heard(title, at, false, lagMs, atStart);
     this.deps.hearing.titleWasHeard();
   }
