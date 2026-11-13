@@ -45,6 +45,12 @@ const CALIBRATION_WINDOW = 9;
  * median of the recent ones places a change that has no start in the audio.
  */
 const TITLE_OFFSET_WINDOW = 9;
+/**
+ * Fewer samples than this do not replace the protocol's value: a start is
+ * looked for seconds around its title, and the median of one or two cannot
+ * outvote a wrong one.
+ */
+const TITLE_OFFSET_MIN = 3;
 /** A sample this far off is the API's `timestart` being wrong (live shows, jingles). */
 const CALIBRATION_MAX_MS = 15_000;
 /**
@@ -263,8 +269,8 @@ export class HeardTrack {
 
   /** How far into its item this stream's title is heard (ms; negative: the title comes first): measured, else the protocol's. */
   get titleInItemMs(): number {
-    const measured = this.titleOffsets.get(this.stream);
-    return measured?.length ? median(measured) : this.modelTitleInItemMs;
+    const measured = this.titleOffsets.get(this.stream) ?? [];
+    return measured.length >= TITLE_OFFSET_MIN ? median(measured) : this.modelTitleInItemMs;
   }
 
   /** A change's start was found in the audio `offsetMs` before its title was heard. */
@@ -378,8 +384,11 @@ export class HeardTrack {
   alignToMedia(positionS: number, atMs: number): boolean {
     const anchor = this.anchor;
     if (!anchor || !this.displayed || !Number.isFinite(positionS) || !Number.isFinite(atMs)) return false;
+    // A start still ahead (found before it is heard) is not running yet: a
+    // reference taken now would count the wait as time played.
+    if (atMs < anchor.at) return false;
     const positionMs = positionS * 1000;
-    const elapsed = anchor.elapsedMs + (anchor.running ? Math.max(0, atMs - anchor.at) : 0);
+    const elapsed = anchor.elapsedMs + (anchor.running ? atMs - anchor.at : 0);
     const reference = this.media;
     // No reference yet, or the media clock restarted (a new connection).
     if (!reference || positionMs < reference.positionMs) {

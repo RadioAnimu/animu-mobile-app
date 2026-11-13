@@ -392,6 +392,21 @@ describe("PlayerService on react-native-anything-player", () => {
       expect(t.heard.elapsedMs()).toBe(1_200);
     });
 
+    it("a title heard while an earlier start is still ahead shows as soon as that start is placed", async () => {
+      const t = await changeToB();
+      // B's start is found 500 ms ahead; C's title is heard before it.
+      boundary(t, Date.now() + 500);
+      vi.advanceTimersByTime(200);
+      t.announce(track("Song C", { startTime: new Date(Date.now() - 1_000) }));
+      t.player.hear("Song C");
+      vi.advanceTimersByTime(0);
+      // Not ahead of B, whose start is not heard yet.
+      expect(playerStore.getSnapshot().currentTrack?.raw).toBe("Song A");
+      vi.advanceTimersByTime(300);
+      // B is placed at its start, and C, already heard, with no reading to wait for.
+      expect(playerStore.getSnapshot().currentTrack?.raw).toBe("Song C");
+    });
+
     it("a start behind the title (it came late) switches at once, already that far in", async () => {
       const t = await changeToB();
       boundary(t, Date.now() - 400);
@@ -502,13 +517,35 @@ describe("PlayerService on react-native-anything-player", () => {
       expect(heardProgress()).toBe(0);
       vi.advanceTimersByTime(1_000);
       expect(heardProgress()).toBe(1_000);
-      // The stream's titles are now known to come 300 ms before their items.
-      expect(t.heard.titleInItemMs).toBe(-300);
+      // One found start is not yet a measure of the stream: the protocol's value stands.
+      expect(t.heard.titleInItemMs).toBe(icyTitleInItemMs(192));
+      expect(t.heard.memory().titleOffsets).toEqual({ high: [-300] });
+    });
+
+    it("a start placed ahead of the speaker stays exact through the native readings before it is heard", async () => {
+      const t = await changeToB();
+      vi.advanceTimersByTime(0);
+      vi.advanceTimersByTime(100);
+      // On screen at its title; its start is found 1.1 s ahead.
+      boundary(t, Date.now() + 1_100);
+      // A native reading 0.5 s before the start, the next 0.5 s after it.
+      vi.advanceTimersByTime(600);
+      t.player.emit("progress", t.reading(6));
+      expect(heardProgress()).toBe(0);
+      vi.advanceTimersByTime(1_000);
+      t.player.emit("progress", t.reading(6));
+      // The wait for the start is not counted as time played.
+      expect(heardProgress()).toBe(500);
+      t.settle(3, 6);
+      expect(heardProgress()).toBe(3_500);
     });
 
     it("a change with no start in the audio is placed by where the stream's titles were found to be", async () => {
       const t = await changeToB();
-      // B's start is found 300 ms after its title was heard.
+      // The stream's titles were found 300 ms before their items twice already.
+      t.heard.learnTitleOffset(-300);
+      t.heard.learnTitleOffset(-300);
+      // B's start is found 300 ms after its title was heard too.
       vi.advanceTimersByTime(300);
       boundary(t, Date.now());
       // C has none: it is taken to start 300 ms after its title too.

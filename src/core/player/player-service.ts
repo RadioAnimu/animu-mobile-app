@@ -852,7 +852,8 @@ export class PlayerService {
   private handleBoundary(boundary: StreamBoundary): void {
     const index = this.awaitingStart.findIndex((entry) => entry.title === boundary.title.trim());
     if (index < 0) {
-      // No change heard: the start of the song tuned into.
+      // No change heard: the start of the song tuned into, when it is a gap
+      // (the player reports any start it sees around a connection's first title).
       if (boundary.kind === "gap") this.tunedInStart = boundary;
       this.placeTunedInStart();
       return;
@@ -867,17 +868,21 @@ export class PlayerService {
     // Where this stream's titles are heard in their items: places the changes with no start in the audio.
     if (atStart) this.deps.heard.learnTitleOffset(entry.heardAt - boundary.at);
     const at = atStart ? boundary.at : entry.heardAt;
-    const place = () => {
+    const place = () => this.placeTitle(entry.title, at, atStart);
+    // When its time comes: a title heard since then waits no longer to be shown.
+    const placeDue = () => {
+      this.startTimer = null;
       this.startDue = null;
-      this.placeTitle(entry.title, at, atStart);
+      place();
+      this.showAwaiting();
     };
     const delay = at - Date.now();
     this.clearStartTimer();
     // Placed now when it is on screen already (a start still ahead holds at 0
     // until heard), and in the Android background, where no JS timer runs.
     if (delay > 15 && this.appActive && !entry.shown) {
-      this.startDue = { at, place };
-      this.startTimer = setTimeout(place, delay);
+      this.startDue = { at, place: placeDue };
+      this.startTimer = setTimeout(placeDue, delay);
     } else place();
   }
 
@@ -910,9 +915,10 @@ export class PlayerService {
   }
 
   /**
-   * The song tuned into started in the audio the connection opened with (the
-   * seconds before live): its estimate is replaced by that exact start, once
-   * the clock is settled (the lag read before that still grows with the burst).
+   * The song tuned into started just as the connection's audio begins (a
+   * connection's first title names the item playing there, under way as a
+   * rule): its estimate is replaced by that exact start, once the clock is
+   * settled (the lag read before that still grows with the burst).
    */
   private placeTunedInStart(): void {
     const start = this.tunedInStart;
@@ -941,7 +947,6 @@ export class PlayerService {
   }
 
   private placeTitle(title: string, at: number, atStart: boolean): void {
-    this.startTimer = null;
     const { hearing } = this.deps;
     // A connection's first seconds: the lag is not measured yet, and teaches nothing.
     const lagMs = hearing.clockSettled ? hearing.lagMs(this.deps.player.getProgress()) : null;
