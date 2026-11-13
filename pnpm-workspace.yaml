@@ -18,23 +18,25 @@ minimumReleaseAge: 4320
 # ...which is what this exclusion is for: the Expo/RN packages we track
 # deliberately (and bump together with the SDK) skip the 3-day wait.
 minimumReleaseAgeExclude:
-  # Expo SDK 58's internal packages (expo 58.0.23, November 3) published
+  # Expo SDK 58's internal packages (expo 58.0.25, November 11) published
   # inside the 3-day window: exact versions from the reviewed SDK release, all
   # published by Expo's GitHub Actions with SLSA provenance. They age out of
-  # the window on November 6: replace them at the next SDK bump.
-  - "@expo/cli@58.1.19"
-  - "@expo/config@58.0.11"
-  - "@expo/config-plugins@58.0.12"
-  - "@expo/env@2.5.4"
-  - "@expo/fingerprint@0.21.9"
-  - "@expo/inline-modules@0.2.9"
-  - "@expo/local-build-cache-provider@58.0.11"
-  - "@expo/log-box@58.0.15"
-  - "@expo/metro-config@58.0.21"
-  - "@expo/metro-runtime@58.0.17"
-  - "@expo/prebuild-config@58.0.19"
-  - "@expo/router-server@58.0.21"
-  - "babel-preset-expo@58.0.24"
+  # the window on November 14: replace them at the next SDK bump.
+  - "@expo/cli@58.1.20"
+  - "@expo/config-plugins@58.0.13"
+  - "@expo/config@58.0.12"
+  - "@expo/env@2.6.0"
+  - "@expo/fingerprint@0.21.10"
+  - "@expo/image-utils@0.12.7"
+  - "@expo/inline-modules@0.2.10"
+  - "@expo/local-build-cache-provider@58.0.12"
+  - "@expo/metro-config@58.0.22"
+  - "@expo/metro-file-map@58.0.6"
+  - "@expo/plist@0.10.2"
+  - "@expo/prebuild-config@58.0.20"
+  - "@expo/require-utils@58.0.6"
+  - "@expo/router-server@58.0.22"
+  - "babel-preset-expo@58.0.25"
   - expo
   - expo-*
   - react
