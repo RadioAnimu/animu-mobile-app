@@ -275,6 +275,50 @@ describe("HeardTrack", () => {
     expect(t.heard.memory().airings.at(-1)?.[1]).toBe(1_700);
   });
 
+  it("places a change with no start in the audio by where the stream's titles were found to be", () => {
+    const t = setup([track("Old", 0)]);
+    t.heard.useStream("320", 320, "MP3");
+    // Before any was measured: the protocol's half block.
+    expect(t.heard.titleInItemMs).toBe(AT_TITLE);
+    // Three changes whose start was found: the audio came 100, 150 and 1200 ms (a silent lead-in) after the title.
+    for (const offset of [-100, -1_200, -150]) t.heard.learnTitleOffset(offset);
+    expect(t.heard.titleInItemMs).toBe(-150);
+    // A crossfade: taken to start 150 ms after its title, and running from there.
+    t.advance(200_000);
+    t.station.tracks = [track("Mixed in", t.now - 6_000)];
+    t.heard.heard("Mixed in", t.now, false, 6_000);
+    expect(t.heard.elapsedMs()).toBe(0);
+    t.advance(1_150);
+    expect(t.heard.elapsedMs()).toBe(1_000);
+    // Each stream has its own, kept across a restart.
+    t.heard.useStream("64", 64, "AAC+");
+    expect(t.heard.titleInItemMs).toBe(icyTitleInItemMs(64));
+    const next = setup([track("Old", 0)]);
+    next.heard.remember(t.heard.memory());
+    next.heard.useStream("320", 320, "MP3");
+    expect(next.heard.titleInItemMs).toBe(-150);
+  });
+
+  it("a title shown while its start is looked for teaches nothing, and is placed again once it is known", () => {
+    const t = setup([track("Old", 0)]);
+    t.heard.useStream("320", 320, "MP3");
+    t.advance(200_000);
+    t.station.tracks = [track("Next", t.now - 6_500)];
+    t.heard.preview("Next", t.now);
+    expect(t.heard.track?.raw).toBe("Next");
+    expect(t.heard.elapsedMs()).toBe(AT_TITLE);
+    expect(t.heard.memory().calibration).toEqual({});
+    // Its start is found 400 ms after the title was heard, 6 s behind live.
+    t.advance(400);
+    t.heard.heard("Next", t.now, false, 6_000, true);
+    expect(t.heard.elapsedMs()).toBe(0);
+    expect(t.heard.tuneInBiasMs).toBe(900);
+    // Placed for good: the same title again changes nothing.
+    t.advance(5_000);
+    t.heard.heard("Next", t.now, false, 6_000, true);
+    expect(t.heard.elapsedMs()).toBe(5_000);
+  });
+
   it("what it learned outlives a restart", () => {
     const first = setup([track("Old", 0)]);
     first.heard.useStream("320", 320, "MP3");

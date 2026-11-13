@@ -382,6 +382,16 @@ describe("PlayerService on react-native-anything-player", () => {
       expect(heardProgress()).toBe(1_500);
     });
 
+    it("a start still ahead as the app hides is placed then: its timer would not fire in the background", async () => {
+      const t = await changeToB();
+      boundary(t, Date.now() + 800);
+      t.service.setAppActive(false);
+      expect(t.heard.track?.raw).toBe("Song B");
+      // Placed at its start, 800 ms ahead: not a late timer's guess.
+      vi.advanceTimersByTime(2_000);
+      expect(t.heard.elapsedMs()).toBe(1_200);
+    });
+
     it("a start behind the title (it came late) switches at once, already that far in", async () => {
       const t = await changeToB();
       boundary(t, Date.now() - 400);
@@ -422,9 +432,13 @@ describe("PlayerService on react-native-anything-player", () => {
       expect(heardProgress()).toBe(3_000);
       vi.advanceTimersByTime(1_000);
       expect(heardProgress()).toBe(4_000);
+      // Heard, no longer estimated: a lag reading that moves later does not move it.
+      expect(t.heard.estimated).toBe(false);
+      t.settle(2, 6.4);
+      expect(heardProgress()).toBe(6_000);
       // A boundary for another song changes nothing.
       t.player.emit("boundary", { title: "Other", titleAt: Date.now(), at: Date.now() - 10_000, kind: "gap" });
-      expect(heardProgress()).toBe(4_000);
+      expect(heardProgress()).toBe(6_000);
     });
 
     it("a tuned-in start told before the lag is measured is placed once it is, with that lag", async () => {
@@ -458,15 +472,65 @@ describe("PlayerService on react-native-anything-player", () => {
       t.player.emit("boundary", { title: "Song B", titleAt: Date.now(), at: Date.now(), kind: "gap" });
       expect(playerStore.getSnapshot().currentTrack?.raw).toBe("Song B");
       expect(heardProgress()).toBe(0);
-      expect(t.heard.memory()).toEqual({ calibration: {}, airings: [] });
+      expect(t.heard.memory()).toMatchObject({ calibration: {}, airings: [] });
     });
 
-    it("a start that never comes is placed at the title after a few seconds", async () => {
-      const t = await changeToB();
-      t.settle(5, 6);
-      expect(playerStore.getSnapshot().currentTrack?.raw).toBe("Song A");
-      t.settle(2, 6);
+    it("a change is on screen at its title at once, not when the player has listened on for a start", async () => {
+      // B started on the station 7 s before its title is heard, 6 s behind live.
+      const t = await changeToB(7_000);
+      // The event that brought the title is over, and no start came with it.
+      vi.advanceTimersByTime(0);
       expect(playerStore.getSnapshot().currentTrack?.raw).toBe("Song B");
+      expect(heardProgress()).toBe(icyTitleInItemMs(192));
+      // 4 s on the player reports there was none (a crossfade): nothing moves, and the stream is calibrated.
+      vi.advanceTimersByTime(4_000);
+      expect(t.heard.memory().calibration).toEqual({});
+      boundary(t, Date.now() - 4_000, "title");
+      expect(heardProgress()).toBe(icyTitleInItemMs(192) + 4_000);
+      expect(t.heard.memory().calibration.high).toHaveLength(1);
+    });
+
+    it("a change shown at its title is placed again where its start is found", async () => {
+      const t = await changeToB();
+      vi.advanceTimersByTime(0);
+      expect(playerStore.getSnapshot().currentTrack?.raw).toBe("Song B");
+      vi.advanceTimersByTime(200);
+      // The title came first: B starts 300 ms after it, 100 ms from now.
+      boundary(t, Date.now() + 100);
+      expect(heardProgress()).toBe(0);
+      vi.advanceTimersByTime(100);
+      expect(heardProgress()).toBe(0);
+      vi.advanceTimersByTime(1_000);
+      expect(heardProgress()).toBe(1_000);
+      // The stream's titles are now known to come 300 ms before their items.
+      expect(t.heard.titleInItemMs).toBe(-300);
+    });
+
+    it("a change with no start in the audio is placed by where the stream's titles were found to be", async () => {
+      const t = await changeToB();
+      // B's start is found 300 ms after its title was heard.
+      vi.advanceTimersByTime(300);
+      boundary(t, Date.now());
+      // C has none: it is taken to start 300 ms after its title too.
+      vi.advanceTimersByTime(60_000);
+      t.announce(track("Song C", { startTime: new Date(Date.now() - 1_000) }));
+      t.player.hear("Song C");
+      vi.advanceTimersByTime(0);
+      expect(playerStore.getSnapshot().currentTrack?.raw).toBe("Song C");
+      expect(heardProgress()).toBe(0);
+      vi.advanceTimersByTime(1_300);
+      expect(heardProgress()).toBe(1_000);
+    });
+
+    it("a start that is never told (no audio sampled) keeps the title's place", async () => {
+      const t = await changeToB(7_000);
+      // The Android background runs no timer: the next native reading shows it.
+      t.settle(1, 6);
+      expect(playerStore.getSnapshot().currentTrack?.raw).toBe("Song B");
+      expect(t.heard.memory().calibration).toEqual({});
+      t.settle(6, 6);
+      expect(heardProgress()).toBe(icyTitleInItemMs(192) + 7_000);
+      expect(t.heard.memory().calibration.high).toHaveLength(1);
     });
   });
 

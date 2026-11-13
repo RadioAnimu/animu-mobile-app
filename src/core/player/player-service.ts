@@ -35,8 +35,9 @@ const POLL_PAUSED_MS = 30_000;
 /** The sleep timer fades the audio out over its last seconds (at most). */
 const SLEEP_FADE_OUT_S = 10;
 /**
- * A title change waits this long for the player to find its item's start
- * (it reports within 4 s of the title), then is placed at the title.
+ * A title change waits this long for the player to tell where its item
+ * starts (it reports within 4 s of the title), then keeps its place at the
+ * title.
  */
 const START_WAIT_MS = 6_000;
 
@@ -136,10 +137,17 @@ export class PlayerService {
   private afterJump = false;
   /** Whether the player reports where heard items start (`boundary` events). */
   private boundariesOn = false;
-  /** Title changes heard, waiting for the player to find where their items start. */
-  private awaitingStart: { title: string; heardAt: number }[] = [];
+  /**
+   * Title changes heard, waiting for the player to find where their items
+   * start. `shown`: on screen meanwhile, placed at its title.
+   */
+  private awaitingStart: { title: string; heardAt: number; shown: boolean }[] = [];
+  /** Shows the newest waiting title once the event that brought it is over ({@link showAwaiting}). */
+  private showTimer: ReturnType<typeof setTimeout> | null = null;
   /** A start found ahead of the speaker: the display switches when it is heard. */
   private startTimer: ReturnType<typeof setTimeout> | null = null;
+  /** What {@link startTimer} waits to do, and from when: done without it where no JS timer fires. */
+  private startDue: { at: number; place: () => void } | null = null;
   /** The start of the song tuned into, found in the audio: placed once the clock is settled. */
   private tunedInStart: StreamBoundary | null = null;
   private lastPollAt = 0;
@@ -173,6 +181,7 @@ export class PlayerService {
       // Native-timer readings while playing: they run JS where JS timers are
       // frozen (Android background) — the audible clock, stats, watchdogs.
       player.on("progress", (reading) => {
+        this.placeDueStart();
         this.placeOverdueTitles();
         hearing.progress(reading);
         this.placeTunedInStart();
@@ -390,6 +399,7 @@ export class PlayerService {
   setAppActive(active: boolean): void {
     if (this.appActive === active) return;
     this.appActive = active;
+    if (!active) this.placeDueStart(true);
     this.deps.sampler.setForeground(active);
     this.updateLiveStreamLifecycle();
     this.updateTicker();
@@ -761,6 +771,8 @@ export class PlayerService {
     this.tuneIn = true;
     this.awaitingStart = [];
     this.tunedInStart = null;
+    if (this.showTimer != null) clearTimeout(this.showTimer);
+    this.showTimer = null;
     this.clearStartTimer();
     this.deps.heard.reopened();
     this.deps.hearing.reopened();
@@ -815,7 +827,10 @@ export class PlayerService {
     // only near it), once that is known (`handleBoundary`).
     const latest = this.awaitingStart.at(-1)?.title ?? this.deps.hearing.track?.raw;
     if (!tuneIn && this.boundariesOn && title.trim() !== latest?.trim()) {
-      this.awaitingStart.push({ title: title.trim(), heardAt });
+      this.awaitingStart.push({ title: title.trim(), heardAt, shown: false });
+      // A start already in the audio is told with the title (the same native
+      // event): only then is the title not shown first.
+      this.showTimer ??= setTimeout(() => this.showAwaiting(), 0);
       return;
     }
     // How far the speaker trails the live edge (places a tune-in, calibrates at
@@ -843,16 +858,55 @@ export class PlayerService {
       return;
     }
     const entry = this.awaitingStart[index];
+    // A newer title is on screen already: this one's item is over.
+    const over = this.awaitingStart.slice(index + 1).some((later) => later.shown);
     // Older ones were superseded before their start was found: this one is heard.
     this.awaitingStart.splice(0, index + 1);
+    if (over) return;
     const atStart = boundary.kind !== "title";
+    // Where this stream's titles are heard in their items: places the changes with no start in the audio.
+    if (atStart) this.deps.heard.learnTitleOffset(entry.heardAt - boundary.at);
     const at = atStart ? boundary.at : entry.heardAt;
-    const place = () => this.placeTitle(entry.title, at, atStart);
+    const place = () => {
+      this.startDue = null;
+      this.placeTitle(entry.title, at, atStart);
+    };
     const delay = at - Date.now();
     this.clearStartTimer();
-    // No JS timer runs in the Android background: placed now there (the lock screen).
-    if (delay > 15 && this.appActive) this.startTimer = setTimeout(place, delay);
-    else place();
+    // Placed now when it is on screen already (a start still ahead holds at 0
+    // until heard), and in the Android background, where no JS timer runs.
+    if (delay > 15 && this.appActive && !entry.shown) {
+      this.startDue = { at, place };
+      this.startTimer = setTimeout(place, delay);
+    } else place();
+  }
+
+  /**
+   * The newest title still waiting for its start goes on screen, placed at
+   * its title: a change with no start in the audio is told seconds later
+   * (the player listens on for one), and its song is playing meanwhile.
+   */
+  private showAwaiting(): void {
+    if (this.showTimer != null) clearTimeout(this.showTimer);
+    this.showTimer = null;
+    const entry = this.awaitingStart.at(-1);
+    // Not ahead of a start about to be placed (found, and not heard yet).
+    if (!entry || entry.shown || this.startDue) return;
+    entry.shown = true;
+    debugLog(`[PlayerService] "${entry.title}" shown at its title (${entry.heardAt}), its start not told yet`);
+    this.deps.heard.preview(entry.title, entry.heardAt);
+    this.deps.hearing.titleWasHeard();
+  }
+
+  /**
+   * A start still waiting for its timer is placed: once due (a native reading
+   * came first), or at once as the app hides, where the timer would not fire.
+   */
+  private placeDueStart(hiding = false): void {
+    const due = this.startDue;
+    if (!due || (!hiding && Date.now() < due.at)) return;
+    this.clearStartTimer();
+    due.place();
   }
 
   /**
@@ -872,13 +926,18 @@ export class PlayerService {
     debugLog(`[PlayerService] tuned-in "${start.title}" started at ${start.at} (audio) lag=${Math.round(lagMs)}ms: ${verdict}`);
   }
 
-  /** A title change whose start never came (no audio sampled): placed at the title. */
+  /**
+   * On a native reading: a waiting title no timer showed (the Android
+   * background) is shown, and one whose start was never told (no audio
+   * sampled) keeps its place at the title.
+   */
   private placeOverdueTitles(): void {
-    if (this.awaitingStart.length === 0) return;
-    const first = this.awaitingStart[0];
-    if (Date.now() - first.heardAt < START_WAIT_MS) return;
+    this.showAwaiting();
+    const first = this.awaitingStart.at(0);
+    if (!first || Date.now() - first.heardAt < START_WAIT_MS) return;
     this.awaitingStart.shift();
-    this.placeTitle(first.title, first.heardAt, false);
+    // Unless a newer title took over.
+    if (this.awaitingStart.length === 0) this.placeTitle(first.title, first.heardAt, false);
   }
 
   private placeTitle(title: string, at: number, atStart: boolean): void {
@@ -895,6 +954,7 @@ export class PlayerService {
   private clearStartTimer(): void {
     if (this.startTimer != null) clearTimeout(this.startTimer);
     this.startTimer = null;
+    this.startDue = null;
   }
 
   /** The displayed track changed: UI, progress, lock screen and stats move together. */
