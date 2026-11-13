@@ -865,8 +865,10 @@ export class PlayerService {
     this.awaitingStart.splice(0, index + 1);
     if (over) return;
     const atStart = boundary.kind !== "title";
-    // Where this stream's titles are heard in their items: places the changes with no start in the audio.
-    if (atStart) this.deps.heard.learnTitleOffset(entry.heardAt - boundary.at);
+    // Where this stream's titles are heard in their items: places the changes
+    // with no start in the audio. Not from a connection's first title, whose
+    // start may be the next item's.
+    if (atStart && !boundary.first) this.deps.heard.learnTitleOffset(entry.heardAt - boundary.at);
     const at = atStart ? boundary.at : entry.heardAt;
     const place = () => this.placeTitle(entry.title, at, atStart);
     // When its time comes: a title heard since then waits no longer to be shown.
@@ -925,7 +927,13 @@ export class PlayerService {
     const { heard, hearing } = this.deps;
     if (!start || !hearing.clockSettled) return;
     this.tunedInStart = null;
-    if (!heard.estimated || hearing.track?.raw.trim() !== start.title.trim()) return;
+    const track = hearing.track;
+    if (!heard.estimated || track?.raw.trim() !== start.title.trim()) return;
+    // The song tuned into was under way when its title was heard: a start after the title is the next item's.
+    if (start.at > start.titleAt) return;
+    // A jingle or an ID lasts seconds: its own start and the next item's are
+    // too close for the calibration to tell apart, and it has no lyrics to place.
+    if (!isRealTrack(track)) return;
     const lagMs = hearing.lagMs(this.deps.player.getProgress());
     const placed = heard.placeStart(start.at, lagMs);
     const verdict = placed ? "placed" : "not its start";

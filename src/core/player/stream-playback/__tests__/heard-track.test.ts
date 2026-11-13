@@ -283,7 +283,7 @@ describe("HeardTrack", () => {
     // One found start could be a wrong one (it is looked for seconds around the title): not a measure yet.
     t.heard.learnTitleOffset(-3_900);
     expect(t.heard.titleInItemMs).toBe(AT_TITLE);
-    // With three more, where the audio came 100, 150 and 1200 ms (a silent lead-in) after the title: their median.
+    // With three more (the audio 100, 150 and 1200 ms after the title, the last a silent lead-in): the median of the four.
     for (const offset of [-100, -1_200, -150]) t.heard.learnTitleOffset(offset);
     expect(t.heard.titleInItemMs).toBe(-150);
     // A crossfade: taken to start 150 ms after its title, and running from there.

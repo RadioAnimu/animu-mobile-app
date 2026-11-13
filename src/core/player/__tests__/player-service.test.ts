@@ -429,31 +429,78 @@ describe("PlayerService on react-native-anything-player", () => {
       expect(heardProgress()).toBe(icyTitleInItemMs(192));
     });
 
-    it("a tune-in whose song started in the audio the connection opened with is placed there exactly", async () => {
+    it("a tune-in whose song started as the connection's audio began is placed there exactly", async () => {
       vi.useFakeTimers();
       vi.setSystemTime(new Date("2026-10-05T05:00:00Z"));
       const t = setup({}, { boundaries: true });
-      // A started on the station 5 s ago: 10 s ago once the clock has settled.
-      t.repository.currentTrack = track("Song A", { startTime: new Date(Date.now() - 5_000) });
+      // A went on air 7.3 s before its title is heard, 6 s behind live.
+      t.repository.currentTrack = track("Song A", { startTime: new Date(Date.now() - 7_300) });
       await t.service.setupPlayer();
       await t.service.play();
       t.player.setState("playing", true);
       // Song A, tuned into: placed from the station clock (an estimate).
+      const titleAt = Date.now();
       t.player.hear("Song A");
       t.settle(5, 6);
       expect(t.heard.estimated).toBe(true);
-      // RNAP found A's start 2 s into what the connection played first.
-      t.player.emit("boundary", { title: "Song A", titleAt: Date.now() - 5_000, at: Date.now() - 3_000, kind: "gap" });
-      expect(heardProgress()).toBe(3_000);
+      // RNAP found A's start in the audio heard before its title, 300 ms earlier.
+      t.player.emit("boundary", { title: "Song A", titleAt, at: titleAt - 300, kind: "gap" });
+      expect(heardProgress()).toBe(5_300);
       vi.advanceTimersByTime(1_000);
-      expect(heardProgress()).toBe(4_000);
+      expect(heardProgress()).toBe(6_300);
       // Heard, no longer estimated: a lag reading that moves later does not move it.
       expect(t.heard.estimated).toBe(false);
       t.settle(2, 6.4);
-      expect(heardProgress()).toBe(6_000);
+      expect(heardProgress()).toBe(8_300);
       // A boundary for another song changes nothing.
       t.player.emit("boundary", { title: "Other", titleAt: Date.now(), at: Date.now() - 10_000, kind: "gap" });
-      expect(heardProgress()).toBe(6_000);
+      expect(heardProgress()).toBe(8_300);
+    });
+
+    it("a start heard after the title of the song tuned into is not its own: the next item's", async () => {
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date("2026-10-05T05:00:00Z"));
+      const t = setup({}, { boundaries: true });
+      // A short jingle tuned into as it began: 2 s in once heard, 6 s behind live.
+      t.repository.currentTrack = track("Song A", { startTime: new Date(Date.now() - 4_000), duration: 4_400 });
+      await t.service.setupPlayer();
+      await t.service.play();
+      t.player.setState("playing", true);
+      const titleAt = Date.now();
+      t.player.hear("Song A");
+      t.settle(4, 6);
+      // The next item starts 3 s after A's title: near enough to A's own start to pass for it.
+      t.player.emit("boundary", { title: "Song A", titleAt, at: titleAt + 3_000, kind: "gap" });
+      expect(t.heard.estimated).toBe(true);
+      expect(t.heard.memory().airings).toEqual([]);
+    });
+
+    it("a station ID tuned into is not given the start found before its title: the song's after it, seconds on", async () => {
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date("2026-10-05T05:00:00Z"));
+      const t = setup({}, { boundaries: true });
+      // A 2 s ID, on air 9 s before its title is heard, 6 s behind live; the song after it starts 300 ms before that title.
+      t.repository.currentTrack = track("Rádio Animu - Site ID animu.moe | Animu ID", {
+        artist: "Rádio Animu",
+        startTime: new Date(Date.now() - 9_000),
+        duration: 2_000,
+      });
+      await t.service.setupPlayer();
+      await t.service.play();
+      t.player.setState("playing", true);
+      const titleAt = Date.now();
+      t.player.hear("Rádio Animu - Site ID animu.moe | Animu ID");
+      t.settle(4, 6);
+      // 2.7 s from where the ID's own start is taken to be: inside what the calibration allows.
+      t.player.emit("boundary", {
+        title: "Rádio Animu - Site ID animu.moe | Animu ID",
+        titleAt,
+        at: titleAt - 300,
+        kind: "gap",
+        first: true,
+      });
+      expect(t.heard.estimated).toBe(true);
+      expect(t.heard.memory()).toMatchObject({ calibration: {}, airings: [] });
     });
 
     it("a tuned-in start told before the lag is measured is placed once it is, with that lag", async () => {
