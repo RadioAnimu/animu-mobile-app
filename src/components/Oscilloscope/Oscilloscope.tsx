@@ -56,9 +56,10 @@ function encodeWave(points: number[]): string {
  * The site reads a fresh `AnalyserNode` window every animation frame: the
  * newest stretch of audio, advancing continuously with the audio clock. The
  * page reproduces that from the bridged windows. They are consecutive slices
- * of the decoded stream, so the queue is one continuous signal, and every
- * frame strokes the window-long stretch that starts at a read position on
- * that signal. The position moves with a clock (the measured window period),
+ * of the decoded stream, so the queue is one continuous signal read at a
+ * position on it: every frame strokes the window that position is in,
+ * morphing in place into the next one as the position crosses it. The
+ * position moves with a clock (the measured window period),
  * held `delay` behind the newest window so the trace shows what is being
  * heard; when and how bursty the messages arrive no longer moves the trace.
  */
@@ -93,6 +94,14 @@ const PAGE_HTML = `<!DOCTYPE html>
       var QUEUE_SLACK_WINDOWS = 8;
       var newestSerial = 0;
       var FLAT_WAVE = new Float32Array(1024);
+      FLAT_WAVE.rms = 0;
+      FLAT_WAVE.peak = 0;
+      // Mid-morph, two unrelated windows partly cancel (~0.7x as loud
+      // halfway), which the site's trace never does: the morph is lifted
+      // back to the loudness between the two windows, by at most this much
+      // (a near-total cancellation is left quiet rather than blown up), and
+      // never past the louder window's own peak (the audio never goes there).
+      var MAX_MORPH_LIFT = 2;
 
       // Read clock: the schedule the windows are produced on, recovered from
       // their arrivals like a jitter buffer's clock. gridAt is when the
@@ -133,8 +142,12 @@ const PAGE_HTML = `<!DOCTYPE html>
       // unlike the old crossfade nothing is reported back for calibration.
       var filling = true;
 
+      // A decoded window, with its loudness (RMS) as \`rms\` and its largest
+      // swing as \`peak\` for the morph.
       function decode(hex) {
         var wave = new Float32Array(hex.length / 2);
+        var squares = 0;
+        var peak = 0;
         for (var i = 0; i < wave.length; i++) {
           var offset = i * 2;
           var high = hex.charCodeAt(offset);
@@ -146,7 +159,11 @@ const PAGE_HTML = `<!DOCTYPE html>
               (low <= 57 ? low - 48 : low - 87)
             : parseInt(hex.substr(offset, 2), 16);
           wave[i] = byte / 127.5 - 1;
+          squares += wave[i] * wave[i];
+          peak = Math.max(peak, Math.abs(wave[i]));
         }
+        wave.rms = wave.length ? Math.sqrt(squares / wave.length) : 0;
+        wave.peak = peak;
         return wave;
       }
 
@@ -269,18 +286,18 @@ const PAGE_HTML = `<!DOCTYPE html>
       var scopeContext = scopeCanvas.getContext('2d', { alpha: true });
       var lastStrokeFirst = null;
       var lastStrokeSecond = null;
-      var lastStrokeOffset = -1;
+      var lastStrokeBlend = -1;
       var lastStrokeWidth = -1;
       var lastStrokeHeight = -1;
       // The canvas bitmap is managed by the compositor, not by JS state: a
       // surface/layer teardown, trim, or page restore can drop those pixels
-      // while every JS-observable value (windows, size, offset) stays the
+      // while every JS-observable value (windows, size, blend) stays the
       // same. Lifecycle events therefore drop the cached-stroke assumption
       // so the next frame repaints the actual canvas.
       function invalidateStroke() {
         lastStrokeFirst = null;
         lastStrokeSecond = null;
-        lastStrokeOffset = -1;
+        lastStrokeBlend = -1;
       }
       document.addEventListener('visibilitychange', invalidateStroke);
       window.addEventListener('pageshow', invalidateStroke);
@@ -320,23 +337,33 @@ const PAGE_HTML = `<!DOCTYPE html>
           applyStrokeStyles();
         }
 
-        // The stroke covers one window's worth of points starting at the
-        // read position: the tail of window floor(cursor) followed by the
-        // head of the next one.
+        // The stroke shows window floor(cursor) morphing in place into the
+        // next one as the read position crosses it. Each window stays where
+        // it is, so the trace rises and falls instead of scrolling sideways
+        // (a stretch sliding along with the clock repeats most of the last
+        // frame shifted left on a 90 Hz screen), and it changes on every
+        // frame. The blend follows the audio clock, not the arrivals, so
+        // bursty delivery cannot restart it.
         var first = FLAT_WAVE;
         var second = FLAT_WAVE;
-        var offset = 0;
+        var blend = 0;
         if (hasWave) {
           var base = Math.floor(cursor);
           var index = base - (newestSerial - waveQueue.length + 1);
           first = waveQueue[index];
-          offset = Math.floor((cursor - base) * first.length);
-          // cursor <= newestSerial, so a partial offset always has a next window.
-          second = offset > 0 ? waveQueue[Math.min(index + 1, waveQueue.length - 1)] : first;
+          blend = cursor - base;
+          // cursor <= newestSerial, so a partial blend always has a next window.
+          second = blend > 0 ? waveQueue[Math.min(index + 1, waveQueue.length - 1)] : first;
+          // Windows of different sizes (the point count changed mid-stream)
+          // have no point-for-point morph: the next one simply takes over.
+          if (second.length !== first.length) {
+            second = first;
+            blend = 0;
+          }
         }
         // Nothing moved since the last stroke (no new audio to show yet):
         // its pixels are still exactly right.
-        if (first === lastStrokeFirst && second === lastStrokeSecond && offset === lastStrokeOffset &&
+        if (first === lastStrokeFirst && second === lastStrokeSecond && blend === lastStrokeBlend &&
             canvasWidth === lastStrokeWidth && canvasHeight === lastStrokeHeight) {
           return;
         }
@@ -353,11 +380,32 @@ const PAGE_HTML = `<!DOCTYPE html>
         // but a lone one-sample spike on a skipped index is not drawn, so
         // dense passages read slightly smoother than with every point.
         // The final vertex is pinned so the stroke still reaches the end of
-        // the window; set stride to 1 to draw every point.
+        // the window. Every point (stride 1) also reads busier than the
+        // site: measured against player.animu.moe on the live stream, it
+        // overshoots the site's line texture by ~13%, stride 2 lands within 5%.
         var stride = canvasWidth > 0 ? Math.max(1, Math.round(length / (canvasWidth * 1.5))) : 1;
+        // A morph is never louder than the loudness between its windows
+        // (the RMS of a blend is at most the blend of the RMSs), nor does it
+        // swing wider than the louder one, so the lift only ever raises it
+        // back toward them.
+        var lift = 1;
+        if (blend > 0) {
+          var mixSquares = 0;
+          var mixPeak = 0;
+          for (var k = 0; k < length; k++) {
+            var mixed = first[k] + (second[k] - first[k]) * blend;
+            mixSquares += mixed * mixed;
+            mixPeak = Math.max(mixPeak, Math.abs(mixed));
+          }
+          var mixRms = Math.sqrt(mixSquares / length);
+          var wantedRms = first.rms + (second.rms - first.rms) * blend;
+          if (mixRms > 0) {
+            lift = Math.max(1, Math.min(MAX_MORPH_LIFT, wantedRms / mixRms,
+              Math.max(first.peak, second.peak) / mixPeak));
+          }
+        }
         for (var i = 0; i < length; i += stride) {
-          var source = offset + i;
-          var value = source < length ? first[source] : second[source - length];
+          var value = (first[i] + (second[i] - first[i]) * blend) * lift;
           var y = (0.5 + value / 2) * canvasHeight;
           if (i === 0) {
             scopeContext.moveTo(i * xStep, y);
@@ -367,15 +415,14 @@ const PAGE_HTML = `<!DOCTYPE html>
         }
         var lastVertex = length - 1;
         if (length > 0 && lastVertex % stride) {
-          var lastSource = offset + lastVertex;
-          var lastValue = lastSource < length ? first[lastSource] : second[lastSource - length];
+          var lastValue = (first[lastVertex] + (second[lastVertex] - first[lastVertex]) * blend) * lift;
           scopeContext.lineTo(lastVertex * xStep, (0.5 + lastValue / 2) * canvasHeight);
         }
 
         scopeContext.stroke();
         lastStrokeFirst = first;
         lastStrokeSecond = second;
-        lastStrokeOffset = offset;
+        lastStrokeBlend = blend;
         lastStrokeWidth = canvasWidth;
         lastStrokeHeight = canvasHeight;
       }
@@ -391,8 +438,8 @@ const PAGE_HTML = `<!DOCTYPE html>
  * decoded-audio tap (react-native-anything-player) hands each window to
  * the page (a WebView; an iframe on the web) as a tiny hex payload, and the
  * embedded page runs the *web
- * player's own draw loop* — a window-long stretch of the decoded stream,
- * read on an audio-paced clock and stroked once per display vsync through
+ * player's own draw loop* — a window of the decoded stream morphing into the
+ * next, read on an audio-paced clock and stroked once per display vsync through
  * a GPU-backed canvas.
  * Same renderer class (`canvas` + `requestAnimationFrame`), same geometry,
  * same technique as `player.animu.moe`.
