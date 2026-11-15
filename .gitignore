@@ -90,3 +90,6 @@ __pycache__/
 
 # Portable CI outputs
 ci-results.json
+
+# Store screenshots (captured locally, kept out of git)
+screenshots/
