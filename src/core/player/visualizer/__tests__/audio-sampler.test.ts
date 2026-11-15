@@ -94,14 +94,14 @@ describe("AudioSampler (react-native-anything-player windows)", () => {
     expect(t.windows[1].outputLatencyMs).toBeCloseTo(170, 5);
   });
 
-  it("lifts quiet passages and soft-clips loud ones", () => {
+  it("forwards the waveform unscaled, quiet or loud, like the website's analyser", () => {
     const t = setup();
     t.sampler.setEnabled(true);
     t.sampler.setPlaying(true);
     for (let i = 0; i < 20; i++) t.sample({ waveform: [0.05, -0.05], level: 0.05 });
-    const quiet = t.windows.at(-1)!.targetWave[0];
-    expect(quiet).toBeGreaterThan(0.05);
-    expect(quiet).toBeLessThan(1);
+    expect(t.windows.at(-1)!.targetWave).toEqual([0.05, -0.05]);
+    t.sample({ waveform: [0.98, -1], level: 0.7 });
+    expect(t.windows.at(-1)!.targetWave).toEqual([0.98, -1]);
   });
 
   it("drops windows once disposed", () => {

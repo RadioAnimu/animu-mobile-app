@@ -14,7 +14,9 @@ import type {
  * iOS, where AVPlayer's own audio tap never runs. What is left here is pacing
  * and presentation: the window's PCM duration (the visualizer's read pace)
  * and measured cadence (median; its stand-in when a platform reports no
- * duration), the delay until the window is heard, and the draw gain.
+ * duration) and the delay until the window is heard. The waveform is
+ * forwarded unscaled, like the website's AnalyserNode, so the trace keeps
+ * the music's own loudness and peaks.
  */
 
 /**
@@ -30,10 +32,6 @@ const MIN_NATIVE_INTERVAL_MS = 8;
 const MAX_NATIVE_INTERVAL_MS = 80;
 const MAX_OUTPUT_LATENCY_MS = 600;
 const OUTPUT_LATENCY_SMOOTH = 0.85;
-/** Draw gain: quiet passages are lifted toward this RMS (soft-clipped). */
-const DRAW_TARGET_RMS = 0.42;
-const DRAW_MAX_GAIN = 3;
-const DRAW_GAIN_SMOOTH = 0.8;
 
 function median(values: number[]): number {
   const sorted = [...values].sort((a, b) => a - b);
@@ -48,7 +46,6 @@ export class AudioSampler implements VisualizerSampler {
   private subscription: (() => void) | null = null;
   private readonly listeners = new Set<(window: VisualizerWindow) => void>();
   private previousWave: number[] | null = null;
-  private drawGain = 1;
   private lastAt = -1;
   private intervalMs = DEFAULT_NATIVE_INTERVAL_MS;
   private readonly deltas: number[] = [];
@@ -120,7 +117,6 @@ export class AudioSampler implements VisualizerSampler {
     this.trackCadence(Date.now());
     this.trackLatency(sample.outputLatency);
     const target = sample.waveform;
-    if (sample.level > 0.02) this.applyDrawGain(target, sample.level);
     const window: VisualizerWindow = {
       previousWave: this.previousWave ?? target,
       targetWave: target,
@@ -155,12 +151,5 @@ export class AudioSampler implements VisualizerSampler {
       this.outputLatencyMs < 0
         ? measured
         : this.outputLatencyMs * OUTPUT_LATENCY_SMOOTH + measured * (1 - OUTPUT_LATENCY_SMOOTH);
-  }
-
-  /** Lifts quiet passages toward a readable trace (soft-clipped, in place). */
-  private applyDrawGain(wave: number[], level: number): void {
-    const wanted = Math.min(DRAW_MAX_GAIN, Math.max(1, DRAW_TARGET_RMS / level));
-    this.drawGain = this.drawGain * DRAW_GAIN_SMOOTH + wanted * (1 - DRAW_GAIN_SMOOTH);
-    for (let i = 0; i < wave.length; i++) wave[i] = Math.tanh(wave[i] * this.drawGain);
   }
 }
