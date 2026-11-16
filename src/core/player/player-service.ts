@@ -629,8 +629,8 @@ export class PlayerService {
   private trackLeftSeconds(): number | null {
     const duration = this.deps.hearing.track?.duration ?? 0;
     // "More than": a length that is not a number places nothing either.
-    const placed = duration > 0 && this.deps.hearing.positionKnown;
-    if (this.lastState !== "playing" || !placed) return null;
+    const placed = this.lastState === "playing" && duration > 0 && this.deps.hearing.positionKnown;
+    if (!placed) return null;
     const elapsed = this.heardElapsedMs();
     if (elapsed == null) return null;
     const left = (duration - elapsed) / 1000;
