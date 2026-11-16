@@ -136,7 +136,7 @@ export class PlayerService {
    */
   private afterJump = false;
   /** Whether the player reports where heard items start (`boundary` events). */
-  private boundariesOn = false;
+  private readonly boundariesOn: boolean;
   /**
    * Title changes heard, waiting for the player to find where their items
    * start. `shown`: on screen meanwhile, placed at its title.
@@ -628,7 +628,9 @@ export class PlayerService {
    */
   private trackLeftSeconds(): number | null {
     const duration = this.deps.hearing.track?.duration ?? 0;
-    if (this.lastState !== "playing" || !(duration > 0) || !this.deps.hearing.positionKnown) return null;
+    // "More than": a length that is not a number places nothing either.
+    const placed = duration > 0 && this.deps.hearing.positionKnown;
+    if (this.lastState !== "playing" || !placed) return null;
     const elapsed = this.heardElapsedMs();
     if (elapsed == null) return null;
     const left = (duration - elapsed) / 1000;
