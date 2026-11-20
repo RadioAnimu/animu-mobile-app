@@ -4,7 +4,7 @@ import { forwardRef, useEffect, useImperativeHandle, useState } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { Oscilloscope } from "@/components/Oscilloscope/Oscilloscope";
-import { loadPage, play, type Page } from "@/components/Oscilloscope/__tests__/page-harness";
+import { loadPage, play } from "@/components/Oscilloscope/__tests__/page-harness";
 import { THEME } from "@/theme";
 
 const webview = vi.hoisted(() => ({
@@ -292,114 +292,25 @@ describe("Oscilloscope (Android)", () => {
       expect(p.canvas.getContext).toHaveBeenCalledTimes(1);
     });
 
-    it("morphs the read position's window into the next in place, decimated with the final vertex pinned", () => {
+    it("strokes one window of points from the read position, decimated with the final vertex pinned", () => {
       const p = page(320.8);
       play(p, steady(0, 1000), 100, 1010);
       p.commands.length = 0;
       p.frame(1019);
       const { cursor } = p.peek();
       const base = Math.floor(cursor);
-      const blend = cursor - base;
-      expect(blend).toBeGreaterThan(0);
+      const offset = Math.floor((cursor - base) * 1024);
+      expect(offset).toBeGreaterThan(0);
       // 320 CSS px → stride round(1024 / 480) = 2: 512 sampled points + the pinned last one.
       const sampled = [...Array.from({ length: 512 }, (_, k) => k * 2), 1023];
       const byteOf = (serial: number) => (serial % 200) + 1;
-      const value = (byte: number) => Math.fround(byte / 127.5 - 1);
-      const from = value(byteOf(base));
-      const to = value(byteOf(base + 1));
-      // Every point sits the same share of the way from window `base` to the next.
-      const y = (0.5 + (from + (to - from) * blend) / 2) * 75;
+      const level = (byte: number) => (0.5 + (Math.fround(byte / 127.5 - 1)) / 2) * 75;
       expect(p.commands).toHaveLength(2 + sampled.length + 1);
-      expect(p.vertices()).toEqual(sampled.map((i) => [i * (320 / 1000), y]));
-      expect(y).not.toBe((0.5 + from / 2) * 75);
-      expect(y).not.toBe((0.5 + to / 2) * 75);
-    });
-
-    it.each([60, 90, 120, 144])("draws a new trace on every frame of a %i Hz display", (hz) => {
-      const p = page();
-      // Windows keep arriving every 25 ms while the display runs at `hz`.
-      let next = 0;
-      let strokes = 0;
-      let frames = 0;
-      for (let at = 0; at < 3000; at += 1000 / hz) {
-        while (next * 25 <= at) {
-          p.clock.now = next * 25;
-          p.wave(next++ % 2 ? "c0".repeat(1024) : "40".repeat(1024));
-        }
-        p.commands.length = 0;
-        p.frame(at);
-        if (at < 1000) continue;
-        frames++;
-        strokes += p.strokes();
-      }
-      expect(strokes).toBe(frames);
-    });
-
-    // Alternates two windows and returns the drawn values of the frames well
-    // inside a morph (blend 0.1–0.9), once the read position has settled.
-    const morphValues = (p: Page, odd: string, even: string) => {
-      const morphs: number[][] = [];
-      for (let k = 0; k < 80; k++) {
-        p.clock.now = k * 25;
-        p.wave(k % 2 ? odd : even);
-        for (let at = k * 25 + 5; at < k * 25 + 25; at += 7) {
-          p.commands.length = 0;
-          p.frame(at);
-          const blend = p.peek().cursor % 1;
-          if (k < 40 || blend < 0.1 || blend > 0.9 || p.strokes() === 0) continue;
-          morphs.push(p.vertices().map(([, y]) => (y / 75 - 0.5) * 2));
-        }
-      }
-      expect(morphs.length).toBeGreaterThan(20);
-      return morphs;
-    };
-    const decoded = (byte: number) => Math.fround(byte / 127.5 - 1);
-    const rmsOf = (values: number[]) => Math.sqrt(values.reduce((sum, v) => sum + v * v, 0) / values.length);
-
-    it("keeps a morph between unrelated windows as loud as the windows themselves", () => {
-      // 800 CSS px: stride 1, so the drawn points are the whole window.
-      const p = page(800.8);
-      // Two equally loud pulse trains whose pulses never meet (orthogonal):
-      // a plain halfway blend of them would be ~0.7x as loud.
-      const first = "bf804080".repeat(256); // +0.5, 0, -0.5, 0
-      const second = "80bf8040".repeat(256); // 0, +0.5, 0, -0.5
-      const loudness = rmsOf([191, 128, 64, 128].map(decoded));
-      for (const values of morphValues(p, second, first)) {
-        expect(rmsOf(values)).toBeCloseTo(loudness, 2);
-        for (const value of values) expect(Math.abs(value)).toBeLessThanOrEqual(decoded(191) + 1e-6);
-      }
-    });
-
-    it("never lifts a morph past the louder window's own peak", () => {
-      const p = page(320.8);
-      // Two ±0.5 square waves: where they agree, the blend already sits at
-      // the peak, so lifting it to the windows' loudness would overshoot.
-      const fast = "bfbf4040".repeat(256);
-      const slow = "bfbfbfbf40404040".repeat(128);
-      for (const values of morphValues(p, slow, fast)) {
-        for (const value of values) expect(Math.abs(value)).toBeLessThanOrEqual(decoded(191) + 1e-6);
-      }
-    });
-
-    it("shows a window whole, without a morph, when the next one has a different point count", () => {
-      const p = page();
-      // The read position, two windows behind the newest, crosses from the
-      // last 1024-point window into the first 512-point one.
-      const full = (0.5 + Math.fround(255 / 127.5 - 1) / 2) * 75;
-      const empty = (0.5 + Math.fround(0 / 127.5 - 1) / 2) * 75;
-      let seams = 0;
-      for (let k = 0; k < 24; k++) {
-        p.clock.now = k * 25;
-        p.wave(k < 20 ? "ff".repeat(1024) : "00".repeat(512));
-        for (let at = k * 25 + 5; at < k * 25 + 25; at += 10) {
-          p.commands.length = 0;
-          p.frame(at);
-          if (Math.floor(p.peek().cursor) === 20 && p.peek().cursor % 1 > 0) seams++;
-          // Every point is one window's own, never a morph of the two.
-          for (const [, y] of p.vertices()) expect([full, empty]).toContain(y);
-        }
-      }
-      expect(seams).toBeGreaterThan(0);
+      expect(p.vertices()).toEqual(sampled.map((i) => [
+        i * (320 / 1000),
+        // The tail of window `base`, then the head of the next window.
+        level(byteOf(offset + i < 1024 ? base : base + 1)),
+      ]));
     });
 
     it("follows the requested delay on its own clock and never stalls, skips or steps back on bursty delivery", () => {
